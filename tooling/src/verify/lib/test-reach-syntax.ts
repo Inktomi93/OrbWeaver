@@ -41,8 +41,8 @@ export function isTypeDeclaration(declaration: MorphNode): boolean {
   return Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration) || Node.isTypeParameterDeclaration(declaration);
 }
 
-/** The local names of a file's value imports: the bindings a call can name directly. */
-export function importedValueNames(file: SourceFile): ReadonlySet<string> {
+/** Candidate call bindings only; the module-origin reader proves whether an import or local alias is real. */
+export function moduleValueCandidateNames(file: SourceFile): ReadonlySet<string> {
   const values = new Set<string>();
   for (const declaration of file.getImportDeclarations()) {
     if (declaration.isTypeOnly()) {
@@ -58,7 +58,24 @@ export function importedValueNames(file: SourceFile): ReadonlySet<string> {
       }
     }
   }
+  for (const name of file.getDescendantsOfKind(SyntaxKind.VariableDeclaration).flatMap(variableBindingNames)) {
+    values.add(name);
+  }
   return values;
+}
+
+function variableBindingNames(declaration: import("ts-morph").VariableDeclaration): readonly string[] {
+  const name = declaration.getNameNode();
+  if (Node.isIdentifier(name)) {
+    return [name.getText()];
+  }
+  return Node.isObjectBindingPattern(name)
+    ? name
+        .getElements()
+        .map((element) => element.getNameNode())
+        .filter(Node.isIdentifier)
+        .map((binding) => binding.getText())
+    : [];
 }
 
 export function namespaceMembers(file: SourceFile, local: string): readonly string[] {

@@ -442,11 +442,11 @@ function declaredFamilies(
 ): ReadonlyMap<string, ReadonlySet<TestFamily>> {
   const out = new Map<string, Set<TestFamily>>();
   for (const { test, subject, family } of declared) {
-    if (spaces.some((space) => space.sourceFiles.has(subject))) {
-      out.set(subject, (out.get(subject) ?? new Set<TestFamily>()).add(family));
+    if (isLegacyTestPath(test)) {
       continue;
     }
-    if (isLegacyTestPath(test)) {
+    if (spaces.some((space) => space.sourceFiles.has(subject))) {
+      out.set(subject, (out.get(subject) ?? new Set<TestFamily>()).add(family));
       continue;
     }
     ctx.report.file(test, {
@@ -549,8 +549,7 @@ export const gate = defineGate({
   family: "mirror-index",
   authority: "reviewed-grant",
   severity: "error",
-  // Legacy tests still prove reach until their rebuilt suite replaces them; only their `@subject` headers go unjudged.
-  population: ["@server", "@contracts", "@inference", "@client", "@ui", "@tests", "@legacy-tests"],
+  population: ["@server", "@contracts", "@inference", "@client", "@ui", "@tests"],
   // `resource` keeps the checker (alias resolution through barrels) and admits the mirror-index declarations.
   analysis: "resource",
   // Reach is a whole-graph relation: a changed test can drop a module no selected file names.
@@ -569,7 +568,8 @@ export const gate = defineGate({
       const census: Census = { domainLogic: 0, tierLogic: 0 };
       const demands = collectDemands(ctx, census);
       const reach = testReach({
-        files: ctx.files,
+        // Mirror resources retain the legacy regression inventory, not strict reach evidence.
+        files: ctx.files.filter((file) => !isLegacyTestPath(ctx.relativePath(file))),
         relativePath: ctx.relativePath,
         checker: ctx.checker(),
         isSubject: (path) => demands.modules.has(path),

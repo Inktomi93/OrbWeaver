@@ -2,6 +2,66 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import { Project, SyntaxKind } from "ts-morph";
 
+const DYNAMIC_ORIGIN_CASES = ["direct", "local", "destructured", "computed", "transitive"] as const;
+const DYNAMIC_FILES = {
+  "/repo/leaf.ts": "export function pick() { return 1; }\n",
+  "/repo/barrel.ts": 'export { pick } from "./leaf.ts";\n',
+  "/repo/bridge.ts": 'export * from "./barrel.ts";\n',
+};
+
+const LOCAL_FILES = {
+  "/repo/leaf.ts": "export const record = () => 1; export const publicName = () => 2;\n",
+  "/repo/default.ts": 'export { record as default } from "./leaf.ts";\n',
+  "/repo/use.ts": 'import { publicName } from "./barrel.ts";\nexport const value = publicName;\n',
+};
+
+test.for(["default", "destructured"] as const)("the particular %s local export binding determines canonical identity", (scenario) => {
+  const source =
+    scenario === "default"
+      ? 'import drive from "./default.ts";\nexport { drive as publicName };\n'
+      : 'const { record: drive } = await import("./leaf.ts");\nexport { drive as publicName };\n';
+  const fact = pickOrigin({ ...LOCAL_FILES, "/repo/barrel.ts": source });
+  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "record" } } });
+  expect(fact.trace.declarations.map((declaration) => declaration.getSourceFile().getFilePath())).toContain("/repo/barrel.ts");
+});
+
+const LOCAL_REFUSALS = ["missing", "wrong-member", "cycle", "write"] as const;
+test.for(LOCAL_REFUSALS)("local export provenance refuses %s instead of borrowing the same-named leaf member", (scenario) => {
+  const sources = {
+    missing: 'import { record as drive } from "./missing.ts";\nexport { drive as publicName };\n',
+    "wrong-member": 'import { absent as drive } from "./leaf.ts";\nexport { drive as publicName };\n',
+    cycle: 'import { publicName as drive } from "./barrel.ts";\nexport { drive as publicName };\n',
+    write: 'import { record } from "./leaf.ts";\nlet drive = record;\nexport { drive as publicName };\n',
+  } satisfies Record<(typeof LOCAL_REFUSALS)[number], string>;
+  const reasons = { missing: "missing", "wrong-member": "missing", cycle: "cycle", write: "write" } as const;
+  expect(pickOrigin({ ...LOCAL_FILES, "/repo/barrel.ts": sources[scenario] })).toMatchObject({ kind: "unresolved", reason: reasons[scenario] });
+});
+
+test.for(DYNAMIC_ORIGIN_CASES)("dynamic namespace origin preserves its module path: %s", (scenario) => {
+  const sources = {
+    direct: 'export const value = (await import("./barrel.ts")).pick;\n',
+    local: 'const namespace = await import("./barrel.ts");\nconst alias = namespace;\nexport const value = alias.pick;\n',
+    destructured: 'const { pick } = await import("./barrel.ts");\nexport const value = pick;\n',
+    computed: 'export const value = (await import("./barrel.ts"))["pick"];\n',
+    transitive: 'export const value = (await import("./bridge.ts")).pick;\n',
+  } satisfies Record<(typeof DYNAMIC_ORIGIN_CASES)[number], string>;
+  const fact = pickOrigin({
+    ...DYNAMIC_FILES,
+    "/repo/use.ts": sources[scenario],
+  });
+  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "pick" } } });
+  expect(fact.trace.declarations.map((declaration) => declaration.getSourceFile().getFilePath())).toContain("/repo/barrel.ts");
+});
+
+test.for(["missing", "nonliteral"] as const)("dynamic namespace origin refuses the %s door", (scenario) => {
+  const source =
+    scenario === "missing"
+      ? 'export const value = (await import("./missing.ts")).pick;\n'
+      : 'const route = "./barrel.ts";\nexport const value = (await import(route)).pick;\n';
+  const fact = pickOrigin({ ...DYNAMIC_FILES, "/repo/use.ts": source });
+  expect(fact).toMatchObject({ kind: "unresolved", reason: scenario === "missing" ? "missing" : "dynamic" });
+});
+
 function origin(barrel: string): ReturnType<typeof resolveModuleMemberOrigin> {
   const project = new Project({ useInMemoryFileSystem: true });
   project.createSourceFile("/repo/leaf.ts", "export const record = () => 1; export const publicName = () => 2;");
@@ -32,10 +92,10 @@ test("an unrelated same-named leaf export cannot validate a local import/export 
   const local = origin('import { record as internal } from "./leaf"; export { internal as publicName };');
 
   expect(explicit).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "record" } } });
-  expect(local).toMatchObject({ kind: "unresolved", reason: "unsupported" });
+  expect(local).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "record" } } });
 });
 
-test("local value exports retain their public name while wrapped imported aliases refuse", () => {
+test("local value exports retain their public name while wrapped imported aliases retain the particular binding", () => {
   const authored = origin("const implementation = () => 1; export { implementation as publicName };");
   const aliased = origin('import { record } from "./leaf"; const alias = ((record as typeof record)!); export { alias as publicName };');
 
@@ -45,13 +105,13 @@ test("local value exports retain their public name while wrapped imported aliase
   }
   expect(authored.value.canonical.declaration.getSourceFile().getBaseName()).toBe("barrel.ts");
   expect(authored.value.canonical.declaration.getText()).toBe("implementation = () => 1");
-  expect(aliased).toMatchObject({ kind: "unresolved", reason: "unsupported" });
+  expect(aliased).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "record" } } });
 });
 
-test.each(["namespace.record", 'namespace["record"]'])("an exported member alias %s remains an explicit refusal", (expression) => {
+test.each(["namespace.record", 'namespace["record"]'])("an exported member alias %s retains its particular binding", (expression) => {
   const aliased = origin(`import * as namespace from "./leaf"; const alias = (${expression}); export { alias as publicName };`);
 
-  expect(aliased).toMatchObject({ kind: "unresolved", reason: "unsupported" });
+  expect(aliased).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "record" } } });
 });
 
 /** Resolve `pick` (or `choose`) as imported by `/repo/use.ts` from an arbitrary file map. */
@@ -119,11 +179,7 @@ test("a LOCAL export specifier over a same-file overload set resolves the same w
   expect(fact.value.canonical.declaration.getText()).toContain("return value");
 });
 
-// A barrel that re-exports an IMPORTED binding under its OWN name republishes the door; it does not rename
-// it. Both live shapes were refused as `unsupported` until the name-preserving arm landed: `@trpc/server`'s
-// `TRPCError` (the NAMED form, 7 server import specifiers) and zod 4.4.3 `index.d.cts:1,3`
-// (`import * as z from "./v4/classic/external.cjs"; export { z };` — the NAMESPACE form, which closed the
-// Zod door for `no-raw-id`). The guard itself is NOT removed: the renaming rows below are what it protects.
+// Named and namespace re-exports retain their actual imported door, including when the local name changes.
 test("a name-preserving barrel over an imported binding resolves to the leaf's own declaration", () => {
   const fact = pickOrigin({
     "/repo/leaf.ts": "export const pick = (): number => 1;\n",
@@ -159,19 +215,18 @@ test("a name-preserving NAMESPACE re-export behind a package door resolves to th
 
 test.each([
   [
-    // THE NAME-PRESERVING ARM'S OWN COUNTERFACTUAL, import hop. The barrel publishes `pick`, but the LEAF
-    // calls it `record` — and the leaf also exports its own `pick`. Accepting this would let the leaf's
-    // same-named export validate a renaming re-export, which is the hazard the guard exists for.
+    // The leaf's unrelated `pick` cannot stand in for the particular imported `record` binding.
     "a barrel whose import hop renames the leaf's export",
     {
       "/repo/leaf.ts": "export const record = (): number => 1;\nexport const pick = (): string => 'other';\n",
       "/repo/barrel.ts": 'import { record as pick } from "./leaf.ts";\nexport { pick };\n',
       "/repo/use.ts": 'import { pick } from "./barrel.ts";\nexport const value = pick;\n',
     },
+    "record",
+    "/repo/leaf.ts",
   ],
   [
-    // The same hazard at the EXPORT hop, namespace form: the published name is not the binding's name, so
-    // nothing proves which module the consumer's `pick` names.
+    // A namespace alias retains the module it imported, not a guessed same-named leaf member.
     "a namespace re-export renamed at the export hop",
     {
       "/node_modules/vendor/package.json": VENDOR_PACKAGE,
@@ -179,9 +234,16 @@ test.each([
       "/node_modules/vendor/external.d.ts": "export declare function record(value: string): string;\n",
       "/repo/use.ts": 'import { pick } from "vendor";\nexport const value = pick;\n',
     },
+    "pick",
+    "/node_modules/vendor/external.d.ts",
   ],
-])("%s stays an explicit refusal — a renamed re-export proves no home", (_label, files) => {
-  expect(pickOrigin(files)).toMatchObject({ kind: "unresolved", reason: "unsupported" });
+])("%s retains its particular canonical home", (_label, files, name, home) => {
+  const fact = pickOrigin(files);
+  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: name } } });
+  if (fact.kind === "unresolved" || fact.value.canonical.kind !== "project") {
+    throw new Error("expected a resolved project binding");
+  }
+  expect(fact.value.canonical.sourceFile.getFilePath()).toBe(home);
 });
 
 test.each([

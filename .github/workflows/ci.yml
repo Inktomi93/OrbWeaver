@@ -42,7 +42,7 @@ concurrency:
 
 env:
   ORB_CI_REPOSITORY: Inktomi93/OrbWeaver
-  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v3
+  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v4
   ORB_CI_PUBLICATION_BOOTSTRAP_SHA: ac6cfc19ea9db59644426b37f6b8c842c33473ad
   ORB_CI_FULL_CACHE_PREFIX: full-hosted-v1-verified
 

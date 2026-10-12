@@ -1,11 +1,25 @@
 export const REPOSITORY = "Inktomi93/OrbWeaver";
-export const GENERATION = "Orbweaver qualification product-v3";
+export const GENERATION = "Orbweaver qualification product-v4";
 export const SHA = "a".repeat(40);
 export const REQUIRED_JOB_NAMES = ["static", "ci-ok", "changes"] as const;
-export const RUNTIME_JOB_NAMES = ["node (1/3)", "node (2/3)", "node (3/3)", "ct (1/5)", "ct (2/5)", "ct (3/5)", "ct (4/5)", "ct (5/5)", "e2e-smoke"] as const;
+export const RUNTIME_JOB_NAMES = [
+  "node (1/1)",
+  "node legacy (1/3)",
+  "node legacy (2/3)",
+  "node legacy (3/3)",
+  "ct (1/1)",
+  "ct legacy (1/5)",
+  "ct legacy (2/5)",
+  "ct legacy (3/5)",
+  "ct legacy (4/5)",
+  "ct legacy (5/5)",
+  "e2e-smoke",
+] as const;
 export const RUNTIME_JOB_GROUPS = [
-  { name: "node (${{ matrix.shard }}/3)", jobs: ["node (1/3)", "node (2/3)", "node (3/3)"] },
-  { name: "ct (${{ matrix.shard }}/5)", jobs: ["ct (1/5)", "ct (2/5)", "ct (3/5)", "ct (4/5)", "ct (5/5)"] },
+  { name: "node (1/1)", jobs: ["node (1/1)"] },
+  { name: "node legacy (${{ matrix.shard }}/3)", jobs: ["node legacy (1/3)", "node legacy (2/3)", "node legacy (3/3)"] },
+  { name: "ct (1/1)", jobs: ["ct (1/1)"] },
+  { name: "ct legacy (${{ matrix.shard }}/5)", jobs: ["ct legacy (1/5)", "ct legacy (2/5)", "ct legacy (3/5)", "ct legacy (4/5)", "ct legacy (5/5)"] },
   { name: "e2e-smoke", jobs: ["e2e-smoke"] },
 ] as const;
 export const GROUPED_CONFIG = {
@@ -65,7 +79,10 @@ export function metadata(sha = SHA): object {
   return {
     [`${API_ROOT}/workflows/ci.yml`]: { id: 7, path: ".github/workflows/ci.yml" },
     [`${API_ROOT}/workflows/7/runs?head_sha=${sha}&event=push&branch=main&per_page=100&page=1`]: { ["total_count"]: 1, ["workflow_runs"]: [run] },
-    [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: 12, jobs: [goodJob(sha), ...goodProductJobs(sha)] },
+    [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: {
+      ["total_count"]: 1 + goodProductJobs(sha).length,
+      jobs: [goodJob(sha), ...goodProductJobs(sha)],
+    },
     [`${API_ROOT}/runs/1`]: run,
   };
 }

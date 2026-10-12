@@ -23,8 +23,8 @@
   "// gitignore": "Respect .gitignore.",
   "gitignore": true,
 
-  "// ignore": "Declarations are not implementation.",
-  "ignore": ["**/*.d.ts"],
+  "// ignore": "Declarations are not implementation; legacy regression cases are outside the strict rebuilt-test population.",
+  "ignore": ["**/*.d.ts", "tests/legacy/**"],
 
   "// ignorePattern": "Ignore import blocks that are naturally identical across files.",
   "ignorePattern": ["import.*from.*"],

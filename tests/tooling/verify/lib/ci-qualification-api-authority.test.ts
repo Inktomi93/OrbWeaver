@@ -142,9 +142,10 @@ test("the shared qualifier rejects false authority and partial reruns, and pagin
     { ["run_id"]: 2 },
     { ["head_sha"]: "b".repeat(40) },
   ]) {
-    expect(check({ ...metadata(), [jobsUrl]: { ["total_count"]: 12, jobs: [{ ...goodJob(), ...patch }, ...goodProductJobs()] } }), JSON.stringify(patch)).toBe(
-      false,
-    );
+    expect(
+      check({ ...metadata(), [jobsUrl]: { ["total_count"]: 1 + goodProductJobs().length, jobs: [{ ...goodJob(), ...patch }, ...goodProductJobs()] } }),
+      JSON.stringify(patch),
+    ).toBe(false);
   }
   expect(check({ ...metadata(), [runUrl]: { ["total_count"]: 2, ["workflow_runs"]: [goodRun(), { ...goodRun(SHA, 2), conclusion: "failure" }] } })).toBe(false);
   expect(check({ ...metadata(), [`${API_ROOT}/runs/1`]: { ...goodRun(), ["run_attempt"]: 3 } })).toBe(false);
@@ -152,12 +153,13 @@ test("the shared qualifier rejects false authority and partial reruns, and pagin
   expect(() => check({ ...metadata(), [jobsUrl]: { ["total_count"]: 1, jobs: [] } })).toThrow("incomplete");
   expect(() => check({ ...metadata(), [runUrl]: { ["total_count"]: 1, ["workflow_runs"]: [{ ...goodRun(), ["run_attempt"]: undefined }] } })).toThrow();
   expect(() => check({})).toThrow("metadata unavailable");
-  const others = Array.from({ length: 100 }, (_, index) => ({ ...goodJob(SHA, index + 13), name: `other-${index}`, steps: [] }));
+  const productJobs = [goodJob(), ...goodProductJobs()];
+  const others = Array.from({ length: 100 }, (_, index) => ({ ...goodJob(SHA, index + productJobs.length + 1), name: `other-${index}`, steps: [] }));
   expect(
     check({
       ...metadata(),
-      [jobsUrl]: { ["total_count"]: 112, jobs: others },
-      [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=2`]: { ["total_count"]: 112, jobs: [goodJob(), ...goodProductJobs()] },
+      [jobsUrl]: { ["total_count"]: others.length + productJobs.length, jobs: others },
+      [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=2`]: { ["total_count"]: others.length + productJobs.length, jobs: productJobs },
     }),
   ).toBe(true);
   expect(readFileSync(join(scratch, "ci-requests.jsonl"), "utf8")).toContain("/runs/1/attempts/2/jobs?per_page=100&page=2");
