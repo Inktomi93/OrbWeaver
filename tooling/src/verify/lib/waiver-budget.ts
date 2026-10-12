@@ -126,7 +126,6 @@ const IMPLEMENTATION = Object.freeze({
   "test-file-size": 14,
   "test-mock-doctrine": 7,
   "test-production-clone": 8,
-  "testid-typed-only-stories": 100,
   "tests-raw-package-reach": 4,
   "tooling-argv-front-door": 2,
   "tooling-child-process-door": 1,

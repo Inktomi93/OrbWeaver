@@ -13,7 +13,8 @@
 //       PROP-INDIRECTION rule. `<FormDialog testKey="adminCreateUserDialog">` stamps the id inside
 //       form-dialog.tsx from a prop; the caller's key literal is the only static evidence there is.
 //   (4) a CT story stamps it through `storyTestId("key")` and `STORY_TEST_IDS` (tests/support/browser/
-//       story-test-ids.ts, read by the same row reader) maps that key to it. A story row no story spends is an A2.
+//       story-test-ids.ts, read by the same row reader) maps that key to it. A story row no story spends is an A2,
+//       and a story row that reuses a production value is refused so the two registries stay disjoint.
 // Rule 3 is why a raw dynamic producer (`data-testid={props.id}`) is IGNORED rather than treated as a
 // wildcard: a wildcard would absolve every consumer on the tree, and the live indirection is already
 // covered by the key it forwards.
@@ -319,6 +320,25 @@ export const gate = defineGate({
       }
     };
 
+    /** The registries stay disjoint: a story row spending a production value would let a story stamp absolve a
+     *  production row no component stamps. The overlap is a finding on the story row, and the liveness judgment
+     *  keeps its one producer set. */
+    const reportOverlappingStoryRows = (): void => {
+      const productionValues = new Set([...registry.values()].map((row) => row.value));
+      for (const [key, row] of storyRegistry) {
+        if (productionValues.has(row.value)) {
+          ctx.report.node(
+            row.node,
+            anchorDetails(
+              row.node,
+              row.anchor,
+              `${MESSAGE} The story row "${key}" reuses the production TEST_IDS value "${row.value}": give the story its own id.`,
+            ),
+          );
+        }
+      }
+    };
+
     /** A2 — a typed row promising a selector no component (or, for a story row, no story) stamps. */
     const reportDeadRegistryRows = (): void => {
       for (const [key, row] of [...registry, ...storyRegistry]) {
@@ -373,12 +393,23 @@ export const gate = defineGate({
         ctx.receipt({ kind: "population", source: "testid-liveness-corpus", members: ctx.files.length, unresolved: 0 });
         resolveKeyedProducers();
         reportDeadConsumers();
+        reportOverlappingStoryRows();
         reportDeadRegistryRows();
       },
     };
   },
 
   mustFlag: [
+    {
+      mode: "source",
+      files: {
+        [TESTID_REGISTRY_HOME]: 'export const TEST_IDS = {\n  ghostRow: "ghost-row",\n} as const;\n',
+        [STORY_TESTID_REGISTRY_HOME]: 'export const STORY_TEST_IDS = {\n  storyGhost: "ghost-row",\n} as const;\n',
+        "tests/client/features/character/_ct-stories.tsx": 'export const S = () => <p data-testid={storyTestId("storyGhost")}>2</p>;\n',
+      },
+      expect: { count: 1, token: "storyGhost", messageIncludes: "reuses the production" },
+      why: "the registries must be disjoint: a story row spending a production value would absolve a production row no component stamps. The story row is the finding, so the dead production row cannot hide behind it",
+    },
     {
       mode: "source",
       files: {
