@@ -233,7 +233,7 @@ test("with no tools to fall back on, the refusal names the reason in the author'
   expect(plan).toMatchObject({ outcome: "refused", model: "test-model" });
   const reasons = plan?.outcome === "refused" ? plan.reasons : [];
   expect(reasons).toHaveLength(1);
-  expect(reasons[0]).toMatch(/\b30\b.*\b24\b/u);
+  expect(reasons[0]).toMatch(/\b30\b.+\b24\b/u);
   expect(JSON.stringify(plan)).not.toMatch(/optional-props|anthropic-format|hosted-common/u);
 });
 

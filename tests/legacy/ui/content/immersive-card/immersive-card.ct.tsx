@@ -106,19 +106,19 @@ test("the ROUTED delivery: a real navigation to frameSrc renders the served page
   await serveRoutedCard(page, "<p>routed card body</p>");
 
   const cmp = await mount(<ImmersiveCard html={HTML} title="Routed" origin="fence" frameSrc={ROUTED_URL} />);
-  const frame = cmp.locator('iframe[data-slot="sandbox-frame"]');
-  await expect(frame).toHaveCount(1);
-  await expect(frame).toHaveAttribute("src", ROUTED_URL);
+  const iframe = cmp.locator('iframe[data-slot="sandbox-frame"]');
+  await expect(iframe).toHaveCount(1);
+  await expect(iframe).toHaveAttribute("src", ROUTED_URL);
   // The routed arm's grant since the 2026-08-16 tier-B pass (#91): EXACTLY `allow-scripts` — the whole
   // attribute value, so a widened grant reds here — and never `allow-same-origin`. What that buys is the
   // one hash-pinned height script; card-authored scripts stay refused (sandbox-frame.ct.tsx proves both).
-  await expect(frame).toHaveAttribute("sandbox", "allow-scripts");
+  await expect(iframe).toHaveAttribute("sandbox", "allow-scripts");
   // srcdoc would win over src per the HTML spec if both were emitted — prove the routed arm never does.
-  await expect.poll(() => frame.getAttribute("srcdoc")).toBeNull();
+  await expect.poll(() => iframe.getAttribute("srcdoc")).toBeNull();
 
   // The actual navigation completed and the served bytes painted — the content check attribute
   // assertions can't give: reach INTO the null-origin iframe's own document.
-  const frameHandle = await frame.elementHandle();
+  const frameHandle = await iframe.elementHandle();
   const contentFrame = await frameHandle?.contentFrame();
   if (contentFrame === null || contentFrame === undefined) {
     throw new Error("routed iframe has no content frame — navigation never completed");

@@ -1,11 +1,8 @@
-// The standing conformance + differential net for the fourth SIMPLE-tier wave (#1584/#1943): three pure
+// The standing conformance + differential net for the fourth SIMPLE-tier wave (#1584/#1943): two pure
 // syntax policies converted from free-form `visitFile`/descendant-walk descriptors into kind-indexed
 // `defineGate` visitors with all state moved into `create`.
 //
-//   test-no-stubs                           — state moved into per-file test/assertion lists, reconciled
-//                                              by node-range containment in `evaluate` (never a private
-//                                              descendant walk).
-//   no-form-state-in-useeffect              — the legacy `deps.forEachDescendant` walk inverted into a
+//   no-form-state-in-useeffect             — the legacy `deps.forEachDescendant` walk inverted into a
 //                                              direct MEMBER_ACCESS_KINDS subscription plus an ancestor
 //                                              climb (#1506 identity-not-spelling preserved).
 //   persist-partialize-and-total-migrate    — factory options completeness; since #1954 it reports ONE finding
@@ -23,13 +20,12 @@ import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as noFormStateInUseeffect } from "../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as persistPartializeAndTotalMigrate } from "../../../../tooling/src/verify/gates/persist-partialize-and-total-migrate.ts";
-import { gate as testNoStubs } from "../../../../tooling/src/verify/gates/test-no-stubs.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/simple-visitors-wave-4";
 
-const FAMILY: readonly GatePolicy[] = [testNoStubs, noFormStateInUseeffect, persistPartializeAndTotalMigrate];
+const FAMILY: readonly GatePolicy[] = [noFormStateInUseeffect, persistPartializeAndTotalMigrate];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

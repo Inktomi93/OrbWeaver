@@ -612,7 +612,7 @@ const BIOME_ONLY_SCOPED = /--only=\S/;
 const PNPM_LINT_FIX = /\bpnpm\s+(?:run\s+)?lint:fix\b/;
 const HARNESS_OR_TRUE =
   /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b|\bpnpm\s+(?:exec\s+)?vitest\b)[^\n;]*\|\|\s*(?:true|echo|:)(?:\s|$)/;
-const HARNESS_SEMI_TRUE = /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b)[^\n;]*;\s*true\s*$/;
+const HARNESS_SEMI_TRUE = /\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b[^\n;]*;\s*true\s*$/;
 // THE RAW-CT HEAD VOCABULARY: `./node_modules/.bin/playwright test` and `pnpm playwright test` run with the
 // stock shared `playwright/.cache`, no worktree lock, no host slot and no run marker, and the `.bin`/`node`
 // spellings with no heap floor either. A head regex for any tool carries `(?:\S*\/)?<bin>` and `pnpm <bin>`
@@ -697,7 +697,7 @@ function concurrencyCaps() {
   return concurrencyCapsCache;
 }
 const GREP_HEAD = /^\s*(?:\/usr\/bin\/)?grep\s/;
-const GREP_RECURSIVE_FLAG = /\s-[a-zA-Z]*r/i;
+const GREP_RECURSIVE_FLAG = /\s-[a-z]*r/i;
 const GREP_EXCLUDE_DIR = /--exclude-dir/;
 const GREP_BROAD_ROOT = /^(\.|\.\/|packages\/?|tests\/?|src\/?|scripts\/?|\*)$/;
 // ripgrep's `-r`/`--replace` REWRITES matched text (it does not list matches); glued directly to another
@@ -722,10 +722,10 @@ const TRUE_OR_COLON_CLAUSE = /^(?:true|:)$/;
 const SLEEP_BIN = /^\\?(?:\S*\/)?sleep$/;
 // The only duration the settle-delay exemption trusts: a literal in seconds. `sleep $N`, a quoted operand
 // (blanked to nothing) and any other unit count as long, or a variable would walk any sleep past it.
-const SLEEP_LITERAL_SECONDS = /^([0-9]+(?:\.[0-9]+)?)s?$/;
+const SLEEP_LITERAL_SECONDS = /^(\d+(?:\.\d+)?)s?$/;
 // Clauses that do no work a sleep could be waiting for, so a chain of them plus sleeps is still sleep-only.
 // A redirect makes `echo` a write, which is work; a substitution is checked on the raw text by the caller.
-const NOOP_CLAUSE = /^(?:true|:|cd(?:\s+\S+)?|echo(?:\s+[^<>]*)?|printf(?:\s+[^<>]*)?)$/;
+const NOOP_CLAUSE = /^(?:true|:|cd(?:\s+\S+)?|echo(?:\s[^<>]*)?|printf(?:\s[^<>]*)?)$/;
 // A pipe stage after a sleep that does nothing with its empty input, so `sleep 300 | cat` is still a sleep.
 const NOOP_CONSUMER = /^(?:cat|tee(?:\s+\S+)*|true|:)$/;
 const SUBSTITUTION_OPEN = /\$\(|`/;
@@ -788,17 +788,17 @@ const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
 // this text match is the second check for `--no-verify` behind a head the word walk does not resolve.
 const GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^\n;|&]*--no-verify\b/;
 // The commit-only `-n` text match, for a stage whose head the word walk cannot resolve.
-const GIT_COMMIT_SHORT_NO_VERIFY = /\bgit\s+commit\b[^\n;|&]*(?:^|\s)-n\b/;
+const GIT_COMMIT_SHORT_NO_VERIFY = /\bgit\s+commit\b[^\n;|&]*\s-n\b/;
 const GIT_COMMIT_OR_MERGE = /\bgit\s+(?:[^\s;|&]+\s+)*?(?:commit|merge)\b/;
 // `-c core.hooksPath=<anything>` is a git GLOBAL OPTION on ANY subcommand — it retargets the hooks dir for
 // that one invocation, same effect as `--no-verify` but not caught by the commit/merge-scoped rule above.
 const GIT_C_HOOKSPATH = /\bgit\s+(?:[^\s;|&]+\s+)*?-c\s+core\.hooksPath\s*=/;
 // `git config … core.hooksPath …` — SETS the key unless it is a read (`--get*`) or an `--unset`. Captured
 // tail is everything after `config` on the stage so the read/unset check can see the whole flag set.
-const GIT_CONFIG_HOOKSPATH = /\bgit\s+(?:[^\s;|&]+\s+)*?config\b([^\n;|&]*\bcore\.hooksPath\b[^\n;|&]*)/;
+const GIT_CONFIG_HOOKSPATH = /\bgit\s+(?:[^\s;|&]+\s+)*?config\b([^\n;|&]+\bcore\.hooksPath\b[^\n;|&]*)/;
 const CONFIG_HOOKSPATH_READONLY = /--get\b|--unset\b/;
 // `LEFTHOOK=0` / `LEFTHOOK=false` as an env-assignment PREFIX on a git command — lefthook's own kill switch.
-const LEFTHOOK_DISABLE = /\bLEFTHOOK=(?:0|false)\b[^\n;|&]*\bgit\b/i;
+const LEFTHOOK_DISABLE = /\bLEFTHOOK=(?:0|false)\b[^\n;|&]+\bgit\b/i;
 const PROC_GIT_PUSH = /(^|\0)git\0([^\0]*\0)*push(\0|$)/;
 const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
 const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
@@ -1908,7 +1908,7 @@ function ungroup(text) {
  *  resolves `/tmp/x.sh` and its body is read. `&` is the commonest thing a lane glues to a scratch script.
  *  Every alternative consumes at least one character, so the `+` cannot loop on an empty match, and none of
  *  the classes appears in an ordinary path — a word with no trailing noise does not match at all. */
-const OPERAND_TAIL_NOISE = /(?:[)}]|[&;]|\d*>>?&?\d*|>+\S*)+$/;
+const OPERAND_TAIL_NOISE = /(?:[)}&;]|\d*>>?&?\d*|>\S*)+$/;
 // The opener half of the same word problem: `ungroup` blanks a word-initial `(` in the BLANKED view, which
 // is what lets `execHead` find the head of `(/tmp/x.sh)` — but the RAW word is still `(/tmp/x.sh)`, and for
 // a bare `.sh` head that word IS the operand.

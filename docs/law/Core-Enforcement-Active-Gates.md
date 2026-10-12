@@ -50,16 +50,16 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(353 registered gates)
+(352 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
-| `agent-bridge-lock` | — | hard/error | @client,@tests\* | the dev introspection bridge lost its… |
+| `agent-bridge-lock` | — | hard/error | @client,@legacy-tests\* | the dev introspection bridge lost its… |
 | `appearance-carrier-contract` | appearance-carrier | ordinary/error | @client,@contracts,@tooling\* | Appearance carrier graph drift: a… |
 | `appearance-carrier-health` | appearance-carrier | hard/error | @client,@contracts,@tooling\* | Appearance carrier graph drift:… |
 | `assets-single-writer` | — | reviewed-grant/error | @server,@db\* | an assets-table write or storeBlob… |
 | `assumes-single-replica` | — | ordinary/error | @server,@inference\* | module-scope mutable per-process… |
-| `audit-client-tests` | test-no-stubs | ordinary/error | @tests\* | a test file carries a structural… |
+| `audit-client-tests` | — | ordinary/error | @tests\* | a test file carries a structural… |
 | `baseui-anatomy-completeness` | baseui-read | hard/error | @ui | the Base UI anatomy ledger and the… |
 | `baseui-derives-not-respells` | baseui-read | ordinary/error | @ui | a @orb/ui seal hand-writes a data… |
 | `baseui-derives-not-respells-health` | baseui-read | hard/error | @ui | a @orb/ui seal hand-writes an EVENT… |
@@ -104,7 +104,7 @@ in its own module header, never restated here.
 | `contract-banned-shapes` | — | hard/error | @contracts | a ledger-REJECTED contract shape has… |
 | `contract-derives-not-respells` | — | reviewed-grant/error | @server,@contracts,@db | a domain contract/ re-spells a shape… |
 | `contract-structural-copy` | contract-derives-not-respells | ordinary/error | @client,@server,@inference,@contracts | hand-written shape re-spells a… |
-| `contract-verb-presence` | — | reviewed-grant/error | @server,@tests\* | a \*Service interface declares a verb… |
+| `contract-verb-presence` | — | reviewed-grant/error | @server,@tests,@legacy-tests\* | a \*Service interface declares a verb… |
 | `css-family-direct-client-mechanism` | css-hook-provenance | reviewed-grant/error | @client,@ui | client globals skins a UI-only… |
 | `css-family-ownership` | css-hook-provenance | ordinary/error | @client,@ui | a declaration is inside a sanctioned… |
 | `css-family-ownership-health` | css-hook-provenance | hard/error | none | the six-home CSS census is BLIND, or… |
@@ -119,7 +119,7 @@ in its own module header, never restated here.
 | `ct-config-mirror-parity` | — | hard/error | @client,@tests\* | the browser-CT door has drifted from… |
 | `ct-no-oneshot-live-read-assert` | — | ordinary/error | @tests\* | a non-retrying expect() reads MUTABLE… |
 | `ct-poll-schedule-and-paint` | — | hard/error | @tests | a Playwright poll idiom that loses… |
-| `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @tests\* | the founding CT for the… |
+| `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @legacy-tests\* | the founding CT for the… |
 | `ct-story-single-import` | — | hard/error | @tests\* | a CT story/component identifier is… |
 | `d-citation-integrity` | text-citation | hard/error | @product | a bare D\<n> ledger citation resolves… |
 | `dangling-doc-cite` | text-citation | hard/error | @authored | a source COMMENT cites a docs/\*\*.md… |
@@ -339,12 +339,11 @@ in its own module header, never restated here.
 | `test-hand-shape` | contract-derives-not-respells | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
-| `test-no-stubs` | — | hard/error | @tests | stub test contains no assertions… |
 | `test-presence-client` | mirror-index | hard/error | @client\* | the standing DOM-derived… |
 | `test-production-clone` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content,@tooling | a test-side function has the shape of… |
-| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@client,@ui,@tests | a presence-gated module is reached by… |
+| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@client,@ui,@tests,@legacy-tests | a presence-gated module is reached by… |
 | `test-world-browser-contracts` | — | hard/error | @tests | a Node-intent test consumes a… |
-| `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests | dead test-id (UI-Gates-and-Lessons.md… |
+| `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests,@legacy-tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
 | `testid-typed-only` | — | ordinary/error | @client | freeform data-testid string — use the… |
 | `testid-typed-only-stories` | testid-typed-only | ordinary/error | @tests\* | freeform data-testid string in a CT… |

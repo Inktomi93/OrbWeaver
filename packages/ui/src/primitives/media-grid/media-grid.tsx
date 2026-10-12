@@ -342,7 +342,7 @@ export function MediaGrid<T extends MediaGridItem>({
   }
 
   return (
-    /* eslint-disable jsx-a11y/interactive-supports-focus */
+    /* eslint-disable jsx-a11y/interactive-supports-focus -- APG composite grid: focus roves across the cells, not the grid root */
     // biome-ignore lint/a11y/useSemanticElements: APG composite grid widget — role="grid" on a div is first-class ARIA, not a semantic workaround. <table> implies tabular data which doesn't apply to a media picker.
     <div
       aria-colcount={columns}
@@ -354,7 +354,7 @@ export function MediaGrid<T extends MediaGridItem>({
       ref={scrollRef}
       role="grid"
     >
-      {/* eslint-enable jsx-a11y/interactive-supports-focus */}
+      {/* eslint-enable jsx-a11y/interactive-supports-focus -- end of the grid-root exemption */}
       <div className="relative w-full" data-slot="media-grid-viewport" ref={rowVirtualizer.containerRef}>
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const rowStart = virtualRow.index * columns;

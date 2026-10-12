@@ -181,7 +181,7 @@ export function TrackerValue({
     <Input
       // The input exists ONLY after an explicit click on the rest value (click-to-edit) — moving
       // focus into it is the expected continuation of that gesture, not a focus steal.
-      // eslint-disable-next-line jsx-a11y/no-autofocus
+      // eslint-disable-next-line jsx-a11y/no-autofocus -- click-to-edit: the input exists only after an explicit click
       autoFocus={true}
       aria-label={ariaLabel}
       // COMPACT in-place editor (owner bar: the revealed input occupies the SAME visual slot the display

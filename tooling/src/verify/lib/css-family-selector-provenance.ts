@@ -20,7 +20,7 @@ function selectorAttributeAt(selector: string, open: number): SelectorAttributeH
     return;
   }
   const content = selector.slice(open + 1, close);
-  const match = /^\s*([_a-zA-Z][\w-]*)(?:\s*([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\s]+)))?/u.exec(content);
+  const match = /^\s*([_a-zA-Z][\w-]*)(?:\s*([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|(\S+)))?/u.exec(content);
   const name = match?.[1];
   if (name === undefined) {
     return;

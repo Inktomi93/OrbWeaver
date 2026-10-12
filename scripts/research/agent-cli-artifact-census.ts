@@ -142,7 +142,7 @@ const RETRY_TIME_WINDOW_MS = 60 * 60 * 1000;
 const REPO_PREFIX_RE_SOURCE = `${process.cwd().replace(/\/+$/, "")}/`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const REPORT_PATH_RE = new RegExp(`(?:^|[\\s'"\`(])((?:${REPO_PREFIX_RE_SOURCE})?(?:reports|artifacts|screenshots?)\\/[A-Za-z0-9_@./=+:-]+)`, "g");
 const TMP_PATH_RE = /(?:^|[\s'"`(])(\/tmp\/[A-Za-z0-9_@./=+:-]+)/g;
-const FILE_PATH_RE = /(?:^|[\s'"`(])((?:\/|\.{0,2}\/)?[A-Za-z0-9_@./=+:-]+\.(?:png|json|har|html|gif|webm|mp4|zip|trace|txt|md))/gi;
+const FILE_PATH_RE = /(?:^|[\s'"`(])([A-Z0-9_@./=+:-]+\.(?:png|json|har|html|gif|webm|mp4|zip|trace|txt|md))/gi;
 const TARGET_MENTION_RE =
   /\b(?:pnpm\s+(?:run\s+)?(?:snap|design-audit|ui-audit|motion-audit|perf-meter|cpu-profile|record|screen-record)|tooling\/src\/(?:snap|ui-audit|motion-audit|cpu-profile|screen-record)\/cli\.ts|scripts\/probes\/snap\.ts)\b/i;
 const FLAG_RE = /^--?[A-Za-z][A-Za-z0-9-]*(?:@\d+)?(?:=.*)?$/;
@@ -150,8 +150,8 @@ const MISUSE_RE =
   /(?:\bARG ERROR\b|\bNAV ERROR\b|unknown (?:flag|option|argument)|missing required|requires (?:a value|--[a-z])|usage:\s*(?:pnpm|node)[^\n]*(?:snap|audit|profile|record)|invalid (?:flag|argument|duration|viewport|route)|expected (?:one of|a value for))/i;
 const MISUSE_WITHOUT_USAGE_RE =
   /(?:\bARG ERROR\b|\bNAV ERROR\b|unknown (?:flag|option|argument)|missing required|requires (?:a value|--[a-z])|invalid (?:flag|argument|duration|viewport|route)|expected (?:one of|a value for))/i;
-const VIOLATION_RE = /(?:tool use denied|blocked by (?:hook|policy)|policy violation|guard violation|not allowed by policy)/i;
-const TOOL_ERROR_RE = /(?:Command timed out after|Exit code [1-9]\d*|process exited with code [1-9]\d*|<tool_use_error>)/i;
+const VIOLATION_RE = /tool use denied|blocked by (?:hook|policy)|policy violation|guard violation|not allowed by policy/i;
+const TOOL_ERROR_RE = /Command timed out after|Exit code [1-9]\d*|process exited with code [1-9]\d*|<tool_use_error>/i;
 
 const argv = process.argv.slice(2);
 function option(name: string, fallback: string): string {
@@ -508,7 +508,7 @@ function normalizeCandidate(value: string, cwd: string | undefined, kindHint?: "
     value: absolute,
     kind: kindHint ?? (extension === "directory" ? "directory" : "file"),
     extension,
-    clickStrip: /(?:click(?:-?strip|\d+)|shot-strip)/i.test(path.basename(clean)),
+    clickStrip: /click(?:-?strip|\d+)|shot-strip/i.test(path.basename(clean)),
   };
 }
 

@@ -167,7 +167,7 @@ test("a turn driven in tab A streams into tab B's open transcript", { tag: "@liv
     const tabB = await ctx.newPage();
     await joinRoom(tabA, room.title);
     await joinRoom(tabB, room.title);
-    expect(await assistantRows(tabB).count()).toBe(0);
+    await expect(assistantRows(tabB)).toHaveCount(0);
 
     // A unique body so `getByText` in tab B is unambiguous proof it received THIS message.
     const probe = `hub-probe-${Date.now()}`;

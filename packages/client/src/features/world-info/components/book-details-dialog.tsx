@@ -65,7 +65,7 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
               value={name}
               onValueChange={setName}
               placeholder="Book name"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- the dialog opens on an explicit action; its name field takes focus
               autoFocus={true}
             />
           </Field>

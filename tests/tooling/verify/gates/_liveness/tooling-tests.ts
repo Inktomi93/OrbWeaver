@@ -30,7 +30,6 @@ import { gate as policyWaiverSpelling } from "../../../../../tooling/src/verify/
 import { gate as routeTrpcLifoOrder } from "../../../../../tooling/src/verify/gates/route-trpc-lifo-order.ts";
 import { gate as routeTrpcNoBroadSpread } from "../../../../../tooling/src/verify/gates/route-trpc-no-broad-spread.ts";
 import { gate as testDeterminism } from "../../../../../tooling/src/verify/gates/test-determinism.ts";
-import { gate as testNoStubs } from "../../../../../tooling/src/verify/gates/test-no-stubs.ts";
 import { gate as testWorldBrowserContracts } from "../../../../../tooling/src/verify/gates/test-world-browser-contracts.ts";
 import { gate as toolingCliEntry } from "../../../../../tooling/src/verify/gates/tooling-cli-entry.ts";
 import { gate as toolingOpsDirectInvocation } from "../../../../../tooling/src/verify/gates/tooling-ops-direct-invocation.ts";
@@ -249,11 +248,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: testDeterminism,
     overlays: [add("tests/server/liveness-clock.test.ts", `export const livenessNow = ${CLOCK_CALL};\n`)],
     messageIncludes: "Date.now",
-  },
-  {
-    policy: testNoStubs,
-    overlays: [add("tests/tooling/liveness-stub.test.ts", 'test("does nothing", () => {\n  const x = 1;\n});\n')],
-    messageIncludes: "stub test contains no assertions",
   },
   {
     policy: testWorldBrowserContracts,

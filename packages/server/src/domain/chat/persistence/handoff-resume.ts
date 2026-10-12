@@ -15,8 +15,10 @@ const actorRekeysSchema = z.array(
   z.object({
     // Internal, FK-derived ids rather than wire input. The JSON seam proves the stored shape/string kind;
     // the source and destination were minted/read through character's typed doors before this marker exists.
-    sourceCharacterId: z.custom<CharacterId>((value) => typeof value === "string" && value.length > 0),
-    characterId: z.custom<CharacterId>((value) => typeof value === "string" && value.length > 0),
+    sourceCharacterId: z.custom<CharacterId>((value) => typeof value === "string" && value.length > 0, {
+      error: "sourceCharacterId must be a non-empty string",
+    }),
+    characterId: z.custom<CharacterId>((value) => typeof value === "string" && value.length > 0, { error: "characterId must be a non-empty string" }),
   }),
 );
 

@@ -63,7 +63,7 @@ const PACKED_REF_RE = /^(?<oid>[0-9a-f]{40}(?:[0-9a-f]{24})?)\s+(?<ref>\S+)$/u;
 /** The row that follows an annotated tag in `packed-refs`: `^<oid>`, the commit the tag object points at. */
 const PEELED_ROW_RE = /^\^(?<oid>[0-9a-f]{40}(?:[0-9a-f]{24})?)$/u;
 /** `gitdir: /abs/path/.git/worktrees/x` — the `.git` FILE a linked worktree carries instead of a directory. */
-const GITDIR_FILE_RE = /^gitdir:\s*(?<dir>.+)$/u;
+const GITDIR_FILE_RE = /^gitdir:\s*(?<dir>\S.*)$/u;
 
 /** The identity of one running Orbweaver. The wire shape of `settings.getVersion`, the `/healthz` `version`
  *  block, and the first header field of a bug-report bundle — one shape, everywhere a human looks. */

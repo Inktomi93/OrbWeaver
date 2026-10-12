@@ -18,7 +18,7 @@ const MESSAGE =
  *  spacing family, gap, space-x/y, inset, top/left/right/bottom/start/end, translate-x/y/z, z,
  *  grid-cols/grid-rows, text/leading/tracking/rounded. */
 const SCOPED_UTILITY_RE =
-  /^(w|h|min-w|min-h|max-w|max-h|size|p[xytrbles]?|m[xytrbles]?|gap(-x|-y)?|space-[xy]|inset(-x|-y)?|top|left|right|bottom|start|end|translate(-x|-y|-z)?|z|grid-(cols|rows)|text|leading|tracking|rounded)$/u;
+  /^([whz]|min-w|min-h|max-w|max-h|size|p[xytrbles]?|m[xytrbles]?|gap(-x|-y)?|space-[xy]|inset(-x|-y)?|top|left|right|bottom|start|end|translate(-x|-y|-z)?|grid-(cols|rows)|text|leading|tracking|rounded)$/u;
 
 function isScopedUtility(util: string): boolean {
   return SCOPED_UTILITY_RE.test(util);

@@ -326,7 +326,7 @@ test("#521 the overflow tile does not wear a face's silhouette, and still takes 
   expect(dress.style, "an outline, not a plate").toBe("dashed");
   expect(face.fill, "the positive control: a face is a filled plate").not.toBe(TRANSPARENT);
   expect(dress.fill, "the filled plate is what made it read as a face").toBe(TRANSPARENT);
-  expect(await tile.locator('[data-slot="avatar-root"]').count(), "the tile is not a portrait").toBe(0);
+  await expect(tile.locator('[data-slot="avatar-root"]'), "the tile is not a portrait").toHaveCount(0);
 });
 
 test("the fold holds at EVERY pane width: one un-scrolled row, nothing clipped, and never a '+1 more' tile", async ({ mount }) => {

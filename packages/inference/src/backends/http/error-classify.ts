@@ -230,7 +230,7 @@ interface SchemaRejectionRow {
  *  A refusal the table misses logs `provider.schema_rejection_unmapped`, and its body becomes a new row. */
 const SCHEMA_REJECTIONS: readonly SchemaRejectionRow[] = [
   { rule: "anthropic-optional-props", pattern: /too many optional parameters \((\d+)\).*?limit: (\d+)/su, ceiling: "optional-props" },
-  { rule: "anthropic-union-props", pattern: /too many parameters with union types \((\d+).*?limit: (\d+)/su, ceiling: "union-props" },
+  { rule: "anthropic-union-props", pattern: /too many parameters with union types \((\d+)(?!\d).*?limit: (\d+)/su, ceiling: "union-props" },
   { rule: "anthropic-too-complex", pattern: /Schema is too complex for compilation/u },
   { rule: "openai-invalid-json-schema", pattern: /invalid_json_schema/u },
   { rule: "xgrammar-unsupported", pattern: /JSON schema contains features not supported by xgrammar/u },

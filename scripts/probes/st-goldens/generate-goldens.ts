@@ -28,7 +28,7 @@ import process from "node:process";
 import { chromium } from "@playwright/test";
 import { FIXTURES_DIR, ST_OUTPUT_DIR, ST_RUNTIME_DIR } from "./rig-paths.ts";
 
-const ST_LOG_REGEX = /listen|error|Error|EADD/i;
+const ST_LOG_REGEX = /listen|error|EADD/i;
 
 // ST's settings.json model key per chat_completion_source value.
 // These are the keys ST reads to pick the model name for each provider.

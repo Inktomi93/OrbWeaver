@@ -28,7 +28,7 @@ import { ts } from "ts-morph";
 import { forEachCommentRange } from "./comment-spans.ts";
 
 const COMMENT_OPEN = String.raw`(?:\/\/|\/\*+|\{\/\*+)`;
-const DIRECTIVE_TOKEN = String.raw`(?:biome-ignore(?:-all|-start|-end)?|eslint-(?:disable(?:-next-line|-line)?|enable)|@ts-expect-error|@ts-ignore|@ts-nocheck)`;
+const DIRECTIVE_TOKEN = String.raw`biome-ignore(?:-all|-start|-end)?|eslint-(?:disable(?:-next-line|-line)?|enable)|@ts-expect-error|@ts-ignore|@ts-nocheck`;
 const SUPPRESSION_RE = new RegExp(String.raw`^\s*${COMMENT_OPEN}\s*(${DIRECTIVE_TOKEN})\b`, "u");
 /** The RULE a marker names — the classification key. `biome-ignore[-all|-start|-end] <rule>:`, an
  *  `eslint-disable*` rule id, or the bare TypeScript directive (which names no rule and is its own key). */

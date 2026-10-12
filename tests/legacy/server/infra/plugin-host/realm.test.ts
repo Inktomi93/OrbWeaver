@@ -201,7 +201,7 @@ describe("installRealm — ambient denial", () => {
 
   // THE REALM ALLOW-LIST — the pin that has to exist because "absent from a bare context" is an assumption, not
   // a fact: `performance` shipped live precisely because all three "no ambient" tests were structurally blind to
-  // it (a fixed six-NAME probe that never named it; a test titled "the only non-standard global is orb" whose
+  // `performance` (a fixed six-NAME probe that never named it; a test titled "the only non-standard global is orb" whose
   // body asserted only `typeof orb`; and an escape-suite set-diff taken against a BARE context, which carries
   // the same ambient source and therefore cancels it out). A closed list over the whole global object is the
   // only shape that goes RED on arrival when a quickjs-ng bump adds `crypto` / `Temporal` / `Atomics` / a timer.

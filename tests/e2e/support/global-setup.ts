@@ -282,7 +282,7 @@ async function warmMode(browser: Browser, mode: ModeProject, reportDir: string):
   page.on("console", (message) => {
     if (message.type() === "error") {
       // Console-only import failures can carry full URLs; query and fragment state are not diagnostic evidence.
-      failures.push(`Console: ${message.text().replace(/(https?:\/\/[^\s?#]+)[?#][^\s]*/gu, "$1")}`);
+      failures.push(`Console: ${message.text().replace(/(https?:\/\/[^\s?#]+)[?#]\S*/gu, "$1")}`);
     } else if (message.text().startsWith(READY_EVENT_PREFIX)) {
       readiness.push({ elapsedMs: elapsedMs(), state: message.text().slice(READY_EVENT_PREFIX.length) });
     }

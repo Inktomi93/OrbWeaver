@@ -30,13 +30,13 @@ const CHAPTER_SEPARATOR = "\n\n";
 const MAX_ENTRY_BYTES = 67_108_864;
 
 /** `<rootfile … full-path="OEBPS/content.opf" …>` — the OPF location, from `META-INF/container.xml`. */
-const ROOTFILE_PATH = /<rootfile\b[^>]*\bfull-path="([^"]+)"/;
+const ROOTFILE_PATH = /<rootfile\b[^>]+\bfull-path="([^"]+)"/;
 /** OPF `<dc:title>…</dc:title>` (namespaced or bare). */
 const DC_TITLE = /<(?:dc:)?title\b[^>]*>([\s\S]*?)<\/(?:dc:)?title>/i;
 /** OPF `<spine>…</spine>` — the reading-order block. */
 const SPINE_BLOCK = /<spine\b[^>]*>([\s\S]*?)<\/spine>/i;
 /** A spine `<itemref idref="chap1"/>` — one entry, in reading order. */
-const ITEMREF = /<itemref\b[^>]*\bidref="([^"]+)"/g;
+const ITEMREF = /<itemref\b[^>]+\bidref="([^"]+)"/g;
 /** A manifest `<item id="chap1" href="text/chap1.xhtml" …>` — id → href (attribute order varies). */
 const MANIFEST_ITEM = /<item\b([^>]*)>/g;
 const ITEM_ID = /\bid="([^"]+)"/;

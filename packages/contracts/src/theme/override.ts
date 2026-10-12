@@ -43,8 +43,12 @@ const isRenderableDeterministicColor = (raw: string): boolean => isDeterministic
 // error, no fallback message, no visible change. The wire clamp now asks the second question too, so a
 // value that survives to storage is one the renderer can resolve. The user-facing REFUSAL lives at the
 // save boundary the user types into (`@orb/ui` `ColorField`); this is the boundary backstop.
-const colorToken = z.string().refine(isRenderableColor).optional().catch(undefined);
-const deterministicColorToken = z.string().refine(isRenderableDeterministicColor).optional().catch(undefined);
+const colorToken = z.string().refine(isRenderableColor, { error: "must be a renderable color" }).optional().catch(undefined);
+const deterministicColorToken = z
+  .string()
+  .refine(isRenderableDeterministicColor, { error: "must be a deterministic renderable color" })
+  .optional()
+  .catch(undefined);
 // A bubble bg is a FILL with a foreground derived from it; .fg is retained for wire/serde compatibility
 // but the renderer ignores it. Only the derivation input needs the narrower deterministic contract.
 const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).optional().catch(undefined);

@@ -12,7 +12,7 @@ export interface Viewport {
   readonly height: number;
 }
 
-const VIEWPORT_RE = /^([0-9]+)x([0-9]+)$/;
+const VIEWPORT_RE = /^(\d+)x(\d+)$/;
 
 /**
  * Split on the LAST `=` — for `--fill "sel=value"` / `--key "sel=KeyName"`: SELECTORS

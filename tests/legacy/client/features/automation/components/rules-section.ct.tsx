@@ -385,7 +385,7 @@ test("the existing Test loading state owns only its rule row while the dry run i
   await expect(first).toBeEnabled();
 });
 
-test("Test runs the dry-run — testRule fires and the predicate verdict + arm preview render", async ({ mount, page }) => {
+test("the Test button runs the dry-run — testRule fires and the predicate verdict + arm preview render", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<RulesSectionStory chatId={CHAT} />);
 
@@ -398,7 +398,7 @@ test("Test runs the dry-run — testRule fires and the predicate verdict + arm p
   await expect(page.getByText("a moody scenario shot")).toBeVisible();
 });
 
-test("Test refreshes an already-visible room Activity log after writing its test_run row", async ({ mount, page }) => {
+test("the Test button refreshes an already-visible room Activity log after writing its test_run row", async ({ mount, page }) => {
   let activityReads = 0;
   const trpc = await stub(page, {
     activity: () => {

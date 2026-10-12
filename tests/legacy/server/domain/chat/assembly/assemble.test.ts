@@ -10,6 +10,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
+import { SimpleMacroRegistry } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -637,6 +638,11 @@ describe("assemblePrompt — per-turn user-macro registry (WAVE MU)", () => {
     // With the threaded registry the macro resolves; the process-default (no third arg) leaves it verbatim.
     expect(assemblePrompt(config, ctxOf(), turn.registry).static).toBe("Mood: grim");
     expect(assemblePrompt(config, ctxOf()).static).toBe("Mood: {{mood}}");
+  });
+
+  test("a registry with no volatile macro reports no cache-buster and does not scan", () => {
+    const config = configOf([literal("Draw: {{luck}}"), marker({ marker: "chat_history" })]);
+    expect(assemblePrompt(config, ctxOf(), new SimpleMacroRegistry()).trace.staticCacheBusters).toEqual([]);
   });
 
   test("a volatile (random-pick) user macro in a STATIC section lands in staticCacheBusters (the WeakMap scan)", () => {

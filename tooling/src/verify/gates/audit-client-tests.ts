@@ -5,23 +5,12 @@
 // central mirror (server/contracts/kit/client/tooling) — "client" is the born-compliant-era trigger it
 // waited on, long since met. ACTIVE since 2026-07-17.
 //
-// FAMILY `test-no-stubs` (#2027). The test-call SHAPE is read through `lib/test-call-shape.ts`
-// (`isTestCallShape`, `callChainRoot`), the one home of the modifier vocabulary — shared with `test-no-stubs`,
-// whose recognizer used to be a literal text set and now asks the same reader, so the two policies judge one
-// subject from one declaration. Before #2027 this module was a SINGLETON because no `lib/` reader computed
-// the shape; the other spellers of the core literals (`bus-payload-allowlist`, `knob-wire-coverage`,
-// `ui-primitive-structure`) still only name a test incidentally inside their own proof fixtures.
-//
-// THE `test-no-stubs` OVERLAP — deliberately NOT merged (§8.3 asks whether a stronger detector already
-// exists; neither of these dominates the other, so merging would lose a catch):
-//   · `test-no-stubs` (FINAL, `authority: "hard"`, `population: "@tests"`) enforces this policy's
-//     NO-ASSERTION arm with a stronger per-file cross-file-leak reconciliation, over EVERY test-shaped call
-//     this policy also recognizes; the modifier asymmetry recorded here before #2027 (its literal
-//     `{test, it, test.skip, it.skip}` set) is closed.
-//   · It does NOT resolve assertion HELPERS. `test("x", () => { expectOk(1); })` PASSES here (the helper's
-//     body is followed up to four hops) and FLAGS there, and its population also admits the `.test-d.ts` /
-//     `.spec.ts` suites this one fences out. That helper hop is the catch a merge would lose, so this arm is
-//     NOT redundant with `test-no-stubs` and must not be retired as if it were.
+// FAMILY `audit-client-tests` — a declared SINGLETON. The test-call SHAPE is read through
+// `lib/test-call-shape.ts` (`isTestCallShape`, `callChainRoot`), the one home of the modifier vocabulary.
+// The assertion-less test callback that `test-no-stubs` once judged beside this policy is now the
+// `vitest/expect-expect` and `playwright/expect-expect` rules in `eslint.config.js`; this policy's own
+// no-assertion arm keeps the one catch those rules lack: it follows a resolved assertion helper (the
+// helper body is followed up to four hops), so `test("x", () => { expectOk(1); })` passes here.
 //
 // POPULATION PORT: legacy `isTestFile` — `filePath.includes("/tests/") && /\.test\.tsx?$/` over
 // `ctx.project.getSourceFiles()` — becomes `{ in: ["@tests"], named: ["*.test.ts", "*.test.tsx"] }`.
@@ -49,7 +38,7 @@
 // delivered nodes — private descendant walks the final query boundary forbids even scoped to one node. The
 // final shape subscribes to the kinds it needs on the ONE shared walk, indexes each PER FILE, and
 // `evaluate` reconciles by node-RANGE containment against only that node's own file's index. Per-file
-// indexing is load-bearing for the same reason it is in `test-no-stubs`: two SourceFiles' local offsets
+// indexing is load-bearing: two SourceFiles' local offsets
 // numerically overlap, so a shared list would let file B's `expect` satisfy file A's stub.
 //
 // DECLARED LIMIT: helper resolution is SAME-FILE ONLY — and since #2163 it is a FENCE, not a reader
@@ -151,9 +140,8 @@ function calleeName(call: CallExpression): string | undefined {
  *     newlines in the token (verifier RV-1, already fixed);
  *   · a CALL-RETURNING FACTORY (`test.each([1])(name, fn)`) anchored on the whole callee reports the token
  *     `test.each([1])`, which the sink refuses the same way — measured 2026-09-13 and recorded in
- *     `test-no-stubs.ts` (the FAMILY sibling that shares this shape reader): *"for a call-returning stub it
- *     reports the token `test.each([1])`, which the waiver sink refuses, so that policy WITHHOLDS"*. A
- *     withheld owner is not a verdict, so the factory form was UNJUDGED here even though `isTestCallShape`
+ *     the retired `test-no-stubs` gate, whose call-returning stub reported the token `test.each([1])`, so its policy
+ *     WITHHELD. A withheld owner is not a verdict, so the factory form was UNJUDGED here even though `isTestCallShape`
  *     recognised it (#2454). Walking through the inner call lands on the same `each` the tagged form uses. */
 function calleeNameNode(call: CallExpression): MorphNode {
   return anchorOfCallee(call.getExpression());
@@ -327,7 +315,7 @@ function auditHookCall(ctx: GatePolicyContext, call: CallExpression): void {
 
 export const gate = defineGate({
   id: "audit-client-tests",
-  family: "test-no-stubs",
+  family: "audit-client-tests",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@tests"], named: ["*.test.ts", "*.test.tsx"] },
@@ -544,7 +532,7 @@ export const gate = defineGate({
         "tests/tooling/factory-table.test.ts": 'test.each([1])("stub", () => {\n  const x = 1;\n  void x;\n});\n',
       },
       expect: { count: 1, line: 1, token: "each", messageIncludes: "no `expect(...).<matcher>()`" },
-      why: "THE CALL-RETURNING FACTORY FORM, and the row that turns a WITHHELD owner into a verdict (#2454). `isTestCallShape` has recognised `test.each(table)(name, fn)` since #2027, but this policy anchored the report on the whole callee — the token `test.each([1])`, which the waiver sink refuses, withholding the WHOLE policy rather than losing one finding (measured 2026-09-13, recorded in `test-no-stubs.ts`'s header). `calleeNameNode` now walks through the inner call to the same `each` the tagged-table rows anchor on. The inner `test.each([1])` call carries no callback, so it is not a second finding — the count is 1, and a naive walk that dropped the callback requirement would read 2 here",
+      why: "THE CALL-RETURNING FACTORY FORM, and the row that turns a WITHHELD owner into a verdict (#2454). `isTestCallShape` has recognised `test.each(table)(name, fn)` since #2027, but this policy anchored the report on the whole callee — the token `test.each([1])`, which the waiver sink refuses, withholding the WHOLE policy rather than losing one finding (measured 2026-09-13 on the retired `test-no-stubs` gate). `calleeNameNode` now walks through the inner call to the same `each` the tagged-table rows anchor on. The inner `test.each([1])` call carries no callback, so it is not a second finding — the count is 1, and a naive walk that dropped the callback requirement would read 2 here",
     },
   ],
   mustPass: [
@@ -564,7 +552,7 @@ export const gate = defineGate({
         "tests/tooling/helper.test.ts":
           'function expectOk(x: number): void {\n  expect(x).toBeGreaterThan(0);\n}\ntest("asserts via a helper", () => {\n  expectOk(1);\n});\n',
       },
-      why: "RULE 1's helper hop — the assertion lives inside a resolved `expect*` helper and is followed transitively. This is the arm `test-no-stubs` does not have, and the measured reason the two policies are not merged (see the header)",
+      why: "RULE 1's helper hop — the assertion lives inside a resolved `expect*` helper and is followed transitively. This is the arm the `expect-expect` lint rules do not have (see the header)",
     },
     {
       mode: "types",

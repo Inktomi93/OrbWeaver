@@ -11,9 +11,11 @@ import Color from "colorjs.io";
 // that could carry a network fetch or a CSS escape is rejected outright (not sanitized). Hex, rg[b]a(),
 // hsl[a](), oklch()/oklab(), and the bare CSS named colors are the whole permitted surface.
 const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/iu;
-const RGB = /^rgba?\(\s*[0-9., %/]+\)$/iu;
-const HSL = /^hsla?\(\s*[0-9., %/deg]+\)$/iu;
-const OKL = /^okl(?:ch|ab)\(\s*[0-9.\-% /]+\)$/iu;
+// The first body character excludes the space the class also allows: a `\s*` that overlaps the class goes
+// quadratic on a long whitespace run with no closing paren.
+const RGB = /^rgba?\(\s*[0-9.,%/][0-9., %/]*\)$/iu;
+const HSL = /^hsla?\(\s*[0-9.,%/deg][0-9., %/deg]*\)$/iu;
+const OKL = /^okl(?:ch|ab)\(\s*[0-9.\-%/][0-9.\-% /]*\)$/iu;
 // A letters-only SHAPE check, NOT a CSS named-color allowlist: it admits any 3–20 letter word (so
 // `isSafeColor("notacolorxx") === true`). That is intentional and safe — an unknown bare word is an
 // INVALID CSS color the browser simply ignores (it can carry no url/fetch/escape: no separators or

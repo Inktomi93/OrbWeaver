@@ -136,12 +136,12 @@ type SlashDraft = SlashMessageDraft | SlashCommandDraft;
 const EMPTY_MATCHES: readonly SlashCommandContribution[] = [];
 
 /** Anchored; `[\s\S]` spans newlines so a multi-line `/command` body reaches its runner intact. */
-const SLASH_COMMAND_RE = /^\/([a-z][a-z0-9-]*)(?:\s+([\s\S]*))?$/i;
+const SLASH_COMMAND_RE = /^\/([a-z][a-z0-9-]*)(?:\s+(\S[\s\S]*)?)?$/i;
 /** The in-progress command token: a leading slash then ONLY token characters (no whitespace yet). */
 const SLASH_COMPLETION_RE = /^\/([a-z0-9-]*)$/i;
 /** A command that has moved PAST its token into arguments: `/<id> <args…>`, at least one whitespace typed. The
  *  args group is UNTRIMMED (a trailing space is the "starting a fresh argument" signal an arg completer reads). */
-const SLASH_ARGS_RE = /^\/([a-z][a-z0-9-]*)\s+([\s\S]*)$/i;
+const SLASH_ARGS_RE = /^\/([a-z][a-z0-9-]*)\s+(\S[\s\S]*)?$/i;
 const ESCAPE_PREFIX = "//";
 
 /** Classify a composer draft. Pure — no registry knowledge: whether the named command EXISTS is the

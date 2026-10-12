@@ -617,7 +617,7 @@ test("THE F3 PIN — the client guest global object is an EXACT allow-list (a ne
   const marker = page.getByText(/^REALM_GLOBALS\[/);
   await expect(marker).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
   const rendered = (await marker.textContent()) ?? "";
-  const inner = rendered.replace(/^REALM_GLOBALS\[/, "").replace(/]$/, "");
+  const inner = rendered.replace(/^REALM_GLOBALS\[/, "").replace(/\]$/, "");
   const actual = inner.split(",");
 
   // THE CLOSED-SET ASSERTION — an added or removed guest global fails HERE.

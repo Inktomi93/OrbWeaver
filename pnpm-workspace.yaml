@@ -369,6 +369,14 @@ catalog:
   # semantic unnecessary-effect analysis (the "you might not need an effect" family). 6 of 9 rules
   # enabled, 3 rejected with receipts — the reasoning lives in eslint.config.js beside the block.
   eslint-plugin-react-you-might-not-need-an-effect: ^1.0.2
+  # Maintained rule packs that replace custom test, zod and suppression gates (work item 985). Exact pins:
+  # eslint.config.js lists their rules by name, and a pin keeps a plugin upgrade from adding a gate unreviewed.
+  eslint-plugin-playwright: 2.12.1
+  "@vitest/eslint-plugin": 1.6.27
+  eslint-plugin-zod: 5.0.0
+  "@eslint-community/eslint-plugin-eslint-comments": 4.8.1
+  eslint-plugin-regexp: 3.3.1
+  eslint-plugin-drizzle: 0.2.3
   # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
   # caret auto-adopts 8.1.3 once it clears the 24h window. (Matches the lucide pin-reason style.)
   vite: ^8.3.0

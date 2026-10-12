@@ -104,7 +104,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
 
     // SOLO: one character ⇒ no character bar and the "This chat" tab carries NO Group-behavior section. The
     // Members tab is still available because hosts can manage identity and seat state in solo rooms.
-    expect(await characterChips(page).count()).toBe(0);
+    await expect(characterChips(page)).toHaveCount(0);
     await expect(page.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toBeVisible();
     await openContextTab(page, "This chat");
     // OPEN THE HOST BAND BEFORE CLAIMING THE SECTION IS ABSENT (#1851). The tab is an index of disclosures

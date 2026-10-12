@@ -238,7 +238,7 @@ function parseJson(raw: string): JsonParse {
 /** `a.b[0].c` over a parsed body — the same dot-and-index spelling the transport's own map uses. */
 function resolveDotPath(root: unknown, path: string): unknown {
   let cursor: unknown = root;
-  for (const segment of path.replace(/\[(\d+)]/g, ".$1").split(".")) {
+  for (const segment of path.replace(/\[(\d+)\]/g, ".$1").split(".")) {
     if (segment === "") {
       continue;
     }

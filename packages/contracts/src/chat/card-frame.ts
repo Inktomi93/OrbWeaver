@@ -71,7 +71,7 @@ export const cardFrameMintRequestSchema = z.strictObject({
    *  Re-clamped server-side by `clampCardFrameThemeTokens` — these caps only bound the PARSE. */
   themeTokens: z
     .record(z.string().max(MAX_TOKEN_NAME_CHARS), z.string().max(MAX_TOKEN_VALUE_CHARS))
-    .refine((r) => Object.keys(r).length <= MAX_THEME_TOKENS)
+    .refine((r) => Object.keys(r).length <= MAX_THEME_TOKENS, { error: `at most ${MAX_THEME_TOKENS} theme tokens` })
     .optional(),
   /** The resolved UI font-family list. Re-validated server-side against the font-list grammar. */
   fontFamily: z.string().max(MAX_FONT_FAMILY_CHARS).optional(),

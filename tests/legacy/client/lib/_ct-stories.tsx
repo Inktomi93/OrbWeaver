@@ -43,8 +43,8 @@ import { recordRender } from "#client/lib/render-stats.ts";
 import type { SelectOpeningTestCase } from "./select-opening-cases.fixtures.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
 
-// Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
-// test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
+// Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT test
+// (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
 // `createToastNotify` is the PRODUCTION mapping (lib/toast-notify.ts), not a hand-copy: the copy this
 // story used to carry had already drifted (no `warn` channel, no description/action/timeout), which is
 // exactly how a CT goes green against a toast the app never renders.

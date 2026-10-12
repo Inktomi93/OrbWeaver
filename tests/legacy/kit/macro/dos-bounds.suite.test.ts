@@ -6,7 +6,7 @@
 // re-entry). A hostile card can nest blocks arbitrarily deep; this proves the cap catches it.
 
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
-import { createDefaultRegistry, MACRO_MAX_DEPTH, parseMacros, processMacros } from "@orb/kit/macro";
+import { createDefaultRegistry, MACRO_MAX_DEPTH, parseMacros, processMacros, scanMacroRuns } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 function opts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {
@@ -121,6 +121,18 @@ test("parsing a 200 KB macro-dense field stays O(n) — completes well inside th
   // Proof it parsed every tag (not short-circuited): 40 000 macro nodes, all named "a".
   expect(ast).toHaveLength(40_000);
   expect(ast[0]).toMatchObject({ type: "macro", name: "a" });
+}, 4000);
+
+// The display scan reads the same hostile field. An unclosed `{{` followed by a long whitespace run must not
+// retry every split of the run (a `\s*` beside the `[^{}]` capture did, quadratically). Bound = the test timeout.
+test("scanning an unclosed `{{` followed by 200 KB of spaces stays O(n) — completes inside the timeout", () => {
+  const runs = scanMacroRuns(`{{${" ".repeat(200_000)}`);
+  expect(runs).toEqual([{ kind: "text", value: `{{${" ".repeat(200_000)}` }]);
+  expect(scanMacroRuns("a {{  pov  }} b")).toEqual([
+    { kind: "text", value: "a " },
+    { kind: "macro", value: "pov" },
+    { kind: "text", value: " b" },
+  ]);
 }, 4000);
 
 // ── The engine INPUT belt: refuse a pathological input before parsing (2026-08-09 DoS audit, guard #2) ──

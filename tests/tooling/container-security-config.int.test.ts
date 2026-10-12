@@ -48,7 +48,7 @@ test("every container Node matches the Node the repository pins in devEngines", 
     .object({ devEngines: z.object({ runtime: z.object({ name: z.literal("node"), version: z.string() }) }) })
     .parse(JSON.parse(read(repoRoot, "package.json"))).devEngines.runtime.version;
   const major = pinned.split(".")[0];
-  const images = (rel: string): string[] => [...read(repoRoot, rel).matchAll(/\bnode:([0-9][^-@\s]*)/gu)].map((match) => match[1] ?? "");
+  const images = (rel: string): string[] => [...read(repoRoot, rel).matchAll(/\bnode:(\d[^-@\s]*)/gu)].map((match) => match[1] ?? "");
   expect(images("Dockerfile").length).toBeGreaterThan(0);
   for (const tag of images("Dockerfile")) {
     expect(tag, "Dockerfile pins the exact devEngines Node").toBe(pinned);
@@ -186,7 +186,7 @@ test("the runtime assembler invokes the checked version-stamp entry without pnpm
 test("the runtime installs system certificate authorities for the pinned relay's verified TLS", ({ repoRoot }) => {
   const dockerfile = read(repoRoot, "Dockerfile");
   const runtime = dockerfile.split(/^FROM .* AS runtime$/mu)[1];
-  expect(runtime).toMatch(/apt-get install[^\n]*\bca-certificates\b/u);
+  expect(runtime).toMatch(/apt-get install[^\n]+\bca-certificates\b/u);
 });
 
 test("compose publishes on loopback by default, ships a credentialed login mode, and keeps secrets out of the tracked env file", ({ repoRoot }) => {

@@ -362,11 +362,11 @@ test("a transcript card COLLAPSES to its title bar and re-shows the SAME scripts
   await expect(component.getByText("after")).toBeVisible();
 
   await card.getByRole("button", { name: "Show card" }).click();
-  const frame = card.locator('iframe[data-slot="sandbox-frame"]');
-  await expect(frame).toHaveCount(1);
-  await expect.poll(async () => frame.getAttribute("sandbox")).not.toBeNull();
-  await expect.poll(async () => frame.getAttribute("sandbox")).not.toContain("allow-scripts");
-  await expect.poll(async () => frame.getAttribute("sandbox")).not.toContain("allow-same-origin");
+  const iframe = card.locator('iframe[data-slot="sandbox-frame"]');
+  await expect(iframe).toHaveCount(1);
+  await expect.poll(async () => iframe.getAttribute("sandbox")).not.toBeNull();
+  await expect.poll(async () => iframe.getAttribute("sandbox")).not.toContain("allow-scripts");
+  await expect.poll(async () => iframe.getAttribute("sandbox")).not.toContain("allow-same-origin");
 });
 
 // The committed EOF-close on the READING surface: a card the model never closed (generation truncated

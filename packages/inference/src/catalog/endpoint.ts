@@ -371,7 +371,7 @@ async function ollamaPrefill(args: EndpointFetchArgs, model: string): Promise<En
 }
 
 /** A Modelfile `PARAMETER` line as `/api/show` prints it: the key, spaces, the value. */
-const PARAMETER_LINE_RE = /^(?<key>\S+)\s+(?<value>.+?)\s*$/u;
+const PARAMETER_LINE_RE = /^(?<key>\S+)\s+(?<value>\S.*)$/u;
 const QUOTED_RE = /^"(?<inner>.*)"$/su;
 
 /** The Modelfile's `PARAMETER` lines as the server's sampler defaults: numbers as numbers, a repeated key
