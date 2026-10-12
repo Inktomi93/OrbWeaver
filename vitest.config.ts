@@ -5,7 +5,7 @@ import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS, 
 import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import { LONG_TEST_TIMEOUT_BASE_MS, TEST_TAGS } from "@orb/tooling/floor/testing/test-tags";
 import type { TestProjectConfiguration, ViteUserConfig } from "vitest/config";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import type { TestUserConfig } from "vitest/node";
 
 // Native runner globs compose the registered vocabulary. Browser-subject .dom tests still execute in
@@ -35,6 +35,9 @@ const withIgnored = (globs: readonly string[]): string[] => [...globs, ...IGNORE
 const TOOLING = "tests/tooling/**";
 const REPOSITORY_RESOURCE = "repository" satisfies TestResource;
 const BROWSER_TYPES = testGlobs("type", "browser");
+// Setting `typecheck.exclude` replaces Vitest's default, which keeps dependencies (node_modules under the tests/
+// workspace package) out of the type lanes and the application test population. Each list restates it first.
+const TYPECHECK_DEFAULT_EXCLUDE = configDefaults.typecheck.exclude;
 const REPOSITORY_TEST_GLOBS = resourceGlobs(REPOSITORY_RESOURCE);
 const CONCURRENCY = readConcurrencyProfile();
 const inCI = process.env["CI"] !== undefined;
@@ -92,7 +95,7 @@ function typecheckProjects(applicationOnly: boolean): readonly TestProjectConfig
           enabled: true,
           only: true,
           include: testGlobs("type"),
-          exclude: [...BROWSER_TYPES, ...applicationExclusions],
+          exclude: [...TYPECHECK_DEFAULT_EXCLUDE, ...BROWSER_TYPES, ...applicationExclusions],
           tsconfig: "tsconfig.json",
           checker: TYPECHECKER,
           ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
@@ -109,7 +112,7 @@ function typecheckProjects(applicationOnly: boolean): readonly TestProjectConfig
           enabled: true,
           only: true,
           include: BROWSER_TYPES,
-          ...(applicationExclusions.length === 0 ? {} : { exclude: applicationExclusions }),
+          exclude: [...TYPECHECK_DEFAULT_EXCLUDE, ...applicationExclusions],
           tsconfig: "tsconfig.tests-dom.json",
           checker: TYPECHECKER,
           ignoreSourceErrors: IGNORE_SOURCE_ERRORS,

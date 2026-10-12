@@ -42,7 +42,6 @@ export const REVIEWED_GRANTS_TEST_FILE_SIZE: readonly ReviewedGateGrant[] = [
   "tests/contracts/preset/index.contract.test.ts",
   "tests/contracts/rpg/extraction.contract.test.ts",
   "tests/db/schema/chat.int.test.ts",
-  "tests/e2e/support/trpc.ts",
   "tests/inference/backends/anthropic-messages/chat.test.ts",
   "tests/inference/backends/openai-compat/chat.test.ts",
   "tests/inference/catalog/_local-servers-transcripts.ts",
