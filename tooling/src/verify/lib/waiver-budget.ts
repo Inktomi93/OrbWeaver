@@ -91,7 +91,7 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "test-determinism": 80,
   "test-file-size": 74,
   "test-hand-shape": 13,
-  "test-mock-doctrine": 33,
+  "test-mock-doctrine": 4,
   "test-production-clone": 17,
   "test-reach": 112,
   "testid-typed-only-stories": 336,

@@ -41,6 +41,8 @@ export const selectCharacterFacet = characterSelection.selectSecondary;
 export const clearCharacterFacet = characterSelection.clearSecondary;
 /** Reactive: the currently-selected character id (`null` = none). A primitive selector (no fresh object). */
 export const useSelectedCharacterId = characterSelection.usePrimaryId;
+/** Non-reactive read of the selected character id, for tests outside a render. */
+export const __readSelectedCharacterIdForTest = characterSelection.getPrimaryId;
 /** Reactive: the currently-drilled facet id (`null` = the facet list is showing). A primitive selector. */
 export const useSelectedCharacterFacetId = characterSelection.useSecondaryId;
 /** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule.

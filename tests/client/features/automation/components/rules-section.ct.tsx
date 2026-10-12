@@ -36,6 +36,13 @@ import { RulesActivityFreshnessStory, RulesInThisChatTabStory, RulesSectionStory
 
 const CHAT = castId<ChatId>("chat_ct_rules_0001");
 
+// Every rule row is a CollapsiblePanel that folds its height open, with the Connections and Recent-activity
+// disclosures nested inside it. Under a loaded runner a press on a nested trigger while the outer fold is
+// still running is lost, which failed a different nested-disclosure test per run. The reduced-motion floor
+// snaps the fold, so a press lands on settled geometry; the folded-open geometry itself is polled where a test
+// measures it.
+test.use({ contextOptions: { reducedMotion: "reduce" } });
+
 // A FIXED epoch, never `Date.now()` (test-determinism): the row and the log both render relative time.
 const A_PAST_INSTANT = 1_760_000_000_000;
 

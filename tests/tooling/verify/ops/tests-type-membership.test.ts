@@ -1,6 +1,5 @@
 // @orb-waive-file no-test-fabrication(MembershipReport): baselined when the gate widened to value casts; burn-down item 906.
 
-// @orb-waive-file test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
 // The PERMANENT PIN for the `tests-membership` stage's #1228 triple-slash-lib-leak tripwire
 // (`findTripleSlashLibLeaks`, tooling/src/verify/ops/tests-type-membership.ts). What it defends, and why:
 //
@@ -50,11 +49,11 @@ function plantNativeMembershipRepo(repoRoot: string, scratch: string, files: Rea
   }
 }
 
-function runMembershipQuietly(root: string): number {
+function runMembershipQuietly(root: string, nativeLauncher?: string): number {
   const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
   const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
   try {
-    return runTestsTypeMembership(root);
+    return runTestsTypeMembership(root, [], nativeLauncher);
   } finally {
     stdout.mockRestore();
     stderr.mockRestore();
@@ -378,7 +377,7 @@ test("the real membership stage blocks missing, wrong, duplicate, import-only, u
   expect(report.unknownPrograms).toContain("packages/fresh/tsconfig.json");
 });
 
-test("broken, empty and malformed native closure observations are tool errors", async ({ repoRoot, scratch }) => {
+test("broken, empty and malformed native closure observations are tool errors", ({ repoRoot, scratch }) => {
   const base =
     '{"compilerOptions":{"noEmit":true,"strict":true,"target":"es2025","module":"nodenext","moduleResolution":"nodenext","lib":["es2025"],"types":[]},"files":[]}';
   plantNativeMembershipRepo(repoRoot, scratch, {
@@ -396,21 +395,11 @@ test("broken, empty and malformed native closure observations are tool errors", 
   expect(runMembershipQuietly(scratch)).toBe(2);
   const source = join(scratch, "packages/kit/src/value.ts");
   const list = `if (process.argv.includes("--listFilesOnly")) process.stdout.write(${JSON.stringify(`${source}\n`)}); else `;
-  // The root reader uses the canonical launcher; route only its native observation to the planted process.
-  const proc = await import("@orb/tooling/floor/process/proc");
-  const runNative = proc.runNicedSync;
-  const native = vi
-    .spyOn(proc, "runNicedSync")
-    .mockImplementation((command, args, options) => runNative(command, args.includes("--showConfig") ? [script, ...args.slice(1)] : args, options));
-  try {
-    writeFileSync(script, `${list}process.stdout.write('{"files":["src/value.ts"]}');\n`);
-    expect(runMembershipQuietly(scratch)).toBe(0);
-    expect(native.mock.calls.filter(([, args]) => args.includes("--showConfig")).map(([, args]) => args[0])).toEqual([join(repoRoot, "scripts", "ts7.ts")]);
-    writeFileSync(script, `${list}process.stdout.write('not-json');\n`);
-    expect(runMembershipQuietly(scratch)).toBe(2);
-  } finally {
-    native.mockRestore();
-  }
+  // The root reader runs the canonical launcher by default; hand it the planted process for its native observation only.
+  writeFileSync(script, `${list}process.stdout.write('{"files":["src/value.ts"]}');\n`);
+  expect(runMembershipQuietly(scratch, script)).toBe(0);
+  writeFileSync(script, `${list}process.stdout.write('not-json');\n`);
+  expect(runMembershipQuietly(scratch, script)).toBe(2);
 });
 
 test("native/shared root parity remains an independent two-sided comparison", () => {

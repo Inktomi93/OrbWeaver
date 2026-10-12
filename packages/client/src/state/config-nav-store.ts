@@ -182,3 +182,8 @@ export function useVisibleConfigSettings(): readonly ConfigVisibleSetting[] {
 export function useConfigTarget(): ConfigTarget | null {
   return useConfigNavStore((s) => s.target);
 }
+
+/** Non-reactive read of the pending landing request, for tests outside a render. */
+export function __readConfigTargetForTest(): ConfigTarget | null {
+  return useConfigNavStore.getState().target;
+}

@@ -2,7 +2,6 @@
 // cap · cooldown floor · unattached book), and the born-disabled/position-0 creation (04 §2).
 // @subject packages/server/src/domain/automation/verbs/create-rule.ts
 
-// @orb-waive-file test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
 import type { AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
 import { AUTOMATION_RULE_NAME_MAX_CHARS } from "@orb/contracts/automation";
 import { rpgGameConfigSchema } from "@orb/contracts/rpg";
@@ -12,19 +11,25 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { AutomationChatNotFoundError, AutomationReservedTriggerError, RuleValidationError } from "@orb/server/domain/automation";
+import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, sql } from "drizzle-orm";
-import { describe, vi } from "vitest";
+import { describe } from "vitest";
 import { seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 
 const CREATION_REQUEST_PREFIX = ID_PREFIX.automationRuleCreation;
-const rulePersistence = await import("#server/domain/automation/persistence/rules.ts");
+/** The creation-scope probe: the second read of a missed birth lookup, parked so a competing birth can land after the miss. */
+const CREATION_SCOPE_READ = /^select "chat_id" from "automation_rules"/iu;
 
 describe("createRule — authority", () => {
   test("a competing birth does not conceal a later live admission refusal; a sequential retry still recovers", async () => {
     let installed = true;
-    const fx = await ruleFixture({ tools: { isToolDrivableBy: () => installed, runTool: () => Promise.resolve({ ok: false, reason: "unavailable" }) } });
+    const held = await freshHeldDb();
+    const fx = await ruleFixture(
+      { tools: { isToolDrivableBy: () => installed, runTool: () => Promise.resolve({ ok: false, reason: "unavailable" }) } },
+      held.db,
+    );
     const birth = {
       timeZone: UTC_TIME_ZONE,
       principal: principal(fx.host),
@@ -34,33 +39,25 @@ describe("createRule — authority", () => {
       trigger: MSG_COMMITTED,
       actions: [{ type: "run_tool" as const, name: "plugin_test" }],
     };
-    const lookupComplete = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    const read = rulePersistence.selectRuleByCreationRequest;
-    const gate = vi.spyOn(rulePersistence, "selectRuleByCreationRequest").mockImplementationOnce(async (...args) => {
-      const row = await read(...args);
-      lookupComplete.resolve();
-      await release.promise;
-      return row;
-    });
+    const scopeRead = held.hold(CREATION_SCOPE_READ);
     let losing: Promise<string> | undefined;
     try {
       losing = fx.svc.createRule(birth).then(
         () => "resolved",
         (error) => (error instanceof RuleValidationError ? "live-admission-refusal" : String(error)),
       );
-      await lookupComplete.promise;
+      await scopeRead.reached;
+      scopeRead.disarm();
       const winner = await fx.svc.createRule(birth);
       installed = false;
-      release.resolve();
+      scopeRead.release();
       expect(await losing).toBe("live-admission-refusal");
       expect(await fx.svc.createRule(birth)).toEqual(winner);
       expect(await fx.svc.listRules({ principal: principal(fx.host), chatId: fx.chatId })).toEqual([winner]);
       expect(fx.events).toEqual([{ type: "rulesChanged", chatId: fx.chatId }]);
     } finally {
-      release.resolve();
+      scopeRead.release();
       await losing;
-      gate.mockRestore();
     }
   });
   test("the same request key is owner-local across a host handoff in the same chat", async () => {
