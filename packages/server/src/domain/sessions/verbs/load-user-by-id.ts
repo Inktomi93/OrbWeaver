@@ -18,7 +18,7 @@ import { selectForProvisionById } from "../persistence/users.ts";
 //     host's row still has to answer "what is this room's authority" for the members still reading it.
 // `enabled` rides on the row `selectForProvisionById` already SELECTs, so reporting it costs no extra read.
 
-export function createLoadUserById(ctx: SessionsContext): Pick<SessionsService, "loadUserById"> {
+export function createLoadUserById(ctx: Pick<SessionsContext, "db">): Pick<SessionsService, "loadUserById"> {
   async function loadUserById(userId: UserId): Promise<UserPrincipalFields | null> {
     const row = await selectForProvisionById(ctx.db, userId);
     if (row === undefined) {

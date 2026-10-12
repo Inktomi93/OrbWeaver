@@ -17,8 +17,9 @@
 // one home, `floor/instrument/wcag.ts` `compositeForeground`.
 //
 // Pure; thresholds cited. Provenance: lib/collect.ts header.
+import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { compositeForeground, contrastRatio, isContrastExempt, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
+import { compositeForeground, isContrastExempt } from "@orb/tooling/floor/instrument/wcag";
 import type { Backdrop } from "../contract/backdrop.ts";
 import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { BorderContrastInput, BorderContrastSide } from "../contract/samples.ts";
@@ -60,7 +61,7 @@ function worstDeclaredSide(sides: readonly BorderContrastSide[], surround: Rgb):
     if (ink === null) {
       continue;
     }
-    const ratio = contrastRatio(ink, surround);
+    const ratio = wcagContrastRatio(ink, surround);
     if (worst === null || ratio < worst.ratio) {
       worst = { side, ratio };
     }
@@ -106,7 +107,7 @@ export function classifyBorderContrast(input: BorderContrastInput): CandidateDis
  *  sits at. It is not P1 (nothing is unreachable) and not P3 (a field whose edge is invisible is a real
  *  1.4.11 failure, not a polish note). */
 function borderFinding(input: BorderContrastInput, worst: WorstSide): Finding | null {
-  if (worst.ratio >= UI_COMPONENT_MIN_RATIO) {
+  if (worst.ratio >= AA_NON_TEXT_RATIO) {
     return null;
   }
   const control = input.role === null ? `<${input.tag}>` : `role="${input.role}"`;
@@ -115,7 +116,7 @@ function borderFinding(input: BorderContrastInput, worst: WorstSide): Finding | 
     severity: "P2",
     selector: input.selector,
     value: `${ratioText(worst.ratio)} on the ${worst.side.side} border (${worst.side.widthPx}px ${worst.side.style})`,
-    message: `${control} declares a border as its boundary, and that border reads ${ratioText(worst.ratio)} against the surface outside it — below WCAG 1.4.11's ${String(UI_COMPONENT_MIN_RATIO)}:1 for the visual information that identifies a component, so the edge of the control is not perceivable`,
+    message: `${control} declares a border as its boundary, and that border reads ${ratioText(worst.ratio)} against the surface outside it — below WCAG 1.4.11's ${String(AA_NON_TEXT_RATIO)}:1 for the visual information that identifies a component, so the edge of the control is not perceivable`,
     origin: "orbweaver",
   };
 }

@@ -20,7 +20,7 @@ import {
   transpileForgeDesign,
 } from "@orb/contracts/refinery";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 type Row = ForgeDesignEnvelope["fields"][number];
 

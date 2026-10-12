@@ -9,6 +9,7 @@ import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createEnabledRuleIndex } from "@orb/server/domain/automation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { RuleRow } from "#server/domain/automation/contract/ops.ts";
@@ -17,7 +18,6 @@ import { listFiresForRule } from "#server/domain/automation/persistence/fires.ts
 import { insertRule, selectRuleRow, setRuleEnabledRow } from "#server/domain/automation/persistence/rules.ts";
 import { createAutomationService } from "#server/domain/automation/service.ts";
 import { dispatchRuleNow } from "#server/domain/automation/substrate/run-now.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, readFailingDb, ruleFixture } from "../_support.ts";
 

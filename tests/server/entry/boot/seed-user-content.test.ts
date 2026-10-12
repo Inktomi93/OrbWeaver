@@ -9,7 +9,7 @@ import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids"
 import { castId } from "@orb/kit/ids";
 import type { UserContentSeederDeps } from "@orb/server/entry/boot";
 import { createUserContentSeeder } from "@orb/server/entry/boot";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const ACTOR = { userId: castId<UserId>("user_seed"), role: "owner", handle: castId<Handle>("seed-owner"), externalId: null, via: "header" } satisfies Principal;
 const FRIEND = {

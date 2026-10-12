@@ -4,8 +4,8 @@
 // isolation. Persistence itself is the createPersistedStore door (its own slice test); this pins the logic.
 
 import { __readRecentModelsForTest, __resetAllRecentModels, pushRecentModel, RECENT_MODELS_CAP } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("recent-models MRU store", () => {
   beforeEach(() => {

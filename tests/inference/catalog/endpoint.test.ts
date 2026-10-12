@@ -2,10 +2,10 @@
 // @orb-waive-file no-test-fabrication({ readonly input?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { ModelInfoApi } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
 import { fetchEndpointModels, probeListedModel } from "#inference/catalog/endpoint.ts";
 import type { EndpointModel } from "#inference/contract/runtime.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import type { LocalServerArm, TranscriptArm } from "../_support.ts";
 import { localServerFetch, transcriptFetch } from "./_local-servers-fetch.ts";
 

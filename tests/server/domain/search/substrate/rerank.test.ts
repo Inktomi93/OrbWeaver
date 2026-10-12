@@ -5,9 +5,9 @@
 // PROPAGATES — search owns no silent CSLS fallback.
 
 import type { RoleClients } from "@orb/contracts/role-clients";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { applyRerank } from "#server/domain/search/substrate/rerank.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 interface Cand {
   readonly id: string;

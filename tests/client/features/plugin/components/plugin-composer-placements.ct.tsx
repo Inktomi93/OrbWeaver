@@ -5,9 +5,9 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, CHAT_ROOM_ROUTES, makeMessagesPage } from "../../chat/fixtures.ts";
 import {
   PluginCommandsYouSheetStory,

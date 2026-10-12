@@ -11,9 +11,9 @@
 
 import type { AutomationSuggestionId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { PendingSuggestion } from "#server/domain/automation/contract/ops.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS } from "#server/domain/automation/substrate/suggestions.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, principal, ruleFixture, seedUser } from "../_support.ts";
 

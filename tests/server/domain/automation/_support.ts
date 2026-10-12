@@ -2,17 +2,20 @@
 // test file (no `.test` suffix). Builds a real-db `AutomationContext` with an injected fixed clock + prng
 // (determinism), the real `can()` seam, and id minters; plus thin principal/user/chat seed delegates.
 
-import type { AutomationAction, AutomationActionInput, AutomationBusEvent, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationActionInput, AutomationBusEvent, AutomationTrigger } from "@orb/contracts/automation";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { PromptTransform, VariableWriteResult } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { automationFires, chats, messages, messageVariants, users } from "@orb/db";
+import { automationFires } from "@orb/db";
 import type { AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
-import { eq } from "drizzle-orm";
+import { createHostPrincipalResolver, createResolveUserEnabled } from "@orb/server/entry/auth";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type {
   ApplyProseRewrite,
   ArmDispatch,
@@ -22,7 +25,6 @@ import type {
   IsPluginLive,
   PromptTransformIndex,
   SuggestionStore,
-  TurnOriginRead,
 } from "#server/domain/automation/contract/ops.ts";
 import type { PluginSubscriberRegistry } from "#server/domain/automation/contract/plugin-subscribers.ts";
 import type { AutomationContext, AutomationService } from "#server/domain/automation/contract/service.ts";
@@ -33,9 +35,9 @@ import {
   createPromptTransformIndex,
   createSuggestionStore,
 } from "#server/domain/automation/index.ts";
-import { freshDb } from "../../../support/db.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
+import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
+import type { AutomationActionOpsDeps } from "#server/entry/compose/automation-watcher.ts";
+import { createAutomationOps } from "#server/entry/compose/automation-watcher.ts";
 import { seedChat, seedParticipant } from "../chat/_support.ts";
 
 /** PARSE an AUTHORED arm into the stored/dispatched shape — exactly what `createRule` does before anything
@@ -140,74 +142,45 @@ export const NO_TOOLS: AutomationOps["tools"] = {
  *  test overrides with a real/fake arm. */
 const NOT_WIRED_DISPATCH: ArmDispatch = () => Promise.resolve({ ok: false, kind: "arm_error", detail: "arm not wired" });
 
-/** The chat READ ops the fact resolver + CEL env consume — direct db reads over the seeded chat (compose wires
- *  the equivalent from the chat domain's exports). */
-function testChatOps(db: Db, tools: AutomationOps["tools"] = NO_TOOLS): AutomationOps {
-  return {
-    tools,
-    chat: {
-      getMessageFact: async (_chatId, messageId): Promise<NonNullable<TriggerFact["message"]> | null> => {
-        const rows = await db
-          .select({
-            id: messages.id,
-            role: messages.role,
-            authorUserId: messages.authorUserId,
-            characterId: messages.characterId,
-            seq: messages.seq,
-            content: messageVariants.content,
-          })
-          .from(messages)
-          .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-          .where(eq(messages.id, messageId))
-          .limit(1);
-        return rows[0] ?? null;
-      },
-      getTurnOrigin: async (_chatId, messageId): Promise<TurnOriginRead | null> => {
-        const rows = await db
-          .select({ initiator: messages.initiator, automationDepth: messages.automationDepth })
-          .from(messages)
-          .where(eq(messages.id, messageId))
-          .limit(1);
-        const row = rows[0];
-        return row === undefined ? null : { initiator: row.initiator, automationDepth: row.automationDepth };
-      },
-      readVariables: async (chatId): Promise<Record<string, string>> => {
-        const rows = await db.select({ v: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId)).limit(1);
-        return rows[0]?.v ?? {};
-      },
-      readChoicePicks: async (chatId): Promise<Record<string, string>> => {
-        const rows = await db.select({ v: chats.variableValues }).from(chats).where(eq(chats.id, chatId)).limit(1);
-        return rows[0]?.v ?? {};
-      },
-      // THE cross-domain viewer-visibility op — the REAL chat factory over the real db (never a fake): the
-      // plugin fan-out's delivery gate consumes it, so a stubbed verdict here would test nothing.
-      resolveViewerVisibility: createResolveViewerVisibility({ db }),
-      // A6 write ops — inert defaults (the shared harness's A3/A4/A5 tests never fire a real arm; the arm
-      // tests inject a capturing `AutomationOps`). Overridable via `overrides.ops`.
-      applyVariableOps: async (): Promise<VariableWriteResult> => ({ outcome: "applied" }),
-      // BG-F set_chat_background arm — inert defaults (only the arm tests exercise these).
-      listBackgroundChoices: async (): Promise<readonly never[]> => [],
-      // PROSE-1 — no host override in the shared harness ⇒ the shipped default clauses.
-      resolveChatProse: () => Promise.resolve({}),
-      setChatBackground: async (): Promise<void> => undefined,
-      // 1.6 trigger_turn arm — inert default (only the arm-executor tests exercise a real requestTurn).
-      requestTurn: async (): Promise<{ costUsd: number | null; messageCount: number }> => ({ costUsd: null, messageCount: 0 }),
-    },
-    worldInfo: {
-      upsertEntries: async (): Promise<{ inserted: number; updated: number; skippedHandEdited: number }> => ({ inserted: 0, updated: 0, skippedHandEdited: 0 }),
-    },
-    notifications: { emit: async (): Promise<void> => undefined },
-    imagery: { generatePicture: async (): Promise<{ costUsd: number | null; imageCount: number }> => ({ costUsd: null, imageCount: 0 }) },
-    // BG-F quiet-op (the set_chat_background name pick) — inert default; only the arm tests exercise it.
-    summarizeQuiet: async (): Promise<{ text: string; costUsd: number | null }> => ({ text: "", costUsd: null }),
-  };
+/** The automation ops as compose assembles them: the chat READ projections are the production ones over the real
+ *  db, and every action WRITE op is inert (the shared harness never fires a real arm; the arm tests inject a
+ *  capturing `AutomationOps` through `overrides.ops`). Exported for suites that need the real reads beside their
+ *  own write ops. */
+export function realAutomationOps(db: Db, overrides: Partial<Omit<AutomationActionOpsDeps, "db">> = {}): AutomationOps {
+  return createAutomationOps({
+    db,
+    // The plugin fan-out's delivery gate consumes this, so a stubbed verdict here would test nothing.
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    applyVariableOps: async (): Promise<VariableWriteResult> => ({ outcome: "applied" }),
+    upsertEntries: async () => ({ inserted: 0, updated: 0, skippedHandEdited: 0 }),
+    emitNotification: async (): Promise<void> => undefined,
+    generatePicture: async () => ({ costUsd: null, imageCount: 0 }),
+    requestTurn: async () => ({ costUsd: null, messageCount: 0 }),
+    listBackgroundChoices: async (): Promise<readonly never[]> => [],
+    setChatBackground: async (): Promise<void> => undefined,
+    // No host override in the shared harness, so every prose slot resolves to its shipped default.
+    resolveChatProse: () => Promise.resolve({}),
+    summarizeQuiet: async () => ({ text: "", costUsd: null }),
+    isToolDrivableBy: NO_TOOLS.isToolDrivableBy,
+    runTool: NO_TOOLS.runTool,
+    ...overrides,
+  });
+}
+
+/** The author reads compose wires from sessions' own `loadUserById`: the row-derived Principal and the
+ *  fail-closed standing-authority check. */
+function realAuthorReads(db: Db): Pick<AutomationContext, "isAuthorEnabled" | "resolveAuthor"> {
+  const sessions = createLoadUserById({ db });
+  return { isAuthorEnabled: createResolveUserEnabled(sessions), resolveAuthor: createHostPrincipalResolver(sessions) };
 }
 
 /** Build an AutomationContext over a real db with the fixed clock/prng, the real `can()`, id minters, and the
  *  A5 watcher/dispatch seams (real enabled index, the author-principal resolver, injectable arm executors +
  *  notify). Call `ctx.enabled.reload()` after seeding enabled rules if the watcher pre-check is under test. */
 export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}): AutomationContext {
-  const ops = overrides.ops ?? testChatOps(db, overrides.tools);
+  const ops =
+    overrides.ops ??
+    realAutomationOps(db, overrides.tools === undefined ? {} : { isToolDrivableBy: overrides.tools.isToolDrivableBy, runTool: overrides.tools.runTool });
   const promptRegistry: TestPromptRegistry = overrides.promptRegistry ?? makeTestPromptRegistry();
   return {
     db,
@@ -235,19 +208,8 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
         register: promptRegistry.register,
         unregister: promptRegistry.unregister,
       }),
-    // C5 — the owner-GLOBAL lane's standing-authority read, over the REAL `users` row (compose wires
-    // sessions' own `loadUserById` here). Never a stub `true`: the whole point of the predicate is that a
-    // disabled author's chat-less rules stop firing, and a harness that answered `true` unconditionally
-    // would make that unassertable.
-    isAuthorEnabled: async (userId): Promise<boolean> => {
-      const rows = await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, userId)).limit(1);
-      return rows[0]?.enabled === true;
-    },
-    resolveAuthor: async (userId): Promise<Principal | null> => {
-      const rows = await db.select({ role: users.role, handle: users.handle }).from(users).where(eq(users.id, userId)).limit(1);
-      const row = rows[0];
-      return row === undefined ? null : { userId, role: row.role, handle: row.handle, externalId: null, via: "fallback" };
-    },
+    // Never a stub `true`: a disabled author's chat-less rules must stop firing, which a constant cannot show.
+    ...realAuthorReads(db),
     executePluginSuggestion:
       overrides.executePluginSuggestion ?? ((): Promise<void> => Promise.reject(new Error("test: executePluginSuggestion was not wired for this harness"))),
     isPluginLive: overrides.isPluginLive ?? ((): Promise<boolean> => Promise.resolve(false)),

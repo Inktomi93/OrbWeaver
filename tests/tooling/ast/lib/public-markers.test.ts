@@ -1,8 +1,8 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { VariableDeclaration } from "ts-morph";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import { isPublicTagged, publicMarkerOf } from "../../../../tooling/src/ast/lib/public-markers.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function declarationOf(comment: string): VariableDeclaration {
   const project = new Project({ useInMemoryFileSystem: true });

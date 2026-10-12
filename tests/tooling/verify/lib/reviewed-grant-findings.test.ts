@@ -2,12 +2,13 @@
 // `(policyId, subject, operation)` and central reconciliation calls a row matching more than one finding
 // OVER-BROAD — it then licenses nothing — so a home performing the same licensed operation three times must
 // still produce exactly ONE finding, with its sites named in the message.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GatePolicyFileFindingDetails, GatePolicyNodeFindingDetails, GatePolicyReportSink } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { ReviewedGrantCandidate, ReviewedGrantFileCandidate } from "../../../../tooling/src/verify/lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates, reportReviewedGrantFileCandidates } from "../../../../tooling/src/verify/lib/reviewed-grant-findings.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TEXT = { message: "the law", fix: "the fix", unreadableMessage: "unreadable" };
 

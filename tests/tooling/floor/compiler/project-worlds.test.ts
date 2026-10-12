@@ -1,4 +1,6 @@
 // World intent stays independent of filesystem and compiler discovery.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   BROWSER_PACKAGES,
   isNodeToolSource,
@@ -15,7 +17,6 @@ import {
   programWorldOf,
 } from "@orb/tooling/floor/compiler/type-config-intent";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("worldOf: package src by PACKAGE_WORLDS, the test surface by directory then suffix, nothing else", () => {
   expect(worldOf("packages/kit/src/ids.ts")).toBe("iso");

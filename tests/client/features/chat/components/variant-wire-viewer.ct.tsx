@@ -17,11 +17,11 @@
 // Plus the honest-absence arms: a variant that captured nothing, and a deleted row (NOT_FOUND), each say so
 // rather than rendering a blank panel.
 
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MessageRowStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 

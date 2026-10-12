@@ -1,8 +1,8 @@
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 test("canonical media provisioning is authenticated, bounded and preserves every failed prerequisite", async ({ repoRoot, scratch, fakeBin }) => {
   const source = readFileSync(join(repoRoot, "scripts/ci/install-media.sh"), "utf8");

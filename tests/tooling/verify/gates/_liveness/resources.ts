@@ -12,6 +12,8 @@
 //
 // Text-reading policies here also read THIS file, so a planted token that would be a finding in it (a
 // suppression directive) is assembled from parts.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as baseuiSurfaceManifest } from "../../../../../tooling/src/verify/gates/baseui-surface-manifest.ts";
 import { gate as biomeGrantLiveness } from "../../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
 import { gate as biomeGrantLivenessHealth } from "../../../../../tooling/src/verify/gates/biome-grant-liveness-health.ts";
@@ -44,7 +46,6 @@ import { gate as tsconfigEntryLiveness } from "../../../../../tooling/src/verify
 import { gate as tsconfigEntryLivenessHealth } from "../../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
 import { gate as uiExportsMapComplete } from "../../../../../tooling/src/verify/gates/ui-exports-map-complete.ts";
 import { gate as verifyRegistryParity } from "../../../../../tooling/src/verify/gates/verify-registry-parity.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
 const DEPCRUISE = ".dependency-cruiser.cjs";

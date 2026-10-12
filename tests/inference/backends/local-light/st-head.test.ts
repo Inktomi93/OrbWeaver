@@ -2,8 +2,8 @@
 // expected scores come from an independent float64 reference (math.erf GELU, torch's LayerNorm eps), so the pin is
 // the arithmetic and the safetensors parse, not this implementation agreeing with itself.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { loadStHead, scoreHiddenStates } from "#inference/backends/local-light/st-head.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const GELU = "torch.nn.modules.activation.GELU";
 const IDENTITY = "torch.nn.modules.linear.Identity";

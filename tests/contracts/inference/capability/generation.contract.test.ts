@@ -18,7 +18,7 @@ import {
   TURNS_FLOOR,
   turnsCapabilitySchema,
 } from "@orb/contracts/inference";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("the generation floor parses, declares its window a guess, and carries the turns floor", () => {
   expect(generationCapabilitySchema.parse(GENERATION_FLOOR)).toEqual(GENERATION_FLOOR);

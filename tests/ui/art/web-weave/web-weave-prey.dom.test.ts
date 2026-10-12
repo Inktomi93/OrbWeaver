@@ -8,13 +8,13 @@
 //   • speed is in px/MS: a long frame moves her further, never faster;
 //   • the whole run is deterministic — the same event list twice gives the same path.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { buildWeb } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import type { SpiderPose } from "#ui/art/web-weave/web-weave-character.ts";
 import { WEAVE_CHARACTER_PRESETS } from "#ui/art/web-weave/web-weave-character.ts";
 import type { PreyState } from "#ui/art/web-weave/web-weave-prey.ts";
 import { createPreyState, disturbPrey, preyPose } from "#ui/art/web-weave/web-weave-prey.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const BOX = { width: 1280, height: 800, hub: { x: 0.5, y: 0.42 }, seed: 7 } as const;
 const CHARACTER = WEAVE_CHARACTER_PRESETS.full;

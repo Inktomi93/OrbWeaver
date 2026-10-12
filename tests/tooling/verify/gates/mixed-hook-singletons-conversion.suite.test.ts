@@ -14,10 +14,10 @@
 // run would report a catch explosion that is an artifact of the harness.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { expect, fixturePath, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 
 function plant(root: string, files: Readonly<Record<string, string>>): Project {
   const project = new Project({ skipAddingFilesFromTsConfig: true });

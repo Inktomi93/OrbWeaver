@@ -20,9 +20,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { expect, fixturePath, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { z } from "zod";
 import { acquireCtRunnerLock } from "../../../../tooling/src/verify/lib/ct-runner-lock.ts";
-import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const REAL_A = "tests/tooling/smoke.test.ts";

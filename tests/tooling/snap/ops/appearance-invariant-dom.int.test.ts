@@ -1,10 +1,10 @@
 // #953 instrument plant: a `many` subject's representative must come from the sampled population, not
 // the first virtualized/off-viewport sibling that happened to match the same client-owned selector.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { probeAppearanceDom } from "../../../../tooling/src/snap/ops/appearance-invariant-dom.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);

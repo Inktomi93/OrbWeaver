@@ -23,6 +23,10 @@ import type { ChatId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, desc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { buildHistoryBudget, fitCeilingTokens, historyTurnTokens } from "#server/domain/chat/assembly/history-budget.ts";
@@ -36,10 +40,6 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { createCompaction } from "#server/domain/chat/verbs/compaction.ts";
 import { createQuietGenerate } from "#server/domain/chat/verbs/quiet-generate.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");

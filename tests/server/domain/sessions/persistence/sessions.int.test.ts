@@ -3,6 +3,9 @@ import { sessions, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
@@ -14,9 +17,6 @@ import {
   selectForValidation,
   slideExpiry,
 } from "#server/domain/sessions/persistence/sessions.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const USER_ID = castId<UserId>("user_alice");
 const HANDLE = castId<Handle>("alice");

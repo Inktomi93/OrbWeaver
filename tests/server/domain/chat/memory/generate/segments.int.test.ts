@@ -2,10 +2,10 @@ import type { Db } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe, vi } from "vitest";
 import { generateSegments } from "#server/domain/chat/memory/generate/segments.ts";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../../_support.ts";
 import { fakeEmbeddingsStore, seedTurns } from "../_support.ts";
 

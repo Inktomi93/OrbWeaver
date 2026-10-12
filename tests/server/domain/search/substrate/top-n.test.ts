@@ -1,10 +1,10 @@
 // Unit: the ranked verbs' `topN` guard (#1467 item 6). A non-positive topN becomes a NEGATIVE `LIMIT`, which
 // SQLite reads as NO limit — the refusal is what keeps a nonsense ask from turning into a full corpus scan.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { SEARCH_INVALID_TOP_N, SearchError } from "#server/domain/search/contract/errors.ts";
 import { requirePositiveTopN } from "#server/domain/search/substrate/top-n.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("requirePositiveTopN", () => {
   test("accepts a positive whole number", () => {

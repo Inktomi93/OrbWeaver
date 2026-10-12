@@ -42,6 +42,7 @@
 // asserted, because a refusal the owner cannot act on is what made this bug take a live drive to find.
 
 import type { UserRole } from "@orb/contracts/identity";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import type { ChatId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -52,10 +53,10 @@ import type { PrincipalEnv } from "@orb/server/entry/http";
 import { recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
 import type { AuthConfig, ForwardJwtVerifier } from "@orb/server/infra/auth";
 import { sessionCookieFor } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const OK = 200;
 const BAD_REQUEST = 400;
@@ -587,7 +588,7 @@ describe("D17: a DELEGATED admin is not the box operator — the wire ring is th
       chatId: foreignChat,
       api: "chat-completions",
       wire: "openai-compat",
-      providerId: "vllm",
+      providerId: castId<ProviderId>("vllm"),
       model: "qwen3",
       at: 1,
       body: { messages: [{ role: "system", content: `You are ${foreignPromptMarker}.` }] },

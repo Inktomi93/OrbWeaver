@@ -26,11 +26,11 @@
 
 import { chatWithActionName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { ariaTreeFindings, formatFindings, labelInNameFindings, nameQualityFindings } from "@orb/testkit/browser/accessible-names.ts";
+import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
+import { defineTrpcRoutes, routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { ariaTreeFindings, formatFindings, labelInNameFindings, nameQualityFindings } from "../../support/browser/accessible-names.ts";
-import { CHAT_AND_INBOX_READS_EMPTY } from "../../support/node/chat-and-inbox-reads-empty.ts";
-import { defineTrpcRoutes, routeTrpc } from "../../support/node/route-trpc.ts";
 import { AppShellStory, RailStory } from "../features/app-shell/_ct-stories.tsx";
 import { CharacterLibrarySurfaceStory } from "../features/character/_ct-stories.tsx";
 import { makeCharacterSummary, makeTagFixture } from "../features/character/fixtures.ts";

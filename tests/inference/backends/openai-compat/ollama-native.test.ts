@@ -9,6 +9,8 @@ import { builtinProvider, foldFeatures } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import { stateRoundChangesSchema, structuredChangesToToolCalls } from "@orb/contracts/rpg";
+import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import { createOpenAiCompatBackend } from "#inference/backends/openai-compat/index.ts";
 import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "#inference/backends/openai-compat/ollama-native.ts";
@@ -18,8 +20,6 @@ import type { ChatResult, OpenAiCompatChatRequest } from "#inference/contract/ch
 import { ProviderError } from "#inference/contract/errors.ts";
 import { withPresetWindow } from "#inference/contract/resolved.ts";
 import type { StructuredRequest, SummarizeRequest } from "#inference/contract/roles.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeResolved, memoryStores, memoryTokenLexicon } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability } from "../_hosted-support.ts";

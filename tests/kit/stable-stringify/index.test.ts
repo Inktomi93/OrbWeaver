@@ -1,5 +1,5 @@
 import { stableStringify } from "@orb/kit/stable-stringify";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("sorts object keys recursively regardless of insertion order", () => {
   const a = { b: 1, a: 2, c: { z: 1, y: 2 } };

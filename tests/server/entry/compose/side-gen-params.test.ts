@@ -10,11 +10,11 @@ import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PresetService } from "@orb/server/domain/preset";
 import { PresetNotFoundError } from "@orb/server/domain/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { presetDetail, presetWithPromptStructure, utilityPresetResolver } from "@orb/testkit/node/utility-preset.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { buildSideGenParams } from "#server/entry/compose/side-gen-params.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { presetDetail, presetWithPromptStructure, utilityPresetResolver } from "../../../support/utility-preset.ts";
 
 const USER_ID = castId<UserId>("user_sidegen");
 const ACTIVE_PRESET_ID = "preset_sidegen_active";

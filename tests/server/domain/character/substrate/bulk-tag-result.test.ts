@@ -8,9 +8,9 @@ import { CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE, CHARACTER_BULK_TAG_UNEXPECTE
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildBulkTagResult } from "#server/domain/character/substrate/bulk-tag-result.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const A = castId<CharacterId>("character_bulktagresult00a");
 const B = castId<CharacterId>("character_bulktagresult00b");

@@ -3,7 +3,7 @@
 // These stay raw Hono, pre-tRPC, and must never move behind auth. `/me` reads the principal app.ts's auth
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
-import type { AuthConfigShare, AuthMode, RelayStatus } from "@orb/contracts/identity";
+import type { AuthConfigShare, AuthMe, AuthMode, RelayStatus } from "@orb/contracts/identity";
 import { authConfigShareSchema, isCookieAuthMode } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
@@ -90,10 +90,11 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
 
   app.get("/api/auth/me", (c) => {
     const principal = c.get("principal");
-    return c.json({
+    const me = {
       authenticated: principal !== null,
       handle: principal?.handle ?? null,
       role: principal?.role ?? null,
-    });
+    } satisfies AuthMe;
+    return c.json(me);
   });
 }

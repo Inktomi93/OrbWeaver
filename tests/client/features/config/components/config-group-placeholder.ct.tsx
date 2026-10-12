@@ -17,8 +17,8 @@
 // file: the band says "Not built yet" in WORDS (never colour alone), it is quieter than its live siblings,
 // and it opens the coming-soon body on activation.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { defineTrpcRoutes, routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { defineTrpcRoutes, routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 // The deferred group's OWN description, as `connectionsGroup` (connections-group.tsx) spells it — the

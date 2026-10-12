@@ -2,9 +2,9 @@
 // forces the owner scope); a stranger sees none; an admin sees the deployment-wide set.
 // @subject packages/server/src/domain/workloads/verbs/list-schedules.ts
 
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService, principal, seedUser } from "../_support.ts";
 
 describe("workloads.listSchedules", () => {

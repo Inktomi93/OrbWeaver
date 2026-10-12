@@ -12,8 +12,8 @@ import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb
 import { castId } from "@orb/kit/ids";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort } from "@orb/server/entry/import";
 import { runProfileImport } from "@orb/server/entry/import";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

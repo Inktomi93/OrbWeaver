@@ -1,13 +1,13 @@
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
-import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("a plain user's visible Polish replacement reaches persisted canon byte-for-byte through the normal commit path", async ({ db, services, clock }) => {
   const user = await seedUser(db);

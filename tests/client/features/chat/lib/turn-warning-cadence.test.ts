@@ -5,8 +5,8 @@
 import type { ChatWarning } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createTurnWarningCadence } from "#client/features/chat/lib/turn-warning-cadence.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_ctcadence0000000001");
 const SONNET = "openrouter\u0000anthropic/claude-sonnet-5";

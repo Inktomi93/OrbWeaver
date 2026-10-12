@@ -8,10 +8,10 @@
 // The popover content PORTALS to the document body, so its text is asserted through `page`, not the mounted
 // `component` root (the portalled-surface rule).
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
+import { PAID_RUN_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
-import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
 import { RecallIndicatorHostStory, RecallIndicatorStory } from "../_ct-stories.tsx";
 
 const TRIGGER = /^Memory/u;

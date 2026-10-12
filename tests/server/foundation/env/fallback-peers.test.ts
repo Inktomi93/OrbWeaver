@@ -8,8 +8,8 @@
 
 import type { OwnerFallbackPeerInput } from "@orb/server/foundation/env";
 import { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "@orb/server/foundation/env";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const UNSET: OwnerFallbackPeerInput = { authFallback: "owner", trustedPeers: undefined };
 

@@ -1,4 +1,4 @@
-import { corpusGroupingProvenance } from "../../../../support/node/corpus-source.ts";
+import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
 // CT: the Corpus CONTENT region — the ANALYSIS-STATE SWAP, the chrome diet, and the region's own inset
 // (program #102 corpus leg, issue #127; mockup A "The Cartographer" + the ruled invitation-focal state).
 //
@@ -29,13 +29,13 @@ import { corpusGroupingProvenance } from "../../../../support/node/corpus-source
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { readPhantomScrollers } from "@orb/testkit/browser/scroll-containing-block.ts";
+import type { TrpcRecorder, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
+import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
-import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { CorpusContentInsetStory, CorpusContentNarrowStory, CorpusContentStory } from "../_ct-stories.tsx";
 
 /** The frozen page clock. Every stamp below is derived from it; no test here reads a wall clock. */

@@ -1,9 +1,10 @@
 // Final gate-ignore residue policy: dispatcher-owned historical grammar and the complete frozen Phase-F differential.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/gate-ignore-inventory-family";
 

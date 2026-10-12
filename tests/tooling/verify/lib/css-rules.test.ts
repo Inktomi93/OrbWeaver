@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { atRulesContaining, parseCssStylesheet, quotedStatementArgument, rulesContaining } from "../../../../tooling/src/verify/lib/css-rules.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("nested rules and direct at-rule declarations retain source order and ownership", () => {
   const parsed = parseCssStylesheet("@layer theme {\n  --seed: var(--base);\n  .outer {\n    color: red;\n    & .inner { color: blue; }\n  }\n}\n");

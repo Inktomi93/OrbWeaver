@@ -17,8 +17,8 @@ import { mintPluginFrame, pluginFrameMintBody, revokePluginFrame } from "@orb/cl
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // Neither a document nor a client-asserted policy may be spellable in the mint body — the server owns both.
 const FORBIDDEN_WORDS = /html|trust|allow|forbid|csp|script/iu;

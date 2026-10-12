@@ -10,12 +10,12 @@ import { characters } from "@orb/db";
 import type { CharacterHandle, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished, vi } from "vitest";
 import type { AssetsWorkloadDeps } from "#server/domain/assets/contract/service.ts";
 import { createAssetsWorkloadContributions } from "#server/domain/assets/workload-contributions.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness, seedCharacter, seedUser } from "./_support.ts";
 
 const T0 = 1_700_000_000_000;

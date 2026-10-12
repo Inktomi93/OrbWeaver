@@ -20,10 +20,10 @@ import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { WorldInfoComposeDeps } from "#server/entry/compose/world-info.ts";
 import { buildWorldInfo } from "#server/entry/compose/world-info.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 

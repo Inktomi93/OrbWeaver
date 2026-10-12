@@ -1,5 +1,5 @@
 import { injectionDirectiveSchema, MAX_INJECTION_DEPTH, resolveInjectionPlacement } from "@orb/kit/injection";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── injectionDirectiveSchema (depth REQUIRED, role optional) — the opt-in-or-null shape ──
 

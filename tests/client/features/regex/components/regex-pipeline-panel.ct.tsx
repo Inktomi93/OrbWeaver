@@ -9,10 +9,10 @@
 // final text, and the caveats the panel refuses to leave unsaid. Never through the model function (that is
 // pinned separately at tests/client/features/regex/lib/regex-pipeline.test.ts).
 
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RegexMemberStory } from "../_ct-stories.tsx";
 
 /** The subject — the script whose editor the panel sits under. It strips parenthesised OOC asides. */

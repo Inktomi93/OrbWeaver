@@ -8,8 +8,8 @@
 // but refused with the reason naming its unlock. The zero-registrant baseline is here too, because
 // "byte-identical with no contributions" is the property the whole seam is allowed to exist under.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, SLASH_LOCKED_REASON } from "../fixtures.ts";
 import { SlashComposerStory } from "./_slash-command-stories.tsx";
 

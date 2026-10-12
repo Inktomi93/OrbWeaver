@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
 import type { ThemeEntry } from "../../../../tooling/src/floor/appearance/theme.ts";
@@ -10,7 +11,6 @@ import {
   planSnapAppearanceMatrix,
   snapMatrixVariant,
 } from "../../../../tooling/src/snap/ops/matrix-contract.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const THEMES = [

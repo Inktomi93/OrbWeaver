@@ -8,10 +8,10 @@
 // the block half of that answer and moved here with it, out of `use-selected-theme`.
 
 import type { Theme, ThemeOverride } from "@orb/contracts/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { describe } from "vitest";
 import { BASE_PALETTE_VARS, dataThemeOf, isSeedThemeName, resolveThemeScopeTokens } from "#client/lib/resolve-theme-scope-tokens.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const FULL_OVERRIDE: ThemeOverride = {
   accent: "oklch(0.72 0.175 52)",

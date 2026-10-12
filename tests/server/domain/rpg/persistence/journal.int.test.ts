@@ -7,10 +7,10 @@ import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { MessageId, MessageVariantId, RpgGameId, RpgJournalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { deleteJournalEntry, insertJournalEntry, listActiveJournal, listJournalByVariant } from "#server/domain/rpg/persistence/journal.ts";
-import { freshDb } from "../../../../support/db.ts";
 import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test, UNCLAMPED } from "../_support.ts";
 
 let db: Db;

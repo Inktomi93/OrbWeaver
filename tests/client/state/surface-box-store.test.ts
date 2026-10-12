@@ -6,8 +6,8 @@
 // detached-node height) would reserve a garbage box on every subsequent boot.
 
 import { __readSurfaceBoxForTest, __resetSurfaceBoxes, forgetSurfaceBox, rememberSurfaceBox } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const TILE = "chat.recents";
 

@@ -4,7 +4,7 @@
 // never read).
 
 import { oversizeUploadMessage } from "@orb/client/lib";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 function fileOfSize(bytes: number): File {
   return new File([new Uint8Array(bytes)], "portrait.png", { type: "image/png" });

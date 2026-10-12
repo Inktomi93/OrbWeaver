@@ -3,6 +3,7 @@
 
 // @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { appearanceSettingsSchema } from "@orb/contracts/settings";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   APPEARANCE_CARRIER_MANIFEST,
@@ -14,7 +15,6 @@ import {
   appearanceMatrixContract,
   THEME_CARRIER_OBSERVABLES,
 } from "#client/lib/appearance-carrier-manifest.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.fixtures.ts";
 import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.fixtures.ts";
 

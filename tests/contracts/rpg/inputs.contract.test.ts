@@ -23,7 +23,7 @@ import {
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const CHAT_ID = mintTypeId(ID_PREFIX.chat);
 /** A wire-shaped character id (the `typeIdSchema(ID_PREFIX.character)` prefix) — the promotion test needs a

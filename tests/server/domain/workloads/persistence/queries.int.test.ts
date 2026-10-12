@@ -7,6 +7,8 @@ import type { WorkloadStatus } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { nextRunnableWorkload, workloadStreamEmitter } from "@orb/server/domain/workloads";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   failQueuedRow,
@@ -21,8 +23,6 @@ import {
   markTerminal,
   toView,
 } from "#server/domain/workloads/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, seedUser, seedWorkloadRow, T0 } from "../_support.ts";
 
 // The params VALIDATOR the read path narrows rows with (every kind's schema, keyed by kind).

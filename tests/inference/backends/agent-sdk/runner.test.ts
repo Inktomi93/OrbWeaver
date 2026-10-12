@@ -8,6 +8,8 @@
 
 import { modelIdSchema } from "@orb/contracts/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createAgentSdkLog } from "#inference/backends/agent-sdk/log.ts";
 import { consumeTurnStream, runChatTurn } from "#inference/backends/agent-sdk/runner.ts";
 import { NO_SAVED_TOTALS } from "#inference/backends/agent-sdk/session/frames.ts";
@@ -20,8 +22,6 @@ import { ProviderError } from "#inference/contract/errors.ts";
 import { agentSdkSessionIdSchema } from "#inference/contract/identity.ts";
 import type { InferenceLog } from "#inference/deps.ts";
 import { cacheHitRate } from "#server/domain/stats/substrate/rates.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeResolved } from "../../_support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 

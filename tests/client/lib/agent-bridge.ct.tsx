@@ -14,11 +14,10 @@
 // past the grace rather than sleeping, then asks what the flag did.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { READY_ATTR, READY_DEGRADED, READY_SETTLED } from "#client/lib/app-ready-signal.ts";
 import { AppearanceMessageRegistryStory } from "../features/chat/_ct-stories.tsx";
 import { AgentBridgeStory, AppReadyBootReadStory, AppReadyRouteResolutionStory, AppReadySignalStory } from "./_ct-stories.tsx";
 
-const READY_FLAG = `html[${READY_ATTR}]`;
+const READY_FLAG = "html[data-app-ready]";
 
 // @agent-bridge-proof: a real install must expose exactly the exhaustive typed capability registry at runtime.
 test("the mounted bridge publishes every typed capability and every evidence lifetime", async ({ mount, page }) => {
@@ -309,7 +308,7 @@ test("the flag does NOT go up while the initial reads are still in flight — th
   await expect(page.locator(READY_FLAG)).toHaveCount(1);
   // `""`, never "degraded" — this was a real settle, and an instrument reading the value must be able to
   // tell the two apart.
-  await expect(page.locator("html")).toHaveAttribute(READY_ATTR, READY_SETTLED);
+  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
 });
 
 // ISSUE #145 — the OTHER way an idle query cache lies. Above, the read was in flight; here there is no read
@@ -335,7 +334,7 @@ test("the flag does NOT go up while the ROUTE is still resolving — an idle cac
   // Land it: NOW the cache is idle for a reason, and the flag goes up as a real settle.
   await page.getByRole("button", { name: "land the read" }).click();
   await expect(page.locator(READY_FLAG)).toHaveCount(1);
-  await expect(page.locator("html")).toHaveAttribute(READY_ATTR, READY_SETTLED);
+  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
 });
 
 // #282 — the CHAINED-QUERY false idle. The theme is fetched only once `settings.getUserSettings` resolves
@@ -357,30 +356,30 @@ test("the flag does NOT go up while a boot-critical DEPENDENT read is still pend
   // Resolve the dependent read: NOW the cache is idle for a reason and the flag goes up as a real settle.
   await page.getByRole("button", { name: "resolve the dependent read" }).click();
   await expect(page.locator(READY_FLAG)).toHaveCount(1);
-  await expect(page.locator("html")).toHaveAttribute(READY_ATTR, READY_SETTLED);
+  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
 });
 
 test("degraded readiness recovers when a late initial read settles", async ({ mount, page }) => {
   await mount(<AppReadySignalStory />);
-  await expect(page.locator(READY_FLAG)).toHaveAttribute(READY_ATTR, READY_DEGRADED, { timeout: 25_000 });
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "degraded", { timeout: 25_000 });
   await page.getByRole("button", { name: "land the read" }).click();
-  await expect(page.locator(READY_FLAG)).toHaveAttribute(READY_ATTR, READY_SETTLED);
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "");
 });
 
 test("degraded readiness recovers only after the late route and its read settle", async ({ mount, page }) => {
   await mount(<AppReadyRouteResolutionStory />);
-  await expect(page.locator(READY_FLAG)).toHaveAttribute(READY_ATTR, READY_DEGRADED, { timeout: 25_000 });
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "degraded", { timeout: 25_000 });
   await page.getByRole("button", { name: "resolve the route" }).click();
   await expect(page.getByTestId("route-mounted")).toBeVisible();
-  await expect(page.locator(READY_FLAG)).toHaveAttribute(READY_ATTR, READY_DEGRADED);
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "degraded");
   await page.getByRole("button", { name: "land the read" }).click();
-  await expect(page.locator(READY_FLAG)).toHaveAttribute(READY_ATTR, READY_SETTLED);
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "");
 });
 
 test("degraded readiness recovers only after the boot-critical dependent read settles", async ({ mount, page }) => {
   await mount(<AppReadyBootReadStory />);
   await page.getByRole("button", { name: "land the parent read" }).click();
-  await expect(page.locator(READY_FLAG)).toHaveAttribute(READY_ATTR, READY_DEGRADED, { timeout: 25_000 });
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "degraded", { timeout: 25_000 });
   await page.getByRole("button", { name: "resolve the dependent read" }).click();
-  await expect(page.locator(READY_FLAG)).toHaveAttribute(READY_ATTR, READY_SETTLED);
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "");
 });

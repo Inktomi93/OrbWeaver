@@ -7,10 +7,10 @@ import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { loadWorldInfoPool } from "#server/domain/chat/assembly/world-info/pool.ts";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../../_support.ts";
 
 let db: Db;

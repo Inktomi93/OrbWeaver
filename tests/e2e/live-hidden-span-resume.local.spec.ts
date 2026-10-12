@@ -28,7 +28,7 @@
 // Routine model-free selection: the real turn uses only the external scripted provider.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
@@ -52,13 +52,6 @@ const PRESENCE_SETTLE_MS = 1500;
 /** A distinctive fragment of the opener chunk — used to LOCATE its durable frame in the host's stream. */
 const OPENER_MARKER = FIXTURE_LIE_SPAN_OPEN.slice(-24);
 
-interface CreatedCharacter {
-  readonly id: string;
-}
-interface StartedChat {
-  readonly chat: { readonly id: ChatId };
-}
-
 /** Stop collecting once the turn's reply has COMMITTED for this viewer (its content carries the cover
  *  marker) — by then every delta of the slot has flowed past. */
 function sawReply(values: readonly StreamValue[]): boolean {
@@ -69,7 +62,7 @@ function sawReply(values: readonly StreamValue[]): boolean {
  *  sees deltas verbatim, so the raw opener bytes are findable there). Resuming AT this seq puts a reader's
  *  first delta squarely inside the still-open tag. */
 function openerSeq(values: readonly StreamValue[]): number | undefined {
-  return values.find((v) => v.event.delta?.kind === "text" && (v.event.delta.text ?? "").includes(OPENER_MARKER))?.seq;
+  return values.find((v) => v.event.type === "delta" && v.event.delta.kind === "text" && v.event.delta.text.includes(OPENER_MARKER))?.seq;
 }
 
 test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never receives its tail; the HOST does", async ({ baseURL }) => {
@@ -79,18 +72,18 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
   const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT, undefined, "What happened to the well?");
   let restoreProvider: (() => Promise<void>) | undefined;
 
-  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
+  const priorList = await host.query("character.list", {});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
     await host.mutation("character.remove", { characterId: prior.id });
   }
-  const character = await host.mutation<CreatedCharacter>("character.create", {
+  const character = await host.mutation("character.create", {
     input: { handle: CARD_HANDLE, name: "Baron", description: "e2e mid-slot resume probe", greetings: [{ text: "The hall is cold." }] },
   });
 
   try {
     restoreProvider = await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [character.id] });
+    const started = await host.mutation("chat.startChat", { characterIds: [character.id] });
     const chatId = started.chat.id;
     await host.mutation("rpg.createGame", { chatId, mode: "lite" });
     await host.mutation("rpg.updateConfig", { chatId, patch: { deception: true, hiddenContentReveal: true } });

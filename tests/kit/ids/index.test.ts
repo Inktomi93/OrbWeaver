@@ -1,7 +1,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { brandedId, castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("mintTypeId produces a prefixed TypeID", () => {
   const id = mintTypeId(ID_PREFIX.chat);

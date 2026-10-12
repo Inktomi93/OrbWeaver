@@ -4,6 +4,9 @@
 // pinned on each one; every read state is driven through the same `listBindings` door production reads.
 
 import { ROUTABLE_TASKS } from "@orb/contracts/inference";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import {
@@ -14,9 +17,6 @@ import {
   pluginModelBackgroundRefused,
   pluginModelReadout,
 } from "#client/features/plugin/lib/plugin-model-copy.ts";
-import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
 
 type PluginRow = TrpcWireOutput<"plugin.list">[number];

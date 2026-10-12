@@ -9,13 +9,13 @@
 import type { USER_ROLES } from "@orb/contracts/identity";
 import type { ProviderAvailability } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, ROUTABLE_TASKS } from "@orb/contracts/inference";
+import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Deep relative, pure `.ts`: the step titles are read from their one home, never re-typed here.
 import { ADD_DIALOG_COPY } from "#client/features/credentials/lib/add-connection-form-model.ts";
-import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../support/node/user-settings-view.ts";
 
 export type ConnectionRow = TrpcWireOutput<"connection.list">[number];
 export type CredentialRow = TrpcWireOutput<"credentials.list">[number];

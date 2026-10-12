@@ -13,12 +13,13 @@
 // whole exception class. Only one of them writes a transform (the shell's push is CSS-owned), so the grant
 // table carries exactly one row — asserted below against the policy id rather than a literal count, so
 // amending §1.5 moves one place and reds here if the halves drift apart.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/no-unruled-flip-inversion.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/no-unruled-flip-inversion";
 const RULED_SITE = "packages/ui/src/primitives/tabs/tabs.tsx";

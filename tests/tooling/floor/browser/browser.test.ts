@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { closeProbeSession, parseCdpFaultSpec, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("probe cleanup attempts every context and the browser when one context close throws", async () => {
   const first = vi.fn(() => Promise.reject(new Error("planted context close failure")));

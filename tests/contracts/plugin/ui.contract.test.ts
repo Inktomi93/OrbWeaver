@@ -63,7 +63,7 @@ import {
   UI_PROXYABLE_HOST_FUNCTIONS,
 } from "@orb/contracts/plugin";
 
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("a host-owned lore picker is one option source, never combined with guest options", () => {
   const node = { kind: "select", name: "book", label: "Lore book", optionsFromHost: "owned-lore-books", actionId: "configure" };

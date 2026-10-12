@@ -5,9 +5,9 @@
 // everywhere is noise), and it must terminate even when two rows are identical to the millisecond.
 
 import { chatWithActionName, duplicateActionName, renameActionName, rowActionSubject, rowActionsName, rowQualifiers } from "@orb/client/lib";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { FROZEN_AT_MS } from "../../support/clock.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const HOUR = 3_600_000;
 const MINUTE = 60_000;

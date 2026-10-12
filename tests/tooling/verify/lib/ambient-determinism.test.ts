@@ -3,10 +3,11 @@
 // (a text check reads `clock.now` / `Date["now"]` and passes them); a local shadow and an injected seam
 // resolve to a DIFFERENT binding and answer `other` (a text check reds the shadow); and a callee the checker
 // cannot bind at all answers `unreadable` rather than absence, which is what a fail-closed policy consumes.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import type { AmbientSource } from "../../../../tooling/src/verify/contract/ambient-determinism.ts";
 import { invocationCallee, readAmbientInvocation } from "../../../../tooling/src/verify/lib/ambient-determinism.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const CLOCK: readonly AmbientSource[] = [{ globalName: "Date", memberPath: ["now"], token: "Date.now" }];

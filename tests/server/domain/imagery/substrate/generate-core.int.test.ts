@@ -1,4 +1,4 @@
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
 // substrate/runGeneration + sumCost — the spend-and-persist tail both generatePicture and editImage run
 // (their round-trip through the real store/provenance path is pinned by the verb-level int tests). This
 // file pins the claims the verb tests don't isolate: zero decodable images (neither base64 nor a
@@ -11,14 +11,14 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { GenerationFailedError } from "@orb/server/domain/imagery";
 import { applyStatsDelta, reconcileStats } from "@orb/server/domain/stats";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { runOpenAiCompatGenerateImage } from "#inference/backends/openai-compat/images.ts";
 import { passthroughImageNormalizer } from "#inference/backends/wire/image-normalize.ts";
 import { runGeneration, sumCost } from "#server/domain/imagery/substrate/generate-core.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../../../inference/_support.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, PNG_BYTES, principal, seedGenerationOwner } from "../_support.ts";
 
 /** The request shape `runGeneration` takes, named so the deliberate fabrication below has a ONE-LINE

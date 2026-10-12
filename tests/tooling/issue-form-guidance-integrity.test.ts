@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { parseDocument } from "yaml";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const FORMS_DIR = join(ROOT, ".github", "ISSUE_TEMPLATE");

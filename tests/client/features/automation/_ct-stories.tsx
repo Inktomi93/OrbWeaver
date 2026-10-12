@@ -12,25 +12,18 @@
 
 import { QueryBoundary } from "@orb/client/components";
 import { QueryErrorState } from "@orb/client/data";
-import {
-  automationBudgetSection,
-  automationLibraryRulesSection,
-  automationRulesSection,
-  ClockMeter,
-  NeedleMeter,
-  RulesSection,
-} from "@orb/client/features/automation";
+import { automationRulesSection, ClockMeter, NeedleMeter, RulesSection } from "@orb/client/features/automation";
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
-import type { ConfigSectionContribution } from "@orb/client/state";
 import { setMobileViewport } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
+import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RoomActivityLog } from "#client/features/automation/components/room-activity-log.tsx";
 import { CommittedSettingsTab } from "#client/features/chat/components/settings-context-tab.tsx";
-import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The narrowest REAL host for this surface — the CONTEXT pane at its docked width. A trailing control
@@ -118,7 +111,11 @@ export function RulesSectionToastStory({ chatId }: { readonly chatId: ChatId }):
  *  exactly what `compose/authed-app.tsx` assembles. `isHost` drives the host-controls band's mount, which is
  *  what makes the grafted section host-only without a predicate of its own. */
 export function RulesInThisChatTabStory({ chatId, isHost = true }: { readonly chatId: ChatId; readonly isHost?: boolean }): ReactElement {
-  const sections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", [automationRulesSection]);
+  const sections = isolationRegistry<ChatSettingsSectionContribution>(
+    "chat-settings-sections",
+    "keeps automation's rules section as the only grafted section so the tab's host-only gating is the subject",
+    [automationRulesSection],
+  );
   return (
     <CtDataProviders>
       <div style={{ width: CONTEXT_PANE_WIDTH }}>
@@ -127,13 +124,6 @@ export function RulesInThisChatTabStory({ chatId, isHost = true }: { readonly ch
     </CtDataProviders>
   );
 }
-
-/** The Automation group's two contributed sections, assembled as at the
- *  door and rendered through the config host's OWN resolver (`CtConfigGroupBody`). */
-const automationSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
-  "config-sections",
-  [automationLibraryRulesSection, automationBudgetSection],
-);
 
 /** C5's OWNER-GLOBAL sections — the Automation config group's body, over the stubbed network. Each section
  *  carries its OWN `QueryBoundary`, so unlike the Rules section it needs no wrapper boundary here: the story
@@ -145,7 +135,7 @@ export function OwnerAutomationSectionsStory({ width = SETTINGS_PANE_WIDTH }: { 
   return (
     <CtDataProviders>
       <div style={{ width }}>
-        <CtConfigGroupBody anchor="automation" sections={automationSections} />
+        <CtConfigGroupBody anchor="automation" sections={configSections} />
       </div>
     </CtDataProviders>
   );

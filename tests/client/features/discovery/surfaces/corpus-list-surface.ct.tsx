@@ -7,10 +7,10 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "@orb/testkit/node/corpus-source.ts";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory, CorpusSectionArrivalStory } from "../_ct-stories.tsx";
 import { expectSearchTarget, pickSearchTarget } from "../search-target.ts";
 

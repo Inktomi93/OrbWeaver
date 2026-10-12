@@ -6,6 +6,7 @@ import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { DEV_PORTS, ORB_APP_PORT_NUMBERS, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 // THE PARSER, NOT THE BARREL (#1743). `snap/index.ts` re-exports the whole op graph — `ops/run.ts` and
@@ -18,7 +19,6 @@ import { snapFlagDescriptors } from "../../../../tooling/src/snap/ops/flag-gramm
 import { FLAG_HANDLERS } from "../../../../tooling/src/snap/ops/flags-handlers.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { validateRouteSection } from "../../../../tooling/src/snap/ops/parse-route.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));

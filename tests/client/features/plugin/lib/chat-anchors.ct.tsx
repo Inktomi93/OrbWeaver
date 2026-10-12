@@ -27,15 +27,15 @@ import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { CARD_FRAME_HEIGHT_SCRIPT } from "@orb/kit/card-frame";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
+import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
+import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { CHAT_PANEL_UNDO_LABEL, PLUGIN_PANELS_SHEET_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
-import { CHAT_AND_INBOX_READS_EMPTY } from "../../../../support/node/chat-and-inbox-reads-empty.ts";
-import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
-import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
-import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 import {
   PluginChatFlankRoomStory,

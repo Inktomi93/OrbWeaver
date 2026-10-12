@@ -17,6 +17,9 @@ import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenti
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
 import { createPublicHttpMintNotice, ownerFallbackAllowed } from "@orb/server/infra/auth";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedChat, seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, like } from "drizzle-orm";
 import { Hono } from "hono";
 import { afterEach, describe, vi } from "vitest";
@@ -28,9 +31,6 @@ import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
 import { env } from "#server/foundation/env/index.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
-import { freshDb } from "../../../support/db.ts";
-import { seedChat, seedUser } from "../../../support/factories/index.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;

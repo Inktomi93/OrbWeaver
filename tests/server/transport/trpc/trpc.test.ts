@@ -9,8 +9,8 @@
 // unmodelled throw's own text off the wire while a classified error keeps both its message and its reason.
 
 // @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import type { ParticipantView, StartChatResult } from "@orb/contracts/chat";
 import type { UserSettingsView } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -25,9 +25,9 @@ import type { SettingsService } from "@orb/server/domain/settings";
 import { logger } from "@orb/server/foundation/observability";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 import { caller, denyRateLimit, inertPresence, inviteResults, makeContext, principal } from "./_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.

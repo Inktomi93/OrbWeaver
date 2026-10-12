@@ -1,9 +1,9 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { loadNativeConfig } from "../../../../tooling/src/verify/ops/resource-native-config.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** `loadNativeConfig` walks the whole tracked+untracked inventory through git; unit-level reads need a real repo. */
 function gitInit(root: string): void {

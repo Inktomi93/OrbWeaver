@@ -10,15 +10,16 @@
 // absent) instead of printing a caveat and exiting clean on a zero it cannot interpret — so a pin that
 // only checked `count` would leave the whole point of the change untested.
 
+import type { ProviderId } from "@orb/contracts/inference";
 import { automationFires, automationRules, chats, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { BUG_REPORT_MAX_BODY_BYTES, recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { afterEach, describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const TOKEN = "operator-token";
 const UNAUTHORIZED = 401;
@@ -136,7 +137,7 @@ describe("/api/_debug/wire — the recorder-state field (#412)", () => {
           chatId: castId<ChatId>("chat_filter_probe"),
           api: "chat-completions",
           wire: "openai-compat",
-          providerId,
+          providerId: castId<ProviderId>(providerId),
           model: "m",
           at: 1,
           body: { marker },

@@ -3,10 +3,10 @@
 // assertion, since the surface had NO CT file at all until now (the #1200 padding fix rode the
 // overview's pinned pattern uncovered on this twin).
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { AnalyticsCharacterSurfaceStory } from "../_ct-stories.tsx";
 import { ACCOUNTING_CASES } from "../fixtures.ts";

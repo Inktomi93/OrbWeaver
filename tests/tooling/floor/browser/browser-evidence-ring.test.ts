@@ -1,5 +1,7 @@
 // Browser evidence retention truth: replacement is not observation/eviction, while protected overflow
 // is incomplete even though no active request body may be dropped.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { exactScope } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import {
   BoundedEvidenceRing,
@@ -7,7 +9,6 @@ import {
   browserEvidenceRetentionBatchSchema,
   retentionBatch,
 } from "../../../../tooling/src/floor/browser/browser-evidence-ring.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** A minimal-but-valid batch, for isolating the `limits` axis under test — the rows array itself carries
  *  no invariant this file needs to hold. */

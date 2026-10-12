@@ -4,11 +4,12 @@
 // generic words, which a `mustRefuse` row may not name (`lib/policy-refusal-envelope.ts`), so the refusal
 // SHAPE is asserted here. Two-sided: the same run plus one client file reaches a verdict.
 // The fact's reading behaviour is pinned in `tests/tooling/verify/lib/dialog-root-import.test.ts`.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/dialog-via-composite.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/dialog-via-composite-refusal";
 const OUTSIDE = { "packages/server/src/x.ts": "export const x = 1;" };

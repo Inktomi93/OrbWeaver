@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import {
   decideStartBuild,
@@ -25,7 +26,6 @@ import {
   startLaunch,
   startSpawnPlan,
 } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Env NAMES are SCREAMING_SNAKE, which is not a camelCase identifier — so every fixture env is built from
  *  key/value TUPLES rather than an object literal (the house idiom, lib/spawn-plan.ts's NODE_ENV). */

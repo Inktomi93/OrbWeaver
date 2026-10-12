@@ -1,6 +1,7 @@
 // Exercise application subject dispatch with real resource acquisition and full fact/authority inputs.
 import { symlinkSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { defineGate, executePolicyPlan, planPolicyArgv } from "@orb/tooling/verify";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
@@ -10,7 +11,6 @@ import { gate as schemaShapes } from "../../../../tooling/src/verify/gates/schem
 import { gate as artifactSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyPassExitCode } from "../../../../tooling/src/verify/lib/policy-plan.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { policy } from "./_policy-plan-fixture.ts";
 
 const APP = "packages/client/src/view.ts";

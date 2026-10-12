@@ -12,9 +12,9 @@
 import type { AuthMode } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { reimportBudget } from "@orb/testkit/node/reimport-budget.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
-import { reimportBudget } from "../../support/reimport-budget.ts";
 
 // Every case re-imports the ladder fresh (see the header), so the first one pays a full transform of the
 // module's graph inside its own timer. Measured cold and alone on a quiet box (2026-09-19,

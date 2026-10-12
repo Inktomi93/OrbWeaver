@@ -9,11 +9,11 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MessageActionsRowStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
 

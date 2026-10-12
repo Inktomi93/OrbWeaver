@@ -3,9 +3,9 @@
 // is the BELT, not the plumbing: an allowlist whose refusals are silent is the open-bag it replaced.
 
 import type { JsonValue } from "@orb/kit/json";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { anthropicExtras, anthropicUserIdDigest } from "#inference/backends/anthropic-messages/extras.ts";
 import type { ResolvedWarning } from "#inference/contract/resolve.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 

@@ -18,6 +18,7 @@
 // weakening the check the arm used to trip.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { PACKAGE_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-config.ts";
@@ -26,7 +27,6 @@ import { gate } from "../../../../tooling/src/verify/gates/depcruise-grant-liven
 import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
 import { irreducibleBudgetFindings } from "../../../../tooling/src/verify/lib/grant-liveness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CONFIG_REL = ".dependency-cruiser.cjs";

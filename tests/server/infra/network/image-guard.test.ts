@@ -4,8 +4,8 @@
 // (a tiny valid PNG whose IHDR claims 30000×30000 → dimensions-exceeded, never reaching sharp).
 
 import { ImageRejectedError, isAllowedImageBuffer } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // PNG sig + IHDR. Width is the BE u32 at bytes 16-19, height at 20-23. Valid = 100×50.
 const PNG_VALID = new Uint8Array([

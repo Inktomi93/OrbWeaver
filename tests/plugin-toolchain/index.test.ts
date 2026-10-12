@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { compilePluginDirectory, stalePluginArtifacts, writePluginArtifacts } from "@orb/plugin-toolchain";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 async function authoredPlugin(root: string, sources: Readonly<Record<string, string>>): Promise<string> {
   const directory = join(root, "plugin");

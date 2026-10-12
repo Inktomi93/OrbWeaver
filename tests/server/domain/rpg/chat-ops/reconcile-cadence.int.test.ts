@@ -5,12 +5,12 @@
 import type { Db } from "@orb/db";
 import { rpgSnapshots } from "@orb/db";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { isReconcileBeat } from "#server/domain/rpg/chat-ops/reconcile-cadence.ts";
 import type { RpgGameRow } from "#server/domain/rpg/contract/service.ts";
 import { writeHandSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { emptyState, handTarget, liteConfig, seedChat, seedGame, seedMessage, target } from "../_support.ts";
 
 function gameWith(gameId: RpgGameId, reconcileEveryBeats: number): RpgGameRow {

@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readVendorCssContract } from "../../../../tooling/src/verify/lib/vendor-css-contract.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("declared vocabulary comes from CssVars values, deduplicated", () => {
   const contract = readVendorCssContract({

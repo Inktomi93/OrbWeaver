@@ -1,5 +1,5 @@
 import { combineTokenProvenance, TOKEN_PROVENANCES, tokenProvenanceSchema } from "@orb/contracts/chat";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("token provenance has exactly one canonical three-member vocabulary", () => {
   expect(TOKEN_PROVENANCES).toEqual(["measured", "estimated", "unrecorded"]);

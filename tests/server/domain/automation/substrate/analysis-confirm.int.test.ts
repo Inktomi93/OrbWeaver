@@ -10,6 +10,8 @@ import { automationRules, chatBooks, worldBooks } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { AnalysisConfirmAct } from "#server/domain/automation/contract/analysis.ts";
 import type {
   AnalysisConfirmDeps,
@@ -21,8 +23,6 @@ import type {
 } from "#server/domain/automation/contract/ops.ts";
 import { selectRuleState } from "#server/domain/automation/persistence/rule-state.ts";
 import { runAnalysisConfirm } from "#server/domain/automation/substrate/analysis-confirm.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { NO_TOOLS, seedUser } from "../_support.ts";
 

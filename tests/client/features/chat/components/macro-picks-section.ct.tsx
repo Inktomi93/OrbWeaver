@@ -5,10 +5,10 @@
 // routeTrpc's recorder — the mutation count/input, never a UI reaction, per assert-the-mutation-fired); the
 // "Use default" arms UNSET a stored pick (select item / button); the no-declarations empty state teaches.
 
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MacroPicksSectionStory, MacroPicksSectionToastStory } from "../_ct-stories.tsx";
 
 // The wire shape `chat.getUserMacroPicks` returns (the server's least-privilege projection: identity +

@@ -16,10 +16,10 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 import { PluginMessageFooterRoomStory } from "../_ct-stories.tsx";
 

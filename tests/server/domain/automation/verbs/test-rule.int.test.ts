@@ -4,9 +4,9 @@
 
 import { automationRules } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 describe("testRule", () => {

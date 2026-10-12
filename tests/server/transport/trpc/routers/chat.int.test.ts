@@ -14,6 +14,10 @@ import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone } from "@orb/kit/time";
+import type { Tape } from "@orb/testkit/node/chat/tape.ts";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { DEFAULT_CHAT_BEHAVIOR } from "#server/domain/chat/contract/foreign.ts";
@@ -21,12 +25,8 @@ import type { TurnRequest } from "#server/domain/chat/contract/results.ts";
 import { loadParticipants } from "#server/domain/chat/persistence/participants-read.ts";
 import { createParticipants } from "#server/domain/chat/verbs/participants.ts";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
-import type { ChatScenario, ChatScenarioOptions } from "../../../../support/chat/scenario.ts";
-import { scenario } from "../../../../support/chat/scenario.ts";
-import type { Tape } from "../../../../support/chat/tape.ts";
-import { tape } from "../../../../support/chat/tape.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import type { ChatScenario, ChatScenarioOptions } from "../../../domain/chat/_scenario.ts";
+import { scenario } from "../../../domain/chat/_scenario.ts";
 import {
   batchParticipantViews,
   makeChatContext,

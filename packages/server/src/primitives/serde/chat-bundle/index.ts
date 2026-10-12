@@ -64,12 +64,12 @@ import type {
   RpgSnapshotState,
 } from "@orb/contracts/rpg";
 import {
-  RPG_TOOL_CALL_VERDICTS,
   rpgCheckpointTriggerSchema,
   rpgGameConfigSchema,
   rpgGameModeSchema,
   rpgGameStatusSchema,
   rpgJournalTypeSchema,
+  rpgRecordedToolCallSchema,
   rpgSheetSchema,
   rpgSnapshotStateSchema,
 } from "@orb/contracts/rpg";
@@ -283,9 +283,7 @@ const wireInjectionSchema = z.object({
 // precedent) — and `satisfies` pins it to the contract so a field change fails tsc here rather than silently
 // dropping data from a restore.
 const wireRecordedToolCallSchema = z.object({
-  name: z.string(),
-  args: z.string(),
-  verdict: z.enum(RPG_TOOL_CALL_VERDICTS),
+  ...rpgRecordedToolCallSchema.shape,
   issues: z
     .array(z.string())
     .catch([])

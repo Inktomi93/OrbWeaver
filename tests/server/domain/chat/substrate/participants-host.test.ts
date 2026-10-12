@@ -10,8 +10,8 @@
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { hostSeatOf, hostUserIdOf } from "#server/domain/chat/substrate/participants-host.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const hostUser = castId<UserId>("user_host");
 const memberUser = castId<UserId>("user_member");

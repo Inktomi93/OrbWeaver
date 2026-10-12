@@ -12,14 +12,14 @@ import { chats, compactionSpend } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { QuietGenerate, QuietGenerateParams } from "#server/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createCompaction } from "#server/domain/chat/verbs/compaction.ts";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
 
 let db: Db;

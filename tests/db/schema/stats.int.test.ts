@@ -21,11 +21,11 @@ import { isConstraintViolation } from "@orb/db/query";
 import type { CharacterId, CharacterStatId, DailyStatId, Handle, ModelStatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, sql } from "drizzle-orm";
-import { freshDb, SHIPPED_MIGRATIONS } from "../../support/db.ts";
-import { seedCharacter } from "../../support/factories/character.ts";
-import { expect, test } from "../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedUser } from "./_support.ts";
 
 // ── owner_stats: natural PK round-trip + zero defaults + numeric timestamp ─────────────────────────────

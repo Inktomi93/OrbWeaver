@@ -1,21 +1,20 @@
 // verb: exportGallery — the owner's gallery_items curation rows → the ONE
 // gallery serde, with the subject character resolved id -> HANDLE. Covers: owner-scoping (B's rows never leak
 // into A's file), the handle re-link (a charactered row carries its subject's handle), the un-charactered row
-// (null handle), and deterministic ordering. The id -> handle op is wired as the REAL characters read (mirrors
-// compose) so the resolution is exercised, not stubbed.
+// (null handle), and deterministic ordering. The id -> handle op is compose's own, so the resolution is
+// exercised, not stubbed.
 
 import type { PortableParse } from "@orb/contracts/portability";
 import { characters } from "@orb/db";
-import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery } from "@orb/server/domain/assets";
 import { parseGallery } from "@orb/server/primitives/serde/gallery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import type { AssetsContext } from "#server/domain/assets/context.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_support.ts";
+import { makeHarness, pngBytes, principal, seedCharacter, seedUser, withGalleryCharacterOps } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */
 function must<T>(result: PortableParse<T>): T {
@@ -27,29 +26,12 @@ function must<T>(result: PortableParse<T>): T {
 
 const PNG = "image/png";
 
-// Extend the harness ctx with the gallery-portability id<->handle ops, wired as the REAL owner-scoped
-// characters reads the entry root binds (assets never sideways-imports the character domain).
-function withCharacterOps(ctx: AssetsContext, db: AssetsContext["db"]): AssetsContext {
-  return {
-    ...ctx,
-    resolveCharacterHandle: async (characterId: CharacterId): Promise<string | null> => {
-      const rows = await db.select({ handle: characters.handle }).from(characters).where(eq(characters.id, characterId)).limit(1);
-      return rows[0]?.handle ?? null;
-    },
-    findCharacterByHandle: async (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }): Promise<CharacterId | null> => {
-      const rows = await db.select({ id: characters.id }).from(characters).where(eq(characters.handle, args.handle)).limit(1);
-      const hit = rows[0];
-      return hit !== undefined ? hit.id : null;
-    },
-  };
-}
-
 describe("exportGallery", () => {
   test("carries the subject handle for charactered rows and null for un-charactered", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const ctx = withCharacterOps(h.ctx, db);
+    const ctx = withGalleryCharacterOps(h.ctx);
     const svc = createAssetsService(ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
@@ -86,7 +68,7 @@ describe("exportGallery", () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const ctx = withCharacterOps(h.ctx, db);
+    const ctx = withGalleryCharacterOps(h.ctx);
     const svc = createAssetsService(ctx);
     const a = await seedUser(db, { handle: castId<Handle>("a") });
     const b = await seedUser(db, { handle: castId<Handle>("b") });
@@ -114,7 +96,7 @@ describe("exportGallery", () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const ctx = withCharacterOps(h.ctx, db);
+    const ctx = withGalleryCharacterOps(h.ctx);
     const svc = createAssetsService(ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });

@@ -17,10 +17,10 @@ import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterDetail, CharacterService, DefaultCharacterSeeder } from "@orb/server/domain/character";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, realLorebookImport, seedAsset, seedRawCharacter, seedUser } from "../_support.ts";
 
 /** The per-user plate resolver the composition root wires off `domain/settings`' scene-plate seeder. Faked

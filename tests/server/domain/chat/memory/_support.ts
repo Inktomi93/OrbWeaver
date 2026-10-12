@@ -23,8 +23,10 @@ import type {
   SummarizeOp,
 } from "#server/domain/chat/contract/context.ts";
 import type { MemoryScope } from "#server/domain/chat/memory/types.ts";
+import { loadPresentHostUserId } from "#server/domain/chat/persistence/reactions.ts";
+import { createMemoryEmbeddingOps } from "#server/entry/compose/memory-embedding-ops.ts";
 import type { StoreHarness } from "../../embeddings/_support.ts";
-import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../../embeddings/_support.ts";
+import { makeStoreHarness } from "../../embeddings/_support.ts";
 import { makeChatContext, seedMessage } from "../_support.ts";
 
 export const MODEL = "test-embed-1024";
@@ -283,8 +285,9 @@ export function fakeSearchDigests(result: readonly (BlockKey | ScoredBlock)[]): 
   return { fn, calls };
 }
 
-/** The memory sweep over the REAL embeddings write path and ledger, as compose wires it: one embed connection for
- *  `host`, whose generation every segment and digest lands in. `overrides` swaps any chat op, such as the summarizer. */
+/** The memory sweep over the REAL embeddings write path and ledger, through compose's own vector ops: one embed
+ *  connection for `host`, whose generation every segment and digest lands in. `overrides` swaps any chat op, such
+ *  as the summarizer. */
 export async function realMemoryWiring(
   db: Db,
   host: UserId,
@@ -308,59 +311,8 @@ export async function realMemoryWiring(
   const embeddings = createEmbeddingsService(harness.ctx);
   const ctx = makeChatContext(db, {
     summarize: fakeSummarize().op,
-    resolveMemoryEmbedSpace: async (ownerId) => {
-      const generation = await embeddings.resolveGeneration(ownerId, "embed");
-      if (generation === null) {
-        throw new Error("expected test embed generation");
-      }
-      return { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
-    },
-    embeddingsStore: async (params) => {
-      const result = await embeddings.store({
-        kind: "chat-block",
-        lens: "digest",
-        ownerId: host,
-        chatId: params.key.chatId,
-        scopedCharacterId: params.key.scopedCharacterId,
-        isGroup: params.isGroup,
-        tier: params.key.tier,
-        blockIdx: params.key.blockIdx,
-        text: params.text,
-        topicAnchor: params.topicAnchor,
-        keywords: params.keywords,
-        speakerCharacterIds: params.speakerCharacterIds,
-        contentHash: params.contentHash,
-        model: EMBED_MODEL,
-      });
-      if (result.generationId === undefined || result.generationEpoch === undefined) {
-        throw new Error("expected generation receipt");
-      }
-      return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
-    },
-    embeddingsStoreSegments: async (params) => {
-      const results = await embeddings.storeSegments(
-        params.map((p) => ({
-          kind: "chat-block" as const,
-          lens: "segment" as const,
-          ownerId: host,
-          chatId: p.chatId,
-          blockIdx: p.blockIdx,
-          chunkIdx: p.chunkIdx,
-          seqStart: p.seqStart,
-          seqEnd: p.seqEnd,
-          text: p.text,
-          contentHash: p.contentHash,
-          model: EMBED_MODEL,
-          dim: EMBED_DIM,
-        })),
-      );
-      return results.map((result) => {
-        if (result.generationId === undefined || result.generationEpoch === undefined) {
-          throw new Error("expected generation receipt");
-        }
-        return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
-      });
-    },
+    // The vector seam compose wires: the host's real space, the owner-coherence guard and the generation-scoped prune.
+    ...createMemoryEmbeddingOps({ embeddings, resolveChatHostUserId: async (chatId) => (await loadPresentHostUserId(db, chatId)) ?? null }),
     ...overrides,
   });
   return { ctx, embeddings, resolved };

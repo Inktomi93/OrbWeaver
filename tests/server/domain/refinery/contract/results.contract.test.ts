@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { applyAsCopyResultSchema, refinerySessionViewSchema } from "#server/domain/refinery/contract/results.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 test("a real born session round-trips its anchor and closes typed stage configuration", async ({ db }) => {

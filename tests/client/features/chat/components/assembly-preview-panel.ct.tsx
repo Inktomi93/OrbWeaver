@@ -5,10 +5,10 @@
 // the a11y model (text is the datum, the bar is hidden), plus the error + retry paths.
 
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 // @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AssemblyPreviewPanelStory } from "../_ct-stories.tsx";
 
 // `AssembleTrace` is carried BOTH at `AssembledPrompt.trace` (the required field on the prompt shape) AND

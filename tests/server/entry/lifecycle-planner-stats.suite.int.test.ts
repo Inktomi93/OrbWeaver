@@ -5,9 +5,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { closeDb, createDb } from "@orb/db";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { recencyPlan, STALE_STATS_INDEX, seedStaleMessageStats } from "@orb/testkit/node/stale-planner-stats.ts";
 import { afterAll, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
-import { recencyPlan, STALE_STATS_INDEX, seedStaleMessageStats } from "../../support/stale-planner-stats.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "cb-sp-boot-"));
 const DATABASE_URL = `file:${join(TEMP_DIR, "orb.db")}`;

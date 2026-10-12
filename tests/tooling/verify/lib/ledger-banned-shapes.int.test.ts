@@ -18,10 +18,10 @@
 // files came back "No files were processed in the specified paths".
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { CONTRACT_BANNED_SHAPES, SCHEMA_BANNED_SHAPES } from "@orb/tooling/verify";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CONFIG_REL = "biome.json";

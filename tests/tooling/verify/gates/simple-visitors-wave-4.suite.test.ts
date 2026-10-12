@@ -21,6 +21,8 @@
 // the frozen pre-conversion source (79e5f7e6db, the commit immediately before this wave) through both the
 // legacy dispatcher and the final one; and a successor-proof section replays persist-partialize's retired
 // ARM A examples through `no-raw-zustand-persist` instead, so the retirement is a receipt, not a dropped rule.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { zustandProof } from "../../../../tooling/src/verify/gates/_proof/zustand.ts";
@@ -31,7 +33,6 @@ import { gate as persistPartializeAndTotalMigrate } from "../../../../tooling/sr
 import { gate as testNoStubs } from "../../../../tooling/src/verify/gates/test-no-stubs.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/simple-visitors-wave-4";
 

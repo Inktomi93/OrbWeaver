@@ -1,5 +1,7 @@
 // snap's page→node seams refuse loudly (#1004). One test per converted seam, each asserting the arm
 // that used to be SILENT rather than merely the obviously-broken one.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import {
   animationEvidence,
@@ -12,7 +14,6 @@ import {
   rawMapEntries,
   resetFailures,
 } from "../../../../tooling/src/snap/ops/page-validate.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** A COMPLETE measured arm — every field `contrastFacts` declares it will refuse without. Kept in field
  *  order with the reader (`tooling/src/snap/ops/page-validate.ts`) so a new required field shows up here as

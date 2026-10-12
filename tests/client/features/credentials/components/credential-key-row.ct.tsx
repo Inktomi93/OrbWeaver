@@ -4,9 +4,9 @@
 // list of keys a bare verb names nothing — the 2026-09-20 review found 18 bare `Override`/`Reset` on the
 // mock and that is the class this row must not join.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "#client/lib/test-ids.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import {
   CredentialKeyRowStory,
   CustomCredentialKeyRowStory,

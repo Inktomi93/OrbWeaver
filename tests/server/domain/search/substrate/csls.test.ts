@@ -4,9 +4,9 @@
 // higher hub PENALIZES (a generic hub vector loses), the comparator breaks clamp-flattened ties on the
 // RAW distance (never concat order), and the rerank budget cap trims to the pool.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { compareCsls, compareCslsBy, cslsAdjust, NULL_HUB_FALLBACK, relevanceOf, rerankPoolByScores } from "#server/domain/search/substrate/csls.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("cslsAdjust", () => {
   test("is max(0, distance − 1 + hubScore) — the demote-only clamp", () => {

@@ -31,6 +31,8 @@
 // here is `authority: "reviewed-grant"`. §4.5's refusal control applies to `no-form-reset-in-autosave-
 // health` and `context-definition-shape-health`, whose verdicts depend on a derived population; both are
 // pinned below.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -44,7 +46,6 @@ import { gate as stateFiles } from "../../../../tooling/src/verify/gates/state-f
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/ordinary-client-and-ct-wave";

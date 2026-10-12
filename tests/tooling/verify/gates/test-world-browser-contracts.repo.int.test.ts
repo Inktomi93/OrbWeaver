@@ -10,6 +10,7 @@
 // visitor now, not a `scanRoot` field the harness reads before dispatch).
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { RawGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -18,7 +19,6 @@ import { gate } from "../../../../tooling/src/verify/gates/test-world-browser-co
 import { isNodeTestContractRoot } from "../../../../tooling/src/verify/lib/browser-contract-reader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { ctxFor } from "../../_support.ts";
 

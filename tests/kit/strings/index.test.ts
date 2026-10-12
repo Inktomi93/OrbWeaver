@@ -11,7 +11,7 @@ import {
   stripLabelSuffix,
   stripNameSuffix,
 } from "@orb/kit/strings";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // The three `escapeRegExp` tests died with the function (Node-26 program §4.7 — `RegExp.escape` owns
 // the job now). They are NOT re-pointed at the platform: asserting V8's escape output would be a

@@ -1,8 +1,8 @@
 // Non-rendering reads of the shell store (the reactive ones are pinned in shell-store.ct.tsx).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { activeSectionNow, setActiveSection } from "#client/state/shell-store.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("activeSectionNow", () => {
   test("answers the section the last switch landed on, for an action that needs to know where the user is", () => {

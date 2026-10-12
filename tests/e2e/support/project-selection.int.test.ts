@@ -6,9 +6,9 @@ import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type { JSONReport, JSONReportSuite } from "@playwright/test/reporter";
-import { expect, test } from "../../support/fixtures.ts";
 import { selectedModeProjects } from "./modes.ts";
 
 const SELECTORS = [

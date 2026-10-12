@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { RawGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor } from "../../_support.ts";
 
 function findings(files: Readonly<Record<string, string>>): readonly RawGateFinding[] {

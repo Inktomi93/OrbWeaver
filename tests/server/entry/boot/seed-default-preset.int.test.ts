@@ -5,9 +5,9 @@
 import { presets } from "@orb/db";
 import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { seedDefaultPreset } from "@orb/server/entry/boot";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { isNull } from "drizzle-orm";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("seeds the sentinel system-default row as the only ownerless preset", async ({ clock }) => {
   const db = await freshDb();

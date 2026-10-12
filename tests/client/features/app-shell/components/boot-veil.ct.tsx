@@ -12,12 +12,8 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { BootVeil } from "#client/features/app-shell/components/boot-veil.tsx";
-import { READY_ATTR, READY_DEGRADED, READY_SETTLED } from "#client/lib/app-ready-signal.ts";
 
-/** Stamp the readiness attribute the way `installAppReadySignal` does. */
-function stampReady(page: Page, state: string): Promise<void> {
-  return page.evaluate(([attr, value]) => document.documentElement.setAttribute(attr, value), [READY_ATTR, state] as const);
-}
+const READY_ATTR = "data-app-ready";
 
 /** Wait N real browser frames (rAF-driven — an event condition, not a wall-clock timeout). */
 function waitFrames(page: Page, frames: number): Promise<void> {
@@ -48,7 +44,7 @@ test("up while the app is not ready; DISSOLVES AND UNMOUNTS once data-app-ready 
   await expect(page.getByText("casting the bridge line")).toBeVisible();
   // The load gate opens — the REAL seam, stamped exactly as installAppReadySignal stamps it. The
   // weave is nowhere near settled (~12s build), so this is the graceful EARLY cut (after the floor).
-  await stampReady(page, READY_SETTLED);
+  await page.evaluate((attr) => document.documentElement.setAttribute(attr, ""), READY_ATTR);
   await expect(veil).toHaveCount(0);
 });
 
@@ -57,7 +53,7 @@ test("min-display floor: a fast-ready boot does NOT flash — the veil holds a b
   const veil = page.locator('[data-slot="weave-veil"]');
   await expect(veil).toBeVisible();
   // The app reports ready almost immediately (a warm/fast boot) …
-  await stampReady(page, READY_SETTLED);
+  await page.evaluate((attr) => document.documentElement.setAttribute(attr, ""), READY_ATTR);
   // … but the veil must STILL be up a handful of frames later — the floor prevents the sub-second
   // flash the owner flagged (the exit is gated on ready AND the ~1s beat, whichever is later).
   await waitFrames(page, 5);
@@ -67,7 +63,7 @@ test("min-display floor: a fast-ready boot does NOT flash — the veil holds a b
 });
 
 test("already ready at mount ⇒ renders NOTHING (no veil flash over a live app)", async ({ mount, page }) => {
-  await stampReady(page, READY_SETTLED);
+  await page.evaluate((attr) => document.documentElement.setAttribute(attr, ""), READY_ATTR);
   await mount(<BootVeil />);
   await expect(page.getByRole("status")).toHaveCount(0);
   await expect(page.locator('[data-slot="weave-veil"]')).toHaveCount(0);
@@ -76,7 +72,7 @@ test("already ready at mount ⇒ renders NOTHING (no veil flash over a live app)
 test("a DEGRADED ready (the 20s ceiling) still opens the gate — presence means stop waiting", async ({ mount, page }) => {
   await mount(<BootVeil />);
   await expect(page.getByRole("status", { name: "Loading orbweaver" })).toBeVisible();
-  await stampReady(page, READY_DEGRADED);
+  await page.evaluate((attr) => document.documentElement.setAttribute(attr, "degraded"), READY_ATTR);
   await expect(page.locator('[data-slot="weave-veil"]')).toHaveCount(0);
 });
 
@@ -87,6 +83,6 @@ test("reduced motion: static web while waiting, INSTANT removal on ready (§3.9 
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "1");
   await waitFrames(page, 30);
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "1");
-  await stampReady(page, READY_SETTLED);
+  await page.evaluate((attr) => document.documentElement.setAttribute(attr, ""), READY_ATTR);
   await expect(page.locator('[data-slot="weave-veil"]')).toHaveCount(0);
 });

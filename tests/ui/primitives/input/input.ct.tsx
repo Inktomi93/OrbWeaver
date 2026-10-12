@@ -2,6 +2,8 @@
 // value/onValueChange controlled-capable passthrough, disabled, and Field composability
 // (ui-package-design §6.1; ui-primitive-contract R7).
 
+import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
+import { pixelExtremaContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { TOKENS } from "@orb/ui/tokens";
@@ -10,7 +12,6 @@ import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
 import type { OutputInfo } from "sharp";
 import sharp from "sharp";
-import { pixelExtremaContrast } from "../../../support/browser/pixel-contrast.ts";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
@@ -310,8 +311,6 @@ test("light theme: an input is an opaque near-white field, not a translucent dar
 // appearance arm, taken where it can be measured rather than where it is configured.
 const D159_SEEDS = ["hearth", "light", "mocha"] as const;
 const D159_PANELS = ["bg-background", "bg-card", "bg-surface-raised"] as const;
-/** WCAG 1.4.11 for a user-interface component boundary. */
-const UI_COMPONENT_FLOOR = 3;
 /** Two samples of ONE flat surface differ only by dithering; the borderless control must land near here. */
 const FLAT_SURFACE_MAX = 1.15;
 
@@ -351,7 +350,7 @@ test("D159: the form-control EDGE clears 1.4.11's 3:1 against its own composited
         region: { x0: 0.1, x1: 0.9, y0: 0.25, y1: 0.75 },
       });
       rows.push(`${theme}/${panel}: edge ${edge.ratio.toFixed(3)}:1 (${edge.describe}) · flat control ${flat.ratio.toFixed(3)}:1`);
-      if (edge.ratio < UI_COMPONENT_FLOOR) {
+      if (edge.ratio < AA_NON_TEXT_RATIO) {
         failures.push(`${theme}/${panel} edge ${edge.ratio.toFixed(3)}:1`);
       }
       if (flat.ratio > FLAT_SURFACE_MAX) {

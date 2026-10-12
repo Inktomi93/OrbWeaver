@@ -2,9 +2,9 @@
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { attachableBooks } from "#client/features/chat/lib/chat-books-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ASHFALL = castId<WorldBookId>("worldbook_ct_0000000000001");
 const NOTES = castId<WorldBookId>("worldbook_ct_0000000000002");

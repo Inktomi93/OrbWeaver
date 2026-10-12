@@ -111,6 +111,30 @@ module.exports = {
       from: { path: "^tests/support/(iso|node)/" },
       to: { path: "^tests/support/(node|browser)/", pathNot: "^tests/support/$1/", reachable: true },
     },
+    {
+      name: "testkit-app-router-bridge",
+      comment:
+        "The test kit (@orb/testkit) derives tRPC wire shapes from AppRouter through the server root, the same type-only bridge the client's data/trpc.ts uses, instead of copying them. The root exports only that type, so a value edge to it is a kit helper treating the bridge as runtime. (Core-0-Architecture-and-Structure.md §5, Spine-Testing.md §10.)",
+      severity: "error",
+      from: { path: "^tests/support/" },
+      to: { path: SERVER_ROOT, dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "testkit-tooling-doors",
+      comment:
+        "The test kit enters tooling only through its public doors: a tool's front door (tooling/src/<tool>/index.ts, `@orb/tooling/<tool>`) or a floor module (`@orb/tooling/floor/*`). A tool's ops/lib/contract internals stay private to the tool, the same front-door law tooling-internal-direction holds between tools. (Core-0-Architecture-and-Structure.md §9.)",
+      severity: "error",
+      from: { path: "^tests/support/" },
+      to: { path: "^tooling/src/", pathNot: ["^tooling/src/[^/]+/index\\.ts$", "^tooling/src/floor/"] },
+    },
+    {
+      name: "tooling-no-testkit",
+      comment:
+        "The test kit and tooling both sit above the cake, and the kit may use tooling's floor (the contrast and timing engines). Tooling never imports the kit, so a tool's verdict never depends on test fixtures and the two cannot form a cycle. (Core-0-Architecture-and-Structure.md §9.)",
+      severity: "error",
+      from: { path: "^tooling/" },
+      to: { path: "^tests/support/" },
+    },
     // ════════════════════════ The package cake (backstop to the resolver) ════════════════════════
     {
       name: "kit-purity",
@@ -467,7 +491,7 @@ module.exports = {
     {
       name: "client-compose-door-only",
       comment:
-        "client/src/compose/ is the DOOR'S OWN half, not a tier: it holds every registry assembly (the `registry-assembly-at-door-only` gate names main.tsx OR a compose/ module as the two legal call sites) and therefore imports every feature front door — the whole app. Since the #43 boot code-split it is reached through routes/router.tsx's lazy `/` boundary, which is what keeps the 3.4 MB feature graph out of the boot chunk an unauthenticated visitor downloads. Exactly four importers: main.tsx (the boot half), routes/router.tsx (the lazy boundary), a compose/ sibling, and the browser-CT support world (tests/support/browser/, the reviewed exception: it re-exports the door's registries so CT mounts the app that ships). Everything else cruised — features, tooling, node and iso test helpers — stays behind the wall. Without this wall a feature could reach another feature's front door THROUGH the assembly module (features/x -> compose/authed-app -> features/chat) with every individual hop passing client-feature-front-door AND client-features-no-cross — the same backdoor client-composition-tier-door-only closes for agent-nav/agent-seed. (client-architecture-lockdown.md §5/§7.)",
+        "client/src/compose/ is the DOOR'S OWN half, not a tier: it holds every registry assembly (the `registry-assembly-at-door-only` gate names main.tsx OR a compose/ module as the two legal call sites) and therefore imports every feature front door — the whole app. Since the #43 boot code-split it is reached through routes/router.tsx's lazy `/` boundary, which is what keeps the 3.4 MB feature graph out of the boot chunk an unauthenticated visitor downloads. Exactly four importers: main.tsx (the boot half), routes/router.tsx (the lazy boundary), a compose/ sibling, and the browser-CT support world (tests/support/browser/, the reviewed exception: it re-exports the door's registries so CT mounts the app that ships). Everything else cruised — features, tooling, node and iso test helpers, and the stories and specs under tests/client (an entry root, so they are judged too) — stays behind the wall. Without this wall a feature could reach another feature's front door THROUGH the assembly module (features/x -> compose/authed-app -> features/chat) with every individual hop passing client-feature-front-door AND client-features-no-cross — the same backdoor client-composition-tier-door-only closes for agent-nav/agent-seed. (client-architecture-lockdown.md §5/§7.)",
       severity: "error",
       from: { pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}routes/router\\.tsx$`, `${CLIENT}compose/`, TEST_BROWSER_SUPPORT] },
       to: { path: `${CLIENT}compose/` },

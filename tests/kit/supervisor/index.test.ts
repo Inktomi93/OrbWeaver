@@ -2,7 +2,7 @@
 // supervisor sets and the exit code that asks for a respawn. Both sides import these; a drift is a server that
 // never restarts or a launcher that loops on a crash.
 import { isRestartExit, isSupervised, RESTART_EXIT_CODE, START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("the server reads the supervisor from the env key the launcher sets, and nothing else counts", () => {
   expect(isSupervised(Object.fromEntries([[SUPERVISOR_ENV_KEY, START_SUPERVISOR]]))).toBe(true);

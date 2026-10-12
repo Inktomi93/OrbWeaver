@@ -7,8 +7,8 @@
 // `parseBundle` ever allocates). Injected resolver + stubbed transport (no live DNS, no live network).
 
 import { __setEgressResolverForTest, EgressBlockedError, fetchPluginBundle } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const PUBLIC_ADDR = "93.184.216.34";
 

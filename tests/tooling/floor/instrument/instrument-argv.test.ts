@@ -1,8 +1,8 @@
 // @orb-waive-file no-test-fabrication(Set<string>): baselined when the gate widened to value casts; burn-down item 906.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ARTIFACT_FLAGS, ENVIRONMENT_FLAGS, WHERE_FLAGS } from "@orb/tooling/floor/instrument/instrument-argv";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const VALUE_BY_FLAG: Readonly<Record<string, string>> = {
   "--base": "http://localhost:5173",

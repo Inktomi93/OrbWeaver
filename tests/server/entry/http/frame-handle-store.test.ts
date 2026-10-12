@@ -7,12 +7,12 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // Deep-imported: the store is internal to the two frame registrars and deliberately not on the
 // `entry/http` front door (the `catalog-refresh-scheduler` test's spelling).
 import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "#server/entry/http/frame-handle-store.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_owner");
 const STRANGER = castId<UserId>("user_stranger");

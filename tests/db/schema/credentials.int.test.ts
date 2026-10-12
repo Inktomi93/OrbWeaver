@@ -11,9 +11,9 @@ import { userCredentials } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 const VLLM = castId<ProviderId>("vllm");

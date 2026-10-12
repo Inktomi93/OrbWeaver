@@ -1,11 +1,11 @@
-// @orb-waive-file no-test-fabrication(ImportResult): baselined when the gate widened to value casts; burn-down item 906.
-
 // Bounded ingress smoke: real multipart import, an embedded book, deduplication and reload.
-import type { CharacterId } from "@orb/kit/ids";
+import type { CardImportResult } from "@orb/contracts/import";
+import { cardImportResultSchema } from "@orb/contracts/import";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
+import type { TrpcOutput } from "./support/trpc.ts";
 
 const NAME = "Smoke Imported Archivist";
 const DESCRIPTION = "A synthetic archivist carrying a tiny smoke lorebook.";
@@ -14,22 +14,7 @@ const BOOK_CONTENT = "The synthetic lantern burns amber in the archive.";
 const CARD = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"${NAME}","description":"${DESCRIPTION}","first_mes":"${GREETING}","character_book":{"name":"Smoke Archive","entries":[{"keys":["lantern"],"content":"${BOOK_CONTENT}","comment":"Synthetic lantern","constant":true,"insertion_order":10}]}}}`;
 const FILE_LABEL = "Drop a SillyTavern character card (PNG or JSON), or click to browse";
 
-interface ImportResult {
-  readonly imported: readonly { readonly characterId: CharacterId; readonly created: boolean; readonly importHash: string }[];
-  readonly failed: readonly { readonly error: string }[];
-}
-interface CharacterFields {
-  readonly id: CharacterId;
-  readonly name: string;
-  readonly description: string;
-  readonly greetings: readonly { readonly text: string }[];
-}
-interface AttachedBook {
-  readonly id: string;
-  readonly role: string;
-}
-
-async function importCard(page: Page): Promise<ImportResult> {
+async function importCard(page: Page): Promise<CardImportResult> {
   await page.getByRole("button", { name: "Import a character card", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Import a character card", exact: true });
   await expect(dialog).toBeVisible();
@@ -37,7 +22,7 @@ async function importCard(page: Page): Promise<ImportResult> {
   await dialog.getByLabel(FILE_LABEL, { exact: true }).setInputFiles({ name: "smoke-archivist.json", mimeType: "application/json", buffer: Buffer.from(CARD) });
   const response = await uploaded;
   expect(response.ok()).toBe(true);
-  const result = (await response.json()) as ImportResult;
+  const result = cardImportResultSchema.parse(await response.json());
   expect(result.failed).toEqual([]);
   expect(result.imported).toHaveLength(1);
   await expect(dialog).toHaveCount(0);
@@ -49,7 +34,7 @@ test("importing a card preserves its fields and primary book, re-import deduplic
   baseURL,
 }) => {
   const host = ownerActor(baseURL ?? "");
-  const prior = await host.query<{ readonly items: readonly { readonly id: CharacterId; readonly name: string }[] }>("character.list", { search: NAME });
+  const prior = await host.query("character.list", { search: NAME });
   for (const character of prior.items.filter((item) => item.name === NAME)) {
     await host.mutation("character.remove", { characterId: character.id });
   }
@@ -62,21 +47,23 @@ test("importing a card preserves its fields and primary book, re-import deduplic
   if (imported === undefined) {
     throw new Error("card import returned no character");
   }
-  let books: readonly AttachedBook[] = [];
+  let books: TrpcOutput<"worldInfo.listForCharacter"> = [];
   try {
-    const fields = await host.query<CharacterFields>("character.get", { characterId: imported.characterId });
+    const fields = await host.query("character.get", { characterId: imported.characterId });
     expect({ name: fields.name, description: fields.description, greetings: fields.greetings.map((greeting) => greeting.text) }).toEqual({
       name: NAME,
       description: DESCRIPTION,
       greetings: [GREETING],
     });
-    books = await host.query<readonly AttachedBook[]>("worldInfo.listForCharacter", { characterId: imported.characterId });
+    books = await host.query("worldInfo.listForCharacter", { characterId: imported.characterId });
     expect(books.map((book) => book.role)).toEqual(["primary"]);
-    const entries = await host.query<readonly { readonly content: string }[]>("worldInfo.listEntries", { bookId: books[0]?.id });
+    const [primary] = books;
+    expect(primary).toBeDefined();
+    const entries = primary === undefined ? [] : await host.query("worldInfo.listEntries", { bookId: primary.id });
     expect(entries.map((entry) => entry.content)).toEqual([BOOK_CONTENT]);
     const again = await importCard(page);
     expect(again.imported).toMatchObject([{ characterId: imported.characterId, created: false, importHash: imported.importHash }]);
-    const listed = await host.query<{ readonly items: readonly { readonly id: CharacterId; readonly name: string }[] }>("character.list", { search: NAME });
+    const listed = await host.query("character.list", { search: NAME });
     expect(listed.items.filter((item) => item.name === NAME).map((item) => item.id)).toEqual([imported.characterId]);
     expect(await host.query("worldInfo.listForCharacter", { characterId: imported.characterId })).toEqual(books);
     await page.reload();

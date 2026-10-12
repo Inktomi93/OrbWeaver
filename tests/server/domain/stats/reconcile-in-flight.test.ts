@@ -8,9 +8,9 @@
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createReconcileInFlight } from "#server/domain/stats/reconcile-in-flight.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const ALICE: UserId = castId<UserId>("user_alice");
 const BOB: UserId = castId<UserId>("user_bob");

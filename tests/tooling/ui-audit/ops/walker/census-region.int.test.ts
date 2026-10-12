@@ -1,10 +1,10 @@
 // Adversarial region/surface controls for #984 through real visibility, paint, and authored ownership.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { ToolFixtures } from "../../../../support/tool-fixtures.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { RelationalPopulationReport } from "@orb/testkit/node/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
 
 test("quiet-state refuses a global comparison between unrelated component families and backdrops", async ({ runCli, scratch }) => {
   await writeFile(

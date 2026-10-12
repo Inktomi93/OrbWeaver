@@ -6,10 +6,10 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PersonaYouSheetStory } from "../_ct-stories.tsx";
 
 const CHAT_ID = castId<ChatId>("chat_persona_ct");

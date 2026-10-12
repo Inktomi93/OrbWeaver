@@ -32,6 +32,7 @@ import {
   SESSION_COOKIE_NAME_SECURE,
   SESSION_COOKIES,
 } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Configuration } from "openid-client";
 import { describe, vi } from "vitest";
 // #2263 — the REAL mint, by deep path (it is deliberately not on the `domain/sessions` front door; the
@@ -39,7 +40,6 @@ import { describe, vi } from "vitest";
 // `castId` is type-only and carries no runtime guarantee, so what they must exercise is what production
 // actually writes into a cookie.
 import { mintSessionToken } from "#server/domain/sessions/tokens/tokens.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;

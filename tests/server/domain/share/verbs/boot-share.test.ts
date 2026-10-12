@@ -3,8 +3,8 @@
 // @subject packages/server/src/domain/share/verbs/boot-share.ts
 
 import { DomainOperationError } from "@orb/kit/errors";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { LOCAL_SETUP_URL, shareHarness } from "../_support.ts";
 
 describe("share boot start", () => {

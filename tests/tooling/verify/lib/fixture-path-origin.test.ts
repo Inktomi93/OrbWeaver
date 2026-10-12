@@ -1,11 +1,11 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { collectByKinds } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { FixturePathOrigin } from "../../../../tooling/src/verify/contract/fixture-path-origin.ts";
 import { createFixturePathOriginReader } from "../../../../tooling/src/verify/lib/fixture-path-origin.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/fixture-path-origin";
-const SUPPORT = `${ROOT}/tests/support/tool-fixtures.ts`;
+const SUPPORT = `${ROOT}/tests/support/node/tool-fixtures.ts`;
 const SUBJECT = `${ROOT}/tests/tooling/verify/gates/probe.test.ts`;
 
 function origins(source: string): readonly FixturePathOrigin[] {
@@ -51,7 +51,7 @@ function origins(source: string): readonly FixturePathOrigin[] {
 }
 
 const PRELUDE =
-  'import { writeFileSync, mkdtempSync } from "node:fs";\nimport { tmpdir } from "node:os";\nimport { join, resolve } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\n';
+  'import { writeFileSync, mkdtempSync } from "node:fs";\nimport { tmpdir } from "node:os";\nimport { join, resolve } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\n';
 
 test("canonical fixture identity and complete helper callers determine the root", () => {
   expect(
@@ -105,7 +105,7 @@ test("a local callback property named scratch does not mint provenance", () => {
 
 test("the canonical checked fixturePath preserves root authority across a dynamic suffix", () => {
   const result = origins(
-    `${PRELUDE}import { fixturePath } from "../../../support/tool-fixtures.ts";
+    `${PRELUDE}import { fixturePath } from "../../../support/node/tool-fixtures.ts";
     test("x", ({ scratch, repoRoot }) => {
       writeFileSync(fixturePath(scratch, runtimeKey()), "x");
       writeFileSync(fixturePath(repoRoot, runtimeKey()), "x");

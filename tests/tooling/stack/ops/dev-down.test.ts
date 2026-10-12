@@ -2,9 +2,9 @@
 // name, must end in `status=unknown` and exit 2, never `status=stopped`. The free-table control proves the same
 // capture does see a real `stopped`.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { doDevDown } from "../../../../tooling/src/stack/ops/dev-down.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { captured, devContext, PLANTED_PORTS, REFUSED_TABLE, tableHolding } from "../_dev-verbs.ts";
 
 test("down over a socket table it cannot read reports status=unknown and exits 2, never stopped", async ({ scratch }) => {

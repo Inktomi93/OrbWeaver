@@ -2,6 +2,8 @@ import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, messageReactions, personas, users } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, Handle, MessageReactionId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
@@ -26,8 +28,6 @@ import { insertJoinerPersonaStatement } from "#server/domain/persona/persistence
 import { insertSignupUserStatement } from "#server/domain/sessions/persistence/users.ts";
 import { insertJoinerSettingsStatement } from "#server/domain/settings/persistence/joiner.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser } from "../_support.ts";
 
 let db: Db;

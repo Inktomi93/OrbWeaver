@@ -1,6 +1,6 @@
 import type * as Fs from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const fsFailure = vi.hoisted(() => ({ code: "", operation: "none" }));
 

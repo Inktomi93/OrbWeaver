@@ -15,6 +15,8 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import type { CliResult } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -22,8 +24,6 @@ import { vi } from "vitest";
 import type { SnapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { parseSnapArgs, SNAP_HELP, snapFlagDescriptors } from "../../../../tooling/src/snap/index.ts";
-import type { CliResult } from "../../../support/tool-fixtures.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(120_000, 4);

@@ -7,9 +7,9 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterSummary, makeTagFixture } from "../../character/fixtures.ts";
 import { ChatQuickPicksTileStory } from "../_ct-stories.tsx";
 import { chatListResponder } from "../fixtures.ts";

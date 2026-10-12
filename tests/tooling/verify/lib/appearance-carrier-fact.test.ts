@@ -1,10 +1,10 @@
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/appearance-carrier-contract.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/appearance-carrier-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function projectFor(root: string, files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

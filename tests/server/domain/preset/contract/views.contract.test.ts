@@ -1,9 +1,9 @@
 import { DEFAULT_PROMPT_CONFIG, promptConfigConfig } from "@orb/contracts/preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeCachePolicy } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { effectivePresetSchema, presetDetailSchema } from "#server/domain/preset/contract/views.ts";
-import { makeCachePolicy } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 
 test("preset details retain normalized config and unreadable disclosure while rejecting typed config additions", () => {
   const detail = {

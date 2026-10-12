@@ -8,11 +8,11 @@ import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { foldChain, runtimeVariablesUpdateStatement, standaloneVariableCasStatement } from "#server/domain/chat/substrate/runtime-variables.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat } from "../_support.ts";
 
 let db: Db;

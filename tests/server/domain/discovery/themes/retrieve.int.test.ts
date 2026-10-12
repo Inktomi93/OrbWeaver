@@ -5,10 +5,10 @@
 import { themeClusters } from "@orb/db";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { readThemes } from "#server/domain/discovery/themes/retrieve.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedUser } from "../_support.ts";
 
 async function seedCluster(db: Awaited<ReturnType<typeof freshDb>>, args: { id: string; ownerId: UserId; level: string; clusterIdx: number }): Promise<void> {

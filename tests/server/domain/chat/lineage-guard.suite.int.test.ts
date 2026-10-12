@@ -18,11 +18,11 @@ import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { loadAncestorChain } from "#server/domain/chat/persistence/queries.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat } from "./_support.ts";
 
 /** Re-point a chat's `parentChatId` (the only way to weld a cycle the single-insert FK can't express). */

@@ -8,12 +8,13 @@
 // stamp — the run exits 2 rather than reporting a default-palette measurement under a theme label. And
 // the arms whose stamp this instrument cannot predict (a CUSTOM theme, `--theme none`) must be UNGATED
 // with a stated reason, never silently gated into a false refusal on every --matrix cell.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SettingsShimEvidence } from "@orb/tooling/floor/appearance/appearance";
 import { closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
 import { vi } from "vitest";
 import type { CaptureOutcome } from "../../../../tooling/src/snap/contract/types.ts";
 import { awaitThemeStamp, themeStampExit, themeStampExpectation, themeStampGap } from "../../../../tooling/src/snap/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(90_000);

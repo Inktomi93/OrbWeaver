@@ -13,6 +13,8 @@
 // @instrument-absence-proof: the leftover sweep — an arm the help template never placed still reaches
 // `--help`, and an arm whose pairs the RESULT spine never claims still reaches the RESULT line. A
 // derivation that silently omitted an arm would read as a clean, complete instrument.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResultPair } from "../../../../../tooling/src/floor/artifacts/artifacts.ts";
 import type { Arm } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";
 import { ARMS } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";
@@ -38,7 +40,6 @@ import {
 import { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "../../../../../tooling/src/snap/ops/flags-classes.ts";
 import { FLAG_HANDLERS } from "../../../../../tooling/src/snap/ops/flags-handlers.ts";
 import { parseSnapArgs } from "../../../../../tooling/src/snap/ops/parse.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 function pairInput(): ArmPairInput {
   return {

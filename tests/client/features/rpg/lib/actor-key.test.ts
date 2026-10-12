@@ -1,7 +1,7 @@
 import type { RpgActorView } from "@orb/contracts/rpg";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { actorKey } from "#client/features/rpg/lib/actor-key.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function actor(name: string, characterId = mintTypeId(ID_PREFIX.character)): RpgActorView {
   return {

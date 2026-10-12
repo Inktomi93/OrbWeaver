@@ -40,7 +40,6 @@ import {
   CharacterTrustTab,
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
 import {
   clearCharacterSelection,
   selectCharacter,
@@ -54,6 +53,9 @@ import {
 } from "@orb/client/state";
 import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { characterDetailContributors } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 // The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
@@ -65,17 +67,7 @@ import { CharacterRelationsTab } from "#client/features/character/components/cha
 import { CharacterRestoreBookAction } from "#client/features/character/components/character-restore-book-action.tsx";
 import { CharacterTagsRow } from "#client/features/character/components/character-tags-row.tsx";
 import { LabelsLibrarySurface } from "#client/features/tag/surfaces/labels-library-surface.tsx";
-import {
-  CtAppDataProviders,
-  CtCharacterContributorSectionRegistry,
-  CtDataProviders,
-  CtRealSectionRegistry,
-} from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
-
-// The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring
-// main.tsx's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).
-const NO_DETAIL_CONTRIBUTORS = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
 // ── Pure-render story (no data layer) ───────────────────────────────────────────────────────────
 
@@ -183,7 +175,7 @@ export function CharacterEditorSurfaceStory({ width = 720 }: CharacterEditorSurf
   return (
     <CtDataProviders>
       <div style={{ height: 640, width }}>
-        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
       </div>
     </CtDataProviders>
   );
@@ -198,7 +190,7 @@ export function CharacterEditorSuggestToastStory(): ReactElement {
     <CtAppDataProviders>
       <CtToastSurface>
         <div style={{ height: 640, width: 720 }}>
-          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
         </div>
       </CtToastSurface>
     </CtAppDataProviders>
@@ -240,7 +232,11 @@ export function CharacterDetailContributorStory({ visible }: CharacterDetailCont
     when: () => visible,
     body: (): ReactElement => <div data-testid="ct-fake-detail-section">fake review card</div>,
   };
-  const detailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", [fakeSection]);
+  const detailContributors = isolationRegistry<CharacterDetailContribution>(
+    "character-detail",
+    "replaces the door's empty roster with one fake contribution so the seam is proven to render and gate it",
+    [fakeSection],
+  );
   return (
     <CtDataProviders>
       <CtCharacterContributorSectionRegistry detailContributors={detailContributors}>
@@ -763,7 +759,7 @@ function SuggestWarmLabelsPanels(): ReactElement {
         {labels ? (
           <LabelsLibrarySurface />
         ) : (
-          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
         )}
       </QueryBoundary>
     </>

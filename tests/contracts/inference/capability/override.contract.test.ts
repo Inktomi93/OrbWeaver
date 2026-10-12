@@ -7,7 +7,7 @@
 // to restate a whole capability and would clobber the rest of the ladder.
 
 import { capabilityOverrideSchema, declaredCapabilitySchema } from "@orb/contracts/inference";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("`match` is an XOR over `model` (a regex) and `ids`", () => {
   expect(capabilityOverrideSchema.safeParse({ match: { model: "^claude-" } }).success).toBe(true);

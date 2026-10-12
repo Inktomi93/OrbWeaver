@@ -11,9 +11,9 @@
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { PendingAsk } from "#client/features/automation/lib/apply-automation-bus-event.ts";
 import { applyAutomationBusEvent, pruneExpiredAsks } from "#client/features/automation/lib/apply-automation-bus-event.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_a");
 const RULE_1 = castId<AutomationRuleId>("automationrule_1");

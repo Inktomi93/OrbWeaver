@@ -18,12 +18,12 @@
 //        "simplifying" the carve-out into a marker that cannot bind.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/motion-token-purity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const KEEP = { "packages/ui/src/styles/keep.css": ".keep {\n  transition: opacity var(--motion-base) var(--ease-out-expo);\n}\n" } as const;
 const LOOP = ".orb-weave-shimmer {\n  animation: orb-weave-shimmer var(--motion-breathe) ease-in-out infinite;\n}\n";

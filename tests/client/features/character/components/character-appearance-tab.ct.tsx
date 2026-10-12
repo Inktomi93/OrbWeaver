@@ -12,10 +12,10 @@
 // The write is the WHOLE merged blob (raw + unmerged — resolution is a `<ThemeScope>` nesting concern).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterLookTabPanelStory, CharacterLookTabStory, CharacterTrustTabStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
 

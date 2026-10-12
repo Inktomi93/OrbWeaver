@@ -8,8 +8,8 @@ import { acceptsAssistantPrefill, turnsLevelFor } from "@orb/contracts/inference
 import { createInferenceRuntime } from "@orb/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { principal } from "../../support/factories/principal.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
 import { transcriptFetch } from "../catalog/_local-servers-fetch.ts";
 

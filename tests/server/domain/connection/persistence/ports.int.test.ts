@@ -8,10 +8,10 @@ import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { providerRows } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createConnectionPorts } from "#server/domain/connection/persistence/ports.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
 
 test("`connections.get` is BY ID and owner-agnostic; `listForOwner` is scoped", async () => {

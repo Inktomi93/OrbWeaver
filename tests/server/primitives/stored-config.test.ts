@@ -9,10 +9,10 @@
 // @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import type { VersionedParseOutcome } from "@orb/contracts/versioned-config";
 import { DomainOperationError } from "@orb/kit/errors";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { SETTINGS_OP_CODES } from "#server/domain/settings/contract/errors.ts";
 import { requireIntactStoredConfig, STORED_CONFIG_UNREADABLE } from "#server/primitives/stored-config/index.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 interface Blob {
   readonly theme: string;

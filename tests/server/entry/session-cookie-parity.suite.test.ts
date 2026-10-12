@@ -28,13 +28,13 @@ import type { AuthSessionsPort } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { sessionCookieFor } from "@orb/server/infra/auth";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "#server/entry/app.ts";
 import { createApp } from "#server/entry/app.ts";
-import { FROZEN_AT_MS } from "../../support/clock.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const SLIDE_MS = 60_000;
 const TRANSPORTS: readonly RequestTransport[] = ["https", "http"];

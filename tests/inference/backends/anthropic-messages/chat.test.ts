@@ -23,6 +23,8 @@ import type { GenerationCapability, PromptCacheSettings, ProviderId } from "@orb
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { castId } from "@orb/kit/ids";
+import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runAnthropicChatTurn } from "#inference/backends/anthropic-messages/chat.ts";
 import { anthropicUserIdDigest } from "#inference/backends/anthropic-messages/extras.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
@@ -30,8 +32,6 @@ import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { AnthropicChatRequest, ChatDeltaSubscription, ChatResult } from "#inference/contract/chat.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
 import type { InferenceLog } from "#inference/deps.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeApiKeySecret, fakeResolved, newUserId } from "../../_support.ts";
 import type { RecordedRequest, SseEvent } from "../_hosted-support.ts";
 import {

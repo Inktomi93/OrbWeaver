@@ -8,8 +8,8 @@
 // @subject packages/server/src/domain/automation/verbs/get-owner-budgets.ts
 
 import { AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
 
 describe("getOwnerBudgets", () => {

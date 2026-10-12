@@ -17,10 +17,11 @@
 //     and `tally.failed` can never disagree. The old reporter walked the suite three separate times.
 //   • THE RENDERED LINE — the numbers reaching stdout are asserted on the rendered text, not just the
 //     struct, because a receipt nobody can read is not a receipt.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CtOutcome, CtSuiteFacts, CtTestFacts } from "../../../../tooling/src/verify/contract/ct-run.ts";
 import { CT_OUTCOMES } from "../../../../tooling/src/verify/contract/ct-run.ts";
 import { readRun, summaryLines } from "../../../../tooling/src/verify/ops/ct-run-tally.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const FILE = "tests/ui/density-tier.suite.ct.tsx";

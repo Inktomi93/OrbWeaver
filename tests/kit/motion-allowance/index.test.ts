@@ -3,8 +3,8 @@
 // about ratified behaviour: they exercise the predicate itself, not either instrument's wrapper.
 import type { SanctionableAnimation } from "@orb/kit/motion-allowance";
 import { baseUiAttributionMismatch, isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** The shape both callers hand in: a Base UI panel height transition bound to one lifecycle phase. */
 function ratifiedHeight(overrides: Partial<SanctionableAnimation> = {}): SanctionableAnimation {

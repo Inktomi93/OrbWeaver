@@ -8,10 +8,10 @@ import type { RerankCapability } from "@orb/contracts/inference";
 import type { RerankDocument } from "@orb/contracts/role-clients";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ArbiterCandidate, SpeakerReranker, TranscriptLine } from "#server/domain/chat/contract/arbitration.ts";
 import { rerankPick } from "#server/domain/chat/engine/rerank-pick.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const ref = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });

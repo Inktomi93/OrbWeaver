@@ -2,8 +2,8 @@
 // and an update that widened reach both raise `reconsentPending`; only the second may be described as an
 // update. The branch is pinned here; the words each arm prints are not.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { consentAskKind, statusCopy } from "#client/features/plugin/lib/plugin-copy.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const PENDING_OFF = { status: "disabled", reconsentPending: true } as const;
 

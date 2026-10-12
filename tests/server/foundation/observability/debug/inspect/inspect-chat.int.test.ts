@@ -4,12 +4,12 @@
 // with its SELECTED variant's content/provenance (D26), the session-cache frame count (keyed by chatId,
 // D8/D25), and recent events (newest-first). Plus the NOT_FOUND short-circuit for an unknown chat.
 
+import { chatInspectionSchema } from "@orb/contracts/debug";
 import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries, userConnections, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type {
   CharacterHandle,
   CharacterId,
-  ChatEventId,
   ChatId,
   ChatParticipantId,
   Handle,
@@ -19,13 +19,13 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { inspectChatState } from "@orb/server/foundation/observability/debug";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../../support/db.ts";
-import { makeCharacter } from "../../../../../support/factories/character.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../../support/inference-identities.ts";
 
 const SEEDED_THROUGH_SEQ = 4;
 const CANON_HASH = "canon-hash-inspect";
@@ -53,7 +53,7 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
     model: testModelId("anthropic/claude-opus-4"),
   });
 
-  const characterId = castId<CharacterId>("character_inspect");
+  const characterId = mintTypeId(ID_PREFIX.character);
   await db.insert(characters).values(
     makeCharacter({
       id: characterId,
@@ -63,7 +63,7 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
     }),
   );
 
-  const chatId = castId<ChatId>("chat_inspect");
+  const chatId = mintTypeId(ID_PREFIX.chat);
   await db.insert(chats).values({ id: chatId });
 
   await db.insert(chatParticipants).values([
@@ -85,9 +85,9 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
     },
   ]);
 
-  const messageId = castId<MessageId>("message_inspect");
+  const messageId = mintTypeId(ID_PREFIX.message);
   await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant", characterId });
-  const variantId = castId<MessageVariantId>("message_variant_inspect");
+  const variantId = mintTypeId(ID_PREFIX.messageVariant);
   await db.insert(messageVariants).values({
     id: variantId,
     messageId,
@@ -110,14 +110,14 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
 
   await db.insert(chatEvents).values([
     {
-      id: castId<ChatEventId>("chat_event_inspect_1"),
+      id: mintTypeId(ID_PREFIX.chatEvent),
       chatId,
       seq: 1,
       type: "chatCreated",
       payload: { type: "chatCreated", chatId },
     },
     {
-      id: castId<ChatEventId>("chat_event_inspect_2"),
+      id: mintTypeId(ID_PREFIX.chatEvent),
       chatId,
       seq: 2,
       type: "chatCreated",
@@ -162,6 +162,9 @@ test("inspectChatState flattens the full chat state across the joins", async () 
 
   // Recent events come back newest-first (desc by seq).
   expect(report.recentEvents.map((e) => e.seq)).toEqual([2, 1]);
+
+  // The projection IS the contract: the strict schema refuses any column the server adds or drops.
+  expect(chatInspectionSchema.safeParse(report).success).toBe(true);
 });
 
 test("a slot with NO selected variant flattens to null content (the leftJoin miss)", async () => {

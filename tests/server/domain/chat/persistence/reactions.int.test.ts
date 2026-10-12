@@ -10,6 +10,8 @@ import type { Db } from "@orb/db";
 import { messageReactions } from "@orb/db";
 import type { ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import {
   deleteReaction,
@@ -23,8 +25,6 @@ import {
   loadReactorSeatId,
   loadVariantSlotInChat,
 } from "#server/domain/chat/persistence/reactions.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;

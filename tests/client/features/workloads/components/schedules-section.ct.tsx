@@ -5,11 +5,11 @@
 // the real owner-scoped verbs; the create/edit dialogs submit the real wire inputs, with the owner-only bulk
 // affordances gated exactly as the server re-gates them.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { PAID_RUN_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
 import { WorkloadsSchedulesSectionStory } from "../_ct-stories.tsx";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;

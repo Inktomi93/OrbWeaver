@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/ui-size-via-variant.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/ui-size-conversion";
 const SUBJECT = "packages/client/src/features/character/components/character-library-toolbar.tsx";

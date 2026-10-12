@@ -1,6 +1,6 @@
 import { deflateSync } from "node:zlib";
 import { isPng, readCardChunk, stripCardChunks, writeCardChunk } from "@orb/kit/png-card-chunk";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const IEND_TYPE_BYTES = [0x49, 0x45, 0x4e, 0x44]; // "IEND"

@@ -4,9 +4,9 @@
 // suite — an asset whose header dimensions are UNPARSEABLE (or not an image at all) is NOT below-floor (the
 // floor is a dimension gate, not a decode gate), so those bytes proceed to embed exactly as before.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { imageBelowFloor, MIN_IMAGE_EDGE_PX } from "#server/domain/embeddings/substrate/image-admission.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 const BYTE = 256;

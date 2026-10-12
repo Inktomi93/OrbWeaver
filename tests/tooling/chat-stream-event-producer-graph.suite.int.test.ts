@@ -4,9 +4,9 @@
 // structural lens actually bites rather than passing because it failed to scan.
 
 import { resolve } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { beforeAll, describe } from "vitest";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const WRITER_PATH = resolve(ROOT, "packages/server/src/domain/chat/persistence/stream-events.ts");

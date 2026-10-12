@@ -16,16 +16,11 @@
 import { GENERATION_FAILED_DETAIL, IMPERSONATE_FAILED_LEAD, IMPERSONATE_IN_FLIGHT, IMPERSONATE_STOP_LABEL } from "@orb/client/lib";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { isImpersonateStreamRequest, routeImpersonateStream, routeImpersonateStreamOnce, ZOMBIE_WATCH_MS } from "@orb/testkit/node/route-impersonate-stream.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import {
-  isImpersonateStreamRequest,
-  routeImpersonateStream,
-  routeImpersonateStreamOnce,
-  ZOMBIE_WATCH_MS,
-} from "../../../../support/node/route-impersonate-stream.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ComposerAtViewportFootStory, ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 

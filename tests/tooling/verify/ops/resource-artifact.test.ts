@@ -6,12 +6,12 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceLoad } from "../../../../tooling/src/verify/contract/resource.ts";
 import type { DevToolsClosure, TokenContractResource } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import { DEVTOOLS_CLOSURE_MANIFEST, DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import { loadDevToolsClosure, loadTokenContract } from "../../../../tooling/src/verify/ops/resource-artifact.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 

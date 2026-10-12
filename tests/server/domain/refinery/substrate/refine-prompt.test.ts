@@ -4,6 +4,7 @@
 // the ORIGINAL), the working-card overlay, and the populated-fields default selection.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   buildAnalyzePrompt,
   buildCardSections,
@@ -11,7 +12,6 @@ import {
   defaultSelectionOf,
   overlayRewrite,
 } from "#server/domain/refinery/substrate/refine-prompt.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ZWSP = "\u200b";
 

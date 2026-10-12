@@ -15,8 +15,8 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../../support/clock.ts";
-import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 
 /** The viewer this module's ambient reads describe — a plain `user`-role account, the un-privileged arm
  *  every non-permission CT assumes. Module-local on purpose: the two routes below are the surface, and an

@@ -14,6 +14,7 @@ import { setActiveSection, setCorpusMode, useSectionRegistry } from "@orb/client
 import { consumeInboundJoinToken, peekInboundJoinToken } from "@orb/client/data";
 import { AppErrorBoundary, useRouterUrlReplace } from "@orb/client/lib";
 import { useActiveSection, useCorpusMode } from "@orb/client/state";
+import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
@@ -25,7 +26,6 @@ import { installAppReadySignal } from "#client/lib/app-ready-signal.ts";
 import { AppRoot } from "#client/routes/app-root.tsx";
 import { RoutePending } from "#client/routes/route-pending.tsx";
 import { bindRouteCrashReporter, router } from "#client/routes/router.tsx";
-import { CtDataProviders, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
 
 /** The PRODUCTION router singleton (real route tree, guards, pending component and view transitions) under the
  *  same StrictMode + AppErrorBoundary pair main.tsx mounts it in, so a render crash inside a match lands on a

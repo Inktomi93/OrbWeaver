@@ -5,9 +5,9 @@
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { requireBaseUrl, requireCredential, requireProvider } from "#server/domain/connection/substrate/admission.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
 
 test("requireProvider returns a registered provider and throws providerUnknown otherwise", async () => {

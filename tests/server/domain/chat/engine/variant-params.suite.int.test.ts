@@ -8,6 +8,9 @@ import { messageVariants } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import type { TurnPrep, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { createTurnEngine } from "#server/domain/chat/engine/engine.ts";
@@ -15,9 +18,6 @@ import { generateDigests } from "#server/domain/chat/memory/generate/digests.ts"
 import { generateSegments } from "#server/domain/chat/memory/generate/segments.ts";
 import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedChat, seedParticipant, seedUser, testConnection } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");

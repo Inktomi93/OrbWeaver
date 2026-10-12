@@ -5,9 +5,9 @@
 // properties: the tail-fetch guard (`hasNextPage && !isFetching`) actually calls `fetchNextPage`
 // and appends the next page, and it stays a no-op once the collection is exhausted.
 
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { NotificationsSurfaceStory } from "./_ct-stories.tsx";
 
 const PAGE_1 = {

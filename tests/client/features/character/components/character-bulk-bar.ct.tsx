@@ -2,11 +2,11 @@
 // past the ~337px panel edge). Asserts all three bulk actions render AND the last one (Delete) fits fully
 // inside the panel width (its right edge ≤ the panel's), which `size="sm"` restores.
 
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
+import type {} from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
-import type {} from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterBulkBarStory } from "../_ct-stories.tsx";
 
 test("the bulk actions fit the narrow panel — Delete is not clipped past the edge", async ({ mount, page }) => {

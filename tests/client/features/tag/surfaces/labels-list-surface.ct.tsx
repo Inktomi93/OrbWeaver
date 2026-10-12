@@ -11,10 +11,10 @@ import type { TagTargetType } from "@orb/contracts/tag";
 import { rowActionsName } from "@orb/client/lib";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { LabelsWorkspaceStory } from "../_ct-stories.tsx";
 
 type TagWithUsage = TrpcWireOutput<"tag.listTagsWithUsage">[number];

@@ -8,6 +8,7 @@
 
 import type { Capability, DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
 import { declaredCapabilitySchema, RERANK_MIN_WINDOW_TOKENS, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { capabilityFactRows } from "#client/features/credentials/lib/connection-capability-fact-model.ts";
 import {
@@ -35,7 +36,6 @@ import {
   withDeclaredOverride,
   withoutDeclaredOverride,
 } from "#client/features/credentials/lib/connection-fact-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const VLLM_FEATURES = {
   prefill: "continue-final-message",

@@ -9,10 +9,10 @@ import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { logger } from "@orb/server/foundation/observability";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
 const EXTERNAL = castId<ExternalId>("authentik|abc-123");

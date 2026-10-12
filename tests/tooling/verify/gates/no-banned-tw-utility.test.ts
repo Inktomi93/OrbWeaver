@@ -10,6 +10,7 @@
 //   · NO DOUBLE REPORT with the ordinary sibling: the two policies share one class-token reader and must
 //     still judge different subjects, which is the claim this policy's header makes.
 import { readFileSync } from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -18,7 +19,6 @@ import { gate } from "../../../../tooling/src/verify/gates/no-banned-tw-utility.
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/banned-tw-utility";
 /** The one live class application, ruled in place (#1145/#1175) and a grant row. */

@@ -12,8 +12,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { LocalLightModelCache } from "@orb/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-ll-prefetch-off-"));
 const OK = 200;

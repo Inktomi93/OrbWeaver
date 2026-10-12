@@ -18,10 +18,10 @@
 import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ChatDocumentsSectionStory } from "../_ct-stories.tsx";
 
 const SET_VISIBILITY = "chat.setChatDocumentVisibility";

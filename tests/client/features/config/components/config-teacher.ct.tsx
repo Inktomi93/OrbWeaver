@@ -22,12 +22,12 @@
 //  · the row's `i` is the teacher's door (accname derived from the row label).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { COMMAND_CHIP_NAME } from "@orb/testkit/browser/command-chip-name.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { COMMAND_CHIP_NAME } from "../../../../support/browser/command-chip-name.ts";
-import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ConfigDockedShellStory, ConfigFlashStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
 const REGEX_BAND = /Regex scripts/;

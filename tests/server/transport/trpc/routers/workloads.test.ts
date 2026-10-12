@@ -4,8 +4,8 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { WorkloadService } from "@orb/server/domain/workloads";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const VALID_DEPENDENCY = mintTypeId(ID_PREFIX.workload);

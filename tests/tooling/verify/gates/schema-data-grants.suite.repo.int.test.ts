@@ -1,6 +1,7 @@
 // Real schema/data owner results prove each central grant's identity, staleness and multiplicity.
 // The independently named survivors prevent a changed permission roster from passing by count alone.
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -14,7 +15,6 @@ import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const POLICIES: readonly GatePolicy[] = [

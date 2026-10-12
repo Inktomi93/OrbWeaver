@@ -1,9 +1,10 @@
 // CT: the highlighted-text seal — `[start, end)` char-offset ranges render as real `<mark>`
 // elements (SR-announceable), overlapping/adjacent ranges merge into one run, and the first
 // highlight scrolls into view on mount (ui-primitive carve-out work-order item 11).
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { HighlightedText } from "@orb/ui/highlighted-text";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const TEXT = "The quick brown fox jumps over the lazy dog";
 

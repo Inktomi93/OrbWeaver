@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("native full qualification accepts a runtime partition without turning it into file scope", () => {
   const plan = parseRequest(["--full", "--partition=node", "--shard=1/3"]);

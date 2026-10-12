@@ -8,6 +8,7 @@
 // asserted — a mapper that matched on prose would pass these tests and break on the first server reword.
 
 import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE, CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // Deep import the PURE lib module (NOT the feature barrel): a barrel import drags browser TSX into the
 // dom-less root `typecheck:graph` program (the `character-list-view.test.ts` precedent).
@@ -18,7 +19,6 @@ import {
   characterMutationToast,
   characterRefusalCopy,
 } from "#client/features/character/lib/character-refusal-notice.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A tRPC client error as the formatter shapes it — the `data.reason` discriminator beside a domain message. */
 function refusal(reason: string, message: string): unknown {

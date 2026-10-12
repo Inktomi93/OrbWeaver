@@ -6,10 +6,10 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { AutomationWatcherEnv } from "#server/domain/automation/contract/service.ts";
 import { startAutomationWatcher } from "#server/domain/automation/watcher/start-automation-watcher.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function fakeEnv(): {
   env: AutomationWatcherEnv;

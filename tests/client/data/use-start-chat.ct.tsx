@@ -12,9 +12,9 @@
 
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../support/node/route-trpc.ts";
 import { makeMessagesPage, makeMessageView } from "../features/chat/fixtures.ts";
 import { StartChatStory } from "./_ct-stories.tsx";
 

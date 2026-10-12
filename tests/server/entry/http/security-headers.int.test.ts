@@ -8,14 +8,14 @@
 // forbids external media, so a fresh deployment ships the strict policy.
 // ASSUMES(single-replica): the effective-config cache is module-scope, reset per test here.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { beforeEach, describe } from "vitest";
 import { __resetEffectiveConfigCache, getEffectiveConfig, reloadEffectiveConfig } from "#server/domain/settings/effective-config/cache.ts";
 import { writeAppOverride } from "#server/domain/settings/persistence/queries.ts";
 import { securityHeaders } from "#server/entry/http/security-headers.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** The EXACT wiring `entry/app.ts` uses — the point of the test is that this expression is live. */
 function appUnderTest(): Hono {

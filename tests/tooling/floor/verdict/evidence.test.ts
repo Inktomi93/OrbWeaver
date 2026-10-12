@@ -1,8 +1,8 @@
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { printVerdict, printVerdictReceipt } from "@orb/tooling/floor/verdict/evidence";
 import { vi } from "vitest";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function capture(run: () => number): { readonly code: number; readonly stdout: string } {
   let stdout = "";

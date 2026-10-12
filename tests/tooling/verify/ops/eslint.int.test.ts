@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync } 
 import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CompilerProgram } from "@orb/tooling/verify";
 import { ESLint } from "eslint";
 import { eslintConfiguredPaths } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
@@ -13,7 +14,6 @@ import {
   runScopedEslint,
 } from "../../../../tooling/src/verify/ops/eslint.ts";
 import { discoverEslintFiles } from "../../../../tooling/src/verify/ops/eslint-discovery.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // LOAD-HONEST BUDGETS: the ceiling arm drives the discovery child four times; the measurement arm asks

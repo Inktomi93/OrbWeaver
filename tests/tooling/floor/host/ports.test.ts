@@ -8,6 +8,8 @@
 // Every negative assertion below ships its POSITIVE CONTROL in the same test: `overlap` is proven to FIND
 // a collision on a planted input before it is trusted to report none on the real one. A bare empty array
 // is "I could not measure", never "there is nothing there".
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   CT_VITE_PORT,
   DEV_PORTS,
@@ -24,7 +26,6 @@ import {
   stageBandForPort,
   stageBandPorts,
 } from "@orb/tooling/floor/host/ports";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Which of `ports` are also in `against`. The instrument the disjointness claim rides on — so every use
  *  below is paired with a planted positive control that forces it to return a non-empty answer. */

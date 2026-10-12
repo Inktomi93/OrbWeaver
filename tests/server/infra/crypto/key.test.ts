@@ -5,8 +5,8 @@ import { join } from "node:path";
 import process from "node:process";
 import { SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { bootSecretProvenance, decode32Bytes, loadOrCreateKeyfile, resolveCredentialsKey, resolveSessionSecret } from "@orb/server/infra/crypto";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const tmpDirs: string[] = [];
 function freshDir(): string {

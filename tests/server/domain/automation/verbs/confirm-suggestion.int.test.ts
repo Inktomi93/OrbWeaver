@@ -21,12 +21,12 @@ import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId, UserId
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationOps, AutomationTurnRequest, ExecutePluginSuggestion } from "@orb/server/domain/automation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { AutomationContext } from "#server/domain/automation/contract/service.ts";
 import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
 import { createAutomationService } from "#server/domain/automation/service.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, principal, ruleFixture, seedUser } from "../_support.ts";
 

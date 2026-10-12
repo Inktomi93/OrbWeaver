@@ -8,10 +8,10 @@
 // deleted with the Members tab's size gate (#162, owner-ruled 2026-08-18) — one roster surface, every room.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage } from "../fixtures.ts";
 

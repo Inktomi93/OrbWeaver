@@ -5,10 +5,10 @@ import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
 import type { RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat, findGameById, insertGame, updateGame } from "#server/domain/rpg/persistence/games.ts";
-import { freshDb } from "../../../../support/db.ts";
 import { expect, FROZEN_AT, liteConfig, seedChat, test } from "../_support.ts";
 
 let db: Db;

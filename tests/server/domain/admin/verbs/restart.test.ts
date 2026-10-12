@@ -7,10 +7,10 @@ import { DomainConflictError, DomainForbiddenError, DomainOperationError } from 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createRestart } from "#server/domain/admin/verbs/restart.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { principal } from "../_support.ts";
 
 const CURRENT_INSTANCE = "20000000-0000-4000-8000-000000000002";

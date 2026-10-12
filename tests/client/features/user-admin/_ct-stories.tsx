@@ -5,6 +5,7 @@
 // @orb-waive-file testid-typed-only-stories("operations-connections"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider, useBusRoom, useOrbSocket, useTRPC } from "@orb/client/data";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import { QueryClientProvider, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -20,7 +21,6 @@ import { MemoryTuningSection } from "#client/features/user-admin/components/memo
 import { OperationsSection } from "#client/features/user-admin/components/operations-section.tsx";
 import { RateLimitsSection } from "#client/features/user-admin/components/rate-limits-section.tsx";
 import { SystemTuningSection } from "#client/features/user-admin/components/system-tuning-section.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
 

@@ -10,13 +10,13 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { Db } from "@orb/db";
 import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { describe } from "vitest";
 import type { RpgGameRow } from "#server/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
 import { commitSnapshotForVariant, countSnapshots, writeHandSnapshot, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { foldTurnWriteIntoHandHead, serializeHandWrite } from "#server/domain/rpg/snapshot-edit.ts";
 import { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
-import { freshDb } from "../../../support/db.ts";
 import { expect, handTarget, seedLiteGame, seedMessage, target, test } from "./_support.ts";
 
 /** Let the PRE-SECTION precheck the old shape ran reach its own queue slot before the beat advances — without

@@ -5,8 +5,8 @@
 // disappears). The store is exercised through the harness's in-page controls (it lives in the browser),
 // so this drives the real enter/toggle path, not a test double.
 
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MessageSelectionBarStory } from "../_ct-stories.tsx";
 
 const DELETE_PROC = "chat.deleteMessages";

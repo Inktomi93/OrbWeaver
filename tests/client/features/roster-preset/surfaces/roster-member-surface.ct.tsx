@@ -10,11 +10,11 @@
 
 import { talkativenessReadout } from "@orb/client/lib";
 import type { RulePresetView } from "@orb/contracts/automation";
+import { measureContentColumn } from "@orb/testkit/browser/measure-content-column.ts";
+import { readProseMeasure } from "@orb/testkit/browser/prose-measure.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
-import { readProseMeasure } from "../../../../support/browser/prose-measure.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RosterMemberContentColumnStory, RosterMemberEditorStory, RosterMemberEditorTwoWritersStory } from "../_ct-stories.tsx";
 
 /** `rosterPreset.get`'s view, narrowed to what the editor reads. The stored rule carries a NON-DEFAULT

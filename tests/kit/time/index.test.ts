@@ -14,7 +14,7 @@ import {
   UTC_TIME_ZONE,
   wallClockToMs,
 } from "@orb/kit/time";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const SEC = 1000;
 const MIN = 60 * SEC;

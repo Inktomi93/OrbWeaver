@@ -2,6 +2,8 @@
 // 17 KB, and the atlas — an inventory of the APP, identical on every call — was 2.1 KB of it, reprinted
 // whether or not the caller had just seen it. The decision below is the whole change; it depends on
 // session state a one-shot CLI invocation cannot reach, so it is pinned here rather than through stdout.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { MapAtlasEvidence } from "../../../../tooling/src/snap/contract/map.ts";
 import {
   mapChatPositionSchema,
@@ -12,7 +14,6 @@ import {
 } from "../../../../tooling/src/snap/contract/map.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import { atlasIsNews, atlasSummaryLine, resetAtlasSessionMemory } from "../../../../tooling/src/snap/lib/map-report.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 type AvailableAtlas = Extract<MapAtlasEvidence, { status: "available" }>;
 

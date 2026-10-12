@@ -6,12 +6,12 @@
 // character-card-form-model.test precedent).
 
 import type { ThemeOverride } from "@orb/contracts/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   characterThemeFormFromOverride,
   EMPTY_CHARACTER_THEME_FORM,
   overrideFromCharacterThemeForm,
 } from "#client/features/character/lib/character-theme-form-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // A fully-populated CARD override — every colour scalar, both slots of every bubble, and both enums the
 // card can carry. `density` is deliberately absent: it is viewer-sacred (TD §3), so this form has no field

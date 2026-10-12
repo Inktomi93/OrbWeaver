@@ -10,8 +10,8 @@
 import { buildAgentSeed } from "@orb/client/agent-seed";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHARACTER_ID = castId<CharacterId>("character_seed_a");
 const CHAT_ID = castId<ChatId>("chat_seed_a");

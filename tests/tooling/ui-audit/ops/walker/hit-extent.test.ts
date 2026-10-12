@@ -22,10 +22,11 @@
 // The RENDERED half — that a real `@orb/ui` Checkbox in a real list measures >= 24 while a real 22px box
 // still fails — is `tests/tooling/design-audit-walker.ct.tsx` (#1067); only a browser can prove that. This
 // file is the coupling: it goes red when a floor moves and no rung follows it.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { checkTapTarget } from "../../../../../tooling/src/ui-audit/lib/checks-a11y.ts";
 import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walker/hit-extent.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 const LADDER_PATTERN = /var HIT_PROBE_RADII = \[([^\]]+)\]/;
 /** #1829: the ring must be sampled INSIDE the rung. A target of extent `2r` occupies `[c - r, c + r)`, so

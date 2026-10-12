@@ -8,6 +8,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CompilerOptions } from "ts-morph";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
 import { describe } from "vitest";
@@ -28,7 +29,6 @@ import {
 import { emit } from "../../../../tooling/src/ast/lib/emit.ts";
 import { installOutputSink } from "../../../../tooling/src/floor/cli/log.ts";
 import { getWorkspace, searchGlobs } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

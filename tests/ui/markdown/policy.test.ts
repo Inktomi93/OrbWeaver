@@ -6,6 +6,7 @@
 // host-allowlist, and the img-drop that separates TRUSTED_A from TRUSTED_A_UNTRUSTED. Deep-imports src
 // (browser package; @orb/ui is not node-resolvable) like shiki-theme.test.ts.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   ownOriginMediaOnly,
@@ -15,7 +16,6 @@ import {
   UNTRUSTED_ALLOWED_PREFIXES,
   untrustedUrlTransform,
 } from "#ui/markdown/policy.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 // Streamdown's UrlTransform is called with (url, key, node); `untrustedUrlTransform` reads ONLY the url,
 // so the hast node arg is an unused deliberate stub. The `UrlTransform` return type is `string | null |

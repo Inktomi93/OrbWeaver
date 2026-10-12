@@ -10,8 +10,8 @@
 // fixture deterministic across calls within a run (`test-determinism`).
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 const DEFAULT_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const DEFAULT_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);

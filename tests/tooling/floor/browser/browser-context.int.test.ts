@@ -11,10 +11,11 @@
 // IT ASSERTS THROUGH THE CONTRAST ARM's public door rather than through a computed style, because the
 // defect is a POISONED SAMPLE, not a hidden element: the arm is what a reviewer runs, and the surround
 // colour it prints is the thing that was wrong.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { DEV_SERVER_HUD } from "../../../../tooling/src/floor/browser/browser-context.ts";
 import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);

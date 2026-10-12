@@ -9,11 +9,11 @@ import { characterEmbeddings, characters, embedGenerations, userCredentials } fr
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterEmbeddingId, CharacterHandle, CharacterId, EmbedGenerationId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { makeResolvedSecret } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { ConnectionHarness, HarnessOptions } from "../_support.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
 

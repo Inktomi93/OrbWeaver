@@ -26,10 +26,10 @@ import {
 } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The Analytics LIST leaderboard navigator over the real data layer. */
 export function AnalyticsListSurfaceStory(): ReactElement {

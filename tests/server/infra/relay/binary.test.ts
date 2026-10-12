@@ -9,8 +9,8 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import type { CloudflaredPackaging, CloudflaredPin, ExtractTgz, RelayAssetFetch } from "@orb/server/infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, extractTgzWithTar } from "@orb/server/infra/relay";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const runFile = promisify(execFile);
 const TARGET = "linux-x64";

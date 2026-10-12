@@ -12,9 +12,9 @@
 // `tone="soft"` carries a hairline in every other position; on an `inline` box a border adds horizontal
 // advance, which is exactly the punctuation-detachment (`{{user}} 's voice`) the inline arm exists to kill.
 
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MacroText } from "#client/features/preset/components/macro-text.tsx";
-import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 
 /** One literal run, one macro run, one literal run — the shape every real readout hands this component. */
 const RUN = [

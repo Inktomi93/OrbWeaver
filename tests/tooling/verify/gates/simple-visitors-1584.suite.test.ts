@@ -24,6 +24,8 @@
 // marker two-sided test) is excluded too — it tested the retired grammar, and guide §6.2 forbids copying a
 // negative marker arm into a gate (the central engine's own suppression/staleness proof,
 // `ordinary-waiver.test.ts`, is the successor, run once for every ordinary policy).
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as assumesSingleReplica } from "../../../../tooling/src/verify/gates/assumes-single-replica.ts";
@@ -33,7 +35,6 @@ import { gate as publicRouteBodyCap } from "../../../../tooling/src/verify/gates
 import { gate as publicRouteBodyCapHealth } from "../../../../tooling/src/verify/gates/public-route-body-cap-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/simple-visitors-1584";
 

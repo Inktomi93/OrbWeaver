@@ -9,9 +9,9 @@ import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/k
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ConnectionService, ConnectionView } from "@orb/server/domain/connection";
 import type { Context } from "@orb/server/transport/trpc";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

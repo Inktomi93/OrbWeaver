@@ -9,10 +9,10 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { DiscoveryWorkloadDeps } from "#server/domain/discovery/contract/service.ts";
 import { createDiscoveryWorkloadContributions } from "#server/domain/discovery/workload-contributions.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const T0 = 1_700_000_000_000;

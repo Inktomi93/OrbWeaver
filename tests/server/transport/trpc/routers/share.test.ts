@@ -2,8 +2,8 @@
 // FORBIDDEN a user gets. The service is the real one over a recording relay (`tests/server/domain/share/_support.ts`).
 
 import type { UserRole } from "@orb/contracts/identity";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { LIVE_SOCKETS, shareHarness } from "../../../domain/share/_support.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 

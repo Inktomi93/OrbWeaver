@@ -10,9 +10,9 @@
 // not survive the CT mount boundary on a NESTED component — see that module's header.
 
 import { setTimeout as sleep } from "node:timers/promises";
+import { lastInkColumn, readCanvasBandInk, solidColumns } from "@orb/testkit/browser/canvas-ink.ts";
 import { BarList } from "@orb/ui/bar-list";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { lastInkColumn, readCanvasBandInk, solidColumns } from "../../../support/browser/canvas-ink.ts";
 import { ClippedValueLabelStory, LongSeriesBarListStory, ShortSeriesBarListStory } from "../_ct-stories.tsx";
 
 const ITEMS = [

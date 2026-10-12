@@ -6,9 +6,9 @@
 // would silently break the by-reference contract the caller relies on).
 
 import type { MessageView } from "@orb/contracts/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { abortedOutcome, committedOutcome } from "#server/domain/chat/engine/result.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("engine/result — the TurnOutcome discriminant contract", () => {
   test("the two builders are the opposite arms of the `aborted` discriminant", () => {

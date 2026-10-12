@@ -3,9 +3,9 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execGit, GIT_READ_PREFIX, repoGitEnvironment, runGit } from "../../../../tooling/src/floor/git/git.ts";
 import { inheritedProcessEnv, withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Env records are built from entries: the keys are git's own SCREAMING names, not object members. */
 function env(entries: readonly (readonly [string, string])[]): NodeJS.ProcessEnv {

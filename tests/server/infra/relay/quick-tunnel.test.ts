@@ -9,8 +9,8 @@ import process from "node:process";
 import { promisify } from "node:util";
 import type { RelayProcess } from "@orb/server/infra/relay";
 import { createQuickTunnelLauncher, quickTunnelOrigin, spawnQuickTunnel } from "@orb/server/infra/relay";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const runFile = promisify(execFile);
 const ORIGIN = "http://127.0.0.1:65000";

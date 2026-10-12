@@ -10,9 +10,9 @@ import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/cont
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { DeltaContext } from "#server/domain/rpg/contract/delta.ts";
 import { buildDeltaBlock, definePlaneDiff, PLANE_DIFF_RENDERERS, RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "#server/domain/rpg/substrate/delta.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The pure diff's data context (participant names + the game's tracker DEFS + relationship hints). The default is
  *  empty (no tracker lines, generic actor labels); a case that needs a participant name / tracker / hint passes

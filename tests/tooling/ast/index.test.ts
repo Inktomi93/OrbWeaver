@@ -22,6 +22,7 @@
 // @orb-waive-file no-test-fabrication({ label: string; total: number; hits: Hit[]; exemptions?: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleResolutionKind, Project } from "ts-morph";
 import { describe } from "vitest";
 import type {
@@ -85,7 +86,6 @@ import { respellNearCandidatesFor } from "../../../tooling/src/ast/lib/respell-n
 import { assignabilityChecker, respellHitsFor } from "../../../tooling/src/ast/lib/respell-shapes.ts";
 import { REPO_ROOT } from "../../../tooling/src/ast/lib/root.ts";
 import { installOutputSink } from "../../../tooling/src/floor/cli/log.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

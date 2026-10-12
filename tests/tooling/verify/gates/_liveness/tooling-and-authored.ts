@@ -7,6 +7,8 @@
 // tail on a real doc or source file (through the ResourceHost's own overlay) for a policy that reads its
 // subject as a resource. No add path lands in `tooling/src/verify/gates/`, where it would join the gate
 // roster every roster-reading policy in the shared pass sees.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as danglingDocCite } from "../../../../../tooling/src/verify/gates/dangling-doc-cite.ts";
 import { gate as danglingRefCitations } from "../../../../../tooling/src/verify/gates/dangling-ref-citations.ts";
 import { gate as danglingRefs } from "../../../../../tooling/src/verify/gates/dangling-refs.ts";
@@ -33,7 +35,6 @@ import { gate as toolingProcessExitHome } from "../../../../../tooling/src/verif
 import { gate as toolingProjectHome } from "../../../../../tooling/src/verify/gates/tooling-project-home.ts";
 import { gate as toolingRootConfigImport } from "../../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
 import { gate as toolingSlotTemplate } from "../../../../../tooling/src/verify/gates/tooling-slot-template.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const CLIENT = "packages/client/src/features/chat/components";
 const LAW_DOC = "docs/law/Spine-Testing.md";

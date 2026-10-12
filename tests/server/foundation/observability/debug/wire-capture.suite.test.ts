@@ -19,11 +19,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { reimportBudget } from "@orb/testkit/node/reimport-budget.ts";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { reimportBudget } from "../../../../support/reimport-budget.ts";
 
 const CHAT_A = castId<ChatId>("chat_a");
 
@@ -143,7 +144,15 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
 
     // The request sink is UNCONDITIONAL — it writes whenever called, regardless of the flag. Compose is the
     // seam that decides whether to call it at all; the module itself carries no such gate.
-    wc.recordWireCapture({ chatId: CHAT_A, api: "chat-completions", wire: "openai-compat", providerId: "vllm", model: "m", at: 0, body: {} });
+    wc.recordWireCapture({
+      chatId: CHAT_A,
+      api: "chat-completions",
+      wire: "openai-compat",
+      providerId: castId<ProviderId>("vllm"),
+      model: "m",
+      at: 0,
+      body: {},
+    });
     expect(wc.recentWireCaptures({ chatId: CHAT_A })).toHaveLength(1);
   });
 

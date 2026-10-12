@@ -7,8 +7,8 @@
 
 import type { ChromeEntry, RailZone, SectionId } from "@orb/client/state";
 import { mobileBarCuration, sheetOverflowChrome } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Users } from "@orb/ui/icons";
-import { expect, test } from "../../support/fixtures.ts";
 
 function entry(id: string, zone: ChromeEntry["zone"], mobile?: ChromeEntry["mobile"]): ChromeEntry {
   return {

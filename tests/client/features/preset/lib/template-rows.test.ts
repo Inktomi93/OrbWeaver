@@ -5,6 +5,7 @@
 // (a label the tuple declares but nobody wrote would band a cluster with an empty kicker).
 
 import { TEMPLATE_CLUSTERS, TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   TEMPLATE_CLUSTER_LABEL,
   TEMPLATE_KIND_DELIVERY,
@@ -12,7 +13,6 @@ import {
   templateRowById,
   templateRowMatches,
 } from "#client/features/preset/lib/template-rows.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the partition is TOTAL and disjoint: every registry def lands exactly once, flat or banded", () => {
   const groups = templateGroups();

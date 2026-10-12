@@ -168,7 +168,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/performance/noNamespaceImport",
     operation: "tests",
-    why: 'RULING — the namespace object IS the value being passed, exactly as the source table\'s drizzle row already rules ("drizzle needs the whole schema module both as a value and as `typeof schema`"). `tests/support/db.ts:15`: "drizzle-kit\'s snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table." `tests/server/domain/assets/persistence/asset-refs.int.test.ts:15`: "the comparator\'s denominator IS every table the schema module exports." `tests/client/agent-nav/index.dom.test.ts:11`: "vi.spyOn needs the module namespace object to wrap the REAL exported action (the dispatch-proof this file exists for)." Named imports cannot express any of the three: two need the module as a Record, one needs the mutable binding object.',
+    why: 'RULING — the namespace object IS the value being passed, exactly as the source table\'s drizzle row already rules ("drizzle needs the whole schema module both as a value and as `typeof schema`"). `tests/support/node/db.ts:15`: "drizzle-kit\'s snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table." `tests/server/domain/assets/persistence/asset-refs.int.test.ts:15`: "the comparator\'s denominator IS every table the schema module exports." `tests/client/agent-nav/index.dom.test.ts:11`: "vi.spyOn needs the module namespace object to wrap the REAL exported action (the dispatch-proof this file exists for)." Named imports cannot express any of the three: two need the module as a Record, one needs the mutable binding object.',
     endsWhen:
       "drizzle-kit takes an explicit table list, the parity comparator derives its denominator from a generated manifest, and `vi.spyOn` is replaced by injection at the agent-nav seam.",
   },
@@ -222,7 +222,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noMisplacedAssertion",
     operation: "tests",
-    why: 'RULING — this is the NAMED ASSERTION HELPER pattern, and the rule cannot see it. `tests/support/chat/assertions.ts:31,43,78` each state "named assertion helper — asserts for the calling test (satisfies requireAssertions)": three shared helpers whose whole purpose is to own one non-obvious assertion (static prompt-prefix drift, KV-cache poisoning, bus event ordering) for every caller. The rule flags an `expect` outside a `test` body, which is exactly what a shared helper is; inlining them would duplicate the assertion and its failure message across every call site.',
+    why: 'RULING — this is the NAMED ASSERTION HELPER pattern, and the rule cannot see it. `tests/support/node/chat/assertions.ts:31,43,78` each state "named assertion helper — asserts for the calling test (satisfies requireAssertions)": three shared helpers whose whole purpose is to own one non-obvious assertion (static prompt-prefix drift, KV-cache poisoning, bus event ordering) for every caller. The rule flags an `expect` outside a `test` body, which is exactly what a shared helper is; inlining them would duplicate the assertion and its failure message across every call site.',
     endsWhen: "the shared chat assertions move behind a custom vitest matcher the rule recognises, or the helpers lose their callers.",
   },
   {

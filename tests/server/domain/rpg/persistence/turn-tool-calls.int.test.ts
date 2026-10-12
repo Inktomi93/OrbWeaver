@@ -13,10 +13,10 @@ import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import type { RpgTurnToolCallsId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { findTurnToolCallsByVariant, listTurnToolCalls, recordTurnToolCalls } from "#server/domain/rpg/persistence/turn-tool-calls.ts";
-import { freshDb } from "../../../../support/db.ts";
 import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test } from "../_support.ts";
 
 let db: Db;

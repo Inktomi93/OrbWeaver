@@ -9,12 +9,12 @@ import { chatParticipants } from "@orb/db";
 import type { ChatParticipantId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { repairStaleJoinSeqOnBoot } from "@orb/server/entry/boot";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedChat } from "@orb/testkit/node/factories/chat.ts";
+import { seedMessage } from "@orb/testkit/node/factories/message.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../support/db.ts";
-import { seedChat } from "../../../support/factories/chat.ts";
-import { seedMessage } from "../../../support/factories/message.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("clamps a join_seq stamped above the per-chat canon head, leaves a correct row untouched, and settles idempotent", async () => {
   const db = await freshDb();

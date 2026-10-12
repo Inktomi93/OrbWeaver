@@ -2,6 +2,8 @@
 // same-named local `defineGate`, a message assembled from const aliases and concatenation, a template with a
 // dynamic span, a conditional with two possible texts, a marker MENTION that is not a marker LINE, and a report
 // sink reached through destructuring or a const alias. Every direction has its control.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { StaticSegments } from "../../../../tooling/src/verify/contract/policy-descriptor-read.ts";
@@ -28,7 +30,6 @@ import {
   staticSegments,
   staticText,
 } from "../../../../tooling/src/verify/lib/policy-static-text.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CONTRACT_STUB = "export function defineGate<const Policy>(policy: Policy): Policy {\n  return policy;\n}\n";
 

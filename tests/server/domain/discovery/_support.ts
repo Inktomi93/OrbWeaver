@@ -53,15 +53,15 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { resolveTier0Range } from "#server/domain/chat/index.ts";
 import type { DiscoveryContext } from "#server/domain/discovery/index.ts";
 import { createStatsService } from "#server/domain/stats/service.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
-import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
 /** A fixed instant for the service's injected clock (only `reconcile` reads it). */
 const STATS_NOW = 1_700_000_000_000;

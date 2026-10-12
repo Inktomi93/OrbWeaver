@@ -2,10 +2,10 @@
 // over DB defaults; a re-set patches only the provided column; an absent row projects to the default view.
 
 import { AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { selectOwnerBudget, selectOwnerBudgetView, upsertOwnerBudget } from "#server/domain/automation/persistence/budgets.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedUser } from "../_support.ts";
 
 describe("automation_owner_budgets persistence", () => {

@@ -1,6 +1,6 @@
 import { rpgConfigViewSchema, rpgGameConfigSchema, rpgTrackerViewSchema } from "@orb/contracts/rpg";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("resolved tracker output closes ambient children while retaining absent state", () => {
   const view = {

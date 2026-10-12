@@ -8,12 +8,12 @@
 
 import { PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import { defineTrpcRoutes, routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import { UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
-import { defineTrpcRoutes, routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = {

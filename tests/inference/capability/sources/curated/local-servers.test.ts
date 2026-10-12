@@ -4,11 +4,11 @@
 
 import type { GenerationCapability, NativeChatApi, SamplingCapability } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, SAMPLER_ORDER_TOKENS } from "@orb/contracts/inference";
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { resolveChat } from "#inference/funnel/resolve-chat.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testProviderId } from "../../../../support/inference-identities.ts";
 
 const LOCAL_SERVERS = ["llama-cpp", "koboldcpp", "ollama", "lm-studio", "vllm", "custom-openai"] as const;
 

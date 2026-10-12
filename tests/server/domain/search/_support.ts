@@ -53,16 +53,16 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { consolidationHash, createResolveViewerVisibility } from "@orb/server/domain/chat";
+import { consolidationHash, createResolveViewerVisibility, resolveTier0Range } from "@orb/server/domain/chat";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "#server/domain/databank/persistence/scope.ts";
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
 import { createSearchService } from "#server/domain/search/index.ts";
 import { generationIdOf, vectorSpaceFingerprint } from "#server/primitives/embedding-generation/index.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
@@ -261,7 +261,7 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
   const ctx: SearchContext = {
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     digestConsolidationHash: consolidationHash,
-    tier0RangeOf: (tier, blockIdx) => ({ startIdx: blockIdx * 4 ** tier, endIdx: (blockIdx + 1) * 4 ** tier - 1 }),
+    tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
     resolveEmbeddingConnection: async (ownerId, task) => {

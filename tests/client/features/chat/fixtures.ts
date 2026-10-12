@@ -8,10 +8,10 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeResolvedView } from "../../../support/factories/resolved-connection.ts";
-import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
-import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 /** The `chat.listMessages` wire shape (MessagesPage — packages/server/src/domain/chat/contract/
  *  views.ts). A plain client read-model literal (see the header) — the return type CHANGED from a

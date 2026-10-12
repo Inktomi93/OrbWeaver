@@ -14,9 +14,9 @@
 // Driven through the editor surface story because the row is a feature-internal leaf — the front door
 // exports the surface, and the rows a user actually sees are the ones worth asserting.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterEditorSurfaceStory } from "../_ct-stories.tsx";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail } from "../fixtures.ts";

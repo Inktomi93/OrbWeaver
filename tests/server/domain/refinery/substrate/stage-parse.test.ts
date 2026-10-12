@@ -2,9 +2,9 @@
 // validation as the model wrote it; the stripped-key capture diff (incl. nested paths); and the planted POSITIVE
 // CONTROL (a clean payload strips nothing — a diff that cannot return empty would flag every run).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { buildStageParse, diffKeyPaths } from "#server/domain/refinery/substrate/stage-parse.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const SCHEMA = z.object({
   keep: z.string(),

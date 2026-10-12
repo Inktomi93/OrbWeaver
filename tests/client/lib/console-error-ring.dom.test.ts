@@ -7,11 +7,11 @@
 // eviction TALLY (a capped ring that does not count its drops reads complete), and the read returning a COPY
 // (the bundle holds what it read, not what the ring became).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 // A RELATIVE import, not the `#lib` barrel: this ring is deliberately NOT re-exported there (it is a dev
 // instrument the bridge installs — the `motion-flaggers.ts` rule), and the barrel is what a prod bundle pulls.
 import { __resetConsoleErrors, consoleErrorRing, recordConsoleError } from "#client/lib/console-error-ring.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** 2020-01-01. The stamp assertions below are about the ring's CLOCK CHOICE, not about "now": an epoch stamp
  *  is far past this, while the `performance.now()` OFFSET the motion rings record is a handful of seconds. A

@@ -11,9 +11,10 @@
 // between "the reader could not shape this body" and "the app sent nothing", and it is the distinction whose
 // absence cost the diagnosis. The multi-procedure arm is the second control: a batch window can fold another
 // call into the same request, so index 0 is an assumption, not a fact.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { MutationRequestRead } from "../../../../tooling/src/snap/ops/appearance-density-persistence.ts";
 import { readMutationInput } from "../../../../tooling/src/snap/ops/appearance-density-persistence.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const PROCEDURE = "settings.updateUserSettingsSection";
 const ORIGIN = "http://127.0.0.1:5273";

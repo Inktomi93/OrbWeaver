@@ -274,6 +274,15 @@ export function createHostPrincipalResolver(sessions: Pick<SessionsService, "loa
 }
 
 /**
+ * The disabled-account containment read every non-request consumer asks (roster assembly, inherited books,
+ * an automation author's standing authority). Read fresh per call, and FAIL-CLOSED: a missing row answers
+ * `false`, never "assume enabled".
+ */
+export function createResolveUserEnabled(sessions: Pick<SessionsService, "loadUserById">): (userId: UserId) => Promise<boolean> {
+  return async (userId: UserId): Promise<boolean> => (await sessions.loadUserById(userId))?.enabled === true;
+}
+
+/**
  * The OWNER-FALLBACK arm's resolver: the same mapper PLUS the `enabled` gate, because this one IS a request
  * authentication. The other two request paths refuse a disabled row — `sessions.validate` re-checks
  * `users.enabled` per request (invariant #8/D40) and the SSO arm returns `null` on `!provisioned.enabled` —

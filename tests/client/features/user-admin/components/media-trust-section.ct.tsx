@@ -4,12 +4,12 @@
 // config), and the OVERRIDE-vs-FLOOR honesty that replaced the pane's footnote (a row says which one it is,
 // and never prints a stored override as if it were the default).
 
+import { lastAppSettingsPartial } from "@orb/testkit/node/last-settings-patch.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { setNumber } from "@orb/testkit/node/set-number.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { lastAppSettingsPartial } from "../../../../support/node/last-settings-patch.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { setNumber } from "../../../../support/node/set-number.ts";
 import { MediaTrustSectionStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";

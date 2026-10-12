@@ -1,10 +1,10 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { resolveCfg } from "#server/domain/chat/memory/constants.ts";
 import { buildRecallQuery } from "#server/domain/chat/memory/recall/query.ts";
 import type { MemoryScope, MsgRow } from "#server/domain/chat/memory/types.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 
 const chatId = castId<ChatId>("chat_q");
 const aria = castId<CharacterId>("character_aria");

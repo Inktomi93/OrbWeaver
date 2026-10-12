@@ -5,8 +5,8 @@
 // not console-warn about a missing extension).
 
 import { createGatedStore, STORE_DEVTOOLS_ENABLED } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

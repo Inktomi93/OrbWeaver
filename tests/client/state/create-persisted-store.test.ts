@@ -9,9 +9,9 @@
 // @orb-waive-file no-test-fabrication({ state: object; version: number }): baselined when the gate widened to value casts; burn-down item 906.
 import type { PersistedStoreOptions } from "@orb/client/state";
 import { createPersistedStore } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { StateStorage } from "zustand/middleware";
-import { expect, test } from "../../support/fixtures.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

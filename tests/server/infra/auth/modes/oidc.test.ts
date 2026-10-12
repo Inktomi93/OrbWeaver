@@ -1,6 +1,6 @@
 import { MODE_RESOLVERS, SESSION_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { headers, makeAuthConfig } from "../_support.ts";
 
 // `resolveOidc` (the `oidc` AUTH_MODE arm, wired via MODE_RESOLVERS.oidc) delegates to the shared cookie

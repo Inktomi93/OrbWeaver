@@ -24,8 +24,8 @@ import {
   WHOLE_FILE_THRESHOLD_DEFAULT,
 } from "@orb/contracts/databank";
 import { mintTypeId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../../support/clock.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("DOC_ORIGINS is exactly the pinned origin axis [upload, web, youtube, wiki, text]", () => {
   expect(DOC_ORIGINS).toEqual(["upload", "web", "youtube", "wiki", "text"]);

@@ -9,9 +9,9 @@ import { join, resolve } from "node:path";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#server/domain/import/substrate/staging.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ALICE = castId<UserId>("01h455vb4pex5vsknk084sn02q");
 const BOB = castId<UserId>("01h455vb4pex5vsknk084sn03r");

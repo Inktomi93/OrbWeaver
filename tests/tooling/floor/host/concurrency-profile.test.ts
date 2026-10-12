@@ -21,6 +21,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir, totalmem } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ConcurrencyProfile, DerivedCap, Machine, ProfileCeilings, UnitCosts } from "@orb/tooling/floor/host/concurrency-profile";
 import {
   CONCURRENCY_PROFILE_NAMES,
@@ -40,7 +41,6 @@ import {
 import { HOST_POOL_ROOT_ENV, tryAcquireHostSlot } from "@orb/tooling/floor/host/host-slots";
 import { TS7_ADMISSION_ENV, TS7_POOL_NAME, TS7_SLOT_BUSY_EXIT } from "@orb/tooling/floor/host/ts7-admission";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const BODY = readFileSync(CONCURRENCY_PROFILE_PATH, "utf8");
 const COSTS = parseUnitCosts(BODY);

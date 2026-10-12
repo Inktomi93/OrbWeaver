@@ -17,13 +17,13 @@
 // also proves the grid gains no tile. Every one of those is a claim the combobox shape could not make.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN } from "#client/features/app-shell/lib/appearance-bounds.ts";
 import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
-import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
-import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
 
 /** A BUNDLED SCENE PLATE as the picker actually sees one since `kind:"seeded"` retired (2026-09-18): an

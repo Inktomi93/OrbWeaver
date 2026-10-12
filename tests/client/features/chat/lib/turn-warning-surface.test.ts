@@ -5,9 +5,9 @@
 import type { ChatWarning } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createWarningSurface } from "#client/features/chat/lib/turn-warning-surface.ts";
 import type { NotifyAction, NotifyNotice } from "#client/lib/notify.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_ctsurface000000001");
 const action = (label: string): NotifyAction => ({ label, onClick: (): void => undefined });

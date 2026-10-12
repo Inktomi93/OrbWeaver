@@ -1,7 +1,7 @@
 import { chatListCursorSchema } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../../support/clock.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ═══ chatListCursorSchema — the `listChats` keyset boundary ═════════════════════
 //

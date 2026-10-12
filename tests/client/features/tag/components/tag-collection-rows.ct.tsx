@@ -10,11 +10,11 @@
 // pinned in `tests/client/features/tag/surfaces/labels-list-surface.ct.tsx`.
 
 import { rowActionsName } from "@orb/client/lib";
+import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "@orb/testkit/browser/ink-void.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/browser/ink-void.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { TagCollectionRowsStory } from "../_ct-stories.tsx";
 
 const TAGS = [

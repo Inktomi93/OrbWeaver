@@ -1,8 +1,8 @@
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { conflictingProviderDefinition, providerDefinitionHash } from "#server/domain/connection/substrate/provider-definitions.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const PROVIDER_ID = castId<ProviderId>("plugin:test/acme");
 const SECOND_ID = castId<ProviderId>("plugin:test/second");

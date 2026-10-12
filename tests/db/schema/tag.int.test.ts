@@ -15,10 +15,10 @@ import { characters, characterTags, chats, chatTags, personas, personaTags, pres
 import { isConstraintViolation } from "@orb/db/query";
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
-import { freshDb } from "../../support/db.ts";
-import { seedCharacter } from "../../support/factories/character.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 // Named so the literals aren't bare magic numbers (noMagicNumbers).

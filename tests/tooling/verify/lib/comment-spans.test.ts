@@ -1,8 +1,9 @@
 // The gap-scanning comment walk is byte-identical to the token walk it replaced, on the shapes that broke it.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind, ts } from "ts-morph";
 import { blankTsComments, forEachCommentRange } from "../../../../tooling/src/verify/lib/comment-spans.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // Every carrier shape the 2026-09-06 whole-corpus differential exercised, in one file: same-line comments
 // after a comma (a TRAILING range of the comma token and nothing else), comments before `)` / `}` / EOF, an

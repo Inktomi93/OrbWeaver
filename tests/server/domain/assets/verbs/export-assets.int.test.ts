@@ -15,11 +15,11 @@ import { characters, messages, messageVariants, userSettings } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportAssets } from "@orb/server/domain/assets";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { parsePortableAssetFilename } from "#server/domain/assets/substrate/portable-asset-file.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { AssetsHarness } from "../_support.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";
 

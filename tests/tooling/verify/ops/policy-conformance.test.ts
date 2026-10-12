@@ -2,6 +2,7 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, wr
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { SyntaxKind } from "ts-morph";
 import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
@@ -9,7 +10,6 @@ import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";
 import { POLICY_CONFORMANCE_TEMP_PREFIX, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SOURCE_FLAG: GatePolicyProof = {
   mode: "source",

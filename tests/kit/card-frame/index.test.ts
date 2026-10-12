@@ -18,8 +18,8 @@ import {
   clampCardFrameThemeTokens,
   foldCardFrameHeight,
 } from "@orb/kit/card-frame";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const BASE = "default-src 'none'; img-src {M}; media-src {M}; style-src 'unsafe-inline'; font-src 'self'; form-action 'none'; base-uri 'none'";
 const meta = (media: string): string => BASE.replaceAll("{M}", media);

@@ -18,10 +18,10 @@
 // what a reader is actually looking at when the pane jumps.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { PersonaNotificationsReopenStory } from "../_ct-stories.tsx";
 
 const SWITCH_LABEL = "Notify me when my persona changes in a chat";

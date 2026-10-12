@@ -1,8 +1,8 @@
 // substrate: mode — the mode classification guards + the multimodal→extraction fallback map.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { extractionFallbackFor, isMultimodalMode } from "#server/domain/imagery/substrate/mode.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("mode classification", () => {
   test("isMultimodalMode: only the two _multimodal modes", () => {

@@ -1,5 +1,5 @@
 import { tokenizeResultSchema, wordTokensSchema } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("tokenization preserves success and per-word failure independently", () => {
   const value = {

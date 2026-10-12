@@ -22,10 +22,10 @@
 // module. Second: a reword of user-facing copy SHOULD red a test that claims to know what the user reads.
 // The constant↔behaviour binding is the unit's job, and it holds it.
 
+import { hitExtent, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CharacterCreateBandStory } from "../../../forms/editor/_form-identity-stories.tsx";
 
 const HANDLE_CONFLICT_COPY = "You already have a character with that name. Pick a different name and try again.";

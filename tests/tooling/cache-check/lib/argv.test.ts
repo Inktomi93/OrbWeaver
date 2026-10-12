@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { CACHE_CASES, CACHE_ROUTES, parseCacheCheckArgs } from "@orb/tooling/cache-check";
 import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("no flags runs every case on the default routes, on a stage at HEAD; agent-sdk runs only when named", () => {
   expect(parseCacheCheckArgs([])).toEqual({ routes: ["direct", "openrouter"], cases: CACHE_CASES, ref: "HEAD", dirty: false });

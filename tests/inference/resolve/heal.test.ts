@@ -3,8 +3,8 @@
 // so that replacement must pass the same parser before it can carry the ModelId brand.
 
 import type { AgentSdkModel } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { normalizeModelId } from "#inference/resolve/heal.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const DAEMON_ROW: AgentSdkModel = {
   alias: "sonnet",

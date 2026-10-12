@@ -1,10 +1,10 @@
 // Persistence layer for the global-variable plane — the owner-scoped query functions directly (the verbs
 // wrap these; this pins the raw db behavior incl. the LIKE-prefix escaping).
 
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { deleteGlobalVariable, listGlobalVariables, selectGlobalVariable, upsertGlobalVariable } from "#server/domain/automation/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedUser } from "../_support.ts";
 
 describe("global_variables persistence", () => {

@@ -16,6 +16,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId, Handle, MessageVariantId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { sql } from "drizzle-orm";
 import type { RpgParticipantActor } from "#server/domain/rpg/index.ts";
 import { rpgToolDefinitions } from "#server/domain/rpg/index.ts";
@@ -25,8 +27,6 @@ import { findTurnToolCallsByVariant } from "#server/domain/rpg/persistence/turn-
 import { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "#server/domain/rpg/tools/apply.ts";
 import type { ToolExecutionContext } from "#server/domain/tool-use/index.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, pinExtractionMode, principal, seedLiteGame, seedMessage, test, turnConnection } from "../_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_t1");

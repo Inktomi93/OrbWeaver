@@ -5,6 +5,7 @@
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { InstrumentArtifactMetadata } from "@orb/tooling/floor/artifacts/artifact-out";
 import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "@orb/tooling/floor/artifacts/artifact-out";
 import type { BrowserDiagnostic } from "@orb/tooling/floor/browser/browser-diagnostics";
@@ -35,7 +36,6 @@ import {
   writeSnapDiagnosticEvidence,
 } from "../../../../tooling/src/snap/ops/run-bundle.ts";
 import { listSnapRunIndices, printSnapReports, resolveSnapRunIndex } from "../../../../tooling/src/snap/ops/run-report.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(120_000);

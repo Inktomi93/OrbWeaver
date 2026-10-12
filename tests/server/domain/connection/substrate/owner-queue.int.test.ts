@@ -1,4 +1,4 @@
-import { expect, test } from "../../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
 
 test("an assembled stable-binding read holds the real vector binding write until its snapshot settles", async ({ db }) => {

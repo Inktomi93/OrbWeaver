@@ -11,10 +11,10 @@ import { assets, characterPersonas, characterSnapshots, characters, personas } f
 import { isConstraintViolation, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/query";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db.ts";
-import { seedCharacter } from "../../support/factories/character.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 // Named so the literals aren't bare magic numbers (noMagicNumbers).

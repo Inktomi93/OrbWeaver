@@ -3,7 +3,7 @@
 // pre-move script threw on staleness, which node reports as 1 and the runner would now escalate to 2.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 test("agent-sync --check reports the mirror as current on a synced tree", async ({ runCli }) => {
   const res = await runCli("agent-sync", ["--check"]);

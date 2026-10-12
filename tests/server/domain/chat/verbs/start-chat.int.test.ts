@@ -20,15 +20,15 @@ import { batchStmt } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatEventId, ChatId, Handle, PersonaId, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { insertChatEventStatement } from "#server/domain/chat/persistence/events.ts";
 import { listMemberChats } from "#server/domain/chat/persistence/queries.ts";
 import { createStartChat } from "#server/domain/chat/verbs/start-chat.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */

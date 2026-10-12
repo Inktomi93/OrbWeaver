@@ -3,8 +3,8 @@
 // tag-column exemption, char-counted mixed tab/space dedent, and the trimIndent escape.
 
 import { swapIdentityMacros, trimContent } from "@orb/kit/macro";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("trimContent trims both ends of a single-line body", () => {
   expect(trimContent("  hello  ")).toBe("hello");

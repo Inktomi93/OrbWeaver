@@ -1,8 +1,8 @@
 // Unit: keyword normalization — lowercase, leading-article fold, trailing-punctuation trim, ≥4-char floor.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { normalizeKeyword } from "#server/domain/discovery/cooccurrence/utils.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("normalizeKeyword", () => {
   test("lowercases and folds a leading article", () => {

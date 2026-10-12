@@ -12,6 +12,8 @@ import type { Db } from "@orb/db";
 import { chatBooks, chatInjections, chats, messages, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "#server/domain/chat/assembly/assemble.ts";
@@ -19,8 +21,6 @@ import type { ForeignInputs } from "#server/domain/chat/contract/foreign.ts";
 import type { MemoryRecallInputs } from "#server/domain/chat/contract/memory.ts";
 import { gatherAssembleContext } from "#server/domain/chat/substrate/assemble-gather.ts";
 import type { DatabankGatherParams } from "#server/domain/databank/contract/params.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment } from "../memory/_support.ts";
 

@@ -25,10 +25,10 @@
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "@orb/testkit/browser/ink-void.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/browser/ink-void.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RosterCollectionRowsStory } from "../_ct-stories.tsx";
 
 function member(id: string, name: string, position: number): RosterPresetSummary["members"][number] {

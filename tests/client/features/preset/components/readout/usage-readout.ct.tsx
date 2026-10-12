@@ -15,10 +15,10 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makeCachePolicy } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcFixtureOutput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { makeCachePolicy } from "../../../../../support/factories/resolved-connection.ts";
-import type { TrpcFixtureOutput, TrpcRoutes } from "../../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import { PresetReadoutUsageStory } from "./_readout-stories.tsx";
 
 const PRESET = "preset_ct_readoutbind";

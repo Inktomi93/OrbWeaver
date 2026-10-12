@@ -2,9 +2,9 @@
 // extract in READING order (not zip/manifest order), each through the html loader, joined `\n\n`; the `<dc:title>`;
 // and the failure modes (missing container.xml / missing OPF). The fixture zips REAL container/OPF/XHTML.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { zipSync } from "fflate";
 import { loadEpub } from "#server/infra/extraction/loaders/epub.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { buildEpub } from "../_fixtures.ts";
 
 const enc = new TextEncoder();

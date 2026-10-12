@@ -13,11 +13,11 @@
 // unresolved assertion helper). A refusal that silently changes reason changes nothing they can see, so
 // the reason has to be held here or nowhere.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveCallableDeclaration } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { CallableDeclaration, ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

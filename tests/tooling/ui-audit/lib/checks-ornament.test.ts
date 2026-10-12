@@ -16,9 +16,10 @@
 // The polarity is the population contract's (`contract/findings.ts`): a gradient this reader cannot read
 // WHOLE is missing evidence — `withheld`, which makes the run NO VERDICT — never a judged pass, and never
 // a finding minted off the args that happened to parse.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { checkRadialGlow, classifyRadialGlow } from "../../../../tooling/src/ui-audit/lib/checks-ornament.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const HALO_STOP = "rgba(255, 90, 40, 0.6)";
 const SPOTLIGHT_STOP = "rgba(80, 111, 255, 0.26)";

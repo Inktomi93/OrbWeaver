@@ -30,8 +30,8 @@ import type {
   SeededSlugResolver,
 } from "@orb/server/domain/settings";
 import { createDefaultBackgroundSeeder } from "@orb/server/domain/settings";
-import { principal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const PLATES: readonly SeedBackgroundPlateRef[] = [
   { slug: "assistant-bg", label: "Charlotte's study" },

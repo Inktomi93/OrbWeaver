@@ -27,10 +27,10 @@ import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */

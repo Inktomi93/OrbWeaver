@@ -2,7 +2,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 // CT: the Analytics OVERVIEW dashboard's RECOMPUTE affordance — the client half of the direct
 // `stats.reconcile` twin (the queue keeps the all-owners bulk sweep). Drives the PRODUCTION path: the five
@@ -11,12 +11,12 @@ import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 // button that renders but dispatches nothing is exactly the failure this covers.
 
 import { setTimeout as sleep } from "node:timers/promises";
+import { readCanvasBandInk, solidColumns } from "@orb/testkit/browser/canvas-ink.ts";
+import { readPhantomScrollers } from "@orb/testkit/browser/scroll-containing-block.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { readCanvasBandInk, solidColumns } from "../../../../support/browser/canvas-ink.ts";
-import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsOverviewSurfaceListModeStory, AnalyticsOverviewSurfaceShortStory, AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 import { ACCOUNTING_CASES } from "../fixtures.ts";
 

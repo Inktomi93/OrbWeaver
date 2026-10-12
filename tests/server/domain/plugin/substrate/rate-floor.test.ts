@@ -10,10 +10,10 @@
 
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createPluginRateFloor } from "#server/domain/plugin/substrate/rate-floor.ts";
-import { createFrozenClock, FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const PLUGIN = castId<PluginId>("plugin_floor00000000000000001");
 const OTHER = castId<PluginId>("plugin_floor00000000000000002");

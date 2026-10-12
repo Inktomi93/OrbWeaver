@@ -44,11 +44,11 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter, seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
-import { freshDb } from "../../support/db.ts";
-import { makeCharacter, seedCharacter } from "../../support/factories/character.ts";
-import { expect, test } from "../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 // The one embedding-space dim. A deterministic ramp vector (no Math-random) — every value is exactly

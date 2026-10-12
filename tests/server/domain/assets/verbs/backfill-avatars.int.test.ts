@@ -12,11 +12,11 @@ import { assets, characters } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished, vi } from "vitest";
 import type { BackfillCard } from "#server/domain/assets/contract/maintenance.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, seedCharacter, seedUser } from "../_support.ts";
 
 function sha256(bytes: Uint8Array): string {

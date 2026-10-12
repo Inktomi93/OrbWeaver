@@ -5,7 +5,7 @@
 // what the capability panel renders as a guess and what a later measurement is allowed to override.
 
 import { MODALITIES, modalitySchema, parseModalities } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("every member parses to itself and anything else is REFUSED", () => {
   for (const modality of MODALITIES) {

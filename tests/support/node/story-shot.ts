@@ -13,7 +13,7 @@
 // SPLIT 2026-09 (#1291, closing the leftover this file's header used to state): CT specs run in
 // Playwright WORKER processes, so giving them a per-RUN slot needed the CT run's identity to reach those
 // workers — `playwright-ct.config.ts` now does that (opens the "ct" instrument's slot once, sets an env
-// var before forking). Every `.ct.tsx` call site moved to `tests/support/ct/snap-out.ts` `ctSnapPath`,
+// var before forking). Every `.ct.tsx` call site moved to `tests/support/node/snap-out.ts` `ctSnapPath`,
 // which resolves into that per-run slot. `tests/e2e/**` local specs run under a SEPARATE config
 // (`playwright.config.ts`) with no "ct" run to adopt — out of #1291's scope — so they still call
 // `storyShot`/`STORY_SHOT_DIR` here, still safe against the symlink-follow defect, still one file per

@@ -14,11 +14,11 @@
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { ChatInjectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { measureClamp } from "@orb/testkit/browser/measure-clamp.ts";
+import { assertTokenRoundtrip } from "@orb/testkit/node/assert-token-roundtrip.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { measureClamp } from "../../../../support/browser/measure-clamp.ts";
-import { assertTokenRoundtrip } from "../../../../support/node/assert-token-roundtrip.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { InjectionsManagerStory, InjectionsReserveStory } from "../_ct-stories.tsx";
 
 /** The Nth row's disclosure. Named by the row's ORDINAL, which is the only stable name an injection has —

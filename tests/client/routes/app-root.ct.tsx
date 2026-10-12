@@ -27,13 +27,12 @@ import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { READY_ATTR, READY_SETTLED } from "#client/lib/app-ready-signal.ts";
 import { testId } from "#client/lib/test-ids.ts";
-import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES } from "../../support/node/utility-role.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
@@ -289,10 +288,10 @@ test("the app is not ready until Home's first reads land", async ({ mount, page 
   });
   await mount(<HomePageReadinessStory />);
   await chats.requested;
-  await expect(page.locator("html")).not.toHaveAttribute(READY_ATTR);
+  await expect(page.locator("html")).not.toHaveAttribute("data-app-ready");
 
   chats.release(chatListResponder([])({}));
-  await expect(page.locator("html")).toHaveAttribute(READY_ATTR, READY_SETTLED);
+  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
   await expect(page.locator('[data-home-tile="chat.masthead"] [aria-busy]')).toHaveCount(0);
 });
 

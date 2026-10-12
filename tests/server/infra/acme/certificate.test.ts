@@ -4,10 +4,10 @@
 import type { KeyObject } from "node:crypto";
 import { generateKeyPairSync } from "node:crypto";
 import { checkIpCertificate } from "@orb/server/infra/acme";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { ipCertificatePem } from "@orb/testkit/node/x509.ts";
 import { describe } from "vitest";
-import { createFrozenClock } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { ipCertificatePem } from "../../../support/node/x509.ts";
 
 const ADDRESS = "81.2.69.160";
 const IPV6_ADDRESS = "2a00:1450:4001:80b::200e";

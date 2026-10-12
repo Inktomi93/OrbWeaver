@@ -2,9 +2,9 @@
 // mime (case-insensitively), an unlisted extension (or no extension) is null (reported unimported rather
 // than guessed), and the display name strips the extension with a fallback for an empty stem.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { stBackgroundMime, stBackgroundName } from "#server/domain/import/substrate/background.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("stBackgroundMime", () => {
   test("a listed extension resolves case-insensitively", () => {

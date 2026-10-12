@@ -9,6 +9,7 @@ import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
@@ -23,7 +24,6 @@ import {
   writeHandSnapshot,
   writeStagedSnapshot,
 } from "#server/domain/rpg/persistence/snapshots.ts";
-import { freshDb } from "../../../../support/db.ts";
 import { addVariant, emptyState, expect, FROZEN_AT, handTarget, seedChat, seedGame, seedMessage, snapshotId, target, test } from "../_support.ts";
 
 const CORRUPT_TABLE_RE = /rpg_snapshots/;

@@ -6,10 +6,10 @@
 // the visual pass alone does NOT flip it (the exact confusion the ruling exists to settle: eight computed
 // families with zero understanding of what any of them are about is still an un-analysed library).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { CorpusAnalysisInput } from "#client/features/discovery/lib/corpus-analysis-state.ts";
 import { deriveCorpusAnalysisState } from "#client/features/discovery/lib/corpus-analysis-state.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The audited instance, measured 2026-08-16: ten characters, eight visual families, nothing distilled. */
 const AUDITED: CorpusAnalysisInput = {

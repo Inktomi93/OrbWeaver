@@ -1,8 +1,8 @@
 // @orb/kit/ip — the one IP literal parse. It is total: request headers reach it, so malformed input is null.
 
 import { parseCidr, parseIp } from "@orb/kit/ip";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("parseIp", () => {
   test("parses an IPv4 dotted-quad (32-bit)", () => {

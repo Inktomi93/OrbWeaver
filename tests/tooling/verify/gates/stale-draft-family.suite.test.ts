@@ -1,10 +1,10 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as ordinary } from "../../../../tooling/src/verify/gates/stale-draft-commit.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { DRAFT_DECISION_HOME, DRAFT_TREE_ANCHOR } from "../../../../tooling/src/verify/lib/stale-draft-read.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/stale-draft-family";
 const CELL = "packages/client/src/features/example/components/cell.tsx";

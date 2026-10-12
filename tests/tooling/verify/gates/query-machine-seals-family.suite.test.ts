@@ -1,4 +1,5 @@
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as seals } from "../../../../tooling/src/verify/gates/query-machine-seals.ts";
@@ -8,7 +9,6 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const POLICIES = [seals, health] as const;
 const GRANTS: readonly ReviewedGateGrant[] = reviewedGrantsFor(POLICIES);

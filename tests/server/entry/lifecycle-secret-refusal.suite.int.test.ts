@@ -2,8 +2,8 @@
 // DATABASE_URL has no local data dir to hold a generated `.session-secret`, so `AUTH_MODE=local` with no
 // SESSION_SECRET has no pepper and must say so rather than serve a login that cannot work.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 vi.stubEnv("DATABASE_URL", "libsql://orbweaver-secret-refusal.invalid");
 vi.stubEnv("AUTH_MODE", "local");

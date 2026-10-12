@@ -3,8 +3,8 @@ import { characterProvenanceOf } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../fixtures.ts";
 
 // Character CT fixtures — plain client read-model literals matching `CharacterSummary`'s wire shape

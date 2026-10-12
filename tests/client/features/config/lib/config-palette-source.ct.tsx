@@ -6,9 +6,9 @@
 // link's whole payload is the (group, sub, setting) it targets, and `ConfigNavProbe` prints exactly that.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigNavProbe } from "../../../state/_ct-stories.tsx";
 import { ConfigPaletteStory } from "../_ct-stories.tsx";
 

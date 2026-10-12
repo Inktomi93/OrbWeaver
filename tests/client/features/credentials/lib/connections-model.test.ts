@@ -4,6 +4,7 @@
 
 import type { ProviderAvailability } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, builtinProvider, CHAT_APIS, providerDefSchema } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   boundRoleLabels,
   CHAT_API_LABELS,
@@ -14,7 +15,6 @@ import {
   sweepRebindsEmbedder,
   sweepRoleLabels,
 } from "#client/features/credentials/lib/connections-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const OPENROUTER = "user_connection_model0000001";
 const LOCAL = "user_connection_model0000002";

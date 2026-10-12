@@ -28,11 +28,11 @@
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import type { PlantedPolicyRequest } from "@orb/testkit/node/planted-gate-corpus.ts";
+import { plantedPolicySource, plantedSubject, SUBJECT_COLUMN } from "@orb/testkit/node/planted-gate-corpus.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
-import type { PlantedPolicyRequest } from "../../../support/planted-gate-corpus.ts";
-import { plantedPolicySource, plantedSubject, SUBJECT_COLUMN } from "../../../support/planted-gate-corpus.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** A spawned run over a planted root loads the harness Project and both dispatchers: ~3-6 s quiet. */
@@ -46,7 +46,7 @@ const ALPHA = "scoped-alpha";
 const BETA = "scoped-beta";
 const LONE = "scoped-lone";
 /** Silent ON THIS TREE: its subject path is deliberately not planted (the silence convention,
- *  tests/support/planted-gate-corpus.ts). It is the cheap one-policy selection several arms below narrow to. */
+ *  tests/support/node/planted-gate-corpus.ts). It is the cheap one-policy selection several arms below narrow to. */
 const SILENT = "planted-ok";
 const LOUD = "planted-loud";
 const EVERY_GATE = [ALPHA, BETA, LONE, SILENT, LOUD].toSorted();

@@ -13,9 +13,9 @@ import { applyCanonView, createTrpcClient, createTrpcProxy } from "@orb/client/d
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 import { makeMessageView } from "../features/chat/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_carriertest_0001");

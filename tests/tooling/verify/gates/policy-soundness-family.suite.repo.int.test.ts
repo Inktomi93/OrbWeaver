@@ -16,6 +16,7 @@
 // construction. Restore the pre-#2274 reader and the NOT-DEAD assertion is the one that reds.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, Type } from "ts-morph";
 import { vi } from "vitest";
@@ -41,7 +42,6 @@ import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY: readonly GatePolicy[] = [
@@ -531,7 +531,7 @@ test("policy-fixture-substrate REFUSES a population it read NOTHING from, and ru
   const seeing = passOf(policyFixtureSubstrate, {
     [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
     "tests/tooling/verify/gates/probe.test.ts":
-      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\ntest("x", ({ scratch }) => writeFileSync(join(scratch, "x"), "x"));\n',
+      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch }) => writeFileSync(join(scratch, "x"), "x"));\n',
   });
   expect(seeing.toolErrors).toEqual([]);
   expect(seeing.authority.withheldPolicyIds).toEqual([]);
@@ -543,7 +543,7 @@ test("policy-fixture-substrate REFUSES a population it read NOTHING from, and ru
 // drive `runPolicyPass` exactly as `check:structure` does, which is the surface the #2332 census measured ZERO
 // on. Each is stated as a COUNT plus a verdict word, so a reader that silently stopped judging one operand
 // reds here rather than shrinking a list nobody re-derives.
-const FIXTURE_SUPPORT_PATH = "tests/support/tool-fixtures.ts";
+const FIXTURE_SUPPORT_PATH = "tests/support/node/tool-fixtures.ts";
 const FIXTURE_SUPPORT =
   "export function test(name: string, body: (fixtures: { scratch: string; repoRoot: string }) => unknown): void { void name; void body; }\n";
 const PROBE_PATH = "tests/tooling/verify/gates/probe.test.ts";
@@ -552,7 +552,7 @@ test("policy-fixture-substrate judges every copy/cp destination, both rename pat
   const result = passOf(policyFixtureSubstrate, {
     [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
     [PROBE_PATH]:
-      'import * as fs from "node:fs";\nimport * as fsp from "node:fs/promises";\nimport { join } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  fs.copyFileSync(join(scratch, "source"), join(repoRoot, "dest"));\n  void fsp["copyFile"](join(scratch, "source"), join(repoRoot, "dest"));\n  fs.cpSync(join(scratch, "source"), join(repoRoot, "dest"));\n  void fsp.cp(join(scratch, "source"), join(repoRoot, "dest"));\n  fs.renameSync(join(repoRoot, "old"), join(scratch, "new"));\n  void fsp.rename(join(scratch, "old"), join(repoRoot, "new"));\n  void fsp.unlink(join(repoRoot, "old"));\n  void fsp.rmdir(join(repoRoot, "old"));\n});\n',
+      'import * as fs from "node:fs";\nimport * as fsp from "node:fs/promises";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  fs.copyFileSync(join(scratch, "source"), join(repoRoot, "dest"));\n  void fsp["copyFile"](join(scratch, "source"), join(repoRoot, "dest"));\n  fs.cpSync(join(scratch, "source"), join(repoRoot, "dest"));\n  void fsp.cp(join(scratch, "source"), join(repoRoot, "dest"));\n  fs.renameSync(join(repoRoot, "old"), join(scratch, "new"));\n  void fsp.rename(join(scratch, "old"), join(repoRoot, "new"));\n  void fsp.unlink(join(repoRoot, "old"));\n  void fsp.rmdir(join(repoRoot, "old"));\n});\n',
   });
 
   expect(result.toolErrors).toEqual([]);
@@ -564,7 +564,7 @@ test("policy-fixture-substrate leaves copy sources readable and accepts scratch 
   const result = passOf(policyFixtureSubstrate, {
     [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
     [PROBE_PATH]:
-      'import * as fs from "node:fs";\nimport * as fsp from "node:fs/promises";\nimport { join } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  fs.copyFileSync(join(repoRoot, "source"), join(scratch, "dest"));\n  void fsp.copyFile(join(repoRoot, "source"), join(scratch, "dest"));\n  fs.cpSync(join(repoRoot, "source"), join(scratch, "dest"));\n  void fsp.cp(join(repoRoot, "source"), join(scratch, "dest"));\n  fs.renameSync(join(scratch, "old-a"), join(scratch, "new-a"));\n  void fsp.rename(join(scratch, "old-b"), join(scratch, "new-b"));\n});\n',
+      'import * as fs from "node:fs";\nimport * as fsp from "node:fs/promises";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  fs.copyFileSync(join(repoRoot, "source"), join(scratch, "dest"));\n  void fsp.copyFile(join(repoRoot, "source"), join(scratch, "dest"));\n  fs.cpSync(join(repoRoot, "source"), join(scratch, "dest"));\n  void fsp.cp(join(repoRoot, "source"), join(scratch, "dest"));\n  fs.renameSync(join(scratch, "old-a"), join(scratch, "new-a"));\n  void fsp.rename(join(scratch, "old-b"), join(scratch, "new-b"));\n});\n',
   });
 
   expect(result.toolErrors).toEqual([]);
@@ -575,7 +575,7 @@ test("policy-fixture-substrate refuses mutable, relative and missing destination
   const result = passOf(policyFixtureSubstrate, {
     [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
     [PROBE_PATH]:
-      'import { copyFileSync, writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  let target = join(scratch, "x");\n  target = join(repoRoot, "x");\n  writeFileSync(target, "x");\n  writeFileSync("relative.ts", "x");\n  copyFileSync(join(scratch, "source"));\n});\n',
+      'import { copyFileSync, writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  let target = join(scratch, "x");\n  target = join(repoRoot, "x");\n  writeFileSync(target, "x");\n  writeFileSync("relative.ts", "x");\n  copyFileSync(join(scratch, "source"));\n});\n',
   });
 
   expect(result.toolErrors).toEqual([]);
@@ -590,7 +590,7 @@ test("policy-fixture-substrate carries checkout provenance ACROSS a helper param
   const clean = passOf(policyFixtureSubstrate, {
     [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
     [PROBE_PATH]:
-      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\ntest("x", ({ scratch }) => {\n  function plant(root: string, rel: string): void { writeFileSync(join(root, rel), "x"); }\n  plant(scratch, "a.ts");\n  plant(scratch, "b.ts");\n});\n',
+      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch }) => {\n  function plant(root: string, rel: string): void { writeFileSync(join(root, rel), "x"); }\n  plant(scratch, "a.ts");\n  plant(scratch, "b.ts");\n});\n',
   });
   expect(clean.toolErrors).toEqual([]);
   expect(clean.authority.effectiveFindings).toEqual([]);
@@ -598,7 +598,7 @@ test("policy-fixture-substrate carries checkout provenance ACROSS a helper param
   const dirty = passOf(policyFixtureSubstrate, {
     [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
     [PROBE_PATH]:
-      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  function plant(root: string, rel: string): void { writeFileSync(join(root, rel), "x"); }\n  plant(scratch, "a.ts");\n  plant(repoRoot, "b.ts");\n});\n',
+      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  function plant(root: string, rel: string): void { writeFileSync(join(root, rel), "x"); }\n  plant(scratch, "a.ts");\n  plant(repoRoot, "b.ts");\n});\n',
   });
   expect(dirty.toolErrors).toEqual([]);
   expect(dirty.authority.effectiveFindings).toHaveLength(1);

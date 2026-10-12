@@ -1,10 +1,10 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { RegistryDefinitionKind, RegistryDefinitionKindFacts } from "../../../../tooling/src/verify/contract/registry-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { readJsxTagFact, registryDefinitionFacts } from "../../../../tooling/src/verify/lib/registry-fact.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/registry-facts";
 

@@ -960,14 +960,15 @@ export type RpgToolCallVerdict = (typeof RPG_TOOL_CALL_VERDICTS)[number];
  *  `args` is the RAW JSON string the model sent, deliberately unparsed — the calls most worth showing are
  *  exactly the ones that did not parse, so a parsed-only capture erases its own reason for existing
  *  (`TOOLDROP-BLIND` is that failure, already paid for once). */
-export interface RpgRecordedToolCall {
-  readonly name: string;
-  readonly args: string;
-  readonly verdict: RpgToolCallVerdict;
+export const rpgRecordedToolCallSchema = z.strictObject({
+  name: z.string(),
+  args: z.string(),
+  verdict: z.enum(RPG_TOOL_CALL_VERDICTS),
   /** WHY, for the two non-clean verdicts: the salvaged field paths (`update_scene.weather`) or the parse
    *  issues with the value the model actually sent. EMPTY on `applied`. */
-  readonly issues: readonly string[];
-}
+  issues: z.array(z.string()).readonly(),
+});
+export type RpgRecordedToolCall = Readonly<z.infer<typeof rpgRecordedToolCallSchema>>;
 
 /** Project a turn's tool calls onto their per-call verdicts, by composing the two loss lenses above — so the
  *  record, the warn and the ring are the same derivation rather than three agreeing ones.

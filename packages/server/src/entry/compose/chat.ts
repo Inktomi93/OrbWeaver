@@ -18,8 +18,18 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import type { BindingActor, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
-import { carriesStructured, NoConnectionError, toChatRequest, unavailableRefusal } from "@orb/inference";
+import type {
+  BindingActor,
+  ChatDeltaEvent,
+  ChatEvent,
+  ChatRequest,
+  ChatResult,
+  ChatTurnInput,
+  NoConnectionError,
+  Resolved,
+  RoleClientsWithSignal,
+} from "@orb/inference";
+import { carriesStructured, toChatRequest, unavailableRefusal } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -42,9 +52,7 @@ import type {
   GetPendingUserText,
   HumanSeatPersona,
   MemoryConfig,
-  MemoryEmbedSpace,
   MemoryRecallRecorder,
-  MemoryStoreReceipt,
   PostNarratorMessage,
   PresenceReadOp,
   PromptTransformRegistry,
@@ -91,7 +99,7 @@ import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import type { PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
-import { PersonaNotFoundError } from "#domain/persona";
+import { createPersonaOwned, PersonaNotFoundError } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
@@ -116,6 +124,7 @@ import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
 import { publishNotification } from "#transport/trpc";
 import { createReactToolDefinition } from "./chat-tools.ts";
 import { createChatChangedEmitter } from "./emit-chat-changed.ts";
+import { createMemoryEmbeddingOps } from "./memory-embedding-ops.ts";
 import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 import { withRetrievalDegrade } from "./retrieval-degrade.ts";
 
@@ -306,6 +315,8 @@ export interface ChatComposeInput {
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
   readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
+  /** The disabled-account containment read (`createResolveUserEnabled` over sessions). */
+  readonly resolveUserEnabled: ChatContext["resolveUserEnabled"];
   /** D259 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
   readonly authMode: AuthMode;
   /** D259 — the foreign halves of the signup batch, all built at the root: the sessions account statement, the
@@ -430,26 +441,6 @@ export interface ChatComposeResult {
     readonly groupCharacters: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillGroupCharacters>;
     readonly estimateMemory: (args: Parameters<typeof estimateMemoryBackfillCalls>[1]) => ReturnType<typeof estimateMemoryBackfillCalls>;
   };
-}
-
-type EmbeddingSegmentRow = Parameters<EmbeddingsService["storeSegments"]>[0][number];
-
-function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Awaited<ReturnType<EmbeddingsService["storeSegments"]>>): MemoryStoreReceipt[] {
-  const receipts: MemoryStoreReceipt[] = [];
-  for (const [index, result] of results.entries()) {
-    const row = rows[index];
-    if (row === undefined) {
-      throw new Error("embeddings.storeSegments returned more results than inputs");
-    }
-    if (result.generationId === undefined || result.generationEpoch === undefined) {
-      throw new Error("embeddings store omitted its generation receipt");
-    }
-    receipts.push({ ownerId: row.ownerId, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch });
-  }
-  if (receipts.length !== rows.length) {
-    throw new Error("embeddings.storeSegments returned fewer results than inputs");
-  }
-  return receipts;
 }
 
 /**
@@ -919,6 +910,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : (defaultPresetId as PresetId | null), presetName: name };
   };
 
+  const personaOwned = createPersonaOwned(db);
+
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
   // room draws from (D19; every roster character is host-owned). `null` ⇒ a hostless/stale room.
   const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
@@ -928,17 +921,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
       .limit(1);
     return hostRows.at(0)?.userId ?? null;
-  };
-
-  // The host's EMBED model tag — the space a chat's digests/segments are written into (§7.5/§10). No binding
-  // is the honest `NoConnectionError`: memory's vector build needs a space, and a default would silently write
-  // into a space nobody reads.
-  const resolveMemoryEmbedSpace = async (hostUserId: UserId): Promise<MemoryEmbedSpace> => {
-    const generation = await input.embeddings.resolveGeneration(hostUserId, "embed");
-    if (generation === null) {
-      throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
-    }
-    return { ownerId: hostUserId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
   };
 
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
@@ -1322,13 +1304,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
     resolveHandle: (handle) => input.resolveHandle(handle),
-    // The disabled-account containment gate (owner-ruled 2026-08-15): read fresh per call (no caching), the
-    // SAME raw-read discipline `resolveUserPublics` above already uses — a gone userId (should never happen,
-    // FK-enforced) fails closed to `false` rather than throwing into roster assembly.
-    resolveUserEnabled: async (userId) => {
-      const rows = await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, userId)).limit(1);
-      return rows[0]?.enabled ?? false;
-    },
+    // The disabled-account containment gate: read fresh per call; a gone userId fails closed to `false`
+    // rather than throwing into roster assembly.
+    resolveUserEnabled: input.resolveUserEnabled,
 
     // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
     // 0 or 2+ connections (ambiguity) or a group founding falls through to the default seed.
@@ -1388,11 +1366,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         throw err;
       }
     },
-    // Absent/foreign ⇒ false (leak-free).
-    verifyPersonaOwned: async ({ ownerId, personaId }) => {
-      const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
-      return rows[0]?.ownerId === ownerId;
-    },
+    verifyPersonaOwned: ({ ownerId, personaId }) => personaOwned(ownerId, personaId),
     emitNotification: async (event, coStatements) => {
       const view = await input.notifications.record({
         event,
@@ -1405,95 +1379,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Maps imagery's GeneratedPicture → chat's chat-local structural result (chat can't import
     // domain/imagery's types).
     generatePicture: createGeneratePictureOp(input.generatePicture),
-    // A chat's digest/segment SPACE is its HOST's (`chatParticipants` role='host' — vector tasks are owner-scoped,
-    // §7.5; D18 chats have no owner column, so the host is resolved per write). A hostless/stale room has no
-    // space to write into, so the builder skips it before reaching this owner-coherence guard.
-    resolveMemoryEmbedSpace,
-    embeddingsStore: async (params) => {
-      const hostUserId = await resolveChatHostUserId(params.key.chatId);
-      if (hostUserId !== params.ownerId) {
-        throw new Error(`memory digest owner changed during sweep for chat ${params.key.chatId}`);
-      }
-      const result = await input.embeddings.store({
-        kind: "chat-block",
-        lens: "digest",
-        ownerId: params.ownerId,
-        chatId: params.key.chatId,
-        scopedCharacterId: params.key.scopedCharacterId,
-        isGroup: params.isGroup,
-        tier: params.key.tier,
-        blockIdx: params.key.blockIdx,
-        text: params.text,
-        topicAnchor: params.topicAnchor,
-        keywords: params.keywords,
-        speakerCharacterIds: params.speakerCharacterIds,
-        contentHash: params.contentHash,
-        model: params.model,
-        signal: params.signal,
-      });
-      if (result.generationId === undefined || result.generationEpoch === undefined) {
-        throw new Error("embeddings store omitted its generation receipt");
-      }
-      return { ownerId: params.ownerId, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
-    },
-    // The SEGMENT half is a BATCH op (#172): memory hands over every pending chunk — one chat's on the live
-    // path, the whole corpus's on the sweep — and embeddings submits them to the engine as ONE flood. The
-    // space tag (`model`/`dim`) is stamped here, the same single home the digest arm above reads.
-    embeddingsStoreSegments: async (params, signal) => {
-      // One host + one space per chat in the flood (the corpus sweep hands over many chats at once).
-      const rows: EmbeddingSegmentRow[] = [];
-      for (const p of params) {
-        const hostUserId = await resolveChatHostUserId(p.chatId);
-        if (hostUserId !== p.ownerId) {
-          throw new Error(`memory segment owner changed during sweep for chat ${p.chatId}`);
-        }
-        rows.push({
-          kind: "chat-block" as const,
-          lens: "segment" as const,
-          ownerId: p.ownerId,
-          chatId: p.chatId,
-          blockIdx: p.blockIdx,
-          chunkIdx: p.chunkIdx,
-          seqStart: p.seqStart,
-          seqEnd: p.seqEnd,
-          text: p.text,
-          contentHash: p.contentHash,
-          model: p.model,
-        });
-      }
-      const results = rows.length === 0 ? [] : await input.embeddings.storeSegments(rows, signal);
-      return memorySegmentReceipts(rows, results);
-    },
-    // The SHRINK half of the same seam: memory stores every block that exists, then reclaims the ones that
-    // stopped existing. Straight pass-through of the two lens arms — the DELETE itself lives in embeddings
-    // (the one vector write path, D20), and chat never touches `chat_digests`/`chat_segments` directly.
-    embeddingsPruneBlocks: async (params) => {
-      if (params.lens === "digest") {
-        await input.embeddings.pruneMemoryBlocks({
-          lens: "digest",
-          chatId: params.chatId,
-          scopedCharacterId: params.scopedCharacterId,
-          keepPerTier: params.keepPerTier,
-        });
-        return;
-      }
-      // #1395 — the KNOWN-stale invalidation arm (a proven-stale row whose replacement came back empty).
-      if (params.lens === "digest-stale") {
-        await input.embeddings.pruneMemoryBlocks({
-          lens: "digest-stale",
-          chatId: params.chatId,
-          scopedCharacterId: params.scopedCharacterId,
-          keys: params.keys,
-        });
-        return;
-      }
-      await input.embeddings.pruneMemoryBlocks({
-        lens: "segment",
-        chatId: params.chatId,
-        keepBlockCount: params.keepBlockCount,
-        chunkCounts: params.chunkCounts,
-      });
-    },
+    // A chat's digest/segment SPACE is its HOST's; the stores refuse a write whose owner is no longer the host.
+    ...createMemoryEmbeddingOps({ embeddings: input.embeddings, resolveChatHostUserId }),
     // DB6: absent ⇒ the field stays unset ⇒ GATHER skips the databank branch (byte-identical no-op).
     ...(input.gatherDatabank !== undefined ? { gatherDatabank: input.gatherDatabank } : {}),
     // The scored projection: identity + BOTH ranking numbers, and deliberately NOT the hit's `text` (memory

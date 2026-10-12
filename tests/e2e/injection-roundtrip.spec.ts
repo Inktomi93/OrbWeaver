@@ -14,9 +14,9 @@
 // across reloads. A textarea's live value is NOT its DOM text, so marker-presence is checked by reading the
 // Content field VALUES in-page (evaluate), and delete targets the Section whose Content holds the marker.
 
+import { openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openContextSections } from "../support/node/open-context-sections.ts";
 import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
 import { WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 

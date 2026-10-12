@@ -2,10 +2,10 @@
 // moved file's identity, and everything it cannot place is reported rather than guessed.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { relocatePlanSchema } from "../../../../tooling/src/codemod/contract/relocate.ts";
 import { applyRelocation, CodemodError, planRelocation } from "../../../../tooling/src/codemod/index.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TOOL_MANIFEST = JSON.stringify({
   name: "@t/tool",

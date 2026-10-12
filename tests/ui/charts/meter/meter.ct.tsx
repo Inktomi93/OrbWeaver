@@ -1,9 +1,10 @@
 // <Meter> CT — the docs/plans/rpg/design.md required cases: every kind renders from PLAIN props (no
 // contracts import — the fixtures are RpgHudView-SHAPED literals), ARIA meter values, bipolar
 // milestone ticks, and the dangerBelow token swap asserted against the destructive oklch value.
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { Meter } from "@orb/ui/meter";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 // --color-destructive — the danger INTENT token (a token swap, never a color calc).
 const DESTRUCTIVE = resolvedTokenColor("color.destructive");

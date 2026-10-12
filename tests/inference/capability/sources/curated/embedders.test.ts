@@ -1,8 +1,8 @@
 // Curated kinds — a family row and a model row can both match one id. Rows compose in file order and a later row
 // refines an earlier one, so a Qwen embedder or reranker reads as its own kind, not the Qwen family's generation.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { curatedKind } from "#inference/capability/sources/curated/loader.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a Qwen embedder or reranker takes its own row's kind over the Qwen family's generation", () => {
   const kinds = Object.fromEntries(

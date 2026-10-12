@@ -1,6 +1,6 @@
 import { MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 import { headers, makeAuthConfig } from "./_support.ts";
 
 // The dispatch seam: the `MODE_RESOLVERS` Record (one entry per AUTH_MODE — invariant #4) + the

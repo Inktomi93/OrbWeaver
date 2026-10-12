@@ -10,6 +10,10 @@ import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
@@ -26,10 +30,6 @@ import {
 } from "#server/domain/chat/persistence/canon-write.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "#server/domain/chat/persistence/queries.ts";
 import { continuedSignatureMetadata } from "#server/domain/chat/substrate/content-signatures.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedConnection, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;

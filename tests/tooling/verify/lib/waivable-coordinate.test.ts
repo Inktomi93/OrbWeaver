@@ -21,13 +21,14 @@
 // ERROR, which the conformance runner's `toolFailure` reports ahead of every arm verdict
 // (`ops/policy-conformance.ts`). A `mustRefuse` row written for that state fails as a harness error instead of
 // proving the refusal.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isWaivablePosition, POSITION, waivableCoordinate } from "../../../../tooling/src/verify/lib/waivable-coordinate.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const PROOF_PATH = "packages/client/src/proof.ts";

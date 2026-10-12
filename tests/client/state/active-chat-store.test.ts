@@ -1,6 +1,6 @@
 import { __migrateActiveChatForTest } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("active chat persistence restores only a valid room handle", () => {
   const chatId = mintTypeId(ID_PREFIX.chat);

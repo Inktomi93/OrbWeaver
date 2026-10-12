@@ -20,8 +20,8 @@
 // wrong home. It is retired in the same commit as this file.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { SCRIM, SCRIM_BASE } from "@orb/ui/lib";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** Each fragment with the reason it is load-bearing — a failure names the defect, not a diff. */
 const REQUIRED_FRAGMENTS: readonly (readonly [fragment: string, why: string])[] = [

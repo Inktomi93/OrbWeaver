@@ -15,12 +15,12 @@
 // CT rather than a unit test for the same reason it always was: the claim is about a RENDERED first frame
 // with the config withheld.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
 // never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's

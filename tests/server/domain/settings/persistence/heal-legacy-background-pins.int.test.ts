@@ -10,12 +10,12 @@ import { assets, userSettings } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { healLegacyBackgroundPins } from "#server/domain/settings/persistence/heal-legacy-background-pins.ts";
 import { writeUserConfig } from "#server/domain/settings/persistence/queries.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 test("a legacy pin (asset kind != background) blocks every write, and the heal clears it (#1600)", async () => {

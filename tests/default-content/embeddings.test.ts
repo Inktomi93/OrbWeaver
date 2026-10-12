@@ -5,7 +5,7 @@ import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildCardEmbedText, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const SPACE = localLightEmbedSpaceTag(DEFAULT_EMBED_MODEL, "q8");
 const hash = (content: string | Uint8Array): string => createHash("sha256").update(content).digest("hex");

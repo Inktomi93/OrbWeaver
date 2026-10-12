@@ -30,13 +30,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { strToU8, unzipSync, zipSync } from "fflate";
-import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginsErrorToastStory, PluginsSurfaceStory, SnippetConsoleStory } from "../_ct-stories.tsx";
 
 /** The `FileTrigger`'s own hidden input — the UPGRADE feeder on an installed row (a different primitive

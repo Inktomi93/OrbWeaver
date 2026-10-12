@@ -4,11 +4,11 @@
 // with the full worldInfo-section patch. Proves the previously-UI-less knobs now have a real write path.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { WorldInfoSettingsSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {

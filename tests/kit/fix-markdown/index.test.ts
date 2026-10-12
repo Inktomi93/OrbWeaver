@@ -1,5 +1,5 @@
 import { fixMarkdown } from "@orb/kit/fix-markdown";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("strips whitespace adjacent to paired emphasis markers", () => {
   expect(fixMarkdown("* text *", false)).toBe("*text*");

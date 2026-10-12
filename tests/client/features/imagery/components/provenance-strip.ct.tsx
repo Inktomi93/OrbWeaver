@@ -1,7 +1,7 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RestoredDetailStory } from "../_ct-stories.tsx";
 
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";

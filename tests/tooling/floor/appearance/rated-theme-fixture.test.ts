@@ -4,9 +4,9 @@
 import type { Server } from "node:http";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterEach, beforeEach } from "vitest";
 import { provisionRatedStageThemes } from "../../../../tooling/src/floor/appearance/rated-theme-fixture.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 interface StoredTheme {
   readonly id: string;

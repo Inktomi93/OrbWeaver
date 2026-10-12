@@ -4,12 +4,12 @@
 
 import type { Db } from "@orb/db";
 import { chatEvents } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { appendChatEvent } from "#server/domain/chat/persistence/events.ts";
 import { loadChatEventReplay } from "#server/domain/chat/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat } from "../_support.ts";
 
 let db: Db;

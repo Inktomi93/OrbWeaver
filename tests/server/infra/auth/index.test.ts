@@ -1,8 +1,8 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { RelayedFallbackNotice } from "@orb/server/infra/auth";
 import { resolve } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 import { headers, makeAuthConfig } from "./_support.ts";
 
 // VERIFICATION-only: `resolve(headers, deps)` → an `IdentityResolution` (the pre-row `ResolvedIdentity`

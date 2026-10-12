@@ -9,6 +9,9 @@
 //    a future port move cannot leave this passing against a port nobody owns;
 //  • the identity rule gets both halves: a row naming a DIFFERENT live keeper releases, and a row naming a
 //    DEAD one is ADOPTED rather than released (the arming race, and the self-heal for a killed timer).
+
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { DEV_PORTS, stageBandPorts } from "@orb/tooling/floor/host/ports";
 import type { StageKeeperEvidence, StageRow } from "@orb/tooling/snap";
 import {
@@ -23,8 +26,6 @@ import {
   stageKeeperVerdict,
 } from "@orb/tooling/snap";
 import { describe } from "vitest";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const MS_PER_MINUTE = 60_000;
 const TTL_MS = 60 * MS_PER_MINUTE;

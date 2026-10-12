@@ -6,8 +6,8 @@ import { castId } from "@orb/kit/ids";
 import type { ResolvedMediaRef } from "@orb/server/domain/chat";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { resolveImageRefToUrl } from "@orb/server/entry/compose";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const HOST = castId<UserId>("u_host");
 const MEMBER = castId<UserId>("u_member");

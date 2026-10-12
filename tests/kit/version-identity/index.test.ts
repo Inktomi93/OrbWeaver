@@ -18,8 +18,8 @@ import {
   updateCheckSchema,
   versionIdentitySchema,
 } from "@orb/kit/version-identity";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const SHA = "f4cdde34be59914c4a2aecec108899bd034579ac";
 const SHA256 = "a".repeat(64);

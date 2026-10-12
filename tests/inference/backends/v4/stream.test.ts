@@ -7,9 +7,9 @@
 // finish, error) nothing exercised directly — `index.test.ts` never reaches this file, only the two hosted
 // wires' `chat.test.ts` do, and only through the reasoning-provenance arms their own turns produce.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { drainStream } from "#inference/backends/v4/stream.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // The SDK's own stream-part type, DERIVED from `drainStream`'s signature — `tests/` has no `@ai-sdk/provider`
 // dependency (the package owns the SDK; the batch runner's test uses the same idiom). `ProviderMetadata` and

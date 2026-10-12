@@ -5,9 +5,9 @@
 // @orb-waive-file no-test-fabrication({ state: { sessions: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, VerifiedUserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
-import { createSeededIds } from "../../support/ids.ts";
 
 const ALICE = castId<VerifiedUserId>("fixture_rule_alice");
 const BOB = castId<VerifiedUserId>("fixture_rule_bob");

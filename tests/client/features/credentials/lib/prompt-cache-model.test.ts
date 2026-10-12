@@ -3,6 +3,7 @@
 
 import type { Capability } from "@orb/contracts/inference";
 import { GENERATION_FLOOR, PROMPT_CACHE_DEPTH_CEIL, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   PROMPT_CACHE_TTL_OPTIONS,
   promptCacheChangedCount,
@@ -10,7 +11,6 @@ import {
   promptCacheTtlOf,
   showsPromptCache,
 } from "#client/features/credentials/lib/prompt-cache-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function generation(explicitPromptCache: boolean | undefined): Capability {
   return {

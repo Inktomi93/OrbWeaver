@@ -2,9 +2,9 @@ import type { BulkImportChatInput, ImportedChatIdentity } from "@orb/contracts/c
 import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { ChatId, ChatTurnId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { importedObservationRows } from "#server/domain/chat/substrate/import-observations.ts";
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("restored observations remint operation groups and only attribute the importer's mapped source", ({ ids, clock }) => {
   const owner = castId<UserId>(ids.next("user"));

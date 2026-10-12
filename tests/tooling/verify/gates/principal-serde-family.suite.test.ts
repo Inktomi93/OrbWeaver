@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as entrySyntheticRoleIsUser } from "../../../../tooling/src/verify/gates/entry-synthetic-role-is-user.ts";
@@ -21,7 +22,6 @@ import { gate as onePrincipalMintPopulation } from "../../../../tooling/src/veri
 import { gate as serdeCoreDefinitionUniqueness } from "../../../../tooling/src/verify/gates/serde-core-definition-uniqueness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/principal-serde-family";
 const GATES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../../tooling/src/verify/gates");

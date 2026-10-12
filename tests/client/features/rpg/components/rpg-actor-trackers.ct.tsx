@@ -15,8 +15,8 @@
 // `hasTouch: true` is what flips `matchMedia("(pointer: coarse)")` in chromium (`page.emulateMedia` has no
 // `pointer` feature); the first assertion PROVES the emulation landed before any geometry is trusted.
 
+import { hitBoxes, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { hitBoxes, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { ConditionChipsStory } from "../_ct-stories.tsx";
 
 const REMOVE_BUTTON = /^Remove /;

@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { testNarrationSpans } from "../../../../tooling/src/verify/lib/test-narration.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function spans(source: string): string[] {
   const project = new Project({ useInMemoryFileSystem: true });

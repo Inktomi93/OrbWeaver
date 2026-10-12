@@ -7,8 +7,8 @@ import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach, describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
 import { expect, makeRpgService, participantUser, principal, seedChat, seedLiteGame, seedUser, test } from "../_support.ts";
 
 const BAD_NOTATION_RE = /notation/i;

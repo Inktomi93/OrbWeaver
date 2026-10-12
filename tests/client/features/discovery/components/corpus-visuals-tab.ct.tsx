@@ -1,9 +1,9 @@
 // CT: the Corpus "Visuals" tab speaks the portrait↔card fit in WORDS — Mean fit, Median fit and each
 // worst-matched row — never as a bare percentage.
 
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusVisualsTabStory } from "../_ct-stories.tsx";
 
 const NO_FACETS = {

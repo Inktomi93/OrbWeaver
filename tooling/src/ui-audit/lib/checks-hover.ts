@@ -14,17 +14,9 @@
 // the `text-over-art` family's question and it is already asked at rest; asking it again in the hover
 // state would file the same art-legibility concern twice under a second id. Those are `excluded` with a
 // named reason, never silently dropped.
+import { AA_LARGE_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import {
-  compositeForeground,
-  contrastRatio,
-  FOREGROUND_OPACITY_EPS,
-  isContrastExempt,
-  isLargeText,
-  LARGE_MIN_RATIO,
-  MEASURABLE_OPACITY_MIN,
-  NORMAL_MIN_RATIO,
-} from "@orb/tooling/floor/instrument/wcag";
+import { compositeForeground, FOREGROUND_OPACITY_EPS, isContrastExempt, isLargeText, MEASURABLE_OPACITY_MIN } from "@orb/tooling/floor/instrument/wcag";
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { Backdrop } from "../contract/samples.ts";
 import type { HoverContrastInput, HoverScanInput } from "../contract/samples-hover.ts";
@@ -53,7 +45,7 @@ function sameBackdrop(a: Backdrop, b: Backdrop): boolean {
  *  Only a FLAT rest backdrop can answer — anything else is the over-art family's question and leaves the
  *  hover state fair game. */
 function restAlreadyFails(input: HoverContrastInput, minRatio: number): boolean {
-  return input.restBackdrop.kind === "flat" && contrastRatio(input.restColor, input.restBackdrop.color) < minRatio;
+  return input.restBackdrop.kind === "flat" && wcagContrastRatio(input.restColor, input.restBackdrop.color) < minRatio;
 }
 
 /** Every reason this candidate is not a hover-contrast question at all, in one place, so the judging half
@@ -125,7 +117,7 @@ function stateWordingOf(input: HoverContrastInput): StateWording {
 }
 
 function hoverOutcome(input: HoverContrastInput): HoverOutcome {
-  const minRatio = isLargeText(input.fontSizePx, input.fontWeight) ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
+  const minRatio = isLargeText(input.fontSizePx, input.fontWeight) ? AA_LARGE_RATIO : AA_NORMAL_RATIO;
   const declined = hoverDecline(input, minRatio);
   if (declined.kind !== "measurable") {
     return declined;
@@ -133,11 +125,11 @@ function hoverOutcome(input: HoverContrastInput): HoverOutcome {
   const over = declined.over;
   const dimmed = input.foregroundOpacity < FOREGROUND_OPACITY_EPS;
   const seen = dimmed ? compositeForeground(input.hoverColor, over, input.foregroundOpacity) : input.hoverColor;
-  const ratio = contrastRatio(seen, over);
+  const ratio = wcagContrastRatio(seen, over);
   if (ratio >= minRatio) {
     return { kind: "judged", finding: null };
   }
-  const restRatio = input.restBackdrop.kind === "flat" ? contrastRatio(input.restColor, input.restBackdrop.color) : null;
+  const restRatio = input.restBackdrop.kind === "flat" ? wcagContrastRatio(input.restColor, input.restBackdrop.color) : null;
   const restNote = restRatio === null ? "" : ` (rest ${restRatio.toFixed(2)}:1)`;
   const dimNote = dimmed ? ` · dimmed α${input.foregroundOpacity.toFixed(2)}` : "";
   const wording = stateWordingOf(input);

@@ -11,10 +11,10 @@
 // noisy upstream body becomes. They drive the REAL `fetchJson` through its injected `fetch`, so there is
 // no mock of the thing under test.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fetchJson, openAiPath, serverRootOf } from "#inference/backends/http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const SERVER_ERROR = 502;
 const UNAUTHORIZED = 401;

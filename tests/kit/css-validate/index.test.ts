@@ -3,8 +3,8 @@
 // no CSS parsing.
 
 import { validateThemeCss } from "@orb/kit/css-validate";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("validateThemeCss", () => {
   test("clean CSS has no errors and no warnings", () => {

@@ -115,9 +115,11 @@ export const AA_NORMAL_RATIO = 4.5;
  *  WCAG's black/white crossover cannot physically reach 4.6, so each search caps this aim at the chosen
  *  polarity endpoint's measured capacity rather than narrowing the accepted theme domain. */
 export const AA_NORMAL_DERIVATION_RATIO = 4.6;
-/** WCAG AA for large text and non-text graphics. The chart-ramp and accent-fill solvers use this live 3:1
- *  floor, and the theme-derivation suite pins both families against it. */
+/** WCAG 2.x SC 1.4.3 Contrast (Minimum), large text: 3:1. */
 export const AA_LARGE_RATIO = 3;
+/** WCAG 2.x SC 1.4.11 Non-text Contrast: 3:1 for a user-interface component's boundary or a graphic that
+ *  carries meaning. The same number as large text, but a separate criterion with its own literal. */
+export const AA_NON_TEXT_RATIO = 3;
 
 /** An sRGB triple, channels 0–255. */
 export interface Rgb {
@@ -177,8 +179,7 @@ function gammaEncode(linear: number): number {
   return (c <= GAMMA_LINEAR_THRESHOLD ? GAMMA_LINEAR_SLOPE * c : GAMMA_SCALE * c ** (1 / GAMMA_EXPONENT) - GAMMA_OFFSET) * SRGB_MAX;
 }
 
-/** OKLCH → sRGB (0–255), gamut-clamped. The inverse of the importer's sRGB→OKLCH, and the same house math
- *  `palette-contrast.suite.test.ts` uses to measure a derived tone. */
+/** OKLCH → sRGB (0–255), gamut-clamped. The inverse of the importer's sRGB→OKLCH. */
 export function oklchToSrgb({ l, c, h }: Oklch): Rgb {
   const radians = h / DEGREES_PER_RADIAN;
   const a = c * Math.cos(radians);
@@ -250,7 +251,8 @@ export function oklabToOklch(l: number, a: number, b: number): Oklch {
   return { l, c: Math.hypot(a, b), h: hue };
 }
 
-function relativeLuminance({ r, g, b }: Rgb): number {
+/** WCAG 2.x relative luminance (0–1) of an sRGB colour; channels outside 0–255 are clamped. */
+export function relativeLuminance({ r, g, b }: Rgb): number {
   const channel = (raw: number): number => {
     const c = Math.max(0, Math.min(SRGB_MAX, raw)) / SRGB_MAX;
     return c <= WCAG_LINEAR_THRESHOLD ? c / GAMMA_LINEAR_SLOPE : ((c + GAMMA_OFFSET) / GAMMA_SCALE) ** GAMMA_EXPONENT;
@@ -812,7 +814,7 @@ function chartColor(spec: ChartRampSpec, direction: "bright" | "dark", surfaces:
   const increment = direction === "bright" ? 1 : -1;
   for (let step = targetStep; direction === "bright" ? step <= limitStep : step >= limitStep; step += increment) {
     const candidate = { l: step * CHART_L_STEP, c: spec.c, h: spec.h };
-    if (chartContrast(candidate, surfaces) >= AA_LARGE_RATIO) {
+    if (chartContrast(candidate, surfaces) >= AA_NON_TEXT_RATIO) {
       return candidate;
     }
   }
@@ -854,7 +856,7 @@ function chartFamily(direction: "bright" | "dark", surfaces: readonly Oklch[]): 
 export function chartRampForSurface(base: Oklch): ChartRamp {
   const deltas = rampDeltas(base);
   const surfaces = [base, rampSurface(base, deltas.card), rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.sidebar)];
-  if (LEGACY_CHART_RAMP.every((color) => chartContrast(color, surfaces) >= AA_LARGE_RATIO)) {
+  if (LEGACY_CHART_RAMP.every((color) => chartContrast(color, surfaces) >= AA_NON_TEXT_RATIO)) {
     return LEGACY_CHART_RAMP;
   }
   const preferred: readonly ["bright" | "dark", "bright" | "dark"] = surfacePolarity(base) === "dark" ? ["bright", "dark"] : ["dark", "bright"];
@@ -906,7 +908,7 @@ function fillVsCardRatio(fill: Rgb, card: Rgb): number {
  *
  * THE SURFACE IS THE CARD, not the base: every low-emphasis graphic this protects (the arc meter's value
  * arc, a ring gauge's fill, a track bar) is painted on a panel, and the card is the ramp member panels
- * take. The floor is {@link AA_LARGE_RATIO} (3:1) because a fill IS a non-text graphical object.
+ * take. The floor is {@link AA_NON_TEXT_RATIO} (3:1) because a fill IS a non-text graphical object.
  *
  * THE DIRECTION IS THE CARD'S measured polarity, so this can never fight its foreground: on a light card
  * the accent must go DARKER; on a dark card, lighter. The search walks `ACCENT_L_STEP` at a time
@@ -924,7 +926,7 @@ export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Ok
     const opaque = oklchToSrgb({ l, c: accent.c, h: accent.h });
     return accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque;
   };
-  if (fillVsCardRatio(at(accent.l), card) >= AA_LARGE_RATIO) {
+  if (fillVsCardRatio(at(accent.l), card) >= AA_NON_TEXT_RATIO) {
     return null;
   }
   const towardDark = surfacePolarity(base) === "light";
@@ -934,7 +936,7 @@ export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Ok
     const l = accent.l + (towardDark ? -step : step) * ACCENT_L_STEP;
     // Judged OPAQUE at the re-derived lightness: the caller emits it opaque for the same reason the ink
     // clamp does — a minimal alpha sits on the boundary and re-judging it is a fixed point that never passes.
-    if (fillVsCardRatio(oklchToSrgb({ l, c: accent.c, h: accent.h }), card) >= AA_LARGE_RATIO) {
+    if (fillVsCardRatio(oklchToSrgb({ l, c: accent.c, h: accent.h }), card) >= AA_NON_TEXT_RATIO) {
       // Re-round: accent.l + n×0.001 accumulates binary-float dust that would reach the CSS literal.
       return Math.round(l / ACCENT_L_STEP) * ACCENT_L_STEP;
     }

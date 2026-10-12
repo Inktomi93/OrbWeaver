@@ -3,8 +3,8 @@
 // description of the selected artifact) + its distilled-card count (a quiet mono readout), replacing the
 // neutral "Details" fallback.
 
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CorpusContextHeaderStory } from "../_ct-stories.tsx";
 
 // THE COUNT NAMES ITS BASE, and it is the SAME projection the LIST band uses (issue #535) — the two bands

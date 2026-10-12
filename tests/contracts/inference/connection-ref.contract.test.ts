@@ -6,7 +6,7 @@
 
 import { BINDING_ACTOR_KINDS, bindingActorKindSchema, connectionRefSchema } from "@orb/contracts/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("a ref carries a user-connection TypeID and nothing else", () => {
   const connectionId = mintTypeId(ID_PREFIX.userConnection);

@@ -3,10 +3,10 @@
 // present ONLY on a rewrite (an omitted `base` must not leave a stray token in a new-greeting template).
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildGreetingPrompt, composeGreetingSteer } from "#server/domain/character/substrate/greeting-studio.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD: CharacterCard = {
   name: "Aria",

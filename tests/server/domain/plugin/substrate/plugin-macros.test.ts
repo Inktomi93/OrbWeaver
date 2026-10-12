@@ -15,10 +15,10 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { globalMacroRegistry, processMacros } from "@orb/kit/macro";
 import { logger } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import type { PluginInvokeHandler } from "#server/domain/plugin/contract/ops.ts";
 import { createPluginMacroRegistry, PLUGIN_MACROS_MAX, pluginMacroName } from "#server/domain/plugin/substrate/plugin-macros.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ALICE = castId<UserId>("usr_alice");
 const BOB = castId<UserId>("usr_bob");

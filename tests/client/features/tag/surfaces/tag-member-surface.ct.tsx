@@ -14,13 +14,13 @@
 // interactive control must clear the 32px hard floor at the default fine pointer (two side-eye passes once
 // caught these at 28px). Measuring the REAL boundingBox is what makes a token regression fail.
 
+import { measureContentColumn } from "@orb/testkit/browser/measure-content-column.ts";
+import { proseRow, readProseMeasure } from "@orb/testkit/browser/prose-measure.ts";
+import { readSwitchRowOrientation } from "@orb/testkit/browser/settings-geometry.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
-import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
-import { readSwitchRowOrientation } from "../../../../support/browser/settings-geometry.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { TagMemberContentColumnStory, TagMemberStory } from "../_ct-stories.tsx";
 
 const TAP_FAIL_PX = 32;

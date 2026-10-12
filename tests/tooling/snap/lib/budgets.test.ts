@@ -9,6 +9,8 @@
 // process, so the live reading is correct for the shipped code). To prove the FORMULA those exports rest
 // on stretches/holds them correctly, this file re-applies `budget()` to the real, imported bases with an
 // INJECTED reader — the same technique T14/T15 use everywhere else — rather than re-deriving the numbers.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "../../../../tooling/src/floor/host/load-budget.ts";
 import {
   MOUNT_SETTLE_MS,
@@ -23,7 +25,6 @@ import {
   THROTTLED_READY_BASE_MS,
   WAIT_SELECTOR_BASE_MS,
 } from "../../../../tooling/src/snap/lib/budgets.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Per-core 4.0 on a 24-core box — the FORCED-LOAD reading T14 uses (mirrors tests/tooling/floor/host/load-budget.test.ts). */
 const LOADED = { loadavg1: 96, cpuCount: 24 } as const;

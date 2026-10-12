@@ -1,6 +1,6 @@
 import { chatCensusInputSchema } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("census lens preserves membership filters without admitting paging coordinates", () => {
   const characterId = mintTypeId(ID_PREFIX.character);

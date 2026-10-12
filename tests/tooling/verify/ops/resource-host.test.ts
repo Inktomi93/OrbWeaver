@@ -1,12 +1,12 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 

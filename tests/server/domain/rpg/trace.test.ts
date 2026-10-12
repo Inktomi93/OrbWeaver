@@ -7,8 +7,8 @@
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT_A = castId<ChatId>("chat_robs_a");
 const CHAT_B = castId<ChatId>("chat_robs_b");

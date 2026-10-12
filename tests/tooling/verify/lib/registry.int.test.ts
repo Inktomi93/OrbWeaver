@@ -1,11 +1,11 @@
 // Native collection proves automatic runtime selection excludes tooling, while focused tests remain reachable.
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
 import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
 import { collectNodeShards } from "../../../../tooling/src/verify/ops/scoped-test.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 function listFiles(root: string, args: readonly string[]): readonly string[] {
@@ -31,7 +31,7 @@ test("automatic shared-source selection has no tooling execution population, but
   repoRoot,
 }) => {
   const node = stagesForTier("changed").find(({ name }) => name === "tests:node");
-  const argv = node?.scopedArgv?.(resolveSelection({ kind: "file", paths: ["tooling/src/verify/lib/registry.ts", "tests/support/fixtures.ts"] }));
+  const argv = node?.scopedArgv?.(resolveSelection({ kind: "file", paths: ["tooling/src/verify/lib/registry.ts", "tests/support/node/fixtures.ts"] }));
   if (argv === undefined || typeof argv === "string") {
     throw new Error("missing automatic related invocation");
   }

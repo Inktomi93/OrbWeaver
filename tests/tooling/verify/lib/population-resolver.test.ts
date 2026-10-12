@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { PopulationExpr } from "../../../../tooling/src/verify/contract/population.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../../../../tooling/src/verify/contract/population.ts";
 import { assertPopulationExpr, compilePopulation, populationIncludes, resolvePopulation } from "../../../../tooling/src/verify/lib/population-resolver.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test.describe("population vocabulary", () => {
   test("covers every authored zone through roots-only sets", () => {

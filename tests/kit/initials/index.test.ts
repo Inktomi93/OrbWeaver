@@ -1,5 +1,5 @@
 import { initialsFor } from "@orb/kit/initials";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("initialsFor takes the first + last word initial", () => {
   expect(initialsFor("Alex Silver")).toBe("AS");

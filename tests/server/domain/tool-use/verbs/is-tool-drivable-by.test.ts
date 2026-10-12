@@ -11,12 +11,12 @@
 
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { principal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { defOf } from "../_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;

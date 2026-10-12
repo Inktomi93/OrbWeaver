@@ -3,6 +3,8 @@
 // judged by the canonical declaring FILE plus the canonical export name. Both directions are planted here:
 // an alias, a namespace member and a name-preserving re-export are the HOME, while a same-named export of
 // another module, a local declaration and an unreachable door are not.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import {
@@ -14,7 +16,6 @@ import {
   readsAmbientGlobalPath,
   uncastPropertyDeclaredByPackage,
 } from "../../../../tooling/src/verify/lib/project-home-origin.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const HOME_PATH = "packages/client/src/state/chat-stream.ts";

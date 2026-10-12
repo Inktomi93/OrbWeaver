@@ -4,11 +4,11 @@
 // answers. The effects are injected, so the loop is driven without spawning a server or a browser.
 import { parseEnv } from "node:util";
 import { RESTART_EXIT_CODE, START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { FORWARDED_SIGNALS } from "@orb/tooling/floor/process/proc-signals";
 import type { ProdSpawnPlan, StartBrowser, StartInvocation, StartSpawn, StartSupervisorDeps } from "../../../../tooling/src/stack/index.ts";
 import { OPEN_BROWSER_KEY, startBrowser, startLaunch, superviseStart } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const INVOCATION: StartInvocation = { build: "skip", setup: false, port: null, share: false };
 const PORT = 8788;

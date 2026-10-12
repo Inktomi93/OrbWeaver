@@ -13,6 +13,7 @@ import {
   UNAVAILABLE_CAUSES,
 } from "@orb/contracts/inference";
 import type { WorkloadStatus } from "@orb/contracts/workloads";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   backgroundRepairs,
   bindRefusal,
@@ -28,7 +29,6 @@ import {
 } from "#client/lib/connection-roles.ts";
 import type { ReindexPreview } from "#client/lib/embedder-rebuild.ts";
 import { embedderRebuildState, embedRefusalOf, REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm } from "#client/lib/embedder-rebuild.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const OPENROUTER = "user_connection_model0000001";
 const LOCAL = "user_connection_model0000002";

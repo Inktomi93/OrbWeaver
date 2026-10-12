@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveRoleModels } from "../../../../tooling/src/agent-sync/lib/model-resolution.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const roleEfforts = { executor: "medium", forge: "medium", "mech-executor": "high" };
 

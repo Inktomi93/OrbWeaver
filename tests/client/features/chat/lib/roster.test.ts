@@ -6,8 +6,8 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { buildParticipantsById, charactersSectionVisible, membersTabJustified, resolveHumanParticipants } from "#client/features/chat/lib/roster.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 
 const ALICE_ID = castId<CharacterId>("char_alice_roster");

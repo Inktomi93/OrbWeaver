@@ -2,11 +2,11 @@
 // with a reason rather than with an empty set. A resolved empty set and an `unresolved` fact are different
 // answers, and a consumer that fails closed depends on the difference.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { readAuthoredKeySet } from "../../../../tooling/src/verify/lib/authored-key-set.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function sourceOf(files: Readonly<Record<string, string>>, entry = "use.ts"): SourceFile {
   const project = new Project({ useInMemoryFileSystem: true });

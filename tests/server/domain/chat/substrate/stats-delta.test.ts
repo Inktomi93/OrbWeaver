@@ -4,12 +4,12 @@ import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { statsBucketStart, wordCount } from "@orb/kit/stats-tally";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { assistantTurnDelta, canonMessageDelta, chatCreatedDelta, seatChatDelta, userMessageDelta } from "#server/domain/chat/substrate/stats-delta.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
 const OWNER = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");

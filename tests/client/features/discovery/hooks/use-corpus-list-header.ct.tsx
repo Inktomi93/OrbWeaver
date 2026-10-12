@@ -3,8 +3,8 @@
 // the distilled-card count as a quiet mono readout; a zero count renders the title alone (no "0"). The count
 // reads the shared `discovery.catalog` cache.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusListHeaderStory } from "../_ct-stories.tsx";
 
 // AND THE COUNT NAMES ITS BASE (issue #535). The band printed a bare `CORPUS 313` beside an overview h1

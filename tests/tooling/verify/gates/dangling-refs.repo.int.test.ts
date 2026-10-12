@@ -13,13 +13,14 @@
 // `policy-fixture-substrate` is a hard gate over this very directory. The per-arm reasoning for each move —
 // including the header premise that said a scratch copy was impossible, and why it was an objection to an
 // UNFILTERED assertion rather than to an isolated root — sits with the arms themselves.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { gate as danglingRefCitations } from "../../../../tooling/src/verify/gates/dangling-ref-citations.ts";
 import { gate as danglingRefs } from "../../../../tooling/src/verify/gates/dangling-refs.ts";
 import { projectCtx } from "../../../../tooling/src/verify/index.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const HARD_GATE = "dangling-refs";
 const CITATION_GATE = "dangling-ref-citations";

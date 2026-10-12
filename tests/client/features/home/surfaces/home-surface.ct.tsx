@@ -4,22 +4,22 @@
 // zero-tile empty state, and the duplicate-id THROW at construction.
 
 // @orb-waive-file no-test-fabrication({ state?: { boxes?: Record<string, number> } }): baselined when the gate widened to value casts; burn-down item 906.
-import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { AA_NORMAL_RATIO, relativeLuminance } from "@orb/kit/theme-derivation";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { pixelExtremaContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { NORMAL_MIN_RATIO, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import { pixelExtremaContrast } from "../../../../support/browser/pixel-contrast.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 // `CHAT_ROOM_ROUTES` is AMBIENT to every home mount in this file since #1126: the hearth tile warms the
 // room it offers (`usePrefetchRoom` — `chat.getChat` leaves with the tile's mount, a human reaction time
@@ -1248,7 +1248,12 @@ test("#455 the fold's trigger is a CONTROL, not a kicker — it clears the 24×2
 
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {
   const dup: HomeTileContribution = { id: "same", title: "T", icon: Clock, body: () => null };
-  expect(() => createContributorRegistry<HomeTileContribution>("home-tiles", [dup, { ...dup, title: "Other" }])).toThrow(DUPLICATE_ID_RE);
+  expect(() =>
+    isolationRegistry<HomeTileContribution>("home-tiles", "builds a roster holding one tile id twice so the factory refusing a shadowed tile is the subject", [
+      dup,
+      { ...dup, title: "Other" },
+    ]),
+  ).toThrow(DUPLICATE_ID_RE);
 });
 
 // ── #1128 · THE FOLD FADE PAINTED OVER LIVE CONTROLS (side-eye HOME 2026-09-02 H1) ──────────────────
@@ -1405,7 +1410,7 @@ for (const polarity of ["dark", "light"] as const) {
           `${String(cell.width)}x${String(cell.height)}\t${polarity}\t${reading.cta}\t${reading.ratio.toFixed(2)}:1\t${reading.inBand ? "IN BAND" : "clear"}\t${reading.describe}`,
         );
         // The CTAs are 13px/500, so the large-text 3:1 relaxation does not apply.
-        if (reading.ratio < NORMAL_MIN_RATIO) {
+        if (reading.ratio < AA_NORMAL_RATIO) {
           failures.push(`${String(cell.width)}x${String(cell.height)} ${polarity}: "${reading.cta}" ${reading.ratio.toFixed(2)}:1 — ${reading.describe}`);
         }
       }

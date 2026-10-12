@@ -6,8 +6,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, beforeAll, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-relay-notice-"));
 const OK = 200;

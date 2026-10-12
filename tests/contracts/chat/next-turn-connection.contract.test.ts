@@ -1,6 +1,6 @@
 import { nextTurnConnectionViewSchema } from "@orb/contracts/chat";
-import { expect, test } from "../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../support/inference-identities.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("member-safe connection output keeps configured and unset arms closed", () => {
   const configured = {

@@ -3,9 +3,9 @@
 // `tag.listTagsWithUsage`, stubbed at the network per test by routeTrpc.
 
 import { TagPickerDialog } from "@orb/client/components";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
 
 export interface TagPickerDialogHarnessProps {
   /** Tag names already on the target — the "everything is attached" arm. */

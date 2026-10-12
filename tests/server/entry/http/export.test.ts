@@ -11,8 +11,8 @@ import { castId } from "@orb/kit/ids";
 import type { ExportService } from "@orb/server/domain/export";
 import type { ExportDeps } from "@orb/server/entry/http";
 import { registerExport } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

@@ -13,12 +13,12 @@ import { characterEmbeddings, embeddingCalls } from "@orb/db";
 import type { CharacterHandle, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "../../../packages/server/src/entry/compose/index.ts";
 import { createImageAdapter } from "../../../packages/server/src/infra/image/index.ts";
-import { freshDb } from "../../../tests/support/db.ts";
-import { seedUser } from "../../../tests/support/factories/user.ts";
 import { execGit } from "../../../tooling/src/floor/git/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 

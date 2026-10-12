@@ -11,13 +11,13 @@
 // `ConfigMobileListStory` pins the LIST-is-the-screen half).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { readEscapedAbsolutes } from "@orb/testkit/browser/settings-geometry.ts";
+import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
-import { readEscapedAbsolutes } from "../../../../support/browser/settings-geometry.ts";
-import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
-import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { signInModeView } from "../../user-admin/auth-config-fixtures.ts";
 import { ConfigDeepLinkFromDoorStory, ConfigHostInScrollingHostStory, ConfigHostStory, ConfigShellDoorStory } from "../_ct-stories.tsx";
 

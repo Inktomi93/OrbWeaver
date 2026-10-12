@@ -11,13 +11,13 @@ import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgJournalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
 import { insertJournalEntry, listActiveJournal } from "#server/domain/rpg/persistence/journal.ts";
 import { findSnapshotByVariant, resolveSnapshotForTurn, writeHandSnapshot, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
-import { freshDb } from "../../../support/db.ts";
 import {
   actorWithWallet,
   addVariant,

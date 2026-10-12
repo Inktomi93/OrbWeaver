@@ -6,7 +6,7 @@
 // `dialect` present exactly on the openai-compat wire; and the base-URL rule per auth kind.
 
 import { isPluginProviderId, modelIdSchema, pluginNameOfProviderId, providerDefSchema, providerIdSchema } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const ENDPOINT_ROW = {
   id: "acme-endpoint",

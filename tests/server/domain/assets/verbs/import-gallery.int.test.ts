@@ -3,46 +3,26 @@
 // HANDLE to this box's character id), the un-charactered FALLBACK (a handle with no matching character imports
 // null), IDEMPOTENCY (re-import writes zero dupes — including the NULL-subject case SQLite's unique index
 // misses), the asset-not-restored SKIP (a curation row cannot reference a foreign/absent asset), and a bad
-// file returning {ok:false} not throwing. The handle<->id ops are wired as the REAL characters reads (compose
-// mirror) so the re-link is exercised, not stubbed.
+// file returning {ok:false} not throwing. The handle<->id ops are compose's own, over a real character
+// service, so the owner-scoped re-link is exercised, not stubbed.
 
-import { characters } from "@orb/db";
-import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery, createImportGallery } from "@orb/server/domain/assets";
 import { buildGallery } from "@orb/server/primitives/serde/gallery";
-import { eq } from "drizzle-orm";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
-import type { AssetsContext } from "#server/domain/assets/context.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_support.ts";
+import { makeHarness, pngBytes, principal, seedCharacter, seedUser, withGalleryCharacterOps } from "../_support.ts";
 
 const PNG = "image/png";
-
-// Extend the harness ctx with the gallery-portability id<->handle ops, wired as the REAL owner-scoped
-// characters reads the entry root binds (assets never sideways-imports the character domain).
-function withCharacterOps(ctx: AssetsContext, db: AssetsContext["db"]): AssetsContext {
-  return {
-    ...ctx,
-    resolveCharacterHandle: async (characterId: CharacterId): Promise<string | null> => {
-      const rows = await db.select({ handle: characters.handle }).from(characters).where(eq(characters.id, characterId)).limit(1);
-      return rows[0]?.handle ?? null;
-    },
-    findCharacterByHandle: async (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }): Promise<CharacterId | null> => {
-      const rows = await db.select({ id: characters.id }).from(characters).where(eq(characters.handle, args.handle)).limit(1);
-      const hit = rows[0];
-      return hit !== undefined ? hit.id : null;
-    },
-  };
-}
 
 describe("importGallery", () => {
   test("export -> wipe -> import reconstructs the rows, re-linking the subject by handle", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const ctx = withCharacterOps(h.ctx, db);
+    const ctx = withGalleryCharacterOps(h.ctx);
     const svc = createAssetsService(ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
@@ -83,7 +63,7 @@ describe("importGallery", () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const ctx = withCharacterOps(h.ctx, db);
+    const ctx = withGalleryCharacterOps(h.ctx);
     const svc = createAssetsService(ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const asset = await svc.store({
@@ -105,11 +85,32 @@ describe("importGallery", () => {
     expect(rows[0]?.subjectCharacterId).toBeNull();
   });
 
+  test("a handle only ANOTHER owner holds never re-links to their character", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const ctx = withGalleryCharacterOps(h.ctx);
+    const svc = createAssetsService(ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    await seedCharacter(db, stranger, { id: "character_strangers_hero", handle: castId<CharacterHandle>("hero") });
+    const asset = await svc.store({ principal: principal(owner), bytes: pngBytes(1), kind: "gallery", mime: PNG });
+    const file = {
+      filename: "gallery.json",
+      bytes: buildGallery({ items: [{ assetId: asset.assetId, subjectCharacterHandle: "hero", createdAt: 100 }] }),
+    };
+
+    expect(await createImportGallery(ctx)(owner, file)).toEqual({ ok: true, created: true });
+    const rows = await svc.listGallery({ principal: principal(owner), limit: 100 });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.subjectCharacterId).toBeNull();
+  });
+
   test("idempotent: a second import of the same file writes zero dupes (incl. null subject)", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const ctx = withCharacterOps(h.ctx, db);
+    const ctx = withGalleryCharacterOps(h.ctx);
     const svc = createAssetsService(ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
@@ -140,7 +141,7 @@ describe("importGallery", () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const ctx = withCharacterOps(h.ctx, db);
+    const ctx = withGalleryCharacterOps(h.ctx);
     const svc = createAssetsService(ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // A well-formed asset id that was never restored on this box → survives parse, skipped at the ownership gate.
@@ -160,7 +161,7 @@ describe("importGallery", () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const ctx = withCharacterOps(h.ctx, db);
+    const ctx = withGalleryCharacterOps(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const file = { filename: "gallery.json", bytes: new TextEncoder().encode("{not a gallery") };
     const outcome = await createImportGallery(ctx)(owner, file);

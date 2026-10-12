@@ -2,9 +2,10 @@
 // scroll delta, judged sides and child escapes prints FAIL, and what the operator is told.
 // The MEASUREMENT half is layout arithmetic and is proved in a real browser
 // (tests/tooling/snap/ops/overflow.ct.tsx) — jsdom has no layout, so nothing here fakes one.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { OverflowProbe } from "../../../../tooling/src/snap/index.ts";
 import { overflowAssertionLine } from "../../../../tooling/src/snap/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function probe(overrides: Partial<OverflowProbe> = {}): OverflowProbe {
   return { scrollX: 0, scrollY: 0, judged: ["left", "top", "right", "bottom"], escapes: [], ...overrides };

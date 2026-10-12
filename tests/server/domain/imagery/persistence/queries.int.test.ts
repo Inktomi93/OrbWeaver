@@ -1,4 +1,4 @@
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
 // persistence: imagery/queries — the ONE `imagery_generations` writer. Proves the
 // INSERT statement, committed through a batch the way the generation tail commits it, lands a well-formed provenance row against the real schema (the FK to `assets`, the mode CHECK, the
 // nullable free-mode columns left at their defaults).
@@ -11,13 +11,13 @@ import { batchMany } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { findReusableGeneration, insertGenerationStatement, readProvenanceByAsset } from "#server/domain/imagery/persistence/queries.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 
 const PROVIDER_ID = providerIdSchema.parse("openrouter");
 

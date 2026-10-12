@@ -7,9 +7,9 @@ import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { hostAllowlist } from "@orb/server/entry/http";
 import { settingInstruction } from "@orb/server/foundation/env";
 import { allowedHostsReader, createRelayHostRegistry } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OK = 200;
 const MISDIRECTED = 421;

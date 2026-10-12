@@ -32,8 +32,8 @@ import {
   THEME_DERIVATION,
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("shadowIngredients (#243 — the polarity-derived elevation recipe)", () => {
   const darkBase = { l: 0.158, c: 0.006, h: 60 };
@@ -194,16 +194,6 @@ describe("wcagContrastRatio", () => {
     const black = { r: 0, g: 0, b: 0 };
     expect(wcagContrastRatio(white, black)).toBeCloseTo(21, 5);
     expect(wcagContrastRatio(white, white)).toBeCloseTo(1, 5);
-  });
-});
-
-describe("oklchToSrgb", () => {
-  test("round-trips the published primaries back to sRGB", () => {
-    // The inverse of the importer's sRGB→OKLCH; a transposed coefficient shows up as a wrong channel here.
-    const red = oklchToSrgb({ l: 0.628, c: 0.2577, h: 29.23 });
-    expect(red.r).toBeCloseTo(255, 0);
-    expect(red.g).toBeCloseTo(0, 0);
-    expect(red.b).toBeCloseTo(0, 0);
   });
 });
 

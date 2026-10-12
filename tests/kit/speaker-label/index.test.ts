@@ -14,7 +14,7 @@ import {
   stripSelfSpeakerLabel,
   truncateAtForeignLabel,
 } from "@orb/kit/speaker-label";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // parseSpeakerSpans (§12.4): the `<speaker>NAME</speaker>` split feeding the client narrator renderer.
 // Pins the load-bearing byte-identical no-op (zero markers => one null-speaker span carrying `content`
@@ -353,5 +353,5 @@ test("NAME_END_BOUNDARY is a lookahead that a built pattern can embed (the `\\b`
   expect(re("Nova🌙").test("@Nova🌙 waves")).toBe(true);
   expect(re("Аня").test("@Анятолия смотрит")).toBe(false);
   // The control: the same assertions under `\b` are exactly the reported miss.
-  expect(new RegExp("@Аня\\b", "giu").test("@Аня открыла")).toBe(false);
+  expect(/@Аня\b/giu.test("@Аня открыла")).toBe(false);
 });

@@ -4,10 +4,10 @@
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ReactElement } from "react";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ExtensionsPageStory, PluginDialogBodyStory, PluginToolCardStory } from "../_ct-stories.tsx";
 
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];

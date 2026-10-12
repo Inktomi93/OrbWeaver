@@ -13,10 +13,10 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcFixtureOutput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FROZEN_AT_MS } from "../../support/clock.ts";
-import type { TrpcFixtureOutput, TrpcRoutes } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { OpenRefineryStory } from "./_ct-stories.tsx";
 
 // MINTED, never hand-written (`typeIdSchema` validates the 26-char suffix at runtime).

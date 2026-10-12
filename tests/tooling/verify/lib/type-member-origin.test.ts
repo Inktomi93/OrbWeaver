@@ -4,6 +4,7 @@
 // here is a same-SPELLING/different-IDENTITY pair — a local lookalike interface, a second module exporting
 // the same type name — because that pair is the whole reason the readers exist.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind, Type } from "ts-morph";
@@ -20,7 +21,6 @@ import {
   resolveTypePropertyOrigin,
   resolveTypeValueOrigins,
 } from "../../../../tooling/src/verify/lib/type-member-origin.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Test-only fail-fast tripwire for any expanding generic. A removed production recurrence boundary must
  *  fail an assertion rather than exhaust the test worker. This budget is not a production hop limit. */

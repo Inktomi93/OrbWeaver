@@ -1,8 +1,8 @@
+import { waitFrames } from "@orb/testkit/browser/weave-drive.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { z } from "zod";
-import { waitFrames } from "../../../support/browser/weave-drive.ts";
 import { CaptureGlowProbe, WeaveBox } from "./web-weave.fixtures.tsx";
 import { captureFacts } from "./web-weave-glow-probe.ts";
 

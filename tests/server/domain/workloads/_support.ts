@@ -1,11 +1,10 @@
 // Shared test harness for the workloads domain (NOT a test file — no `.test` suffix, so test-layout ignores
 // it). The centrepiece is `fakeContributions`: the kind-keyed registry the verbs validate params against and
-// the engine dispatches through, assembled EXACTLY the way `entry/compose` assembles the real one (every
-// owning domain's real factory over a stub dep frame) — so a domain that changes its params schema can't
-// silently drift this harness. Run BODIES are irrelevant here and each domain pins its own at its mirror;
+// the engine dispatches through, built by compose's own `buildWorkloadContributions` over a stub dep frame —
+// so a domain that changes its params schema can't silently drift this harness. Run BODIES are irrelevant
+// here and each domain pins its own at its mirror;
 // an engine test swaps in a double via `contributionsWith`. Determinism: a fixed T0 + `castId` ids.
 
-// @orb-waive-file no-test-fabrication(WorkloadContributions): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({ backfillAvatars: stub): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({ embedCorpus: stub): baselined when the gate widened; burn-down item 906.
@@ -20,103 +19,72 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { vi } from "vitest";
 import { isAdmin, isOwner, requireOwner } from "#server/domain/admin/guard.ts";
-import { createAssetsWorkloadContributions } from "#server/domain/assets/workload-contributions.ts";
-import { createChatWorkloadContributions } from "#server/domain/chat/workload-contributions.ts";
-import { createConnectionWorkloadContributions } from "#server/domain/connection/workload-contributions.ts";
-import { createDatabankWorkloadContributions } from "#server/domain/databank/workload-contributions.ts";
-import { createDiscoveryWorkloadContributions } from "#server/domain/discovery/workload-contributions.ts";
-import { createEmbeddingsWorkloadContributions } from "#server/domain/embeddings/workload-contributions.ts";
-import { createImportWorkloadContributions } from "#server/domain/import/workload-contributions.ts";
-import { createStatsWorkloadContributions } from "#server/domain/stats/workload-contributions.ts";
-import type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "#server/domain/workloads/contract/contribution.ts";
+import type { WorkloadContribution, WorkloadContributions } from "#server/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerDeps, WorkloadService } from "#server/domain/workloads/contract/service.ts";
 import type { WorkloadRunnableRow } from "#server/domain/workloads/contract/workload-row.ts";
 import { loadWorkload } from "#server/domain/workloads/persistence/queries.ts";
 import { createWorkloadService } from "#server/domain/workloads/service.ts";
-import { createReservedWorkloadContributions } from "#server/domain/workloads/substrate/reserved-contributions.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
+import { buildWorkloadContributions } from "#server/entry/compose/workload-contributions.ts";
 
 /** A fixed instant — every timestamp in a test pins to this (no ambient clock; test-determinism §3). */
 export const T0 = 1_700_000_000_000;
 
 /** The kind-keyed contribution registry a test drives the engine/verbs through — it is the params VALIDATOR
- *  the verbs + the row read path use, so every test touching a workload row needs one. Assembled the way
- *  `entry/compose` assembles the real one: every owning domain's factory over a stub dep frame. */
+ *  the verbs + the row read path use, so every test touching a workload row needs one. Built by compose's own
+ *  `buildWorkloadContributions` over a stub dep frame, so a kind compose registers is a kind this registry has. */
 export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {}): WorkloadContributions {
   const stub = <T>(value: T): ReturnType<typeof vi.fn<() => Promise<T>>> => vi.fn(async () => value);
   // Only the contributions' PARAMS SCHEMAS matter here (the verbs + the row read path validate against
   // them); their run bodies are pinned at each domain's own mirror. Every dep below is a stub frame.
-  const contributions: readonly AnyWorkloadContribution[] = [
-    // Only the contribution's params schema is read from this stub frame (see above).
-    ...createEmbeddingsWorkloadContributions({
-      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }), targetSnapshot: stub("unmoved") } as never,
-      // The terminal `corpusRecomputed` fan — discarded here; its behavior is pinned at the owning domain's
-      // own contribution mirror, this frame only needs the params schemas.
-      emitUserEvent: () => undefined,
-      listCorpusOwners: () => Promise.resolve([]),
+  return buildWorkloadContributions({
+    // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }), targetSnapshot: stub("unmoved") } as never,
+    // The terminal `corpusRecomputed` fan — discarded here; its behavior is pinned at the owning domain's
+    // own contribution mirror, this frame only needs the params schemas.
+    emitUserEvent: () => undefined,
+    listCorpusOwners: () => Promise.resolve([]),
+    // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    discovery: {
+      computeThemes: stub({ digestsAssigned: 10, clustersWritten: 5 }),
+      distillCharacters: stub({ scanned: 8, distilled: 8 }),
+      computeCooccurrence: stub({ charKeywordsWritten: 6, pairsWritten: 4 }),
+      computeDuplicatePairs: stub({ charactersScanned: 7, pairsWritten: 1 }),
+      computeChatDuplicatePairs: stub({ chatsScanned: 2, pairsWritten: 0 }),
+      computeCharacterHubScores: stub({ rowsScored: 7 }),
+    } as never,
+    loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
+    // @orb-waive no-test-fabrication(Db): only the contribution's params schema is read from this Db stub frame (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    db: {} as Db,
+    now: () => T0,
+    // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    connection: { refreshCatalog: stub({ models: [] }), refreshAgentSdkCatalog: stub({ models: [] }) } as never,
+    // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    cas: {} as never,
+    // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    assets: { backfillAvatars: stub({ scanned: 0, linked: 0 }), collectGarbage: stub({ scanned: 0, reclaimed: 0 }), fsck: stub({}) } as never,
+    backfillMemory: stub({
+      segments: { scanned: 0, changed: 0 },
+      segmentsSkippedOverWindow: 0,
+      digests: { scanned: 0, changed: 0 },
+      failed: 0,
+      completedSpaces: [],
     }),
-    // Only the contribution's params schema is read from this stub frame (see above).
-    ...createDiscoveryWorkloadContributions({
-      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      discovery: {
-        computeThemes: stub({ digestsAssigned: 10, clustersWritten: 5 }),
-        distillCharacters: stub({ scanned: 8, distilled: 8 }),
-        computeCooccurrence: stub({ charKeywordsWritten: 6, pairsWritten: 4 }),
-        computeDuplicatePairs: stub({ charactersScanned: 7, pairsWritten: 1 }),
-        computeChatDuplicatePairs: stub({ chatsScanned: 2, pairsWritten: 0 }),
-        computeCharacterHubScores: stub({ rowsScored: 7 }),
-      } as never,
-      loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
-      emitUserEvent: () => undefined,
-      listCorpusOwners: () => Promise.resolve([]),
-    }),
-    ...createStatsWorkloadContributions({
-      // @orb-waive no-test-fabrication(Db): only the contribution's params schema is read from this Db stub frame (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      db: {} as Db,
-      now: () => T0,
-    }),
-    // Only the contribution's params schema is read from this stub frame (see above).
-    ...createConnectionWorkloadContributions({
-      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      connection: { refreshCatalog: stub({ models: [] }), refreshAgentSdkCatalog: stub({ models: [] }) } as never,
-    }),
-    // Only the contribution's params schema is read from this stub frame (see above).
-    ...createAssetsWorkloadContributions({
-      // @orb-waive no-test-fabrication(Db): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      db: {} as Db,
-      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      cas: {} as never,
-      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      assets: { backfillAvatars: stub({ scanned: 0, linked: 0 }), collectGarbage: stub({ scanned: 0, reclaimed: 0 }), fsck: stub({}) } as never,
-    }),
-    ...createChatWorkloadContributions({
-      backfillMemory: stub({
-        segments: { scanned: 0, changed: 0 },
-        segmentsSkippedOverWindow: 0,
-        digests: { scanned: 0, changed: 0 },
-        failed: 0,
-        completedSpaces: [],
-      }),
-      estimateMemoryBackfill: stub(0),
-      backfillGroupCharacters: stub({ scanned: 0, changed: 0 }),
-      purgeMemoryVectors: stub(undefined),
-      // The #156 admission precondition's read — the ONE dep here whose VALUE matters to a verb test, since
-      // `memory-backfill` refuses enqueue when memory is off for the row's owner.
-      isMemoryEnabled: stub(opts.memoryEnabled ?? true),
-      targetSnapshot: stub("unmoved"),
-    }),
-    // Only the contribution's params schema is read from this stub frame (see above).
-    ...createDatabankWorkloadContributions({
-      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      databankIngest: { ingestDocument: stub({}), reindex: stub({}) } as never,
-      beginDocumentVectorSweep: stub([]),
-      purgeDocumentVectors: stub(undefined),
-      targetSnapshot: stub("unmoved"),
-    }),
-    ...createImportWorkloadContributions({
+    estimateMemoryBackfill: stub(0),
+    backfillGroupCharacters: stub({ scanned: 0, changed: 0 }),
+    purgeMemoryVectors: stub(undefined),
+    // The #156 admission precondition's read — the ONE dep here whose VALUE matters to a verb test, since
+    // `memory-backfill` refuses enqueue when memory is off for the row's owner.
+    isMemoryEnabled: stub(opts.memoryEnabled ?? true),
+    targetSnapshot: stub("unmoved"),
+    // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    databankIngest: { ingestDocument: stub({}), reindex: stub({}) } as never,
+    beginDocumentVectorSweep: stub([]),
+    purgeDocumentVectors: stub(undefined),
+    importWorkloads: {
       stagingRoot: "/tmp/orb-test-staging",
       stProfileDir: "/tmp/orb-test-profiles",
       runProfileDirImport: stub({ scanned: 0, changed: 0, failed: 0, memoryScope: null }),
@@ -127,10 +95,16 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       reconcileImportStats: stub(undefined),
       refreshPlannerStats: stub(undefined),
       emitLibraryChanged: () => undefined,
-    }),
-    ...createReservedWorkloadContributions(),
-  ];
-  return Object.fromEntries(contributions.map((contribution) => [contribution.kind, contribution])) as WorkloadContributions;
+    },
+    refineryWorkloads: {
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients()),
+      resolveUtilityPresetParams: stub(undefined),
+      resolveUserProse: stub({}),
+      listRefineryScoreTargets: stub({ targets: [], inScope: 0 }),
+      stampRefinerySignals: stub(undefined),
+      emitUserEvent: () => undefined,
+    },
+  });
 }
 
 /** The registry with ONE kind's run body swapped for a test double. The seam an ENGINE test drives: the

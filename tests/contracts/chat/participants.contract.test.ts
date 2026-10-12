@@ -1,7 +1,7 @@
 import type { MessageKind } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, MEMORY_INGEST_KINDS, MESSAGE_KIND_POLICY, MESSAGE_KINDS, messageKindSchema, messageRoleSchema } from "@orb/contracts/chat";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ═══ messageRoleSchema — THE canonical role wire (D32) ══════════════════════════
 

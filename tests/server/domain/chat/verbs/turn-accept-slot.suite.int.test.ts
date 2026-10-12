@@ -23,13 +23,13 @@ import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { DEFAULT_CHAT_BEHAVIOR } from "#server/domain/chat/contract/foreign.ts";
 import { tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
-import type { ChatScenario, ChatScenarioOptions } from "../../../../support/chat/scenario.ts";
-import { scenario } from "../../../../support/chat/scenario.ts";
-import { tape } from "../../../../support/chat/tape.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import type { ChatScenario, ChatScenarioOptions } from "../_scenario.ts";
+import { scenario } from "../_scenario.ts";
 import { FROZEN_AT } from "../_support.ts";
 
 /** The `type` sequence of a captured event slice. */

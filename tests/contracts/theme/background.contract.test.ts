@@ -8,8 +8,8 @@
 
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("themeBackgroundSchema", () => {
   test("an empty blob parses to the all-default no-image source (incl. provenanceUrl)", () => {

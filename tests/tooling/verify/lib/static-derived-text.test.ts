@@ -1,8 +1,9 @@
 // Exact intrinsic evaluation needs independent ordering and effect controls, not an expectation computed
 // by the same reader. The policy-descriptor mirror separately proves both public text queries consume it.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { staticDerivedText } from "../../../../tooling/src/verify/lib/static-derived-text.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function read(source: string): string | undefined {
   const project = new Project({ useInMemoryFileSystem: true });

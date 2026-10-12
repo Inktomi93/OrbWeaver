@@ -1,6 +1,6 @@
 import { PluginHostDeadlineError } from "@orb/contracts/plugin";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { invokeFailureKind } from "#server/domain/plugin/substrate/failure-log.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a rejected invocation is classified by the typed error name that crossed the sandbox", () => {
   const unavailable = new Error("plugin broker: synchronous parent call timed out");

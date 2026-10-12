@@ -7,10 +7,10 @@
 // kit's rejection, that a shadowed def never draws, and that a stored pick keyed by NAME survives the swap.
 import type { ProcessMacroOptions, UserMacroDef } from "@orb/kit/macro";
 import { createMacroContext } from "@orb/kit/macro";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildTurnUserMacros } from "#server/domain/chat/assembly/user-macros.ts";
 import type { TurnUserMacros } from "#server/domain/chat/contract/assembly-macros.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** Assert-and-narrow: `buildTurnUserMacros` returns `TurnUserMacros | null`; every non-empty-defs test
  *  wants the built value, so unwrap once (fails loudly on the fast-path null instead of `?.`-guarding). */

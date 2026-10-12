@@ -5,9 +5,9 @@
 import type { ParticipantKind } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolveViewerOwnedCharacterIds, viewerGalleryCharacterIdOf } from "#server/domain/chat/substrate/viewer-gallery.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const host = castId<UserId>("user_gallery_host");
 const guest = castId<UserId>("user_gallery_guest");

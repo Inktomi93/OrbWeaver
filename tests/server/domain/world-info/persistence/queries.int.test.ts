@@ -16,12 +16,12 @@ import { worldBooks, worldEntries } from "@orb/db";
 import type { Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildKeywordHaystack, matchEntryKeys, resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { listBookEntries, loadOwnedBook, loadOwnedEntry, toBookView, toEntryView } from "#server/domain/world-info/persistence/queries.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 type DbHandle = Awaited<ReturnType<typeof freshDb>>;

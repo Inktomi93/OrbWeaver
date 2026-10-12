@@ -42,6 +42,9 @@ import { createAppQueryClient } from "@orb/client/data";
 import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { AppBlockingReceipt } from "@orb/testkit/iso/app-blocking-receipt.ts";
+import { APP_BLOCKING_MARKS } from "@orb/testkit/iso/app-blocking-receipt.ts";
+import { blockMainThread } from "@orb/testkit/node/block-main-thread.ts";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import type { SelectOpeningRequest, SelectProps } from "@orb/ui/select";
 import { Select, subscribeSelectOpening } from "@orb/ui/select";
@@ -67,9 +70,6 @@ import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "#client/
 import { __resetMotionStats, installMotionObservers, markAgentNavigation, motionSnapshot, subscribeLongAnimationFrames } from "#client/lib/motion-stats.ts";
 import { perfMeasureFromLoad } from "#client/lib/perf-marks.ts";
 import { recordRender } from "#client/lib/render-stats.ts";
-import type { AppBlockingReceipt } from "../../support/iso/app-blocking-receipt.ts";
-import { APP_BLOCKING_MARKS } from "../../support/iso/app-blocking-receipt.ts";
-import { blockMainThread } from "../../support/node/block-main-thread.ts";
 import type { SelectOpeningTestCase } from "./select-opening-cases.fixtures.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
 

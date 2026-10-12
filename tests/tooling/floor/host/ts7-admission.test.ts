@@ -4,11 +4,11 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import type { HostSlotLease } from "@orb/tooling/floor/host/host-slots";
 import { HOST_POOL_ROOT_ENV, hostPoolDir, tryAcquireHostSlot } from "@orb/tooling/floor/host/host-slots";
 import { admitTs7Run, buildsProgram, TS7_ADMISSION_ENV, TS7_POOL_NAME, ts7AdmissionModeFor, ts7SlotLabel } from "@orb/tooling/floor/host/ts7-admission";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function scratchEnv(mode?: string): NodeJS.ProcessEnv {
   return { [HOST_POOL_ROOT_ENV]: mkdtempSync(join(tmpdir(), "orb-ts7-admission-")), ...(mode === undefined ? {} : { [TS7_ADMISSION_ENV]: mode }) };

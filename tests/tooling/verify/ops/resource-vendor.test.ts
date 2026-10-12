@@ -2,10 +2,11 @@
 // purpose: both halves are reached through pnpm store symlinks, and a hand-built `node_modules` would not
 // reproduce the indirection that breaks a naive implementation. No committed mirror side any more (#10) —
 // the refusal arm plants its control by pointing the door at a tree with no installed package at all.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceLoad } from "../../../../tooling/src/verify/contract/resource.ts";
 import type { VendorCssSurface } from "../../../../tooling/src/verify/contract/resource-vendor.ts";
 import { loadVendorCssSurface } from "../../../../tooling/src/verify/ops/resource-vendor.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 

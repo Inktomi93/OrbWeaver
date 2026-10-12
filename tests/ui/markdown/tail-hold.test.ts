@@ -4,9 +4,9 @@
 // (b) the sequence of outputs never produces the block-type flip the doc measured. Deep-imports src
 // (browser package; @orb/ui is not node-resolvable), like dialogue.test.ts / policy.test.ts.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { holdAmbiguousTail } from "#ui/markdown/tail-hold.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** Every prefix of `message`, as a stream would commit it one character at a time. */
 function prefixes(message: string): string[] {

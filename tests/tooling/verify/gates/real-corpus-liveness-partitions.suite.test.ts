@@ -1,5 +1,5 @@
-import { assertLivenessPartitions, partitionLivenessArms, planLivenessBatches } from "../../../support/real-corpus-liveness.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { assertLivenessPartitions, partitionLivenessArms, planLivenessBatches } from "@orb/testkit/node/real-corpus-liveness.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ALL_ARMS, PARTITIONS } from "./_liveness/runner.ts";
 
 test("independent corpora retain every policy exactly once and never divide an intervention", () => {

@@ -4,6 +4,7 @@
 // (Spine-Testing.md §7). Deep-imports the pure lib module (NOT the feature barrel — a barrel drags browser
 // TSX into the dom-less typecheck:graph program; the character-list-view.test precedent).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // @orb-waive-file no-test-fabrication(CardDetail): baselined when the gate widened to value casts; burn-down item 906.
 import {
   characterCardFormFromDetail,
@@ -13,7 +14,6 @@ import {
   permanentTokenCount,
   totalTokenCount,
 } from "#client/features/character/lib/character-card-form-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeCharacterDetail } from "../fixtures.ts";
 
 // Single downcast of the plain-literal fixture to the inferred (brand-carrying) `character.get` output the

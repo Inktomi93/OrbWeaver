@@ -12,9 +12,9 @@ import { userCredentials } from "@orb/db";
 import type { AutomationRuleId, PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { BindingView } from "@orb/server/domain/connection";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedAutomationRule, seedOwner, seedPlugin } from "../_support.ts";
 
 const PLUGIN_ID = castId<PluginId>("plugin_000001");

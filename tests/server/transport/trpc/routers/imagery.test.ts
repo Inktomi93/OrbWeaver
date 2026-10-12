@@ -5,8 +5,8 @@ import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ImageryService } from "@orb/server/domain/imagery";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");

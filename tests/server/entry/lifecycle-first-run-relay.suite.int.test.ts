@@ -7,9 +7,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { requestWithHost } from "@orb/testkit/node/host-request.ts";
 import { afterAll, beforeAll, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
-import { requestWithHost } from "../../support/host-request.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-first-run-"));
 const OWNER_PASSWORD = "correct-horse-battery";

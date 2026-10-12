@@ -5,11 +5,11 @@
 // shared with real settings) reads as `null` instead of being handed to a JSON parser as an object.
 
 import { settings } from "@orb/db";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createSnapshotStore } from "#server/domain/connection/persistence/catalog-snapshot.ts";
-import { createFrozenClock } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const KEY = "catalog:openrouter";
 

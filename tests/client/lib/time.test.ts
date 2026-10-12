@@ -3,9 +3,9 @@
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { hostTimeZone } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 const observation = z.object({ hostZone: z.string(), viewerZone: z.string(), day: z.string() });
 const snapshot = z.object({ before: observation, after: observation });

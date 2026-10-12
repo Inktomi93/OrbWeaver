@@ -6,8 +6,8 @@
 // The FAKE is a real multi-"tab" fan: every instance sees every other instance's post, so a sibling tab is
 // just a second `new BroadcastChannel(...)` created directly in the test.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const MODULE = "../../../packages/client/src/lib/session-channel.ts";
 

@@ -4,8 +4,8 @@
 // a proxy or tunnel this guard does not see.
 
 import { hasForwardingHeader } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 import { headers } from "./_support.ts";
 
 describe("hasForwardingHeader", () => {

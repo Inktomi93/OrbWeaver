@@ -6,11 +6,11 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { resolveTrigger } from "#server/domain/automation/substrate/fact-resolver.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";
-import { ruleFixture } from "../_support.ts";
+import { ruleFixture, seedHostChat } from "../_support.ts";
 
 describe("resolveTrigger", () => {
   test("a non-taxonomy event (no FACT_SHAPE entry) resolves to null — the watcher skips it", async () => {
@@ -38,6 +38,19 @@ describe("resolveTrigger", () => {
     const event: ChatBusEvent = { type: "messageCommitted", chatId: fixture.chatId, messageId: castId<MessageId>("message_ghost") };
     const result = await resolveTrigger(fixture.ctx.ops, event);
     expect(result).toBeNull();
+  });
+
+  test("a message id from ANOTHER room never hydrates a fact for this one — the event is skipped", async () => {
+    const fixture = await ruleFixture();
+    const otherRoom = await seedHostChat(fixture.db, fixture.host, "other");
+    const { messageId } = await seedMessage(fixture.db, otherRoom, 1, { content: "from elsewhere" });
+    const event: ChatBusEvent = { type: "messageCommitted", chatId: fixture.chatId, messageId };
+    const result = await resolveTrigger(fixture.ctx.ops, event);
+    expect(result).toBeNull();
+    // Each read is scoped on its own: the message projection and the turn origin.
+    expect(await fixture.ctx.ops.chat.getMessageFact(fixture.chatId, messageId)).toBeNull();
+    expect(await fixture.ctx.ops.chat.getTurnOrigin(fixture.chatId, messageId)).toBeNull();
+    expect(await fixture.ctx.ops.chat.getMessageFact(otherRoom, messageId)).toMatchObject({ content: "from elsewhere" });
   });
 
   test("a turnCompleted naming a vanished reply slot resolves to NULL too — the same fail-closed depth ruling", async () => {

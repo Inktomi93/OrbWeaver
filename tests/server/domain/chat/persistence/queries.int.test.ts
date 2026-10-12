@@ -2,6 +2,8 @@ import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
@@ -24,8 +26,6 @@ import {
   loadSwipeStatRows,
   loadTurnOrigin,
 } from "#server/domain/chat/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { addVariant, seedChat, seedChatEvent, seedMessage, seedParticipant, seedStreamEvent, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */

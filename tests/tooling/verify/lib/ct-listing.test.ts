@@ -1,8 +1,9 @@
 // THE CT LISTING CLASSIFIER, pinned (#2457) — `lib/ct-listing.ts`, the pure read of what
 // `playwright test --list --reporter=json` answered. Its op-side siblings (the bare `-g` refusal, the
 // #2232 config-mode door) live in `tests/tooling/verify/ops/scoped-test.test.ts`.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { classifyCtListing, readNativeCtCases } from "../../../../tooling/src/verify/lib/ct-listing.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // ── #2457: the CT collection pass must never report a FAILED collection as a barren path ─────────────
 //

@@ -15,20 +15,20 @@ import { groupConfigSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import { characters, personas } from "@orb/db";
 import type { AutomationRuleId, CharacterId, ChatId, ChatParticipantId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { and, eq, inArray } from "drizzle-orm";
+import { createOwnedCharacterIds } from "@orb/server/domain/character";
+import { createPersonaOwned } from "@orb/server/domain/persona";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { RuleValidationError } from "#server/domain/automation/contract/errors.ts";
 import { RULE_PRESETS } from "#server/domain/automation/contract/presets.ts";
 import type { RuleView } from "#server/domain/automation/contract/results.ts";
 import { resolveChatRulePresetKnobs, toRulePresetView } from "#server/domain/automation/substrate/presets.ts";
 import type { PresentCharacterSeat, RosterPresetContext } from "#server/domain/roster-preset/contract/service.ts";
-import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { createSeededIds } from "../../../support/ids.ts";
 
 interface AuditCall {
   readonly entry: Parameters<RosterPresetContext["audit"]>[0];
@@ -196,20 +196,8 @@ export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}
     },
     // REAL belt reads (the compose seam's own queries) — the FK-vs-ownership distinction under test is
     // data, not wiring, so faking these would fake the subject.
-    verifyCharactersOwned: async (ownerId, characterIds): Promise<readonly CharacterId[]> => {
-      if (characterIds.length === 0) {
-        return [];
-      }
-      const rows = await db
-        .select({ id: characters.id })
-        .from(characters)
-        .where(and(inArray(characters.id, [...characterIds]), eq(characters.ownerId, ownerId)));
-      return rows.map((row) => row.id);
-    },
-    verifyPersonaOwned: async (ownerId, personaId): Promise<boolean> => {
-      const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
-      return rows[0]?.ownerId === ownerId;
-    },
+    verifyCharactersOwned: createOwnedCharacterIds(db),
+    verifyPersonaOwned: createPersonaOwned(db),
     chat: {
       requireHost: (principalArg: Principal, chatId: ChatId): Promise<void> => {
         hostChecks.push({ principal: principalArg, chatId });

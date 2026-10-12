@@ -8,8 +8,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-secret-"));
 const SESSION_SECRET_FILE = join(TEMP_DIR, "secrets", SECRET_FILE_NAMES.sessionSecret);

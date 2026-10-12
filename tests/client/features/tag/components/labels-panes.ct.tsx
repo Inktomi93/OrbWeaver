@@ -1,5 +1,5 @@
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { LabelsEditorErrorStory } from "../_ct-stories.tsx";
 
 test("a failed editor read keeps Back and Retry, and Retry refetches the failed query", async ({ mount, page }) => {

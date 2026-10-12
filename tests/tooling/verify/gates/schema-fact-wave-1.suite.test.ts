@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -18,7 +19,6 @@ import { readAuthoredKeySet } from "../../../../tooling/src/verify/lib/authored-
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { ROOT } from "../../../../tooling/src/verify/lib/repo-paths.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // EACH of these tests concentrates a whole family's proof set — every row builds its own in-memory project

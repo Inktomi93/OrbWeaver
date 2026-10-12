@@ -1,10 +1,11 @@
 // CT: the slider seal — keyboard steps the value through real ARIA (aria-valuenow), min/max
 // clamp holds, and the drag surface meets the 44px touch floor.
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { Field } from "@orb/ui/field";
 import { Slider } from "@orb/ui/slider";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;

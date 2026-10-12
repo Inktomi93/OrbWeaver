@@ -17,8 +17,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "@orb/tooling/floor/artifacts/artifact-out";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** A snap-shaped run: resolve the artifact path up front (snap resolves `out` before it launches the

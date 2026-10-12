@@ -12,9 +12,9 @@
 // string at every width and the phone's only extra is that `truncate` may clip it — which is a geometry
 // fact about the topbar, not about the title this hook returns.
 
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatsSelectionTitleStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 import { makeParticipant } from "./_support.ts";

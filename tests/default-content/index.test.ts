@@ -32,7 +32,7 @@ import {
 } from "@orb/default-content";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const CONTENT_DIR = fileURLToPath(new URL("../../packages/default-content/", import.meta.url));
 

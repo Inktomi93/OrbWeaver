@@ -2,9 +2,9 @@
 // transform: keep `.`/`_`/`-`, collapse unsafe runs to `_`, trim edge underscores, cap at 60, fall back to
 // "export" when the name slugs to empty.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { slug } from "#server/domain/export/substrate/download-slug.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("slug", () => {
   test("keeps safe chars and collapses unsafe runs to a single underscore", () => {

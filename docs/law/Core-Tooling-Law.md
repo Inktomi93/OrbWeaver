@@ -325,7 +325,7 @@ Within `tests/tooling/**`, importing `test`/`it`/`expect` from `support/fixtures
 
 ## 5. Test infrastructure
 
-### 5.1 `tests/support/tool-fixtures.ts` — the composed `toolTest`
+### 5.1 `tests/support/node/tool-fixtures.ts` — the composed `toolTest`
 
 Extends the HOUSE composed test (`houseTest.extend<ToolFixtures>(…)`) so tooling tests keep `clock`/`ids`/`db`/`app`/callers, and follows the house authoring laws: the `({}, use)` idiom, heavy modules dynamic-imported inside fixture bodies, matchers registered by side effect through the fixtures barrel.
 
@@ -341,7 +341,7 @@ Extends the HOUSE composed test (`houseTest.extend<ToolFixtures>(…)`) so tooli
 
 `expect(cliResult).toExitWith(code)` passes iff `received.code === code`; on mismatch it prints expected/actual WITH the exit contract's NAME for each (`1 (violations)`) plus bounded tails of stdout+stderr. A bare `expect(res.code).toBe(0)` failure prints `1 ≠ 0` and nothing else — that is why the matcher exists.
 
-Home: `tests/support/matchers.ts`, THE matcher module (its header carries the cap census), registered through the side-effect chain every test already loads.
+Home: `tests/support/node/matchers.ts`, THE matcher module (its header carries the cap census), registered through the side-effect chain every test already loads.
 
 ### 5.3 The RESULT snapshot serializer
 

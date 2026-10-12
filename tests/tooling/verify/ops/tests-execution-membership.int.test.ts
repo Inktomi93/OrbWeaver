@@ -15,12 +15,12 @@
 // copied — the stage shells out to `vitest list`/`playwright test --list` for real, so this arm runs the
 // actual CLI (`runCli`, process-spawning — `.int.test.ts`), not a fixture.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/floor/testing/test-kinds";
 import { isApplicationTest } from "@orb/tooling/floor/testing/test-population";
 import { findMultiMembershipFiles, findUnrunFiles, unclassifiedVitestProjects } from "@orb/tooling/verify";
 import { withApplicationPrograms } from "../../../../tooling/src/verify/lib/application-programs.ts";
 import { enumerateTestFiles, playwrightFiles, vitestFiles } from "../../../../tooling/src/verify/ops/tests-execution-membership.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 test("application compiler planning retains native composition roots and primary worlds on the real population", { timeout: scaledBudget(110_000) }, async ({

@@ -3,6 +3,7 @@
 // default, byte-identical to pre-PROSE-1), and the structural (non-slot) literals — the transcript label,
 // the numbered-facet join — are this module's own composition, never authorable.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   consolidationSystemPrompt,
@@ -10,7 +11,6 @@ import {
   digestSystemPrompt,
   digestUserPrompt,
 } from "#server/domain/chat/memory/generate/substrate/prompts.ts";
-import { expect, test } from "../../../../../../support/fixtures.ts";
 
 describe("digest prompts", () => {
   test("digestSystemPrompt resolves the shipped default with an empty override record", () => {

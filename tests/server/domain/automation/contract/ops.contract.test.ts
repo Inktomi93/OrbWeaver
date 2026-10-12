@@ -9,10 +9,10 @@
 // fifth kind cannot be added without its read — this asserts the other direction, that the TUPLE and the
 // UNION are the same set, which is what makes the `never` pin mean anything.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { DomainRowKind } from "#server/domain/automation/contract/ops.ts";
 import { DOMAIN_ROW_KINDS } from "#server/domain/automation/contract/ops.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // The compile-time backstop (the workloads KIND_SEEN pattern): a tuple edit the runtime `toEqual` below
 // missed fails `tsc` HERE instead of drifting.

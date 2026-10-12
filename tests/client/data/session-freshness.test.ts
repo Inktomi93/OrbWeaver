@@ -10,8 +10,8 @@
 //     out because their wifi blinked is a worse defect than the one being fixed.
 
 import { __resetSessionFreshness, markSessionFresh, sessionFreshnessAgeMs, startSessionFreshness } from "@orb/client/data";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const FLOOR_MS = 300_000;
 const START = 1_000_000;

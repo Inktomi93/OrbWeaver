@@ -9,9 +9,9 @@ import { connect, createServer } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BOOT_CEILING_MS = scaledBudget(120_000);

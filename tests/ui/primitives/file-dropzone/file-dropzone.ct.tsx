@@ -2,10 +2,10 @@
 // the primary path, drag-and-drop is progressive enhancement only), the maxSizeBytes pre-check, and
 // the inline error display (the retired ui-primitive-carve-out-work-order plan item 10).
 import { DOC_UPLOAD_ACCEPT } from "@orb/contracts/extraction";
+import { dropFiles } from "@orb/testkit/browser/drop-files.ts";
 import { Field } from "@orb/ui/field";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { dropFiles } from "../../../support/browser/drop-files.ts";
 import { FileDropzoneHarness } from "./file-dropzone.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;

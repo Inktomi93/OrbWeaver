@@ -13,6 +13,8 @@
 //      suppressing (the assertion a `mustPass` row cannot make);
 //   3. §4.5 REFUSAL — the health policy withholds rather than inventing a verdict when its declared fact
 //      cannot be read, and stays silent when its real-tree anchor is absent.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as freezeProvenance } from "../../../../tooling/src/verify/gates/freeze-provenance-write-pairing.ts";
@@ -20,7 +22,6 @@ import { gate as freezeProvenanceHealth } from "../../../../tooling/src/verify/g
 import { DRIZZLE_DB_FIXTURE } from "../../../../tooling/src/verify/lib/freeze-provenance.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/freeze-provenance-conversion";
 /** One in-population file for a legacy example that plants none; `resolvePopulation` throws on a zero-path

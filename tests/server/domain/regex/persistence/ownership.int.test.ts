@@ -5,10 +5,10 @@
 import type { CharacterId, Handle, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { RegexNotFoundError } from "@orb/server/domain/regex";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ensureCharacterOwned, ensurePresetOwned } from "#server/domain/regex/persistence/ownership.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedPreset, seedUser } from "../_support.ts";
 
 describe("regex ownership gates", () => {

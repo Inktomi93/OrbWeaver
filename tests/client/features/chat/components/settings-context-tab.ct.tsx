@@ -10,13 +10,13 @@
 import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { expectDisclosureReady } from "@orb/testkit/browser/disclosure-ready.ts";
+import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { setNumber } from "@orb/testkit/node/set-number.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { expectDisclosureReady } from "../../../../support/browser/disclosure-ready.ts";
-import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { setNumber } from "../../../../support/node/set-number.ts";
 import { CommittedSettingsTabStory } from "../_ct-stories.tsx";
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the

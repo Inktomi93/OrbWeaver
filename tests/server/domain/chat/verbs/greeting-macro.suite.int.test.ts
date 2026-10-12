@@ -6,8 +6,9 @@
 // provider), asserting the captured wire `TurnRequest.history` — "what the AI was told".
 
 import type { AssemblePersona } from "@orb/contracts/chat";
-import { scenario, tape } from "../../../../support/chat/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { scenario } from "../_scenario.ts";
 import { seedMessage } from "../_support.ts";
 
 /** anchor = Nyx (the pinned card POV); active = Vera (a present human). Ruling A: a greeting/AI `{{user}}`

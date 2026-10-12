@@ -5,10 +5,10 @@
 // partial-prefix key, order independence, and the key-only fence (a filter carrying `exact`/`predicate`
 // means more than its key says, so it never eliminates another and is never eliminated).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { InvalidateQueryFilters } from "@tanstack/react-query";
 import { describe } from "vitest";
 import { collapseFilters } from "#client/data/collapse-filters.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const personaRoot: InvalidateQueryFilters = { queryKey: [["persona"]] };
 const personaList: InvalidateQueryFilters = { queryKey: [["persona", "list"]] };

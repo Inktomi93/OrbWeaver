@@ -1,9 +1,9 @@
 // The instruction-layer check on planted trees, one failure class per case, each beside the clean tree
 // that proves the same walk passes. The last case runs it on the real repository, which must be clean.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { alwaysOnLines, instructionFiles, instructionLayerProblems } from "../../../../tooling/src/agent-sync/index.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const RULE = '---\npaths:\n  - "docs/**"\n---\n\n# Docs rule\n\nWrite plainly.\n';
 const RULE_LINE = "- `.claude/rules/docs.md`: `docs/**`";

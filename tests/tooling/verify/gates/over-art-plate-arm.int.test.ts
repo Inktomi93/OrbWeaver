@@ -24,6 +24,7 @@
 //        tree, replayed through the converted reader.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
@@ -32,7 +33,6 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { loadAuthoredCss } from "../../../../tooling/src/verify/ops/resource-tree.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ANCHOR = "packages/client/src/styles/globals.css";
 const KEEP = { "packages/ui/src/styles/keep.css": ".keep {\n  color: var(--color-foreground);\n}\n" } as const;
@@ -170,6 +170,21 @@ test("§4.6 differential — the four legacy keys are BURNED DOWN on the real tr
   // control below fails loudly, where an optional chain would have let a refused read pass as a burn-down.
   const judged = judgeStylesheets(corpus.status === "ready" ? corpus.value : []);
 
-  expect([...judged.live.keys()].toSorted((a, b) => a.localeCompare(b))).toEqual([]);
+  // `judged.live` is the reader's raw verdict, before the central waiver engine runs. A waived subject is a
+  // ratified exemption (the NO-FILL footer on the popup's own fill), not owed debt, so the burn-down is that
+  // every live subject is waived and every waiver names a live subject, both read from the gate's own run.
+  const real = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: repoRoot,
+    project: new Project({ skipAddingFilesFromTsConfig: true }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  const live = [...judged.live.values()].map((site) => `${site.rel}::${site.subject}`).toSorted((a, b) => a.localeCompare(b));
+  const waived = real.authority.waivedFindings.map(({ finding }) => `${finding.file}::${finding.token}`).toSorted((a, b) => a.localeCompare(b));
+
+  expect(real.authority.effectiveFindings).toEqual([]);
+  expect(live).toEqual(waived);
   expect(judged.glassRules).toBeGreaterThan(0);
 });

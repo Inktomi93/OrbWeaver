@@ -31,11 +31,11 @@
 // in the first place — after teardown the `.catch` schedules nothing — so the only unpinned residue is a
 // timer that was already ticking at the moment of unmount.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
+import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { BundleWorkloadTrackerStory } from "../_ct-stories.tsx";
 

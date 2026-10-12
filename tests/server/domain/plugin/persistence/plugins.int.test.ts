@@ -9,6 +9,8 @@ import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   applyUpgrade,
   deletePlugin,
@@ -22,8 +24,6 @@ import {
   setStatus,
   toPluginView,
 } from "#server/domain/plugin/persistence/plugins.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const AT = 1000;

@@ -18,10 +18,10 @@ import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgG
 import { castId } from "@orb/kit/ids";
 import type { RpgPortabilityContext } from "@orb/server/domain/rpg";
 import { createExportRpgGame, createImportRpgGame } from "@orb/server/domain/rpg";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../../chat/_support.ts";
 import { seedGame, snapshotId } from "../_support.ts";
 

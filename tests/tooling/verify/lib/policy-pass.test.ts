@@ -2,6 +2,7 @@
 
 import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
@@ -11,7 +12,6 @@ import type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProofMod
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassInput, PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

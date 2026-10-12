@@ -3,6 +3,7 @@
 // tests/tooling/snap/ops/arms/lighthouse.int.test.ts; these pins fix the READING of a report — the arms that
 // a real run cannot produce on demand (a runtime error, a truncated render, a missing category).
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { LighthouseReceipt } from "../../../../tooling/src/snap/index.ts";
 import {
   auditedCount,
@@ -15,7 +16,6 @@ import {
   parseLighthouseMode,
   reportTruncation,
 } from "../../../../tooling/src/snap/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const WHOLE_HTML = "x".repeat(20_000);
 

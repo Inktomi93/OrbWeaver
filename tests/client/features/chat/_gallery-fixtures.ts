@@ -1,10 +1,10 @@
 // Shared network stubs and rows for the gallery CTs (the dialog, its add-picker and its upload zone). Every
 // suite mounts `CharacterGalleryDialogStory`, whose character is `character_ct_gallery` named "Aria".
 
+import type { AuthConfig } from "@orb/client/data";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import type { Page } from "@playwright/test";
-import type { AuthConfig } from "#client/data/auth-config.ts";
-import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
 type GalleryRow = TrpcWireOutput<"assets.listGallery">[number];
 type OwnedRow = TrpcWireOutput<"assets.listOwned">[number];

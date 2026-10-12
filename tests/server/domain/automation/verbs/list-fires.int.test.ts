@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/automation/verbs/list-fires.ts
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("listFires returns the rule's fire log (the testRule test_run row)", async () => {

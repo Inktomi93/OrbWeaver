@@ -53,10 +53,10 @@ import {
   publishPrivateEndpointAllowlist,
   resolvedEndpointAdmission,
 } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, request, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // Capture/restore the process-global dispatcher through undici's PUBLIC accessors. Restoring is MANDATORY:
 // leaving the firewall installed would block a sibling integration test's real 127.0.0.1 healthz fetch
