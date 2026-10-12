@@ -4,7 +4,8 @@
 // Filesystem-touching, so it sits beside the pure rules in `prose-rules.ts` rather than inside them; the
 // instruction-layer walk and the docs walk are its two importers.
 import { existsSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, posix, relative, sep } from "node:path";
+import { dirname, join, posix, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { GIT_READ_PREFIX, runGit } from "../git/git.ts";
 import { backtickedRelativePaths, backtickedRepoPaths, markdownLinkTargets } from "./prose-rules.ts";
 
@@ -22,8 +23,7 @@ function isIgnoredBuildOutput(root: string, path: string, ignored: (path: string
     missing = existing;
     existing = posix.dirname(existing);
   }
-  const ancestor = relative(realpathSync(root), realpathSync(join(root, existing)));
-  if (ancestor === ".." || ancestor.startsWith(`..${sep}`) || isAbsolute(ancestor)) {
+  if (!isWithinRoot(realpathSync(root), realpathSync(join(root, existing)), { sep })) {
     return false;
   }
   if (existing !== "." && ignored(existing)) {

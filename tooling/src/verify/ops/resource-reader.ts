@@ -2,7 +2,8 @@
 
 import type { Dirent } from "node:fs";
 import { lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceFileSnapshot, ResourceLoad, ResourceReader, ResourceReaderOptions, ResourceTreeEntry } from "../contract/resource.ts";
 import { assertRepoPathIdentity } from "../lib/policy-validation.ts";
@@ -311,11 +312,11 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
     const target = join(root, path);
     if (!overlay.has(path) && lstatSync(target).isSymbolicLink()) {
       const canonical = realpathSync(target);
-      const rel = relative(realpathSync(root), canonical);
-      if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+      const realRoot = realpathSync(root);
+      if (!isWithinRoot(realRoot, canonical, { sep })) {
         throw new Error(`authored resource symlink resolves outside the invocation root: ${path}`);
       }
-      return Object.freeze({ path, kind: "symlink", targetPath: rel.split(sep).join("/"), origin: "disk" });
+      return Object.freeze({ path, kind: "symlink", targetPath: relative(realRoot, canonical).split(sep).join("/"), origin: "disk" });
     }
     const loaded = readBytes(path);
     if (loaded.status !== "ready") {

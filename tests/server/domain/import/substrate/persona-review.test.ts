@@ -3,7 +3,7 @@
 // hash (sha256 of the bytes the run would store), the tolerance (an unreadable settings file yields none) and
 // the multi-profile read.
 
-import { createHash } from "node:crypto";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { UploadedFile } from "#server/domain/import/contract/views.ts";
@@ -19,17 +19,13 @@ function file(relPath: string, text: string | Uint8Array): UploadedFile {
   return { relPath, bytes: typeof text === "string" ? ENC.encode(text) : text };
 }
 
-function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
-
 describe("incomingPersonasOf", () => {
   test("pairs a persona with the avatar beside ITS settings.json and hashes the bytes", () => {
     const art = new Uint8Array([1, 2, 3]);
 
     const [nate] = incomingPersonasOf([file("p/settings.json", NATE_SETTINGS), file("p/User Avatars/nate.png", art)]);
 
-    expect(nate).toMatchObject({ name: "Nate", description: "ST Nate", artHash: sha256(art) });
+    expect(nate).toMatchObject({ name: "Nate", description: "ST Nate", artHash: sha256Hex(art) });
     expect(nate?.metadata).toMatchObject({ descriptionPosition: "at_depth" });
   });
 

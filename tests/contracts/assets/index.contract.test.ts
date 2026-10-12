@@ -11,8 +11,7 @@ import {
   VARIANT_KINDS,
   variantKindSchema,
 } from "@orb/contracts/assets";
-import type { AssetId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── The upload `kind` axis ───────────────────────────────────────────────────
@@ -66,22 +65,20 @@ test("blobUrl composes the canonical /api/blob/<hash> route", () => {
 });
 
 // ── The upload POST response shape ───────────────────────────────────────────
-// Branded AssetId built at the untyped seam (castId is the sanctioned cast) — no pasted ids.
-const SAMPLE_ASSET_ID = castId<AssetId>("asset_sample");
-
-test("StoredAsset pins the upload-response shape: assetId+hash+size+created, no ownerId on the wire", () => {
+// `assetIdSchema` validates TypeID shape and prefix, so the fixture id is minted.
+test("storedAssetSchema carries the upload-response shape (assetId+hash+size+created) through a parse and never echoes an owner", () => {
   const stored: StoredAsset = {
-    assetId: SAMPLE_ASSET_ID,
+    assetId: mintTypeId(ID_PREFIX.asset),
     hash: SAMPLE_HASH,
     size: 4096,
     created: true,
   };
-  expect(Object.keys(stored).sort()).toEqual(["assetId", "created", "hash", "size"].sort());
-  // D21: the uploader already owns it — `ownerId` is stamped server-side, never echoed on the wire.
-  expect("ownerId" in stored).toBe(false);
+  expect(storedAssetSchema.parse(stored)).toEqual(stored);
   // `created: false` is the within-user dedup signal (the blob already existed).
   const deduped: StoredAsset = { ...stored, created: false };
-  expect(deduped.created).toBe(false);
+  expect(storedAssetSchema.parse(deduped)).toEqual(deduped);
+  // D21: the uploader already owns it — `ownerId` is stamped server-side, never echoed on the wire.
+  expect(storedAssetSchema.parse({ ...stored, ownerId: "not-for-the-wire" })).toEqual(stored);
 });
 
 test("storedAssetSchema parses a well-formed upload response and rejects a malformed one", () => {

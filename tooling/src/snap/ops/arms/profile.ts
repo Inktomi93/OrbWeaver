@@ -2,6 +2,7 @@
 // in prepare() before navigation; the settled pass only reads and files it. This is deliberately not the
 // React DevTools UI/backend and never calls the injected renderer's mutation methods.
 import { errorMessage } from "@orb/kit/error-message";
+import { finiteNumberOrNull } from "@orb/kit/guards";
 import type { Page } from "@playwright/test";
 import type { EvidenceWindowId } from "../../../floor/artifacts/artifact-scope.ts";
 import { aggregateScope, evidenceWindowId } from "../../../floor/artifacts/artifact-scope.ts";
@@ -18,7 +19,7 @@ import { REACT_PROFILE_LIMITS, READ_REACT_PROFILE_SCRIPT, reactProfileInitScript
 import type { ReactProfileReceipt } from "../../lib/react-profile-receipt.ts";
 import { reportReactProfile, writeReactProfileReceipt } from "../../lib/react-profile-receipt.ts";
 import type { TraceCapture } from "../../lib/react-profile-trace.ts";
-import { numberOf, reactTraceEvents, recordOf, startTrace, stopTrace } from "../../lib/react-profile-trace.ts";
+import { reactTraceEvents, recordOf, startTrace, stopTrace } from "../../lib/react-profile-trace.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --react-profile");
 
@@ -80,7 +81,7 @@ async function readProfileCommit(page: Page, commitIndex: number): Promise<unkno
   while (offset < componentCount) {
     const chunk = recordOf(await page.evaluate(readReactProfileCommitScript(commitIndex, offset)));
     const chunkFibers = chunk?.["fibers"];
-    const nextComponentCount = numberOf(chunk?.["componentCount"]);
+    const nextComponentCount = finiteNumberOrNull(chunk?.["componentCount"]);
     if (chunk === null || !Array.isArray(chunkFibers) || nextComponentCount === null || !Number.isInteger(nextComponentCount)) {
       return null;
     }
@@ -97,7 +98,7 @@ async function readProfileCommit(page: Page, commitIndex: number): Promise<unkno
 async function readProfilePayload(page: Page): Promise<unknown> {
   const meta = await page.evaluate(READ_REACT_PROFILE_SCRIPT);
   const metaRecord = recordOf(meta);
-  const commitCount = numberOf(metaRecord?.["commitCount"]);
+  const commitCount = finiteNumberOrNull(metaRecord?.["commitCount"]);
   if (metaRecord === null || commitCount === null || !Number.isInteger(commitCount) || commitCount < 0) {
     return meta;
   }

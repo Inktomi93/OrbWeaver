@@ -1,7 +1,8 @@
 // Private copy-on-write root for native executable-config observation. The stage contains authored bytes
 // only; installed dependencies remain in the owning worktree and workspace package links point back here.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
+import { isStrictDescendant } from "@orb/kit/path-containment";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ConfigSnapshotTransaction } from "../contract/config-snapshot.ts";
 import type { ResourceFileSnapshot, ResourceReaderOptions } from "../contract/resource.ts";
@@ -14,8 +15,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 /** Resolve `relativePath` under `root` and refuse if the result escapes. */
 function containedTarget(root: string, relativePath: string): string {
   const target = resolve(root, relativePath);
-  const rel = relative(root, target);
-  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+  if (!isStrictDescendant(root, target, { sep })) {
     throw new Error(`staged path escapes the transaction root: ${relativePath}`);
   }
   return target;
@@ -69,8 +69,7 @@ function workspaceLinkPlans(root: string, stage: string, entries: ReadonlyMap<st
     }
     const target = join(stage, dirname(manifest));
     const link = resolve(linkRoot, ...name.split("/"));
-    const rel = relative(linkRoot, link);
-    if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    if (!isStrictDescendant(linkRoot, link, { sep })) {
       throw new Error(`workspace package name cannot escape staged node_modules: ${name}`);
     }
     plans.push({ link, name, target, tombstone: !entries.has(manifest) });

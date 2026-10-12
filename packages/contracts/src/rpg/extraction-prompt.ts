@@ -36,13 +36,16 @@
 // claimed. Its bytes are VERBATIM the retired constant's: the ruling was "wire and MEASURE", and a measurement
 // against reworded text measures the rewording.
 
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { ProseOverrides } from "#prose-slot";
 import { resolveProseFrom, spliceProseTokens } from "#prose-slot";
 import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "./ambient.ts";
 import type { RpgGameConfig } from "./config.ts";
 import { isDeceptionActive, rpgGameConfigSchema } from "./config.ts";
 import type { ExtractionRefs, RpgExtraction } from "./extraction.ts";
+import { constrainExtractionSchema, RPG_NO_CHANGES_TOOL, rpgExtractionSchema } from "./extraction.ts";
 import { RPG_PROSE_SLOTS } from "./prose.ts";
+import type { RpgStateRoundTool } from "./structured-round.ts";
 import type { RpgTrackerDef } from "./tracker.ts";
 import { gameTrackers, sortTrackers } from "./tracker.ts";
 
@@ -349,3 +352,51 @@ export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = build
     establishScene: { location: false, timeOfDay: false, presentCast: false },
   },
 });
+
+/** Build the per-game, per-actor wire tools for a state round / a folded turn (R6 + R2). The parameters come
+ *  from ONE projection of the extraction schema constrained by this call's refs — so the tool a model is handed
+ *  offers EXACTLY the trackers each target actually carries, minus the locked ones (prevent-at-schema; the
+ *  apply-time lock strip stays a backstop). The descriptions are the R2 TEMPLATES rendered against THIS game,
+ *  so a host's `Grit ("resolve you spend to push through danger")` reaches the write surface by name + gloss.
+ *
+ *  A plane the game doesn't have is OMITTED ENTIRELY, never offered as an empty husk: `set_tracker` disappears
+ *  when the game defines no game-subject trackers (the constraint dropped the plane from the schema, and a
+ *  tool whose parameters no longer exist would be an invitation to write nothing).
+ *
+ *  Homed here so the compose that sends these tools and the contract suites that pin their weight build the
+ *  SAME list. */
+export function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig, prose: ProseOverrides): RpgStateRoundTool[] {
+  // The per-tool projected args, ref-constrained. We reuse the extraction constraint by projecting the whole
+  // extraction schema once and lifting each array field's item schema (which carries the injected enums).
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs) as {
+    properties?: Record<string, { items?: Record<string, unknown> } | Record<string, unknown>>;
+  };
+  const itemSchemaOf = (field: string): Record<string, unknown> | undefined => {
+    const node = constrained.properties?.[field] as { items?: Record<string, unknown> } | undefined;
+    return node === undefined ? undefined : (node.items ?? { type: "object" });
+  };
+  const sceneSchema = (constrained.properties?.["scene"] as Record<string, unknown> | undefined) ?? { type: "object" };
+  const descriptions = buildRpgToolDescriptions({ config, refs, prose });
+  const describeTool = (name: string): string => descriptions.get(name) ?? "";
+  const tools: RpgStateRoundTool[] = [
+    { name: "update_party", description: describeTool("update_party"), parameters: itemSchemaOf("party") ?? { type: "object" } },
+    { name: "update_inventory", description: describeTool("update_inventory"), parameters: itemSchemaOf("inventory") ?? { type: "object" } },
+    { name: "update_scene", description: describeTool("update_scene"), parameters: sceneSchema },
+  ];
+  // The game-subject tracker tool — present ONLY when this game defines one (R6 "a disabled feature's tool is
+  // omitted entirely"). `itemSchemaOf` returns undefined exactly when the constraint pruned the plane.
+  const trackerParams = itemSchemaOf("trackers");
+  if (trackerParams !== undefined) {
+    tools.push({ name: "set_tracker", description: describeTool("set_tracker"), parameters: trackerParams });
+  }
+  tools.push(
+    { name: "upsert_quest", description: describeTool("upsert_quest"), parameters: itemSchemaOf("quests") ?? { type: "object" } },
+    { name: "add_journal_entry", description: describeTool("add_journal_entry"), parameters: itemSchemaOf("journal") ?? { type: "object" } },
+    {
+      name: RPG_NO_CHANGES_TOOL,
+      description: rpgProse({ config, refs, prose }, "rpg.extract.tool.noChanges"),
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  );
+  return tools;
+}

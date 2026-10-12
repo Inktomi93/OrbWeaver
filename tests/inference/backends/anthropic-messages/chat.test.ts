@@ -18,6 +18,7 @@
 // @orb-waive-file no-test-fabrication({ role?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { anthropicUserIdDigest } from "#inference/backends/anthropic-messages/extras.ts";
 import { fakeApiKeySecret, fakeResolved, newUserId } from "../../_support.ts";
@@ -153,13 +154,9 @@ function fableRequest(mandatory: boolean, model = "claude-fable-5-1"): Anthropic
   return turnRequest({ connection, params: { effort: "none" }, tools: undefined });
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function thinkingTypeOf(recorded: RecordedRequest | undefined): unknown {
   const thinking = recorded?.body["thinking"];
-  return isRecord(thinking) ? thinking["type"] : undefined;
+  return isPlainObject(thinking) ? thinking["type"] : undefined;
 }
 
 test("A8/B1: a MANDATORY cell clamps effort `none` up — the body carries adaptive thinking and the record says the wire's `low`", async () => {

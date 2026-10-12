@@ -1,5 +1,6 @@
 // Native pre-transform dependency census. This stays independent of the edit Project's replaceGlobs.
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import ts from "typescript";
 import type { CompilerProgram } from "../../floor/compiler/compiler-programs.ts";
 import type { ProgramDiagnosticBaseline } from "../contract/types.ts";
@@ -7,8 +8,7 @@ import { physicalPathIdentity } from "./plans.ts";
 
 function repoAbsolute(fileName: string, repoRoot: string): string | undefined {
   const absolute = resolve(fileName);
-  const rel = relative(repoRoot, absolute);
-  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel) || rel.split(sep).includes("node_modules")) {
+  if (!isWithinRoot(resolve(repoRoot), absolute, { sep }) || relative(repoRoot, absolute).split(sep).includes("node_modules")) {
     return;
   }
   return absolute;
@@ -20,8 +20,7 @@ function repoAbsolute(fileName: string, repoRoot: string): string | undefined {
  * on the native host: only an alias whose physical target is authored repo source is admitted here. */
 export function repoPhysicalIdentity(fileName: string, repoRoot: string): string | undefined {
   const absolute = resolve(fileName);
-  const lexical = relative(repoRoot, absolute);
-  if (lexical === ".." || lexical.startsWith(`..${sep}`) || isAbsolute(lexical)) {
+  if (!isWithinRoot(resolve(repoRoot), absolute, { sep })) {
     return;
   }
   let identity: string;
@@ -35,8 +34,7 @@ export function repoPhysicalIdentity(fileName: string, repoRoot: string): string
   } catch {
     return;
   }
-  const physical = relative(physicalRoot, identity);
-  if (physical === ".." || physical.startsWith(`..${sep}`) || isAbsolute(physical) || physical.split(sep).includes("node_modules")) {
+  if (!isWithinRoot(physicalRoot, identity, { sep }) || relative(physicalRoot, identity).split(sep).includes("node_modules")) {
     return;
   }
   return identity;

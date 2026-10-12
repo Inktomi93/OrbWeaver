@@ -13,6 +13,7 @@ import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.
 import { runOpenAiCompatRerank } from "#inference/backends/openai-compat/rerank.ts";
 import { applyServerToolChoice } from "#inference/capability/floor.ts";
 import type { Resolved } from "#inference/contract/resolved.ts";
+import { generationOf } from "#inference/contract/resolved.ts";
 import { resolveChat } from "#inference/funnel/resolve-chat.ts";
 import { planStructuredFor } from "#inference/structured/plan.ts";
 import { fakeConnection, fakeDeps, fakeResolved, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
@@ -36,14 +37,6 @@ async function resolvedFor(args: {
   stores.connections.rows.set(row.id, row);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: args.fetch }));
   return (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
-}
-
-function generationOf(resolved: { readonly capability: { readonly kind: string } }): GenerationCapability {
-  const capability = resolved.capability as { readonly kind: string; readonly generation?: GenerationCapability };
-  if (capability.generation === undefined) {
-    throw new Error(`expected a generation capability, got ${capability.kind}`);
-  }
-  return capability.generation;
 }
 
 const WEATHER_TOOL = { name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: {} } };

@@ -7,7 +7,8 @@
 // mechanism, and the default-identity discipline that makes every migration stage a no-op until a host types
 // something. These are the tests that make an unbumped default revision, a duplicated slot and a
 // half-registered id impossible rather than merely discouraged.
-import { createHash } from "node:crypto";
+import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
@@ -36,10 +37,12 @@ import {
   USER_PROSE_SLOT_IDS,
 } from "@orb/contracts/prose";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import baseline from "#contracts/prose/prose-baseline.json" with { type: "json" };
+import { test as toolTest } from "@orb/testkit/node/tool-fixtures.ts";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { generateProseBaseline } from "@orb/tooling/verify";
 
 const FIRST_ID: ProseSlotId = "preset.format.impersonateNudge";
-const sha256 = (text: string): string => createHash("sha256").update(text, "utf8").digest("hex");
+const BASELINE_REL = "packages/contracts/src/prose/prose-baseline.json";
 
 // ── Resolution: two rungs, no cascade (§4.3) ────────────────────────────────────────────────────────
 test("resolveProse: an absent override resolves to the shipped default, never stale", () => {
@@ -110,30 +113,19 @@ test("no two slots ship byte-identical default text (the copy-paste-row detector
 });
 
 // ── The versioned-defaults MECHANISM (§4.4) ─────────────────────────────────────────────────────────
-test("prose-baseline.json covers exactly the registry", () => {
-  expect(Object.keys(baseline.slots).toSorted()).toStrictEqual([...PROSE_SLOT_IDS].toSorted());
-});
+// The baseline generator is the one rule for "which slots changed": it refuses a text change at an unbumped
+// version and otherwise writes each slot's `{ version, sha256(text) }`. Running it over a scratch copy of the
+// committed file therefore goes red on an unbumped text change (it refuses), and on a bumped version or a new
+// or dropped slot with no regeneration (the bytes differ).
+toolTest("the committed prose baseline is exactly what the generator writes for the registry", ({ repoRoot, scratch }) => {
+  const committed = join(repoRoot, BASELINE_REL);
+  const scratchBaseline = join(scratch, BASELINE_REL);
+  mkdirSync(dirname(scratchBaseline), { recursive: true });
+  copyFileSync(committed, scratchBaseline);
 
-test("a default-text change without a version bump is RED (and a version bump without a regen is RED)", () => {
-  const committed: Record<string, { version: number; sha256: string } | undefined> = baseline.slots;
-  // Collected, then asserted ONCE: a per-slot `expect` behind a branch is a conditional-expect, and the
-  // failure list is more useful than the first offender anyway.
-  const desynced = PROSE_SLOT_IDS.flatMap((id) => {
-    const slot = PROSE_SLOTS[id];
-    const row = committed[id];
-    if (row === undefined) {
-      return [`${id}: missing from prose-baseline.json — run \`pnpm prose:baseline\``];
-    }
-    const textChanged = sha256(slot.text) !== row.sha256;
-    if (textChanged && slot.version <= row.version) {
-      return [`${id}: the shipped default text changed at version ${slot.version} — bump \`version\`, then run \`pnpm prose:baseline\``];
-    }
-    if (!textChanged && slot.version !== row.version) {
-      return [`${id}: version moved (${row.version} → ${slot.version}) but the text did not — run \`pnpm prose:baseline\``];
-    }
-    return [];
-  });
-  expect(desynced).toStrictEqual([]);
+  expect(generateProseBaseline(scratch)).toBe(EXIT.clean);
+  // Parsed, so a red names the slot that moved instead of dumping two whole files.
+  expect(JSON.parse(readFileSync(scratchBaseline, "utf8"))).toStrictEqual(JSON.parse(readFileSync(committed, "utf8")));
 });
 
 // ── Default identity: the adapted slots still ship today's exact bytes (§4.3) ───────────────────────

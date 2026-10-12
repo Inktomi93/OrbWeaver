@@ -22,27 +22,24 @@ import type {
   RpgActorView,
   RpgGameConfig,
   RpgSnapshotState,
+  RpgStateRoundTool,
   RpgTrackerCarrier,
   RpgTrackerEntry,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
 import {
-  buildRpgToolDescriptions,
+  buildToolRoundWireTools,
   buildTrackerWriteGroups,
-  constrainExtractionSchema,
   gameTrackers,
   gameTrackerWriteKeys,
-  RPG_NO_CHANGES_TOOL,
   RPG_PROFILE_FREEFORM,
   rpgActorEntrySchema,
-  rpgExtractionSchema,
   rpgGameConfigSchema,
   rpgTrackerDefSchema,
   toolCallsToExtraction,
   trackersForCarrier,
 } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
-import { projectJsonSchema } from "@orb/kit/json-schema";
 import { buildLiteReminder, frameLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../../../packages/server/src/domain/rpg/tools/apply.ts";
 import type { Shape } from "./contract.ts";
@@ -173,44 +170,8 @@ function refsFor(state: RpgSnapshotState, config: RpgGameConfig): ExtractionRefs
   };
 }
 
-interface WireTool {
-  readonly name: string;
-  readonly description: string;
-  readonly parameters: Record<string, unknown>;
-}
-
-/** Mirror of `buildToolRoundWireTools` in `packages/server/src/entry/compose/rpg.ts` (private there). */
-function wireTools(refs: ExtractionRefs, config: RpgGameConfig): WireTool[] {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs) as {
-    properties?: Record<string, { items?: Record<string, unknown> }>;
-  };
-  const itemSchemaOf = (field: string): Record<string, unknown> | undefined => {
-    const node = constrained.properties?.[field];
-    return node === undefined ? undefined : (node.items ?? { type: "object" });
-  };
-  const sceneSchema = (constrained.properties?.["scene"] as Record<string, unknown> | undefined) ?? { type: "object" };
-  const descriptions = buildRpgToolDescriptions({ config, refs });
-  const toolText = (name: string): string => descriptions.get(name) ?? "";
-  const tools: WireTool[] = [
-    { name: "update_party", description: toolText("update_party"), parameters: itemSchemaOf("party") ?? { type: "object" } },
-    { name: "update_inventory", description: toolText("update_inventory"), parameters: itemSchemaOf("inventory") ?? { type: "object" } },
-    { name: "update_scene", description: toolText("update_scene"), parameters: sceneSchema },
-  ];
-  const trackerParams = itemSchemaOf("trackers");
-  if (trackerParams !== undefined) {
-    tools.push({ name: "set_tracker", description: toolText("set_tracker"), parameters: trackerParams });
-  }
-  tools.push(
-    { name: "upsert_quest", description: toolText("upsert_quest"), parameters: itemSchemaOf("quests") ?? { type: "object" } },
-    { name: "add_journal_entry", description: toolText("add_journal_entry"), parameters: itemSchemaOf("journal") ?? { type: "object" } },
-    {
-      name: RPG_NO_CHANGES_TOOL,
-      description:
-        "Call ONLY when the latest beat changed NOTHING trackable. Do NOT use this to avoid filling fields — if anything in the fiction moved, record it.",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  );
-  return tools;
+function wireTools(refs: ExtractionRefs, config: RpgGameConfig): RpgStateRoundTool[] {
+  return buildToolRoundWireTools(refs, config, {});
 }
 
 function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTrackerView {

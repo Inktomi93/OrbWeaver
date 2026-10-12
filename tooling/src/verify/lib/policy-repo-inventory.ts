@@ -2,6 +2,7 @@
 // malformed path, unresolved link, and root escape refuses instead of shrinking the manifest.
 import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { runGit } from "@orb/tooling/floor/git/git";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { assertRepoPath, readAuthoredRepositoryInventory } from "../../floor/compiler/authored-repository.ts";
@@ -44,10 +45,10 @@ function isMissing(error: unknown): boolean {
 }
 
 function containedRelative(root: string, canonical: string, label: string): string {
-  const rel = relative(root, canonical);
-  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+  if (!isWithinRoot(root, canonical, { sep })) {
     throw new Error(`${label} resolves outside repository`);
   }
+  const rel = relative(root, canonical);
   return rel.split(sep).join("/");
 }
 

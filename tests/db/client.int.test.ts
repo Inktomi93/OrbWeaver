@@ -6,7 +6,6 @@
 // Wave-1 slices that land real FKs.
 
 // @orb-waive-file platform-spellings(expected): baselined when the gate widened; burn-down item 906.
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,6 +29,7 @@ import { isConstraintViolation } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
@@ -139,10 +139,6 @@ function asciiCase(size: number): { label: string; text: string } {
   return { label: `${size} ascii chars`, text: `HEAD${"a".repeat(size - 8)}TAIL` };
 }
 
-function digest(text: string): string {
-  return createHash("sha256").update(text).digest("hex");
-}
-
 test("a large TEXT bind round-trips byte-exact — no silent truncation past 1MiB (#179)", async () => {
   const db = await createDb(":memory:");
   await db.run(sql`CREATE TABLE bind_probe (id INTEGER PRIMARY KEY, v TEXT NOT NULL)`);
@@ -169,7 +165,7 @@ test("a large TEXT bind round-trips byte-exact — no silent truncation past 1Mi
     // typeof first: a bind that degraded to NULL/BLOB is a different destruction than a truncation.
     expect(`${expected.label}: ${String(row?.["ty"])}`).toBe(`${expected.label}: text`);
     expect(`${expected.label}: ${String(row?.["len"])}`).toBe(`${expected.label}: ${expected.text.length}`);
-    expect(`${expected.label}: ${digest(String(row?.["v"]))}`).toBe(`${expected.label}: ${digest(expected.text)}`);
+    expect(`${expected.label}: ${sha256Hex(String(row?.["v"]))}`).toBe(`${expected.label}: ${sha256Hex(expected.text)}`);
   }
 });
 
@@ -546,8 +542,6 @@ function migrationsFixture(dir: string, sqlText: string): string {
   return chainFixture(dir, [{ tag: SHIPPED_TAG, when: SHIPPED_WHEN, sqlText }]);
 }
 
-const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
-
 /** A `:memory:` db carrying exactly one `__drizzle_migrations` row — what drizzle's migrator writes. */
 async function dbRecording(applied: { hash: string; when: number }): Promise<Awaited<ReturnType<typeof createDb>>> {
   const db = await createDb(":memory:");
@@ -606,7 +600,7 @@ test("a populated db whose recorded migration is in NO shipped entry is `diverge
       path: "<path>",
       bytes: 0,
       appliedHash: "a".repeat(64),
-      shippedHash: sha256("ALTER TABLE a ADD COLUMN b TEXT;"),
+      shippedHash: sha256Hex("ALTER TABLE a ADD COLUMN b TEXT;"),
     });
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -625,7 +619,7 @@ test("a db BEHIND the chain (applied 0000, 0001 shipped) is `current` — pendin
       { tag: SHIPPED_TAG, when: SHIPPED_WHEN, sqlText: baselineSql },
       { tag: NEXT_TAG, when: NEXT_WHEN, sqlText: "ALTER TABLE a ADD COLUMN b TEXT;" },
     ]);
-    const url = await forecastDb(dir, { hash: sha256(baselineSql), when: SHIPPED_WHEN });
+    const url = await forecastDb(dir, { hash: sha256Hex(baselineSql), when: SHIPPED_WHEN });
     expect((await forecastDevDbReset(url, folder)).status).toBe("current");
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -644,7 +638,7 @@ test("checkBaseline: a db behind the chain is `current`, a db holding an unshipp
       { tag: SHIPPED_TAG, when: SHIPPED_WHEN, sqlText: baselineSql },
       { tag: NEXT_TAG, when: NEXT_WHEN, sqlText: nextSql },
     ]);
-    const behind = await dbRecording({ hash: sha256(baselineSql), when: SHIPPED_WHEN });
+    const behind = await dbRecording({ hash: sha256Hex(baselineSql), when: SHIPPED_WHEN });
     expect(await checkBaseline(behind, folder)).toEqual({ status: "current" });
 
     // The same db against a REWRITTEN 0000 — an applied migration edited under a live database, the one
@@ -656,8 +650,8 @@ test("checkBaseline: a db behind the chain is `current`, a db holding an unshipp
     ]);
     expect(await checkBaseline(behind, rewritten)).toEqual({
       status: "regenerated",
-      appliedHash: sha256(baselineSql),
-      currentHash: sha256(nextSql),
+      appliedHash: sha256Hex(baselineSql),
+      currentHash: sha256Hex(nextSql),
     });
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -669,7 +663,7 @@ test("the same db is `current` once its recorded baseline matches — the alarm 
   try {
     const sqlText = "CREATE TABLE a (id TEXT);";
     const folder = migrationsFixture(dir, sqlText);
-    const hash = createHash("sha256").update(sqlText).digest("hex");
+    const hash = sha256Hex(sqlText);
     const url = await forecastDb(dir, { hash, when: SHIPPED_WHEN });
     expect((await forecastDevDbReset(url, folder)).status).toBe("current");
   } finally {

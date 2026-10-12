@@ -1,4 +1,13 @@
-import type { AdjustedKnob, ChatBusEvent, ChatContentPart, ChatWarning, InviteView, MessageView } from "@orb/contracts/chat";
+import type {
+  AdjustedKnob,
+  ChatBusEvent,
+  ChatContentPart,
+  ChatDeltaEvent,
+  ChatWarning,
+  InviteView,
+  MessageView,
+  PlainChatWarningCode,
+} from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { expectTypeOf, test } from "vitest";
 
@@ -172,6 +181,25 @@ test("the ONLY structured canon carriers are `view` + `delta`, and both are seq-
   // `view` is anchored by its OWN seq; `delta` by the sibling `slotSeq` — the two carriers canonAnchorSeq reads.
   expectTypeOf<MessageView["seq"]>().toEqualTypeOf<number>();
   expectTypeOf<UnionMemberHasKey<Extract<ChatBusEvent, { delta: unknown }>, "slotSeq">>().toEqualTypeOf<true>();
+});
+
+// ── The delta anchor: the BUS member carries the target slot's seq, the provider-level chunk never does ─
+// A provider cannot know a `messages.seq` (it would have to be fabricated), so the D16 anchor lives on the bus
+// member only. Without it a raw-text delta is unclassifiable and the clamp must withhold it from every
+// `from-join` member.
+test("the delta bus member carries a numeric slotSeq; the provider-level ChatDeltaEvent chunk has none", () => {
+  expectTypeOf<Extract<ChatBusEvent, { type: "delta" }>["slotSeq"]>().toEqualTypeOf<number>();
+  expectTypeOf<Extract<ChatBusEvent, { type: "delta" }>["delta"]>().toEqualTypeOf<ChatDeltaEvent>();
+  expectTypeOf<UnionMemberHasKey<ChatDeltaEvent, "slotSeq">>().toEqualTypeOf<false>();
+  expectTypeOf<ChatDeltaEvent["kind"]>().toEqualTypeOf<"text" | "reasoning">();
+});
+
+// The two degradation codes are distinct typed durable warnings: a lost cross-encoder ORDER versus an owner
+// vector space that could not be queried at all (`{{memory}}` and/or `{{databank}}` came back empty).
+test("a warning bus member takes the rerank-unavailable and retrieval-index-unavailable codes", () => {
+  expectTypeOf<"memory_rerank_unavailable">().toExtend<PlainChatWarningCode>();
+  expectTypeOf<"retrieval_index_unavailable">().toExtend<PlainChatWarningCode>();
+  expectTypeOf<Extract<ChatBusEvent, { type: "warning"; code: PlainChatWarningCode }>["code"]>().toEqualTypeOf<PlainChatWarningCode>();
 });
 
 // ── InviteView exposes no token (raw or hashed) — a leak would let anyone redeem ──────────────────────

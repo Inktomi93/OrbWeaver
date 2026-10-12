@@ -1,6 +1,7 @@
 // @orb-waive-file no-vanity-alias(test): baselined when the gate widened; burn-down item 906.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isPlainObject } from "@orb/kit/guards";
 import { expect, test as issueTest } from "@orb/testkit/node/tool-fixtures.ts";
 import { parseDocument } from "yaml";
 
@@ -13,10 +14,6 @@ interface IssueForm {
   readonly bodyIds: readonly string[];
 }
 
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function parseIssueTemplate(filename: string): Readonly<Record<string, unknown>> {
   const source = readFileSync(join(FORMS_DIR, filename), "utf8");
   const document = parseDocument(source, { prettyErrors: false });
@@ -25,14 +22,14 @@ function parseIssueTemplate(filename: string): Readonly<Record<string, unknown>>
   }
 
   const parsed = document.toJS();
-  if (!isRecord(parsed)) {
+  if (!isPlainObject(parsed)) {
     throw new Error(`${filename} must decode to an object`);
   }
   return parsed;
 }
 
 function formFieldIds(body: readonly unknown[]): readonly string[] {
-  return body.flatMap((item) => (isRecord(item) && typeof item["id"] === "string" ? [item["id"]] : []));
+  return body.flatMap((item) => (isPlainObject(item) && typeof item["id"] === "string" ? [item["id"]] : []));
 }
 
 function issueForms(): readonly IssueForm[] {
