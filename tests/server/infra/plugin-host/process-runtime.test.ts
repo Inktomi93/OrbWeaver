@@ -975,24 +975,27 @@ test.skipIf(process.platform !== "linux")(
   },
 );
 
-test.each(["disable", "upgrade", "uninstall"] as const)("%s during a deferred cold loader cannot publish a Worker or reach the retired bridge", {
-  timeout: 180_000,
-}, async (lifecycle) => {
-  let bridgeEffects = 0;
-  const base = bridge();
-  const staleBridge: PluginBridge = {
-    ...base,
-    variables: {
-      ...base.variables,
-      get: () => {
-        bridgeEffects += 1;
-        return Promise.resolve("stale");
+test.each(["disable", "upgrade", "uninstall"] as const)(
+  "%s during a deferred cold loader cannot publish a Worker or reach the retired bridge",
+  {
+    timeout: 180_000,
+  },
+  async (lifecycle) => {
+    let bridgeEffects = 0;
+    const base = bridge();
+    const staleBridge: PluginBridge = {
+      ...base,
+      variables: {
+        ...base.variables,
+        get: () => {
+          bridgeEffects += 1;
+          return Promise.resolve("stale");
+        },
       },
-    },
-  };
-  const { promise: started, resolve: loaderStarted } = Promise.withResolvers<void>();
-  const { promise: loaderGate, resolve: releaseLoader } = Promise.withResolvers<void>();
-  const source = `
+    };
+    const { promise: started, resolve: loaderStarted } = Promise.withResolvers<void>();
+    const { promise: loaderGate, resolve: releaseLoader } = Promise.withResolvers<void>();
+    const source = `
       const h = orb.host(1);
       void h.variables.get("activation");
       h.tools.register({
@@ -1001,68 +1004,69 @@ test.each(["disable", "upgrade", "uninstall"] as const)("%s during a deferred co
         parameters: { type: "object", properties: {} },
         handler: async () => { await h.variables.get("invoke"); return "stale"; },
       });`;
-  const host = createPluginHost(seams());
-  const victim = await host.createInstance({
-    ...durableSource(source, async () => {
-      loaderStarted();
-      await loaderGate;
-      return source;
-    }),
-    grants: ["tools.register", "global_vars"],
-    bridge: staleBridge,
-    chat: noChat,
-  });
-  if (!victim.ok) {
-    throw new Error(victim.error);
-  }
-  const handler = victim.instance.tools[0]?.handler;
-  if (handler === undefined) {
-    throw new Error("test: victim tool did not register");
-  }
-  const fillers: PluginInstance[] = [];
-  let replacement: PluginInstance | undefined;
-  try {
-    for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
-      const filler = await host.createInstance({ ...durableSource(`'filler-${index}'`), grants: [], bridge: base, chat: noChat });
-      if (!filler.ok) {
-        throw new Error(filler.error);
+    const host = createPluginHost(seams());
+    const victim = await host.createInstance({
+      ...durableSource(source, async () => {
+        loaderStarted();
+        await loaderGate;
+        return source;
+      }),
+      grants: ["tools.register", "global_vars"],
+      bridge: staleBridge,
+      chat: noChat,
+    });
+    if (!victim.ok) {
+      throw new Error(victim.error);
+    }
+    const handler = victim.instance.tools[0]?.handler;
+    if (handler === undefined) {
+      throw new Error("test: victim tool did not register");
+    }
+    const fillers: PluginInstance[] = [];
+    let replacement: PluginInstance | undefined;
+    try {
+      for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
+        const filler = await host.createInstance({ ...durableSource(`'filler-${index}'`), grants: [], bridge: base, chat: noChat });
+        if (!filler.ok) {
+          throw new Error(filler.error);
+        }
+        fillers.push(filler.instance);
       }
-      fillers.push(filler.instance);
-    }
-    bridgeEffects = 0;
-    const invocation = host.invoke(victim.instance, handler, "{}", noChat);
-    await started;
+      bridgeEffects = 0;
+      const invocation = host.invoke(victim.instance, handler, "{}", noChat);
+      await started;
 
-    // Disable and uninstall both terminate the resident. Upgrade does the same first, then publishes a
-    // replacement binding; the paused old loader must be unable to cross either lifecycle transition.
-    host.dispose(victim.instance);
-    if (lifecycle === "upgrade") {
-      const upgraded = await host.createInstance({
-        ...durableSource("'replacement';"),
-        grants: [],
-        bridge: base,
-        chat: noChat,
-      });
-      if (!upgraded.ok) {
-        throw new Error(upgraded.error);
+      // Disable and uninstall both terminate the resident. Upgrade does the same first, then publishes a
+      // replacement binding; the paused old loader must be unable to cross either lifecycle transition.
+      host.dispose(victim.instance);
+      if (lifecycle === "upgrade") {
+        const upgraded = await host.createInstance({
+          ...durableSource("'replacement';"),
+          grants: [],
+          bridge: base,
+          chat: noChat,
+        });
+        if (!upgraded.ok) {
+          throw new Error(upgraded.error);
+        }
+        replacement = upgraded.instance;
       }
-      replacement = upgraded.instance;
-    }
-    releaseLoader();
+      releaseLoader();
 
-    await expect(invocation).rejects.toThrow(/lifecycle changed/u);
-    expect(bridgeEffects).toBe(0);
-  } finally {
-    releaseLoader();
-    host.dispose(victim.instance);
-    if (replacement !== undefined) {
-      host.dispose(replacement);
+      await expect(invocation).rejects.toThrow(/lifecycle changed/u);
+      expect(bridgeEffects).toBe(0);
+    } finally {
+      releaseLoader();
+      host.dispose(victim.instance);
+      if (replacement !== undefined) {
+        host.dispose(replacement);
+      }
+      for (const filler of fillers) {
+        host.dispose(filler);
+      }
     }
-    for (const filler of fillers) {
-      host.dispose(filler);
-    }
-  }
-});
+  },
+);
 
 test("dispose during cold activation retires the partially published runtime before replacement", { timeout: 180_000 }, async () => {
   let activationCalls = 0;

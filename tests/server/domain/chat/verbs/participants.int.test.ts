@@ -1896,7 +1896,7 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
     expect(await participants.setHostDisplayScripts({ principal: principal(host), chatId, enabled: false })).toBe(false);
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
-    expect((row?.metadata as { hostDisplayScripts?: boolean }).hostDisplayScripts).toBe(false);
+    expect((row?.metadata as { hostDisplayScripts?: boolean })?.hostDisplayScripts).toBe(false);
   });
 
   test("a plain MEMBER is refused with not_host — no write, no emit", async () => {
@@ -1937,7 +1937,7 @@ describe("setMemberPersonaLore — the host's switch for members' persona lore",
     await participants.setMemberPersonaLore({ principal: principal(host), chatId, enabled: true });
     const [on] = await db.select().from(chats).where(eq(chats.id, chatId));
     // @orb-waive no-test-fabrication({ memberPersonaLore?: boolean }): baselined when the gate widened to value casts; burn-down item 906.
-    expect((on?.metadata as { memberPersonaLore?: boolean }).memberPersonaLore).toBe(true);
+    expect((on?.metadata as { memberPersonaLore?: boolean })?.memberPersonaLore).toBe(true);
   });
 
   test("a plain MEMBER cannot turn it back on to let their own lore in — not_host, no write, no emit", async () => {
@@ -1954,7 +1954,7 @@ describe("setMemberPersonaLore — the host's switch for members' persona lore",
     expect((err as ChatOperationError).code).toBe("not_host");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     // @orb-waive no-test-fabrication({ memberPersonaLore?: boolean }): baselined when the gate widened to value casts; burn-down item 906.
-    expect((row?.metadata as { memberPersonaLore?: boolean }).memberPersonaLore).toBe(false);
+    expect((row?.metadata as { memberPersonaLore?: boolean })?.memberPersonaLore).toBe(false);
     expect(emitted).toEqual([]);
   });
 });
@@ -1996,7 +1996,7 @@ describe("setOfferChoices — the per-room offer-choices posture", () => {
     expect(await participants.setOfferChoices({ principal: principal(host), chatId, enabled: false })).toBe(false);
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
-    expect((row?.metadata as { offerChoices?: boolean }).offerChoices).toBe(false);
+    expect((row?.metadata as { offerChoices?: boolean })?.offerChoices).toBe(false);
   });
 
   test("a plain MEMBER is refused with not_host — no write, no emit (this key steers the room's model)", async () => {

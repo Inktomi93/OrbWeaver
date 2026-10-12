@@ -331,14 +331,12 @@ describe("POST /api/_debug/bug-report — the CSRF content-type belt (#2376)", (
   }
 
   // The CORS-simple content-types — the complete set a cross-site page can send with no preflight.
-  test.each([
-    "text/plain",
-    "text/plain;charset=UTF-8",
-    "multipart/form-data; boundary=x",
-    "application/x-www-form-urlencoded",
-  ])("a CORS-simple %s POST is refused 415 before the JSON parse", async (contentType) => {
-    expect((await postAs(contentType)).status).toBe(UNSUPPORTED_MEDIA_TYPE);
-  });
+  test.each(["text/plain", "text/plain;charset=UTF-8", "multipart/form-data; boundary=x", "application/x-www-form-urlencoded"])(
+    "a CORS-simple %s POST is refused 415 before the JSON parse",
+    async (contentType) => {
+      expect((await postAs(contentType)).status).toBe(UNSUPPORTED_MEDIA_TYPE);
+    },
+  );
 
   test("a POST with NO content-type is refused too (a body whose type nothing declared is not JSON)", async () => {
     expect((await postAs(undefined)).status).toBe(UNSUPPORTED_MEDIA_TYPE);
@@ -347,13 +345,12 @@ describe("POST /api/_debug/bug-report — the CSRF content-type belt (#2376)", (
   // POSITIVE CONTROLS — a belt that refused everything would pass every pin above. The real client sends a
   // bare `application/json`; a `; charset=utf-8` suffix is legal and must still pass (the prefix test), and
   // the match is case-insensitive because media types are.
-  test.each([
-    "application/json",
-    "application/json; charset=utf-8",
-    "APPLICATION/JSON",
-  ])("%s still reaches the schema (400 from the empty note, not 415 from the belt)", async (contentType) => {
-    expect((await postAs(contentType)).status).toBe(BAD_REQUEST);
-  });
+  test.each(["application/json", "application/json; charset=utf-8", "APPLICATION/JSON"])(
+    "%s still reaches the schema (400 from the empty note, not 415 from the belt)",
+    async (contentType) => {
+      expect((await postAs(contentType)).status).toBe(BAD_REQUEST);
+    },
+  );
 
   test("the belt does not open the gate — an un-credentialed text/plain POST is still refused as unauthorized", async () => {
     const res = await beltApp().request("/api/_debug/bug-report", { method: "POST", headers: { "content-type": "text/plain" }, body: EMPTY_NOTE_BODY });

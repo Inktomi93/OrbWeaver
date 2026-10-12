@@ -19,7 +19,10 @@ test("a response format rides output_config.format with the SDK pinned to it —
     turnRequest({ connection: curatedConnection("claude-sonnet-5-5"), tools: undefined, responseFormat }),
     anthropicTextStream('{"tags":["a"]}'),
   );
-  const format = (body?.body["output_config"] as { readonly format: { readonly type: string; readonly schema: Record<string, unknown> } }).format;
+  const format = (body?.body["output_config"] as { readonly format: { readonly type: string; readonly schema: Record<string, unknown> } })?.format;
+  if (format === undefined) {
+    throw new Error("the structured request carried no output_config.format");
+  }
   expect(format.type).toBe("json_schema");
   // The anthropic-format scrub rode: the author's floor is clamped to the subset's 1 and relayed as the note. The
   // SDK's own `sanitizeJsonSchema` would strip that `minItems: 1` too; the planned schema is put back after it.

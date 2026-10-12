@@ -114,10 +114,10 @@ test("reviewTreePersonas posts ONLY settings.json and User Avatars parts, and re
 
   expect(captured?.url).toBe("/api/import/tree/review");
   // @orb-waive no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
-  expect((captured?.init.headers as Record<string, string>)[CSRF_HEADER]).toBe("1");
+  expect((captured?.init.headers as Record<string, string>)?.[CSRF_HEADER]).toBe("1");
   // @orb-waive no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
   // @orb-waive no-test-fabrication(File): baselined when the gate widened to value casts; burn-down item 906.
-  expect((captured?.init.body as FormData).getAll("file").map((f) => (f as File).name)).toEqual([
+  expect((captured?.init.body as FormData)?.getAll("file").map((f) => (f as File).name)).toEqual([
     "default-user/settings.json",
     "default-user/User Avatars/nate.png",
   ]);

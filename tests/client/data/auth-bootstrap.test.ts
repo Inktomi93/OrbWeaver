@@ -69,7 +69,7 @@ test("login posts a urlencoded FORM body (not JSON) with same-origin credentials
   expect(seen?.method).toBe("POST");
   expect(seen?.credentials).toBe("same-origin");
   expect(seen?.body).toBeInstanceOf(URLSearchParams);
-  expect((seen?.body as URLSearchParams).get("handle")).toBe("alice");
+  expect((seen?.body as URLSearchParams)?.get("handle")).toBe("alice");
 });
 
 test("a login refusal throws the SERVER's message (LoginFailedError, never an invented one)", async () => {

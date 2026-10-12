@@ -438,7 +438,7 @@ test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops
   expect(options[0]?.["thinking"]).toMatchObject({ type: "adaptive" });
   expect(options[0]?.["effort"]).toBe("high");
   // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-  expect((options[0]?.["env"] as Record<string, unknown>)["CLAUDE_CODE_DISABLE_THINKING"]).toBeUndefined();
+  expect((options[0]?.["env"] as Record<string, unknown>)?.["CLAUDE_CODE_DISABLE_THINKING"]).toBeUndefined();
   expect(warnedCodes(lines)).toContain("sampling_knob_dropped");
 });
 
@@ -565,7 +565,7 @@ test("(9) a chat template's role refusal on summarize reads as the chat turn's f
   });
   const failure = await executor.summarize({ connection, inputs: [ITEM] }).catch((err: unknown) => err);
   expect(failure).toMatchObject({ kind: "invalid", retryable: false });
-  expect(String((failure as Error).message)).toContain("Message handling");
+  expect((failure as Error).message).toContain("Message handling");
   expect(recorded).toHaveLength(1);
 });
 

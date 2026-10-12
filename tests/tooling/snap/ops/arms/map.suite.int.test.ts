@@ -128,8 +128,8 @@ test("live map prints executable SPA atlas, factual desktop shell geometry, and 
   const capture = (data["captures"] as Record<string, unknown>[])[0];
   expect(capture?.["mapAtlas"]).toMatchObject({ status: "available", capabilities: { sections: ["home", "chats"] } });
   expect(capture?.["mapShell"]).toMatchObject({ status: "available", regime: "wide", section: "chats" });
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
-  const compose = (capture?.["mapResult"] as Record<string, unknown>[]).find((row) => row["name"] === "Compose");
+  // @orb-waive no-test-fabrication(Record<string, unknown>[] | undefined): baselined when the gate widened to value casts; burn-down item 906.
+  const compose = (capture?.["mapResult"] as Record<string, unknown>[] | undefined)?.find((row) => row["name"] === "Compose");
   expect(compose).toMatchObject({ selector: '[aria-label="Compose"]:visible', visibility: "visible", actionability: "actionable" });
 
   const click = await runCli(

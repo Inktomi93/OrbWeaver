@@ -68,18 +68,14 @@ describe("resolveBindPosture — the DEFAULT arm: a non-production build restric
     expect(bindPostureWarnings(input, resolveBindPosture(input))).toEqual([]);
   });
 
-  test.each([
-    "localhost",
-    "::1",
-    "[::1]",
-    "127.0.0.53",
-    "LOCALHOST",
-    " 127.0.0.1 ",
-  ])("an explicit loopback spelling (%s) is accepted in dev — no refusal, not a public bind", (bindHost) => {
-    const posture = resolveBindPosture({ nodeEnv: "development", bindHost, ...HATCH_SHUT });
-    expect(posture.refusal).toBeNull();
-    expect(posture.publicBind).toBe(false);
-  });
+  test.each(["localhost", "::1", "[::1]", "127.0.0.53", "LOCALHOST", " 127.0.0.1 "])(
+    "an explicit loopback spelling (%s) is accepted in dev — no refusal, not a public bind",
+    (bindHost) => {
+      const posture = resolveBindPosture({ nodeEnv: "development", bindHost, ...HATCH_SHUT });
+      expect(posture.refusal).toBeNull();
+      expect(posture.publicBind).toBe(false);
+    },
+  );
 });
 
 describe("resolveBindPosture — the REFUSE arm: an explicit dev public bind is boot-fatal", () => {

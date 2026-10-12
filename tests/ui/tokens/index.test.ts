@@ -113,7 +113,7 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
   );
 
   // FINE — the emitted @media(pointer:fine) :root override: the desktop density scale.
-  const fineBlock = themeCss.match(FINE_BLOCK_RE);
+  const fineBlock = FINE_BLOCK_RE.exec(themeCss);
   expect(fineBlock, "an @media(pointer:fine) :root override block must be emitted for the desktop density scale").not.toBeNull();
   const fineBody = fineBlock?.[1] ?? "";
   const fineRem = (name: string): number => {
@@ -152,7 +152,7 @@ test("EVERY snapped spacing token is belted on BOTH arms and is an integer px at
   }
 
   // The fine overrides are a SUBSET (only pointer-conditional tokens have one) and every member is belted.
-  const fineBody = themeCss.match(FINE_BLOCK_RE)?.[1] ?? "";
+  const fineBody = FINE_BLOCK_RE.exec(themeCss)?.[1] ?? "";
   const fineLines = fineBody.split("\n").filter((line) => line.includes("--spacing-"));
   expect(fineLines.length, "the pointer-fine block must still carry the spacing overrides").toBeGreaterThan(0);
   for (const line of fineLines) {
@@ -299,16 +299,13 @@ const AVATAR_HUE_MATRIX = AVATAR_PALETTES.flatMap((palette) =>
   Object.entries(AVATAR_HUE_STEPS).map(([bucket, step]) => ({ palette: palette.name, bucket, primary: palette.primary, foreground: palette.foreground, step })),
 );
 
-test.each(AVATAR_HUE_MATRIX)("avatar hue $bucket clears AA (≥4.5:1) against $palette's own primary-foreground", ({
-  primary,
-  foreground,
-  step,
-  palette,
-  bucket,
-}) => {
-  const ratio = contrast(parseOklch(foreground), derivedAvatarFill(primary, step));
-  expect(ratio, `${palette} hue ${bucket} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
-});
+test.each(AVATAR_HUE_MATRIX)(
+  "avatar hue $bucket clears AA (≥4.5:1) against $palette's own primary-foreground",
+  ({ primary, foreground, step, palette, bucket }) => {
+    const ratio = contrast(parseOklch(foreground), derivedAvatarFill(primary, step));
+    expect(ratio, `${palette} hue ${bucket} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  },
+);
 
 // …and the steps must stay TELLABLE APART (the ruling's other half: differentiation by lightness/chroma
 // within the band). Adjacent-in-lightness buckets that collapse to the same tone are a silent regression a

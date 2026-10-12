@@ -613,17 +613,14 @@ test.each([".vite", ".vite-5181"])("%s 504 Outdated Optimize Dep is churn; a 504
   expect(partitionFailedRequests([outdated, gateway])).toMatchObject({ viteChurn: [outdated], failed: [gateway] });
 });
 
-test.each([
-  ".vite-other/deps",
-  ".vite-5181other/deps",
-  ".vite-/deps",
-  ".vite5181/deps",
-  ".vite-5181/deps-other",
-])("optimizer namespace lookalike %s retains abort and HTTP failures", (path) => {
-  const aborted = request({ url: `http://localhost:5181/node_modules/${path}/react.js`, failed: "net::ERR_ABORTED" });
-  const gateway = request({ url: aborted.url, status: 504 });
-  expect(partitionFailedRequests([aborted, gateway])).toMatchObject({ viteChurn: [], failed: [aborted, gateway] });
-});
+test.each([".vite-other/deps", ".vite-5181other/deps", ".vite-/deps", ".vite5181/deps", ".vite-5181/deps-other"])(
+  "optimizer namespace lookalike %s retains abort and HTTP failures",
+  (path) => {
+    const aborted = request({ url: `http://localhost:5181/node_modules/${path}/react.js`, failed: "net::ERR_ABORTED" });
+    const gateway = request({ url: aborted.url, status: 504 });
+    expect(partitionFailedRequests([aborted, gateway])).toMatchObject({ viteChurn: [], failed: [aborted, gateway] });
+  },
+);
 
 test("snap help exits cleanly without starting Chromium", () => {
   const result = runSnap(["--help"]);

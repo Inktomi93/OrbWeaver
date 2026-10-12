@@ -32,93 +32,92 @@ test.for([
   { reportedPrice: 0, sourceId: "source-fixture", expectedSource: "source-fixture" },
   { reportedPrice: 0.125, sourceId: "source-fixture", expectedSource: "source-fixture" },
   { reportedPrice: 0.125, sourceId: "fixture-key", expectedSource: null },
-])("actual OpenRouter embedding HIT price $reportedPrice/source $sourceId preserves canon without credential bytes", async ({
-  reportedPrice,
-  sourceId,
-  expectedSource,
-}, { db, ids }) => {
-  const owner = await seedUser(db);
-  const connection = fakeResolved({
-    task: "embed",
-    providerId: "openrouter",
-    model: "google/gemini-embedding-2",
-    ownerId: owner.id,
-    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 2, mrl: true } },
-    secret: fakeApiKeySecret("fixture-key"),
-    declaredFeatures: { pricing: { inputPerMTok: 1, outputPerMTok: 0 } },
-  });
-  await db
-    .insert(userConnections)
-    .values({ id: connection.connectionId, ownerId: owner.id, providerId: connection.providerId, model: connection.model, label: "Embedding" });
-  const begin = createRecordUsage({
-    db,
-    now: () => NOW,
-    newCallId: () => castId<EmbeddingCallId>(ids.next(ID_PREFIX.embeddingCall)),
-    newInvocationId: () => castId<EmbeddingInvocationId>(ids.next(ID_PREFIX.embeddingInvocation)),
-    applyStatsDelta,
-  });
-  const accounting = begin({
-    ownerId: owner.id,
-    connectionId: connection.connectionId,
-    providerId: connection.providerId,
-    model: connection.model,
-    wire: connection.wire,
-    task: "embed",
-  });
-  const posts: string[] = [];
-  const deps = fakeDeps();
-  const result = await runOpenAiCompatEmbed(
-    { connection, input: "Retained cached embedding.", dimensions: 2, embeddingAccounting: accounting },
-    {
-      log: deps.log,
-      transport: {
-        app: deps.app,
-        fetch: (input) => {
-          posts.push(new URL(String(input)).pathname);
-          return Promise.resolve(
-            Response.json(
-              {
-                object: "list",
-                model: "served-embedding-model",
-                data: [{ object: "embedding", index: 0, embedding: [1, 0] }],
-                usage: { ["prompt_tokens"]: 0, ["total_tokens"]: 0, ...(reportedPrice === null ? {} : { cost: reportedPrice }) },
-              },
-              {
-                headers: {
-                  "x-openrouter-cache-status": "HIT",
-                  "x-openrouter-cache-age": "0",
-                  "x-openrouter-cache-ttl": "240",
-                  "x-openrouter-cache-source-id": sourceId,
+])(
+  "actual OpenRouter embedding HIT price $reportedPrice/source $sourceId preserves canon without credential bytes",
+  async ({ reportedPrice, sourceId, expectedSource }, { db, ids }) => {
+    const owner = await seedUser(db);
+    const connection = fakeResolved({
+      task: "embed",
+      providerId: "openrouter",
+      model: "google/gemini-embedding-2",
+      ownerId: owner.id,
+      capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 2, mrl: true } },
+      secret: fakeApiKeySecret("fixture-key"),
+      declaredFeatures: { pricing: { inputPerMTok: 1, outputPerMTok: 0 } },
+    });
+    await db
+      .insert(userConnections)
+      .values({ id: connection.connectionId, ownerId: owner.id, providerId: connection.providerId, model: connection.model, label: "Embedding" });
+    const begin = createRecordUsage({
+      db,
+      now: () => NOW,
+      newCallId: () => castId<EmbeddingCallId>(ids.next(ID_PREFIX.embeddingCall)),
+      newInvocationId: () => castId<EmbeddingInvocationId>(ids.next(ID_PREFIX.embeddingInvocation)),
+      applyStatsDelta,
+    });
+    const accounting = begin({
+      ownerId: owner.id,
+      connectionId: connection.connectionId,
+      providerId: connection.providerId,
+      model: connection.model,
+      wire: connection.wire,
+      task: "embed",
+    });
+    const posts: string[] = [];
+    const deps = fakeDeps();
+    const result = await runOpenAiCompatEmbed(
+      { connection, input: "Retained cached embedding.", dimensions: 2, embeddingAccounting: accounting },
+      {
+        log: deps.log,
+        transport: {
+          app: deps.app,
+          fetch: (input) => {
+            posts.push(new URL(String(input)).pathname);
+            return Promise.resolve(
+              Response.json(
+                {
+                  object: "list",
+                  model: "served-embedding-model",
+                  data: [{ object: "embedding", index: 0, embedding: [1, 0] }],
+                  usage: { ["prompt_tokens"]: 0, ["total_tokens"]: 0, ...(reportedPrice === null ? {} : { cost: reportedPrice }) },
                 },
-              },
-            ),
-          );
+                {
+                  headers: {
+                    "x-openrouter-cache-status": "HIT",
+                    "x-openrouter-cache-age": "0",
+                    "x-openrouter-cache-ttl": "240",
+                    "x-openrouter-cache-source-id": sourceId,
+                  },
+                },
+              ),
+            );
+          },
         },
       },
-    },
-  );
-  await accounting.finish(true);
-  expect(posts).toEqual(["/api/v1/embeddings"]);
-  const responseCache = { status: "hit", ageSeconds: 0, ttlSeconds: 240, sourceGenerationId: expectedSource };
-  expect(result.usage).toEqual({ promptTokens: 0, totalTokens: 0, responseCache });
-  const rows = await db.select().from(embeddingCalls);
-  expect(rows).toHaveLength(1);
-  expect(rows[0]).toMatchObject({
-    ownerId: owner.id,
-    inputCount: 1,
-    servedModel: "served-embedding-model",
-    promptTokens: 0,
-    totalTokens: 0,
-    responseCache,
-    costUsd: reportedPrice ?? 0,
-    costProvenance: "measured",
-    outcome: "completed",
-  });
-  const live = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id));
-  expect(live[0]).toMatchObject({ costUsd: reportedPrice ?? 0, costSamples: 1, tokensIn: 0, tokensInMeasuredSamples: 1, assistantTurns: 0, genSamples: 0 });
-  await reconcileStats(db, { now: () => NOW });
-  expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id))).toEqual(live);
-});
+    );
+    await accounting.finish(true);
+    expect(posts).toEqual(["/api/v1/embeddings"]);
+    const responseCache = { status: "hit", ageSeconds: 0, ttlSeconds: 240, sourceGenerationId: expectedSource };
+    expect(result.usage).toEqual({ promptTokens: 0, totalTokens: 0, responseCache });
+    const rows = await db.select().from(embeddingCalls);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      ownerId: owner.id,
+      inputCount: 1,
+      servedModel: "served-embedding-model",
+      promptTokens: 0,
+      totalTokens: 0,
+      responseCache,
+      costUsd: reportedPrice ?? 0,
+      costProvenance: "measured",
+      outcome: "completed",
+    });
+    const live = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id));
+    expect(live[0]).toMatchObject({ costUsd: reportedPrice ?? 0, costSamples: 1, tokensIn: 0, tokensInMeasuredSamples: 1, assistantTurns: 0, genSamples: 0 });
+    await reconcileStats(db, { now: () => NOW });
+    expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id))).toEqual(live);
+  },
+);
 
 test("physical batches retain rates, partial failure and owner scope independently of vectors", async ({ db, ids }) => {
   const owner = await seedUser(db);

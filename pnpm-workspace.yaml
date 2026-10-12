@@ -49,7 +49,7 @@ catalog:
   ts7: npm:typescript@7.0.2
   "@eslint/config-array": 0.23.5
   typescript: ^6.0.3
-  "@biomejs/biome": 2.5.1
+  "@biomejs/biome": 2.5.15
   lefthook: ^2.1.14
   dependency-cruiser: ^18.4.0
   ts-morph: ^28.0.0

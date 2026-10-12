@@ -108,7 +108,7 @@ for (const { model, assistantPrefill } of [
 test("OR prefill-capable Anthropic model: a run that ends the history folds and keeps its assistant tail", async () => {
   const messages = await roundCall("anthropic/claude-opus-4.5", true)(ROUND_OPENING);
   expect(messages.map((message) => message["role"])).toEqual(["system", "user", "assistant"]);
-  expect((messages[2]?.["content"] as unknown[]).length).toBe(2);
+  expect((messages[2]?.["content"] as unknown[])?.length).toBe(2);
 });
 
 test("OR non-Anthropic model: the round's rows pass through 1:1 with no history marker, as before", async () => {
