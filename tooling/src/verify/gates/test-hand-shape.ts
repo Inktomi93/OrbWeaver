@@ -4,10 +4,10 @@
 // the checker judges (an argument, an initializer, a return, a property value, an assignment, a cast or `satisfies`),
 // one side's type is that hand shape and the other's is declared outside the test tree. Judged by type: the relation
 // of the two types decides the wording (copies, narrows, widens, diverges), never a field name or a count. A shape
-// bound to no production value passes whatever fields it shares, unless it is a DECLARED COPY: the one exported
-// production shape that is assignable to it and either assignable back, has exactly its field names, or is
-// overridden by it (the hand shape has an optional field). A hand shape that fits several production shapes copies
-// none of them. DECLARED LIMIT: only whole-type bindings are seen; a hand shape reached through a mapped or generic
+// bound to no production value passes whatever fields it shares, unless it is a DECLARED COPY: an exported production
+// shape (or a database row type) that is assignable to it and either assignable back, has exactly its field names, or
+// is overridden by it (the hand shape has an optional field). The smallest such shape, by field count, is reported.
+// DECLARED LIMIT: only whole-type bindings are seen; a hand shape reached through a mapped or generic
 // wrapper (`Partial<Hand>`) is not unwrapped, and a hand shape that drifted (renamed or retyped a field) is judged
 // only where a value binds it.
 // FAMILY `contract-derives-not-respells`. Debt: `lib/reviewed-grants-test-hand-shape.ts`.
@@ -20,6 +20,8 @@ import { declarationHome } from "../lib/declaration-home.ts";
 
 const TESTS = "tests/";
 const E2E = "tests/e2e/";
+/** The database package is the home of row types (AGENTS.md type homes): its tables carry `$inferSelect` and `$inferInsert`. */
+const DB_HOME = "packages/db/";
 const LAW = "(docs/law/Spine-Testing.md §10)";
 const MESSAGE = `a test support or e2e module hand-declares a shape that a production value is bound to, so a renamed or retyped field still compiles here and drifts silently ${LAW}.`;
 const FIX =
@@ -122,6 +124,8 @@ interface Binding {
   readonly handNode: HandShape;
   readonly production: Type;
   readonly productionNode: Node;
+  /** The production type's own name when its declaration does not give one (a table's row type). */
+  readonly label?: string;
 }
 
 /** The judged hand shape a type is, or the one it extends: a value typed by a derived interface keeps its base's fields. */
@@ -185,15 +189,16 @@ const RELATION_BY_DIRECTIONS: Readonly<Record<string, Relation>> = {
 };
 
 interface DeclaredShape {
-  readonly node: HandShape;
+  readonly node: Node;
+  readonly type: Type;
+  readonly label?: string;
   readonly names: ReadonlySet<string>;
   /** Some property is optional: a defaults-shaped override or patch. */
   readonly hasOptional: boolean;
 }
 
-/** The properties of a declared plain object shape, or undefined for a union, array, tuple, callable or empty type. */
-function declaredShape(node: HandShape): DeclaredShape | undefined {
-  const type = node.getType();
+/** The shape of a plain object type, or undefined for a union, array, tuple, callable or empty type. */
+function shapeOfType(node: Node, type: Type, label?: string): DeclaredShape | undefined {
   if (!type.isObject() || type.isArray() || type.isTuple() || type.getCallSignatures().length > 0) {
     return;
   }
@@ -202,42 +207,79 @@ function declaredShape(node: HandShape): DeclaredShape | undefined {
     ? undefined
     : {
         node,
+        type,
+        ...(label === undefined ? {} : { label }),
         names: new Set(properties.map((property) => property.getName())),
         hasOptional: properties.some((property) => property.hasFlags(ts.SymbolFlags.Optional)),
       };
 }
 
-/** A hand shape is a second spelling of the one exported production shape that is assignable to it and either is
- *  assignable back, has exactly its field names, or is overridden by it (the hand shape has an optional field). Judged by the
- *  two types' relation and field sets; a hand shape that fits several production shapes copies none of them. */
+/** An exported interface or alias, or an exported table of the database package, owns production shapes. */
+function ownsProductionShape(node: Node, file: string): boolean {
+  if (N.isInterfaceDeclaration(node) || N.isTypeAliasDeclaration(node)) {
+    return node.hasExportKeyword();
+  }
+  return N.isVariableDeclaration(node) && file.startsWith(DB_HOME) && node.isExported();
+}
+
+/** The production shapes one exported declaration owns: an interface or alias is one; a database table is its select
+ *  and insert row types (the `packages/db` type home). */
+function productionShapesOf(node: Node): readonly DeclaredShape[] {
+  if (N.isInterfaceDeclaration(node) || N.isTypeAliasDeclaration(node)) {
+    return [shapeOfType(node, node.getType())].filter((shape) => shape !== undefined);
+  }
+  if (!N.isVariableDeclaration(node)) {
+    return [];
+  }
+  return ["$inferSelect", "$inferInsert"].flatMap((key) => {
+    const row = node.getType().getProperty(key)?.getTypeAtLocation(node);
+    return row === undefined ? [] : [shapeOfType(node, row, `${node.getName()}.${key}`)].filter((shape) => shape !== undefined);
+  });
+}
+
+/** A hand shape is a second spelling of an exported production shape that is assignable to it and either is
+ *  assignable back, has exactly its field names, or is overridden by it (the hand shape has an optional field). Judged by
+ *  the two types' relation and field sets. A hand shape that fits several production shapes derives from the smallest
+ *  of them, by the production type's own field count. */
 function declaredCopies(
   hands: readonly HandShape[],
-  productions: readonly HandShape[],
+  productions: readonly Node[],
   assignability: { readonly isTypeAssignableTo: (source: unknown, target: unknown) => boolean },
 ): readonly Binding[] {
   const postings = new Map<string, DeclaredShape[]>();
-  for (const production of productions.map(declaredShape)) {
-    for (const name of production?.names ?? []) {
-      postings.set(name, [...(postings.get(name) ?? []), production as DeclaredShape]);
+  for (const production of productions.flatMap(productionShapesOf)) {
+    for (const name of production.names) {
+      postings.set(name, [...(postings.get(name) ?? []), production]);
     }
   }
   return hands.flatMap((handNode) => {
-    const hand = declaredShape(handNode);
+    const handType = handNode.getType();
+    const hand = shapeOfType(handNode, handType);
     if (hand === undefined) {
       return [];
     }
-    const handType = handNode.getType();
     const narrowest = [...hand.names].map((name) => postings.get(name) ?? []).reduce((least, list) => (list.length < least.length ? list : least));
-    const matches = narrowest.filter((production) => {
-      const productionType = production.node.getType();
-      return (
-        [...hand.names].every((name) => production.names.has(name)) &&
-        assignability.isTypeAssignableTo(productionType.compilerType, handType.compilerType) &&
-        (hand.hasOptional || production.names.size === hand.names.size || assignability.isTypeAssignableTo(handType.compilerType, productionType.compilerType))
-      );
-    });
-    const [only] = matches;
-    return matches.length === 1 && only !== undefined ? [{ hand: handType, handNode, production: only.node.getType(), productionNode: only.node }] : [];
+    const [smallest] = narrowest
+      .filter(
+        (production) =>
+          [...hand.names].every((name) => production.names.has(name)) &&
+          assignability.isTypeAssignableTo(production.type.compilerType, handType.compilerType) &&
+          (hand.hasOptional ||
+            production.names.size === hand.names.size ||
+            assignability.isTypeAssignableTo(handType.compilerType, production.type.compilerType)),
+      )
+      .toSorted((left, right) => left.names.size - right.names.size || (left.label ?? "").localeCompare(right.label ?? ""));
+    return smallest === undefined
+      ? []
+      : [
+          {
+            hand: handType,
+            handNode,
+            production: smallest.type,
+            productionNode: smallest.node,
+            ...(smallest.label === undefined ? {} : { label: smallest.label }),
+          },
+        ];
   });
 }
 
@@ -257,7 +299,7 @@ export const gate = defineGate({
   create: (ctx) => {
     const candidates = new Map<Node, HandShape>();
     const sites: Node[] = [];
-    const productionShapes: HandShape[] = [];
+    const productionShapes: Node[] = [];
     let judgedSites = 0;
     return {
       visitors: [
@@ -277,7 +319,7 @@ export const gate = defineGate({
           visit: (node, sourceFile: SourceFile) => {
             const file = ctx.relativePath(sourceFile);
             if (!file.startsWith(TESTS)) {
-              if ((N.isInterfaceDeclaration(node) || N.isTypeAliasDeclaration(node)) && node.hasExportKeyword()) {
+              if (ownsProductionShape(node, file)) {
                 productionShapes.push(node);
               }
               return;
@@ -314,12 +356,12 @@ export const gate = defineGate({
           return production;
         };
         const reported = new Set<string>();
-        const report = ({ handNode, hand, production, productionNode }: Binding, evidence: string): void => {
+        const report = ({ handNode, hand, production, productionNode, label }: Binding, evidence: string): void => {
           const directions = `${String(assignability.isTypeAssignableTo(production.compilerType, hand.compilerType))}:${String(assignability.isTypeAssignableTo(hand.compilerType, production.compilerType))}`;
           const relation = RELATION_BY_DIRECTIONS[directions] ?? "diverges";
           const file = ctx.relativePath(handNode.getSourceFile());
           const productionFile = declarationHome(ctx, productionNode.getSourceFile());
-          const productionName = nameOf(production, productionNode);
+          const productionName = label ?? nameOf(production, productionNode);
           const name = handNode.getName();
           const operation = `${relation}:${name}=${productionFile}#${productionName}`;
           if (!reported.has(`${file}|${operation}`)) {
@@ -422,17 +464,30 @@ export const gate = defineGate({
       expect: { count: 1, token: "LookupCall", messageIncludes: "copies" },
       why: "MUTUAL ASSIGNABILITY: the production shape differs only by an optional field, so each type is assignable to the other and the hand shape is the same type spelled twice",
     },
-  ],
-  mustPass: [
     {
       mode: "types",
       files: {
-        "packages/server/src/domain/x/contract/a.ts": "export interface AView {\n  readonly id: string;\n  readonly name: string;\n}\n",
+        "packages/server/src/domain/x/contract/a.ts":
+          "export interface AView {\n  readonly id: string;\n  readonly name: string;\n  readonly extra: string;\n}\n",
         "packages/server/src/domain/x/contract/b.ts": "export interface BView {\n  readonly id: string;\n  readonly label: string;\n}\n",
         "tests/server/domain/x/_support.ts": 'export interface IdOnly {\n  readonly id?: string;\n}\nexport const row: IdOnly = { id: "a" };\n',
       },
-      why: "A SHARED VOCABULARY IS NOT A COPY: a hand shape that fits several production shapes is a copy of none of them, so there is no one type to derive from",
+      expect: { count: 1, token: "IdOnly", messageIncludes: "`BView`" },
+      why: "SEVERAL FITS DERIVE FROM THE SMALLEST: a hand shape that fits several production shapes is still a copy, reported against the production type with the fewest fields",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts":
+          "export declare const users: {\n  readonly $inferSelect: {\n    readonly id: string;\n    readonly handle: string;\n    readonly role: string;\n    readonly passwordHash: string | null;\n  };\n};\n",
+        "tests/server/domain/admin/_support.ts":
+          'export interface SeedUserOverrides {\n  readonly id?: string;\n  readonly handle?: string;\n  readonly passwordHash?: string | null;\n}\nexport const overrides: SeedUserOverrides = { id: "a" };\n',
+      },
+      expect: { count: 1, token: "SeedUserOverrides", messageIncludes: "users.$inferSelect" },
+      why: "A ROW TYPE IS A PRODUCTION SHAPE: the database package is the home of row types, so an override shape that restates a table's columns copies that table's `$inferSelect`",
+    },
+  ],
+  mustPass: [
     {
       mode: "types",
       files: {
