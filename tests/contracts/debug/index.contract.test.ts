@@ -31,7 +31,19 @@ test("the captures response needs its enabled flag and a matching list", () => {
 test("a chat inspection parses with raw table rows, and a not-found one has null chat", () => {
   const found = {
     found: true,
-    chat: { id: CHAT_ID, title: null },
+    chat: {
+      id: CHAT_ID,
+      title: null,
+      starred: false,
+      archived: false,
+      temporary: false,
+      startedAt: null,
+      parentChatId: null,
+      forkedAt: null,
+      streamSeq: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    },
     participants: [{ id: "p", kind: "character", role: "host", userId: null, characterId: CHARACTER_ID, characterName: "A" }],
     messages: [
       {
@@ -49,10 +61,11 @@ test("a chat inspection parses with raw table rows, and a not-found one has null
       },
     ],
     sessionFrameCount: 0,
-    recentEvents: [{ seq: 1, type: "messageCommitted" }],
+    recentEvents: [{ id: mintTypeId(ID_PREFIX.chatEvent), seq: 1, type: "messageCommitted", createdAt: 1 }],
   };
   expect(chatInspectionSchema.safeParse(found).success).toBe(true);
   expect(chatInspectionSchema.safeParse({ ...found, found: false, chat: null, participants: [], messages: [], recentEvents: [] }).success).toBe(true);
+  expect(chatInspectionSchema.safeParse({ ...found, chat: { ...found.chat, unreadColumn: 1 } }).success).toBe(false);
   expect(chatInspectionSchema.safeParse({ ...found, messages: [{ ...found.messages[0], seq: "1" }] }).success).toBe(false);
 });
 

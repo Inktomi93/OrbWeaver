@@ -6,6 +6,7 @@ import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { participantKindSchema, participantRoleSchema } from "#chat";
+import { providerIdSchema } from "#inference";
 import { rpgTraceRecordSchema } from "#rpg";
 
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
@@ -16,8 +17,7 @@ export const wireCaptureSchema = z.strictObject({
   chatId: chatIdSchema.optional(),
   api: z.string(),
   wire: z.string(),
-  // @orb-waive no-raw-id(providerId): the inference capture sink hands the recorder a plain string label; branding it reaches the inference sink contract. Ends when WireCaptureSink carries a ProviderId.
-  providerId: z.string(),
+  providerId: providerIdSchema,
   model: z.string(),
   at: z.number(),
   body: z.record(z.string(), z.unknown()),
@@ -61,15 +61,37 @@ const inspectedMessageSchema = z.strictObject({
   provider: z.string().nullable(),
 });
 
-/** The `GET /api/_debug/db/chat/:id` response: a deep dump of one chat's stored state. `chat` and `recentEvents`
- *  are the raw table rows (whole-row dumps by design, every column of `chats` and `chat_events`), so they are
- *  loose objects naming only their key columns; `@orb/db` owns the column shapes and contracts cannot import it. */
+/** The chat row as the debug dump projects it: the identity, lifecycle and fork columns a reader checks to answer
+ *  "did it land". A null `startedAt` is a husk. The server maps the `chats` row into this; `@orb/db` owns the table. */
+const inspectedChatSchema = z.strictObject({
+  id: chatIdSchema,
+  title: z.string().nullable(),
+  starred: z.boolean(),
+  archived: z.boolean(),
+  temporary: z.boolean(),
+  startedAt: z.number().nullable(),
+  parentChatId: chatIdSchema.nullable(),
+  forkedAt: z.number().nullable(),
+  streamSeq: z.number().int(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
+/** One durable bus event as the debug dump projects it: its replay cursor and discriminant, never the payload. */
+const inspectedEventSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.chatEvent),
+  seq: z.number().int(),
+  type: z.string(),
+  createdAt: z.number(),
+});
+
+/** The `GET /api/_debug/db/chat/:id` response: a deep dump of one chat's stored state. */
 export const chatInspectionSchema = z.strictObject({
   found: z.boolean(),
-  chat: z.looseObject({ id: chatIdSchema }).nullable(),
+  chat: inspectedChatSchema.nullable(),
   participants: z.array(inspectedParticipantSchema),
   messages: z.array(inspectedMessageSchema),
   sessionFrameCount: z.number().int(),
-  recentEvents: z.array(z.looseObject({ seq: z.number().int(), type: z.string() })),
+  recentEvents: z.array(inspectedEventSchema),
 });
 export type ChatInspection = z.infer<typeof chatInspectionSchema>;

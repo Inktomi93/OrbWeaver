@@ -69,10 +69,22 @@ export async function inspectChatState(db: Db, chatId: ChatId): Promise<ChatInsp
 
   return {
     found: true,
-    chat: chatRow,
+    chat: {
+      id: chatRow.id,
+      title: chatRow.title,
+      starred: chatRow.starred,
+      archived: chatRow.archived,
+      temporary: chatRow.temporary,
+      startedAt: chatRow.startedAt,
+      parentChatId: chatRow.parentChatId,
+      forkedAt: chatRow.forkedAt,
+      streamSeq: chatRow.streamSeq,
+      createdAt: chatRow.createdAt,
+      updatedAt: chatRow.updatedAt,
+    },
     participants,
     messages: inspectedMessages,
     sessionFrameCount,
-    recentEvents,
+    recentEvents: recentEvents.map((event) => ({ id: event.id, seq: event.seq, type: event.type, createdAt: event.createdAt })),
   };
 }

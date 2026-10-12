@@ -37,7 +37,7 @@
 // The openrouter transport ALSO routes its body shaping through here (`shapeBody`), because the OR provider
 // exposes no post-convert hook: the request body is parsed ONCE, shaped, captured, re-serialised.
 
-import type { Wire } from "@orb/contracts/inference";
+import type { ProviderId, Wire } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import type { ProviderScrubSet, ResponseMap, WireCaptureSink } from "#contract";
 import { ProviderError } from "#contract";
@@ -72,7 +72,7 @@ export interface WrapFetchArgs {
         readonly chatId: ChatId | undefined;
         readonly api: string;
         readonly wire: Wire;
-        readonly providerId: string;
+        readonly providerId: ProviderId;
         readonly model: string;
         /** Tap the RESPONSE BODY too (§D2/§D3). Off by default and independently gated: the request capture
          *  is the operator's prompt, while the reply is the model's prose, which the recorder's outcome arm
