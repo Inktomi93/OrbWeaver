@@ -24,6 +24,6 @@ test-hand-shape flags a hand shape whose annotated or passed value has a product
 
 ## Evidence
 
-Five legs on branch wt/agent-a63768b4c4e7202f1 did not converge: the declaration arm flags coincidental option shapes, and the binding arm costs several minutes. The redesign moves to item 954, one shape-relation fact in the floor shared with `pnpm ast respell` and `contract-structural-copy`.
+Five legs on branch wt/agent-a63768b4c4e7202f1 did not converge: the declaration check flags coincidental option shapes, and the binding check costs several minutes. The redesign moves to item 954, one shape-relation fact in the floor shared with `pnpm ast respell` and `contract-structural-copy`.
 
 Filled at landing: what ran and where its output is.
