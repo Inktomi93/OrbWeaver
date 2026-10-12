@@ -4,6 +4,7 @@
 // credentials domain records — and a KEYLESS row's verdict is stamped and returned with NO row write at all
 // (the credentials domain has nothing to revoke); (3) the endpoint inspector hands back the SHAPED request
 // with its headers REDACTED, because "test endpoint" must never be the surface that echoes the key back.
+// @subject packages/server/src/domain/connection/verbs/diagnostics.ts
 
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { describe } from "vitest";

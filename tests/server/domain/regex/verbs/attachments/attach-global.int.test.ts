@@ -1,6 +1,7 @@
 // verb: attachGlobal — mark an owned script GLOBAL (it runs in every chat the caller hosts). The junction's
 // PK IS the script id, so the write is idempotent by construction; the position APPENDS so a new global
 // never silently reorders the existing tier.
+// @subject packages/server/src/domain/regex/verbs/attachments/attach-global.ts
 
 import { globalRegexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

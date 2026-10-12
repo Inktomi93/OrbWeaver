@@ -6,6 +6,7 @@
 // The refusals are pinned as VALUES (never throws — the `importChatFile` contract): a card this owner never
 // imported, a card carrying no embedded book, and unreadable bytes each come back as an operator-facing
 // sentence the calling route renders with a 400.
+// @subject packages/server/src/domain/import/verbs/restore-character-book.ts
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { Db } from "@orb/db";

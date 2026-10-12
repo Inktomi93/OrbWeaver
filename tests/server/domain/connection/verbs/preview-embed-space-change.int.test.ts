@@ -1,6 +1,7 @@
 // verb: previewEmbedSpaceChange — the read the pane asks before an embedder change. It must say "rebuild" exactly
 // when the change moves the caller to a new embedding generation, count what that rebuild covers, and write
 // nothing.
+// @subject packages/server/src/domain/connection/verbs/preview-embed-space-change.ts
 
 // @orb-waive-file no-test-fabrication({ readonly input?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ProviderId } from "@orb/contracts/inference";

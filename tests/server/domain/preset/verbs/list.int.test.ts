@@ -1,3 +1,6 @@
+// verb: list — the owner's presets plus the shared system default, excluding other owners', with fork lineage.
+// @subject packages/server/src/domain/preset/verbs/list.ts
+
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";

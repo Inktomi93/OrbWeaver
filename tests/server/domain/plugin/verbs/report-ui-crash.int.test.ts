@@ -7,6 +7,7 @@
 // The other half is the honest question about a client-driven counter: what can a hostile caller do with it?
 // The answer must be "only to themselves", and the owner-scope test is what makes that a property rather than
 // a hope — three calls against SOMEBODY ELSE's real pluginId must disable nothing.
+// @subject packages/server/src/domain/plugin/verbs/report-ui-crash.ts
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

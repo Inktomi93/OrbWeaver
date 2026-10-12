@@ -1,6 +1,7 @@
 // verb: install — the trust edge (02 §4). Authority is SELF (D147 — any principal installs for themselves and
 // the row is stamped ownerId = caller), the untrusted-bundle validation funnel, the grant ⊆ declared refusal,
 // the PER-OWNER slug collision, and the disabled-on-install default (enabling is a second act).
+// @subject packages/server/src/domain/plugin/verbs/install.ts
 
 import { assets, pluginAssets, plugins } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

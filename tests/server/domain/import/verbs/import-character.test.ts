@@ -2,6 +2,7 @@
 // end-to-end card path over the injected fakes: a real ST card → flatten + provenance into the create op,
 // the PNG-card avatar store, the bare-JSON no-avatar path, the importHash dedup oracle, the raw card-tag
 // carry (no extraction-side dedupe), and the unreadable throw. EVERY INVARIANT SHIPS ITS ENFORCER.
+// @subject packages/server/src/domain/import/verbs/import-character.ts
 
 import type { CharacterHandle, CharacterId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

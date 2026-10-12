@@ -1,6 +1,7 @@
 // verb: createTheme — write a new OWNED theme from scratch. Runs `themeOverrideSchema.parse` + the
 // css-validator at the write boundary; a taken (ownerId, name) throws DomainConflictError (TOCTOU-safe:
 // no phantom pre-SELECT — the `tag.create` precedent).
+// @subject packages/server/src/domain/settings/verbs/create-theme.ts
 
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";

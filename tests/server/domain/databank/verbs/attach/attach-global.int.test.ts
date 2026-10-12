@@ -1,5 +1,6 @@
 // verb: attachGlobal — mark an owned document global, idempotently. Load-bearing: the ownership gate — a
 // FOREIGN document id must NEVER attach (throws DocumentNotFoundError, no junction row).
+// @subject packages/server/src/domain/databank/verbs/attach/attach-global.ts
 
 import { globalDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

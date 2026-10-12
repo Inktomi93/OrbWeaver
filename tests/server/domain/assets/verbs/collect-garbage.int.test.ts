@@ -15,6 +15,7 @@
 //     grace — proving the scan doesn't over-retain a stale value.
 // Blob mtimes are set deterministically via `utimes` (the injected clock is frozen; a fresh CAS write stamps
 // the real wall clock, so the test controls mtime directly — the same lever `putBytes`' dedup bump pulls).
+// @subject packages/server/src/domain/assets/verbs/collect-garbage.ts
 
 import { utimes } from "node:fs/promises";
 import { pluginManifestSchema } from "@orb/contracts/plugin";

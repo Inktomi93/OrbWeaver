@@ -8,6 +8,7 @@
 //   · re-scrape of identical bytes dedups on (ownerId, importHash) — duplicate/skipped, no second enqueue
 // The SSRF belt ITSELF is proven in tests/server/infra/network/egress.test.ts; databank asserts only the
 // pass-through (the DB7 checkpoint, doc 08 §1).
+// @subject packages/server/src/domain/databank/verbs/scrape/scrape-web.ts
 
 // @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
 import { documents } from "@orb/db";

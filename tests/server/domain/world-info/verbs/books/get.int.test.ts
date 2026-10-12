@@ -1,5 +1,6 @@
 // verb: getBook — owner-scoped read. Load-bearing: a foreign or missing book collapses to NotFound (no
 // foreign-existence leak).
+// @subject packages/server/src/domain/world-info/verbs/books/get.ts
 
 import type { Handle, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

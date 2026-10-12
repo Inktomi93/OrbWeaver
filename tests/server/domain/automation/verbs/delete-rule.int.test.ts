@@ -1,4 +1,5 @@
 // verb: deleteRule — remove a rule (host-only).
+// @subject packages/server/src/domain/automation/verbs/delete-rule.ts
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAutomationService, createEnabledRuleIndex, RuleNotFoundError } from "@orb/server/domain/automation";

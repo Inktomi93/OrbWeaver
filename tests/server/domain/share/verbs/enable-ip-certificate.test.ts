@@ -1,5 +1,6 @@
 // share.enableIpCertificate — owner only (D275). The preconditions refuse before anything is stored or ordered; a
 // passing choice is stored canonical, as the owner, then handed to the controller and audited.
+// @subject packages/server/src/domain/share/verbs/enable-ip-certificate.ts
 
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";

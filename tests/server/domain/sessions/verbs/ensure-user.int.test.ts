@@ -1,3 +1,6 @@
+// verb: sessions.ensureUser — JIT-creates the user row for a handle and returns the same id on a repeat call.
+// @subject packages/server/src/domain/sessions/verbs/ensure-user.ts
+
 import type { Db } from "@orb/db";
 import { userConnections, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";

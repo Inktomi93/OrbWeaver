@@ -1,4 +1,5 @@
 // .int tests for `getSession`: the view round-trip + the leak-free ownership collapse.
+// @subject packages/server/src/domain/refinery/verbs/get-session.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";

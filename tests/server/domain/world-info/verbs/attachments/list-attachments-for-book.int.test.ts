@@ -1,4 +1,5 @@
 // verb: listAttachmentsForBook — one owner-scoped reverse read for the book activation roster.
+// @subject packages/server/src/domain/world-info/verbs/attachments/list-attachments-for-book.ts
 
 import { characterBooks, personaBooks } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

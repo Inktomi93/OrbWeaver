@@ -2,6 +2,7 @@
 // authority (a non-host attach rejects, no junction row); the ownership gate (a FOREIGN document never
 // attaches even for the host); idempotent re-attach; and the ROOM FAN (#2471) — the co-member plane a
 // single-principal test structurally cannot see.
+// @subject packages/server/src/domain/databank/verbs/attach/attach-to-chat.ts
 
 import { chatDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

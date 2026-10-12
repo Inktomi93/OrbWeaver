@@ -4,6 +4,7 @@
 // the owned persona untouched (same id, zero duplicate rows), the same name with different content lands as
 // a second persona under " 2"; and NEVER throws for a malformed file — the refusal is a typed outcome
 // carrying the words the import door renders.
+// @subject packages/server/src/domain/persona/verbs/import.ts
 
 import { personas } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

@@ -6,6 +6,7 @@
 //   · a video with NO caption track (empty XML) collapses to ScrapeFailedError — no row, no CAS, no enqueue
 //   · a fetch refusal (EgressBlockedError in prod) collapses to a leak-free ScrapeFailedError, NOT retry-looped
 // The SSRF belt ITSELF is proven in tests/server/infra/network/egress.test.ts; this asserts only the pass-through.
+// @subject packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts
 
 // @orb-waive-file no-test-fabrication(ScrapeFailedError): baselined when the gate widened to value casts; burn-down item 906.
 import { documents } from "@orb/db";

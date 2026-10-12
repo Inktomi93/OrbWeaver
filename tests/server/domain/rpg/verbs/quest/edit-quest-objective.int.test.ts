@@ -1,3 +1,5 @@
+// @subject packages/server/src/domain/rpg/verbs/quest/edit-quest-objective.ts
+
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

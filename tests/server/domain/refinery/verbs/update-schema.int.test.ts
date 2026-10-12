@@ -1,5 +1,6 @@
 // .int tests for `updateSchema`: version bumps on CONTENT change only (the P1-B provenance pin), the
 // merged document re-runs the whole belt, and foreign ids collapse leak-free.
+// @subject packages/server/src/domain/refinery/verbs/update-schema.ts
 
 import { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";

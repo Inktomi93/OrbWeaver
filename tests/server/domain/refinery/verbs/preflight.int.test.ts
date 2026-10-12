@@ -3,6 +3,7 @@
 // estimate measures the REAL assembled prompt, and the per-stage output arithmetic follows the design's
 // mode factors. Advisory numbers — the pins here are about SEAMS (resolution freshness, monotonicity),
 // never about blessing a magic constant.
+// @subject packages/server/src/domain/refinery/verbs/preflight.ts
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SideGenSampling } from "@orb/inference";

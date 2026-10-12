@@ -4,6 +4,7 @@
 //     a stable `entryId` is minted (never a paintable external URL persisted).
 //   • REFUSAL: an unreachable / non-image / too-large URL throws a coded `background_unavailable`.
 //   • an empty URL is rejected before any fetch (`background_url_empty`).
+// @subject packages/server/src/domain/settings/verbs/add-external-background.ts
 
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId } from "@orb/kit/ids";

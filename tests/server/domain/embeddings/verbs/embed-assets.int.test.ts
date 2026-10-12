@@ -8,6 +8,7 @@
 //     not skipped: the stale-half check sees through the raw row's current hash;
 //   • a vanished asset row is a skip, not an error;
 //   • cooperative abort: an aborted signal does no work.
+// @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 
 // @orb-waive-file no-test-fabrication({ input: string | string[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";

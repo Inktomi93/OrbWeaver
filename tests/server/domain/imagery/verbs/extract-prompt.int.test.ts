@@ -1,6 +1,7 @@
 // verb: extractPrompt — the standalone step-1 preview. Returns the RAW post-processReply
 // keywords (NO step-4 prefix — that belt is generatePicture's), so the user can review the prompt before
 // spending on a generation. Dispatches multimodal → caption, else → text extraction; never generates or stores.
+// @subject packages/server/src/domain/imagery/verbs/extract-prompt.ts
 
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import { assets, characters } from "@orb/db";

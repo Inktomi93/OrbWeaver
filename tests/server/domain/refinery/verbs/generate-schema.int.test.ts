@@ -3,6 +3,7 @@
 // authoring arms each drive their own call shape, and the honest-refusal / errors-as-data arms resolve
 // rather than throw. The prompt is asserted for what it must NOT contain too — the veto was about a prompt
 // begging for JSON, and a green that only checks the happy path would not have caught it.
+// @subject packages/server/src/domain/refinery/verbs/generate-schema.ts
 
 // @orb-waive-file no-test-fabrication(Extract<SchemaForgeResult, { kind: K }>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.

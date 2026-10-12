@@ -4,6 +4,7 @@
 // ResponseFormat wire opts, the null-drop parse (strict-compatible survival), the stripped-key
 // itemization on the run row, the independent signal-stamp halves, and the typed double-failure refusal
 // (no fallback write). Real freshDb + the REAL character service; the model is the ONE faked edge.
+// @subject packages/server/src/domain/refinery/verbs/run-stage.ts
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { characters, refineryRuns } from "@orb/db";

@@ -1,4 +1,5 @@
 // verb: listFires — the host's fire-log debug surface (a testRule writes a test_run row).
+// @subject packages/server/src/domain/automation/verbs/list-fires.ts
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "../../../../support/fixtures.ts";

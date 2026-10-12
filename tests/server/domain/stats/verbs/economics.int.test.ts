@@ -1,6 +1,7 @@
 // Integration: stats economics verbs (the seam's Tier 2, NOT tRPC-routed) — the injected ops discovery
 // composes. Thin: the persistence read is covered in depth by messages-economics.int.test.ts; here we assert
 // the service binds `characterEconomics`/`characterModelEconomics` over the real db.
+// @subject packages/server/src/domain/stats/verbs/economics.ts
 
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";

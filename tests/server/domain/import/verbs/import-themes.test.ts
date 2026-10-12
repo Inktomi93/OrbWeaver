@@ -6,6 +6,7 @@
 // The one-file-per-theme rule is load-bearing and easy to "simplify" away: the op reports `created` for the
 // WHOLE file, so batching N themes into one backup would collapse N outcomes into one bit AND make a single
 // refusal take the other N-1 with it.
+// @subject packages/server/src/domain/import/verbs/import-themes.ts
 
 // @orb-waive-file no-test-fabrication({ schemaKind?: string; themes?: { name?: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ themes?: { css?: string | null }[] }): baselined when the gate widened to value casts; burn-down item 906.

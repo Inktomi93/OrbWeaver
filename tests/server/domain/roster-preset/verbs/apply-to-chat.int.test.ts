@@ -4,6 +4,7 @@
 // on EVERY apply (disabled always, talkativeness only when stored), the config arm fires only when a
 // blob is stored, and a mid-apply-vanished character is SKIPPED, never an abort. The composed-real
 // proof of the SAME behavior over the real chat verbs is tests/server/entry/compose/roster-preset.int.test.ts.
+// @subject packages/server/src/domain/roster-preset/verbs/apply-to-chat.ts
 
 // @orb-waive-file no-test-fabrication(RulePresetId): baselined when the gate widened to value casts; burn-down item 906.
 import type { RulePresetId } from "@orb/contracts/automation";

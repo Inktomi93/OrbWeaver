@@ -1,4 +1,5 @@
 // verb: createTag — mints an owner-scoped tag (defaults applied) and TOCTOU-rejects a duplicate name.
+// @subject packages/server/src/domain/tag/verbs/create.ts
 
 // @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";

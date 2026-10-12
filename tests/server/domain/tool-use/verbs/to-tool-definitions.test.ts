@@ -2,6 +2,7 @@
 // `parameters`, the zod raw shape it was projected from as `inputShape`, order = resolve order. `@orb/inference`
 // turns the same definitions into an array wire's `tools[]` or the Agent SDK's MCP server
 // (tests/inference/roles/chat-request.test.ts), so both wires describe one tool from one schema.
+// @subject packages/server/src/domain/tool-use/verbs/to-tool-definitions.ts
 
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";

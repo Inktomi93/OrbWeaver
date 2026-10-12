@@ -1,6 +1,7 @@
 // verb: remove — owner-scoped delete. Load-bearing: the junction CASCADEs (a connected persona's
 // character_personas rows vanish with it); a not-owned/missing target throws (no cross-user delete); a
 // real delete audits; the caller's LAST persona is refused (`last_persona` — the always-one belt).
+// @subject packages/server/src/domain/persona/verbs/remove.ts
 
 // @orb-waive-file no-test-fabrication(LastPersonaError): baselined when the gate widened to value casts; burn-down item 906.
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";

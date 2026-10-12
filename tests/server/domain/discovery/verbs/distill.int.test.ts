@@ -8,6 +8,7 @@
 //     `tag.attachCardTagByName` seam (injected, over the same db) — the Accept/Reject queue's producer.
 //   • IDEMPOTENT / NO-DOWNGRADE: a re-run refreshes the summary in place and never flips an ACCEPTED tag
 //     back to pending. SYNTHETIC group characters are excluded.
+// @subject packages/server/src/domain/discovery/verbs/distill.ts
 
 // @orb-waive-file no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.

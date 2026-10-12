@@ -6,6 +6,7 @@
 //   • results are index-aligned to the input, so a caller can tell a write from a noop per item;
 //   • the SPACE TRIPWIRE + `EmbedFailedError` still bite (a batch is not a hole in the store's guarantees);
 //   • `hub_score` is never touched.
+// @subject packages/server/src/domain/embeddings/verbs/store-segments.ts
 
 import { chatSegments } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
