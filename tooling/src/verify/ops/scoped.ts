@@ -15,6 +15,7 @@ import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { SourceFile } from "ts-morph";
+import { isLegacyTestPath, LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { ProjectContext } from "../contract/project-context.ts";
 import type { Scope, ScopedPolicyResult } from "../contract/scoped.ts";
@@ -25,8 +26,8 @@ import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
 import { projectCtx, repoRel } from "../lib/project-context.ts";
 import { renderPolicyPass } from "../lib/render.ts";
-import { gitChangedPaths } from "../lib/repo-paths.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
+import { authoredPathsUnder, workingChangeClassification } from "../lib/selection.ts";
 import { policyReport, policyRows } from "../lib/structure-report.ts";
 import { WAIVER_BUDGET } from "../lib/waiver-budget.ts";
 
@@ -76,7 +77,7 @@ function isGlobList(v: readonly string[] | { readonly error: string }): v is rea
   return Array.isArray(v);
 }
 
-function selectionFor(args: Args): ScopeSelection {
+function selectionFor(args: Args, root: string): ScopeSelection {
   if (args.package !== undefined) {
     const dir = packageDir(args.package);
     // @orb/tooling is a ROOT-tree workspace package (docs/law/Core-Tooling-Law.md §2.1), not packages/*.
@@ -88,7 +89,7 @@ function selectionFor(args: Args): ScopeSelection {
     };
   }
   if (args.changed) {
-    const paths = args.changedPaths.length > 0 ? args.changedPaths : gitChangedPaths();
+    const paths = args.changedPaths.length > 0 ? args.changedPaths : workingChangeClassification(root).paths;
     const set = new Set(paths);
     return {
       scope: { kind: "changed", paths },
@@ -234,7 +235,12 @@ function scopedFiles(base: Pick<ProjectContext, "root" | "project">, inScope: (r
  *
  *  `failOnWarnings` arrives from the operator's `--fail-on-warnings` and DEFAULTS FALSE: a
  *  `severity: "warning"` finding is reported, counted in `verdict.warnings`, and blocks nothing. */
-function runScopedPolicyPass(policies: readonly GatePolicy[], base: ProjectContext, files: readonly SourceFile[], failOnWarnings: boolean): ScopedPolicyResult {
+function runScopedPolicyPass(
+  policies: readonly GatePolicy[],
+  base: ProjectContext,
+  files: readonly SourceFile[],
+  options: { readonly failOnWarnings: boolean; readonly legacyPaths: readonly string[] },
+): ScopedPolicyResult {
   if (policies.length === 0) {
     return { pass: null, deferred: [] };
   }
@@ -243,10 +249,10 @@ function runScopedPolicyPass(policies: readonly GatePolicy[], base: ProjectConte
     policies,
     root: base.root,
     project: base.project,
-    requestedPaths: files.map((sf) => repoRel(base.root, sf.getFilePath())),
+    requestedPaths: [...new Set([...files.map((sf) => repoRel(base.root, sf.getFilePath())), ...options.legacyPaths])],
     reviewedGrants: reviewedGrantsFor(policies),
     waiverBudget: WAIVER_BUDGET,
-    failOnWarnings,
+    failOnWarnings: options.failOnWarnings,
   });
   // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
   const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? raw : stripProbePolicyFindings(raw);
@@ -290,16 +296,22 @@ export async function runScopedCli(root: string, argv: readonly string[]): Promi
   if ("error" in parsed) {
     throw new UsageError(`${parsed.error}\n${SCOPED_USAGE}`);
   }
-  const selection = selectionFor(parsed);
+  const selection = selectionFor(parsed, root);
+  let legacyPaths: readonly string[] = [];
+  if (selection.scope.kind === "changed") {
+    legacyPaths = selection.scope.paths.filter(isLegacyTestPath);
+  } else if (selection.scope.kind === "folder") {
+    legacyPaths = authoredPathsUnder(LEGACY_TEST_ROOT, root, true).filter(selection.inScope);
+  }
   const base = projectCtx(root);
-  if (scopedFiles(base, selection.inScope).length === 0) {
+  if (scopedFiles(base, selection.inScope).length === 0 && legacyPaths.length === 0) {
     const asserted = selection.scope.kind !== "changed";
     process.stderr.write(`${emptyScopeNotice(selection.label, asserted)}\n`);
     return asserted ? EXIT.toolError : EXIT.clean;
   }
   const corpus = await loadGateCorpus(root);
   const files = scopedFiles(base, selection.inScope);
-  const final = runScopedPolicyPass(corpus.gates, base, files, parsed.failOnWarnings);
+  const final = runScopedPolicyPass(corpus.gates, base, files, { failOnWarnings: parsed.failOnWarnings, legacyPaths });
 
   process.stdout.write(`check:scope — ${selection.label} · ${files.length} file(s) in scope\n\n`);
   if (final.pass !== null) {

@@ -22,6 +22,7 @@ import type { ConfigSnapshotRunner } from "./config-snapshot.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "./resource-config.ts";
 import type { LedgerId } from "./resource-document.ts";
 import type { ExactResourceId } from "./resource-exact.ts";
+import type { GitPathHistoryResourceId } from "./resource-git-history.ts";
 import type { InstalledPackageRequest } from "./resource-installed.ts";
 import type { JsonResourceId } from "./resource-json.ts";
 import type { MirrorFamilyId } from "./resource-mirror.ts";
@@ -38,6 +39,7 @@ export const GATE_RESOURCE_REQUEST_KINDS = [
   "json",
   "installed-package",
   "mirror-index",
+  "git-path-history",
   "documents",
   "ledger",
   "exact-file",
@@ -75,6 +77,7 @@ export type GateResourceRequest =
   | { readonly kind: "json"; readonly id: JsonResourceId }
   | ({ readonly kind: "installed-package" } & InstalledPackageRequest)
   | { readonly kind: "mirror-index"; readonly id: MirrorFamilyId }
+  | { readonly kind: "git-path-history"; readonly id: GitPathHistoryResourceId }
   | { readonly kind: "documents" }
   | { readonly kind: "ledger"; readonly id: LedgerId }
   /** ONE declaration PER ID, even though the door is called with a list: a policy that declared one exact

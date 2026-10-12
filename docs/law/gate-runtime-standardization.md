@@ -163,6 +163,8 @@ them, runtime and fixture implementations, discriminated status/evidence handlin
 positive, negative, empty, malformed, unresolved, overlay, and isolation controls. A one-consumer kind is a private
 reader in contract clothing and is refused.
 
+`git-path-history` shares `tooling/src/floor/git/git-history.ts` with native document ID allocation. Its legacy request pins the founding commit. Isolated proof composition captures a branded fixture identity.
+
 `installed-package` has the closed `ast | metadata | text` modes. Authored-path identity must distinguish missing,
 file, directory, and a symlink resolving outside the tree, including absolute-selector normalization. `biome.json` is
 strict JSON; tsconfig is JSONC plus extends folding; neither gains a native snapshot runner. Resource declarations do

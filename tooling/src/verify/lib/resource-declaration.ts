@@ -12,6 +12,7 @@ import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.
 import type { LedgerDefinition } from "../contract/resource-document.ts";
 import { DOCUMENT_CORPUS_ROOT, LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
 import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";
+import { GIT_PATH_HISTORY_DEFINITIONS } from "../contract/resource-git-history.ts";
 import type { ResourceHost, ResourceHostOptions } from "../contract/resource-host.ts";
 import { installedPackageRequestIdentity } from "../contract/resource-installed.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
@@ -71,6 +72,8 @@ function canonicalRequest(request: GateResourceRequest): GateResourceRequest {
         : { kind: request.kind, id: request.id, mode: request.mode };
     case "mirror-index":
       return { kind: request.kind, id: request.id };
+    case "git-path-history":
+      return { kind: request.kind, id: request.id };
     case "documents":
       return { kind: request.kind };
     case "ledger":
@@ -117,6 +120,8 @@ function requestFact(host: ResourceHost, request: GateResourceRequest): Resource
       return host.installedPackage(request);
     case "mirror-index":
       return host.mirrorIndex(request.id);
+    case "git-path-history":
+      return host.gitPathHistory(request.id);
     case "documents":
       return host.documents();
     case "ledger":
@@ -165,6 +170,8 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
       return false;
     case "mirror-index":
       return [MIRROR_FAMILY_DEFINITIONS[request.id].sourceRoot, MIRROR_FAMILY_DEFINITIONS[request.id].testRoot].some((root) => path.startsWith(`${root}/`));
+    case "git-path-history":
+      return path === GIT_PATH_HISTORY_DEFINITIONS[request.id].path || path.startsWith(`${GIT_PATH_HISTORY_DEFINITIONS[request.id].path}/`);
     case "documents":
       return path.startsWith(`${DOCUMENT_CORPUS_ROOT}/`);
     case "ledger": {

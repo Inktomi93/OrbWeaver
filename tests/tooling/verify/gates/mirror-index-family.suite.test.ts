@@ -25,10 +25,12 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import type { ResourceHostOptions } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as testLayout } from "../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as testPresenceClient } from "../../../../tooling/src/verify/gates/test-presence-client.ts";
@@ -90,12 +92,20 @@ function passRequesting(
       project.createSourceFile(`${root}/${path}`, content);
     }
   }
+  const historyOptions = selected.includes(testLayout)
+    ? ((): Pick<ResourceHostOptions, "gitHistoryFixtureFoundation"> => {
+        execFixtureGit(root, ["init", "--quiet"]);
+        configureFixtureGitIdentity(root);
+        execFixtureGit(root, ["commit", "--quiet", "--allow-empty", "-m", "fixture foundation"]);
+        return { gitHistoryFixtureFoundation: captureFixtureGitHistoryFoundation(root) };
+      })()
+    : {};
   return runPolicyPass({
     knownPolicies: selected,
     policies: selected,
     root,
     project,
-    resourceOptions: { overlay },
+    resourceOptions: { overlay, ...historyOptions },
     reviewedGrants: request.reviewedGrants ?? [],
     failOnWarnings: request.failOnWarnings ?? false,
     ...(request.requestedPaths === undefined ? {} : { requestedPaths: request.requestedPaths }),
@@ -164,6 +174,7 @@ test("test-layout: a complete mirror population reaches a verdict and files one 
   expect(result.authority.withheldPolicyIds).toEqual([]);
   expect(result.policies.map(({ receipts }) => receipts.map(({ source, unresolved }) => [source, unresolved]))).toEqual([
     [
+      ["git-path-history:legacy-tests", 0],
       ["mirror-index:package-test", 0],
       ["mirror-index:tooling-test", 0],
     ],
@@ -494,7 +505,7 @@ test("test-presence-client: the standing-CT absence fires on a whole run and the
 
 const ROOM = "packages/client/src/features/chat/surfaces/chat-room-surface.tsx";
 const ROOM_SOURCE = "export function ChatRoomSurface(): null {\n  return null;\n}\n";
-const STANDING_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
+const STANDING_CT = "tests/legacy/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
 
 /** The room exists and its standing contrast CT does not. */
 const MISSING_STANDING_CT_TREE = {

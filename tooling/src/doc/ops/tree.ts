@@ -1,13 +1,12 @@
-// Everything that TOUCHES the tree or git for the doc tool: the governed-docs walk, document reads and
-// formatted writes, and the git facts the pure rules judge. Every reader takes
-// the repository root so the tests drive it on a planted tree; git-dependent readers fail soft to an
-// empty fact, never to a throw, because a missing branch is a drift finding and not a tool crash.
+// Governed document I/O and native Git facts. Branch absence is a drift fact; unavailable filename history
+// refuses allocation rather than permitting identifier reuse. Every reader names its repository root.
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
+import { readGitPathHistory } from "../../floor/git/git-history.ts";
 import type { RunNicedSyncResult } from "../../floor/process/proc.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
@@ -282,12 +281,15 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
  *  repository, where the files alone decide. */
 export function highestHistoricId(tree: "adr" | "work", repoRoot = root): number {
   const prefix = DOC_TOOL_TREES[tree];
-  const res = runGit(repoRoot, ["log", "--all", "--diff-filter=AD", "--name-only", "--format=", "--", prefix]);
-  if (res.status !== 0) {
+  const history = readGitPathHistory(repoRoot, { kind: "all-refs", path: prefix });
+  if (history.status === "missing") {
     return 0;
   }
+  if (history.status !== "ready") {
+    throw new Error(history.reason);
+  }
   let highest = 0;
-  for (const line of res.stdout.split(/\r?\n/u)) {
+  for (const line of [...history.value.addedPaths, ...history.value.deletedPaths]) {
     if (!line.startsWith(prefix)) {
       continue;
     }

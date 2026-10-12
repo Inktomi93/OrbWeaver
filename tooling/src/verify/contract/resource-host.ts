@@ -1,5 +1,7 @@
 // Closed resource requests; adding a family requires a concrete provider and a proof, never a path callback.
+
 import type { SourceFile } from "ts-morph";
+import type { FixtureGitHistoryFoundation } from "../../floor/git/git-fixture.ts";
 import type { ConfigSnapshotByRunner, ConfigSnapshotRunner } from "./config-snapshot.ts";
 import type { OrdinaryWaiverCarriers } from "./ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedFileModeOverlay, TrackedResourceIndex } from "./resource.ts";
@@ -8,6 +10,7 @@ import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfi
 import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
 import type { DocumentIndex, LedgerFactsFor, LedgerId } from "./resource-document.ts";
 import type { ExactFile, ExactResourceId } from "./resource-exact.ts";
+import type { GitPathHistoryResource, GitPathHistoryResourceId } from "./resource-git-history.ts";
 import type { CandidateIndexDelta } from "./resource-index.ts";
 import type { InstalledPackageFacts, InstalledPackageRequest, InstalledPackageTextOverlay } from "./resource-installed.ts";
 import type { JsonResourceFacts, JsonResourceId } from "./resource-json.ts";
@@ -25,6 +28,7 @@ export interface ResourceHost {
   readonly packageMetadata: (id: PackageResourceId) => ResourceFact<PackageMetadata>;
   readonly staticConfig: (id: StaticConfigResourceId) => ResourceFact<StaticConfigFacts>;
   readonly nativeConfig: <R extends ConfigSnapshotRunner>(id: R) => ResourceFact<ConfigSnapshotByRunner[R]>;
+  readonly gitPathHistory: (id: GitPathHistoryResourceId) => ResourceFact<GitPathHistoryResource>;
   readonly trackedFiles: () => ResourceFact<TrackedResourceIndex>;
   /** Exact staged text for demanded tracked paths whose candidate-index bytes differ from the worktree.
    *  This is fenced by the `tracked-files` declaration and never widens its path population. */
@@ -53,6 +57,8 @@ export interface ResourceHost {
 /** Invocation composition only. The parser seam permits the fixture runner's shared workspace; installed
  *  text and tracked-mode overlays permit exact liveness controls without widening authored membership. */
 export interface ResourceHostOptions extends ResourceReaderOptions {
+  /** Branded isolated-proof composition only; production always uses the pinned founding identity. */
+  readonly gitHistoryFixtureFoundation?: FixtureGitHistoryFoundation;
   readonly parseSource?: (path: string, text: string) => SourceFile;
   readonly installedPackageTextOverlays?: readonly InstalledPackageTextOverlay[];
   readonly trackedFileModeOverlays?: readonly TrackedFileModeOverlay[];

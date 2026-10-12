@@ -121,6 +121,7 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     packageMetadata: (id) => accept({ kind: "package-metadata", id }, () => host.packageMetadata(id)),
     staticConfig: (id) => accept({ kind: "static-config", id }, () => host.staticConfig(id)),
     nativeConfig: (id) => accept({ kind: "native-config", id }, () => host.nativeConfig(id)),
+    gitPathHistory: (id) => accept({ kind: "git-path-history", id }, () => host.gitPathHistory(id)),
     trackedFiles: () => accept({ kind: "tracked-files" }, () => host.trackedFiles()),
     candidateIndexDelta: (paths) => {
       const outside = paths.find((path) => !allowedPaths.has(path));

@@ -9,6 +9,7 @@ import { GIT_READ_PREFIX, runGit } from "@orb/tooling/floor/git/git";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { ChangedPath, ChangedPathClassification, ChangedPathStatus, MeasurementBoundary } from "../contract/selection.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
+import { candidateIndexGitEnvironment } from "../ops/resource-index.ts";
 
 export const ROOT = process.cwd();
 
@@ -68,7 +69,9 @@ function classifyGitNameStatus(source: string, root: string = ROOT): ChangedPath
  *  operator's index while they work: `--no-optional-locks` is git's own flag for exactly this reader
  *  posture (it is what an IDE polling `status` is supposed to pass). It changes no output. */
 function gitDiffClassification(root: string, diffArgs: readonly string[]): ChangedPathClassification {
-  const result = runGit(root, [...GIT_READ_PREFIX, "diff", ...diffArgs, "--name-status", "-z", "--find-renames", "HEAD"]);
+  const result = runGit(root, [...GIT_READ_PREFIX, "diff", ...diffArgs, "--name-status", "-z", "--find-renames", "HEAD"], {
+    extra: candidateIndexGitEnvironment(root),
+  });
   if (result.status !== 0) {
     throw new Error(`git changed-path read failed (${String(result.status)}): ${result.stderr.trim()}`);
   }
@@ -85,10 +88,9 @@ export function gitStagedPathClassification(root: string = ROOT): ChangedPathCla
   return gitDiffClassification(root, ["--cached"]);
 }
 
-/** `git ls-files -z <args>` as a path list, read with the same scrubbed environment as the diff above: a
- *  git hook exports `GIT_INDEX_FILE`, and inheriting it would list the hook's index, not `root`'s. */
+/** Read the invocation's candidate index only at its real root; isolated roots cannot inherit hook Git routing. */
 export function gitLsFiles(root: string, args: readonly string[]): readonly string[] {
-  const result = runGit(root, [...GIT_READ_PREFIX, "ls-files", "-z", ...args]);
+  const result = runGit(root, [...GIT_READ_PREFIX, "ls-files", "-z", ...args], { extra: candidateIndexGitEnvironment(root) });
   if (result.status !== 0) {
     throw new Error(`git ls-files failed (${String(result.status)}): ${result.stderr.trim()}`);
   }

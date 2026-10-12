@@ -2,6 +2,7 @@
 // `GIT_*` namespace a hook exports) plus isolation from global and system config and from repository hooks,
 // so a fixture command can never run an operator's hook, filter or command.
 
+import { resolve } from "node:path";
 import type { RunNicedSyncResult } from "../process/proc.ts";
 import { inheritedProcessEnv } from "../process/process-env.ts";
 import type { RunGitOptions } from "./git.ts";
@@ -54,4 +55,26 @@ export function execFixtureGit(root: string, args: readonly string[], environmen
 export function configureFixtureGitIdentity(root: string): void {
   execFixtureGit(root, ["config", "--local", "user.name", FIXTURE_GIT_IDENTITY.name]);
   execFixtureGit(root, ["config", "--local", "user.email", FIXTURE_GIT_IDENTITY.email]);
+}
+
+const HISTORY_FOUNDATION = Symbol("fixture Git history foundation");
+
+/** Captured by isolated Git proof composition, never accepted as a policy revision argument. */
+export interface FixtureGitHistoryFoundation {
+  readonly [HISTORY_FOUNDATION]: true;
+  readonly root: string;
+  readonly commit: string;
+}
+
+/** Capture the founding commit after the fixture's native Git setup. */
+export function captureFixtureGitHistoryFoundation(root: string): FixtureGitHistoryFoundation {
+  return Object.freeze({ [HISTORY_FOUNDATION]: true as const, root: resolve(root), commit: execFixtureGit(root, ["rev-parse", "HEAD"]).trim() });
+}
+
+/** Refuse a foundation captured for another repository or outside the fixture composition door. */
+export function fixtureGitHistoryFoundation(fixture: FixtureGitHistoryFoundation, root: string): string {
+  if (fixture.root !== resolve(root)) {
+    throw new Error("Git history fixture foundation belongs to another invocation root");
+  }
+  return fixture.commit;
 }
