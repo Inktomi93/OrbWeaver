@@ -8,8 +8,8 @@
 // `@orb/tooling/floor/instrument/wcag` for the ratio. NO third converter is minted here — the house already
 // paid for that lesson twice (ui-audit/lib/css-color.ts's header).
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
+import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "../../floor/instrument/wcag.ts";
-import { contrastRatio } from "../../floor/instrument/wcag.ts";
 import type { StaticClassCandidate } from "./static-class-expression.ts";
 
 /** A token painted as TEXT somewhere in the product, with the carrier that paints it. */
@@ -134,7 +134,7 @@ const quantize = (c: Rgb): Rgb => ({ r: Math.round(c.r), g: Math.round(c.g), b: 
 /** The WORSE of the float and 8-bit-quantized ratio — the pixel a reader sees is the rounded one
  *  (the house rule, tests/ui/content/theme-scope/palette-contrast.suite.test.ts). */
 export function worstContrast(a: Rgb, b: Rgb): number {
-  return Math.min(contrastRatio(a, b), contrastRatio(quantize(a), quantize(b)));
+  return Math.min(wcagContrastRatio(a, b), wcagContrastRatio(quantize(a), quantize(b)));
 }
 
 /** An oklch/hex/rgb literal as sRGB 0-255, or null. A TRANSLUCENT value also returns null ON PURPOSE:

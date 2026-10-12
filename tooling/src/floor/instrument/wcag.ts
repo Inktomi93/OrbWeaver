@@ -2,13 +2,7 @@
 // kernel and the AA floors live in the kit, which the shipped client and server also read; this file adds
 // the instrument-only pieces (alpha-carrying Rgb, large-text carve-out, inactive-control classifier).
 import type { Rgb as OpaqueRgb } from "@orb/kit/theme-derivation";
-import { AA_LARGE_RATIO, AA_NORMAL_RATIO, relativeLuminance as kitRelativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
-
-// The instrument-facing names for the kit's kernel and floors: bindings, not copies.
-export const relativeLuminance = kitRelativeLuminance;
-export const contrastRatio = wcagContrastRatio;
-export const NORMAL_MIN_RATIO = AA_NORMAL_RATIO;
-export const LARGE_MIN_RATIO = AA_LARGE_RATIO;
+import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
 
 export interface Rgb extends OpaqueRgb {
   readonly a?: number;
@@ -71,12 +65,6 @@ export function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
 // loud ("SKIPPED inactive control (WCAG contrast exemption)") while design-audit, which had NO classifier
 // at all, filed the SAME element as a P1 at 2.64:1. Every disabled control in the app was a standing false
 // positive, which trains a reader to discount the instrument's P1s wholesale.
-
-/** WCAG 1.4.11's non-text boundary, applied to a control that renders NO text (an icon button, a graphical
- *  control) so a 4.5:1 TEXT ratio is not false-flagged against it. Numerically 3:1 like large-text, but a
- *  distinct concept — hence its own name. Also the floor below which an INACTIVE control stops being
- *  perceivable as a control at all (see `INACTIVE_ADVISORY_MAX_RATIO`). */
-export const UI_COMPONENT_MIN_RATIO = AA_LARGE_RATIO;
 
 /** How a control is inactive. The three spellings are NOT interchangeable, and the distinction is the
  *  whole reason this is a union rather than a boolean:
@@ -177,6 +165,6 @@ export function remainsOperable(kind: InactiveKind): boolean {
 /** Below this ratio an inactive control has stopped reading as a CONTROL at all — the "is it even there?"
  *  case the exemption must not swallow. Cited, not invented: it is WCAG 1.4.11's own UI-component boundary,
  *  used here as an advisory floor rather than as a pass/fail criterion.
- *  Deliberately the SAME numeric value as `UI_COMPONENT_MIN_RATIO`, kept under its own name because it
- *  is a distinct concept (an advisory floor, not a pass/fail minimum), not an accidental duplicate. */
-export const INACTIVE_ADVISORY_MAX_RATIO = AA_LARGE_RATIO;
+ *  The same number as the kit's `AA_NON_TEXT_RATIO`, kept as tooling's own name because it is an
+ *  advisory floor, not a pass/fail minimum. */
+export const INACTIVE_ADVISORY_MAX_RATIO = AA_NON_TEXT_RATIO;

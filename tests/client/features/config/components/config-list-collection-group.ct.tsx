@@ -21,8 +21,8 @@
 // rows, its empty arm) is `surfaces/config-content-surface.ct.tsx`'s — the round trip needs the whole host.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { AA_NON_TEXT_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, relativeLuminance, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // The design-audit exemption's own selector, run against the real carriers rather than re-spelled here —
@@ -362,8 +362,8 @@ for (const theme of ["hearth", "light"] as const) {
     expect(relativeLuminance(bare), `the ${theme} arm must actually BE ${theme} (bare door measured ${measured})`).toBeGreaterThanOrEqual(polarity.floor);
     expect(relativeLuminance(bare), `the ${theme} arm must actually BE ${theme} (bare door measured ${measured})`).toBeLessThanOrEqual(polarity.ceiling);
     expect(
-      contrastRatio(rail, bare),
+      wcagContrastRatio(rail, bare),
       `the rail (${String(rail.r)},${String(rail.g)},${String(rail.b)}) against a bare door (${measured})`,
-    ).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    ).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   });
 }

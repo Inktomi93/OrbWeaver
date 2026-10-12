@@ -8,7 +8,7 @@
 import { SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { AuthConfigShare, AuthMode, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
-import { NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { AuthConfig } from "#client/data/auth-config.ts";
@@ -737,9 +737,9 @@ test.describe("the dialog's text over a dark room in the light palette", () => {
     const dialog = page.getByTestId("invite-dialog");
     await expect(dialog.getByTestId("invite-allow-signup")).toBeVisible();
 
-    const audit = await auditRenderedTextContrast(page, dialog, { floor: NORMAL_MIN_RATIO, label: "invite dialog (light, dark room)" });
+    const audit = await auditRenderedTextContrast(page, dialog, { floor: AA_NORMAL_RATIO, label: "invite dialog (light, dark room)" });
     expect(audit.sampled).toBeGreaterThan(0);
-    const failing = audit.subjects.filter((subject) => subject.ratio < NORMAL_MIN_RATIO).map((subject) => `${subject.text}: ${subject.describe}`);
-    expect(audit.minimum, failing.join(" | ")).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const failing = audit.subjects.filter((subject) => subject.ratio < AA_NORMAL_RATIO).map((subject) => `${subject.text}: ${subject.describe}`);
+    expect(audit.minimum, failing.join(" | ")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   });
 });

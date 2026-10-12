@@ -115,9 +115,12 @@ export const AA_NORMAL_RATIO = 4.5;
  *  WCAG's black/white crossover cannot physically reach 4.6, so each search caps this aim at the chosen
  *  polarity endpoint's measured capacity rather than narrowing the accepted theme domain. */
 export const AA_NORMAL_DERIVATION_RATIO = 4.6;
-/** WCAG AA for large text and non-text graphics. The chart-ramp and accent-fill solvers use this live 3:1
+/** WCAG AA for large text. The chart-ramp and accent-fill solvers use this live 3:1
  *  floor, and the theme-derivation suite pins both families against it. */
 export const AA_LARGE_RATIO = 3;
+/** WCAG 2.x SC 1.4.11 Non-text Contrast: the floor for a user-interface component's boundary or a graphic
+ *  that carries meaning. Numerically the large-text floor, named separately because it is a separate criterion. */
+export const AA_NON_TEXT_RATIO = AA_LARGE_RATIO;
 
 /** An sRGB triple, channels 0–255. */
 export interface Rgb {

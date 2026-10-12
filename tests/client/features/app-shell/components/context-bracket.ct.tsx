@@ -10,7 +10,7 @@
 //  - a NON-claiming contributor is ignored — the section's own band renders (the §3.3 regression floor);
 //  - the shell's own band slot renders NOTHING over a tabs pane, claimed or not.
 
-import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
+import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";
@@ -116,7 +116,7 @@ for (const theme of SHIPPED_THEMES) {
       expect(Math.abs(surface.rgb.b - pane.rgb.b)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
     }
     // The owning state rail is a step above the pane.
-    expect(contrastRatio(owning.rgb, pane.rgb), `owning ${owning.describe} vs pane ${pane.describe}`).toBeGreaterThan(1);
+    expect(wcagContrastRatio(owning.rgb, pane.rgb), `owning ${owning.describe} vs pane ${pane.describe}`).toBeGreaterThan(1);
   });
 
   test(`${theme}: every cell caption clears 4.5:1 — including the LOCKED cell, which is a live control`, async ({ mount, page }) => {
@@ -140,7 +140,7 @@ for (const theme of SHIPPED_THEMES) {
       const name = await caption.innerText();
       await expect
         .poll(async () => (await pixelContrast(page, caption)).ratio, { message: `${name} caption contrast (composited)` })
-        .toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+        .toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
   });
 }

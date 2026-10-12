@@ -6,8 +6,8 @@
 // mode diff / reduced-motion) in the second half of this file. The end-to-end torn-`<speaker>`
 // hold-back (a consumer-level concern — `holdTornSpeaker` runs in the ghost row, not the seal) stays
 // in tests/client/features/chat/components/ghost-message-row.ct.tsx.
+import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Markdown } from "@orb/ui/markdown";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
@@ -223,7 +223,7 @@ async function minimumTokenContrast(component: import("@playwright/experimental-
     return tokens.map((span) => ({ token: rgb(getComputedStyle(span).color), ground: rgb(groundOf(span)) }));
   });
   // No highlighted token yet reads 0 so the poll keeps waiting rather than passing on an empty set.
-  return pairs.length === 0 ? 0 : Math.min(...pairs.map(({ token, ground }) => contrastRatio(token, ground)));
+  return pairs.length === 0 ? 0 : Math.min(...pairs.map(({ token, ground }) => wcagContrastRatio(token, ground)));
 }
 
 const THEMED_CODE = "```ts\nconst tideHeightCm: number = measure(42); // reading\n```";
@@ -244,7 +244,7 @@ for (const { theme, device } of [
     );
     // Streamdown paints the fence as plain inherited text until the grammar loads; measure the highlighted tokens.
     await expect(cmp.locator('pre code span[style*="--shiki-dark"]').first()).toBeVisible();
-    await expect.poll(() => minimumTokenContrast(cmp), { timeout: 5000 }).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    await expect.poll(() => minimumTokenContrast(cmp), { timeout: 5000 }).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   });
 }
 

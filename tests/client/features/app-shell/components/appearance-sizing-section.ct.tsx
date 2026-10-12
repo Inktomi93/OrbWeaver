@@ -6,8 +6,8 @@
 // asserted against the section's OWN exported MIN/MAX constants, never hardcoded numbers.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -182,7 +182,7 @@ test("an elevation CELL patches elevation, key-minimally — and the three diagr
     if (lighter === undefined || darker === undefined) {
       throw new Error("the Layered ladder lost a step while sorting");
     }
-    expect(contrastRatio(lighter, darker)).toBeGreaterThanOrEqual(RatioFloor);
+    expect(wcagContrastRatio(lighter, darker)).toBeGreaterThanOrEqual(RatioFloor);
   }
 
   // …and the three options do not draw the same picture: shape + shadow differ, not only the tone.

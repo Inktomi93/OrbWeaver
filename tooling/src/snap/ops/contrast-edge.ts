@@ -9,12 +9,12 @@
 // the locator matched (the same argument ops/overflow.ts makes at length), and the DOM surface it touches
 // is declared locally because the tooling program is `types: ["node"]` on purpose.
 import { errorMessage } from "@orb/kit/error-message";
+import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Viewport } from "../../floor/instrument/argv.ts";
 import type { Rgb } from "../../floor/instrument/wcag.ts";
-import { UI_COMPONENT_MIN_RATIO } from "../../floor/instrument/wcag.ts";
 import type {
   ContrastBox,
   ContrastCapture,
@@ -218,7 +218,7 @@ function sideLine(row: ContrastEdgeSideReading): string {
   if (row.kind === "refused") {
     return `${row.side}: NO VERDICT (${row.reason})`;
   }
-  const verdict = row.ratio >= UI_COMPONENT_MIN_RATIO ? "PASS" : "FAIL";
+  const verdict = row.ratio >= AA_NON_TEXT_RATIO ? "PASS" : "FAIL";
   return `${row.side}: ${row.ratio.toFixed(2)}:1 ${verdict} ${show(row.ink)} on ${show(row.neighbour)} (${(row.neighbourShare * PERCENT).toFixed(0)}% of the band)`;
 }
 
@@ -235,7 +235,7 @@ export async function measureEdgeContrast(page: Page, selector: string, viewport
     return { outcome: { line, failed: true }, evidence: terminalEvidence(selector, subject.refusal === "NOT FOUND" ? "instrument-error" : "refused", line) };
   }
   const facts = subject.facts;
-  const base = { selector, candidates: facts.total, inViewport: 1, matchIndex: facts.matchIndex, requiredRatio: UI_COMPONENT_MIN_RATIO } as const;
+  const base = { selector, candidates: facts.total, inViewport: 1, matchIndex: facts.matchIndex, requiredRatio: AA_NON_TEXT_RATIO } as const;
   const reading = await readEdge(page, facts, viewport);
   if (reading.kind === "capture-failed") {
     // #1758: an INSTRUMENT fault, never folded into the "edge unmeasurable" domain-refusal family below —
@@ -304,8 +304,8 @@ export async function measureEdgeContrast(page: Page, selector: string, viewport
   // The WORST side is the verdict: 1.4.11 asks whether the boundary is distinguishable, and a border that
   // vanishes along one edge is not, whatever the other three measure.
   const worst = measured.reduce((lowest, row) => (row.ratio < lowest.ratio ? row : lowest));
-  const passed = worst.ratio >= UI_COMPONENT_MIN_RATIO && refusedSides.length === 0;
-  const tail = `(border · worst side ${worst.side} · need ${UI_COMPONENT_MIN_RATIO.toFixed(1)} · edge-sample) — ${detail}`;
+  const passed = worst.ratio >= AA_NON_TEXT_RATIO && refusedSides.length === 0;
+  const tail = `(border · worst side ${worst.side} · need ${AA_NON_TEXT_RATIO.toFixed(1)} · edge-sample) — ${detail}`;
   return {
     outcome: { line: `CONTRAST-EDGE ${selector}: ${worst.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}`, failed: !passed },
     evidence: {

@@ -1,8 +1,8 @@
 // CT: the badge/chip/pill seal — intent maps to the status token PAIR (computed color), sizes
 // carry real padding (ui-package-design §6.1).
 
+import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Badge } from "@orb/ui/badge";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -144,7 +144,7 @@ test("the calculator agrees with two KNOWN ratios before it is trusted", async (
   );
   const measure = async (testid: string): Promise<number> => {
     const [fg, bg] = await probe.getByTestId(testid).evaluate(paintedColors);
-    return contrastRatio(fg, bg);
+    return wcagContrastRatio(fg, bg);
   };
   // White on black is 21:1 and black on black is 1:1 — if either misses, the verdict below is noise.
   expect(await measure("max")).toBeCloseTo(21, 1);
@@ -179,12 +179,12 @@ test("soft-tone text clears AA-NORMAL over its own tint, on the surface it actua
   const measured = await Promise.all(
     ["danger", "warning", "neutral", "success", "info", "primary"].map(async (testid) => {
       const [fg, bg] = await chips.getByTestId(testid).evaluate(paintedColors);
-      return { testid, ratio: contrastRatio(fg, bg) };
+      return { testid, ratio: wcagContrastRatio(fg, bg) };
     }),
   );
   // AA-NORMAL: the chip is 13px/500, which is not large text under any reading of the rule.
   for (const { testid, ratio } of measured) {
-    expect(ratio, `${testid} soft-tone contrast`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    expect(ratio, `${testid} soft-tone contrast`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });
 // ── THE LIGHT ARM of the pin above (2026-09-01) ────────────────────────────────────────────────────
@@ -227,11 +227,11 @@ test("soft-tone text clears AA-NORMAL under the LIGHT theme too — the polarity
   const measured = await Promise.all(
     ["danger", "warning", "neutral", "success", "info", "primary"].map(async (testid) => {
       const [fg, bg] = await chips.getByTestId(testid).evaluate(paintedColors);
-      return { testid, ratio: contrastRatio(fg, bg) };
+      return { testid, ratio: wcagContrastRatio(fg, bg) };
     }),
   );
   for (const { testid, ratio } of measured) {
-    expect(ratio, `${testid} soft-tone contrast (light)`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    expect(ratio, `${testid} soft-tone contrast (light)`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });
 
@@ -278,11 +278,11 @@ test("status ink and soft chips clear AA-NORMAL on the INTERACTIVE (hover) groun
     const measured = await Promise.all(
       ["gloss", "danger", "warning", "primary", "info", "success"].map(async (testid) => {
         const [fg, bg] = await row.getByTestId(testid).evaluate(paintedColors);
-        return { testid, ratio: contrastRatio(fg, bg) };
+        return { testid, ratio: wcagContrastRatio(fg, bg) };
       }),
     );
     for (const { testid, ratio } of measured) {
-      expect(ratio, `${testid} on the hover ground (${theme})`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      expect(ratio, `${testid} on the hover ground (${theme})`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
     await row.unmount();
   }
@@ -303,7 +303,9 @@ test("PLANTED CONTROL: a token that cannot pass on that ground still measures BE
     </div>,
   );
   const [fg, bg] = await row.getByTestId("unreadable").evaluate(paintedColors);
-  expect(contrastRatio(fg, bg), "a surface token as ink must measure below AA — if this passes, the measurement has gone blind").toBeLessThan(NORMAL_MIN_RATIO);
+  expect(wcagContrastRatio(fg, bg), "a surface token as ink must measure below AA — if this passes, the measurement has gone blind").toBeLessThan(
+    AA_NORMAL_RATIO,
+  );
 });
 
 test("md size carries more horizontal padding than sm", async ({ mount }) => {

@@ -11,8 +11,8 @@
 // stayed BYTE-IDENTICAL — chart chrome was stale until the chart remounted. Hence the second assertion:
 // the mount id must be UNCHANGED, or a green here would only prove React threw the subtree away.
 
+import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { TOKEN_POLARITY_ARMS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
@@ -169,8 +169,8 @@ test("a custom midlight ThemeScope renders a real chart with five 3:1 categorica
           unresolvedColorCount: colors.filter((color) => /(?:light-dark|var)\(/u.test(color)).length,
         };
       });
-      const minRatio = Math.min(...fills.map((fill) => contrastRatio(fill, backing)));
-      return { ...rendered, minimumRatioClears: fills.length === 5 && minRatio >= UI_COMPONENT_MIN_RATIO };
+      const minRatio = Math.min(...fills.map((fill) => wcagContrastRatio(fill, backing)));
+      return { ...rendered, minimumRatioClears: fills.length === 5 && minRatio >= AA_NON_TEXT_RATIO };
     })
     .toEqual({ colorCount: 5, distinctColorCount: 5, minimumRatioClears: true, renderedColorCount: 5, unresolvedColorCount: 0 });
 });
@@ -197,7 +197,7 @@ async function minimumFillContrast(panel: Locator): Promise<number> {
     };
     return { fills: colors.map(rgb), backing: rgb(getComputedStyle(element).backgroundColor) };
   }, palette);
-  return resolved === null ? 0 : Math.min(...resolved.fills.map((fill) => contrastRatio(fill, resolved.backing)));
+  return resolved === null ? 0 : Math.min(...resolved.fills.map((fill) => wcagContrastRatio(fill, resolved.backing)));
 }
 
 test("named, alpha-composited, and extreme accepted themes render five 3:1 ECharts fills", async ({ mount }) => {
@@ -206,7 +206,7 @@ test("named, alpha-composited, and extreme accepted themes render five 3:1 EChar
   for (const name of ["named", "transparent", "partial-alpha", "extreme-gamut"] as const) {
     await expect(panel).toHaveAttribute("data-case", name);
     await expect(panel.locator("canvas")).toBeVisible();
-    await expect.poll(async () => await minimumFillContrast(panel)).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    await expect.poll(async () => await minimumFillContrast(panel)).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     if (name !== "extreme-gamut") {
       await panel.getByRole("button", { name: "Next accepted theme" }).click();
     }
@@ -221,7 +221,7 @@ test("contextual backgrounds are rejected before derivation and the rendered cha
     await expect(panel).toHaveAttribute("data-case", name);
     await expect(panel.locator("canvas")).toBeVisible();
     await expect.poll(async () => await themeScope.evaluate((element) => (element as HTMLElement).style.getPropertyValue("--color-background"))).toBe("");
-    await expect.poll(async () => await minimumFillContrast(panel)).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    await expect.poll(async () => await minimumFillContrast(panel)).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     if (name !== "active-text") {
       await panel.getByRole("button", { name: "Next rejected theme" }).click();
     }

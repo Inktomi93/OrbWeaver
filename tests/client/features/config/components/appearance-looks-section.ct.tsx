@@ -304,6 +304,28 @@ test("Edit in builder autosaves an OWNED row — no Save button, no mint", async
   expect(trpc.count("settings.duplicateTheme")).toBe(0);
 });
 
+// The builder's non-blocking WCAG badge: each picked text colour is rated against its surface by the kit's
+// ratio and flags "hard to read" below AA. Hex values, because the badge reads the browser's rgb() resolution.
+const READABLE = { ...OWNED, id: "theme_readable", name: "Readable", override: { background: "#101010", accent: "#f0f0f0" } };
+const WASHED_OUT = { ...OWNED, id: "theme_washed", name: "Washed out", override: { background: "#808080", accent: "#8a8a8a" } };
+const ACCENT_LABEL_RE = /^Accent$/u;
+
+for (const [theme, verdict, badgeText] of [
+  [READABLE, "passes", /^\d+\.\d:1$/u],
+  [WASHED_OUT, "fails", /:1 — hard to read$/u],
+] as const) {
+  test(`the builder's Accent contrast badge ${verdict} AA for ${theme.name}`, async ({ mount, page }) => {
+    await stub(page, { "settings.listThemes": () => [HEARTH, theme] });
+    const component = await mount(<LooksSectionStory />);
+    await component.getByRole("button", { name: themeActionsName(theme.name) }).click();
+    await page.getByRole("menuitem", { name: "Edit in builder" }).click();
+    await component.getByRole("button", { name: "Show advanced theme tools" }).click();
+    const badge = component.locator('[data-voice="kicker"]', { hasText: ACCENT_LABEL_RE }).locator("xpath=..");
+    await expect(badge).toBeVisible();
+    await expect(badge.locator("xpath=./*[2]")).toHaveText(badgeText);
+  });
+}
+
 test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {
   const trpc = await stub(page, { "settings.removeTheme": () => null });
   const component = await mount(<LooksSectionStory />);
