@@ -18,7 +18,7 @@ First-party showcases keep one tracked source: TypeScript, manifests, assets, an
 
 Standalone template repositories use a different distribution shape because the Git repository itself is an install source. Authors edit TypeScript under `src/`; the checked build writes deterministic `main.js` and optional `ui.js` beside the root manifest. Those generated root entries are committed and a strict freshness check keeps them byte-consistent with source. Git installation fetches only the built root entries and admitted assets. It never compiles fetched TypeScript or runs repository scripts. Deterministic zip packing remains available for upload and bundle-URL installation, but a GitHub Release is not required for an ordinary plugin.
 
-The SDK and toolchain are distributed as deterministic tarballs on a versioned public GitHub Release, not through a package registry. Templates lock the two anonymous release-asset URLs. Homes: `docs/law/plugin-system.md`, `packages/plugin-sdk/`, `packages/plugin-toolchain/`, and `docs/plans/plugin-authoring/design.md`.
+The SDK and toolchain are distributed as deterministic tarballs on a versioned public GitHub Release, not through a package registry. Templates lock the two anonymous release-asset URLs. Homes: `docs/law/plugin-system.md`, `packages/plugin-sdk/`, and `packages/plugin-toolchain/`.
 
 ## Consequences
 

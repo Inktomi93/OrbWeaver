@@ -11,6 +11,10 @@ priority: P2
 
 Known reds and loose ends surfaced by lanes and verifiers: the release-please-config cmdk dependabot-ignore case fails on main; real-corpus-liveness-manifest is red for policies that lack liveness pins (contract-structural-copy, json-column-read-parsed, test-file-size, test-production-clone, trpc-input-declarations, wire-json-parsed-at-consumer and test-hand-shape); the no-inline-types waiver budget disagrees with its measured count; dependency-cruiser-worlds and application-knip failed from tests/support/node_modules before the vitest exclusion fix and need a clean rerun; session-daemon.int T5 failed twice under load and is unproven either way; gate-spelling-twins.int has no verdict yet because it times out under load. `pnpm knip:prod` is red on main: three unused testkit dependencies and five unused client exports. `@orb/ui` exports its node-only token build modules (the token-contract and tokens-build subpaths) because tooling imports them, so their build tools (`ajv`, `ajv-formats`, `style-dictionary`, `tailwindcss`) must sit in ui's runtime dependencies; those modules belong outside ui's shipped exports (with D318), and the `token-contract.ts` header that says they were dropped is stale. The CT `use-databank-list-header.ct.tsx` fails on main.
 
+## Population and migration checks
+
+Audit policies declaring `@packages` in `tooling/src/verify/contract/population.ts`: that fixed set omits `@inference`, while `@product` includes it. Each policy must use the population its claim covers; do not widen the fixed set silently. Review remaining Biome nursery rules against maintained ESLint equivalents after the lint migration. Fix dangling `@orb/testkit` citations after testkit doors change. Keep the release-please cmdk failure and real-corpus-liveness findings visible until their completed checks establish a verdict.
+
 ## Why
 
 Reds on main poison every lane's evidence and hide new failures.

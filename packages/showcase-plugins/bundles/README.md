@@ -4,7 +4,7 @@ This directory holds the nine checked example plugins every Orbweaver user is gi
 Each has its own README; reading an example's source is the documentation for the capabilities it uses. The
 reusable project templates and their generator are separate #0233 work. The authoring architecture is ruled
 by [D266](../../../docs/adr/0266-plugin-build-artifact-boundary.md); its mechanism and acceptance map live
-in the [plugin-authoring design](../../../docs/plans/plugin-authoring/design.md).
+in the [plugin system law](../../../docs/law/plugin-system.md).
 
 ```
 research-familiar/     event reactor      watches the room, reaches the network, files lore + databank clips

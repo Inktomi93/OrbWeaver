@@ -12,11 +12,17 @@ Plugins are installed per user and run only with that user's grants. [D147](../a
 
 The installable unit is an admitted bundle, not a source repository. `packages/contracts/src/plugin/manifest.ts` owns its manifest and entry limits. `packages/server/src/domain/plugin/substrate/manifest.ts` validates the bundle. The install verbs store admitted bytes and the plugin's owner-scoped asset links. They do not run repository build commands.
 
-The author guide is `packages/showcase-plugins/bundles/README.md`. Showcase TypeScript is checked against the public `packages/plugin-sdk/` declarations and packed by `packages/plugin-toolchain/`. The tracked package contains source, manifests, assets, and prose. The release build creates ignored, atomic installable zips under `packages/showcase-plugins/dist/bundles/`; the server reads only those zips and never loads the compiler. [D266](../adr/0266-plugin-build-artifact-boundary.md) owns that boundary. [The authoring plan](../plans/plugin-authoring/design.md) tracks the standalone templates and remaining author work.
+The author guide is `packages/showcase-plugins/bundles/README.md`. Showcase TypeScript is checked against the public `packages/plugin-sdk/` declarations and packed by `packages/plugin-toolchain/`. The tracked package contains source, manifests, assets, and prose. The release build creates ignored, atomic installable zips under `packages/showcase-plugins/dist/bundles/`; the server reads only those zips and never loads the compiler. [D266](../adr/0266-plugin-build-artifact-boundary.md) owns that boundary.
 
 Third-party Git repositories author TypeScript under `src/` and commit deterministic built entry files beside the root manifest. Their trusted CI refuses missing, stale, or obsolete generated JavaScript. Git-backed installation fetches those built root entries through the live bundle validator and consent path while the server is running; the application never compiles fetched TypeScript or runs repository scripts. Zip upload and bundle-URL sources remain valid prebuilt forms. The SDK and toolchain themselves ship as deterministic tarballs on a versioned public GitHub Release so locked author projects can install them anonymously without a package-registry credential.
 
 The bundle may come from an upload, a development directory, a bundle URL, or a Git repository. Each source must pass the same admission and consent path. [D276](../adr/0276-plugin-install-doors-share-one-funnel.md) rules those install doors. A repository name does not set plugin identity: the admitted manifest does.
+
+## Author support map
+
+`scripts/generate-plugin-author-support.ts` derives the toolchain's support map from executable contract tuples and maps. `packages/plugin-toolchain/src/support.generated.ts` ships without application imports, so standalone authors need no Orbweaver checkout. Runtime facts without a contract owner live in `packages/plugin-toolchain/src/support-model.ts`.
+
+Generate an author guide with `orb-plugin support --write <path>`. Check it with `orb-plugin support --check <path>`; missing or stale output fails without rewriting. Template guides link to that generated guide rather than copying capability, hook, surface, or placement lists. SDK declarations remain separate from runtime support data.
 
 ## Execution planes
 

@@ -12,7 +12,7 @@ Plugins need contextual actions in the composer and other menus. Their server an
 
 ## Decision
 
-A plugin declares actions through a typed, closed placement contract. The host owns menu groups, ordering, attribution, keyboard access, mobile overflow, and action invocation. Actions use the existing permission checked plugin command path. House surfaces remain declarative or scripted data rendered by the host. Custom pixels run only in the consented isolated frame. Admitted bundle assets may be shown through owner scoped asset resolution. Homes: `docs/law/plugin-system.md`, `packages/contracts/src/plugin/`, and `docs/plans/plugin-authoring/design.md`. General action placement and frame asset resolution are not yet built.
+A plugin declares actions through a typed, closed placement contract. The host owns menu groups, ordering, attribution, keyboard access, mobile overflow, and action invocation. Actions use the existing permission checked plugin command path. House surfaces remain declarative or scripted data rendered by the host. Custom pixels run only in the consented isolated frame. Admitted bundle assets may be shown through owner scoped asset resolution. Homes: `docs/law/plugin-system.md` and `packages/contracts/src/plugin/`. General action placement and frame asset resolution are not yet built.
 
 ## Consequences
 
