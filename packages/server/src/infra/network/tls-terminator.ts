@@ -9,6 +9,7 @@ import type { Server } from "node:https";
 import { createServer } from "node:https";
 import { pipeline } from "node:stream";
 
+// @orb-waive no-inline-package-interface(TlsTerminatorOptions): baselined when the gate landed; burn-down item 952.
 /** Where the https listener binds, what it serves, and the app listener it forwards to. */
 export interface TlsTerminatorOptions {
   readonly port: number;
@@ -20,6 +21,7 @@ export interface TlsTerminatorOptions {
   readonly upstream: () => string;
 }
 
+// @orb-waive no-inline-package-interface(TlsTerminator): baselined when the gate landed; burn-down item 952.
 /** A listening terminator. A renewal swaps the certificate in place; `close` ends every connection. */
 export interface TlsTerminator {
   readonly port: number;

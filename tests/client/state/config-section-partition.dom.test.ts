@@ -6,6 +6,7 @@
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
+import type { UserSettingsSection } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { configSections } from "@orb/testkit/browser/ct-door.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -44,15 +45,14 @@ function defaults(namespaces: Record<string, Record<string, unknown>>): Defaults
   return namespaces as unknown as Defaults;
 }
 
-function claiming(id: string, sectionName: string, keys: readonly string[]): ConfigSectionContribution {
-  // @orb-waive no-loose-id-cast(sectionName): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-  return { ...section(id), owns: { tier: "user", section: sectionName as never, keys } };
+function claiming(id: string, sectionName: UserSettingsSection, keys: readonly string[]): ConfigSectionContribution {
+  return { ...section(id), owns: { tier: "user", section: sectionName, keys } };
 }
 
 /** A claiming contribution whose nav carries ONE leaf, optionally key-bound (§3.4 row chrome, #866). */
 function claimingWithLeaf(
   id: string,
-  claim: { readonly section?: string; readonly keys?: readonly string[] } | null,
+  claim: { readonly section?: UserSettingsSection; readonly keys?: readonly string[] } | null,
   leafKey?: string,
 ): ConfigSectionContribution {
   const base = claim === null ? section(id) : claiming(id, claim.section ?? "chat", claim.keys ?? ["one"]);
@@ -163,8 +163,7 @@ describe("assertSettingsKeyPartition", () => {
 
   test("a CITED gap passes — the D107 exemption, with its reason", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"])]);
-    // @orb-waive no-loose-id-cast("chat"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    const cites = [{ section: "chat" as never, key: "orphan", reason: "ingest-only, set elsewhere" }];
+    const cites = [{ section: "chat" as const, key: "orphan", reason: "ingest-only, set elsewhere" }];
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1, orphan: 2 } }), cites)).not.toThrow();
   });
 
@@ -172,22 +171,19 @@ describe("assertSettingsKeyPartition", () => {
   // instead of rotting green, in BOTH directions.
   test("a cite whose key a section now CLAIMS throws", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one", "orphan"])]);
-    // @orb-waive no-loose-id-cast("chat"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    const cites = [{ section: "chat" as never, key: "orphan", reason: "stale — a section claims it now" }];
+    const cites = [{ section: "chat" as const, key: "orphan", reason: "stale — a section claims it now" }];
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1, orphan: 2 } }), cites)).toThrow(CITE_NOW_CLAIMED);
   });
 
   test("a cite for a key that no longer EXISTS throws", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"])]);
-    // @orb-waive no-loose-id-cast("chat"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    const cites = [{ section: "chat" as never, key: "removed", reason: "the key was deleted from the schema" }];
+    const cites = [{ section: "chat" as const, key: "removed", reason: "the key was deleted from the schema" }];
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 } }), cites)).toThrow(CITE_KEY_GONE);
   });
 
   test("a cite in a namespace NO section claims throws — an inert cite", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"])]);
-    // @orb-waive no-loose-id-cast("appearance"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    const cites = [{ section: "appearance" as never, key: "density", reason: "still pane-owned" }];
+    const cites = [{ section: "appearance" as const, key: "density", reason: "still pane-owned" }];
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 }, appearance: { density: "x" } }), cites)).toThrow(CITE_INERT);
   });
 

@@ -46,7 +46,6 @@ const useRevertContinueMutation = createEntityMutation<ContinueRestoreVars, unkn
   errorToast: "Couldn't re-apply the continuation.",
 });
 
-// @orb-waive no-inline-wire-interface(UseComposerUtilitiesResult): baselined when the gate widened; burn-down item 904.
 export interface UseComposerUtilitiesResult {
   /** Post the user text WITHOUT generating a reply (Simple send). Clears the composer on success. */
   readonly commitMessage: (content: string, onDone: () => void) => void;

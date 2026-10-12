@@ -35,6 +35,7 @@ interface WorkerModelCacheConfig extends Omit<LocalLightWorkerOptions, "cacheMod
   readonly log: InferenceLog;
 }
 
+// @orb-waive no-inline-package-interface(WorkerModelCache): baselined when the gate landed; burn-down item 952.
 export interface WorkerModelCache extends LocalLightModelCache {
   /** Stop the worker and reject its pending calls, waiting a bounded time for it to exit. Every later call is
    *  refused as `aborted`: close runs at shutdown, and a worker started after it would be torn down mid-run. */

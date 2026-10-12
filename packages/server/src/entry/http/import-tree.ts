@@ -67,6 +67,7 @@ const TRAILING_SLASH = /\/$/;
 // `settings.json` + a `themes/` dir) sniff as ST instead of tripping the both-markers ambiguity reject.
 const ST_SHARED_DIRS = new Set(["characters/", "chats/", "themes/", "assets/"]);
 
+// @orb-waive no-inline-package-interface(ImportTreeDeps): baselined when the gate landed; burn-down item 952.
 export interface ImportTreeDeps {
   readonly workloads: Pick<WorkloadService, "start">;
   readonly persona: Pick<PersonaService, "reviewImport">;

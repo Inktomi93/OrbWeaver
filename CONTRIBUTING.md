@@ -56,7 +56,7 @@ pnpm check   # the static tier: lint, typecheck, structural gates
 ```
 
 Run the behavior tests your change touches with `pnpm test:scoped <paths>` or `pnpm test:ct <paths>`. The
-pre-commit hook runs the static checks on what you staged, and the pre-push hook runs `pnpm check`. CI runs
+pre-commit hook runs the static checks on what you staged, and the pre-push hook checks GitHub synchronization. CI runs
 the rest on every PR: node tests, component tests and the e2e smoke suite. `pnpm verify --push` runs all of
 it locally if you'd rather know first.
 

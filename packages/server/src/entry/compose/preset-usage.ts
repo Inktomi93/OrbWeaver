@@ -55,6 +55,7 @@ function isActivePick(defaultPresetId: string | null, presetId: PresetId): boole
   return defaultPresetId === null ? presetId === SYSTEM_DEFAULT_PRESET_ID : defaultPresetId === presetId;
 }
 
+// @orb-waive no-inline-package-interface(PresetUsageDeps): baselined when the gate landed; burn-down item 952.
 /** What the preset-usage resolver needs: the two foreign reads + the shared room filter. */
 export interface PresetUsageDeps {
   readonly db: Db;

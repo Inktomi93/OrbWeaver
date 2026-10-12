@@ -19,6 +19,7 @@ export class ImageRejectedError extends Error {
   }
 }
 
+// @orb-waive no-inline-package-interface(ImageGuardCaps): baselined when the gate landed; burn-down item 952.
 /** Tunable caps + allow-set the guard enforces over the pure sniff; all optional, defaulted below. */
 export interface ImageGuardCaps {
   readonly maxBytes: number;

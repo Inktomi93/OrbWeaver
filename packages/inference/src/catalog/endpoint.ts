@@ -30,6 +30,7 @@ type RawRow = z.infer<typeof rowSchema>;
 
 const listSchema = z.object({ data: z.array(rowSchema) }).loose();
 
+// @orb-waive no-inline-package-interface(EndpointFetchArgs): baselined when the gate landed; burn-down item 952.
 export interface EndpointFetchArgs {
   readonly fetch: typeof fetch;
   readonly baseUrl: string;

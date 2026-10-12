@@ -134,6 +134,7 @@ export { planStructuredFor, structuredFitFor } from "./structured/plan.ts";
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
 
+// @orb-waive no-inline-package-interface(CapabilityRead): baselined when the gate landed; burn-down item 952.
 export interface CapabilityRead extends SynthesizedCapability {
   readonly cacheContext: CachePolicyContext;
   /** The same evidence fold with this row's declaration omitted. */
@@ -146,6 +147,7 @@ export interface CapabilityRead extends SynthesizedCapability {
   readonly detectedProviderId?: ProviderDef["id"] | undefined;
 }
 
+// @orb-waive no-inline-package-interface(InferenceRuntime): baselined when the gate landed; burn-down item 952.
 export interface InferenceRuntime {
   readonly resolve: (args: ResolveArgs) => Promise<ResolveOutcome>;
   readonly availability: (args: ResolveArgs) => Promise<SendAvailability>;

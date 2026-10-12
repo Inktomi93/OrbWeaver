@@ -16,6 +16,7 @@ import type { WorkloadContributions } from "#domain/workloads";
 import { reclaimInFlightOnBoot } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
+// @orb-waive no-inline-package-interface(ReclaimLocksDeps): baselined when the gate landed; burn-down item 952.
 export interface ReclaimLocksDeps {
   readonly db: Db;
   /** The contribution registry the row read path validates params against (poison tolerance), and the

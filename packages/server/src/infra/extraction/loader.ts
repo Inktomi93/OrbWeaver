@@ -3,6 +3,7 @@
 // pre-normalization text + optional per-format meta; `createExtractText` runs §2 normalization, measures
 // `charCount`, and stamps `EXTRACTOR_VERSION`.
 
+// @orb-waive no-inline-package-interface(RawExtraction): baselined when the gate landed; burn-down item 952.
 /** A loader's raw output — pre-normalization text plus optional per-format meta. */
 export interface RawExtraction {
   readonly text: string;
@@ -12,6 +13,7 @@ export interface RawExtraction {
   readonly title?: string;
 }
 
+// @orb-waive no-inline-package-interface(Loader): baselined when the gate landed; burn-down item 952.
 /** A per-format loader: raw bytes → raw extraction. Throws on a genuinely unreadable file — the dispatch wraps
  *  that as `ExtractionFailedError`. (A call-signature interface, not a `type` alias — `no-inline-types`
  *  reserves exported aliases for contract homes; infra names its shapes with `interface`.) */

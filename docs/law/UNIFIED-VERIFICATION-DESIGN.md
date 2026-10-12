@@ -497,13 +497,13 @@ checkout's run.
 
 CI runs complete application static verification before a revision can promote to release. World, import, schema and membership enforcement remain required.
 Local scoped green does not establish whole-tree green. Applicable local completion checks follow the `lane` skill and `AGENTS.md`.
-The merge-train barrier remains separate from the local pre-push hook. Browser suites never gate the static tier (`Spine-Testing.md` §7).
+The barrier is the orchestrator's whole-tree check on main before the owner pushes (D317); it is separate from the local pre-push hook. Browser suites never gate the static tier (`Spine-Testing.md` §7).
 
 ### 4.4 Verification ownership
 
 Lanes own meaningful affected behavior, compiler, lint, gate and rendered checks. Reuse completed checks while their inputs, scope and execution population match.
 The staged commit and merge hooks are index checks, not whole-tree or behavioral qualification. Fast-forward merges create no commit hook.
-The orchestrator freezes a drained batch and records its starting and ending commits. Reconcile the combined tree once, including `pnpm test:ratchets` and affected integration.
+The orchestrator merges each lane after its verifier and reconciles the combined tree once before the owner pushes, including `pnpm test:ratchets` and affected integration (D317).
 Credit broader evidence only when its actual population includes the owed checks. Return concrete failures together and recheck invalidated evidence after corrections.
 `pnpm verify --product` qualifies application behavior. Weekly proof independently recertifies checker implementation; its result does not veto valid product evidence.
 

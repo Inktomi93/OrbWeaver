@@ -29,6 +29,7 @@ Do the steps in order. A later step may run in parallel only where its row says 
 - Merged, not yet closed: item 901 (`tests/support` is the world-split `@orb/testkit` package) closes when 890 moves the compose closures to their owning layer. Item 899's second half and item 900's core are merged; check each done line against the tree, then land them. Item 915 removed the verb grants; the client, module and row grant files remain.
 - In flight, each on its work item's lane: item 890 in three lanes (server rows; client, story and UI rows; contracts, inference and tooling rows), 892 with 906, 904 with 905, 923 with 945, 926 with 944, 928, 932, 939, 948 and 887.
 - Waiting: 946 after 906; 952 after 923; 898 after 887; 951 after the test lanes above merge, as one codemod commit.
+- Next phase: [test-foundation](../test-foundation/design.md). It owns the server harness rebuild, so item 890 stops at its verifier fixes and its remaining server harness rows move there, and one code-facts engine for codemods, `pnpm ast` and the gates.
 - Every lane gets a fresh-context verifier before merge. A verifier finding about the item is fixed in that item; an unrelated one becomes a new item.
 
 ### Rules that hold during the work

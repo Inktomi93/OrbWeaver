@@ -114,7 +114,7 @@ as the new one. If you cannot go green without a hatch, stop and report.
 | `pnpm verify --weekly` | complete checker proof and global implementation checks; independent of product qualification |
 
 - Read stage membership from `pnpm verify --list`. Exit codes: 0 clean, 1 violations, 2 tool error (not a verdict), 3 misuse.
-- Use the `lane` skill's "Completion" policy to select checks. Run `pnpm check --application` after merge trains, for cross-package contracts or shared build/verification changes, or when requested. Routine local changes finish with relevant scoped checks.
+- Use the `lane` skill's "Completion" policy to select checks. Run `pnpm check --application` once on main before the owner pushes, or when requested (D317). CI is the verdict. Routine local changes finish with relevant scoped checks.
 - The local pre-push hook checks GitHub synchronization. CI owns whole-tree verification before release; see `UNIFIED-VERIFICATION-DESIGN.md` §4.
 - The `commit-msg` hook enforces the message format (`scripts/commit-msg-check.sh`).
 
@@ -167,7 +167,7 @@ without a path are in that folder.
 | lane | a subagent that owns a related batch of work in its own worktree |
 | leg | one dispatch to a lane |
 | merge train | a batch of lane merges into `main` |
-| barrier | the whole-tree check after a merge train |
+| barrier | the whole-tree check on main before the owner pushes (D317) |
 | floor | the checks a lane runs before it reports |
 
 ## Path rules and Codex

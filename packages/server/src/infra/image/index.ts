@@ -26,6 +26,7 @@ export const IMAGE_FORMATS = ["webp", "png", "jpeg"] as const;
 
 type ImageFormat = (typeof IMAGE_FORMATS)[number];
 
+// @orb-waive no-inline-package-interface(ImageTransformOptions): baselined when the gate landed; burn-down item 952.
 /** Options for {@link ImageAdapter.transform}. `width` is OPTIONAL: omit it to normalize/strip metadata
  *  without resizing (e.g. sanitizing an uploaded original); supply an already-snapped width to produce a
  *  variant. `format` defaults to webp; `quality` applies to the lossy encoders (webp/jpeg). */
@@ -50,6 +51,7 @@ export interface ImageTransformOptions {
   quality?: number;
 }
 
+// @orb-waive no-inline-package-interface(ImageInfo): baselined when the gate landed; burn-down item 952.
 /** Decoded image dimensions/format — the return of {@link ImageAdapter.probe}. */
 export interface ImageInfo {
   /** The detected container format (e.g. `"png"`, `"jpeg"`, `"webp"`). */
@@ -60,6 +62,7 @@ export interface ImageInfo {
   height: number;
 }
 
+// @orb-waive no-inline-package-interface(ImageAdapter): baselined when the gate landed; burn-down item 952.
 /** The sharp image adapter. `entry/` constructs it once and injects `transform` into
  *  `domain/assets`. Stateless (sharp holds no per-instance state) — the factory exists only to keep the
  *  injection seam uniform with the other infra handles. */

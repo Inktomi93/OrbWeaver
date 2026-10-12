@@ -220,8 +220,8 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D270 | [Chat options uses a hamburger glyph in the composer](0270-chat-options-hamburger-glyph.md) | active |
 | D271 | [Phone tabs and Corpus mode landings](0271-phone-tabs-and-corpus-mode-landings.md) | active |
 | D272 | [A container shares through the pinned relay download](0272-a-container-shares-through-the-pinned-relay-download.md) | active |
-| D273 | [Pre-commit runs the static tier over the staged change](0273-pre-commit-runs-the-static-tier-over-the-staged-change.md) | superseded by [0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) |
-| D274 | [The commit gate runs only what narrows to the staged files](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | superseded by [0306-verification-qualification-ownership.md](0306-verification-qualification-ownership.md) |
+| D273 | [Pre-commit runs the static tier over the staged change](0273-pre-commit-runs-the-static-tier-over-the-staged-change.md) | superseded by [0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.md](0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.md) |
+| D274 | [The commit gate runs only what narrows to the staged files](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | superseded by [0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.md](0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.md) |
 | D275 | [The IP certificate comes from acme-client over HTTP-01](0275-the-ip-certificate-comes-from-acme-client-over-http-01.md) | active |
 | D276 | [Every plugin install door lands through the one bundle funnel](0276-plugin-install-doors-share-one-funnel.md) | superseded by [0280-plugin-supported-install-sources.md](0280-plugin-supported-install-sources.md) |
 | D277 | [Rooms attribute each reply and picture honestly without exposing another user's connection](0277-room-connection-attribution-and-pictures.md) | superseded by [0300-room-attribution-and-host-owned-pictures.md](0300-room-attribution-and-host-owned-pictures.md) |
@@ -263,3 +263,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D314 | [Persona pointers have one writer each, the default decides new chats, and the pin holds](0314-persona-pointers-have-one-writer-and-the-pin-holds.md) | superseded by [0315-persona-pointers-one-writer-pin-read-through-chat.md](0315-persona-pointers-one-writer-pin-read-through-chat.md) |
 | D315 | [Persona pointers have one writer each, the default decides new chats, and the pin holds through its chat](0315-persona-pointers-one-writer-pin-read-through-chat.md) | active |
 | D316 | [Test setup stays inline; test duplication is held by a ratchet, never swept](0316-test-setup-stays-inline-under-a-cpd-ratchet.md) | active |
+| D317 | [Commit runs Biome and typecheck; CI is the verdict](0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.md) | active |

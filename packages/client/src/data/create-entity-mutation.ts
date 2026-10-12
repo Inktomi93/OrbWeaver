@@ -101,7 +101,6 @@ export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutation
 /** A `busDriven` mutation reconciles via the bus, not itself — its settle invalidates nothing. */
 const NO_INVALIDATION = (): readonly InvalidateFilter[] => [];
 
-// @orb-waive no-inline-wire-interface(EntityMutationResult): baselined when the gate widened; burn-down item 904.
 export interface EntityMutationResult<TVars, TData> {
   /** `options` forwards react-query's per-call `MutateOptions` — the callbacks run IN ADDITION to the
    *  factory's baked cache recipe + the global error toast (e.g. a call-site `onError` for the guided

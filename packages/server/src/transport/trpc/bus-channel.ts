@@ -9,6 +9,7 @@
 // (G10 excludes buddy's domain-minted replay-buffer bus — O4 — which never touches this file).
 import { EventEmitter, on } from "node:events";
 
+// @orb-waive no-inline-package-interface(BusChannel): baselined when the gate landed; burn-down item 952.
 export interface BusChannel<Key, Event> {
   /** Fan `event` to `key`'s channel (+ the firehose channel, if this bus declared one). */
   readonly publish: (key: Key, event: Event) => void;
@@ -17,6 +18,7 @@ export interface BusChannel<Key, Event> {
   readonly subscribe: (key: Key, signal: AbortSignal) => AsyncIterable<Event>;
 }
 
+// @orb-waive no-inline-package-interface(FirehoseBusChannel): baselined when the gate landed; burn-down item 952.
 export interface FirehoseBusChannel<Key, Event> extends BusChannel<Key, Event> {
   /** Every event across every key, regardless of channel — the buddy-observer-shaped tap. Callback-style: the
    *  one caller today is a long-lived process supervisor, not a per-request SSE generator. Returns the
