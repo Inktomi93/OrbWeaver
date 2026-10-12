@@ -4,21 +4,19 @@
 
 import type { ProfilerOnRenderCallback, ReactNode } from "react";
 import { Profiler } from "react";
+import { CONSOLE_STYLES } from "./console-styles.ts";
 import { IS_DEV } from "./dev-flag.ts";
 import { logClock } from "./log-clock.ts";
 import { recordRender } from "./render-stats.ts";
 
 const SLOW_COMMIT_MS = 12;
 
-const PERF_STYLE = "color:#c60;font-weight:bold";
-const MUTED_STYLE = "color:#888";
-
 const onRender: ProfilerOnRenderCallback = (id, phase, actualDuration) => {
   recordRender(id, phase, actualDuration);
   if (actualDuration < SLOW_COMMIT_MS) {
     return;
   }
-  console.warn(`%c${logClock()} [perf]%c slow commit ${id} ${Math.round(actualDuration)}ms (${phase})`, PERF_STYLE, MUTED_STYLE);
+  console.warn(`%c${logClock()} [perf]%c slow commit ${id} ${Math.round(actualDuration)}ms (${phase})`, CONSOLE_STYLES.warning, CONSOLE_STYLES.muted);
 };
 
 const recordOnly: ProfilerOnRenderCallback = (id, phase, actualDuration) => {

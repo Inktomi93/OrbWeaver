@@ -2,6 +2,7 @@
 // Inputs are key-scrubbed before they ever reach the console. NOT dev-only: loggerLink fires this in
 // prod for errors too, so this module (+ log-clock) ships.
 
+import { CONSOLE_STYLES } from "./console-styles.ts";
 import { logClock } from "./log-clock.ts";
 
 /**
@@ -24,11 +25,6 @@ export type TrpcOpLogEntry =
       readonly elapsedMs: number;
       readonly result: unknown;
     };
-
-const PREFIX_STYLE = "color:#888;font-weight:bold";
-const PATH_STYLE = "color:#06c";
-const ERROR_STYLE = "color:#c00;font-weight:bold";
-const MUTED_STYLE = "color:#888";
 
 // Mirrors the server logger's redact list (authorization/cookie/token/apiKey/password) plus bare
 // `key` (EXACT match, so shapes like `queryKey` stay visible) and `secret`.
@@ -95,14 +91,19 @@ export function formatTrpcOp(entry: TrpcOpLogEntry): void {
   const prefix = `%c${logClock()} [trpc]`;
   if (entry.direction === "up") {
     const inputStr = entry.input === undefined ? "" : compactJson(redactSensitive(entry.input));
-    console.info(`${prefix} %c→ ${entry.type} ${entry.path}%c ${inputStr}`, PREFIX_STYLE, PATH_STYLE, MUTED_STYLE);
+    console.info(`${prefix} %c→ ${entry.type} ${entry.path}%c ${inputStr}`, CONSOLE_STYLES.prefix, CONSOLE_STYLES.path, CONSOLE_STYLES.muted);
     return;
   }
   const ms = `${Math.round(entry.elapsedMs)}ms`;
   if (entry.result instanceof Error) {
-    console.error(`${prefix} %c✗ ${entry.type} ${entry.path}%c ${ms} · ${entry.result.message}`, PREFIX_STYLE, ERROR_STYLE, MUTED_STYLE);
+    console.error(
+      `${prefix} %c✗ ${entry.type} ${entry.path}%c ${ms} · ${entry.result.message}`,
+      CONSOLE_STYLES.prefix,
+      CONSOLE_STYLES.error,
+      CONSOLE_STYLES.muted,
+    );
     return;
   }
   const summary = summarizeResult(extractData(entry.result));
-  console.info(`${prefix} %c← ${entry.type} ${entry.path}%c ${ms} · ${summary}`, PREFIX_STYLE, PATH_STYLE, MUTED_STYLE);
+  console.info(`${prefix} %c← ${entry.type} ${entry.path}%c ${ms} · ${summary}`, CONSOLE_STYLES.prefix, CONSOLE_STYLES.path, CONSOLE_STYLES.muted);
 }

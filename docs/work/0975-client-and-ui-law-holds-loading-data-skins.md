@@ -17,8 +17,22 @@ Each is a written client or UI rule that the tree breaks without a gate noticing
 
 ## Done when
 
-Each site is fixed; Text tone wins over voice colour; the loading-fallback, className-skin, z-index-const, duration and staleTime gates hold with planted controls.
+Each source site is fixed; Text tone wins over voice colour; affected component and surface CTs pass. Gate extension acceptance cases are recorded for the owning lane.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Source standardization only, by owner direction. Gate extensions belong to the gate rebuild.
+
+- Loading fallback: `packages/client/src/features/chat/components/assembly-preview-panel.tsx` had a text-only fallback.
+- ClassName skin: `packages/client/src/features/rpg/components/rpg-status-tab.tsx` painted a Stack as a card.
+- Z-index constant: `packages/client/src/features/chat/components/home-hearth-room.tsx` hid `before:-z-10` in GLOW.
+- Duration: `packages/ui/src/primitives/collapsible/variants.ts` used `duration-[0.01ms]`.
+- StaleTime: `packages/client/src/features/chat/hooks/use-send-availability.ts` tuned freshness in a surface hook.
+- Keystone exemption: `eslint.config.js` remains with its owning lane.
+
+The UI law explicitly permits the two-field login form. Signup uses the saved-form factory without persisting credentials.
+
+Text status tones follow voice colours. The default tone preserves voice ink and the recipe's default axis stamp.
+Affected CT coverage passed through retained passing runs and focused correction runs. The tone, reservation, attachment retry, connection lifecycle and modal header cases passed.
+UI, client and browser test-program typechecks passed. Commit checks are bypassed by owner direction; whole-tree verification remains with the landing lane.
+The owning lane runs side-eye after landing. Dialog RESTRICTIONS cleanup remains with the lane that owns `eslint.config.js`.

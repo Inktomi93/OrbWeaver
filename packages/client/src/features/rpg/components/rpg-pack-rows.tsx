@@ -23,6 +23,7 @@
 
 import type { RpgInventoryItem } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
@@ -263,35 +264,37 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
  *  the editor (RV-5): every datum is click-to-edit in place and the row carries a confirmed delete. */
 function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   return (
-    <Row gap="field" align="center" className="rounded-base border border-border bg-card px-block py-row" data-slot="rpg-pack-row">
-      <ItemGlyph item={item} {...(edit === undefined ? {} : { onPickIcon: (icon: string): void => edit.onPickIcon(item.id, icon) })} />
-      <Stack gap="field" className="min-w-0 flex-1">
-        <Row gap="field" align="baseline" className="min-w-0">
-          <ItemName item={item} {...(edit === undefined ? {} : { edit })} />
-          <ItemQuantity item={item} {...(edit === undefined ? {} : { edit })} />
-          {/* The LIST lens is the EDIT lens, and it is not a Button itself — so here the pin IS the Release,
+    <Card tone="neutral">
+      <Row gap="field" align="center" data-slot="rpg-pack-row">
+        <ItemGlyph item={item} {...(edit === undefined ? {} : { onPickIcon: (icon: string): void => edit.onPickIcon(item.id, icon) })} />
+        <Stack gap="field" className="min-w-0 flex-1">
+          <Row gap="field" align="baseline" className="min-w-0">
+            <ItemName item={item} {...(edit === undefined ? {} : { edit })} />
+            <ItemQuantity item={item} {...(edit === undefined ? {} : { edit })} />
+            {/* The LIST lens is the EDIT lens, and it is not a Button itself — so here the pin IS the Release,
               one tap, exactly as every other pinned datum in the panel offers it. */}
-          {edit === undefined ? null : <ItemLockPin item={item} edit={edit} />}
-        </Row>
-        {/* #37a/RV-5 — WHERE it is kept. Stored since day one, asked of the model in the extraction guidance,
+            {edit === undefined ? null : <ItemLockPin item={item} edit={edit} />}
+          </Row>
+          {/* #37a/RV-5 — WHERE it is kept. Stored since day one, asked of the model in the extraction guidance,
             and until now unreachable from the product. */}
-        <ItemProseLine item={item} value={item.location} field="location" placeholder="where it's kept…" {...(edit === undefined ? {} : { edit })} />
-        <ItemProseLine item={item} value={item.description} field="description" placeholder="what it is…" {...(edit === undefined ? {} : { edit })} />
-      </Stack>
-      {edit === undefined ? null : (
-        <ConfirmDialog
-          title={`Drop "${item.name}"?`}
-          description="The item leaves the pack for good. The chronicle keeps whatever already happened in the story."
-          confirmLabel="Drop"
-          onConfirm={(): void => edit.onRemoveItem(item.id)}
-          trigger={
-            <Button aria-label={`Drop item: ${item.name}`} intent="ghost" size="glyph-sm" title={`Drop item: ${item.name}`}>
-              <Icon icon={Trash2} size="xs" />
-            </Button>
-          }
-        />
-      )}
-    </Row>
+          <ItemProseLine item={item} value={item.location} field="location" placeholder="where it's kept…" {...(edit === undefined ? {} : { edit })} />
+          <ItemProseLine item={item} value={item.description} field="description" placeholder="what it is…" {...(edit === undefined ? {} : { edit })} />
+        </Stack>
+        {edit === undefined ? null : (
+          <ConfirmDialog
+            title={`Drop "${item.name}"?`}
+            description="The item leaves the pack for good. The chronicle keeps whatever already happened in the story."
+            confirmLabel="Drop"
+            onConfirm={(): void => edit.onRemoveItem(item.id)}
+            trigger={
+              <Button aria-label={`Drop item: ${item.name}`} intent="ghost" size="glyph-sm" title={`Drop item: ${item.name}`}>
+                <Icon icon={Trash2} size="xs" />
+              </Button>
+            }
+          />
+        )}
+      </Row>
+    </Card>
   );
 }
 

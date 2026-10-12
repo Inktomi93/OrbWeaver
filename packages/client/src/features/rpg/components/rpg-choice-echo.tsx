@@ -15,6 +15,7 @@
 import type { RpgCyoaChoiceBehavior } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -81,33 +82,35 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
   };
 
   return (
-    <Stack gap="field" data-slot="rpg-choice-echo" className="rounded-base border border-info bg-card px-block py-row">
-      <Text voice="kicker" className="text-info">
-        Choice on the table{" "}
-        <Text as="span" voice="gloss" className="tracking-normal">
-          · {BEHAVIOR_LINE[behavior]}
+    <Card tone="info">
+      <Stack gap="field" data-slot="rpg-choice-echo">
+        <Text voice="kicker" className="text-info">
+          Choice on the table{" "}
+          <Text as="span" voice="gloss" className="tracking-normal">
+            · {BEHAVIOR_LINE[behavior]}
+          </Text>
         </Text>
-      </Text>
-      {options.map((option, index) => (
-        <Button
-          // The option TEXT is the identity (an id-less immutable model-authored list — the
-          // message-choices-block keying precedent; a verbatim repeat is the same choice).
-          key={option}
-          intent="secondary"
-          size="wrap"
-          focusableWhenDisabled={true}
-          disabled={busy}
-          {...(busy ? { title: TURN_IN_FLIGHT } : {})}
-          className="justify-start text-left"
-          onClick={(): void => {
-            if (!busy) {
-              pick(option);
-            }
-          }}
-        >
-          {index + 1}. {option}
-        </Button>
-      ))}
-    </Stack>
+        {options.map((option, index) => (
+          <Button
+            // The option TEXT is the identity (an id-less immutable model-authored list — the
+            // message-choices-block keying precedent; a verbatim repeat is the same choice).
+            key={option}
+            intent="secondary"
+            size="wrap"
+            focusableWhenDisabled={true}
+            disabled={busy}
+            {...(busy ? { title: TURN_IN_FLIGHT } : {})}
+            className="justify-start text-left"
+            onClick={(): void => {
+              if (!busy) {
+                pick(option);
+              }
+            }}
+          >
+            {index + 1}. {option}
+          </Button>
+        ))}
+      </Stack>
+    </Card>
   );
 }

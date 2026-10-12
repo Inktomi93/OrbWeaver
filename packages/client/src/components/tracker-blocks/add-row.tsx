@@ -93,7 +93,7 @@ export function AddRow({ ariaLabel, placeholder, actions, leading, trailing, pen
         ))}
       </Row>
       {refusal === undefined ? null : (
-        <Text size="micro" className="text-destructive">
+        <Text tone="destructive" size="micro">
           {refusal}
         </Text>
       )}

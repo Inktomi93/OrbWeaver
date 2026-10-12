@@ -109,7 +109,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
             its only tie to the Name box was the sentence's own wording — for a sighted reader "at the
             control" (the #542 note's own WCAG 3.3.1 cite) means adjacent, not somewhere in the dialog. */}
         {refusal === null ? null : (
-          <Text className="text-destructive" id={refusalId} role="alert" voice="label">
+          <Text tone="destructive" id={refusalId} role="alert" voice="label">
             {refusal}
           </Text>
         )}

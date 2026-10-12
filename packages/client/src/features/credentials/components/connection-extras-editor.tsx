@@ -171,7 +171,7 @@ function ExtraRowView({
         </Row>
       </Row>
       {gloss === null ? null : (
-        <Text className="text-warning" data-slot="connection-extra-belt-gloss" voice="gloss">
+        <Text tone="warning" data-slot="connection-extra-belt-gloss" voice="gloss">
           {gloss}
         </Text>
       )}

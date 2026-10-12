@@ -64,7 +64,7 @@ export function TypedModelField({
             {notice}
           </Text>
           {error === null ? null : (
-            <Text className="text-destructive" id={errorId} prose={true} role="alert" voice="gloss">
+            <Text tone="destructive" id={errorId} prose={true} role="alert" voice="gloss">
               {error}
             </Text>
           )}

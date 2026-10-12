@@ -5,7 +5,7 @@
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogHeader } from "@orb/ui/dialog";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
@@ -107,7 +107,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
       <DrawerVirtualKeyboardProvider>
         <DrawerPopup side="bottom" container={container} finalFocus={resolveDrawerFinalFocus}>
           {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
-          <header className="shell-modal-header sticky top-0 z-(--z-raised) shrink-0 bg-card">
+          <DialogHeader className="shell-modal-header sticky top-0 z-(--z-raised) mb-block bg-card">
             <DrawerTitle>{def.title}</DrawerTitle>
             <DrawerClose
               render={
@@ -116,7 +116,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
                 </Button>
               }
             />
-          </header>
+          </DialogHeader>
           {body}
         </DrawerPopup>
       </DrawerVirtualKeyboardProvider>

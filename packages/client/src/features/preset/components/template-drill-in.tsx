@@ -21,6 +21,7 @@ import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { AlertTriangle, ArrowLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
@@ -390,12 +391,14 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
             !guidedFooterState(prompt, factoryDefault).missingInputLint ? null : (
               // The warning SIGNAL rides the band + the glyph, never a `tone` prop on Text — type colour
               // belongs to the four-voice grammar (§2).
-              <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row">
-                <Icon icon={AlertTriangle} size="sm" />
-                <Text voice="label">
-                  No {GUIDED_INPUT_TOKEN} — what you type when you fire {def.label} will not land anywhere.
-                </Text>
-              </Row>
+              <Card tone="warning">
+                <Row align="center" className="text-warning" gap="field">
+                  <Icon icon={AlertTriangle} size="sm" />
+                  <Text voice="label">
+                    No {GUIDED_INPUT_TOKEN} — what you type when you fire {def.label} will not land anywhere.
+                  </Text>
+                </Row>
+              </Card>
             )
           }
         </form.Subscribe>

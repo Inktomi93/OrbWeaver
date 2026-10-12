@@ -125,7 +125,7 @@ function FactOverrideEditor({
         {refusal === null ? (
           <Text voice="gloss">{editHint(row.edit)}</Text>
         ) : (
-          <Text className="text-destructive" role="alert" voice="gloss">
+          <Text tone="destructive" role="alert" voice="gloss">
             {refusal}
           </Text>
         )}

@@ -222,7 +222,7 @@ export function FirstModelSetup({
         {CHOICE_NOTES[choice]}
       </Text>
       {failure === null ? null : (
-        <Text className="text-destructive" data-slot="first-model-setup-failure" role="alert" voice="gloss">
+        <Text tone="destructive" data-slot="first-model-setup-failure" role="alert" voice="gloss">
           {`That didn't go through: ${failure}`}
         </Text>
       )}

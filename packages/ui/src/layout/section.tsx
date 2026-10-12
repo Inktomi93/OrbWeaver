@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactElement, ReactNode } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { HintTrigger } from "#primitives/hint-trigger";
 import { Separator } from "#primitives/separator";
 import { Heading } from "#primitives/text";
@@ -7,7 +8,7 @@ import { sectionVariants } from "./variants.ts";
 const HEADING_TAGS = { 2: "h2", 3: "h3", 4: "h4" } as const;
 type SectionLevel = keyof typeof HEADING_TAGS;
 
-export interface SectionProps extends ComponentProps<"section"> {
+export interface SectionProps extends ComponentProps<"section">, VariantProps<typeof sectionVariants> {
   heading?: ReactNode;
   /**
    * The INSTRUMENT-tier form of `heading` (UI-Density-Law.md §2.3/§4.3): the section's name in the
@@ -57,12 +58,13 @@ export function Section({
   kicker,
   kickerLayout = "stacked",
   divider = false,
+  focal = false,
   hint,
   level = 3,
   children,
   ...props
 }: SectionProps): ReactElement {
-  const slots = sectionVariants({ divider, kickerLayout });
+  const slots = sectionVariants({ divider, kickerLayout, focal });
   const hasHint = hint !== undefined && hint !== null;
   // h3 by default, not h2: a Section is normally a SUB-heading of its hosting surface (a dialog's Title and a
   // drawer's Title render h2), so h2 here flattened e.g. the settings modal's whole hierarchy to one level.

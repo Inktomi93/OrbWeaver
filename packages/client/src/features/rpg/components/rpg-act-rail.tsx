@@ -10,6 +10,7 @@
 // edit, `plot.act` for a progress edit) so a pinned act rail is precise, never a whole-plot pin.
 
 import type { RpgPlot } from "@orb/contracts/rpg";
+import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
@@ -64,57 +65,59 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
   const heading = currentTitle !== "" ? `Act ${actNumeral(plot.act)} — ${currentTitle}` : `Act ${actNumeral(plot.act)}`;
   const pinned = edit === undefined ? null : ["plot", "plot.act", "plot.acts"].find((p) => edit.isLocked(p));
   return (
-    <Stack gap="field" data-slot="rpg-act-rail" className="rounded-base border border-border bg-card px-block py-row">
-      <Row gap="block" align="center" justify="between">
-        {edit === undefined ? (
-          <Text voice="kicker" className="text-accolade">
-            {heading}
-          </Text>
-        ) : (
-          <Row gap="field" align="center" className="min-w-0">
-            <Text as="span" voice="kicker" className="text-accolade">
-              Act
+    <Card tone="neutral">
+      <Stack gap="field" data-slot="rpg-act-rail">
+        <Row gap="block" align="center" justify="between">
+          {edit === undefined ? (
+            <Text voice="kicker" className="text-accolade">
+              {heading}
             </Text>
-            {/* Rest shows the mock's ROMAN numeral; the click-reveals input edits the arabic number. */}
-            <TrackerValue
-              ariaLabel="Current act number"
-              display={actNumeral(plot.act)}
-              editValue={String(plot.act)}
-              kind="numeric"
-              onEdit={(next): void => {
-                const n = Number.parseInt(next, 10);
-                if (!Number.isNaN(n)) {
-                  edit.onEditAct(Math.max(1, n));
-                }
-              }}
-              className="!w-avatar-md px-field text-center tabular-nums"
-              restClassName="font-semibold text-accolade"
-            />
-            <Text as="span" voice="label" aria-hidden={true} className="text-muted-foreground">
-              —
+          ) : (
+            <Row gap="field" align="center" className="min-w-0">
+              <Text as="span" voice="kicker" className="text-accolade">
+                Act
+              </Text>
+              {/* Rest shows the mock's ROMAN numeral; the click-reveals input edits the arabic number. */}
+              <TrackerValue
+                ariaLabel="Current act number"
+                display={actNumeral(plot.act)}
+                editValue={String(plot.act)}
+                kind="numeric"
+                onEdit={(next): void => {
+                  const n = Number.parseInt(next, 10);
+                  if (!Number.isNaN(n)) {
+                    edit.onEditAct(Math.max(1, n));
+                  }
+                }}
+                className="!w-avatar-md px-field text-center tabular-nums"
+                restClassName="font-semibold text-accolade"
+              />
+              <Text as="span" voice="label" aria-hidden={true} className="text-muted-foreground">
+                —
+              </Text>
+              <TrackerValue
+                ariaLabel={`Act ${plot.act} title`}
+                display={currentTitle}
+                placeholder="act title…"
+                onEdit={(next): void => edit.onEditActTitle(next.trim())}
+                className="!w-auto min-w-0 max-w-full field-sizing-content"
+                restClassName="min-w-0 text-accolade"
+              />
+              {pinned === undefined || pinned === null ? null : <RpgFieldLock field="the act" onRelease={(): void => edit.onRelease(pinned)} />}
+            </Row>
+          )}
+          {plot.title === "" ? null : (
+            <Text as="span" voice="gloss" className="truncate">
+              {plot.title}
             </Text>
-            <TrackerValue
-              ariaLabel={`Act ${plot.act} title`}
-              display={currentTitle}
-              placeholder="act title…"
-              onEdit={(next): void => edit.onEditActTitle(next.trim())}
-              className="!w-auto min-w-0 max-w-full field-sizing-content"
-              restClassName="min-w-0 text-accolade"
-            />
-            {pinned === undefined || pinned === null ? null : <RpgFieldLock field="the act" onRelease={(): void => edit.onRelease(pinned)} />}
-          </Row>
-        )}
-        {plot.title === "" ? null : (
-          <Text as="span" voice="gloss" className="truncate">
-            {plot.title}
-          </Text>
-        )}
-      </Row>
-      <Row gap="field" align="center" aria-hidden="true">
-        {acts.map((act) => (
-          <ActStop key={act} act={act} current={plot.act} />
-        ))}
-      </Row>
-    </Stack>
+          )}
+        </Row>
+        <Row gap="field" align="center" aria-hidden="true">
+          {acts.map((act) => (
+            <ActStop key={act} act={act} current={plot.act} />
+          ))}
+        </Row>
+      </Stack>
+    </Card>
   );
 }

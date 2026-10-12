@@ -28,3 +28,11 @@ export function useGatedQuery<TId, TQueryData, TSelected = TQueryData, TError = 
     id === null || id === undefined ? { queryKey: GATED_OFF_KEY as unknown as TKey, queryFn: skipToken } : optionsFor(id),
   );
 }
+
+/** A decision preview refreshes whenever its gated surface opens. */
+export function useDecisionQuery<TId, TQueryData, TSelected = TQueryData, TError = DefaultError, TKey extends QueryKey = QueryKey>(
+  id: TId | null | undefined,
+  optionsFor: (id: TId) => GatedOptions<TQueryData, TSelected, TError, TKey>,
+): UseQueryResult<TSelected, TError> {
+  return useGatedQuery(id, (value) => ({ ...optionsFor(value), staleTime: 0 }));
+}

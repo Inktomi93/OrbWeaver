@@ -136,15 +136,14 @@ test("attachment controls lock on the one shared reverse read and expose an expl
     "character.list": searchedLibrary,
   });
   const context = await mount(<WorldInfoContextStory />);
-  await context.getByRole("button", { name: "Attach to a character" }).click();
   await held.requested;
-  await expect(context.getByRole("status")).toContainText("Loading attachment status");
+  await expect(context.locator("[aria-busy=true]")).toBeVisible();
   const toggle = context.getByRole("switch", { name: "Attach to Astrid" });
   await expect(toggle).toHaveCount(0);
   held.release(trpcError());
 
-  await expect(context.getByRole("alert")).toContainText("Couldn't load attachment status.");
-  const retry = context.getByRole("button", { name: "Retry attachment status" });
+  await expect(context.getByRole("status")).toContainText("Couldn't load book attachments.");
+  const retry = context.getByRole("button", { name: "Retry", exact: true });
   await expect(retry).toBeVisible();
   await expect(context.getByRole("button", { name: RETRY_RE })).toHaveCount(1);
   await expect(toggle).toHaveCount(0);
@@ -163,14 +162,15 @@ test("attachment rows withhold checked semantics until the shared read settles, 
     "character.list": searchedLibrary,
   });
   const context = await mount(<WorldInfoContextStory />);
-  await context.getByRole("button", { name: "Attach to a character" }).click();
   await held.requested;
+  await expect(context.locator("[aria-busy=true]")).toBeVisible();
 
   await expect(context.getByRole("switch", { name: "Attach to Astrid" })).toHaveCount(0);
   await expect(context.getByRole("switch", { name: "Attach to Bramble" })).toHaveCount(0);
   await expect(context.getByRole("combobox", { name: "Role for Astrid" })).toHaveCount(0);
 
   held.release({ characters: [{ characterId: ASTRID_ID, role: "primary" }], personaIds: [PERSONA.id] });
+  await context.getByRole("button", { name: "Attach to a character" }).click();
   await expect(context.getByRole("switch", { name: "Attach to Astrid" })).toBeChecked();
   await expect(context.getByRole("switch", { name: "Attach to Bramble" })).not.toBeChecked();
   await expect(context.getByRole("combobox", { name: "Role for Astrid" })).toContainText("primary");
@@ -188,7 +188,7 @@ test("the personas section does not claim zero or empty while its target roster 
   const context = await mount(<WorldInfoContextStory />);
   await personasHeld.requested;
 
-  await expect(context.getByRole("heading", { name: "Attached by personas" })).toBeVisible();
+  await expect(context.locator("[aria-busy=true]")).toBeVisible();
   await expect(context.getByText("Attached by personas · 0")).toHaveCount(0);
   await expect(context.getByText(NO_PERSONAS_RE)).toHaveCount(0);
 

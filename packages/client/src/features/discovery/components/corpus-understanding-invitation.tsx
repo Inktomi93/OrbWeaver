@@ -58,8 +58,6 @@ import { UnderstandingPassUtilityNote } from "./understanding-pass-utility-note.
  *  the config welcome hearth (since retired, #1210) where a hover lifted it back. The two focal islands MUST agree: they are the same slot
  *  in two phases of one surface, and a treatment that changed between them would read as a different kind
  *  of thing rather than the same page after a pass ran. */
-const GLOW =
-  "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:shadow-glow before:content-['']";
 
 /** `Progress` takes Base UI's 0–100 scale (its default `max`); the hook reports a 0–1 fraction. */
 const PERCENT = 100;
@@ -73,7 +71,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
   // The live tail for whichever run currently holds the floor; a null id detaches the room.
   useUnderstandingPassTail(pass.liveRunId, pass.onLiveProgress);
   return (
-    <Card aria-labelledby={titleId} className={GLOW} data-corpus-focal="invitation" role="group">
+    <Card aria-labelledby={titleId} glow="accent" data-corpus-focal="invitation" role="group">
       {/* THE ISLAND IS ITS OWN QUERY CONTEXT. `@lg` below has to mean "this island is 32rem wide", and an
           element cannot query itself — without a `Container` here the nearest `@container` is the SURFACE,
           so the moment the surface split into two tracks (#244 P1-2) the island shrank to 508px while its
@@ -172,7 +170,7 @@ function UnderstandingPassProgress({ pass }: { readonly pass: UnderstandingPassV
     return null;
   }
   return (
-    <Text className="text-destructive" data-slot="understanding-pass-failure" voice="gloss">
+    <Text tone="destructive" data-slot="understanding-pass-failure" voice="gloss">
       {/* A CRASH IS NOT A REFUSAL. `worker_died` means the run never came back — the row has no reason of its
           own to quote, and telling a user "stopped: undefined" is how a failure state reads as a bug in the
           message rather than in the run. It was only visible in Settings → Jobs before issue #166. */}

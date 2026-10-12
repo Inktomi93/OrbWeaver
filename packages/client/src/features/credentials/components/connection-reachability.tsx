@@ -31,6 +31,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
+import { SkeletonRows } from "#data";
 import { useAdmitPrivateEndpoint, useProbeConnection } from "../hooks/use-connections-mutations.ts";
 import { endpointAuthorityOf, endpointHostOf, endpointNamedInAllowlist } from "../lib/connection-editor-model.ts";
 
@@ -89,7 +90,7 @@ export function AdmitPrivateHost(props: AdmitPrivateHostProps): ReactElement {
   // `QueryErrorState`. The settings read inside only ever runs for the box OWNER — the member arm returns
   // before mounting it — so this boundary is about a transient failure, not a 403.
   return (
-    <QueryBoundary fallback={<Text voice="gloss">Checking this deployment's allowed endpoints…</Text>}>
+    <QueryBoundary fallback={<SkeletonRows count={3} shape="line" />}>
       <EndpointAdmission {...props} />
     </QueryBoundary>
   );
@@ -104,14 +105,14 @@ function ReachabilityVerdict({ verdict, host }: { readonly verdict: CredentialHe
   }
   if (verdict.status === "ok") {
     return (
-      <Text className="text-success" data-slot="connection-reachable" voice="gloss">
+      <Text tone="success" data-slot="connection-reachable" voice="gloss">
         Reached it.
       </Text>
     );
   }
   if (verdict.status === "throttled") {
     return (
-      <Text className="text-warning" voice="gloss">
+      <Text tone="warning" voice="gloss">
         The provider is rate-limiting us right now. Nothing is wrong with the connection.
       </Text>
     );
@@ -120,7 +121,7 @@ function ReachabilityVerdict({ verdict, host }: { readonly verdict: CredentialHe
     // The server ANSWERED: "may be down" would be false, and the status is what tells a wrong path from a fault.
     return (
       <Stack data-slot="connection-unreachable" gap="tight">
-        <Text className="text-warning" voice="gloss">
+        <Text tone="warning" voice="gloss">
           {`${host ?? "This server"} answered HTTP ${String(verdict.httpStatus)}, so it is running but refused this request.`}
         </Text>
         <Text voice="gloss">{verdict.reason}</Text>
@@ -128,7 +129,7 @@ function ReachabilityVerdict({ verdict, host }: { readonly verdict: CredentialHe
     );
   }
   return (
-    <Text className="text-warning" data-slot="connection-unreachable" voice="gloss">
+    <Text tone="warning" data-slot="connection-unreachable" voice="gloss">
       {verdict.status === "unreachable" ? `Can't reach ${host ?? "this server"}. The server may be down.` : verdict.reason}
     </Text>
   );

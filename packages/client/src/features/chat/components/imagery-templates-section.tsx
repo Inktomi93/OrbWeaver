@@ -13,13 +13,14 @@
 // override back to the shipped default.
 
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
+import { Card } from "@orb/ui/card";
 import { Grid, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
@@ -106,7 +107,7 @@ const CARDS: readonly CardDescriptor[] = [
 export function ImageryTemplatesSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your image-prompt templates…</Text>}
+      fallback={<SkeletonRows count={3} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your image-prompt templates" onRetry={retry} />}
     >
       <ImageryTemplatesFormBody sectionId={sectionId} />
@@ -142,19 +143,21 @@ function ImageryTemplatesBody({ sectionId, session }: { readonly sectionId: stri
         </Text>
         <Grid cols="auto" gap="field">
           {CARDS.map((card) => (
-            <Stack key={card.field} gap="field" padding="field" className="rounded-base border border-border bg-card">
-              <form.AppField name={card.field}>
-                {(field): ReactElement => (
-                  <field.MacroField
-                    label={card.title}
-                    description={card.fires}
-                    suggestions={card.macros ? suggestions : []}
-                    placeholder={card.shippedDefault}
-                    rows={4}
-                  />
-                )}
-              </form.AppField>
-            </Stack>
+            <Card tone="neutral" key={card.field}>
+              <Stack key={card.field} gap="field">
+                <form.AppField name={card.field}>
+                  {(field): ReactElement => (
+                    <field.MacroField
+                      label={card.title}
+                      description={card.fires}
+                      suggestions={card.macros ? suggestions : []}
+                      placeholder={card.shippedDefault}
+                      rows={4}
+                    />
+                  )}
+                </form.AppField>
+              </Stack>
+            </Card>
           ))}
         </Grid>
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />

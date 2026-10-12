@@ -22,7 +22,7 @@ export function GalleryLoadMore({ hasNextPage, isFetchingNextPage, failed, onLoa
   return (
     <Stack gap="tight">
       {failed ? (
-        <Text className="text-destructive" role="alert" voice="label">
+        <Text tone="destructive" role="alert" voice="label">
           Couldn't load more pictures. Try again.
         </Text>
       ) : null}

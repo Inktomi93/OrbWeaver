@@ -20,6 +20,7 @@
 
 import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Icon, MapPin, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -237,27 +238,29 @@ function AmbientFieldControl({
 export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, lockSlot }: AmbientStripProps): ReactElement {
   const values: Readonly<Record<AmbientField, string | undefined>> = { location, date, timeOfDay, weather };
   return (
-    <Row gap="block" align="center" className="flex-wrap rounded-base border border-border bg-card px-block py-row" data-slot="ambient-strip">
-      <Icon icon={MapPin} size="sm" label="Scene" />
-      {AMBIENT_FIELDS.map(({ key, label }) => {
-        const value = values[key];
-        if (value === undefined && onEditField === undefined) {
-          return null;
-        }
-        return (
-          // Each pair packs inline (the mock's `flex-wrap; align:baseline` compact card): a label + a
-          // content-sized value/input, so 2+ pairs share a row rather than one-per-line (the owner
-          // density ruling 2026-07-28). `min-w-0` lets a long location value truncate/shrink instead of
-          // forcing a full-width row.
-          <Row key={key} gap="field" align="baseline" className="min-w-0">
-            <Text as="span" size="label" tone="muted" className="shrink-0">
-              {label}
-            </Text>
-            <AmbientFieldControl fieldKey={key} label={label} value={value} onEditField={onEditField} />
-            {lockSlot?.(key)}
-          </Row>
-        );
-      })}
-    </Row>
+    <Card tone="neutral">
+      <Row gap="block" align="center" className="flex-wrap" data-slot="ambient-strip">
+        <Icon icon={MapPin} size="sm" label="Scene" />
+        {AMBIENT_FIELDS.map(({ key, label }) => {
+          const value = values[key];
+          if (value === undefined && onEditField === undefined) {
+            return null;
+          }
+          return (
+            // Each pair packs inline (the mock's `flex-wrap; align:baseline` compact card): a label + a
+            // content-sized value/input, so 2+ pairs share a row rather than one-per-line (the owner
+            // density ruling 2026-07-28). `min-w-0` lets a long location value truncate/shrink instead of
+            // forcing a full-width row.
+            <Row key={key} gap="field" align="baseline" className="min-w-0">
+              <Text as="span" size="label" tone="muted" className="shrink-0">
+                {label}
+              </Text>
+              <AmbientFieldControl fieldKey={key} label={label} value={value} onEditField={onEditField} />
+              {lockSlot?.(key)}
+            </Row>
+          );
+        })}
+      </Row>
+    </Card>
   );
 }

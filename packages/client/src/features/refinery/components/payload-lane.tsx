@@ -14,7 +14,7 @@
 // …WITH ONE MOVING EXCEPTION (#158 item 5, 2026-08-17): the SCORE lane wears the focal treatment while no
 // score has landed, because at round 0 that is the step the user should take and the rewrite island beside
 // it has nothing settled to emphasise. It is the same stripe+glow the island wears
-// (`lib/focal-treatment.ts`), applied to this same `Section` rather than by re-wrapping it in a Card — the
+// (`Section`'s focal variant), applied to this same `Section` rather than by re-wrapping it in a Card — the
 // lane must not change ELEMENT as the pipeline advances, or the focal handing over would relayout the
 // canvas under the user. CD1 is intact either way: at most one lane on the canvas is ever a box, and
 // `lib/workbench-lanes.ts` is the single place that decides which.
@@ -34,7 +34,6 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
 import { BUILTIN_STAGE_HINTS } from "../lib/builtin-hints.ts";
-import { FOCAL_GLOW, FOCAL_STRIPE } from "../lib/focal-treatment.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
 import { STAGE_NOT_RUN_COPY } from "../lib/stage-not-run-copy.ts";
 import { LaneBand, LaneNotes, RunModelCredit } from "./lane-band.tsx";
@@ -118,13 +117,7 @@ export function PayloadLane({
   // `data-lane` rather than a per-stage testid: the registry is a fixed key set and a stage-templated id
   // would be invisible to both the typed-testid gate and the liveness lens. A CT scopes by `[data-lane=…]`.
   return (
-    <Section
-      aria-label={LANE_LABEL[stage]}
-      className={focal ? `gap-row rounded-(--radius-base) p-row ${FOCAL_GLOW}` : "gap-row"}
-      data-focal={focal ? "true" : undefined}
-      data-lane={stage}
-      {...(focal ? { style: FOCAL_STRIPE } : {})}
-    >
+    <Section aria-label={LANE_LABEL[stage]} className="gap-row" focal={focal} data-focal={focal ? "true" : undefined} data-lane={stage}>
       <LaneBand kicker={`${LANE_ORDINAL[stage]} · ${LANE_LABEL[stage]}`}>{run === null ? null : <RunModelCredit model={run.model} />}</LaneBand>
       {runControl}
       <LaneNotes behind={behind} iteration={run?.iteration ?? null} onBackToLatest={onBackToLatest} viewingBack={viewingBack} />

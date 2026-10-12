@@ -174,7 +174,7 @@ export function LoginBody({
           {authError === null ? null : (
             // `voice="label"` is the feature type axis; the destructive color rides a semantic-token className
             // (the same `text-destructive` the internal `tone` axis maps to) so this adds no density-tier debt.
-            <Text voice="label" className="text-destructive" role="alert" data-testid={testId("loginAuthError")}>
+            <Text tone="destructive" voice="label" role="alert" data-testid={testId("loginAuthError")}>
               {authError}
             </Text>
           )}

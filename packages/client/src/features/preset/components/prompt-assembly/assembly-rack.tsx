@@ -16,6 +16,7 @@
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Stack, Surface } from "@orb/ui/layout";
 import type { SortableItemKey } from "@orb/ui/sortable";
@@ -112,25 +113,29 @@ export function AssemblyRack({
                 Skip the section list
               </Button>
               {zones.missingPivot ? (
-                <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="row" padding="row">
-                  <Icon icon={AlertTriangle} size="sm" />
-                  <Text className="flex-1" voice="label">
-                    No chat history marker — the conversation has nowhere to splice in.
-                  </Text>
-                  <Button intent="secondary" onClick={onAddChatHistory} size="sm" type="button">
-                    Add chat history
-                  </Button>
-                </Row>
+                <Card tone="warning">
+                  <Row align="center" className="text-warning" gap="row">
+                    <Icon icon={AlertTriangle} size="sm" />
+                    <Text className="flex-1" voice="label">
+                      No chat history marker — the conversation has nowhere to splice in.
+                    </Text>
+                    <Button intent="secondary" onClick={onAddChatHistory} size="sm" type="button">
+                      Add chat history
+                    </Button>
+                  </Row>
+                </Card>
               ) : null}
               {cacheBusters.length > 0 ? (
-                <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="row" padding="row">
-                  <Icon icon={AlertTriangle} size="sm" />
-                  <Text data-slot="prompt-cache-warning" voice="label">
-                    {`Content that can change between turns above Chat History invalidates the history cache. Move ${cacheBusters
-                      .map(sectionName)
-                      .join(", ")} below Chat History to keep the cache.`}
-                  </Text>
-                </Row>
+                <Card tone="warning">
+                  <Row align="center" className="text-warning" gap="row">
+                    <Icon icon={AlertTriangle} size="sm" />
+                    <Text data-slot="prompt-cache-warning" voice="label">
+                      {`Content that can change between turns above Chat History invalidates the history cache. Move ${cacheBusters
+                        .map(sectionName)
+                        .join(", ")} below Chat History to keep the cache.`}
+                    </Text>
+                  </Row>
+                </Card>
               ) : null}
 
               <SortableList

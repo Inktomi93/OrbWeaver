@@ -242,7 +242,7 @@ function ArrayPickControl({ input, value, onPick, error }: InputControlProps): R
             destructive gloss the custom-parameter rows use. Same sentence as the select family's `Field`
             error — one refusal, one spelling. */}
         {error === undefined ? null : (
-          <Text className="text-destructive" voice="gloss">
+          <Text tone="destructive" voice="gloss">
             {error}
           </Text>
         )}

@@ -43,7 +43,7 @@ export function RuleEditorSaveStatus({
             </Button>
           ) : null}
           {failure === null ? null : (
-            <Text role="alert" voice="reading" className="text-destructive">
+            <Text tone="destructive" role="alert" voice="reading">
               {failure.message}
             </Text>
           )}

@@ -132,7 +132,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
           onDescriptionChange={setPersonaDescription}
         />
         {state.kind === "refused" ? (
-          <Text voice="label" className="text-destructive" role="alert" data-testid={testId("pendingJoinError")}>
+          <Text tone="destructive" voice="label" role="alert" data-testid={testId("pendingJoinError")}>
             {state.copy}
           </Text>
         ) : null}

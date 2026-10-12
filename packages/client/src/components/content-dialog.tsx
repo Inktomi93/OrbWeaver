@@ -1,5 +1,5 @@
 import { Button } from "@orb/ui/button";
-import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 
@@ -34,13 +34,13 @@ export function ContentDialog({
   return (
     <Dialog {...root}>
       <DialogPopup {...popupProps} className={`gap-block ${popupProps?.className ?? ""}`}>
-        <Row align="center" gap="row" justify="between" className="shrink-0">
+        <DialogHeader className="shell-modal-header">
           <Row align="center" gap="row" className="min-w-0">
             {headerLeading}
             <DialogTitle {...titleProps}>{title}</DialogTitle>
           </Row>
           {headerActions}
-        </Row>
+        </DialogHeader>
         <Stack {...bodyProps} className={`${DIALOG_SCROLL_CLASS} flex-1 ${bodyProps?.className ?? ""}`} gap="block">
           {children}
           {footer === undefined ? null : <DialogFooter>{footer}</DialogFooter>}

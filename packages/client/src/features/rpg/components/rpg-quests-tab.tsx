@@ -21,6 +21,7 @@
 
 import type { RpgQuestView } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Icon, Plus, Trash2, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -186,42 +187,44 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
   const dim = done || failed;
 
   return (
-    <Stack gap="field" className="rounded-base border border-border bg-card px-block py-row" data-slot="rpg-quest-card">
-      <Row gap="block" align="center">
-        {total >= MIN_CLOCK_SEGMENTS ? (
-          <SegmentedClock
-            segments={total}
-            filled={filled}
-            completed={done}
-            size="sm"
-            label={`${quest.name} objectives`}
-            {...(failed ? { className: "text-destructive" } : {})}
-          />
+    <Card tone="neutral">
+      <Stack gap="field" data-slot="rpg-quest-card">
+        <Row gap="block" align="center">
+          {total >= MIN_CLOCK_SEGMENTS ? (
+            <SegmentedClock
+              segments={total}
+              filled={filled}
+              completed={done}
+              size="sm"
+              label={`${quest.name} objectives`}
+              {...(failed ? { className: "text-destructive" } : {})}
+            />
+          ) : null}
+          <Stack gap="field" className="min-w-0 flex-1">
+            <Row gap="block" align="baseline" justify="between">
+              {edit === undefined || dim ? (
+                <Text as="span" voice="label" className={dim ? "text-muted-foreground line-through" : undefined}>
+                  {quest.name}
+                </Text>
+              ) : (
+                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="w-full" />
+              )}
+              <QuestCardMeta quest={quest} filled={filled} total={total} {...(edit === undefined ? {} : { edit })} />
+            </Row>
+            <QuestDescription quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
+          </Stack>
+        </Row>
+
+        <QuestObjectives quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
+
+        {done ? <Text voice="gloss">wrapped — the story closed this one.</Text> : null}
+        {failed ? (
+          <Text tone="destructive" voice="gloss">
+            failed — the story closed this one.
+          </Text>
         ) : null}
-        <Stack gap="field" className="min-w-0 flex-1">
-          <Row gap="block" align="baseline" justify="between">
-            {edit === undefined || dim ? (
-              <Text as="span" voice="label" className={dim ? "text-muted-foreground line-through" : undefined}>
-                {quest.name}
-              </Text>
-            ) : (
-              <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="w-full" />
-            )}
-            <QuestCardMeta quest={quest} filled={filled} total={total} {...(edit === undefined ? {} : { edit })} />
-          </Row>
-          <QuestDescription quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
-        </Stack>
-      </Row>
-
-      <QuestObjectives quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
-
-      {done ? <Text voice="gloss">wrapped — the story closed this one.</Text> : null}
-      {failed ? (
-        <Text voice="gloss" className="text-destructive">
-          failed — the story closed this one.
-        </Text>
-      ) : null}
-    </Stack>
+      </Stack>
+    </Card>
   );
 }
 

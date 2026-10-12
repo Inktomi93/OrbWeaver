@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import {
   selectCorpusArtifact,
@@ -48,7 +48,7 @@ export function CorpusCompareTab(): ReactElement {
     // their own.)
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusCompareTab")}>
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading characters…</Text>}
+        fallback={<SkeletonRows count={3} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
         reserveKey="corpus.compare"
       >

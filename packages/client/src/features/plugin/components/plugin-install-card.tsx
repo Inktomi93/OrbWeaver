@@ -306,7 +306,7 @@ export function PluginInstallCard(): ReactElement {
         success={isConfirmedSource(state, "file")}
       />
       {rejectedMessageFor(state, "file") === null ? null : (
-        <Text className="text-destructive" role="alert">
+        <Text tone="destructive" role="alert">
           {rejectedMessageFor(state, "file")}
         </Text>
       )}
@@ -327,7 +327,7 @@ export function PluginInstallCard(): ReactElement {
         success={isConfirmedSource(state, "folder")}
       />
       {rejectedMessageFor(state, "folder") === null ? null : (
-        <Text className="text-destructive" role="alert">
+        <Text tone="destructive" role="alert">
           {rejectedMessageFor(state, "folder")}
         </Text>
       )}

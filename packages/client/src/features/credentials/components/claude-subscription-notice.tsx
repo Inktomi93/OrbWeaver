@@ -15,7 +15,7 @@ export function ClaudeSubscriptionNotice(): ReactElement {
       <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
         {CLAUDE_SUBSCRIPTION_NOTICE.extraUsage}
       </Text>
-      <Text className="max-w-(--reading-measure-prose) text-warning" prose={true} voice="gloss">
+      <Text tone="warning" className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
         {CLAUDE_SUBSCRIPTION_NOTICE.terms}
       </Text>
     </Stack>

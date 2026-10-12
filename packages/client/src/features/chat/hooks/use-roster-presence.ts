@@ -23,18 +23,8 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { PresenceSnapshot } from "@orb/contracts/notifications";
 import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
 import type { UserId } from "@orb/kit/ids";
-import { skipToken, useQuery } from "@tanstack/react-query";
-import { useTRPC } from "#data";
+import { usePresenceRead } from "#data";
 import { resolveHumanParticipants } from "../lib/roster.ts";
-
-/** How long a presence answer counts as fresh (ms) — under the poll below, so a remount reads through. */
-const PRESENCE_STALE_MS = 10_000;
-
-/** The poll cadence (ms). Sized against the server's own 15 s presence grace window: polling faster cannot
- *  see a change sooner, and the indicator is a glance affordance, not a liveness monitor. The timer runs
- *  only while the Members surface is MOUNTED — this hook has exactly one call site, inside a context tab
- *  that unmounts when the tab is left (`use-send-availability.ts`'s mounted-forever-timer caution). */
-const PRESENCE_POLL_MS = 20_000;
 
 /** The human seats of `participants` whose presence is worth asking about — present members only (a kicked
  *  or departed seat renders no row, so its presence is nobody's question), deduplicated and sorted for a
@@ -63,13 +53,8 @@ function presenceAsk(participants: readonly ParticipantView[]): UserId[] {
  *   asking would only produce a 404 per mount.
  */
 export function useRosterPresence(participants: readonly ParticipantView[], enabled: boolean): ReadonlySet<UserId> | null {
-  const trpc = useTRPC();
   const userIds: UserId[] = enabled ? presenceAsk(participants) : [];
-  const { data } = useQuery({
-    ...trpc.notifications.presence.queryOptions(userIds.length === 0 ? skipToken : { userIds }),
-    staleTime: PRESENCE_STALE_MS,
-    refetchInterval: PRESENCE_POLL_MS,
-  });
+  const { data } = usePresenceRead(userIds);
   // Pin the wire type: the `skipToken` + spread `useQuery` inference degrades `data` to `any` in some
   // type-graph states (the `use-send-availability.ts` precedent), and `null` is also what the CT stub
   // yields for a read nobody fed — both must land on the UNKNOWN arm rather than on a `.onlineUserIds`

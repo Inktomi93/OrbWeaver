@@ -22,7 +22,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 import {
@@ -52,7 +52,7 @@ export function AnalyticsModelsTab(): ReactElement {
     // area (the containing-block pin in the overview surface's CT is the class's fence).
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("analyticsModelsTab")}>
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading model stats…</Text>}
+        fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
         reserveKey="analytics.models"
       >

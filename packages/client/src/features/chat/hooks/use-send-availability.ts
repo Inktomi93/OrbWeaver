@@ -17,14 +17,10 @@
 import type { SendAvailability, UnavailableCause } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { useTRPC } from "#data";
+import { useSendAvailabilityRead, useTRPC } from "#data";
 import { sendUnavailableReason } from "#lib";
 import { sendRefusalKey } from "../lib/next-turn-line.ts";
 import { useCreditConnections } from "./use-credit-connections.ts";
-
-/** Stale window for the verdict (ms) — long enough that it isn't re-fetched on every keystroke, short enough
- *  that a chat-reopen picks up an engine-enable / key-add. Not a bus-driven fact, so this is its freshness. */
-const AVAILABILITY_STALE_MS = 15_000;
 
 export interface SendGate {
   /** The chat cannot deterministically serve a turn — SEND + the guided fire actions disable. False while the
@@ -41,10 +37,7 @@ export interface SendGate {
 /** The pre-send serveability gate for `chatId` (null on a draft — never refused). */
 export function useSendAvailability(chatId: ChatId | null): SendGate {
   const trpc = useTRPC();
-  const { data, isError } = useQuery({
-    ...trpc.chat.checkSendAvailability.queryOptions(chatId === null ? skipToken : { chatId }),
-    staleTime: AVAILABILITY_STALE_MS,
-  });
+  const { data, isError } = useSendAvailabilityRead(chatId);
   // Pin the verdict to its contract type — the `skipToken`+spread `useQuery` inference can degrade `data` to
   // `any` in some type-graph states (a real strict-boolean-expressions fragility), so annotate deterministically.
   const verdict: SendAvailability | null | undefined = data;

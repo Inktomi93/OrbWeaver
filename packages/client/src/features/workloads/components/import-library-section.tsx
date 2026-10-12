@@ -175,7 +175,7 @@ export function ImportLibrarySection(): ReactElement {
         </>
       ) : null}
       {state.status === "error" ? (
-        <Text role="alert" className="text-destructive">
+        <Text tone="destructive" role="alert">
           {state.message}
         </Text>
       ) : null}

@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { useTRPC } from "#data";
+import { readFresh, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 
@@ -35,8 +35,8 @@ export function useModelRunConfirm(): {
     const answers = await Promise.all(
       estimates.map((request) =>
         "retryOf" in request
-          ? queryClient.query({ ...trpc.workloads.estimateRetryModelCalls.queryOptions({ id: request.retryOf }), staleTime: 0 })
-          : queryClient.query({ ...trpc.workloads.estimateModelCalls.queryOptions(request), staleTime: 0 }),
+          ? readFresh(queryClient, trpc.workloads.estimateRetryModelCalls.queryOptions({ id: request.retryOf }))
+          : readFresh(queryClient, trpc.workloads.estimateModelCalls.queryOptions(request)),
       ),
     ).catch((err: unknown) => {
       notify.error({ title: ESTIMATE_FAILED, description: errorMessage(err) });

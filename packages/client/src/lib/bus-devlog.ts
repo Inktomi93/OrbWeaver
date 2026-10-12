@@ -12,15 +12,9 @@
 // shipped app for the ordinary reason: `invalidation.ts` only calls `busInvalidate` under IS_DEV.
 
 import type { ChatId } from "@orb/kit/ids";
+import { CONSOLE_STYLES } from "./console-styles.ts";
 import { IS_DEV } from "./dev-flag.ts";
 import { logClock } from "./log-clock.ts";
-
-// %c DevTools console styles (not UI theme tokens — the token gates scope to feature/ui TSX).
-const PREFIX_STYLE = "color:#888;font-weight:bold";
-const EVENT_STYLE = "color:#0a7;font-weight:bold";
-const LIFECYCLE_STYLE = "color:#06c";
-const WARN_STYLE = "color:#c60;font-weight:bold";
-const MUTED_STYLE = "color:#888";
 
 // A normal turn legitimately hits each chatReads key twice (messageCommitted + turnCompleted both
 // refetch) — the alarm only fires above that baseline (3+× is the real storm signature).
@@ -100,9 +94,9 @@ export function busSubscribe(chatId: ChatId, replay: boolean): void {
   }
   console.info(
     `%c${logClock()} [bus] %c⊹ subscribe   ${shortId(chatId)}%c  replay=${replay ? "0" : "—"} · live=${liveSubscriptions}`,
-    PREFIX_STYLE,
-    LIFECYCLE_STYLE,
-    MUTED_STYLE,
+    CONSOLE_STYLES.prefix,
+    CONSOLE_STYLES.path,
+    CONSOLE_STYLES.muted,
   );
 }
 
@@ -112,7 +106,12 @@ export function busUnsubscribe(chatId: ChatId): void {
   if (!IS_DEV) {
     return;
   }
-  console.info(`%c${logClock()} [bus] %c⊝ unsubscribe ${shortId(chatId)}%c  · live=${liveSubscriptions}`, PREFIX_STYLE, LIFECYCLE_STYLE, MUTED_STYLE);
+  console.info(
+    `%c${logClock()} [bus] %c⊝ unsubscribe ${shortId(chatId)}%c  · live=${liveSubscriptions}`,
+    CONSOLE_STYLES.prefix,
+    CONSOLE_STYLES.path,
+    CONSOLE_STYLES.muted,
+  );
 }
 
 /** A canon event dispatched through the invalidation seam → the query keys it refetched. Empty ⇒
@@ -126,7 +125,7 @@ export function busInvalidate(type: string, chatId: ChatId | "user", keys: reado
     return;
   }
   const arrow = keys.length === 0 ? "→ (none)" : `→ ${keys.join(", ")}`;
-  console.info(`%c${logClock()} [bus] %c◆ ${type} ${shortId(chatId)}%c ${arrow}`, PREFIX_STYLE, EVENT_STYLE, MUTED_STYLE);
+  console.info(`%c${logClock()} [bus] %c◆ ${type} ${shortId(chatId)}%c ${arrow}`, CONSOLE_STYLES.prefix, CONSOLE_STYLES.event, CONSOLE_STYLES.muted);
 }
 
 /** One call per invalidated key. Counts same-key invalidations inside a burst window and logs once
@@ -147,9 +146,9 @@ export function busDupCheck(key: string): void {
   if (burst.count === DUP_ALARM_MIN) {
     console.info(
       `%c${logClock()} [bus] %c⚠ ${key} invalidated ${burst.count}× in ${Math.round(now - burst.firstAt)}ms%c — above the commit+complete baseline (doubled delivery, or a mutation re-invalidating a bus-covered key)`,
-      PREFIX_STYLE,
-      WARN_STYLE,
-      MUTED_STYLE,
+      CONSOLE_STYLES.prefix,
+      CONSOLE_STYLES.warning,
+      CONSOLE_STYLES.muted,
     );
   }
 }

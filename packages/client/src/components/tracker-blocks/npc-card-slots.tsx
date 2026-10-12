@@ -10,6 +10,7 @@
 import type { RpgNpcGuideField, RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { RPG_NPC_GUIDE_FIELDS, RPG_RELATIONSHIP_KINDS } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
@@ -259,52 +260,54 @@ export function NpcCard({
   relationshipGlyph,
 }: NpcCardProps): ReactElement {
   return (
-    <Stack gap="block" className="rounded-base border border-border bg-card px-block py-row" data-slot="npc-card">
-      <Row justify="between" align="baseline" gap="block">
-        <Row gap="field" align="center" className="min-w-0">
-          {emoji === undefined || emoji === "" ? null : (
-            <Text as="span" size="label" aria-hidden={true} className="shrink-0">
-              {emoji}
-            </Text>
-          )}
-          {/* `shrink-0` keeps the name from collapsing to 0px when a long custom relationship label is present —
+    <Card tone="neutral">
+      <Stack gap="block" data-slot="npc-card">
+        <Row justify="between" align="baseline" gap="block">
+          <Row gap="field" align="center" className="min-w-0">
+            {emoji === undefined || emoji === "" ? null : (
+              <Text as="span" size="label" aria-hidden={true} className="shrink-0">
+                {emoji}
+              </Text>
+            )}
+            {/* `shrink-0` keeps the name from collapsing to 0px when a long custom relationship label is present —
               the badge yields width to the name (it truncates), never the reverse. */}
-          <Text as="span" size="label" weight="semibold" className="shrink-0">
-            {name}
-          </Text>
-          <NpcRelationship
-            name={name}
-            {...(relationship === undefined ? {} : { relationship })}
-            {...(onEditRelationshipKind === undefined ? {} : { onEditRelationshipKind })}
-            {...(relationshipGlyph === undefined ? {} : { relationshipGlyph })}
-          />
-        </Row>
-        <NpcMood name={name} {...(mood === undefined ? {} : { mood })} {...(onEditMood === undefined ? {} : { onEditMood })} />
-      </Row>
-      {/* The standing guides sit directly under the header (the design-set npc row order: name · emoji ·
-          mood · outfit · thoughts · customFields) — prose first, then the tracked readings. */}
-      <NpcGuides
-        name={name}
-        {...(appearance === undefined ? {} : { appearance })}
-        {...(outfit === undefined ? {} : { outfit })}
-        {...(thoughts === undefined ? {} : { thoughts })}
-        {...(onEditGuide === undefined ? {} : { onEditGuide })}
-      />
-      {meters}
-      {fields === undefined || fields.length === 0 ? null : (
-        <Row gap="field" className="flex-wrap">
-          {fields.map((field) => (
-            <TrackerChip
-              key={field.name}
-              label={field.name}
-              value={field.value}
-              // WHOSE reading — the card already names the character; its chips did not (side-eye 08-01).
-              subject={name}
-              {...(onEditField === undefined ? {} : { onEditValue: (next: string): void => onEditField(field.name, next) })}
+            <Text as="span" size="label" weight="semibold" className="shrink-0">
+              {name}
+            </Text>
+            <NpcRelationship
+              name={name}
+              {...(relationship === undefined ? {} : { relationship })}
+              {...(onEditRelationshipKind === undefined ? {} : { onEditRelationshipKind })}
+              {...(relationshipGlyph === undefined ? {} : { relationshipGlyph })}
             />
-          ))}
+          </Row>
+          <NpcMood name={name} {...(mood === undefined ? {} : { mood })} {...(onEditMood === undefined ? {} : { onEditMood })} />
         </Row>
-      )}
-    </Stack>
+        {/* The standing guides sit directly under the header (the design-set npc row order: name · emoji ·
+          mood · outfit · thoughts · customFields) — prose first, then the tracked readings. */}
+        <NpcGuides
+          name={name}
+          {...(appearance === undefined ? {} : { appearance })}
+          {...(outfit === undefined ? {} : { outfit })}
+          {...(thoughts === undefined ? {} : { thoughts })}
+          {...(onEditGuide === undefined ? {} : { onEditGuide })}
+        />
+        {meters}
+        {fields === undefined || fields.length === 0 ? null : (
+          <Row gap="field" className="flex-wrap">
+            {fields.map((field) => (
+              <TrackerChip
+                key={field.name}
+                label={field.name}
+                value={field.value}
+                // WHOSE reading — the card already names the character; its chips did not (side-eye 08-01).
+                subject={name}
+                {...(onEditField === undefined ? {} : { onEditValue: (next: string): void => onEditField(field.name, next) })}
+              />
+            ))}
+          </Row>
+        )}
+      </Stack>
+    </Card>
   );
 }

@@ -38,7 +38,6 @@
 // never changes. A NOT_FOUND is a TYPED gone-arm (the `MemberCardViewer` precedent), never a swallowed catch:
 // it is what a deleted message, or a foreign variantId, resolves to.
 
-import { ViewerDialog } from "#components";
 import type { VariantWireView } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -49,6 +48,7 @@ import { LogViewer } from "@orb/ui/log-viewer";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 
@@ -217,7 +217,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
 export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: VariantWireViewerProps): ReactElement {
   const trpc = useTRPC();
   const wire = useQuery({
-    ...trpc.chat.getVariantWire.queryOptions({ chatId, variantId }, { staleTime: Number.POSITIVE_INFINITY }),
+    ...trpc.chat.getVariantWire.queryOptions({ chatId, variantId }),
     // Gated: the key is built (and the server hit) ONLY while the dialog is open — never eager per row.
     enabled: open,
     // A variant that vanished (or was never ours) shouldn't retry a NOT_FOUND into a spinner.

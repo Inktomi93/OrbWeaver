@@ -320,7 +320,7 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
   }
   if (query.isError) {
     return (
-      <Text className="text-destructive" voice="gloss">
+      <Text tone="destructive" voice="gloss">
         Couldn't load the source text.
       </Text>
     );

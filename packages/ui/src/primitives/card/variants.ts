@@ -8,8 +8,25 @@ import { FOCUS_RING, tv } from "#lib";
 // feature never picks island padding or radius. `rounded-base` (grouped content), never `rounded-card` —
 // D6 demoted `--radius-card` to ELEVATED/floating islands only, which is what `elevated` opts into.
 export const cardVariants = tv({
-  base: "rounded-base border border-border bg-card text-card-foreground p-block",
+  base: "rounded-base border border-border bg-card text-card-foreground p-block in-data-[elevation=glow]:shadow-overlay",
   variants: {
+    tone: {
+      neutral: "",
+      background: "bg-background",
+      bubble: "border-0 bg-ai-bubble text-ai-bubble-foreground",
+      muted: "bg-muted",
+      warning: "border-warning bg-warning/10 text-warning",
+      info: "border-info bg-info/10 text-info",
+      highlight: "border-highlight",
+    },
+    outline: { solid: "", dashed: "border-dashed" },
+    glow: {
+      none: "",
+      accent:
+        "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:shadow-glow before:content-['']",
+      focal:
+        "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-60 before:shadow-glow before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-[''] hover:before:opacity-100 data-returned:before:opacity-100",
+    },
     // The explicit floating-island opt-in (UI-Density-Law.md §2.1/§4.3): a modal/popover/composer-class
     // card that genuinely floats above the page. Its radius is re-declared unlayered in tiers.css so it
     // outranks the tier step inside a Surface; the shadow needs no such help (no tier rule touches it).
@@ -35,5 +52,5 @@ export const cardVariants = tv({
       false: "",
     },
   },
-  defaultVariants: { elevated: false, interactive: false, nested: false },
+  defaultVariants: { elevated: false, interactive: false, nested: false, tone: "neutral", outline: "solid", glow: "none" },
 });

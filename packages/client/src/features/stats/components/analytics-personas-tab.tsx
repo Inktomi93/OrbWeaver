@@ -15,7 +15,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 import { formatAccountingLabel, formatCompact, formatCompactNoun, formatTokens, personaBarItems } from "../lib/analytics-view-model.ts";
@@ -27,7 +27,7 @@ export function AnalyticsPersonasTab(): ReactElement {
     // auto-height child is exactly what a scroller wants, and the scroller survives the read.
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("analyticsPersonasTab")}>
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading persona usage…</Text>}
+        fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="persona usage" onRetry={retry} />}
         reserveKey="analytics.personas"
       >

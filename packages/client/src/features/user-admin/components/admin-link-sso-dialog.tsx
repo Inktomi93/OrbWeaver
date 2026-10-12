@@ -70,7 +70,7 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
         <Input autoComplete="off" onValueChange={(value): void => setSubject(value)} value={subject} data-testid={testId("adminLinkSsoSubject")} />
       </Field>
       {link.error !== null ? (
-        <Text voice="label" className="text-destructive">
+        <Text tone="destructive" voice="label">
           Couldn't link that identity — the subject may already be linked to another account, or this row is already bound.
         </Text>
       ) : null}

@@ -28,6 +28,7 @@ export const dialogVariants = tv({
     // legible where an arm neutralising an inherited one is not.
     viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
     popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
+    header: "flex shrink-0 items-center justify-between gap-row border-b border-border pb-field",
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
     // The action row: the LAST child of a DIALOG_SCROLL_CLASS region, never of the popup itself. The popup's padding

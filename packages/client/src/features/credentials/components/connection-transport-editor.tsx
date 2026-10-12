@@ -189,7 +189,7 @@ function PreviewResolution({
   const parsed = parseJson(sample);
   if (!parsed.ok) {
     return (
-      <Text className="text-warning" voice="gloss">
+      <Text tone="warning" voice="gloss">
         That isn't JSON yet — paste the whole reply body.
       </Text>
     );

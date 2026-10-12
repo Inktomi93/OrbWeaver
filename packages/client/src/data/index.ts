@@ -50,7 +50,9 @@ export type {
 export { createCollectionSurface } from "./create-collection-surface.ts";
 export type { EntityMutationConfig, EntityMutationResult } from "./create-entity-mutation.ts";
 export { createEntityMutation } from "./create-entity-mutation.ts";
+export { AUTOMATION_FIRES_ROUTE, readAutomationFires } from "./fetch-automation-fires.ts";
 export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
+export { readFresh } from "./fresh-read.ts";
 export { throwHttpError } from "./http-error.ts";
 export type { BundleImportStarted } from "./import-bundle.ts";
 export { importBundle } from "./import-bundle.ts";
@@ -67,6 +69,7 @@ export { createInvalidation } from "./invalidation.ts";
 export { applyCanonView } from "./invalidation-carrier.ts";
 export { connectionWriteReads } from "./invalidation-reads.ts";
 export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
+export { usePresenceRead, useSendAvailabilityRead } from "./live-fact-reads.ts";
 export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 export { peekQueryData } from "./peek-query.ts";
 export { postBugReport } from "./post-bug-report.ts";
@@ -95,7 +98,7 @@ export { cardFrameMintBody, mintCardFrame, useCardFrameSrc } from "./use-card-fr
 export { useCarriedAppearance } from "./use-carried-appearance.ts";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";
 export { DISPLAY_PLACEMENT, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
-export { useGatedQuery } from "./use-gated-query.ts";
+export { useDecisionQuery, useGatedQuery } from "./use-gated-query.ts";
 export { useHuskReaper } from "./use-husk-reaper.ts";
 export { useInvalidation } from "./use-invalidation.ts";
 export { useOnlineStatus } from "./use-online-status.ts";

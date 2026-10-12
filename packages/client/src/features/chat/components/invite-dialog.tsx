@@ -193,7 +193,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                     )}
                   </form.AppField>
                   {handleError === null ? null : (
-                    <Text voice="label" role="alert" className="text-destructive">
+                    <Text tone="destructive" voice="label" role="alert">
                       {handleError}
                     </Text>
                   )}
@@ -261,7 +261,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                       </Text>
                     )}
                     {signupError === null ? null : (
-                      <Text voice="label" role="alert" className="text-destructive">
+                      <Text tone="destructive" voice="label" role="alert">
                         {signupError}
                       </Text>
                     )}

@@ -69,7 +69,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
   useQuery({ ...trpc.settings.getUserSettings.queryOptions(), enabled: open });
   const readMemoryOn = (): Promise<boolean> =>
     // @orb-waive caught-failure-ownership(queryClient.query): a deliberate fail-closed; an unreadable switch takes the Memory-off arm, the import's own toast already reported what landed, and every chat still builds at its next reply. Ends if the offer becomes the only way imported chats build memory.
-    queryClient.query({ ...trpc.settings.getUserSettings.queryOptions(), staleTime: Number.POSITIVE_INFINITY }).then(
+    queryClient.query({ ...trpc.settings.getUserSettings.queryOptions() }).then(
       (settings) => settings.config.memory.enabled,
       () => false,
     );

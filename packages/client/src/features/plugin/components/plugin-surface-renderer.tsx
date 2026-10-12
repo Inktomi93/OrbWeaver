@@ -36,6 +36,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { CONSOLE_STYLES } from "#lib";
 import { useInvokeUiAction } from "../lib/plugin-mutations.ts";
 import { collectDefaults, collectImageAssetIds, specNamesBundleAsset } from "../lib/plugin-surface-bindings.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
@@ -63,8 +64,6 @@ interface RenderCtx {
 }
 
 // %c DevTools console styles (not UI theme tokens — the `[plugin]` channel's own voice, the `[bus]` precedent).
-const PLUGIN_PREFIX_STYLE = "color:#888;font-weight:bold";
-const PLUGIN_WARN_STYLE = "color:#c60;font-weight:bold";
 
 /** The console line for a `primary` button this anchor DEMOTED (#818), or `""` when nothing was refused.
  *  PURE and a plain string on purpose: it is the effect's ONLY dependency below, so the warning fires when the
@@ -88,7 +87,7 @@ function primaryRefusalMessage(pluginId: PluginId, surfaceId: string, anchor: Pl
  *  only weighted), so it belongs in the authoring channel rather than in their attention. */
 function warnPrimaryRefused(message: string): void {
   if (message !== "") {
-    console.warn(`%c[plugin]%c primary refused%c  ${message}`, PLUGIN_PREFIX_STYLE, PLUGIN_WARN_STYLE, "");
+    console.warn(`%c[plugin]%c primary refused%c  ${message}`, CONSOLE_STYLES.prefix, CONSOLE_STYLES.warning, "");
   }
 }
 

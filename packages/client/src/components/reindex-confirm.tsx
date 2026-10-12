@@ -7,6 +7,7 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
+import { readFresh } from "#data";
 import type { ReindexPreview } from "#lib";
 import { REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
@@ -42,8 +43,7 @@ export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["f
     setAsking(true);
     // `staleTime: 0`: the answer depends on rows that change between asks, so a cached one could skip the confirm.
     // @orb-waive caught-failure-ownership(query): an unreadable preview opens the existing confirm without counts; no write proceeds without consent. Ends if preview failure bypasses confirmation.
-    void queryClient
-      .query({ ...trpc.connection.embedSpaceChangePreview.queryOptions({ change }), staleTime: 0 })
+    void readFresh(queryClient, trpc.connection.embedSpaceChangePreview.queryOptions({ change }))
       .then((preview): void => {
         if (reindexNeedsConfirm(preview)) {
           setPending({ preview, write });

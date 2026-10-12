@@ -2,11 +2,10 @@ import type { AttachmentQuality } from "@orb/contracts/inference";
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import { FieldLayout } from "@orb/ui/field";
 import { Grid, Row, Section } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
@@ -28,7 +27,7 @@ const ENTITY_ID = "chat-attachment-quality";
 export function ChatAttachmentQualitySection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your attachment quality…</Text>}
+      fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your attachment quality" onRetry={retry} />}
     >
       <QualityFormBody sectionId={sectionId} />

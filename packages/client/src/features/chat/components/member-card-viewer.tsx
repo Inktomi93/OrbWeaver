@@ -22,6 +22,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
+import { Card } from "@orb/ui/card";
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Drama, EyeOff, Icon, Lock, ScrollText, SlidersHorizontal, Sparkles, Tag } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -346,8 +347,8 @@ function SectionShell({ icon, title, children }: { readonly icon: typeof ScrollT
 
 function Bubble({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Stack gap="row" className="rounded-base bg-ai-bubble p-block">
-      {children}
-    </Stack>
+    <Card tone="bubble">
+      <Stack gap="row">{children}</Stack>
+    </Card>
   );
 }

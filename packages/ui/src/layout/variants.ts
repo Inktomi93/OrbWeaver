@@ -84,6 +84,12 @@ export const sectionVariants = tv({
     hintTrigger: "text-muted-foreground hover:text-foreground",
   },
   variants: {
+    focal: {
+      true: {
+        root: "relative isolate rounded-(--radius-base) p-row [border-inline-start-width:var(--immersive-stripe-width)] [border-inline-start-style:solid] [border-inline-start-color:var(--color-speaker)] before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-(--radius-base) before:opacity-40 before:shadow-glow before:content-['']",
+      },
+      false: {},
+    },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {
       true: { heading: "border-border border-b pb-field" },

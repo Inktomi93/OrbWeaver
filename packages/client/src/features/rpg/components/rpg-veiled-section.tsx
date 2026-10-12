@@ -16,6 +16,7 @@
 
 import type { RpgStandingLie } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { RevealGate } from "@orb/ui/reveal-gate";
 import { Text } from "@orb/ui/text";
@@ -50,23 +51,25 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
       {/* The row key is the lie's identity, so a revealed truth stays revealed while other rows come and go,
           and a changed truth is a new row that starts hidden. */}
       {lies.map(({ lie, subject }) => (
-        <Stack key={`${lie.character}:${lie.truth}:${lie.messageId}`} gap="field" className="rounded-base border border-highlight bg-card px-block py-row">
-          <Row gap="field" align="baseline" justify="between">
-            <Text as="span" voice="label">
-              {lie.character}
-            </Text>
-            <RpgTurnRef messageId={lie.messageId} />
-          </Row>
-          {/* The claim the character makes to the table (the lie's public face); `type` is the lie class. */}
-          {lie.reason === "" ? null : <Text voice="label">{lie.reason}</Text>}
-          {/* The TRUTH — crown-gold, host-only, and unmounted until the host reveals it. */}
-          <RevealGate subject={subject}>
-            <Text voice="gloss" className="text-accolade">
-              truth: {lie.truth}
-            </Text>
-          </RevealGate>
-          {lie.type === "" ? null : <Text voice="gloss">{lie.type}</Text>}
-        </Stack>
+        <Card tone="highlight" key={`${lie.character}:${lie.truth}:${lie.messageId}`}>
+          <Stack key={`${lie.character}:${lie.truth}:${lie.messageId}`} gap="field">
+            <Row gap="field" align="baseline" justify="between">
+              <Text as="span" voice="label">
+                {lie.character}
+              </Text>
+              <RpgTurnRef messageId={lie.messageId} />
+            </Row>
+            {/* The claim the character makes to the table (the lie's public face); `type` is the lie class. */}
+            {lie.reason === "" ? null : <Text voice="label">{lie.reason}</Text>}
+            {/* The TRUTH — crown-gold, host-only, and unmounted until the host reveals it. */}
+            <RevealGate subject={subject}>
+              <Text voice="gloss" className="text-accolade">
+                truth: {lie.truth}
+              </Text>
+            </RevealGate>
+            {lie.type === "" ? null : <Text voice="gloss">{lie.type}</Text>}
+          </Stack>
+        </Card>
       ))}
     </Stack>
   );

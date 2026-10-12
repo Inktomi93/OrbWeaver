@@ -112,7 +112,7 @@ export function RegexTestPanel({ script }: RegexTestPanelProps): ReactElement {
             those is a gate violation, and this file became feature-tier when the editor left `components/`).
             The colour is the point: this line contradicts the result directly above it. */}
         {caveat === null ? null : (
-          <Text className="text-warning" voice="gloss">
+          <Text tone="warning" voice="gloss">
             {caveat}
           </Text>
         )}

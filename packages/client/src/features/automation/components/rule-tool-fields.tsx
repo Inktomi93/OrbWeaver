@@ -64,7 +64,7 @@ export function RuleToolFields({
               }}
             />
             {touchedFieldError(field.state.meta) === null ? null : (
-              <Text id={`${id}-error`} role="alert" className="text-destructive">
+              <Text tone="destructive" id={`${id}-error`} role="alert">
                 {touchedFieldError(field.state.meta)}
               </Text>
             )}

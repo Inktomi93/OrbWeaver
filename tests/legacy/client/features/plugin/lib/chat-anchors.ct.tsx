@@ -736,6 +736,8 @@ test("the edge tab sits clear of the transcript's message actions, and its glyph
   await expect(page.locator(SCROLLER)).toBeVisible();
   const control = page.getByRole("button", { name: PANEL_CONTROL });
   await expect(control).toHaveAccessibleName("Show plugin panels");
+  await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible();
+  await settleMotion(page);
   const tab = await control.boundingBox();
   const rowRight = async (): Promise<number> =>
     await page
@@ -759,17 +761,17 @@ test("the plugin column collapses and expands from its own edge: one control tha
   const control = page.getByRole("button", { name: PANEL_CONTROL });
   await expect(scroller).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(1);
-  const expanded = await widthOf();
   await expect(page.locator(".shell-topbar").getByRole("button", { name: PANEL_CONTROL })).toHaveCount(0);
   await expect(control).toHaveCount(1);
   await expect(control).toHaveAccessibleName("Hide plugin panels");
-  const spot = await control.boundingBox();
   const frameHeight = async (): Promise<number> => (await page.locator("iframe").boundingBox())?.height ?? 0;
   await expect.poll(frameHeight).toBe(FRAME_CONTENT_HEIGHT);
+  await settleMotion(page);
+  const expanded = await widthOf();
+  const spot = await control.boundingBox();
 
   // The transcript's rows ride the column's motion: the first frame after the toggle shows them where they were,
   // and they glide to where the new width puts them.
-  await settleMotion(page);
   const glide = await page.evaluate(async (frames) => {
     const row = (): number => document.querySelector('[data-slot="message-row"]')?.getBoundingClientRect().x ?? Number.NaN;
     const button = document.querySelector<HTMLElement>('[data-slot="panel-edge-control"]');

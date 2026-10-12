@@ -14,6 +14,7 @@
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -82,20 +83,22 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
     );
   }
   return (
-    <Stack gap="field" className="rounded-base border border-border bg-muted p-block">
-      <Row gap="row" align="center">
-        <Icon icon={MessagesSquare} size="sm" />
-        <Text size="body" weight="semibold" transform="caps" className="flex-1">
-          Chat history
-        </Text>
-        {preview.historyEnabled ? null : <Text voice="gloss">(disabled)</Text>}
-      </Row>
-      {preview.splices.length === 0 ? (
-        <Text voice="gloss">your conversation splices in here</Text>
-      ) : (
-        preview.splices.map((entry) => <SpliceView key={entry.section.id} block={entry} depth={entry.depth} order={entry.order} onSelect={onSelect} />)
-      )}
-    </Stack>
+    <Card tone="muted">
+      <Stack gap="field">
+        <Row gap="row" align="center">
+          <Icon icon={MessagesSquare} size="sm" />
+          <Text size="body" weight="semibold" transform="caps" className="flex-1">
+            Chat history
+          </Text>
+          {preview.historyEnabled ? null : <Text voice="gloss">(disabled)</Text>}
+        </Row>
+        {preview.splices.length === 0 ? (
+          <Text voice="gloss">your conversation splices in here</Text>
+        ) : (
+          preview.splices.map((entry) => <SpliceView key={entry.section.id} block={entry} depth={entry.depth} order={entry.order} onSelect={onSelect} />)
+        )}
+      </Stack>
+    </Card>
   );
 }
 

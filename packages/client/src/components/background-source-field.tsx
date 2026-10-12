@@ -28,11 +28,10 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import type { MediaGridItem } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { openConfigTo } from "#state";
 import { QueryBoundary } from "./query-boundary.tsx";
 
@@ -100,7 +99,7 @@ export function BackgroundSourceField({ value, onChange, readOnly = false, reser
           the same remembered box, the copy-paste failure the reservation gate's duplicate arm exists to red.
           What changed is that both owners now supply their own, the shape design §1.4 prescribed. */}
       <QueryBoundary
-        fallback={<Text tone="muted">Loading your background library…</Text>}
+        fallback={<SkeletonRows count={3} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your background library" onRetry={retry} />}
         {...(reserveKey === undefined ? {} : { reserveKey })}
       >
