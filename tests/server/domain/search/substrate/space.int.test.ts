@@ -34,29 +34,20 @@ import { markGenerationComplete } from "#server/domain/embeddings/persistence/sp
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING } from "#server/domain/search/contract/errors.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
+import { createResolveEmbeddingConnection } from "#server/entry/compose/embedding-connection.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { principal } from "../../../../support/factories/principal.ts";
 import type { FakeRoleClientControls } from "../../../../support/factories/role-clients.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedUser } from "../../embeddings/_support.ts";
+import { makeEmbeddingRuntime } from "../../../../support/inference-runtime.ts";
+import { seedUser, vectorConnectionOf } from "../../embeddings/_support.ts";
 
 const NOW = 1_700_000_000_000;
 
-async function connectionOf(clients: RoleClients, task: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
-  const resolved = await clients.resolved(task);
-  return resolved === null
-    ? null
-    : {
-        ...resolved,
-        api: "compat",
-        wire: "compat",
-        baseUrl: null,
-        features: {},
-        extras: null,
-        transport: null,
-        embed: clients.embed,
-        imageEmbed: clients.imageEmbed,
-      };
+/** Compose's own resolve over the scripted encoders: the owner's bound row, snapshotted as production snapshots it. */
+function connectionOf(clients: RoleClients, ownerId: UserId, task: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
+  return createResolveEmbeddingConnection(makeEmbeddingRuntime(clients, vectorConnectionOf), (userId) => Promise.resolve(principal(userId)))(ownerId, task);
 }
 
 async function drive(controls: FakeRoleClientControls = {}): Promise<{
@@ -81,7 +72,7 @@ async function drive(controls: FakeRoleClientControls = {}): Promise<{
     ctx: {
       db,
       roleClientsFor: (): Promise<RoleClients> => Promise.resolve(clients),
-      resolveEmbeddingConnection: (_ownerId, task) => connectionOf(clients, task),
+      resolveEmbeddingConnection: (owner, task) => connectionOf(clients, owner, task),
     },
   };
 }
@@ -91,7 +82,7 @@ async function target(db: Db, ownerId: UserId, clients: RoleClients, task: Embed
     {
       db,
       now: () => NOW,
-      resolveEmbeddingConnection: (_ownerId, resolvedTask) => connectionOf(clients, resolvedTask),
+      resolveEmbeddingConnection: (owner, resolvedTask) => connectionOf(clients, owner, resolvedTask),
       withStableEmbeddingBinding: (_ownerId, read) => read(),
       onTargetGenerationMoved: () => undefined,
     },
@@ -217,7 +208,7 @@ test.each([
   { providerId: "openai", model: "text-embedding-3-small", legacy: LEGACY_TEXT_CAPABILITY },
 ])("$providerId pre-change generation remains queryable without rebuilding", async ({ providerId, model, legacy }) => {
   const { db, ownerId, clients } = await drive();
-  const base = await connectionOf(clients, "embed");
+  const base = await connectionOf(clients, ownerId, "embed");
   if (base === null) {
     throw new Error("the fixture embedding connection must resolve");
   }

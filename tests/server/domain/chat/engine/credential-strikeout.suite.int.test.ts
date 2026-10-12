@@ -42,6 +42,7 @@ import { makeApiKeySecret } from "../../../../support/factories/resolved-connect
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
+import { makeStoreHarness } from "../../embeddings/_support.ts";
 import {
   FROZEN_AT,
   fakeRecallResult,
@@ -54,7 +55,7 @@ import {
   stubRunCompaction,
   testConnection,
 } from "../_support.ts";
-import { GROUP_CHAR, seedDigest, seedSegment } from "../memory/_support.ts";
+import { completeMemorySpace, GROUP_CHAR, seedDigest, seedSegment } from "../memory/_support.ts";
 
 const HOST = castId<UserId>("user_host");
 /** The credential the seeded BYO connection authenticates with — the id every strike must name. */
@@ -336,7 +337,11 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     // horizon proves, is dropped before any search call — and the arm would prove nothing).
     await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
     await seedSegment(db, { ownerId: owner, chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
+    // The owner's index is at rest, so the scan reaches the embed call instead of refusing a moving space.
+    await completeMemorySpace(db, owner);
+    const encoder = makeStoreHarness(db);
     const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the upstream rejected the key (401)", apiErrorStatus: 401 });
+    encoder.roleClients.embed.mockRejectedValue(rejected);
     // The verb binds its bundle through the funder-keyed `roleClientsFor` seam (@orb/inference §7.5-1b), so
     // the double is the shared scripted bundle with ONE callable replaced: `withActiveQuerySpace` must still
     // answer a space (it runs first) and the rejection must land on the `embed` call itself.
@@ -347,6 +352,9 @@ describe("the main turn's fault path strikes out the credential it ran under", (
       roleClientsFor: (): Promise<RoleClients> => Promise.resolve(makeFakeRoleClients({ embed: (): Promise<never> => Promise.reject(rejected) })),
       now: () => FROZEN_AT,
       resolveActiveDocumentIds: () => Promise.resolve([]),
+      // The owner's bound encoder, the one their memory space was minted under, rejecting the key: the query
+      // embeds through the space's own connection.
+      resolveEmbeddingConnection: encoder.ctx.resolveEmbeddingConnection,
     } as unknown as SearchContext;
     const digests = createDigests(searchCtx);
     const engine = engineOver(

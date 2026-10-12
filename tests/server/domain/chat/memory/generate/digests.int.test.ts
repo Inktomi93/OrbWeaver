@@ -18,8 +18,9 @@ import type { MemoryLogEntry, MsgRow } from "#server/domain/chat/memory/types.ts
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "../../../../../support/utility-preset.ts";
+import { SUMMARIZER_MODEL } from "../../../embeddings/_support.ts";
 import { asSummarizeOp, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support.ts";
-import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope, testGenerationId } from "../_support.ts";
+import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, memoryGeneration, seedDigest, seedTurns, sharedScope } from "../_support.ts";
 
 // PROSE-1 S1: the consolidation system prompt is a slot resolved off the ROOM HOST. The harness's chat ctx
 // carries no override, so the discriminator these tests key on is the resolved shipped default.
@@ -30,7 +31,7 @@ const CONSOLIDATION_SYSTEM_PROMPT = consolidationSystemPrompt({});
 const emptySummarize = (inputs: readonly SummarizeInput[]): Promise<SummarizeResult> =>
   Promise.resolve({
     items: inputs.map(() => ({ text: "  \n ", usage: { tokensIn: 1, tokensOut: 0, costUsd: null } })),
-    model: MODEL,
+    model: SUMMARIZER_MODEL,
   });
 
 const ENTITIES_ANCHOR_RE = /^\[entities/u;
@@ -71,7 +72,8 @@ function upsertingStore(database: Db): { store: EmbeddingsStoreOp; digests: Stor
       speakers: [...params.speakerCharacterIds],
       ownerId: params.ownerId,
     });
-    return { ownerId: params.ownerId, model: params.model, generationId: testGenerationId(params.ownerId), generationEpoch: 1 };
+    const generation = await memoryGeneration(db, params.ownerId);
+    return { ownerId: params.ownerId, model: params.model, generationId: generation.id, generationEpoch: generation.epoch };
   };
   return { store, digests };
 }
@@ -122,13 +124,10 @@ describe("memory/generate/digests", () => {
     const otherOwner = castId<UserId>("user_other_generation_owner");
     const ctx = makeChatContext(db, {
       summarize: fakeSummarize().op,
-      embeddingsStore: (params) =>
-        Promise.resolve({
-          ownerId: otherOwner,
-          model: params.model,
-          generationId: testGenerationId(params.ownerId),
-          generationEpoch: 1,
-        }),
+      embeddingsStore: async (params) => {
+        const generation = await memoryGeneration(db, params.ownerId);
+        return { ownerId: otherOwner, model: params.model, generationId: generation.id, generationEpoch: generation.epoch };
+      },
     });
 
     await expect(
@@ -321,7 +320,7 @@ describe("memory/generate/digests", () => {
               : "[entities — scene]\nReal facts here.\nkeywords: a, b, c",
           usage: { tokensIn: 1, tokensOut: 1, costUsd: null },
         })),
-        model: MODEL,
+        model: SUMMARIZER_MODEL,
       });
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { summarize: asSummarizeOp(bodylessArc), embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
@@ -433,6 +432,8 @@ describe("memory/generate/digests", () => {
   // to remove them. The consolidation that folded that block is the same defect one tier up.
   test("hiding a trailing span PRUNES the digest built from it — and the consolidation that folded it", async () => {
     const chatId = await seedChat(db, "shrink");
+    // A memory build runs for a hosted room: the reclaim scopes its DELETE to the host's target generation.
+    await seedParticipant(db, { chatId, key: "shrink_host", userId: owner, role: "host" });
     await seedTurns(db, chatId, aria, 4); // blockSize 2 → block 0 (seq 1-2), block 1 (seq 3-4)
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 } as const;
     const first = upsertingStore(db);
@@ -1035,6 +1036,8 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
 
   test("#1395 — a re-digest that comes back EMPTY invalidates the row it proved stale (recall stops serving it)", async () => {
     const chatId = await seedChat(db, "staleinvalidate");
+    // A memory build runs for a hosted room: the reclaim scopes its DELETE to the host's target generation.
+    await seedParticipant(db, { chatId, key: "staleinvalidate_host", userId: owner, role: "host" });
     await seedTurns(db, chatId, aria, 4); // blockSize 2 → tier-0 blocks 0 and 1
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 } as const;
     const pass1 = upsertingStore(db);
