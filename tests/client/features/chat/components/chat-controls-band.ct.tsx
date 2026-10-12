@@ -24,6 +24,7 @@ import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
@@ -37,8 +38,6 @@ const NON_EMPTY = /\S/;
 /** The rendered transcript floor at the ruled coarse 430×740 viewport: never smaller than the measured
  *  212px composer below it. This is an assertion budget, so the CT owns it instead of production code. */
 const CHAT_READING_PORT_MIN_PX = 212;
-/** WCAG AA for normal text — what an interactive chip's label owes its backdrop. */
-const AA_NORMAL = 4.5;
 /** The house body-adjacent icon step (`ICON_SM`), in rendered px — a bare lucide glyph is 24. */
 const HOUSE_GLYPH_PX = 16;
 /** A fully transparent computed background — the #674 tell, and the empty-band pin's discriminator. */
@@ -173,7 +172,7 @@ for (const { label, width, height } of CONTRAST_WIDTHS) {
       // Settled snapshot: the visibility barrier above settled this chip's box; the framebuffer read is of a
       // painted, settled frame, not of mutable async state.
       const receipt = await pixelContrast(page, chip);
-      expect(receipt.ratio, `${mode} chip @ ${label}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL);
+      expect(receipt.ratio, `${mode} chip @ ${label}: ${receipt.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
 
     // The STRUCTURAL companion, asserted LAST so a regression's first failure is the NUMBER (the finding),
@@ -202,7 +201,7 @@ for (const theme of PIVOT_THEMES) {
       const label = component.locator(`${CHIPS} button[data-mode="${mode}"] [data-slot="text"]`);
       await expect(label).toBeVisible();
       const receipt = await pixelContrast(page, label);
-      expect(receipt.ratio, `${mode} label @ ${theme.label} pivot: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL);
+      expect(receipt.ratio, `${mode} label @ ${theme.label} pivot: ${receipt.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
   });
 }
@@ -283,7 +282,7 @@ test("#684 an UNSTYLED detail node inside the band paints legibly (the reader's-
   await expect(detail).toBeVisible();
   // Settled snapshot: the visibility barrier settled this node; the framebuffer read is of a painted frame.
   const receipt = await pixelContrast(page, detail);
-  expect(receipt.ratio, `unstyled band detail: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL);
+  expect(receipt.ratio, `unstyled band detail: ${receipt.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
 });
 
 test("#674 an ENABLED control names its mode's CONSEQUENCE on title — both chip modes", async ({ mount, page }) => {

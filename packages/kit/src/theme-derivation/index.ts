@@ -249,7 +249,8 @@ export function oklabToOklch(l: number, a: number, b: number): Oklch {
   return { l, c: Math.hypot(a, b), h: hue };
 }
 
-function relativeLuminance({ r, g, b }: Rgb): number {
+/** WCAG 2.x relative luminance (0–1) of an sRGB colour; channels outside 0–255 are clamped. */
+export function relativeLuminance({ r, g, b }: Rgb): number {
   const channel = (raw: number): number => {
     const c = Math.max(0, Math.min(SRGB_MAX, raw)) / SRGB_MAX;
     return c <= WCAG_LINEAR_THRESHOLD ? c / GAMMA_LINEAR_SLOPE : ((c + GAMMA_OFFSET) / GAMMA_SCALE) ** GAMMA_EXPONENT;

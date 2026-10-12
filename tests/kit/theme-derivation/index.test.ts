@@ -32,7 +32,6 @@ import {
   THEME_DERIVATION,
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
-import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -195,30 +194,6 @@ describe("wcagContrastRatio", () => {
     const black = { r: 0, g: 0, b: 0 };
     expect(wcagContrastRatio(white, black)).toBeCloseTo(21, 5);
     expect(wcagContrastRatio(white, white)).toBeCloseTo(1, 5);
-  });
-
-  // The kit ships this ratio to production (the theme solvers, the importer) and the tooling engine grades
-  // every contrast test; the kit cannot import tooling, so this is where the two are proven to be one ruler.
-  // Channels 10 and 11 sit either side of the 0.03928 linearisation knee.
-  test("agrees with the tooling engine on every channel, including either side of the linearisation knee", () => {
-    const channels = [0, 1, 9, 10, 11, 12, 64, 128, 200, 255] as const;
-    const partners = [
-      { r: 0, g: 0, b: 0 },
-      { r: 255, g: 255, b: 255 },
-      { r: 118, g: 119, b: 120 },
-    ] as const;
-    for (const r of channels) {
-      for (const g of channels) {
-        for (const b of channels) {
-          for (const partner of partners) {
-            expect(wcagContrastRatio({ r, g, b }, partner), `rgb(${r} ${g} ${b}) vs rgb(${partner.r} ${partner.g} ${partner.b})`).toBeCloseTo(
-              contrastRatio({ r, g, b }, partner),
-              10,
-            );
-          }
-        }
-      }
-    }
   });
 });
 

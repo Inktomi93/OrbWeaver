@@ -10,7 +10,7 @@
 //  - a NON-claiming contributor is ignored — the section's own band renders (the §3.3 regression floor);
 //  - the shell's own band slot renders NOTHING over a tabs pane, claimed or not.
 
-import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";
@@ -75,7 +75,6 @@ test("a NON-claiming region contributor is ignored — the section's own band re
 //     labelled so: the HEARTH inversion #861/#875 measured live (8.25 vs 8.03) does NOT reproduce in the
 //     shipped Hearth tokens — it was measured in the game room's CARRIED theme (D44), whose neutral ramp is
 //     compressed differently. Hearth passed pre-fix; LIGHT was a real red (receded 3.36:1).
-const WCAG_TEXT_MIN = 4.5;
 /** Two surfaces are "the same material" when their composited medians agree; 1 byte of slack for the
  *  screenshot's own quantisation, not for a fill. */
 const SAME_SURFACE_SLACK = 1;
@@ -141,7 +140,7 @@ for (const theme of SHIPPED_THEMES) {
       const name = await caption.innerText();
       await expect
         .poll(async () => (await pixelContrast(page, caption)).ratio, { message: `${name} caption contrast (composited)` })
-        .toBeGreaterThanOrEqual(WCAG_TEXT_MIN);
+        .toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
   });
 }

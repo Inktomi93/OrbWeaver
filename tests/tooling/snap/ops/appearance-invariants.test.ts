@@ -1,3 +1,4 @@
+import { NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { describe } from "vitest";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import type { AppearanceInvariantReceipt } from "../../../../tooling/src/snap/contract/appearance-invariants.ts";
@@ -214,7 +215,7 @@ describe("#953 appearance invariant receipt", () => {
       matchIndex: 0,
       method: "pixel-sample" as const,
       ratio: 7,
-      requiredRatio: 4.5,
+      requiredRatio: NORMAL_MIN_RATIO,
       passed: true,
       foreground: { r: 255, g: 255, b: 255 },
       backdrop: { r: 0, g: 0, b: 0 },
