@@ -2,7 +2,7 @@
 // the story window.
 
 import type { RpgGameConfig, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
-import { constrainExtractionSchema, rpgExtractionSchema, salvageExtraction } from "@orb/contracts/rpg";
+import { buildToolRoundWireTools, constrainExtractionSchema, rpgExtractionSchema, salvageExtraction } from "@orb/contracts/rpg";
 import type { Resolved } from "@orb/inference";
 import { carriesForcedToolRound, GenerationObservationPersistenceError, generationOf, toForcedToolRoundRequest } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
@@ -16,7 +16,7 @@ import { fallbackStateRound, hasStructuredWriter, hasToolWriter, primaryStateRou
 import { stateRoundNeededTokens } from "#src/domain/rpg/substrate/state-round-fit.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
 import { stateRoundRequestText } from "./delivery.ts";
-import { buildExtractionUserPrompt, buildToolRoundWireTools, extractionSystem, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
+import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
 import { extractStructured, isUnresolvable, roomWindowed, withGenerationObservation } from "./round-connection.ts";
 import { logExtractionOutcome, logStrippedKeys, logStructuredFallback, logToolRoundUsage, safeJson, warnIfStructuredUnavailable } from "./round-log.ts";
 import { foldRoundCalls, requestStructuredCalls, STRUCTURED_ROUND_VEHICLE, structuredRound, structuredShapes } from "./structured.ts";

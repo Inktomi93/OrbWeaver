@@ -2,7 +2,7 @@
 // character turn's already-resolved connection.
 
 import type { RpgToolCall } from "@orb/contracts/rpg";
-import { recordToolCalls } from "@orb/contracts/rpg";
+import { buildToolRoundWireTools, recordToolCalls } from "@orb/contracts/rpg";
 import type { ForcedToolRoundInput, Resolved } from "@orb/inference";
 import { carriesForcedToolRound, GenerationObservationPersistenceError, generationOf, toForcedToolRoundRequest } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
@@ -11,7 +11,7 @@ import type { PromptInputs, RpgRoundsDeps } from "#src/domain/rpg/contract/round
 import type { RpgRunToolRound, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";
 import { fallbackStateRound, primaryStateRound } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { buildRunExtraction } from "./extraction.ts";
-import { buildExtractionUserPrompt, buildToolRoundWireTools, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
+import { buildExtractionUserPrompt, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
 import { withGenerationObservation } from "./round-connection.ts";
 import { isCancelled, logCancelled, logStructuredFallback, logToolRoundUsage, roundFailure, warnIfStructuredUnavailable } from "./round-log.ts";
 import { foldRoundCalls, runStructuredStateRound, structuredRound, structuredShapes, withInventoryAudit } from "./structured.ts";

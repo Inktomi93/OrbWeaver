@@ -12,7 +12,7 @@ import type { RoleClientsWithSignal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
-import { requireHost, requireParticipant } from "#domain/chat";
+import { loadPresentHostUserId, requireHost, requireParticipant } from "#domain/chat";
 import type { DatabankContext, DatabankIngest, DatabankPortabilityContext, DatabankService } from "#domain/databank";
 import { createDatabankIngest, createDatabankService } from "#domain/databank";
 import type { EmbeddingsService } from "#domain/embeddings";
@@ -143,6 +143,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     },
     ensureChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
     ensureChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
     // The SHARED leak-safe reverse-room read (#276) — the same factory regex's roster and the preset
     // CONTEXT's GM bindings wire. A `chat_documents` row outlives its attacher's seat, so the "Active in"
     // roster names PRESENT rooms only.

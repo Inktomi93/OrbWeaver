@@ -33,6 +33,8 @@ export { listSeededItemKeys, recordSeededItemKeys } from "./persistence/seed-led
 export { ensureSeedThemes } from "./seed-themes.ts";
 export { createDefaultBackgroundSeeder } from "./seeder/backgrounds.ts";
 export { createSettingsService } from "./service.ts";
+/** @public exported for the client suite that models the echo of a save through the server's own section-patch merge. */
+export { deepMergePlain } from "./substrate/merge.ts";
 export { createApplyImportedAppearance } from "./verbs/apply-imported-appearance.ts";
 export { createExportTheme } from "./verbs/export-theme.ts";
 export { createExportUserSettings } from "./verbs/export-user-settings.ts";

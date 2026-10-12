@@ -15,6 +15,7 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { CliResult } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
@@ -32,15 +33,6 @@ const POLL_MS = 100;
 const POLL_ATTEMPTS = 100;
 const QUIET = ["--no-shot"];
 vi.setConfig({ testTimeout: CASE_BUDGET_MS, hookTimeout: CASE_BUDGET_MS });
-
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 async function until(predicate: () => boolean): Promise<boolean> {
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {

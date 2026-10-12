@@ -18,7 +18,11 @@ function isResolvedTask<T extends Resolved["task"]>(candidate: Resolved, task: T
  * implicit resolve rethrows, because "no binding" is the caller's typed refusal to surface, never a silent null.
  */
 export function createResolveEmbeddingConnection(
-  runtime: Pick<InferenceRuntime, "resolve" | "funnel" | "executor">,
+  runtime: {
+    readonly resolve: InferenceRuntime["resolve"];
+    readonly funnel: Pick<InferenceRuntime["funnel"], "embed">;
+    readonly executor: Pick<InferenceRuntime["executor"], "embed" | "imageEmbed">;
+  },
   principalOf: (userId: UserId) => Promise<Principal>,
 ): ResolveEmbeddingConnection {
   // The funnel turns the caller's knobs into the wire's: dimensions, input type and instruction.

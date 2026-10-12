@@ -2,7 +2,7 @@
 // over the room funder's chat connection.
 
 import { coEmitsProseWithTools } from "@orb/contracts/inference";
-import { constrainExtractionSchema, rpgExtractionSchema } from "@orb/contracts/rpg";
+import { buildToolRoundWireTools, constrainExtractionSchema, rpgExtractionSchema } from "@orb/contracts/rpg";
 import type { Resolved } from "@orb/inference";
 import { carriesForcedToolRound, generationOf } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -11,7 +11,7 @@ import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 import { deriveTrackersReadOnly, hasStructuredWriter, primaryStateRound, structuredVehicleUnavailable } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { stateRoundNeededTokens } from "#src/domain/rpg/substrate/state-round-fit.ts";
-import { buildExtractionUserPrompt, buildToolRoundWireTools, extractionSystem, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
+import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
 import { resolveFunderChat, roomWindowed } from "./round-connection.ts";
 import { structuredRound, structuredShapes } from "./structured.ts";
 

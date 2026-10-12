@@ -15,7 +15,17 @@ import { randomInt } from "node:crypto";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { can } from "#domain/admin";
 import { isCharacterHandleConflict } from "#domain/character";
-import type { ImportRpgGame, RpgContext, RpgCopyPresetToUser, RpgResolvePresetOwned, RpgResolveViewerVisibility, RpgRoundsDeps, RpgService } from "#domain/rpg";
+import type { PostNarratorMessage } from "#domain/chat";
+import type {
+  ImportRpgGame,
+  RpgContext,
+  RpgCopyPresetToUser,
+  RpgPostNarratorMessage,
+  RpgResolvePresetOwned,
+  RpgResolveViewerVisibility,
+  RpgRoundsDeps,
+  RpgService,
+} from "#domain/rpg";
 import {
   buildFoldedTurnBuilder,
   buildFoldTurnToolCalls,
@@ -68,6 +78,12 @@ export interface RpgComposeResult {
   readonly importGame: ImportRpgGame;
 }
 
+/** Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids, and
+ *  chat owns the narrator batch that commits and emits it. The two domains never construct each other's rows. */
+export function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarratorMessage {
+  return (chatId, content, buildSnapshotStatement) => post(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement });
+}
+
 export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
   const rounds: RpgRoundsDeps = { ...deps, isHandleConflict: isCharacterHandleConflict };
   const ctx: RpgContext = {
@@ -98,10 +114,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveParticipants: deps.rpgChatOps.resolveRpgParticipants,
     // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.
     promoteToCharacter: buildPromoteToCharacter(rounds),
-    // Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids;
-    // chat owns the existing narrator batch and commits/emits. The two domains never construct each other's rows.
-    postNarratorMessage: (chatId, content, buildSnapshotStatement) =>
-      deps.rpgChatOps.postNarratorMessage(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement }),
+    postNarratorMessage: createRpgRestorePost(deps.rpgChatOps.postNarratorMessage),
     resolvePresetOwned: deps.resolvePresetOwned,
     copyPresetToUser: deps.copyPresetToUser,
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.

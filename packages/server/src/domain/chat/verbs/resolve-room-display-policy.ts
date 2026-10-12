@@ -5,8 +5,8 @@
 
 import type { RegexContext } from "#domain/regex";
 import type { ChatContext } from "../context.ts";
-import { loadPresentHostUserId } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
+import { loadPresentHostUserId } from "../persistence/reactions.ts";
 
 export function createResolveRoomDisplayPolicy(ctx: Pick<ChatContext, "db">): RegexContext["resolveRoomDisplayPolicy"] {
   return async (chatId) => {

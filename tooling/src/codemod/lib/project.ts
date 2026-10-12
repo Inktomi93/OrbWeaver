@@ -1,8 +1,9 @@
 // Project bootstrap for the mutable syntax carrier. Semantic/type-aware work goes through
 // CodemodContext.semantic(), whose Projects follow the repository's native compiler programs.
 import { existsSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { readAuthoredRepositoryPathnames } from "@orb/tooling/floor/compiler/authored-repository";
 import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Project } from "ts-morph";
@@ -27,8 +28,7 @@ export const DEFAULT_GLOBS = [
 ] as const;
 
 function contains(root: string, path: string): boolean {
-  const rel = relative(root, path);
-  return rel === "" || !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+  return isWithinRoot(root, path, { sep });
 }
 
 function authoredPaths(root: string): ReadonlySet<string> | undefined {

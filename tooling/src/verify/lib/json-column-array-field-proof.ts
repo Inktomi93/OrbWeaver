@@ -1,6 +1,6 @@
 // Stored-array remaps retain field provenance only through installed array methods and pure callbacks.
 // Caller snapshots, opaque callbacks and member writes do not acquire provenance from the base array.
-import { resolveGlobalMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveGlobalMemberOrigin, resolveStableExpression, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { Node as MorphNode, Type } from "ts-morph";
@@ -9,7 +9,6 @@ import type { JsonColumnMergeProof, JsonColumnOriginContext, JsonColumnTarget } 
 import type { SchemaColumnTypeOverride } from "../contract/schema-fact.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { traceJsonColumnValue } from "./json-column-value-origin.ts";
-import { readMemberAccess } from "./symbol-reference.ts";
 
 const PURE_OPERATORS = new Set([
   SyntaxKind.EqualsEqualsEqualsToken,
@@ -82,7 +81,7 @@ function pureCallback(node: MorphNode, seen: ReadonlySet<object>): boolean {
 }
 
 function pureCall(call: import("ts-morph").CallExpression, seen: ReadonlySet<object>): boolean {
-  const member = readMemberAccess(call.getExpression());
+  const member = staticMemberAccess(call.getExpression());
   if (member === undefined || !PURE_MEMBERS.has(member.name) || !installedMember(member.receiver, member.name) || !pureExpression(member.receiver, seen)) {
     return false;
   }
@@ -130,7 +129,7 @@ function pureExpression(raw: MorphNode, seen: ReadonlySet<object>): boolean {
       pureExpression(node.getArguments()[0] ?? node, next)
     );
   }
-  const member = readMemberAccess(node);
+  const member = staticMemberAccess(node);
   return member === undefined
     ? Node.isNumericLiteral(node) ||
         Node.isStringLiteral(node) ||
@@ -147,7 +146,7 @@ export function jsonColumnArrayFieldProof(
   context: JsonColumnOriginContext,
 ): JsonColumnMergeProof | undefined {
   const value = unwrapExpression(node);
-  const member = Node.isCallExpression(value) ? readMemberAccess(value.getExpression()) : undefined;
+  const member = Node.isCallExpression(value) ? staticMemberAccess(value.getExpression()) : undefined;
   if (!Node.isCallExpression(value) || member === undefined || !ARRAY_REMAPS.has(member.name) || !installedMember(member.receiver, member.name)) {
     return;
   }

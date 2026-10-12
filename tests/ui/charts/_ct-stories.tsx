@@ -9,6 +9,7 @@
 //
 // Components only — playwright-ct rewrites this module's named imports into generated component consts, so
 // a mixed import (component + constant) fails to parse in the consuming CT.
+import { formatSignedDelta } from "@orb/kit/strings";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { BarList } from "@orb/ui/bar-list";
 import type { OrbChartOption, OrbEChartsInstance } from "@orb/ui/chart";
@@ -213,11 +214,6 @@ export function RejectedContextualChartCasesStory(): ReactElement {
  *  so ~240px is the width the owner's two-column Momentum band actually renders at on a laptop. */
 const NARROW_HOST_PX = 240;
 
-/** `formatSignedDelta`'s shape (the analytics view-model) — the sign lives ONLY in this label. */
-function signedDelta(value: number): string {
-  return value > 0 ? `+${value}` : String(value);
-}
-
 /** A wide bar-end label: the token counts the Models tab formats, at the width they actually take. */
 function tokenCount(value: number): string {
   return `${value} tokens`;
@@ -256,7 +252,7 @@ export function ShortSeriesBarListStory(): ReactElement {
         { id: "c", label: "Imai", value: 3 },
       ]}
       label="Rising"
-      valueFormatter={signedDelta}
+      valueFormatter={formatSignedDelta}
     />
   );
 }

@@ -10,6 +10,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { PluginBridge, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import { finiteNumberOrNull } from "@orb/kit/guards";
 
 const execFileAsync = promisify(execFile);
 const THIS_FILE = fileURLToPath(import.meta.url);
@@ -113,18 +114,14 @@ export interface PluginBrokerPlatformProofReceipt {
   readonly brokerNodeOptions: null;
 }
 
-function finiteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 function processSampleFromWindows(value: unknown): ProcessSample | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const pid = finiteNumber(Reflect.get(value, "ProcessId"));
-  const parentPid = finiteNumber(Reflect.get(value, "ParentProcessId"));
-  const rssBytes = finiteNumber(Reflect.get(value, "WorkingSetSize"));
-  const threadCount = finiteNumber(Reflect.get(value, "ThreadCount"));
+  const pid = finiteNumberOrNull(Reflect.get(value, "ProcessId"));
+  const parentPid = finiteNumberOrNull(Reflect.get(value, "ParentProcessId"));
+  const rssBytes = finiteNumberOrNull(Reflect.get(value, "WorkingSetSize"));
+  const threadCount = finiteNumberOrNull(Reflect.get(value, "ThreadCount"));
   const command = Reflect.get(value, "CommandLine");
   return pid !== null && parentPid !== null && rssBytes !== null && typeof command === "string" ? { pid, parentPid, rssBytes, threadCount, command } : null;
 }
@@ -291,7 +288,7 @@ function isChildMessage(value: unknown): value is ChildMessage {
   return (
     kind === "churn-ready" &&
     ["logicalPlugins", "configuredWorkerMaximum", "activationMs", "warmMs", "coldMs", "churnMs", "coldReloads"].every(
-      (key) => finiteNumber(Reflect.get(value, key)) !== null,
+      (key) => finiteNumberOrNull(Reflect.get(value, key)) !== null,
     )
   );
 }
@@ -410,7 +407,11 @@ function parseRuntimeLog(stderr: string): RuntimeLog {
   const execArgv = Reflect.get(parsed, "execArgv");
   const nodeOptions = Reflect.get(parsed, "nodeOptions");
   const rssLimitBytes = Reflect.get(parsed, "rssLimitBytes");
-  if (!(Array.isArray(execArgv) && execArgv.every((value) => typeof value === "string")) || nodeOptions !== null || finiteNumber(rssLimitBytes) === null) {
+  if (
+    !(Array.isArray(execArgv) && execArgv.every((value) => typeof value === "string")) ||
+    nodeOptions !== null ||
+    finiteNumberOrNull(rssLimitBytes) === null
+  ) {
     throw new Error("plugin platform proof: malformed watchdog runtime receipt fields");
   }
   return { execArgv, nodeOptions, rssLimitBytes };

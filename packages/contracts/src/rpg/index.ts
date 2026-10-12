@@ -184,6 +184,7 @@ export {
 export type { ExtractionPlanePrompt, ExtractionPromptContext } from "./extraction-prompt.ts";
 export {
   buildRpgToolDescriptions,
+  buildToolRoundWireTools,
   composePlaneTeaching,
   composePopulateTeaching,
   EXTRACTION_PLANE_PROMPTS,

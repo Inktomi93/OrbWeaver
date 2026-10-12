@@ -29,6 +29,7 @@ import {
   consolidationHash,
   createResolveStandingAsks,
   createResolveViewerVisibility,
+  loadPresentHostUserId,
   requireAuthorOrHost,
   resolveTier0Range,
   setParticipantActivePersona,
@@ -212,6 +213,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     loadCharacterOwner,
     loadAssetOwner,
+    loadChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
     // Every target move, from any caller (a write, a sweep, a sync after a re-point, boot), emptied that owner's
     // index: their forced sweeps refill it. Derefs the sweep starter below at call time, never during compose.
     onTargetGenerationMoved: (ownerId) => {

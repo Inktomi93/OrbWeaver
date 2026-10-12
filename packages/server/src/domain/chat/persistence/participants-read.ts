@@ -128,18 +128,6 @@ export async function isPresentParticipant(db: Db, chatId: ChatId, userId: UserI
   return rows.length > 0;
 }
 
-/** The room's PRESENT host user (`role='host'`, `leftSeq IS NULL`), or `null` for a hostless room — the
- *  authority whose settings, library and connections the room draws from (D19). The first host-labelled
- *  row answers as stored; it carries no `userId` belt, so its verdict matches the injected ops it backs. */
-export async function loadPresentHostUserId(db: Db, chatId: ChatId): Promise<UserId | null> {
-  const rows = await db
-    .select({ userId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-    .limit(LIMIT_ONE);
-  return rows.at(0)?.userId ?? null;
-}
-
 /** The roster read (listParticipants / arbitration substrate). Default = PRESENT members only
  *  (`leftSeq IS NULL` — Part III §1); `includePast` returns the full history (kicked/left rows) for the host
  *  audit + `from-join`/`full` visibility resolution. Ordered by join order (`joinSeq`, then row id). */

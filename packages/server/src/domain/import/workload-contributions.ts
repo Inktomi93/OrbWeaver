@@ -23,6 +23,7 @@ import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, Mainte
 import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import { isStrictDescendant } from "@orb/kit/path-containment";
 import type { WorkloadContribution } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
@@ -73,37 +74,14 @@ async function settleImportRun(args: {
   }
 }
 
+// The lexical containment pass runs on the host's own separator; `realpath` below is the authoritative half.
+const HOST_PATH = { sep };
+
 type ImportContributions = readonly [
   WorkloadContribution<"import-st">,
   WorkloadContribution<"import-token-usage-backfill">,
   WorkloadContribution<"import-bundle">,
 ];
-
-/** The narrow slice of `node:path` (or `path.win32`/`path.posix`) the lexical containment check needs —
- *  parameterized so {@link isContained} is unit-testable for both flavours from a POSIX CI box, while every
- *  production call site keeps its default binding to the host's own `node:path`. */
-interface PathFlavour {
-  readonly sep: string;
-}
-
-/**
- * Cheap lexical pass: is `target` a proper strict descendant of `root`? Both are assumed already resolved
- * (absolute, no `.`/`..` segments) by the caller. On `sep === "\\"` (Windows) the comparison is
- * case-INSENSITIVE, matching the platform's own case-insensitive filesystem — a root typed
- * `C:\Staging` and a target resolving to `c:\staging\x` are the same directory there, and a
- * case-sensitive compare would wrongly refuse a legitimate handle. On `/` (POSIX) the compare stays
- * case-sensitive, unchanged from before.
- *
- * @internal — exported for the unit test (`tests/server/domain/import/workload-contributions.test.ts`),
- * which drives both `path.win32` and `path.posix` flavours from a Linux CI box.
- */
-export function isContained(root: string, target: string, flavour: PathFlavour = { sep }): boolean {
-  if (target === root) {
-    return false;
-  }
-  const prefix = root + flavour.sep;
-  return flavour.sep === "\\" ? target.toLowerCase().startsWith(prefix.toLowerCase()) : target.startsWith(prefix);
-}
 
 /**
  * Resolve a server-minted staging handle to an absolute path that is a PROPER STRICT DESCENDANT of
@@ -122,7 +100,7 @@ export function isContained(root: string, target: string, flavour: PathFlavour =
 async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Promise<string> {
   const root = resolve(stagingRoot);
   const target = resolve(root, stagedHandle);
-  if (!isContained(root, target)) {
+  if (!isStrictDescendant(root, target, HOST_PATH)) {
     throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
   }
   const realRoot = await realpath(root).catch(() => {
@@ -190,7 +168,7 @@ export async function readStagedFile(path: string, noFollowFlag: number | null =
 async function rmContained(stagingRoot: string, target: string): Promise<void> {
   const root = resolve(stagingRoot);
   const resolved = resolve(target);
-  if (!isContained(root, resolved)) {
+  if (!isStrictDescendant(root, resolved, HOST_PATH)) {
     return;
   }
   // A SYMLINK is never removed here. `rm` would unlink the link rather than its target, so this is not the

@@ -10,11 +10,12 @@
 // cannot see past the receiver to tell a bounded node walk from a repository one.
 import type { DrizzleTableRef } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
 import { resolveDrizzleTableRefs } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ReadStatement, SchemaTableIndex, TableRef, TableTarget } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { MEMBER_ACCESS_KINDS, readMemberAccess, referencesModuleExport } from "./symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS, referencesModuleExport } from "./symbol-reference.ts";
 
 const OWNER_COL = "ownerId";
 const DRIZZLE_MODULE_PREFIX = "drizzle-orm";
@@ -99,7 +100,7 @@ export function declaredTableOf(node: Node, index: SchemaTableIndex): string | u
  *  is indistinguishable from a `Map.delete` and stays out of the unresolvable arm. */
 export function isDrizzleWriteStatement(anchor: Node): boolean {
   return chainCalls(anchor).some((call) => {
-    const callee = readMemberAccess(call.getExpression());
+    const callee = staticMemberAccess(call.getExpression());
     return callee !== undefined && DRIZZLE_WRITE_CHAIN.has(callee.name);
   });
 }
@@ -110,7 +111,7 @@ export function predicatesTableColumn(predicate: Node, tableIdent: string, colum
   const descendants = MEMBER_ACCESS_KINDS.flatMap((kind) => predicate.getDescendantsOfKind(kind));
   const candidates = MEMBER_ACCESS_KINDS.some((kind) => predicate.isKind(kind)) ? [predicate, ...descendants] : descendants;
   return candidates.some((candidate) => {
-    const read = readMemberAccess(candidate);
+    const read = staticMemberAccess(candidate);
     // The RECEIVER is compared by TEXT rather than required to be an Identifier (#2199): the write target is
     // whatever `tableTargetOf` named it, which for a namespace-spelled table is `schema.characters`. Requiring
     // an identifier receiver here would have ACQUITTED nothing and ACCUSED everything on the namespace side —
@@ -143,7 +144,7 @@ function chainCalls(start: Node): CallExpression[] {
  *  which means a LIST read on the read side and an UNBOUNDED write on the write side; the two halves judge
  *  that differently, so this reader only reports the absence). */
 export function whereArgOf(anchor: Node): Node | undefined {
-  const whereCall = chainCalls(anchor).find((call) => readMemberAccess(call.getExpression())?.name === "where");
+  const whereCall = chainCalls(anchor).find((call) => staticMemberAccess(call.getExpression())?.name === "where");
   return whereCall?.getArguments()[0];
 }
 
@@ -227,7 +228,7 @@ export function readStatementOf(anchor: Node): ReadStatement {
   const calls = statementCalls(anchor, 0, new Set());
   const argumentsOf = (verb: string, position: number): readonly Node[] =>
     calls.flatMap((call) => {
-      const argument = readMemberAccess(call.getExpression())?.name === verb ? call.getArguments()[position] : undefined;
+      const argument = staticMemberAccess(call.getExpression())?.name === verb ? call.getArguments()[position] : undefined;
       return argument === undefined ? [] : [argument];
     });
   return { wheres: argumentsOf(WHERE_VERB, 0), innerOns: argumentsOf(INNER_JOIN_VERB, 1) };
@@ -238,7 +239,7 @@ export function readStatementOf(anchor: Node): ReadStatement {
  *  This is the upsert's answer to `whereArgOf`: an upsert's collision is decided by the conflict TARGET (a
  *  unique index) and the optional `targetWhere`/`setWhere`, never by a `.where` on the statement. */
 export function upsertConfigOf(anchor: Node): Node | undefined {
-  const upsertCall = chainCalls(anchor).find((call) => readMemberAccess(call.getExpression())?.name === "onConflictDoUpdate");
+  const upsertCall = chainCalls(anchor).find((call) => staticMemberAccess(call.getExpression())?.name === "onConflictDoUpdate");
   return upsertCall?.getArguments()[0];
 }
 

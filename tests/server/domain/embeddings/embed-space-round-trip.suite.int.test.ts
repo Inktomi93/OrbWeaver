@@ -32,6 +32,7 @@ import { characterEmbeddings, documentChunks } from "@orb/db";
 import type { CharacterEmbeddingId, CharacterId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -153,25 +154,14 @@ async function driveOwnerWithBoundEncoder(
   const ctx: EmbeddingsContext = {
     ...store.ctx,
     roleClientsFor: roleClients,
-    resolveEmbeddingConnection: async (_ownerId, task) => {
-      const rc = await roleClients();
-      const resolved = await rc.resolved(task);
-      return resolved === null
-        ? null
-        : {
-            ...resolved,
-            api: "test",
-            wire: "test",
-            baseUrl: null,
-            features: {},
-            extras: null,
-            transport: null,
-            embed: rc.embed,
-            imageEmbed: rc.imageEmbed,
-          };
-    },
+    // Compose's own resolve over the real runtime: the snapshot the generation is minted from is production's.
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(harness.runtime, () => Promise.resolve(principal)),
   };
-  return { harness, principal, userId, connectionId: connection.id, svc: createEmbeddingsService(ctx), ctx, roleClients };
+  const svc = createEmbeddingsService(ctx);
+  // A binding write moves the owner's target through the embeddings service, as the composition root wires it.
+  // biome-ignore lint/correctness/useHookAtTopLevel: a connection-harness method named use*, not a React hook.
+  harness.useEmbeddings(svc);
+  return { harness, principal, userId, connectionId: connection.id, svc, ctx, roleClients };
 }
 
 /** The settled read tag, taken through the ONE door every query verb calls (`withActiveQuerySpace`). */
@@ -379,15 +369,10 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     const newTag = await requireTaskModel(drive.ctx, drive.userId, "embed");
     expect(newTag, "the live space moved").not.toBe(oldTag);
 
-    // THE VECTORS ARE STILL THERE, in the space they were written in — this is the control that makes the
-    // refusal below mean "mid-move" rather than "nothing to find". The principal is the connection row's
-    // OWNER, the same one every read above was taken as.
-    const stillThere = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
-    expect(stillThere).toHaveLength(1);
-    expect(stillThere[0]?.model).toBe(oldTag);
+    // The binding write moved the target, and the move emptied the old space with it: the index never holds two.
+    expect(await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId))).toEqual([]);
 
-    // …and the read REFUSES rather than scanning the new space (which holds nothing) or the old one with a
-    // new-model query vector (which would rank garbage — both spaces are 1024-wide, so nothing throws).
+    // …and the read REFUSES rather than answering from the new space, which holds nothing yet.
     await expect(spaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
 
     // ── STEP 3: the reindex lands. Every scope records the new space and the read resumes — on the NEW tag,

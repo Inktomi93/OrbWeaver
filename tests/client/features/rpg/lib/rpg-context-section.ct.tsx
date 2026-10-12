@@ -15,6 +15,7 @@ import { actorRefKey, carriesTracker, RPG_PROFILE_D20, RPG_SEED_HP_MAX, rpgSeedT
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { deriveEffectiveDelivery } from "@orb/server/domain/rpg";
 import { ariaTreeFindings } from "@orb/testkit/browser/accessible-names.ts";
 import { expectCircle } from "@orb/testkit/browser/expect-circle.ts";
 import { hitBoxes, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
@@ -79,11 +80,13 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
     // The born-state round's own capability verdict (`hasStructuredWriter`) — a real `getGame` always carries it.
     canPopulate: true,
     extractionMode,
-    // What the knob RESOLVES to on this room's connection — the server derives it (`deriveEffectiveDelivery`);
-    // the stub mirrors the un-degraded arm of that derivation, plus the readonly case's no-vehicle verdict.
-    effectiveDelivery: trackersReadOnly
-      ? { path: "none", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }
-      : { path: extractionMode === "folded" ? "folded" : "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null },
+    // What the knob RESOLVES to on this room's connection, derived by the server's own rule on an unguarded connection.
+    effectiveDelivery: deriveEffectiveDelivery(extractionMode, {
+      trackersReadOnly,
+      foldGuarded: false,
+      structuredUnavailable: false,
+      stateRoundOverflow: null,
+    }),
     publicConfig: {
       statProfile: {
         attributes: [],

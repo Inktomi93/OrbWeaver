@@ -32,6 +32,7 @@ import {
   snapScenario,
   stageBandVerdictFor,
   tearDownBootDeadStage,
+  waitForStage,
 } from "./index.ts";
 
 function printCliPreamble(opts: Args): number | null {
@@ -126,6 +127,12 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
   }
   if (opts.stageStatus || opts.stageDown || opts.stageSweep) {
     return configureStage(opts) ?? EXIT.clean;
+  }
+  // A queued stage ask resolves BEFORE the run slot opens: the waiter boots the stage, so the stage door below
+  // reuses it warm. Not on the session leg, whose daemon boots its own stage.
+  const waitExit = opts.session === null ? await waitForStage(opts) : null;
+  if (waitExit !== null) {
+    return waitExit;
   }
   const complete = async (receipt: Parameters<typeof completeSnapRun>[0]): Promise<void> => {
     await completeSnapRun(receipt, opts, argv);

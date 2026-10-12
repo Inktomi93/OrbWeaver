@@ -14,7 +14,6 @@ import {
   isPresentParticipant,
   loadParticipants,
   loadPresentCharacterSeats,
-  loadPresentHostUserId,
   loadPresentHumanUserIds,
 } from "#server/domain/chat/persistence/participants-read.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
@@ -110,18 +109,6 @@ describe("buildInitialParticipantRows (pure)", () => {
 });
 
 describe("present-seat reads — a departed seat never answers", () => {
-  test("loadPresentHostUserId names the present host, and a room whose host left is hostless", async () => {
-    const chatId = await seedChat(db, "h1");
-    const host = await seedUser(db, castId<Handle>("host_h1"));
-    await seedParticipant(db, { chatId, key: "h1", userId: host, role: "host" });
-    expect(await loadPresentHostUserId(db, chatId)).toBe(host);
-
-    const orphan = await seedChat(db, "h2");
-    const gone = await seedUser(db, castId<Handle>("host_h2"));
-    await seedParticipant(db, { chatId: orphan, key: "h2", userId: gone, role: "host", leftSeq: 3 });
-    expect(await loadPresentHostUserId(db, orphan)).toBeNull();
-  });
-
   test("isPresentParticipant admits a present member in any role and refuses a departed or foreign user", async () => {
     const chatId = await seedChat(db, "p1");
     const member = await seedUser(db, castId<Handle>("member_p1"));

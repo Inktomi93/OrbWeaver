@@ -117,7 +117,7 @@ Navigation is client state, not a URL. The browser URL only ever settles at `/` 
 
 **Seeding:** enumerate ids from `GET /api/_debug/db/chats` and `/api/_debug/db/characters`. To seed a small fixture, drive the UI on a staged run (`--isolated`/`--dirty`); the create journey is itself review surface. Reach a chat by `--open-chat <id|exactTitle|latest|current>` (refuses loudly on an ambiguous title) and a character by `--open-character <idOrName>`.
 
-**Stage db:** stage db provenance is `rules/instruments.md`.
+**Stage db:** review on a clone of the owner's container data, copied with the recipe in `snap-driving` §8; stage db provenance is `rules/instruments.md`. Name the data the evidence used (clone or dev db) in the report.
 
 ## §13 The blunt-taste + IA review (mandatory — the call no instrument makes)
 

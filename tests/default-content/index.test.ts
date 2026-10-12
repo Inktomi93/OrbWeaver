@@ -17,7 +17,6 @@
 // and be re-blessed in the same commit that edits it, which is the only place a reviewer can see that the
 // bytes a fresh user receives changed.
 
-import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +31,7 @@ import {
 } from "@orb/default-content";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const CONTENT_DIR = fileURLToPath(new URL("../../packages/default-content/", import.meta.url));
@@ -69,10 +69,6 @@ const BACKGROUND_SHA256: Readonly<Record<string, string>> = {
   "sabine-bg": "60da470266cb859582c73364e937d354a8a6ebfcf643b631cb0614677ac81b7e",
 };
 
-function sha256(bytes: Uint8Array | string): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
-
 async function shippedNames(dir: string, extension: string): Promise<string[]> {
   const entries = await readdir(join(CONTENT_DIR, dir), { withFileTypes: true });
   return entries
@@ -90,7 +86,7 @@ test("every shipped avatar reads back as the bytes it shipped with, through the 
     const art = await readSeedAvatar(castId<CharacterHandle>(handle));
     expect(art, `${handle} ships no avatar`).not.toBeNull();
     expect(art?.mime).toBe(SEED_AVATAR_MIME);
-    expect(sha256(art?.bytes ?? new Uint8Array()), `${handle}'s seeded avatar bytes changed`).toBe(digest);
+    expect(sha256Hex(art?.bytes ?? new Uint8Array()), `${handle}'s seeded avatar bytes changed`).toBe(digest);
   }
 });
 
@@ -131,7 +127,7 @@ test("every shipped plate reads back as the bytes it shipped with, through the p
     const plate = await readSeedBackground(slug);
     expect(plate, `${slug} ships no scene plate`).not.toBeNull();
     expect(plate?.mime).toBe(SEED_BACKGROUND_MIME);
-    expect(sha256(plate?.bytes ?? new Uint8Array()), `${slug}'s seeded plate bytes changed`).toBe(digest);
+    expect(sha256Hex(plate?.bytes ?? new Uint8Array()), `${slug}'s seeded plate bytes changed`).toBe(digest);
   }
 });
 

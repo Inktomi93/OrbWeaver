@@ -9,6 +9,7 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import type { SpawnNicedResult } from "@orb/tooling/floor/process/proc-contract";
 import { print } from "../../floor/artifacts/artifacts.ts";
+import type { StructureArtifact, StructureArtifactGate, StructureArtifactPolicy } from "../../floor/artifacts/structure-artifact-contract.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
@@ -67,31 +68,6 @@ const CONSUMPTION_RE = /^(?<file>.+):(?<line>\d+):\d+$/u;
 // Exit 0 is a clean pass and 1 is findings; every other exit is a refusal or a crash.
 const VERDICT_EXITS: ReadonlySet<number | null> = new Set([EXIT.clean, EXIT.violations]);
 
-// The slice of `reports/check-structure.json` this verb reads (its owner is verify's
-// `contract/structure-report.ts`, which a sibling tool may not import).
-interface StructureGate {
-  readonly name: string;
-  readonly withheld: boolean;
-  readonly violations: readonly { readonly file: string; readonly line: number; readonly token?: string }[];
-  readonly waived: number;
-  readonly granted: number;
-  readonly population: { readonly effectiveSourcePaths: number };
-}
-
-interface StructurePolicy {
-  readonly toolErrors: readonly { readonly message: string }[];
-  readonly authority: {
-    readonly alarms: readonly { readonly kind: string; readonly policyId: string; readonly message: string }[];
-    readonly toolErrors: readonly { readonly message: string }[];
-    readonly ordinaryConsumption: readonly { readonly id: string; readonly count: number }[];
-  };
-}
-
-interface StructureArtifact {
-  readonly gates: readonly StructureGate[];
-  readonly policy: StructurePolicy | null;
-}
-
 /** `--scope <dir>` or `--scope=<dir>`; nothing else is accepted. */
 export function parseAntipatternScope(tokens: readonly string[]): string | undefined {
   if (tokens.length === 0) {
@@ -112,7 +88,7 @@ function antipatternGates(): readonly string[] {
 }
 
 /** The waived hits each gate consumed: every matched marker, read back from its own source line. */
-function waivedHits(policy: StructurePolicy, readText: (rel: string) => string): Map<string, string[]> {
+function waivedHits(policy: StructureArtifactPolicy, readText: (rel: string) => string): Map<string, string[]> {
   const byGate = new Map<string, string[]>();
   const lines = new Map<string, readonly string[]>();
   for (const { id, count } of policy.authority.ordinaryConsumption) {
@@ -133,7 +109,11 @@ function waivedHits(policy: StructurePolicy, readText: (rel: string) => string):
   return byGate;
 }
 
-function render(policy: StructurePolicy, gates: ReadonlyMap<string, StructureGate>, readText: (rel: string) => string): { lines: string[]; failing: number } {
+function render(
+  policy: StructureArtifactPolicy,
+  gates: ReadonlyMap<string, StructureArtifactGate>,
+  readText: (rel: string) => string,
+): { lines: string[]; failing: number } {
   const waived = waivedHits(policy, readText);
   const alarms = policy.authority.alarms;
   const lines: string[] = [];

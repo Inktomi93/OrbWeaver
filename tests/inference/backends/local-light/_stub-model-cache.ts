@@ -5,6 +5,7 @@
 import process from "node:process";
 import type { LocalTextEncoding } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
+import { waitSync } from "@orb/tooling/floor/process/sync-sleep";
 import type { LocalLightModelCache, ModelCacheConfig } from "#inference/backends/local-light/model-cache.ts";
 import type { ProviderErrorInit } from "#inference/contract/errors.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
@@ -37,18 +38,14 @@ export const EVERY_PROVIDER_ERROR_FIELD: Required<Omit<ProviderErrorInit, "cause
   partialItems: [{ text: "stub item", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }, undefined],
 };
 
-/** Hold the calling thread for `ms` without yielding, the way `onnxruntime-node` holds it for a run. */
-export function holdThread(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, ms);
-}
-
 function embed(texts: readonly string[], encoding?: LocalTextEncoding): Promise<Float32Array[]> {
   const [first = ""] = texts;
   if (first === ENCODING) {
     return Promise.resolve([Float32Array.of(encoding?.maxTokens ?? 0, encoding?.version ?? 0)]);
   }
   if (first.startsWith(BLOCK_PREFIX)) {
-    holdThread(Number(first.slice(BLOCK_PREFIX.length)));
+    // Holds the thread without yielding, the way `onnxruntime-node` holds it for a run.
+    waitSync(Number(first.slice(BLOCK_PREFIX.length)));
   }
   if (first === CRASH) {
     process.exit(CRASH_EXIT_CODE);

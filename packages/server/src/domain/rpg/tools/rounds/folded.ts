@@ -2,13 +2,13 @@
 // calls the character turn co-emitted. Neither makes a model call of its own.
 
 import { resolveProseText } from "@orb/contracts/prose";
-import { cacheStableExtractionRefs, recordToolCalls, toolCallsToExtraction } from "@orb/contracts/rpg";
+import { buildToolRoundWireTools, cacheStableExtractionRefs, recordToolCalls, toolCallsToExtraction } from "@orb/contracts/rpg";
 import { newId } from "@orb/kit/ids";
 import { logger } from "#foundation/observability";
 import type { RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { buildActorRefIndex, extractionToStateDelta, reachableActorRefs } from "../apply.ts";
-import { buildToolRoundWireTools, resolveExtractionRefs } from "./prompts.ts";
+import { resolveExtractionRefs } from "./prompts.ts";
 import { logExtractionOutcome, logToolCallLosses } from "./round-log.ts";
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

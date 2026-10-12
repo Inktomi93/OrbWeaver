@@ -3,7 +3,7 @@
 // moves weight between them (`strict-compatible` turns every optional into a nullable union).
 
 import type { StructuredVehicle, WireSchemaLimits, WireSchemaMode } from "./wire-subset.ts";
-import { LONG_ENUM_VALUES, scrubWireSchema, WIRE_SUBSETS } from "./wire-subset.ts";
+import { DEF_MAP_KEYWORDS, LONG_ENUM_VALUES, NAME_MAP_KEYWORDS, scrubWireSchema, WIRE_SUBSETS } from "./wire-subset.ts";
 
 /** A grammar ceiling's kind, in the order {@link countWireSchemas} reports them. */
 export const WIRE_SCHEMA_CEILINGS = [
@@ -151,9 +151,6 @@ function isUnion(param: Record<string, unknown>): boolean {
   return Array.isArray(param["anyOf"]) || Array.isArray(param["oneOf"]) || Array.isArray(param["type"]);
 }
 
-const DEF_KEYS = ["$defs", "definitions"] as const;
-const NAME_MAP_KEYS: ReadonlySet<string> = new Set<string>(["properties", ...DEF_KEYS]);
-
 // One node's own weight; its children are the walk's.
 function weighNode(node: Record<string, unknown>, weight: SchemaWeight): void {
   const properties = node["properties"];
@@ -183,7 +180,7 @@ function weighNames(node: Record<string, unknown>, weight: SchemaWeight): void {
   if ("const" in node) {
     weight.nameChars += String(node["const"]).length;
   }
-  for (const key of DEF_KEYS) {
+  for (const key of DEF_MAP_KEYWORDS) {
     const defs = node[key];
     if (isRecord(defs)) {
       weight.nameChars += Object.keys(defs).reduce((sum, name) => sum + name.length, 0);
@@ -217,7 +214,7 @@ function weighSchema(schema: unknown): SchemaWeight {
 
 // A node's children to walk. A name map's keys are field names: its members are schemas, the map itself is not one.
 function childSchemas(node: Record<string, unknown>): unknown[] {
-  return Object.entries(node).flatMap(([key, value]) => (NAME_MAP_KEYS.has(key) && isRecord(value) ? Object.values(value) : [value]));
+  return Object.entries(node).flatMap(([key, value]) => (NAME_MAP_KEYWORDS.has(key) && isRecord(value) ? Object.values(value) : [value]));
 }
 
 /** A JSON Schema's optional and union-typed property counts, the two ceilings Anthropic reports in its refusals. */

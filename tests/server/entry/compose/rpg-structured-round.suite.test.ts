@@ -8,6 +8,7 @@ import type { GenerationCapability, ProviderId, WireSchemaMode } from "@orb/cont
 import { checkWireSchema, effectiveStructuredLimits, structuredSchemaComplexity } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgToolCall } from "@orb/contracts/rpg";
 import {
+  buildToolRoundWireTools,
   constrainExtractionSchema,
   patchChangesToToolCalls,
   rpgExtractionSchema,
@@ -17,7 +18,7 @@ import {
 } from "@orb/contracts/rpg";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { buildToolRoundWireTools, structuredShapes } from "@orb/server/domain/rpg";
+import { structuredShapes } from "@orb/server/domain/rpg";
 import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { detectModelFamily } from "#inference/capability/families.ts";

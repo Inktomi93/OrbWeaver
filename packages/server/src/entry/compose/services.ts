@@ -693,7 +693,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     publish();
   };
 
-  // The chat's PRESENT host — the room authority a room picture runs as.
+  // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority a room picture runs as.
   const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
   // WHICH preset a Utility-role background task reads (D299) — one home for every side-gen consumer. `preset`
   // composes below (the search-discovery seam), so its `get` is a request-time forward-ref (the `getPreset`

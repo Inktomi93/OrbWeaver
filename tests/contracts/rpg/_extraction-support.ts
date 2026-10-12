@@ -1,5 +1,7 @@
-import type { ExtractionRefs, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
-import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import type { ExtractionRefs, RpgActorRef, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
+import { actorRefKey, rpgNpcSlug, rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import type { UserId } from "@orb/kit/ids";
+import { newId } from "@orb/kit/ids";
 
 // The ref bundle's establishment flags. The enum tests below don't force scene population (both false); the
 // establish-when-unset arm is pinned by its own tests further down.
@@ -21,7 +23,8 @@ export function tracker(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key"
 
 /** A carrier (an actor the write surface may target), with no sheet exceptions unless given. */
 export function carrier(name: string, kind: "party" | "npcs", over: Partial<RpgTrackerCarrier> = {}): RpgTrackerCarrier {
-  return { actorKey: `${kind === "npcs" ? "npc" : "user"}:${name}`, name, kind, grants: [], revokes: [], ...over };
+  const ref: RpgActorRef = kind === "npcs" ? { kind: "npc", npcKey: rpgNpcSlug(name) } : { kind: "user", userId: newId<UserId>() };
+  return { actorKey: actorRefKey(ref), name, kind, grants: [], revokes: [], ...over };
 }
 
 export function refEnum(schema: Record<string, unknown>, path: readonly string[]): unknown {

@@ -14,8 +14,8 @@ import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDefSchema } from "@
 import { characterEmbeddings, userCredentials } from "@orb/db";
 import type { PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { endpointAdmission, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
@@ -65,10 +65,7 @@ test("a stated width change enqueues catch-up and the rebuilt corpus becomes rea
   await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id });
   const characterId = await seedCharacter(db, owner.userId);
   const clients = h.runtime.roleClientsFor(owner.principal);
-  const resolveEmbeddingConnection: ResolveEmbeddingConnection = async (_ownerId, task, connectionId) => {
-    const { resolved } = await h.runtime.resolve({ task, principal: owner.principal, ...(connectionId === undefined ? {} : { connectionId }) });
-    return { ...resolved, api: resolved.api ?? "none", embed: clients.embed, imageEmbed: clients.imageEmbed };
-  };
+  const resolveEmbeddingConnection = createResolveEmbeddingConnection(h.runtime, () => Promise.resolve(owner.principal));
   const store = makeStoreHarness(db, { characterIds: [characterId], cardTexts: new Map([[characterId, "A lighthouse keeper"]]) });
   const ctx = { ...store.ctx, resolveEmbeddingConnection, roleClientsFor: async () => clients };
   const embeddings = createEmbeddingsService(ctx);

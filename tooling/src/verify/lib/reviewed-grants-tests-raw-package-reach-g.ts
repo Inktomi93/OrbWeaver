@@ -126,10 +126,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G: readonly ReviewedGateGra
   ],
   "tests/server/entry/compose/databank.int.test.ts": ["#server/entry/compose/databank.ts"],
   "tests/server/entry/compose/imagery.test.ts": ["#server/domain/imagery/index.ts", "#server/entry/compose/imagery.ts"],
-  "tests/server/entry/compose/memory-embedding-ops.int.test.ts": [
-    "#server/domain/chat/persistence/reactions.ts",
-    "#server/entry/compose/memory-embedding-ops.ts",
-  ],
   "tests/server/entry/compose/plugin-chat-reads.int.test.ts": ["#server/entry/compose/plugin-chat-reads.ts"],
   "tests/server/entry/compose/plugin-failure-log.suite.int.test.ts": ["#server/entry/compose/automation-watcher.ts"],
   "tests/server/entry/compose/plugin-quiet-grant.suite.int.test.ts": ["#server/entry/compose/automation-plugin.ts"],

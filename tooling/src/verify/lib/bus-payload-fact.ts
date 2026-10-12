@@ -63,7 +63,7 @@
 // notification schema's whole arm list contributed ZERO wire keys — the credential-key search then ran over
 // an empty population and the policy's own `mustFlag` fixtures stopped flagging under the bracket
 // respelling. Every builder hop (`object`/`extend`/`merge`/the key-neutral methods) and the `{ ...base.shape }`
-// spread now resolve through `lib/symbol-reference.ts#readMemberAccess`.
+// spread now resolve through `floor/code-facts/reference-fact.ts#staticMemberAccess`.
 //
 // THE RESOLUTION FENCE IS THE POPULATION FENCE, AND THAT IS A CONVERSION NARROWING (#1584). The legacy
 // reader accepted any declaration under the repo root outside `node_modules`; this one accepts only a

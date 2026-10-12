@@ -110,6 +110,8 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
   // reclaim closes it; this asserts the OUTCOME a host would actually see.
   test("hiding a trailing span keeps its content out of {{memory}} recall (the block's digest is reclaimed)", async () => {
     const chatId = await seedChat(db, "shrinkrecall");
+    // A memory build runs for a hosted room: the reclaim scopes its DELETE to the host's target generation.
+    await seedParticipant(db, { chatId, key: "shrinkrecall_host", userId: owner, role: "host" });
     await seedTurns(db, chatId, aria, 4); // blockSize 2 → block 0 (seq 1-2), block 1 (seq 3-4)
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 } as const;
     const build = (): ReturnType<typeof makeChatContext> =>

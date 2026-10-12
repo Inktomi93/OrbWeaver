@@ -15,7 +15,10 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");
 export async function runAudit(
   page: Page,
   cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>,
-  opts: Pick<Args, "selector" | "windowMs">,
+  opts: Pick<Args, "selector" | "windowMs"> & {
+    /** The navigation this window measures, run INSIDE the trace so the route's own fade is in it. True when it landed. */
+    readonly measuredNav?: () => Promise<boolean>;
+  },
   measuredClick: MeasuredClick | null,
 ): Promise<Omit<AuditData, "environment" | "applicationMotion">> {
   const traceEvents: TraceEvent[] = [];
@@ -41,6 +44,10 @@ export async function runAudit(
         stepFailed = true;
         print(`STEP FAILED  click ${opts.selector ?? "(none)"}: ${errorMessage(e)}`);
       }
+    }
+    if (opts.measuredNav !== undefined) {
+      measuredInput = await opts.measuredNav();
+      stepFailed = !measuredInput;
     }
     // The observation window — entry animations / the clicked transition play out here.
     await settle(page, opts.windowMs);

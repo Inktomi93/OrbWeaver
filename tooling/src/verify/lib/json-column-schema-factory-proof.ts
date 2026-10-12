@@ -1,12 +1,11 @@
 // A validating string factory preserves values only through the installed TypeID contract and the
 // exact Zod failure channel. Function names and output annotations never establish that fact.
-import { readStaticString, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
+import { readStaticString, resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import { resolveCallableDeclaration } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { CallExpression, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
-import { readMemberAccess } from "./symbol-reference.ts";
 import { declaredByPackage } from "./type-member-origin.ts";
 import { declaredByZod } from "./zod-origin.ts";
 
@@ -40,7 +39,7 @@ function staticPrefix(node: MorphNode): boolean {
   if (direct.kind === "resolved") {
     return true;
   }
-  const member = direct.reason === "dynamic" ? readMemberAccess(direct.node) : undefined;
+  const member = direct.reason === "dynamic" ? staticMemberAccess(direct.node) : undefined;
   const authored = member === undefined ? undefined : readStaticAuthoredValue(member.receiver);
   if (member === undefined || authored?.kind !== "resolved" || authored.value.kind !== "object") {
     return false;
@@ -55,7 +54,7 @@ function sameParameter(node: MorphNode, parameter: ParameterDeclaration): boolea
 }
 
 function zodMember(node: MorphNode, name: string): boolean {
-  const member = readMemberAccess(node);
+  const member = staticMemberAccess(node);
   return member?.name === name && declaredByZod(member.receiver.getType().getProperty(name)?.getDeclarations() ?? []);
 }
 
@@ -73,7 +72,7 @@ function errorChannel(block: import("ts-morph").Block, context: ParameterDeclara
   const first = statements[0];
   const last = statements[1];
   const issue = Node.isExpressionStatement(first) ? unwrapExpression(first.getExpression()) : undefined;
-  const member = Node.isCallExpression(issue) ? readMemberAccess(issue.getExpression()) : undefined;
+  const member = Node.isCallExpression(issue) ? staticMemberAccess(issue.getExpression()) : undefined;
   const argument = Node.isCallExpression(issue) ? issue.getArguments()[0] : undefined;
   const code = Node.isObjectLiteralExpression(argument) ? argument.getProperty("code")?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer() : undefined;
   const message = Node.isObjectLiteralExpression(argument)
@@ -98,7 +97,7 @@ function errorChannel(block: import("ts-morph").Block, context: ParameterDeclara
 }
 
 function validatingTransform(call: CallExpression, prefix: ParameterDeclaration): boolean {
-  const member = readMemberAccess(call.getExpression());
+  const member = staticMemberAccess(call.getExpression());
   const base = member === undefined ? undefined : unwrapExpression(member.receiver);
   const callback = call.getArguments()[0];
   if (

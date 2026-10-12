@@ -92,8 +92,8 @@ const META_KEYWORDS = ["$schema", "$id"] as const;
 const ANNOTATION_KEYWORDS = ["title", "default", "examples"] as const;
 
 /** Keys whose value is a `{ name → schema }` map: the names are data, never keywords. */
-const NAME_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["properties", "$defs", "definitions"]);
-const DEF_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["$defs", "definitions"]);
+export const NAME_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["properties", "$defs", "definitions"]);
+export const DEF_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["$defs", "definitions"]);
 const ITEM_KEYWORDS: ReadonlySet<string> = new Set<string>(["items", "prefixItems", "contains"]);
 const UNION_KEYWORDS = ["anyOf", "oneOf"] as const;
 

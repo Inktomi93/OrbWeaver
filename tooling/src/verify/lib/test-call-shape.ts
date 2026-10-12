@@ -16,7 +16,7 @@
 // Vitest's table form ``test.each`a | b`(name, fn)`` visible at all.
 //
 // SPELLING-INDEPENDENT IN THE MEMBER POSITION (#2353): the chain walks members through
-// `lib/symbol-reference.ts#readMemberAccess`, so `test["each"]`, `it?.["skipIf"]` and `test[MODIFIER]` with a
+// `floor/code-facts/reference-fact.ts#staticMemberAccess`, so `test["each"]`, `it?.["skipIf"]` and `test[MODIFIER]` with a
 // same-file `const MODIFIER = "only"` are the SAME shape as their dotted twins. Keying the walk on
 // `PropertyAccessExpression` alone made both consumers blind to every bracket-spelled modifier — six of this
 // module's own `mustFlag` fixtures stopped being flagged under the bracket respelling.
@@ -27,9 +27,10 @@
 // namespace/qualified root (`vitest.test(…)`) — and an aliased import (`import { test as t }`) is unjudged,
 // while a same-named local `test` is read as one. The root limit is UNCHANGED by the member widening: only
 // the MEMBER position gained spellings, and a computed key that names no one member still reads as no shape.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { readMemberAccess } from "./symbol-reference.ts";
 
 /** The member names that keep a `test`/`it` chain a test declaration. `extend` is deliberately absent: it
  *  defines a fixture, so a local `it` (the async-iterator idiom) or a fixture builder is never mistaken for
@@ -47,7 +48,7 @@ function walkChain(expression: MorphNode, member: string | undefined): ChainShap
   if (Node.isIdentifier(expression)) {
     return { root: expression, member };
   }
-  const read = readMemberAccess(expression);
+  const read = staticMemberAccess(expression);
   if (read !== undefined) {
     return walkChain(read.receiver, read.name);
   }

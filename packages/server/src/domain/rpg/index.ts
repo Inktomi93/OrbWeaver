@@ -49,6 +49,9 @@ export { listGmPresetChatIds } from "./persistence/games.ts";
 export { createExportRpgGame, createImportRpgGame } from "./persistence/portability-write.ts";
 export { createRpgService } from "./service.ts";
 export { createRpgStagingStore } from "./staging.ts";
+// The effective-delivery derivation the client fixtures and the rpg context section read (the mode→axis mapping
+// stays rpg's law).
+export { deriveEffectiveDelivery } from "./substrate/readonly-axis.ts";
 // The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
 // ONE `toolUse` registry at compose (the imagery precedent).
 export { rpgToolDefinitions } from "./tools/index.ts";
@@ -59,7 +62,6 @@ export { buildFoldedTurnBuilder, buildFoldTurnToolCalls } from "./tools/rounds/f
 export { createRpgRoundObservers } from "./tools/rounds/observers.ts";
 export { buildRunPopulateExtraction } from "./tools/rounds/populate.ts";
 export { buildPromoteToCharacter, rpgPromotionProvenance } from "./tools/rounds/promotion.ts";
-export { buildToolRoundWireTools } from "./tools/rounds/prompts.ts";
 export { buildRunResyncExtraction } from "./tools/rounds/resync.ts";
 export { structuredShapes } from "./tools/rounds/structured.ts";
 export { buildRunToolRound } from "./tools/rounds/tool-round.ts";

@@ -3,9 +3,10 @@
 // the title label, the lenient-origin marker, the raw-source toggle showing the EXACT stored bytes, and
 // the expand lightbox labelled by the title.
 
-import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
+import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 
 const HTML = "<div>an in-world page</div>";
 
@@ -88,21 +89,26 @@ test("expand opens the lightbox dialog labelled by the title, with its own sandb
 // sandboxed frame, which attribute assertions alone cannot prove (a routed src could 404 or be blocked by
 // the CSP and every attribute assertion above would still pass).
 
-test("the ROUTED delivery: a real navigation to frameSrc renders the served page inside the sandboxed iframe", async ({ mount, page }) => {
-  const routedUrl = "/api/card-frame/0123456789abcdef0123456789abcdef";
-  await page.route(routedUrl, async (route) => {
+const ROUTED_URL = "/api/card-frame/0123456789abcdef0123456789abcdef";
+
+/** Serve the routed card the way the server's card-frame route does: kit's document under kit's policy and headers. */
+async function serveRoutedCard(page: Page, html: string): Promise<void> {
+  await page.route(ROUTED_URL, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "text/html",
-      headers: { "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" },
-      body: "<!doctype html><html><body><p>routed card body</p></body></html>",
+      headers: cardFrameResponseHeaders(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static")),
+      body: buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined }),
     });
   });
+}
 
-  const cmp = await mount(<ImmersiveCard html={HTML} title="Routed" origin="fence" frameSrc={routedUrl} />);
+test("the ROUTED delivery: a real navigation to frameSrc renders the served page inside the sandboxed iframe", async ({ mount, page }) => {
+  await serveRoutedCard(page, "<p>routed card body</p>");
+
+  const cmp = await mount(<ImmersiveCard html={HTML} title="Routed" origin="fence" frameSrc={ROUTED_URL} />);
   const frame = cmp.locator('iframe[data-slot="sandbox-frame"]');
   await expect(frame).toHaveCount(1);
-  await expect(frame).toHaveAttribute("src", routedUrl);
+  await expect(frame).toHaveAttribute("src", ROUTED_URL);
   // The routed arm's grant since the 2026-08-16 tier-B pass (#91): EXACTLY `allow-scripts` — the whole
   // attribute value, so a widened grant reds here — and never `allow-same-origin`. What that buys is the
   // one hash-pinned height script; card-authored scripts stay refused (sandbox-frame.ct.tsx proves both).
@@ -126,25 +132,9 @@ test("the ROUTED delivery: a real navigation to frameSrc renders the served page
 // 195px void survives inside exactly the component the defect was reported against.
 
 test("#91: a SHORT routed card shrinks the frame inside the card chrome — no void under the content", async ({ mount, page }) => {
-  const routedUrl = "/api/card-frame/0123456789abcdef0123456789abcdef";
-  await page.route(routedUrl, async (route) => {
-    await route.fulfill({
-      status: 200,
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"),
-      },
-      body: buildCardFrameDocument({
-        html: '<div style="height:110px">a short in-world note</div>',
-        css: undefined,
-        themeTokens: undefined,
-        styleTokens: undefined,
-        fontFamily: undefined,
-      }),
-    });
-  });
+  await serveRoutedCard(page, '<div style="height:110px">a short in-world note</div>');
 
-  const cmp = await mount(<ImmersiveCard html={HTML} title="Short note" origin="fence" frameSrc={routedUrl} />);
+  const cmp = await mount(<ImmersiveCard html={HTML} title="Short note" origin="fence" frameSrc={ROUTED_URL} />);
   const frame = cmp.locator('iframe[data-slot="sandbox-frame"]');
   await expect.poll(async () => (await frame.boundingBox())?.height ?? 0).toBe(110);
 });

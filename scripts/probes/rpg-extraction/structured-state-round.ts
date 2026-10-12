@@ -10,8 +10,7 @@
 //   PROBE_PATCH=1    sends the PATCH-LIST shape (strict-compatible, as the hosted batch would) to OpenRouter and writes
 //                    the reply to results/ — the shape a Claude row's empty-round retry takes.
 //
-// The tool list is re-spelled from `buildToolRoundWireTools` (compose/rpg.ts, private): the same projection of
-// `rpgExtractionSchema`, constrained by the same refs, described by the same prose.
+// The tool list is the product's own `buildToolRoundWireTools`.
 //
 //   node scripts/probes/rpg-extraction/structured-state-round.ts
 //   PROBE_LIVE=1 PROBE_MODELS=anthropic/claude-sonnet-5.5 node scripts/probes/rpg-extraction/structured-state-round.ts
@@ -24,7 +23,7 @@ import { checkWireSchema, structuredSchemaComplexity } from "@orb/contracts/infe
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ExtractionRefs, RpgStateRoundTool } from "@orb/contracts/rpg";
 import {
-  buildRpgToolDescriptions,
+  buildToolRoundWireTools,
   constrainExtractionSchema,
   RPG_NO_CHANGES_TOOL,
   rpgExtractionSchema,
@@ -53,22 +52,7 @@ const refs: ExtractionRefs = {
 const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs);
 
 function wireTools(): RpgStateRoundTool[] {
-  const props = (constrained as { properties?: Record<string, { items?: Record<string, unknown> }> }).properties;
-  const item = (field: string): Record<string, unknown> => props?.[field]?.items ?? { type: "object" };
-  const descriptions = buildRpgToolDescriptions({ config, refs, prose: {} });
-  const d = (name: string): string => descriptions.get(name) ?? "";
-  return [
-    { name: "update_party", description: d("update_party"), parameters: item("party") },
-    { name: "update_inventory", description: d("update_inventory"), parameters: item("inventory") },
-    { name: "update_scene", description: d("update_scene"), parameters: (props?.["scene"] as Record<string, unknown> | undefined) ?? { type: "object" } },
-    { name: "upsert_quest", description: d("upsert_quest"), parameters: item("quests") },
-    { name: "add_journal_entry", description: d("add_journal_entry"), parameters: item("journal") },
-    {
-      name: RPG_NO_CHANGES_TOOL,
-      description: resolveProseText("rpg.extract.tool.noChanges", {}),
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  ];
+  return buildToolRoundWireTools(refs, config, {});
 }
 
 const tools = wireTools();

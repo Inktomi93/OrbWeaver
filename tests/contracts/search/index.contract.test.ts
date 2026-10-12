@@ -1,13 +1,6 @@
-import type { BlockKey, MemoryQueryOptions, MemoryRetrievalMode, UnifiedSearchResult } from "@orb/contracts/search";
+import type { MemoryRetrievalMode, UnifiedSearchResult } from "@orb/contracts/search";
 import { MEMORY_RETRIEVAL_MODES, memoryRetrievalModeSchema, unifiedSearchResultSchema } from "@orb/contracts/search";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-
-// Sample branded values built at the untyped seam (castId is the sanctioned cast) — no pasted secrets.
-const SAMPLE_CHAT_ID = castId<ChatId>("chat_sample");
-const SAMPLE_OWNER_ID = castId<UserId>("user_owner");
-const SAMPLE_CHARACTER_ID = castId<CharacterId>("character_sample");
 
 test("unified search output keeps coverage beside every branch without stripping or rejecting sibling fields", () => {
   const coverage = { requestLimit: 10, candidateLimit: 20, evidencePerCharacter: null, reranked: false };
@@ -55,95 +48,4 @@ test("memoryRetrievalModeSchema round-trips every mode and rejects non-members",
   expect(memoryRetrievalModeSchema.safeParse("on").success).toBe(false);
   expect(memoryRetrievalModeSchema.safeParse("mix").success).toBe(false);
   expect(memoryRetrievalModeSchema.safeParse("").success).toBe(false);
-});
-
-test("BlockKey pins the (chatId, tier, blockIdx, scopedCharacterId) shape", () => {
-  const key: BlockKey = {
-    chatId: SAMPLE_CHAT_ID,
-    tier: 0,
-    blockIdx: 3,
-    scopedCharacterId: SAMPLE_CHARACTER_ID,
-  };
-  expect(Object.keys(key).sort()).toEqual(["blockIdx", "chatId", "scopedCharacterId", "tier"].sort());
-});
-
-// `scopedCharacterId` is ALWAYS a real `CharacterId` — inv 8: the synthetic group-as-character for the
-// shared bucket (solo/merged/narrator), a cast char for scoped; there is NO `''` sentinel and NO NULL.
-test("BlockKey's scopedCharacterId is a real CharacterId (no '' sentinel — inv 8)", () => {
-  const sharedBucket: BlockKey = {
-    chatId: SAMPLE_CHAT_ID,
-    tier: 1,
-    blockIdx: 0,
-    scopedCharacterId: SAMPLE_CHARACTER_ID,
-  };
-  expect(sharedBucket.scopedCharacterId).toBe(SAMPLE_CHARACTER_ID);
-});
-
-test("MemoryQueryOptions pins first-class scope.chat + optional candidates:BlockKey[] + flat knobs", () => {
-  const candidate: BlockKey = {
-    chatId: SAMPLE_CHAT_ID,
-    tier: 0,
-    blockIdx: 7,
-    scopedCharacterId: SAMPLE_CHARACTER_ID,
-  };
-  const opts: MemoryQueryOptions = {
-    scope: { chat: SAMPLE_CHAT_ID },
-    ownerId: SAMPLE_OWNER_ID,
-    candidates: [candidate],
-    mode: "mixC",
-    keywordMatch: true,
-    minScore: 0.2,
-    retrieveK: 8,
-    rerankTo: 3,
-  };
-  // chat-scope is first-class (NOT collapsed to owner) — the scope nests the chat id directly.
-  expect(opts.scope.chat).toBe(SAMPLE_CHAT_ID);
-  expect(opts.candidates).toEqual([candidate]);
-  expect(opts.mode).toBe("mixC");
-  // the retrieval cut (top retrieveK) + the mixC rerank cut ride the wire as flat knobs.
-  expect(opts.retrieveK).toBe(8);
-  expect(opts.rerankTo).toBe(3);
-
-  // `candidates` is optional — the full-pool scan omits it (the tiered bridge supplies it).
-  const fullPool: MemoryQueryOptions = {
-    scope: { chat: SAMPLE_CHAT_ID },
-    ownerId: SAMPLE_OWNER_ID,
-    mode: "mixA",
-    keywordMatch: false,
-    minScore: 0,
-    retrieveK: 8,
-    rerankTo: 3,
-  };
-  expect("candidates" in fullPool).toBe(false);
-});
-
-// The egocentric recall (§4/§6/§3b) homes its query TEXT + scope bucket on the contract (was carried
-// chat-side as a workaround). `scopedCharacterId` is a real CharacterId — inv 8, no `''` sentinel here.
-test("MemoryQueryOptions carries the egocentric queryText + scopedCharacterId (homed on the contract)", () => {
-  const within: MemoryQueryOptions = {
-    scope: { chat: SAMPLE_CHAT_ID },
-    ownerId: SAMPLE_OWNER_ID,
-    queryText: "Alice: where did we hide the relic?",
-    scopedCharacterId: SAMPLE_CHARACTER_ID,
-    mode: "mixC",
-    keywordMatch: true,
-    minScore: 0.2,
-    retrieveK: 8,
-    rerankTo: 3,
-  };
-  expect(within.queryText).toBe("Alice: where did we hide the relic?");
-  expect(within.scopedCharacterId).toBe(SAMPLE_CHARACTER_ID);
-
-  // Both are optional — an owner-wide / non-embedding scan omits them.
-  const ownerWide: MemoryQueryOptions = {
-    scope: { chat: SAMPLE_CHAT_ID },
-    ownerId: SAMPLE_OWNER_ID,
-    mode: "tiered",
-    keywordMatch: false,
-    minScore: 0,
-    retrieveK: 8,
-    rerankTo: 3,
-  };
-  expect("queryText" in ownerWide).toBe(false);
-  expect("scopedCharacterId" in ownerWide).toBe(false);
 });

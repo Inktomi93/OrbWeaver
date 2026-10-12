@@ -926,6 +926,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   const personaOwned = createPersonaOwned(db);
 
+  // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
+  // room draws from (D19; every roster character is host-owned). `null` ⇒ a hostless/stale room.
   const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
 
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room

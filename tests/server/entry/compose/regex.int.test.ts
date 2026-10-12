@@ -19,15 +19,16 @@
 //   • the CAST is the chats list's own rule: character seats by card name, humans by active persona else
 //     handle, the CALLER's own seat suppressed (with the floor that keeps a solo room named).
 
-import { chatRegexScripts, personas } from "@orb/db";
+import { chatParticipants, chatRegexScripts, chats, personas } from "@orb/db";
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { buildRegex } from "#server/entry/compose/regex.ts";
 import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";
-import { principal, seedScript, seedUser } from "../../domain/regex/_support.ts";
+import { behavior, principal, seedScript, seedUser } from "../../domain/regex/_support.ts";
 
 const NOW = 1_700_000_000_000;
 
@@ -127,5 +128,31 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
     expect(usage.rooms.map((room) => room.id)).toEqual([newer, older]);
     // The departed member is gone from the cast too — the roster names who is in the room NOW.
     expect(usage.rooms[1]?.participantNames).toEqual(["owner"]);
+  });
+});
+
+describe("compose/regex — resolveRoomDisplayPolicy (whose scripts an opted-in room broadcasts)", () => {
+  // The broadcast set is the PRESENT host's: once the host has left, the room broadcasts nothing.
+  test("an opted-in room broadcasts its present host's display scripts, and nothing once the host departs", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
+    const room = await seedChat(db, "broadcast", { updatedAt: NOW });
+    await db
+      .update(chats)
+      .set({ metadata: { hostDisplayScripts: true } })
+      .where(eq(chats.id, room));
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "m", userId: member, role: "member" });
+    await seedScript(db, { ownerId: host, name: "fx", behavior: behavior({ placement: ["DISPLAY"] }) });
+    const { regex } = build(db);
+
+    expect((await regex.listRoomDisplayScripts({ principal: principal(member), chatId: room })).map((script) => script.name)).toEqual(["fx"]);
+
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 3 })
+      .where(and(eq(chatParticipants.chatId, room), eq(chatParticipants.userId, host)));
+    expect(await regex.listRoomDisplayScripts({ principal: principal(member), chatId: room })).toEqual([]);
   });
 });

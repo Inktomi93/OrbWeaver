@@ -75,6 +75,7 @@
 // `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { RoomEntityKind } from "@orb/contracts/chat";
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -83,7 +84,6 @@ import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 /** Where a domain's writes become visible to a client. `none` is the cited no-announcement verdict; every
  *  other value names the plane and, for a plane whose PRODUCER lives in another domain, says whose. */
@@ -343,7 +343,7 @@ function isSelectStatement(expression: MorphNode): boolean {
     return false;
   }
   while (Node.isCallExpression(current)) {
-    const member = readMemberAccess(current.getExpression());
+    const member = staticMemberAccess(current.getExpression());
     if (member === undefined || readDrizzleClientCall(current).kind !== "drizzle") {
       return false;
     }

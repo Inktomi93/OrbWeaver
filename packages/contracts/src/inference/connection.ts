@@ -7,13 +7,14 @@ import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
+import { nextFreeLabel } from "@orb/kit/strings";
 import { z } from "zod";
 import { chatApiSchema } from "./apis.ts";
 import { declaredCapabilitySchema } from "./capability/override.ts";
 import { bindingActorKindSchema } from "./connection-ref.ts";
 import { modelIdSchema } from "./model-schema.ts";
 import { promptCacheSettingsSchema } from "./prompt-cache.ts";
-import { providerIdSchema } from "./provider-schema.ts";
+import { providerDisplayLabel, providerIdSchema } from "./provider-schema.ts";
 import { routableTaskSchema } from "./tasks.ts";
 
 /** A custom endpoint's REQUEST/RESPONSE transforms — a CLOSED object (four fields), one owner, never queried
@@ -55,6 +56,18 @@ export const modelCheckSchema = z.enum(MODEL_CHECKS) satisfies z.ZodType<ModelCh
 /** The separator of a minted connection label, `<provider label> · <model>`. The server mints labels with it and
  *  the client splits them on it to tell whether a label already names the connection's model. */
 export const CONNECTION_LABEL_SEPARATOR = " · ";
+
+/** The label a new connection is filed under: the typed one, else `<provider label> · <model>`, suffixed ` (2)`,
+ *  ` (3)`… until it collides with none of the owner's `taken` labels. */
+export function mintConnectionLabel(
+  provider: { readonly id: string; readonly label: string },
+  model: string,
+  taken: readonly string[],
+  explicit: string | undefined,
+): string {
+  const typed = explicit?.trim() ?? "";
+  return nextFreeLabel(typed === "" ? `${providerDisplayLabel(provider)}${CONNECTION_LABEL_SEPARATOR}${model}` : typed, taken);
+}
 
 export const userConnectionSchema = z.object({
   id: typeIdSchema(ID_PREFIX.userConnection),

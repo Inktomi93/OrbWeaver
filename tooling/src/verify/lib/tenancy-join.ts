@@ -1,10 +1,11 @@
 // The JOIN half of the tenancy read readers: which tables a drizzle read binds (`.from` and every join verb), and
 // whether the statement's conjuncts scope one, by an owner term or by an FK edge pointing AT it.
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type { ChainTerm, ReadAnchor, SchemaTableIndex } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { MEMBER_ACCESS_KINDS, readMemberAccess } from "./symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS } from "./symbol-reference.ts";
 import { callsDrizzleOperator, declaredTableOf, enclosingFn } from "./tenancy-read.ts";
 import { foreignKeyColumnKey } from "./tenancy-scope.ts";
 
@@ -25,7 +26,7 @@ export function readAnchorOf(node: Node): ReadAnchor | undefined {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
-  const verb = readMemberAccess(node.getExpression())?.name;
+  const verb = staticMemberAccess(node.getExpression())?.name;
   const [table, on] = node.getArguments();
   if (verb === undefined || table === undefined) {
     return;
@@ -52,7 +53,7 @@ interface ColumnRead {
 
 /** A column read whose receiver names one declared table: its written receiver, that table and the column. */
 function columnOf(node: Node, index: SchemaTableIndex): ColumnRead | undefined {
-  const read = readMemberAccess(unwrapExpression(node));
+  const read = staticMemberAccess(unwrapExpression(node));
   const table = read === undefined ? undefined : declaredTableOf(read.receiver, index);
   return read === undefined || table === undefined ? undefined : { receiver: read.receiver.getText(), table, name: read.name };
 }
@@ -61,7 +62,7 @@ function columnOf(node: Node, index: SchemaTableIndex): ColumnRead | undefined {
 function readsTable(node: Node, ident: string): boolean {
   const reads = MEMBER_ACCESS_KINDS.flatMap((kind) => node.getDescendantsOfKind(kind));
   return [node, ...reads].some((candidate) => {
-    const read = readMemberAccess(candidate);
+    const read = staticMemberAccess(candidate);
     return read !== undefined && read.receiver.getText() === ident;
   });
 }
@@ -167,7 +168,7 @@ export function predicateHolds(predicates: readonly (Node | undefined)[], holds:
 }
 
 function isOwnerColumn(node: Node, ident: string): boolean {
-  const read = readMemberAccess(unwrapExpression(node));
+  const read = staticMemberAccess(unwrapExpression(node));
   return read?.name === OWNER_COL && read.receiver.getText() === ident;
 }
 
