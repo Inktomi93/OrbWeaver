@@ -9,6 +9,7 @@ import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { SessionEvent, SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import type { StageBoundIdentity, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import { readSessionEvent } from "../../../../tooling/src/snap/lib/session-wire.ts";
 import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { refuseDriftedStageCall } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
 import { writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
@@ -85,7 +86,11 @@ function sink(): {
       destroyed: false,
       writable: true,
       write: (text): void => {
-        events.push(JSON.parse(text) as SessionEvent);
+        const event = readSessionEvent(text);
+        if (event === null) {
+          throw new Error(`refusal wrote a line the client reader rejects: ${text}`);
+        }
+        events.push(event);
       },
       end: () => undefined,
     },
