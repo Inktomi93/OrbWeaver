@@ -8,6 +8,7 @@
 /** The `plugin.getLog` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
  *  precedent) — a plugin's execution log is a growing per-plugin catalog, so an over-bound ask is a
  *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
+
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
@@ -53,6 +54,7 @@ export {
   PLUGIN_CONTINUATION_WINDOW_MS,
   PLUGIN_LOG_LEVELS,
   PLUGIN_QUIET_IMAGES_MAX,
+  PLUGIN_READ_CONTENT_MAX_CHARS,
   PLUGIN_SEARCH_RESULTS_MAX,
   UI_PROXYABLE_HOST_FUNCTIONS,
 } from "./host-v1.ts";
@@ -84,6 +86,21 @@ export {
   pluginNetHostSchema,
   pluginSlugSchema,
 } from "./manifest.ts";
+export type {
+  ChatAuthority,
+  ExecutePluginSuggestion,
+  ListPluginRecipients,
+  PluginAssetReadOps,
+  PluginChatReads,
+  PluginDocumentReads,
+  PluginNotificationDelivery,
+  PluginNotificationPost,
+  PluginQuickReplySurface,
+  PluginWorldInfoReads,
+  ReadPluginBundleBytes,
+  ReadPublishedPluginBundle,
+  ResolvePluginChatAuthority,
+} from "./owner-reads.ts";
 export type {
   PluginCommandRegistration,
   PluginDisplayTransformRegistration,

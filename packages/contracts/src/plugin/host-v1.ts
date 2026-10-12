@@ -6,6 +6,8 @@
 // is pure wire vocabulary (types + the capability→function completeness map); the runtime that implements it is
 // `infra/plugin-host`, wired at compose with the `domain/plugin` op bundle — infra never imports a domain.
 
+// ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
+
 import type { Branded } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -25,7 +27,6 @@ import type {
   PluginToastLevel,
 } from "./ui.ts";
 
-// ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 export type ChatHandle = Branded<"PluginChatHandle">;
 
 /** The `host.log` severity axis — the ONE home for the plugin log levels: the membrane surface exposes
@@ -929,3 +930,6 @@ export type UiProxyableHostFunction = (typeof UI_PROXYABLE_HOST_FUNCTIONS)[numbe
 export function isUiProxyableHostFunction(fn: string): fn is UiProxyableHostFunction {
   return (UI_PROXYABLE_HOST_FUNCTIONS as readonly string[]).includes(fn);
 }
+
+/** Per-field character ceiling before reduced canon, lore, search or event content enters a guest. */
+export const PLUGIN_READ_CONTENT_MAX_CHARS = 16_384;

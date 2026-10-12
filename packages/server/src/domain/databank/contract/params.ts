@@ -1,11 +1,13 @@
+import type { DocOrigin, DocumentDestination, DocumentListCursor, IngestPhase, ReindexMode, ReindexScope } from "@orb/contracts/databank";
+import type { Principal } from "@orb/contracts/identity";
+import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
+
+export type { CreateFromTextParams } from "@orb/contracts/databank";
+
 // domain/databank/contract/params — every verb's *Params, declared ONCE. Every verb carries the resolved
 // `principal` (spine §7.1); ownership scopes off `principal.userId` (the fetchOwned idiom) — never a `users`
 // read. The chat-attach authority is the injected `ensureChatHost` op (D18 — databank never reads the chat
 // roster itself). The `reindex` scope/mode axis derives from `@orb/contracts/databank` (one home).
-
-import type { DocOrigin, DocumentDestination, DocumentListCursor, IngestPhase, ReindexMode, ReindexScope } from "@orb/contracts/databank";
-import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
 interface DatabankActorParams {
   readonly principal: Principal;
@@ -21,12 +23,6 @@ export interface UploadDocumentParams extends DocumentIngestionParams {
   readonly bytes: Uint8Array;
   readonly mime: string;
   readonly name: string;
-}
-
-export interface CreateFromTextParams extends DocumentIngestionParams {
-  readonly name: string;
-  /** origin 'text' (ST Notepad) — no bytes, no extraction; `extractedText` IS the canon. */
-  readonly text: string;
 }
 
 /** scrapeWeb (DB7) — fetch a web page over the compose-bound ANY_HOST safeFetch guard, extract its html, then

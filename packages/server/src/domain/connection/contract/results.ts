@@ -4,6 +4,7 @@
 // output parser: an extra key fails the call instead of reaching the browser.
 
 import type {
+  BoundConnectionView,
   CachePolicy,
   CachePolicyContext,
   Capability,
@@ -32,8 +33,7 @@ import { resolvedWarningSchema } from "@orb/inference";
 import { z } from "zod";
 
 /** A connection row with what the pane renders beside it: the tasks it may serve and the provider's label. */
-export interface ConnectionView extends UserConnection {
-  readonly providerLabel: string;
+export interface ConnectionView extends UserConnection, Pick<BoundConnectionView, "providerLabel"> {
   /** `connectionTasks(provider, kind)` — the Model-roles slots this row may be bound to. */
   readonly tasks: readonly Task[];
 }

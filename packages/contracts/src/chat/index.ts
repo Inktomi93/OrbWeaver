@@ -259,6 +259,17 @@ export {
 } from "./metadata.ts";
 export type { NextTurnConnectionView } from "./next-turn-connection.ts";
 export { nextTurnConnectionViewSchema } from "./next-turn-connection.ts";
+export type {
+  RequestTurnOp,
+  RequestTurnParams,
+  ResolveCharacterTagsOp,
+  ResolveSeatDecoOp,
+  ResolveSeatDecosOp,
+  ResolveViewerVisibility,
+  SeatDeco,
+  SignupMinterCheckOp,
+  ViewerVisibility,
+} from "./owner-ops.ts";
 export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
 // B7 — the narrator-voice predicate, promoted from the client (the server's segment-anchor validation and
 // the client picker must gate the plain-label span grammar identically).

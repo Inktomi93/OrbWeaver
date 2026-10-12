@@ -11,6 +11,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { resolveHistoryFloorSeq } from "#server/domain/chat/substrate/auth/clamp.ts";
 import { loadPluginMessages } from "#server/entry/compose/plugin-chat-reads.ts";
 import { seedChat, seedMessage } from "../../domain/chat/_support.ts";
 
@@ -33,7 +34,10 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     const chatId = await seedChat(db, "a");
     await seedRows(chatId, [1, 2, 3, 4, 5]);
 
-    const clamped = await loadPluginMessages(db, chatId, { floorSeq: 3, readsHidden: true });
+    const clamped = await loadPluginMessages(db, chatId, {
+      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" }),
+      readsHidden: true,
+    });
 
     expect(clamped.map((m) => m.seq)).toEqual([3, 4, 5]);
     expect(clamped.map((m) => m.content)).not.toContain("row-2");
@@ -43,7 +47,10 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     const chatId = await seedChat(db, "a");
     await seedRows(chatId, [1, 2, 3]);
 
-    const unclamped = await loadPluginMessages(db, chatId, { floorSeq: 0, readsHidden: true });
+    const unclamped = await loadPluginMessages(db, chatId, {
+      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
+      readsHidden: true,
+    });
 
     expect(unclamped.map((m) => m.seq)).toEqual([1, 2, 3]);
   });
@@ -54,10 +61,18 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
 
     // limit 3 with floor 6: a post-filter would take the newest 3 (8,9,10) then drop nothing here, but on a
     // page that STRADDLES the floor it would return fewer than 3. Ask for a straddling page to prove it.
-    const page = await loadPluginMessages(db, chatId, { limit: 3, floorSeq: 6, readsHidden: true });
+    const page = await loadPluginMessages(db, chatId, {
+      limit: 3,
+      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 6, joinHistoryVisibility: "from-join" }),
+      readsHidden: true,
+    });
 
     expect(page.map((m) => m.seq)).toEqual([8, 9, 10]);
-    const straddling = await loadPluginMessages(db, chatId, { limit: 6, floorSeq: 6, readsHidden: true });
+    const straddling = await loadPluginMessages(db, chatId, {
+      limit: 6,
+      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 6, joinHistoryVisibility: "from-join" }),
+      readsHidden: true,
+    });
     expect(straddling.map((m) => m.seq)).toEqual([6, 7, 8, 9, 10]); // never a row below the floor
   });
 
@@ -69,11 +84,17 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     const lie = '<lie character="Z" truth="he is the mole"/>';
     await seedMessage(db, chatId, 1, { content: `He smiles. ${lie} "Nothing."` });
 
-    const member = await loadPluginMessages(db, chatId, { floorSeq: 0, readsHidden: false });
+    const member = await loadPluginMessages(db, chatId, {
+      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
+      readsHidden: false,
+    });
     expect(member[0]?.content).toBe('He smiles.  "Nothing."');
     expect(member[0]?.content).not.toContain("mole");
 
-    const host = await loadPluginMessages(db, chatId, { floorSeq: 0, readsHidden: true });
+    const host = await loadPluginMessages(db, chatId, {
+      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
+      readsHidden: true,
+    });
     expect(host[0]?.content).toContain("mole");
   });
 });

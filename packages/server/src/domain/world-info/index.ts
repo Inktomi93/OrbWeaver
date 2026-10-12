@@ -42,3 +42,4 @@ export { createWorldInfoService } from "./service.ts";
 export { createExport as createExportWorldBook } from "./verbs/export.ts";
 export { createImport as createImportWorldBook } from "./verbs/import.ts";
 export { createListOwnedBookIds } from "./verbs/list-owned-book-ids.ts";
+export { createPluginWorldInfoReads } from "./verbs/plugin-reads.ts";

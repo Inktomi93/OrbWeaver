@@ -1,3 +1,11 @@
+import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
+import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
+import type { MemoryRetrievalMode } from "@orb/contracts/search";
+import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
+
+export type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
+
 // domain/chat/contract/memory — the type HOME for the `memory/` subsystem. The
 // `types-in-contract` gate forbids an exported feature type in a subsystem file (verb/substrate/subsystem),
 // so the subsystem's internal types are declared HERE and RE-EXPORTED from `memory/types.ts` (the connection/
@@ -11,19 +19,14 @@
 // time a type was declared in `context.ts` and pulled back here (`MemoryEmbedSpace`, #2475) it closed three
 // `no-circular` rings at once — `context.ts` → {`memory.ts`, `results.ts` → `memory.ts`, `foreign.ts` →
 // `memory.ts`} → `context.ts` (#2484). `import type` does NOT exempt an edge from dependency-cruiser. So: a
-// memory-subsystem SHAPE is declared HERE and `context.ts` imports it downward; only the INJECTED-OP types
-// over that shape (`ResolveMemoryEmbedSpaceOp`, `EmbeddingsStoreOp`) stay in `context.ts`, because an op is a
-// `ChatContext` member and the DI bundle is what `context.ts` owns.
+// subsystem-internal SHAPES stay HERE and `context.ts` imports them downward. The cross-domain
+// `MemoryEmbedSpace` receipt now homes in `@orb/contracts/embeddings`; chat and reindex consumers derive
+// that same receipt without importing either domain barrel. Chat-specific injected ops stay in `context.ts`.
 //
 // NO `ownerId` anywhere (D20 — the substrate derives owner via the chat FK, never a stamp); the scope key is
 // `scopedCharacterId`, ALWAYS a real `CharacterId` (inv 8 — solo's seated character / the synthetic group-as-character
 // `__group__${chatId}` for solo/merged/narrator / a per-witnessing seated character under scoped; NO `''` sentinel,
 // NO NULL — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
-
-import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
-import type { MemoryRetrievalMode } from "@orb/contracts/search";
-import type { CharacterId, ChatDigestId, ChatId, EmbedGenerationId, PersonaId, UserId } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
 
 /** The raw (partial) memory tuning — the admin-set `AppSettings.memoryDefaults` shape, every field optional.
  *  `resolveCfg` (constants.ts) fills the gaps from `DEFAULTS`. Re-spelled here (not imported from
@@ -67,16 +70,6 @@ export interface MemoryScope {
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
   readonly isGroup: boolean;
-}
-
-/** The owner + concrete vector-space tag one memory pass resolved before reading its hash gates. The SPACE is
- *  a memory-subsystem shape, so it is declared here (the file header's leaf rule) and `context.ts` imports it
- *  to type the injected ops that resolve/stamp it — never the reverse. */
-export interface MemoryEmbedSpace {
-  readonly ownerId: UserId;
-  readonly model: string;
-  readonly generationId: EmbedGenerationId;
-  readonly generationEpoch: number;
 }
 
 /** One canon message memory reads (slot ⋈ selected variant — D26). The stable speaker identity

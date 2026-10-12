@@ -3,6 +3,7 @@
 // (the local-light floor is two SEEDED rows, §7.2). Every actor's refs are `connection_bindings` ROWS keyed
 // `(actorKind, actor, task)`; a chat is NOT an actor (F20) and neither is an rpg game.
 
+import type { AutomationRuleId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { routableTaskSchema } from "./tasks.ts";
@@ -26,3 +27,7 @@ export type CapabilityTarget = z.output<typeof capabilityTargetSchema>;
 export const BINDING_ACTOR_KINDS = ["user", "automation-rule", "plugin-grant"] as const;
 export type BindingActorKind = (typeof BINDING_ACTOR_KINDS)[number];
 export const bindingActorKindSchema = z.enum(BINDING_ACTOR_KINDS) satisfies z.ZodType<BindingActorKind>;
+
+export type BindingActor =
+  | { readonly kind: "automation-rule"; readonly ruleId: AutomationRuleId }
+  | { readonly kind: "plugin-grant"; readonly pluginId: PluginId };

@@ -1,4 +1,4 @@
-import type { ImageryService } from "#domain/imagery";
+import type { GeneratePicture } from "@orb/contracts/imagery";
 import type { GeneratePictureOp } from "../contract/context.ts";
 
 /**
@@ -7,7 +7,8 @@ import type { GeneratePictureOp } from "../contract/context.ts";
  *
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function createGeneratePictureOp(generatePicture: ImageryService["generatePicture"]): GeneratePictureOp {
+
+export function createGeneratePictureOp(generatePicture: GeneratePicture): GeneratePictureOp {
   return async (p): ReturnType<GeneratePictureOp> => {
     const picture = await generatePicture({
       caller: p.caller,

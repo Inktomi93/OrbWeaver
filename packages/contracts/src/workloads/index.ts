@@ -35,6 +35,7 @@ export {
 export type { WorkloadError, WorkloadEvent } from "./events.ts";
 export type { ReportProgress, WorkloadLane, WorkloadProgress, WorkloadResumePolicy, WorkloadRunContext } from "./execution.ts";
 export { WORKLOAD_LANES, WORKLOAD_RESUME_POLICIES } from "./execution.ts";
+export type { StartWorkloadOp, StartWorkloadParams } from "./owner-ops.ts";
 export type { NoWorkloadParams, StartWorkloadEnvelope, StartWorkloadInput, WorkloadParamsByKind } from "./params.ts";
 export {
   asStartWorkloadInput,
@@ -49,7 +50,6 @@ export {
   WORKLOAD_LIST_MAX_LIMIT,
 } from "./params.ts";
 export type { BundleImportWorkloadResult, DeferredResult, ImportTokenUsageBackfillResult, MaintenanceResult, WorkloadResultByKind } from "./result.ts";
-
 export {
   type CancelWorkloadResult,
   cancelWorkloadResultSchema,

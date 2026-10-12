@@ -1,11 +1,11 @@
 // Runtime capability decisions keep the caller-selected funder separate from the room's host-owned vector space.
+
 import type { Principal } from "@orb/contracts/identity";
 import { RERANK_FLOOR, windowForPreset } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { BindingActor, NoConnectionError, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { carriesStructured, unavailableRefusal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
-import type { ConnectionService } from "#domain/connection";
 import type { ChatContext } from "../contract/context.ts";
 import type { ChatInferenceDeps, ChatInferenceOps } from "../contract/runtime-inference.ts";
 
@@ -15,9 +15,10 @@ import type { ChatInferenceDeps, ChatInferenceOps } from "../contract/runtime-in
  *  on a route whose window the request sets, the Utility preset's Max context (`windowForPreset`).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
+
 export function createTaskWindowReaders(deps: {
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
-  readonly availability: ConnectionService["availability"];
+  readonly availability: ChatInferenceDeps["connection"]["availability"];
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
   readonly resolveUtilityPresetParams: (userId: UserId) => Promise<Pick<UserIntent, "maxContextTokens"> | undefined>;
 }): { readonly summarize: (funderUserId: UserId) => Promise<number>; readonly embed: (funderUserId: UserId) => Promise<number> } {

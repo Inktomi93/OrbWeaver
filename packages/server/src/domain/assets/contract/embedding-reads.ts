@@ -1,4 +1,3 @@
-import type { EmbeddingsContext } from "#domain/embeddings";
+/** Owner-backed asset projections consumed by embedding sweeps. */
 
-/** The embedding consumer's stored-asset read contracts, fulfilled by the canon owner. */
-export type AssetEmbeddingReads = Pick<EmbeddingsContext, "loadAssetOwner" | "loadAssetKind" | "loadAssetMime" | "loadAssetHash" | "loadAssetBytes">;
+export type { AssetEmbeddingReads } from "@orb/contracts/assets";

@@ -1,13 +1,14 @@
-// domain/character/contract/params — every verb's *Params, declared ONCE. Every USER-facing verb carries
-// the resolved principal; ownership scopes off principal.userId, never a users read. The synthetic-identity
-// ops (Mint/Find/FindByImportHash/FindByHandle) are internal and act on an already-resolved ownerId.
-
 import type { CharacterLibraryLens, CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
-
 import type { Principal } from "@orb/contracts/identity";
 import type { GreetingTransformId } from "@orb/contracts/preset";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
+
+export type { PluginCardDataTarget } from "@orb/contracts/character";
+
+// domain/character/contract/params — every verb's *Params, declared ONCE. Every USER-facing verb carries
+// the resolved principal; ownership scopes off principal.userId, never a users read. The synthetic-identity
+// ops (Mint/Find/FindByImportHash/FindByHandle) are internal and act on an already-resolved ownerId.
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 
@@ -212,15 +213,3 @@ export interface FindByImportedFromParams {
  *  `starred`/`archived` are TRI-STATE — `undefined` is unfiltered, which is what lets the four lookup-map
  *  callers keep reading the whole library while the library pane's own chips narrow it. */
 export interface CharacterListFilter extends CharacterLibraryLens {}
-
-/** WHOSE per-card state, on WHICH owned character — the three coordinates every D148 plugin card-state
- *  read/merge carries (`persistence/plugin-card-data.ts`). `characterId` is guest-supplied (owner-scope-gated,
- *  never trusted); `ownerId` is the installer the bridge closed over; `slug` is the emitter's own manifest slug,
- *  stamped host-side (never guest input) and the ONLY thing that decides which `plugin_<slug>` key is touched.
- *  Bundled so the merge stays within the 4-param house cap and the read/merge cannot drift apart on their scope.
- *  Homed HERE per no-inline-types §7.4 (the `CharacterListFilter` precedent above). */
-export interface PluginCardDataTarget {
-  readonly characterId: CharacterId;
-  readonly ownerId: UserId;
-  readonly slug: string;
-}

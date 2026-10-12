@@ -10,6 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef } from "@orb/contracts/inference";
 import type {
   InvocationChat,
+  ListPluginRecipients,
   PluginBridge,
   PluginCapability,
   PluginFrameBody,
@@ -18,6 +19,9 @@ import type {
   PluginInvokeArgs,
   PluginToastLevel,
   PluginUiOutcome,
+  ReadPluginBundleBytes,
+  ReadPublishedPluginBundle,
+  ResolvePluginChatAuthority,
 } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
@@ -78,17 +82,9 @@ import type {
   SnippetResult,
 } from "./results.ts";
 
-/** The caller's leak-free chat authority for the snippet gate: `canRead` admits the chat at all,
- *  `canWrite` unlocks the write half of the fixed profile (host authority). An unknown/foreign chat resolves
- *  to `{false,false}` — indistinguishable from a no-access chat (the loadPresentRole compose-gate semantics),
- *  so a snippet against a chat the caller cannot see is refused NOT_FOUND, never given an existence oracle. */
-interface ChatAuthority {
-  readonly canRead: boolean;
-  readonly canWrite: boolean;
-}
-
 /** Per-instance DoS budget (structural twin of `infra/plugin-host`'s `SandboxLimits` — the domain never imports
  *  `#infra`; the port defaults these from `budgets.ts` when omitted). A snippet passes the wider wall. */
+
 export interface PluginBudgets {
   readonly cpuDeadlineMs: number;
   readonly memoryLimitBytes: number;
@@ -303,7 +299,7 @@ export interface PluginContext {
    *  asset AFTER the row's FK reference is deleted — the RESTRICT/`reapIfOrphan` posture). */
   readonly assets: {
     readonly store: (caller: Principal, bytes: Uint8Array, mime: string) => Promise<StoredAsset>;
-    readonly readBytes: (caller: Principal, assetId: AssetId) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
+    readonly readBytes: ReadPluginBundleBytes;
     readonly reapOrphans: (assetIds: readonly AssetId[]) => Promise<void>;
   };
   /** Fetch a plugin bundle's bytes at a caller-supplied URL through the EGRESS GUARD (U8,
@@ -348,7 +344,7 @@ export interface PluginContext {
   /** The snippet gate: resolve the caller's leak-free read/host authority for a chat. Caller-in-params
    *  (the injected-op-caller-gate rule); a foreign/unknown chat yields `{false,false}` — no existence oracle.
    *  Injected at compose (the domain never imports chat) — `loadPresentRole` under the caller. */
-  readonly resolveChatAuthority: (caller: Principal, chatId: ChatId) => Promise<ChatAuthority>;
+  readonly resolveChatAuthority: ResolvePluginChatAuthority;
   /** The process-wide capability BELTS every bridge closes over — the `notify` 60 s per-(plugin, chat)
    *  cooldown (02 §2), plus the separate `net.fetch`, `net.fetchAsset`, `llm.quiet`, and `search.query`
    *  hourly ceilings for egress and hosted credential spend.
@@ -396,13 +392,13 @@ export interface PluginDistributionDeps {
    *
    *  It takes the ACTING admin because the enumeration itself is an admin read (`admin.listUsers`, which
    *  re-gates) — the recipient list is never obtained on nobody's authority. */
-  readonly listRecipients: (caller: Principal) => Promise<readonly Principal[]>;
+  readonly listRecipients: ListPluginRecipients;
   /** The PUBLISHED bundle's bytes by asset id. Deliberately NOT `ctx.assets.readBytes`: this read is
    *  cross-owner by construction (the bytes belong to the publishing admin; the recipient is someone else),
    *  and it is legitimate for exactly one reason — the id never comes from a caller, it comes from the
    *  distribution record an admin wrote. The recipient's own install then stores its OWN CAS copy (D21: no
    *  shared bytes), so nothing cross-owner survives the call. */
-  readonly readPublishedBundle: (assetId: AssetId) => Promise<Uint8Array>;
+  readonly readPublishedBundle: ReadPublishedPluginBundle;
 }
 
 /** The two REAL per-user verbs a fan-out drives, passed as functions (the `ActivationDeps` verb-to-verb

@@ -27,6 +27,7 @@
 // The infra↔domain WIRE shapes (`PluginInstance` + the collected-registration records + `PluginHandlerRef`)
 // live in `@orb/contracts/plugin` (the cake — infra mints them without importing a domain); re-exported here
 // so the domain front door stays the one import for a plugin consumer.
+
 export type {
   PluginDisplayTransformRegistration,
   PluginEventSubscription,
@@ -188,4 +189,7 @@ export { createPluginSurfaceStateStore, createSurfaceStatePublisher, PLUGIN_SURF
 export { createUiHostCallGate, UI_HOST_CALLS_IN_FLIGHT_MAX } from "./substrate/ui-host-call-gate.ts";
 export { createPluginUiOutbox, resolveUiOutcome } from "./substrate/ui-outbox.ts";
 export { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused } from "./substrate/wire-name-renames.ts";
+export { buildPluginQuietLlm } from "./verbs/quiet-llm.ts";
+export { createPluginRegistrarOps } from "./verbs/registrar-ops.ts";
+export { createPluginRuntimeOps, createPluginSuggestionExecutor } from "./verbs/runtime-ports.ts";
 export { PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS } from "./verbs/transform-for-display.ts";

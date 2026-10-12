@@ -1,20 +1,12 @@
-// Assembles the automation cross-feature READ ops (the `AutomationOps` the fact resolver + CEL env consume)
-// and the `AutomationWatcherEnv` for `startAutomationWatcher` (the buddy-observer compose adapter precedent).
-// Automation stays chat-blind: this is the ONE place the chat domain's turn-origin/message/variable projections
-// are narrowed onto automation's injected op shape (turn-origin rides chat's own `loadTurnOrigin` export — the
-// D26 selected-variant join + the delta-fold semantics stay chat-owned). The watcher env narrows the per-chat
-// firehose + the domain-event bus onto the watcher's two sources.
+// Bind chat-owned fact readers and action ports, then wire the watcher's detachable event sources.
 
-import type { TriggerFact } from "@orb/contracts/automation";
 import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import { chats, messages, messageVariants } from "@orb/db";
-import type { ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { and, eq } from "drizzle-orm";
 import type {
   AutomationImageRequest,
   AutomationImageResult,
@@ -25,47 +17,16 @@ import type {
   AutomationWatcherEnv,
   BackgroundChoice,
 } from "#domain/automation";
-import { loadTurnOrigin } from "#domain/chat";
+import { createChatAutomationReads } from "#domain/chat";
 import type { EmitNotification } from "#domain/notifications";
 import { subscribeAllChatEvents } from "#transport/trpc";
 import type { DomainEventBus } from "./event-bus.ts";
 
-const LIMIT_ONE = 1;
-
-/** The triggering message projected to the CEL fact — the SELECTED variant's content (D26). Null on a raced
- *  delete (the id names no live slot) OR when the id does not belong to `chatId`.
- *
- *  SCOPED BY THE CHAT, not by the id alone (#1456): the resolver hands this op the room the event fired in,
- *  and the fact it returns is what reaches third-party automation rules and plugin guest code. Looking the
- *  message up by id alone let a malformed, stale or cross-wired event hydrate a fact out of ANOTHER room. */
-// @orb-waive compose-wiring-only(getMessageFact): baselined when the gate landed; burn-down item 964.
-async function getMessageFact(db: Db, chatId: ChatId, messageId: MessageId): Promise<NonNullable<TriggerFact["message"]> | null> {
-  const rows = await db
-    .select({
-      id: messages.id,
-      role: messages.role,
-      authorUserId: messages.authorUserId,
-      characterId: messages.characterId,
-      seq: messages.seq,
-      content: messageVariants.content,
-    })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(eq(messages.id, messageId), eq(messages.chatId, chatId)))
-    .limit(LIMIT_ONE);
-  return rows[0] ?? null;
-}
-
-// @orb-waive compose-wiring-only(readChatColumn): baselined when the gate landed; burn-down item 964.
-async function readChatColumn(db: Db, chatId: ChatId, column: "runtime" | "choice"): Promise<Record<string, string>> {
-  const rows = await db.select({ runtime: chats.runtimeVariables, choice: chats.variableValues }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
-  return rows[0]?.[column] ?? {};
-}
-
-// @orb-waive no-inline-package-interface(AutomationActionOpsDeps): baselined when the gate landed; burn-down item 952.
 /** The action WRITE ops, pre-bound at `entry/compose` (the automation domain declares only the TYPE —
  *  one-directional flow). Each closes over its owning sibling service; `authorUserId` resolves to a Principal
  *  where the sibling gates on ownership (world-info book owner, imagery caller). */
+
+// @orb-waive no-inline-package-interface(AutomationActionOpsDeps): baselined when the gate landed; burn-down item 952.
 export interface AutomationActionOpsDeps {
   readonly db: Db;
   /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`) — membership AND the D16 canon
@@ -104,17 +65,13 @@ export interface AutomationActionOpsDeps {
 }
 
 /** Assemble the FULL `AutomationOps`: the chat READ projections (turn origin via chat's own
- *  `loadTurnOrigin`; the rest narrow canon reads the entry root is sanctioned to do — the buddy-observer
- *  precedent) + the action WRITE ops. */
+ *  `loadTurnOrigin`; the remaining canon readers live behind chat's own front door) + the action WRITE ops. */
 export function createAutomationOps(deps: AutomationActionOpsDeps): AutomationOps {
   const { db } = deps;
   return {
     chat: {
-      getMessageFact: (chatId, messageId) => getMessageFact(db, chatId, messageId),
-      getTurnOrigin: (chatId, messageId) => loadTurnOrigin(db, chatId, messageId),
+      ...createChatAutomationReads(db),
       resolveViewerVisibility: deps.resolveViewerVisibility,
-      readVariables: (chatId) => readChatColumn(db, chatId, "runtime"),
-      readChoicePicks: (chatId) => readChatColumn(db, chatId, "choice"),
       applyVariableOps: deps.applyVariableOps,
       listBackgroundChoices: deps.listBackgroundChoices,
       resolveChatProse: deps.resolveChatProse,

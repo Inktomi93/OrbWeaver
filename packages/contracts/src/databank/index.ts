@@ -1,5 +1,3 @@
-import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
-import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 // `@orb/contracts/databank` — the databank source-document ORIGIN axis, promoted to contracts so
 // `@orb/db` can derive its `documents.origin` enum column from the ONE canonical tuple (the D34 pattern
 // that already governs `workloads.kind`). `@orb/db` deps are `@orb/kit` + `@orb/contracts` + drizzle
@@ -14,11 +12,15 @@ import type { ChunkParams } from "@orb/kit/chunk";
 import type { CharacterId, ChatId, DocumentId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { Principal } from "#identity";
+import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
+import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 
 /** The provenance of a databank document. ONE canonical tuple (§7.5 no-inline-union-redecl): the db
  *  `documents.origin` enum column derives from it, and the tRPC wire builds its `z.enum` from the same
  *  home. `text` = pasted/authored canon (no source bytes); the rest carry re-extractable source bytes or
  *  a scrape URL. */
+
 export const DOC_ORIGINS = ["upload", "web", "youtube", "wiki", "text"] as const;
 
 export const docOriginSchema = z.enum(DOC_ORIGINS);
@@ -442,3 +444,12 @@ export const ingestRunResultSchema = z.strictObject({
   reExtracted: z.number(),
   failed: z.array(z.strictObject({ documentId: documentIdSchema, error: z.string() })).readonly(),
 }) satisfies z.ZodType<IngestRunResult>;
+
+export interface CreateFromTextParams {
+  readonly principal: Principal;
+  readonly destination?: DocumentDestination | undefined;
+  readonly name: string;
+  /** origin 'text' (ST Notepad) — no bytes, no extraction; `extractedText` IS the canon. */
+  readonly text: string;
+}
+export type CreateDocumentFromText = (params: CreateFromTextParams) => Promise<UploadResult>;

@@ -1,13 +1,13 @@
+import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
+import type { StartWorkloadOp } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
-import type { MemoryEmbedSpace } from "#domain/chat";
-import type { WorkloadService } from "#domain/workloads";
 import type { EmbeddingsService } from "./service.ts";
 
 export interface EmbeddingReindexDeps {
   readonly now: () => number;
   readonly getEffectiveConfig: () => EffectiveAppConfig;
-  readonly startWorkload: WorkloadService["start"];
+  readonly startWorkload: StartWorkloadOp;
   readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<MemoryEmbedSpace | null>;
   readonly purgeMemoryVectors: EmbeddingsService["purgeMemoryVectors"];
   readonly staleGenerationOwners: EmbeddingsService["staleGenerationOwners"];

@@ -6,11 +6,11 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse } from "@orb/contracts/prose";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createTurnPersonaResolver } from "../assembly/turn-personas.ts";
 import type { MemoryConfig } from "../contract/memory.ts";
 import type { ChatRoomInputDeps, ChatRoomInputs } from "../contract/room-inputs.ts";
 
 /** Resolve turn configuration without replacing a failed foreign read with a default. */
+
 export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
   const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<{ config: PromptConfig; name: string | null }> => {
     if (defaultPresetId === null) {
@@ -109,7 +109,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
     return withMemoryOptOut(us.memory.enabled === false, defaults);
   };
 
-  const resolveTurnPersonas = createTurnPersonaResolver(deps.resolvePersonasForParticipants);
+  const resolveTurnPersonas = deps.resolveTurnPersonas;
   return {
     resolvePromptVariables,
     resolvePromptUserMacros,

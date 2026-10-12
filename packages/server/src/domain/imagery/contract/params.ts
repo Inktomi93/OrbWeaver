@@ -1,13 +1,14 @@
+import type { Principal } from "@orb/contracts/identity";
+import type { ExtractionMode as CatalogExtractionMode, MultimodalCaptionMode, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
+
+export type { GeneratePictureParams, ReusePolicy } from "@orb/contracts/imagery";
+
 // domain/imagery/contract/params — every verb's *Params, declared ONCE (§7.4 — one type home). The wire
 // input (`generatePictureRequestSchema`) lives in `@orb/contracts/imagery`; the verb params WRAP it with the
 // acting `caller` Principal (resolved at the entry seam — the verb gates on the principal it is handed) and
 // the branded chat id. P5 drives `mode:"free"` with a required `prompt`; the extraction modes are Phase 7.
-
-import type { Principal } from "@orb/contracts/identity";
-import type { ExtractionMode as CatalogExtractionMode, MultimodalCaptionMode, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
-import type { BindingActor } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { IanaTimeZone } from "@orb/kit/time";
 
 // The mode SUBSETS home in `@orb/contracts/imagery` (the canonical `EXTRACTION_MODES`/`MULTIMODAL_MODES`
 // tuples the default catalog keys on, Phase B ⑫) — re-exported here under the domain's local names so the
@@ -19,60 +20,6 @@ export type ExtractionMode = CatalogExtractionMode;
 /** The subject-bearing "portrait" modes the reuse gate scopes to (doc 03 §4.4) — character/face + their
  *  multimodal variants. Scenario/background/free are moment art, never reuse-matched. */
 export type PortraitMode = Extract<PromptTemplateMode, "character" | "face" | MultimodalMode>;
-
-/** The reuse-gate policy (doc 03 §4.4): `"prefer"` (default) short-circuits to a matching prior portrait;
- *  `"never"` is the regenerate affordance (always a fresh generation). */
-export type ReusePolicy = "prefer" | "never";
-
-// Auto-curation of a generation: the character whose gallery each returned picture joins. The picture's
-// owner is the run-as principal, so the item lands in that principal's gallery only, and only when it owns
-// this character; a character someone else owns gets no gallery row.
-interface GalleryCuration {
-  readonly subjectCharacterId: CharacterId;
-}
-
-/** `generatePicture` — the orchestrator's params. `caller` is the requesting human: the extraction viewer and
- *  the reader of the subject card for the reuse and avatar-reference gates. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
- *  picture. `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless `mode:"free"`
- *  with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
- *  `subjectCharacterId` focuses the char macro / picks the avatar for character/face + multimodal modes. */
-export interface GeneratePictureParams {
-  readonly caller: Principal;
-  /** The room host a room picture runs as (D298), resolved by chat through the turn identity. Absent
-   *  outside a room: the caller funds, styles and owns its own picture. */
-  readonly runAsUserId?: UserId | undefined;
-  /** The binding actor whose own generateImage binding is folded before the caller's (an automation rule's). */
-  readonly actor?: BindingActor | undefined;
-  readonly chatId?: ChatId | undefined;
-  readonly mode: PromptTemplateMode;
-  readonly prompt?: string | undefined;
-  readonly n?: number | undefined;
-  readonly subjectCharacterId?: CharacterId | undefined;
-  /** Appended to `DEFAULT_NEGATIVE` (doc 02 §6), never replaces it. */
-  readonly negative?: string | undefined;
-  /** Overrides `defaultSizeFor(mode)` (doc 02 §6). */
-  readonly size?: SizePresetName | undefined;
-  /** B2 reuse gate (doc 03 §4.4); default `"prefer"`. Portrait modes only; `"never"` = regenerate. */
-  readonly reuse?: ReusePolicy | undefined;
-  /** B3 avatar-reference conditioning (doc 03 §3); default false. Portrait modes only: conditions the
-   *  generation on the subject's avatar for identity consistency. Drops-with-warning (never throws) when the
-   *  resolved model lacks `input.imageEdit` — the asymmetric posture vs `editImage` (doc 01 §3.4). */
-  readonly useAvatarReference?: boolean | undefined;
-
-  /** An EXTERNALLY-computed reuse hash a non-character consumer stores on this generation's provenance so its
-   *  OWN reuse gate can short-circuit later (docs/plans/rpg/design.md — NPC portraits are content-addressed by the
-   *  npc identity tuple; rpg computes it via imagery's `identityHashFor`, never a second hash derivation).
-   *  Honored ONLY in `mode:"free"` (the subject-character portrait modes own the internal reuse gate, which
-   *  supersedes this). Absent ⇒ the provenance `identityHash` stays null (the additive-only guarantee — the
-   *  existing free/scenario/edit paths are byte-identical). rpg reads it back via `readProvenance`. */
-  readonly identityHash?: string | undefined;
-  /** Join every returned picture to the run-as principal's gallery under this character. Absent = no auto-add. Kept
-   *  apart from `subjectCharacterId`, which also drives the portrait reuse gate and the extraction subject. */
-  readonly gallery?: GalleryCuration | undefined;
-  /** The initiating viewer's zone for an extraction template's time macros. Absent ⇒ UTC: automation, a
-   *  plugin and a model tool call have no viewer. */
-  readonly timeZone?: IanaTimeZone | undefined;
-}
 
 /** `readProvenance` — read a generated image's durable provenance by its asset (owner-scoped through the
  *  `assets` join). The gallery detail + the regenerate affordance (doc 04 §3). */

@@ -1,8 +1,4 @@
-// The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
-// indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
-// no principal/guard on any bundle — the vector substrate carries no ownerId.
-
-import type { AssetKind } from "@orb/contracts/assets";
+import type { AssetEmbeddingReads, LoadAssetBytes } from "@orb/contracts/assets";
 import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent, DomainEvent } from "@orb/contracts/events";
 import type { Capability, EndpointFeatures, ProviderId } from "@orb/contracts/inference";
@@ -47,6 +43,12 @@ import type {
   StoreResult,
   WriteHubScoresResult,
 } from "./results.ts";
+
+export type { LoadAssetBytes } from "@orb/contracts/assets";
+
+// The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
+// indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
+// no principal/guard on any bundle — the vector substrate carries no ownerId.
 
 /** The per-owner bundle resolver the composition root binds over `runtime.roleClientsFor`. */
 export type RoleClientsFor = (ownerId: UserId) => Promise<RoleClients>;
@@ -94,14 +96,6 @@ export type ResolveEmbeddingConnection = (
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
 
-/** Re-read an avatar asset's immutable CAS bytes by id. `undefined` when deleted between emit and handler. */
-export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefined>;
-
-/** Re-read an asset's STORED mime by id (the magic-verified upload mime). `null` when the row is gone.
- *  The `onAssetCreated` embeddability gate reads this FIRST — a non-image asset (a `video/*` background,
- *  a document) never reaches the image-embed path and never loads its bytes (see the handler). */
-type LoadAssetMime = (assetId: AssetId) => Promise<string | null>;
-
 /** Enumerate non-synthetic character ids; `ownerId` scopes to one owner, omitted/null = all owners. */
 export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
 
@@ -118,10 +112,10 @@ export interface EmbeddingsContext {
         connection: EmbeddingConnectionSnapshot,
       ) => { readonly model: string; readonly vector: Float32Array<ArrayBuffer> } | null)
     | undefined;
-  readonly loadAssetKind: (assetId: AssetId) => Promise<AssetKind | null>;
-  readonly loadAssetMime: LoadAssetMime;
+  readonly loadAssetKind: AssetEmbeddingReads["loadAssetKind"];
+  readonly loadAssetMime: AssetEmbeddingReads["loadAssetMime"];
   /** An asset's stored hash, the CAS key: the sha-256 of its bytes. `null` when the row is gone. */
-  readonly loadAssetHash: (assetId: AssetId) => Promise<string | null>;
+  readonly loadAssetHash: AssetEmbeddingReads["loadAssetHash"];
   readonly db: Db;
   /** The per-FUNDER role-client bundle (inference program §7.5-2): a vector task is `scope: "owner"`, so the
    *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */
@@ -143,7 +137,7 @@ export interface EmbeddingsContext {
   readonly loadAssetBytes: LoadAssetBytes;
   /** The entity OWNER by id (the sweeps' funder read; the indexer context carries the same pair). */
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
-  readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
+  readonly loadAssetOwner: AssetEmbeddingReads["loadAssetOwner"];
   /** The chat's PRESENT host (chat's own read), `null` for a hostless room: the funder whose generation a
    *  memory prune pins. */
   readonly loadChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;

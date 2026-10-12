@@ -23,4 +23,5 @@ export { createExportAssets } from "./verbs/export-assets.ts";
 export { createExportGallery } from "./verbs/export-gallery.ts";
 export { createImportAsset } from "./verbs/import-asset.ts";
 export { createImportGallery } from "./verbs/import-gallery.ts";
+export { createPluginAssetReads } from "./verbs/plugin-reads.ts";
 export { createAssetsWorkloadContributions } from "./workload-contributions.ts";

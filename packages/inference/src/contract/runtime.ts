@@ -1,10 +1,8 @@
-// Package-internal runtime and composition shapes. `src/contract/` is @orb/inference's one type home;
-// implementation modules import these downward and the package root re-exports only the public subset.
-
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { BeginEmbeddingAccounting } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type {
+  BindingActor,
   BindingActorKind,
   ConnectionBinding,
   LocalLightCpuPercent,
@@ -14,13 +12,18 @@ import type {
   UserConnection,
 } from "@orb/contracts/inference";
 import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
-import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { SessionEntryWriter } from "./agent.ts";
 import type { WireCaptureSink } from "./backend.ts";
 import type { ProviderErrorKind } from "./errors.ts";
 import type { Resolved } from "./resolved.ts";
 import type { RoleClientsWithSignal } from "./roles.ts";
+
+export type { BindingActor } from "@orb/contracts/inference";
+
+// Package-internal runtime and composition shapes. `src/contract/` is @orb/inference's one type home;
+// implementation modules import these downward and the package root re-exports only the public subset.
 
 export interface SpanAttrs {
   readonly [key: string]: string | number | boolean | undefined;
@@ -40,10 +43,6 @@ export type AnthImageMediaType = (typeof ANTH_IMAGE_MEDIA_TYPES)[number];
 export type AnthImageBlock =
   | { readonly type: "image"; readonly source: { readonly type: "base64"; readonly media_type: AnthImageMediaType; readonly data: string } }
   | { readonly type: "image"; readonly source: { readonly type: "url"; readonly url: string } };
-
-export type BindingActor =
-  | { readonly kind: "automation-rule"; readonly ruleId: AutomationRuleId }
-  | { readonly kind: "plugin-grant"; readonly pluginId: PluginId };
 
 export type ProviderOrigin = { readonly plugin: PluginId; readonly pluginName: string } | { readonly admin: UserId };
 
