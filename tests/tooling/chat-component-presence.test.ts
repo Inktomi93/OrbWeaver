@@ -124,6 +124,22 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "message-actions-row",
     why: "the item and its confirm mount in the message row's menu; message-actions-row.ct drives the offer, the disabled case and the restamp payload.",
   },
+  "art-slot": {
+    coveredBy: "message-row",
+    why: "the echo tile and whisper band render only inside a row's bubble; message-row.ct mounts the real row and asserts the band's 3:1 box, the echo tile's width and corner against the art-width token, and the speaker's fallback letter in the slot.",
+  },
+  "art-viewer-provider": {
+    coveredBy: "message-list-surface",
+    why: "the provider wraps the transcript in message-list-surface; message-list-surface.ct taps every art control in every skin and asserts the dialog opens titled with the speaker, Escape closes it and focus returns to the control.",
+  },
+  "message-row-avatar": {
+    coveredBy: "message-row",
+    why: "renderRowAvatar places the chip inside the row body; message-row.ct asserts the avatar leads the content column on an assistant row, trails it on a user row, and drops the chip where echo's tile carries the fallback.",
+  },
+  "room-flank": {
+    coveredBy: "chat-room-surface",
+    why: "the flank column and edge render only inside the room surface; chat-room-surface.ct mounts the real room with a thread-flank contribution and asserts the column's box against the flank row in both placements.",
+  },
   "message-actions-cluster": {
     coveredBy: "message-actions-row",
     why: "the inline cluster split out of message-actions-row under the component-size cap; it renders only inside the settled row (message-actions-row.ct drives every button and menu item) and inside the streaming row's hidden footprint, whose width ghost-message-row.ct holds to the settled row with showModelIcon off and on.",

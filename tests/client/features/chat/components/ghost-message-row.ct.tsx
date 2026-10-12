@@ -590,6 +590,7 @@ for (const art of [
 // The streaming row and the settled row are one geometry: the same short reply from the same no-image speaker
 // has the same art slot and the same bubble in both, so commit does not reflow.
 for (const parity of [
+  { chatStyle: "bubble", art: '[data-slot="avatar-root"]' },
   { chatStyle: "echo", art: '[data-slot="message-echo-art"]' },
   { chatStyle: "whisper", art: '[data-slot="message-band"]' },
   { chatStyle: "ripple", art: '[data-slot="avatar-root"]' },
