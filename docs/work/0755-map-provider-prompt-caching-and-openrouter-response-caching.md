@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-06
+status: blocked
+updated: 2026-10-12
 priority: P2
 area: inference
+blocked: owner
 ---
 
 # Map provider prompt caching and OpenRouter response caching controls
