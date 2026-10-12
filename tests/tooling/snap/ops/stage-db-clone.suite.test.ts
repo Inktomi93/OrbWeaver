@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach } from "vitest";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
-import { stagePaths } from "../../../../tooling/src/snap/lib/stage-plan.ts";
+import { stageOwnerKey, stagePaths } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { clonedStageWarning, cloneStageDb } from "../../../../tooling/src/snap/ops/stage-source.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -79,6 +79,34 @@ test("a clone keeps the owner row and its owned rows, drops secret-bound rows, a
     expect({ main: sha256(path), wal: sha256(`${path}-wal`), mtime: statSync(path).mtimeMs }).toEqual(before);
   } finally {
     writer.close();
+  }
+});
+
+test("two sibling sessions' --stage-db runs at one sha keep separate data, each serving its own source", () => {
+  const first = sourceDb();
+  const second = sourceDb();
+  try {
+    second.writer.exec("UPDATE users SET handle = 'sam-box' WHERE role = 'owner'");
+    const checkout = join(first.root, "checkout");
+    const a = stagePaths(checkout, SHA, "single-user", stageOwnerKey(checkout, "side-eye-a"));
+    const b = stagePaths(checkout, SHA, "single-user", stageOwnerKey(checkout, "side-eye-b"));
+
+    cloneStageDb(first.path, a);
+    cloneStageDb(second.path, b);
+
+    const handleIn = (databaseUrl: string): unknown => {
+      const db = new DatabaseSync(databaseUrl.replace(/^file:/u, ""));
+      try {
+        return db.prepare("SELECT handle FROM users WHERE role = 'owner'").get();
+      } finally {
+        db.close();
+      }
+    };
+    expect(handleIn(a.databaseUrl)).toEqual({ handle: "nate" });
+    expect(handleIn(b.databaseUrl)).toEqual({ handle: "sam-box" });
+  } finally {
+    first.writer.close();
+    second.writer.close();
   }
 });
 

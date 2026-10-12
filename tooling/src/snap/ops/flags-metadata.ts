@@ -144,7 +144,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--ref": { group: "Where", summary: "pin the isolated stage to a commit (implies --isolated; survives a merge train)" },
   "--fresh": { group: "Where", summary: "rebuild the isolated stage instead of reusing the warm one (implies --isolated)" },
   "--dirty": { group: "Where", summary: "stage the working tree instead of a commit (implies --isolated)" },
-  "--stage-down": { group: "Where", summary: "tear down this checkout's stages" },
+  "--stage-down": { group: "Where", summary: "tear down the stages your session owns" },
   "--stage-status": { group: "Where", summary: "the shared stage-band table: owner, checkout, ref, age, sessions, db provenance" },
   "--stage-sweep": { group: "Where", summary: "reap stages idle past the TTL and prune orphan dirs" },
   "--stage-auth": {
@@ -156,7 +156,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
     group: "Where",
     summary: "clone a database file (and its -wal/-shm) into a rebuilt stage instead of the dev db; implies --isolated and --fresh",
   },
-  "--stage-owner": { group: "Where", summary: "names the owner for a cross-checkout --stage-down" },
+  "--stage-owner": { group: "Where", summary: "names the checkout for a checkout-wide or cross-checkout --stage-down" },
   "--stage-keeper": { group: "Where", summary: "the band idle timer's own entry — spawned by snap, never typed by an operator" },
   "--force": { group: "Where", summary: "confirmation half of --stage-down --stage-owner and --session-close on a foreign live session" },
   // Session family (ops/flags-session.ts)

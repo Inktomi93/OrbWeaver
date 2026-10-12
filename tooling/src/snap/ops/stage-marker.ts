@@ -38,8 +38,8 @@ import {
   stageBandRefusal,
   stageBandSharedNote,
 } from "../lib/stage-plan.ts";
-import { boundStageRow } from "../lib/stage-run-binding.ts";
-import { repoRoot } from "./stage-git.ts";
+import { boundStageRow, stageBindingRefusal } from "../lib/stage-run-binding.ts";
+import { repoRoot, stageCallerOwner } from "./stage-git.ts";
 import { holderProcessRunning } from "./stage-probe.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -129,6 +129,7 @@ function readRow(value: unknown): StageRow | null {
     serverPort: typeof value["serverPort"] === "number" ? value["serverPort"] : 0,
     vitePort: typeof value["vitePort"] === "number" ? value["vitePort"] : 0,
     checkout,
+    ...(typeof value["owner"] === "string" ? { owner: value["owner"] } : {}),
     ownerPid: typeof value["ownerPid"] === "number" ? value["ownerPid"] : null,
     startedAt,
     // A row written before the heartbeat existed has no `lastUsedAt`. Backfill it from the boot stamp
@@ -434,10 +435,13 @@ export function stageBandVerdictFor(
     readonly readBinding?: () => StageRow | null;
   } = {},
 ): { readonly claim: StageBandClaim; readonly refusal: string | null; readonly note: string | null } {
-  const checkout = opts.checkout ?? repoRoot();
-  const readTable = opts.readTable ?? ((): readonly StageRow[] => readBands(markerRoot(checkout)));
+  const root = opts.checkout ?? repoRoot();
+  const checkout = opts.checkout ?? stageCallerOwner(root);
+  const readTable = opts.readTable ?? ((): readonly StageRow[] => readBands(markerRoot(root)));
   const readBinding = opts.readBinding ?? boundStageRow;
   const rows = readTable();
-  const claim = stageBandClaim(url, checkout, rows, readBinding());
-  return { claim, refusal: stageBandRefusal(claim, url, checkout, rows), note: stageBandSharedNote(claim, url, rows) };
+  const binding = readBinding();
+  const claim = stageBandClaim(url, checkout, rows, binding);
+  const refusal = (binding === null ? null : stageBindingRefusal(url, binding, rows)) ?? stageBandRefusal(claim, url, checkout, rows);
+  return { claim, refusal, note: stageBandSharedNote(claim, url, rows) };
 }

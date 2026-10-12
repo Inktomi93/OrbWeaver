@@ -20,6 +20,7 @@ import type { PortOwner } from "../../floor/host/platform.ts";
 import { listeningPids, socketTableOrThrow } from "../../floor/host/platform.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../floor/host/ports.ts";
 import type { StageAllocation, StageAuthMode, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
+import { rowOwner } from "../contract/stage.ts";
 import { allocateStageBand, liveHoldersOf, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../lib/stage-plan.ts";
 import { liveSessionNames } from "./session-registry.ts";
@@ -98,7 +99,7 @@ export function stageBandViews(input: {
     const ports = stageBandPorts(band);
     const bandBound = bandIsBound(ports, bound);
     const owners = [bound.get(ports.server), bound.get(ports.vite)].filter((owner): owner is PortOwner => owner !== undefined);
-    const sharedCandidate = row !== null && row.checkout !== input.checkout && row.sha === input.targetSha && bandBound;
+    const sharedCandidate = row !== null && rowOwner(row) !== input.checkout && row.sha === input.targetSha && bandBound;
     return {
       band,
       row,

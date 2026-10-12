@@ -187,6 +187,18 @@ test("our OWN row for (checkout, sha) wins over every free band — a lane re-dr
   expect(allocateStageBand({ ...ALLOC, views: views([{ row: ours }]) })).toEqual({ kind: "ours", band: 4, row: ours });
 });
 
+test("a named session in the SAME checkout is a sibling: a rebuild gets its own band, never the other session's row", () => {
+  // Three side-eyes on one checkout share its path. Their rows differ only by owner key, and a `--stage-db`
+  // run (which implies --fresh) must not be handed — and then rebuild — the row a sibling session booted.
+  const siblingSession = row(0, { owner: `${MAIN_CHECKOUT}#side-eye-a` });
+  expect(allocateStageBand({ ...ALLOC, fresh: true, views: views([{ row: siblingSession }]) })).toEqual({ kind: "free", band: 1 });
+  // Without a rebuild, the sibling's healthy stage at our sha is a read-only shared-reuse, not "ours".
+  expect(allocateStageBand({ ...ALLOC, views: views([{ row: siblingSession }]) })).toEqual({ kind: "shared-reuse", band: 0, row: siblingSession });
+  // Positive control: the same row under its own owner key is still "ours" and rebuilt in place.
+  const own = allocateStageBand({ ...ALLOC, checkout: `${MAIN_CHECKOUT}#side-eye-a`, fresh: true, views: views([{ row: siblingSession }]) });
+  expect(own).toEqual({ kind: "ours", band: 0, row: siblingSession });
+});
+
 test("a sibling's HEALTHY row at our sha is a shared-reuse before any free band is taken", () => {
   const theirs = row(3, { checkout: LANE_CHECKOUT });
   expect(allocateStageBand({ ...ALLOC, views: views([{ row: theirs }]) })).toEqual({ kind: "shared-reuse", band: 3, row: theirs });
