@@ -9,9 +9,6 @@
 // seam runs AFTER sanitize + harden, on already-safe React children — it can only re-wrap text that
 // already rendered, and can never introduce markup.
 import type { ComponentPropsWithoutRef, CSSProperties, ReactElement, ReactNode } from "react";
-// @orb-waive no-legacy-react-api(Children): the markdown seal transforms ALREADY-RENDERED children
-// (this is a `components.p` override running after sanitize), so children ARE the library's interface here;
-// there is no data array to map instead. Ends if Streamdown ever hands the seam its source nodes.
 import { Children, isValidElement } from "react";
 import type { StreamdownProps } from "streamdown";
 import type { DialoguePart, DialoguePiece } from "./dialogue.ts";
@@ -91,7 +88,6 @@ function renderPieces(child: ReactNode, pieces: readonly DialoguePiece[], index:
 /** Wraps every closed quote run in the paragraph's children; returns `children` untouched when there is
  *  nothing to act on (the overwhelmingly common non-dialogue paragraph renders byte-identically). */
 function tintDialogue(children: ReactNode): ReactNode {
-  // @orb-waive no-legacy-react-api(Children): markdown seal transforms ALREADY-RENDERED children — no data array alternative; ends if Streamdown hands source nodes
   const list = Children.toArray(children);
   const parts = list.map(partOf);
   if (!parts.some((part) => hasQuoteChar(part.text))) {

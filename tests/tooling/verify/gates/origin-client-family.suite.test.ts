@@ -1,19 +1,14 @@
-// Conformance entry for the twelve client-side policies whose only missing primitive was canonical
+// Conformance entry for the seven client-side policies whose only missing primitive was canonical
 // symbol/member origin. Every proof runs through the production dispatcher on an isolated population.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
-import { gate as fetchFnInFeatures } from "../../../../tooling/src/verify/gates/fetch-fn-in-features.ts";
 import { gate as noChatTrpcInSurface } from "../../../../tooling/src/verify/gates/no-chat-trpc-in-surface.ts";
-import { gate as noContextProvider } from "../../../../tooling/src/verify/gates/no-context-provider.ts";
 import { gate as noContextReturntype } from "../../../../tooling/src/verify/gates/no-context-returntype.ts";
-import { gate as noForwardRef } from "../../../../tooling/src/verify/gates/no-forward-ref.ts";
 import { gate as noInlineOptimisticInSurface } from "../../../../tooling/src/verify/gates/no-inline-optimistic-in-surface.ts";
 import { gate as noManualAutosaveFlush } from "../../../../tooling/src/verify/gates/no-manual-autosave-flush.ts";
 import { gate as noManualTokenEstimate } from "../../../../tooling/src/verify/gates/no-manual-token-estimate.ts";
 import { gate as noMultiplexedMutationError } from "../../../../tooling/src/verify/gates/no-multiplexed-mutation-error.ts";
-import { gate as noStaticStaletime } from "../../../../tooling/src/verify/gates/no-static-staletime.ts";
-import { gate as noUseContext } from "../../../../tooling/src/verify/gates/no-use-context.ts";
 import { gate as zustandSelectorStability } from "../../../../tooling/src/verify/gates/zustand-selector-stability.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -21,17 +16,12 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 test("the canonical-origin client policies keep their founding, respelling and nearest-legal fixtures", () => {
   expect(
     verifyPolicyProofs([
-      fetchFnInFeatures,
       noChatTrpcInSurface,
-      noContextProvider,
       noContextReturntype,
-      noForwardRef,
       noInlineOptimisticInSurface,
       noManualAutosaveFlush,
       noManualTokenEstimate,
       noMultiplexedMutationError,
-      noStaticStaletime,
-      noUseContext,
       zustandSelectorStability,
     ]),
   ).toEqual([]);

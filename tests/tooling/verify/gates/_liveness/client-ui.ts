@@ -22,7 +22,6 @@ import { gate as clientStructure } from "../../../../../tooling/src/verify/gates
 import { gate as componentSize } from "../../../../../tooling/src/verify/gates/component-size.ts";
 import { gate as componentSizeUi } from "../../../../../tooling/src/verify/gates/component-size-ui.ts";
 import { gate as emptyStateHasAction } from "../../../../../tooling/src/verify/gates/empty-state-has-action.ts";
-import { gate as fetchFnInFeatures } from "../../../../../tooling/src/verify/gates/fetch-fn-in-features.ts";
 import { gate as formFactoryForMultifield } from "../../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
 import { gate as listRowAdoption } from "../../../../../tooling/src/verify/gates/list-row-adoption.ts";
 import { gate as noEffectOnSharedSelection } from "../../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
@@ -30,8 +29,6 @@ import { gate as noFormResetInAutosaveHealth } from "../../../../../tooling/src/
 import { gate as noInteractiveRoleInFeatures } from "../../../../../tooling/src/verify/gates/no-interactive-role-in-features.ts";
 import { gate as noManualAutosaveFlush } from "../../../../../tooling/src/verify/gates/no-manual-autosave-flush.ts";
 import { gate as noMultiplexedMutationError } from "../../../../../tooling/src/verify/gates/no-multiplexed-mutation-error.ts";
-import { gate as noRawInteractiveIntrinsics } from "../../../../../tooling/src/verify/gates/no-raw-interactive-intrinsics.ts";
-import { gate as noRawZustandPersist } from "../../../../../tooling/src/verify/gates/no-raw-zustand-persist.ts";
 import { gate as persistPartializeAndTotalMigrate } from "../../../../../tooling/src/verify/gates/persist-partialize-and-total-migrate.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as selectionStoreViaFactory } from "../../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
@@ -167,11 +164,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "no `action` CTA",
   },
   {
-    policy: fetchFnInFeatures,
-    overlays: [add(`${CHAT}/lib/liveness-load.ts`, 'export async function livenessLoad(): Promise<unknown> {\n  return await fetch("/api/liveness");\n}\n')],
-    messageIncludes: "NEVER writes fetch",
-  },
-  {
     policy: formFactoryForMultifield,
     overlays: [
       add(
@@ -234,21 +226,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "multiplexed mutation errors",
-  },
-  {
-    policy: noRawInteractiveIntrinsics,
-    overlays: [add(`${CHAT}/components/liveness-button.tsx`, 'export const LivenessButton = (): unknown => <button type="button">Go</button>;\n')],
-    messageIncludes: "raw interactive intrinsic",
-  },
-  {
-    policy: noRawZustandPersist,
-    overlays: [
-      add(
-        `${CHAT}/lib/liveness-store.ts`,
-        'import { create } from "zustand";\nimport { persist } from "zustand/middleware";\nexport const useLivenessStore = create(persist(() => ({}), { name: "liveness" }));\n',
-      ),
-    ],
-    messageIncludes: "raw zustand persistence",
   },
   {
     policy: persistPartializeAndTotalMigrate,

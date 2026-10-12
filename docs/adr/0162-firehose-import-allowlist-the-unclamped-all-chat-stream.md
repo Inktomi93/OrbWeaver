@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-The firehose (`subscribeAllChatEvents`) is UNCLAMPED BY TYPE: no chatId, no caller, no per-member history-floor verdict. Any per-USER surface fed from it ships a join-history leak. Homes: `tooling/src/verify/gates/firehose-import-allowlist.ts` (the occurrence check) + `tooling/src/verify/gates/firehose-import-allowlist-health.ts` (declaration health). Enforcers: the `firehose-import-allowlist` gate family with reviewed-grant authority.
+The firehose (`subscribeAllChatEvents`) is UNCLAMPED BY TYPE: no chatId, no caller, no per-member history-floor verdict. Any per-USER surface fed from it ships a join-history leak. Homes: the `orb/firehose-import-allowlist` selector in `eslint.config.js` (the occurrence check) + `tooling/src/verify/gates/firehose-import-allowlist-health.ts` (declaration health). Enforcers: that lint rule, with the composition root and the transport barrel as its two exempt homes, and the health gate.
 
 ## Consequences
 

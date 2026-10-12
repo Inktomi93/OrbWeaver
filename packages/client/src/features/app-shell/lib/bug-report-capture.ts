@@ -21,6 +21,7 @@
 import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
 import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
+import { postBugReport } from "#data";
 import { readAgentDebugHandle } from "#src/lib/agent-bridge.ts";
 import type { ThemeObservableRead } from "#src/lib/appearance-carrier-manifest.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "#src/lib/appearance-carrier-manifest.ts";
@@ -248,13 +249,7 @@ async function refusalReason(response: Response): Promise<string | null> {
  *  the loopback owner fallback) or `x-debug-token`, exactly as `readAutomationFires` documents for the
  *  read side. */
 export async function submitBugReport(bundle: BugReportClientBundle): Promise<BugReportSubmission> {
-  // @orb-waive fetch-fn-in-features(fetch): POST to /api/_debug — a non-tRPC observability endpoint outside the data/ seam; ends when _debug routes migrate to tRPC
-  const response = await fetch(BUG_REPORT_ROUTE, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ note: bundle.note, windowMinutes: bundle.window.requestedMinutes, client: bundle }),
-  });
+  const response = await postBugReport(BUG_REPORT_ROUTE, JSON.stringify({ note: bundle.note, windowMinutes: bundle.window.requestedMinutes, client: bundle }));
   if (!response.ok) {
     const named = await refusalReason(response);
     const because = named === null ? "" : ` — ${named}`;

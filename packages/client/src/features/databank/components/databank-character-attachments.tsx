@@ -3,7 +3,6 @@
 
 import type { CharacterId, DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// @orb-waive dialog-via-composite(Dialog): this keyset-paged CharacterPicker attaches on selection and has no submit; ends if a picker composite owns this flow.
 import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus, Users } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";

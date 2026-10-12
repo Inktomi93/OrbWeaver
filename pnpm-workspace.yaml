@@ -363,6 +363,9 @@ catalog:
   # eslint-react's leak family: unremoved listeners/timers/observers/fetch inside components — nothing
   # else in the stack (biome, react-hooks, tsc) can see a subscription that outlives its component.
   eslint-plugin-react-web-api: ^5.20.5
+  # eslint-react's core family: the React-19 migration and legacy-API rules. EXACT, not a caret — the config
+  # lists each rule by name, but a minor must not add or retune a rule without review.
+  eslint-plugin-react-x: 5.20.5
   # semantic unnecessary-effect analysis (the "you might not need an effect" family). 6 of 9 rules
   # enabled, 3 rejected with receipts — the reasoning lives in eslint.config.js beside the block.
   eslint-plugin-react-you-might-not-need-an-effect: ^1.0.2

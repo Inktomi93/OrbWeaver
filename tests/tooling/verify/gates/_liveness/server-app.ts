@@ -9,12 +9,10 @@
 // and name is this arm's own, because the add arms share one overlaid pass.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as busChannelPrimitive } from "../../../../../tooling/src/verify/gates/bus-channel-primitive.ts";
 import { gate as chatViewerPlaneCanonReads } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
 import { gate as chatViewerPlaneCanonReadsHealth } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads-health.ts";
 import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as externalIdSingleWriter } from "../../../../../tooling/src/verify/gates/external-id-single-writer.ts";
-import { gate as firehoseImportAllowlist } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist.ts";
 import { gate as firehoseImportAllowlistHealth } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
 import { gate as handleKeyWriter } from "../../../../../tooling/src/verify/gates/handle-key-writer.ts";
 import { gate as infraAuthNoUserid } from "../../../../../tooling/src/verify/gates/infra-auth-no-userid.ts";
@@ -77,13 +75,6 @@ function neutralise(path: string, source = EMPTY): RealCorpusOverlay {
 
 export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
   {
-    policy: busChannelPrimitive,
-    overlays: [
-      add(`${SERVER}/transport/trpc/liveness-bus.ts`, 'import { EventEmitter } from "node:events";\nexport const livenessBus = new EventEmitter();\n'),
-    ],
-    messageIncludes: "packages/server/src/transport/trpc/liveness-bus.ts",
-  },
-  {
     policy: chatViewerPlaneCanonReadsHealth,
     // The authority matrix every D161 verdict keys off, emptied of its table.
     overlays: [neutralise(`${SERVER}/domain/chat/substrate/auth/matrix.ts`, "export const NO_MATRIX = 1;\n")],
@@ -132,16 +123,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: firehoseImportAllowlistHealth,
     overlays: [neutralise(`${SERVER}/transport/trpc/chat-events-bus.ts`)],
     messageIncludes: "no longer declared",
-  },
-  {
-    policy: firehoseImportAllowlist,
-    overlays: [
-      add(
-        `${SERVER}/domain/automation/liveness-observer.ts`,
-        'import { subscribeAllChatEvents } from "../../transport/trpc/chat-events-bus.ts";\nexport const livenessObserver = subscribeAllChatEvents;\n',
-      ),
-    ],
-    messageIncludes: "subscribeAllChatEvents",
   },
   {
     policy: infraAuthNoUserid,

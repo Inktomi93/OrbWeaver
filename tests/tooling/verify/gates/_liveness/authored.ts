@@ -19,7 +19,6 @@ import { gate as noIfIsGroup } from "../../../../../tooling/src/verify/gates/no-
 import { gate as noInlineOptimisticInSurface } from "../../../../../tooling/src/verify/gates/no-inline-optimistic-in-surface.ts";
 import { gate as noInlineUnionAlias } from "../../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as noInlineUnionRedecl } from "../../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
-import { gate as noStaticStaletime } from "../../../../../tooling/src/verify/gates/no-static-staletime.ts";
 import { gate as noTestFabrication } from "../../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as queryMachineSeals } from "../../../../../tooling/src/verify/gates/query-machine-seals.ts";
@@ -117,16 +116,6 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
       add("packages/server/src/liveness-axis-respell.ts", "export interface LivenessRespell { mode: 'a' | 'b' | 'c' }\n"),
     ],
     messageIncludes: "re-spells the canonical tuple",
-  },
-  {
-    policy: noStaticStaletime,
-    overlays: [
-      add(
-        `${CHAT}/lib/liveness-query.ts`,
-        'import { useQuery } from "@tanstack/react-query";\nexport const livenessQuery = () => useQuery({ queryKey: livenessKey, staleTime: "static" });\n',
-      ),
-    ],
-    messageIncludes: "silently ignores invalidateQueries",
   },
   {
     policy: noTestFabrication,

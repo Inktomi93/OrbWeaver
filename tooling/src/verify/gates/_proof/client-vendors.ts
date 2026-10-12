@@ -9,7 +9,6 @@ const QUERY_CORE_HOME = "node_modules/@tanstack/query-core/index.d.ts";
 const REACT_QUERY_HOME = "node_modules/@tanstack/react-query/index.d.ts";
 const FORM_CORE_HOME = "node_modules/@tanstack/form-core/index.d.ts";
 /** The form TOOLKIT door — the three mints `no-direct-useform` seals to `packages/client/src/forms/`. */
-const REACT_FORM_HOME = "node_modules/@tanstack/react-form/index.d.ts";
 const TRPC_PROXY_HOME = "node_modules/@trpc/tanstack-react-query/index.d.ts";
 export const LOOKALIKE_HOME = "node_modules/vendor-lookalike/index.d.ts";
 
@@ -49,13 +48,6 @@ const FORM_CORE = [
   "  handleSubmit(): Promise<void>;",
   "  reset(): void;",
   "}",
-  "",
-].join("\n");
-
-const REACT_FORM = [
-  "export declare function useForm(options?: unknown): unknown;",
-  "export declare function createFormHook(options: unknown): { useAppForm: unknown };",
-  "export declare function createFormHookContexts(): { fieldContext: unknown; formContext: unknown; useFieldContext: <T>() => T; useFormContext: () => unknown };",
   "",
 ].join("\n");
 
@@ -124,11 +116,6 @@ export function tanstackQueryProof(): Readonly<Record<string, string>> {
 
 export function tanstackFormProof(): Readonly<Record<string, string>> {
   return { [FORM_CORE_HOME]: FORM_CORE };
-}
-
-/** The `@tanstack/react-form` toolkit door: the three mints the shared form toolkit is built out of. */
-export function tanstackReactFormProof(): Readonly<Record<string, string>> {
-  return { [REACT_FORM_HOME]: REACT_FORM };
 }
 
 export function trpcProxyProof(): Readonly<Record<string, string>> {

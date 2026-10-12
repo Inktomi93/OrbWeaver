@@ -29,7 +29,6 @@ import { gate as noHoverDisplaySwap } from "../../../../../tooling/src/verify/ga
 import { gate as noLayoutContextProps } from "../../../../../tooling/src/verify/gates/no-layout-context-props.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
 import { gate as noOffTokenRadiusShadow } from "../../../../../tooling/src/verify/gates/no-off-token-radius-shadow.ts";
-import { gate as noRawMatchmedia } from "../../../../../tooling/src/verify/gates/no-raw-matchmedia.ts";
 import { gate as noRawSpacingInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-spacing-in-features.ts";
 import { gate as noRawTypographyInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-typography-in-features.ts";
 import { gate as noRawZIndex } from "../../../../../tooling/src/verify/gates/no-raw-z-index.ts";
@@ -165,11 +164,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noOffTokenRadiusShadow,
     overlays: [add(`${UI}/liveness-radius/x.tsx`, 'export const G = <div className="rounded-lg shadow-md" />;\n')],
     messageIncludes: "off-token default-scale radius/shadow",
-  },
-  {
-    policy: noRawMatchmedia,
-    overlays: [add(`${FEATURE}/liveness-matchmedia.tsx`, 'export const G = (): unknown => globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n')],
-    messageIncludes: "raw `matchMedia` read",
   },
   {
     policy: noRawSpacingInFeatures,

@@ -41,7 +41,6 @@
 import type { VariantWireView } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// @orb-waive dialog-via-composite(Dialog): this host-only wire inspector is read-only content with one Close; ends if a content-viewer dialog composite owns it.
 import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ScrollText } from "@orb/ui/icons";

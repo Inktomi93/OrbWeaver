@@ -1,6 +1,6 @@
 // THE CORPUS PROOF (docs/law/gate-runtime-standardization.md §1) at the production door: `cli.ts structure`
 // spawned over planted roots whose gates dir holds real policies as RE-EXPORT SHIMS
-// (`baseui-render-prop-composition` ordinary, `no-raw-matchmedia` reviewed-grant, `verify-registry-parity`
+// (`baseui-render-prop-composition` ordinary, `no-raw-intl-time` reviewed-grant, `verify-registry-parity`
 // hard/resource). A shim imports the real module by absolute file URL, so the object the door runs IS the
 // production descriptor (the loader's identity law refuses a copy, proven in lib/loader.test.ts) and the shim's
 // basename is the id (the filename law).
@@ -34,7 +34,7 @@ const RUN_TIMEOUT_MS = scaledBudget(120_000);
  *  marks it as this suite's own fixture rather than a corpus member anyone could mistake for a real gate. */
 const ABSENT_POLICY = "probe-no-such-policy";
 const ORDINARY = "baseui-render-prop-composition";
-const REVIEWED = "no-raw-matchmedia";
+const REVIEWED = "no-raw-intl-time";
 const HARD_RESOURCE = "verify-registry-parity";
 /** THE NONBLOCKING-WARNING SUBJECT IS PLANTED, NOT BORROWED (#2497) — this file's own §"MATERIALIZE the
  *  premise" lesson, applied to SEVERITY. It used to shim the live `over-art-plate-arm` for its
@@ -84,22 +84,15 @@ function shim(repoRoot: string, id: string): string {
 // The ordinary subject: the Radix spelling on a Base UI part, under the @ui population root.
 const UI_MENU = "packages/ui/src/primitives/probe/menu.tsx";
 const AS_CHILD_LINE = "export const G = <Menu.Trigger asChild />;\n";
-/** A raw matchMedia read is effective outside the exact subjects of the central reviewed grants. */
-const GRANT_SUBJECT = "packages/ui/src/lib/coarse-pointer-now.ts";
-const MATCH_MEDIA_GRANT_IDS = [
-  "no-raw-matchmedia:coarse-pointer-now",
-  "no-raw-matchmedia:media-grid",
-  "no-raw-matchmedia:reduced-motion-now",
-  "no-raw-matchmedia:use-is-mobile-viewport",
-  "no-raw-matchmedia:use-prefers-light-color-scheme",
-  "no-raw-matchmedia:use-prefers-reduced-motion",
-] as const;
+/** A raw Intl formatter is effective outside the exact subjects of the central reviewed grants. */
+const GRANT_SUBJECT = "packages/kit/src/time/index.ts";
+const INTL_GRANT_IDS = ["no-raw-intl-time:kit-time"] as const;
 /** A planted tree is judged against the waivers and grants IT plants, never the real tree's committed budget:
  *  `rows` is the application budget per policy id, and the implementation part is empty. */
 const plantedBudget = (rows: Readonly<Record<string, number>>): string => JSON.stringify({ application: rows, implementation: {} });
 const STRAY_READ = "packages/client/src/features/probe/x.tsx";
 const CLIENT_STRAY_FILE = "packages/client/src/features/probe/y.ts";
-const MATCH_MEDIA_LINE = 'export const G = (): unknown => globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n';
+const INTL_LINE = 'export const G = (): unknown => new Intl.DateTimeFormat("en-US");\n';
 const PLATELESS_COMPOSER =
   'html[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n';
 
@@ -137,7 +130,7 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [STRAY_READ]: MATCH_MEDIA_LINE }));
+  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [STRAY_READ]: INTL_LINE }));
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({}), () => runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }));
   // violations, no tool error: exit 1, one artifact, one completeness line naming the roster it ran
   await expect(res).toExitWith(1);
@@ -180,9 +173,9 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   expect(policyOf(report).authority.toolErrors).toEqual([]);
   expect(policyOf(report).factErrors).toEqual([]);
   expect(policyOf(report).toolErrors).toEqual([]);
-  expect(policyOf(report).authority.alarms.map((a) => a.kind)).toEqual(MATCH_MEDIA_GRANT_IDS.map(() => "stale-reviewed-grant"));
-  expect(policyOf(report).authority.alarms.flatMap((a) => (a.kind === "stale-reviewed-grant" ? [a.grantId] : []))).toEqual(MATCH_MEDIA_GRANT_IDS);
-  const blocking = 2 + MATCH_MEDIA_GRANT_IDS.length;
+  expect(policyOf(report).authority.alarms.map((a) => a.kind)).toEqual(INTL_GRANT_IDS.map(() => "stale-reviewed-grant"));
+  expect(policyOf(report).authority.alarms.flatMap((a) => (a.kind === "stale-reviewed-grant" ? [a.grantId] : []))).toEqual(INTL_GRANT_IDS);
+  const blocking = 2 + INTL_GRANT_IDS.length;
   expect(policyOf(report).authority.verdict).toEqual({ errors: blocking, warnings: 0, blocking, failOnWarnings: false });
   // total = the blocking count the authority verdict produced; ok false
   expect(report.total).toBe(blocking);
@@ -197,7 +190,7 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
   const root = await plantedTree({
     ...mixedTree(repoRoot, {
       [UI_MENU]: AS_CHILD_LINE,
-      [STRAY_READ]: MATCH_MEDIA_LINE,
+      [STRAY_READ]: INTL_LINE,
       "packages/client/src/styles/probe.css": PLATELESS_COMPOSER,
       "packages/ui/src/styles/keep.css": ".keep { color: var(--color-foreground); }\n",
       [WARNING_SUBJECT]: WARNING_SUBJECT_SOURCE,
@@ -247,7 +240,7 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
       // every authored TS/TSX path sits inside some population. The carrier below is inside one, deliberately.
       [CLIENT_STRAY_FILE]: `// @orb-waive ${ABSENT_POLICY}(cache): planted — names a policy the corpus does not hold\nexport const y = 1;\n`,
       // the central door naming a REVIEWED-GRANT policy: no waiver door there — wrong authority
-      [STRAY_READ]: `// @orb-waive ${REVIEWED}(matchMedia): planted — a waiver on a reviewed-grant finding\n${MATCH_MEDIA_LINE}`,
+      [STRAY_READ]: `// @orb-waive ${REVIEWED}(DateTimeFormat): planted — a waiver on a reviewed-grant finding\n${INTL_LINE}`,
     }),
   );
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [ORDINARY]: 1 }), () =>
@@ -277,7 +270,7 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
 test("a reviewed grant reaches only a final reviewed-grant policy: the real row's subject is granted, the other real rows stay stale", {
   timeout: RUN_TIMEOUT_MS,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [GRANT_SUBJECT]: MATCH_MEDIA_LINE }));
+  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [GRANT_SUBJECT]: INTL_LINE }));
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [REVIEWED]: 1 }), () =>
     runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }),
   );
@@ -286,10 +279,10 @@ test("a reviewed grant reaches only a final reviewed-grant policy: the real row'
   const reviewed = rowOf(report, REVIEWED);
   expect(reviewed.violations).toEqual([]);
   expect(reviewed.granted).toBe(1);
-  expect(policyOf(report).authority.reviewedGrantConsumption.find(({ id }) => id === "no-raw-matchmedia:coarse-pointer-now")?.count).toBe(1);
-  // Only the planted coarse-pointer subject binds; every other exact identity stays stale.
+  expect(policyOf(report).authority.reviewedGrantConsumption.find(({ id }) => id === "no-raw-intl-time:kit-time")?.count).toBe(1);
+  // The planted kit-time subject binds the only row, so no identity stays stale.
   const stale = policyOf(report).authority.alarms.filter((a) => a.kind === "stale-reviewed-grant");
-  expect(stale.map((a) => a.grantId).toSorted()).toEqual(MATCH_MEDIA_GRANT_IDS.filter((id) => id !== "no-raw-matchmedia:coarse-pointer-now"));
+  expect(stale).toEqual([]);
   // and the door hands the pass ONLY rows naming a loaded policy: no invalid-grant error for the rest of the table
   expect(policyOf(report).authority.toolErrors).toEqual([]);
 });
@@ -413,7 +406,7 @@ test("two runs over the same tree produce the same exit and the same artifact mo
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [GRANT_SUBJECT]: MATCH_MEDIA_LINE }));
+  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [GRANT_SUBJECT]: INTL_LINE }));
   const first = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const firstReport = stable(readArtifact(root));
   const second = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });

@@ -1,4 +1,4 @@
-// The sanctioned-home SERVER family (#1584): ten legacy gates whose exceptions were recurring repository
+// The sanctioned-home SERVER family (#1584): nine legacy gates whose exceptions were recurring repository
 // PERMISSIONS carried in gate-local `SANCTIONED_HOMES`/allowlist tables, converted to reviewed-grant policies
 // whose exceptions live in the ONE central grant table — plus the hard `scrubber-factory-home` sibling split
 // off `scrubber-home` because a definition site's liveness is a completeness claim and not a permission.
@@ -17,17 +17,12 @@
 // policy added to `FAMILY` without a grant case REDS rather than inheriting a claim nobody checked. That
 // completeness assertion is the part worth copying: the claim in this header is true because a test holds
 // it, not because someone wrote it down.
-//
-// `bus-channel-primitive` keeps its three bespoke blocks BELOW the table as well. They carry what the table
-// deliberately does not: the OVER-BROAD case (two constructions in one granted home stay ONE consumption)
-// and a stale arm driven from a home that stopped constructing rather than from a mismatched key.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { trpcServerProof } from "../../../../tooling/src/verify/gates/_proof/server-vendors.ts";
-import { gate as busChannelPrimitive } from "../../../../tooling/src/verify/gates/bus-channel-primitive.ts";
 import { gate as contentPartSeam } from "../../../../tooling/src/verify/gates/content-part-seam.ts";
 import { gate as noDirectUsersRead } from "../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as noRawClock } from "../../../../tooling/src/verify/gates/no-raw-clock.ts";
@@ -46,7 +41,6 @@ const FAMILY_TIMEOUT_MS = scaledBudget(300_000);
 const ROOT = "/home-server-family";
 
 const FAMILY: readonly GatePolicy[] = [
-  busChannelPrimitive,
   contentPartSeam,
   noDirectUsersRead,
   noRawClock,
@@ -88,7 +82,6 @@ const LATTICE_COMPARISON =
   'import type { UserRole } from "../../../../contracts/src/identity/index.ts";\nexport const isOwner = (r: { role: UserRole }): boolean => r.role === "owner";\n';
 const ENFORCEMENT =
   'import type { ParticipantRole } from "../../../../../contracts/src/identity/index.ts";\nexport function f(m: { role: ParticipantRole }): void {\n  if (m.role !== "host") {\n    throw new Error("nope");\n  }\n}\n';
-const EMITTER_DOOR = 'import { EventEmitter } from "node:events";\n';
 const SCRUBBER_FACTORY =
   "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n";
 
@@ -103,12 +96,6 @@ interface GrantCase {
 }
 
 const GRANT_CASES: readonly GrantCase[] = [
-  {
-    policy: busChannelPrimitive,
-    files: { "packages/server/src/transport/trpc/rogue.ts": `${EMITTER_DOOR}export const bus = new EventEmitter();\n` },
-    subject: "packages/server/src/transport/trpc/rogue.ts",
-    operation: "event-emitter-construction",
-  },
   {
     policy: contentPartSeam,
     files: { "packages/contracts/src/chat/bus.ts": CONTENT_PART, "packages/server/src/domain/chat/verbs/reach.ts": CONSUMER },
@@ -306,46 +293,4 @@ test.each([
   expect(result.toolErrors).toMatchObject([{ policyId: "owner-role-split", phase: "receipt", message: expect.stringContaining("USER_ROLES") }]);
   expect(result.authority.withheldPolicyIds).toEqual(["owner-role-split"]);
   expect(result.authority.effectiveFindings).toEqual([]);
-});
-
-const MINT = "packages/server/src/transport/trpc/bus-channel.ts";
-const MINT_GRANT: ReviewedGateGrant = {
-  id: "bus-channel-primitive:bus-channel-mint",
-  policyId: "bus-channel-primitive",
-  subject: MINT,
-  operation: "event-emitter-construction",
-  why: "the mint's own module — the fixture twin of the live central row.",
-  endsWhen: "the mint moves.",
-};
-
-test("a reviewed grant licenses its exact subject, and TWO constructions in that home stay ONE consumption", () => {
-  const granted = passOf(busChannelPrimitive, { [MINT]: `${EMITTER_DOOR}export const a = new EventEmitter();\nexport const b = new EventEmitter();\n` }, [
-    MINT_GRANT,
-  ]);
-
-  // The whole reason findings dedupe per carrier: a second finding with the same identity would make this
-  // row OVER-BROAD, and an over-broad row licenses NEITHER finding.
-  expect(granted.authority.effectiveFindings).toEqual([]);
-  expect(granted.authority.grantedFindings).toHaveLength(1);
-  expect(granted.authority.reviewedGrantConsumption).toEqual([{ id: MINT_GRANT.id, count: 1 }]);
-  expect(granted.authority.authorityAlarms).toEqual([]);
-});
-
-test("a grant whose home no longer constructs is STALE after a complete run — the rename tripwire, centrally", () => {
-  const stale = passOf(busChannelPrimitive, { [MINT]: "export const bus = null;\n", "packages/server/src/transport/trpc/other.ts": "export const x = 1;\n" }, [
-    MINT_GRANT,
-  ]);
-
-  expect(stale.toolErrors).toEqual([]);
-  expect(stale.authority.effectiveFindings).toEqual([]);
-  expect(stale.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", policyId: "bus-channel-primitive", grantId: MINT_GRANT.id }]);
-});
-
-test("a grant naming another subject licenses nothing — the identity is the pair, not the policy", () => {
-  const elsewhere = passOf(busChannelPrimitive, { "packages/server/src/transport/trpc/rogue.ts": `${EMITTER_DOOR}export const bus = new EventEmitter();\n` }, [
-    MINT_GRANT,
-  ]);
-
-  expect(elsewhere.authority.effectiveFindings).toMatchObject([{ policyId: "bus-channel-primitive", subject: "packages/server/src/transport/trpc/rogue.ts" }]);
-  expect(elsewhere.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: MINT_GRANT.id }]);
 });

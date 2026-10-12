@@ -1,4 +1,4 @@
-// Reviewed grants: assets-single-writer, biome-grant-liveness, bound-field-via-hook, bus-channel-primitive, bus-payload-allowlist....
+// Reviewed grants: assets-single-writer, biome-grant-liveness, bound-field-via-hook, bus-payload-allowlist....
 // Split from reviewed-grants.ts — see that file for the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
@@ -90,15 +90,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     why: "`useBoundField` IS the one home for the bound-field wiring: it reads the raw form context once, normalizes the touch-gated error, and assembles the `<Field>` prop bundle every bound field then shares. The seal cannot be built without the read it seals.",
     endsWhen:
       "the bound-field bundle is assembled from something other than the raw `useFieldContext` — at which point this file stops making the read and the row goes stale on its own.",
-  },
-  {
-    id: "bus-channel-primitive:bus-channel-mint",
-    policyId: "bus-channel-primitive",
-    subject: "packages/server/src/transport/trpc/bus-channel.ts",
-    operation: "event-emitter-construction",
-    why: "`defineBusChannel`'s own module — the emitter it wraps is constructed HERE, which is the entire point of the mint (M9, client-architecture-state-and-gates.md §13/§16 G10).",
-    endsWhen:
-      "the mint moves or stops wrapping a node EventEmitter; the row is then consumed zero times and reds at its dead subject, which is the rename tripwire the legacy SANCTIONED_HOMES table owned by hand.",
   },
   {
     id: "bus-payload-allowlist:credential-id",
