@@ -20,7 +20,7 @@ This tree is a standing on-disk contract. A later change moves the old names thr
 
 A boot secret is generated only when no row depends on it. A missing keyfile that rows depend on is a boot refusal naming the file (`packages/server/src/entry/boot/boot-secrets.ts`).
 
-The checks: `tests/server/foundation/data-layout/index.test.ts`, `tests/server/foundation/env/index.test.ts`, `tests/server/entry/boot/migrate-data-layout.int.test.ts` and `tests/server/entry/boot/boot-secrets.int.test.ts`.
+The checks: `tests/server/foundation/data-layout/index.test.ts`, `tests/server/foundation/env/floor-defaults.test.ts`, `tests/server/entry/boot/migrate-data-layout.int.test.ts` and `tests/server/entry/boot/boot-secrets.int.test.ts`.
 
 ## Consequences
 

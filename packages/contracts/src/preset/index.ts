@@ -2441,7 +2441,7 @@ export type AssemblePostProcessFlag = FlagsOnLane<"assemble">;
 /** The RECEIVE switches in the order `applyReceivePostProcess` applies them — single-line FIRST (the most
  *  aggressive cut), so the later sentence/whitespace trims operate on the already-reduced line. That the
  *  tuple is COMPLETE (a receive-lane flag left out here would simply never run) is pinned at runtime by
- *  `tests/contracts/preset/index.contract.test.ts` against the schema's own key set. */
+ *  `tests/contracts/preset/pipeline-order-declaration.contract.test.ts` against the schema's own key set. */
 export const RECEIVE_POST_PROCESS_ORDER = [
   "singleLine",
   "dropIncompleteSentence",
@@ -2487,7 +2487,7 @@ export const PROMPT_LANE_STEPS: readonly PromptPipelineStep[] = [
 /** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the
  *  `AI_OUTPUT` pass over the content, the post-process block, then the `REASONING` pass over the demuxed
  *  channel — and last, client-side, the `DISPLAY` pass, which changes what you read and never touches the
- *  wire. Pinned against the live engine by `tests/server/domain/chat/engine/pipeline.test.ts`. */
+ *  wire. Pinned against the live engine by `tests/server/domain/chat/engine/pipeline-receive.test.ts`. */
 export const REPLY_LANE_STEPS: readonly PromptPipelineStep[] = [
   { kind: "native-reasoning" },
   { kind: "reasoning-parse" },

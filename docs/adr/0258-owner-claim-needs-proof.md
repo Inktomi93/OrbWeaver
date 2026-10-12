@@ -28,7 +28,7 @@ The boot claim code. While the owner is unclaimed, an `oidc` boot mints a random
 
 Every caller states the proof: `ProvisionIdentityOptions.ownerClaimProven` is required and has no default, so a new SSO caller cannot get handle-based ownership by leaving it out. The `oidc` callback passes the proof it saw (`packages/server/src/entry/http/auth-routes.ts`). `forward-header` passes true (`packages/server/src/entry/auth/seam.ts`), because the trusted proxy is the identity authority there and its handle is the owner's word. Ownership by handle under `forward-header` is right only when the proxy's IdP has closed registration. The pending join passes false: an invite is never owner-claim proof.
 
-Checks: `tests/server/domain/sessions/contract/service.test-d.ts` (an omitted proof is a compile error), `tests/server/domain/sessions/substrate/decide-provision.test.ts`, `tests/server/domain/sessions/verbs/provision-identity.int.test.ts`, `tests/server/entry/http/auth-routes.test.ts`, `tests/server/infra/auth/owner-claim.test.ts` and `tests/server/entry/oidc-owner-claim.suite.int.test.ts`.
+Checks: `tests/server/domain/sessions/contract/service.test-d.ts` (an omitted proof is a compile error), `tests/server/domain/sessions/substrate/decide-provision.test.ts`, `tests/server/domain/sessions/verbs/provision-identity.int.test.ts`, `tests/server/domain/sessions/verbs/provision-identity-owner-claim.int.test.ts`, `tests/server/entry/http/auth-routes.test.ts`, `tests/server/infra/auth/owner-claim.test.ts` and `tests/server/entry/oidc-owner-claim.suite.int.test.ts`.
 
 ## Consequences
 
