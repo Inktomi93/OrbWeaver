@@ -127,7 +127,9 @@ test("a same-task repeat admits one global-scope write, and rejection releases r
 
   const scope = page.getByRole("switch", { name: "Runs in every chat" });
   await scope.evaluate((element) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
   });
   await held.requested;

@@ -1,5 +1,6 @@
 // verb: duplicateBook — deep-copy. Load-bearing: a fresh book with a "(copy)" name + NEW ids; ALL entries
 // copied verbatim with new ids; the copy is unattached (no junctions); a foreign source is NotFound.
+// @subject packages/server/src/domain/world-info/verbs/books/duplicate.ts
 
 import { worldEntries } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

@@ -1,6 +1,7 @@
 // Integration: swipeHotspots — one chat's assistant slots with >1 variant (the re-rolled spots), most
 // takes first, with the SELECTED variant's content snippet. Owner-belted via characters.ownerId (a foreign
 // chat reads zero rows — no leak). Only slots with >1 variant count; single-take slots are excluded.
+// @subject packages/server/src/domain/discovery/verbs/swipes.ts
 
 import type { Db } from "@orb/db";
 import type { MessageId } from "@orb/kit/ids";

@@ -6,6 +6,7 @@
 //     promote of the same character must land as "Aria 2", not fail in the user's face;
 //   • the row is OWNED, never a seed — `isSeed` derives from a NULL owner, so a promote that wrote one
 //     would mint an un-deletable, un-editable palette (D71).
+// @subject packages/server/src/domain/settings/verbs/promote-theme.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

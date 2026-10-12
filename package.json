@@ -98,6 +98,7 @@
     "e2e:live": "E2E_LIVE=1 E2E_REQUIRE_EVIDENCE=1 node tooling/src/floor/process/niced-exec.ts playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
     "cpd": "node scripts/cpd.ts -c jscpd.json",
     "cpd:report": "node scripts/cpd.ts -c jscpd.json --reporters html --output reports/cpd",
+    "cpd:tests": "node scripts/cpd.ts -c jscpd.tests.json",
     "mutation:arid": "node tooling/src/mutation-arid/cli.ts",
     "mutation:probe": "node tooling/src/mutation-probe/cli.ts",
     "test:mutation": "node tooling/src/floor/process/niced-exec.ts stryker run stryker.config.ts",

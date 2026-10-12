@@ -1,4 +1,5 @@
 // .int tests for `deleteSession`: owner-belted, the run log cascades, canon untouched.
+// @subject packages/server/src/domain/refinery/verbs/delete-session.ts
 
 import { refineryRuns, refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

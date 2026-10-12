@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(ExactResourceId): baselined when the gate widened to value casts; burn-down item 906.
+
 // The exact named-file door. The capability under test is TOTAL FAIL-CLOSED over the demanded id set: an
 // exact resource is named because the policy's judgment is ABOUT it, so a per-id miss inside a `ready` fact
 // would invert that judgment rather than narrow it.

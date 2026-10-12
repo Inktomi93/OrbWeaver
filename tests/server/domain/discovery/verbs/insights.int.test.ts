@@ -1,6 +1,7 @@
 // Integration: insights (pure-semantics half) — themeDrift (story-time theme prevalence over msgMidAt
 // calendar buckets the client folds into the viewer's months) + unusedCharacters (collected-but-never-played).
 // Both owner-scoped.
+// @subject packages/server/src/domain/discovery/verbs/insights.ts
 
 import type { Db } from "@orb/db";
 import { chatParticipants, digestThemeAssignments, themeClusters } from "@orb/db";

@@ -1,5 +1,6 @@
 // verb: get — owner-scoped single read. Load-bearing: "not found" and "not yours" collapse into one answer
 // (no foreign-existence leak) — both throw CharacterNotFoundError. Owner-only (viewing != owning).
+// @subject packages/server/src/domain/character/verbs/get.ts
 
 import { characterTags, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, TagId } from "@orb/kit/ids";

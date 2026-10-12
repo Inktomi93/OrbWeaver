@@ -1,5 +1,6 @@
 // verb: getScript — one owned row. Load-bearing: a foreign row and an absent row collapse to the SAME
 // answer, so the verb can never be used as an existence oracle for someone else's library.
+// @subject packages/server/src/domain/regex/verbs/scripts/get.ts
 
 import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

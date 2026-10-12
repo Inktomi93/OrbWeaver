@@ -8,6 +8,7 @@
 //     once in both orderings — including across a tie, which is the seam a naive keyset drops rows at —
 //     `totalCount` counts the filtered scope rather than the page, and a cursor minted under one sort is
 //     refused under the other instead of being applied to the wrong keyset.
+// @subject packages/server/src/domain/discovery/verbs/browse.ts
 
 import type { BrowseSort } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
+
 // snap's shot density, proved on the PNG BYTES a real headless chromium wrote (#915). Nothing here reads
 // an intent flag — the assertion is the IHDR width/height of the file on disk, because "the option was
 // threaded" is exactly the claim that can be true while the pixels are unchanged.

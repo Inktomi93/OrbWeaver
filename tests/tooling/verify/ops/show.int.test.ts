@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(VerifyReport): baselined when the gate widened to value casts; burn-down item 906.
+
 // `cli.ts show` — the ONE read-don't-rerun door, driven as a real CLI. Two halves live here:
 //   · the STRUCTURE view's argv + exit contract (the original cases, below);
 //   · the PUBLISHED-ARTIFACT READER (#2502) — `--stage`/`--stages`/`--run`/`--pointers`.

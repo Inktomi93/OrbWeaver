@@ -1,5 +1,6 @@
 // verb: listForPreset — the scripts attached to an owned preset, in EXECUTION order. Owner-filtered on
 // BOTH sides, so it can never enumerate a foreign preset's attachments.
+// @subject packages/server/src/domain/regex/verbs/attachments/list-for-preset.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

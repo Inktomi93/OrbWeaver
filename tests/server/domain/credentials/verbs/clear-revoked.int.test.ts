@@ -1,4 +1,5 @@
 // verb: clearRevoked — clear a revocation (ownership-scoped).
+// @subject packages/server/src/domain/credentials/verbs/clear-revoked.ts
 
 import { userCredentials } from "@orb/db";
 import { createCredentialsService } from "@orb/server/domain/credentials";

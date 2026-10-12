@@ -1,5 +1,6 @@
 // verb: duplicateTheme — copy-to-customize. Source = any readable row (own or seed) → a NEW owned row;
 // name defaults to "<source> copy", de-duped by numeric suffix against the caller's own names.
+// @subject packages/server/src/domain/settings/verbs/duplicate-theme.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

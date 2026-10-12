@@ -5,6 +5,7 @@
 // TSX into the dom-less typecheck:graph program; the character-list-view.test precedent).
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+// @orb-waive-file no-test-fabrication(CardDetail): baselined when the gate widened to value casts; burn-down item 906.
 import {
   characterCardFormFromDetail,
   characterUpdateDiff,

@@ -1,5 +1,6 @@
 // Integration: corpusProjection — a 2D PCA of the owner's card embeddings (the "corpus galaxy"),
 // labelled name + genre; owner-scoped (audit #1); fewer than 3 cards → [].
+// @subject packages/server/src/domain/discovery/verbs/projection.ts
 
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";

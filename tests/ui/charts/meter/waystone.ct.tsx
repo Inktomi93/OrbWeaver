@@ -11,6 +11,7 @@
 // One mount per test (mount() is once-per-test; a state change uses update()).
 
 import { partVsSurface } from "@orb/testkit/browser/part-vs-surface.ts";
+// @orb-waive-file no-test-fabrication(SVGElement): baselined when the gate widened to value casts; burn-down item 906.
 import { UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Waystone } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";

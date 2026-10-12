@@ -1,4 +1,5 @@
 // verb: detachFromChat — clear a document's chat scope, host-gated + idempotent.
+// @subject packages/server/src/domain/databank/verbs/attach/detach-from-chat.ts
 
 import { chatDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

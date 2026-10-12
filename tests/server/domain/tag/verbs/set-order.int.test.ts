@@ -1,4 +1,5 @@
 // verb: setTagOrder — persists manual order (position → sortOrder); empty input is a no-op.
+// @subject packages/server/src/domain/tag/verbs/set-order.ts
 
 import { DomainOperationError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";

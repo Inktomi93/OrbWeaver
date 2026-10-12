@@ -8,6 +8,7 @@
 // class of defect the `open-json-column` rule warns about. Both halves are asserted: a `run_tool` arm IS
 // rewritten, and a non-`run_tool` arm carrying an identical `name` string is NOT.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import type { AutomationRuleId, Handle, UserId } from "@orb/kit/ids";

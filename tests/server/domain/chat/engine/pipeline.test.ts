@@ -332,8 +332,10 @@ describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point", 
       (err: unknown) => err,
     );
     expect(failure).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((failure as ChatOperationError).code).toBe(CHAT_OP_CODES.promptTransformAborted);
     // The transform's own words reach the author — that is what makes a refusal actionable.
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((failure as ChatOperationError).message).toContain("the scene is closed");
   });
 });

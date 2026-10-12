@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(SubsetFinding): baselined when the gate widened to value casts; burn-down item 906.
+
 // Self-test for `pnpm ast subset-callers` (tooling/src/ast/ops/subset-callers.ts) — the STALE-DOOR lens
 // (#546, minted from #539). PLANTED CONTROLS BOTH DIRECTIONS are the whole point: a genuine strict subset
 // must FLAG, and same-key / disjoint / partially-overlapping callers must NOT — a lens that flags any

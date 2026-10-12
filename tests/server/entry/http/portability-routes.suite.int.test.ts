@@ -5,6 +5,9 @@
 // entities' DIRECTORIES; a `?kinds=` filter narrows to those dirs; a re-uploaded library bundle imports the
 // ROWS for the uploading owner (the round-trip through the actual HTTP handlers, not the layers below).
 
+// @orb-waive-file no-test-fabrication({ imported: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ imported: number; skipped: number; failed: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ token: string } | null): baselined when the gate widened to value casts; burn-down item 906.
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import "@orb/testkit/node/composed-real.ts";
@@ -163,6 +166,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
       const req = new Request("http://t/api/import/bundle", { method: "POST", body: zip });
       const res = await importHandler(makeCtx(target, { raw: req }));
       expect(res.status).toBe(202);
+      // @orb-waive no-test-fabrication({ workloadId: WorkloadId }): baselined when the gate widened to value casts; burn-down item 906.
       const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
       const row = await loadRunnableWorkload(db, app.workloadContributions, workloadId);
       await runWorkload(makeRunnerDeps(db, app.workloadContributions), row, new AbortController().signal);
@@ -231,6 +235,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     const uploadReq = new Request("http://t/api/import/bundle", { method: "POST", body: zip });
     const staged = await importHandler(makeCtx(uploader, { raw: uploadReq }));
     expect(staged.status).toBe(202);
+    // @orb-waive no-test-fabrication({ workloadId: WorkloadId }): baselined when the gate widened to value casts; burn-down item 906.
     const { workloadId: uploaderRun } = (await staged.json()) as { workloadId: WorkloadId };
 
     // The handle, read straight off the uploader's own row — the disclosure path, not a test shortcut.

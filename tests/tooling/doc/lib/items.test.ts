@@ -44,10 +44,12 @@ test("the blocker grammar is closed: owner, on <id>, wake path|gone <repo path>;
 });
 
 test("a transition clears the companions of the states it leaves and keeps the fields it does not name", () => {
+  // @orb-waive no-test-fabrication(NonNullable<ReturnType<typeof parseItem>>): baselined when the gate widened to value casts; burn-down item 906.
   const item = parseItem(PATH, SOURCE) as NonNullable<ReturnType<typeof parseItem>>;
   const blocked = applyPatch(SOURCE, item, { state: "blocked", blocked: "on 1" }, "2026-09-24");
   expect(blocked).toContain("status: blocked\nupdated: 2026-09-24\npriority: P1\nblocked: on 1\nplan: doc-migration\n");
   expect(blocked).not.toContain("lane:");
+  // @orb-waive no-test-fabrication(NonNullable<ReturnType<typeof parseItem>>): baselined when the gate widened to value casts; burn-down item 906.
   const reopened = applyPatch(blocked, parseItem(PATH, blocked) as NonNullable<ReturnType<typeof parseItem>>, { state: "open", priority: null }, "2026-09-25");
   expect(reopened).not.toContain("blocked:");
   expect(reopened).not.toContain("priority:");

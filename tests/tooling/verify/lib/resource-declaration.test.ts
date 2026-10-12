@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(ResourceHost["ledger"]): baselined when the gate widened to value casts; burn-down item 906.
+
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceFact } from "../../../../tooling/src/verify/contract/resource.ts";
 import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";

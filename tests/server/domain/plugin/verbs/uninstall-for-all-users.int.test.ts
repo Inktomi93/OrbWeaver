@@ -5,6 +5,7 @@
 //
 // The skip is asserted from both sides: the diverged user still holds their row (with its grant intact), and
 // the result names them. A silent skip would leave an admin believing the plugin is gone everywhere.
+// @subject packages/server/src/domain/plugin/verbs/uninstall-for-all-users.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";

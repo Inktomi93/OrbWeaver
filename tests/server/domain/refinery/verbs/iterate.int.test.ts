@@ -3,6 +3,7 @@
 // COMPLETED-rounds count (mid-round failure leaves the rewrite run + an unbumped counter — append-only
 // honesty), and the LEASED round claim that serializes rounds (#1568) — refuse-while-claimed BEFORE any
 // spend, release on both the success and the failure arm, and a lapsed claim that lets the next round run.
+// @subject packages/server/src/domain/refinery/verbs/iterate.ts
 
 import type { Db } from "@orb/db";
 import { refineryRuns, refinerySessions } from "@orb/db";

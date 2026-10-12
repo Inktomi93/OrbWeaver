@@ -15,6 +15,7 @@
 // its `aria-label`, which is `"<label> value"`; the SLIDER carries the bare `"<label>"` (the role is not part
 // of a name — F-27). The split is the 2026-08-19 P1-2 fix: the pair used to share one name exactly.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { TokenizeResult, WordTokens } from "@orb/contracts/inference";
 import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";

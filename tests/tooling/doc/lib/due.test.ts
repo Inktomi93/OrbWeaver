@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(NonNullable<ReturnType<typeof describedDoc>>): baselined when the gate widened to value casts; burn-down item 906.
+
 // The soft freshness tier as a pure rule: the described paths come from the body's backticked repository
 // paths, a directory cite matches below it, and only a change after the review date makes a doc due.
 

@@ -1,6 +1,7 @@
 // verb: rewriteGreeting — greeting studio (audit §3). Owner-gated bounded completion that RETURNS text and
 // NEVER writes. Pins: owner ok (ONE completion, prompt carries the resolved template + neutralized base +
 // steer), non-owner → leak-free CharacterNotFoundError BEFORE any template read / completion, and no DB write.
+// @subject packages/server/src/domain/character/verbs/rewrite-greeting.ts
 
 import { ZWSP } from "@orb/kit/guided";
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";

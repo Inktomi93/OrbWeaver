@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(Record<): baselined when the gate widened to value casts; burn-down item 906.
+
 // The leader record's codec and the ownership verdict over it, every probe injected: a wedged leader, a
 // recycled pid, a leaderless group with survivors and an empty one each read as their own state, and a
 // record that does not parse never authorizes a signal.

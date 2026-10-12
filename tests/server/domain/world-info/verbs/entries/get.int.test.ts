@@ -1,5 +1,6 @@
 // verb: getEntry — owner-scoped via the book. Load-bearing: an entry inside another user's book is NotFound
 // (the join-through-book ownership gate).
+// @subject packages/server/src/domain/world-info/verbs/entries/get.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

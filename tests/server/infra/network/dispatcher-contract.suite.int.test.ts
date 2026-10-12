@@ -21,6 +21,7 @@
 // This suite asserts the handoff through the PUBLIC API only, so it stays correct across slot renames —
 // which is exactly why it, and not a hardcoded symbol, is the thing to trust.
 
+// @orb-waive-file no-test-fabrication({ version: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { createRequire } from "node:module";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

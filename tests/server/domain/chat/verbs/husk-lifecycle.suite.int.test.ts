@@ -22,6 +22,7 @@
 // source with only the `started_at` column added, not a build error. The `reapHusk` arms could not be
 // expressed against the old surface (the verb did not exist) and are post-implementation coverage.
 
+// @orb-waive-file no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [] }): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hello there friend." }] }): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hi." }] }): baselined when the gate widened; burn-down item 906.
@@ -110,6 +111,7 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
       get(target, prop, receiver): unknown {
         const value: unknown = Reflect.get(target, prop, receiver);
         if (prop === "then" && typeof value === "function") {
+          // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
           const then = value as (ok: (v: unknown) => unknown, err?: (e: unknown) => unknown) => unknown;
           return (ok: (v: unknown) => unknown, err?: (e: unknown) => unknown): unknown => {
             const ready = fired ? Promise.resolve() : hook();
@@ -120,6 +122,7 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
         if (typeof value !== "function") {
           return value;
         }
+        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         const method = value as (...args: unknown[]) => unknown;
         return (...args: unknown[]): unknown => {
           const out = method.apply(target, args);
@@ -131,6 +134,7 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
     get(target, prop, receiver): unknown {
       const value: unknown = Reflect.get(target, prop, receiver);
       if (prop === "batch" && typeof value === "function") {
+        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         const batch = value as (...args: unknown[]) => Promise<unknown>;
         return async (...args: unknown[]): Promise<unknown> => {
           if (deleteBuilt && !fired) {
@@ -143,6 +147,7 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
       if (prop !== "delete" || typeof value !== "function") {
         return value;
       }
+      // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
       const del = value as (...args: unknown[]) => object;
       return (...args: unknown[]): object => {
         deleteBuilt = true;

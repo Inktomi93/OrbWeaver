@@ -1,5 +1,6 @@
 // verb: getFrameAsset — the installed-image read behind an active isolated-frame handle. These controls use
 // the real plugin row, plugin_assets links and owner-scoped CAS fake: the browser path never supplies an id.
+// @subject packages/server/src/domain/plugin/verbs/get-frame-asset.ts
 
 import { PLUGIN_UI_ASSET_MAX_BYTES } from "@orb/contracts/plugin";
 import type { Handle, PluginId } from "@orb/kit/ids";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+
 // The central reviewed-grant table is judged against the FINAL roster on the tree: every row must name a
 // loaded `reviewed-grant` policy with a nonblank identity and rationale, ids and identities must be unique,
 // and the table must be deterministically ordered. Pre-cutover the roster is discovered here from every

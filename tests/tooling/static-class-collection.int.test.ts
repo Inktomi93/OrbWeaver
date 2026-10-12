@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(typeof source.forEachDescendant): baselined when the gate widened to value casts; burn-down item 906.
+
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleKind, ModuleResolutionKind, Project, ScriptKind } from "ts-morph";
 import type { GatePolicy } from "../../tooling/src/verify/contract/policy.ts";

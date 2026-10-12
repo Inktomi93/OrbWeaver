@@ -5,6 +5,7 @@
 // So these pins are exactly two claims: a stranger cannot aim this at someone else's preset (it collapses
 // to the same NotFound a `get` does — no existence oracle), and a readable preset's answer is the injected
 // op's, verbatim, for the CALLING principal.
+// @subject packages/server/src/domain/preset/verbs/list-usage.ts
 
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

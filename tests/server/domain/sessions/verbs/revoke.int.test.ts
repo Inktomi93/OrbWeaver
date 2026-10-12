@@ -1,3 +1,7 @@
+// @orb-waive-file no-test-fabrication({ id: SessionId }[]): baselined when the gate widened to value casts; burn-down item 906.
+// verb: sessions.revoke — logout and bulk revocation of sessions, audited for the owner.
+// @subject packages/server/src/domain/sessions/verbs/revoke.ts
+
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
 import { batchMany } from "@orb/db/query";

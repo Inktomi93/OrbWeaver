@@ -7,6 +7,7 @@
 // are pinned on the room source at `tests/server/transport/trpc/stream/sources/chat.test.ts`. The one
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
+// @orb-waive-file no-test-fabrication(ChatBusEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, ChatIdentity, ChatReactionsView, MessageView, StartChatResult } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";

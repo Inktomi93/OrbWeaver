@@ -2,6 +2,7 @@
 // Load-bearing: the member gate (a non-member is rejected by the injected guard); the membership union (every
 // present member's global docs ∪ the chat-attached docs); the HOST sees host-hidden documents FLAGGED to govern
 // them, while a MEMBER's payload is filtered to the visible set (a member never learns a hidden document's name).
+// @subject packages/server/src/domain/databank/verbs/list-active-for-chat.ts
 
 import { chats } from "@orb/db";
 import type { ChatId, DocumentId, Handle } from "@orb/kit/ids";

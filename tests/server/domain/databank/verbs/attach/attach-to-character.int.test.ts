@@ -2,6 +2,7 @@
 // character. Load-bearing: BOTH-side ownership (a foreign document AND a foreign character each collapse to a
 // leak-free NOT_FOUND, no junction row / no cross-tenant delete); idempotent re-attach + idempotent detach;
 // the reverse `listAttachments` view surfaces the character binding.
+// @subject packages/server/src/domain/databank/verbs/attach/attach-to-character.ts
 
 import { characterDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

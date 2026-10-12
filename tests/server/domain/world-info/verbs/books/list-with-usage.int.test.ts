@@ -2,6 +2,7 @@
 // attachment rollup. Load-bearing: the rollup is keyed to the CALLER's book ids (a stranger's attachments
 // never inflate a count), `global` is a flag that still counts as one attachment in `total`, and a book
 // nobody attached reads as a true zero rather than an absent key.
+// @subject packages/server/src/domain/world-info/verbs/books/list-with-usage.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

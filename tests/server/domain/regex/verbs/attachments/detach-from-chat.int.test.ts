@@ -1,4 +1,5 @@
 // verb: detachFromChat — remove a room attachment. HOST authority (the injected guard); idempotent.
+// @subject packages/server/src/domain/regex/verbs/attachments/detach-from-chat.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

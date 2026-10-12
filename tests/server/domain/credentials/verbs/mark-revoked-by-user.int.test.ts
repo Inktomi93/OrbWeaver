@@ -1,4 +1,5 @@
 // verb: markRevokedByUser — the USER-FACING revoke (ADDS the ownership check, unlike markRevoked).
+// @subject packages/server/src/domain/credentials/verbs/mark-revoked-by-user.ts
 
 import { userCredentials } from "@orb/db";
 import { createCredentialsService } from "@orb/server/domain/credentials";

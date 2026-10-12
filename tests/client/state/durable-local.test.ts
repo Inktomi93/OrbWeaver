@@ -9,6 +9,7 @@
 // missing half is its own describe block at the bottom of this file: a double's `reset` writes nothing,
 // so no double can see what an arm does to the durable BYTES — which is precisely where #837 lived.
 
+// @orb-waive-file no-test-fabrication({ count?: unknown; label?: unknown } | null | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { DurableLocalPersistApi, DurableLocalStorage, PersistedStoreOptions } from "@orb/client/state";
 import {
   __resetDurableLocal,

@@ -7,6 +7,7 @@
 // a reject leaves nothing behind. The Hono app + File aren't test-resolvable through Hono, so the registrar
 // runs over a captured mock app + ctx (the same seam upload.test uses).
 
+// @orb-waive-file no-test-fabrication({ error: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -273,6 +274,7 @@ describe("registerImportTree — secrets.json never stages", () => {
     const res = await handler()(makeCtx(OWNER, form));
     expect(res.status).toBe(202);
     const call = startSpy.mock.calls[0]?.[0];
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const token = call?.input.params["stagedDir"] as string;
     const roots = await readdir(join(ownerStagingRoot(), token), { withFileTypes: true });
     const profile = roots.find((e) => e.isDirectory())?.name ?? "";
@@ -317,6 +319,7 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     expect(call?.input.params["source"]).toBe("dir");
     expect(call?.ownerId).toBe(OWNER.userId);
     // The picked-folder wrapper is stripped: the staged tree has entity dirs at its root.
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const token = call?.input.params["token"] as string;
     expect(await readdir(join(ownerStagingRoot(), token))).toEqual(expect.arrayContaining(["characters", "personas", "presets"]));
     // The staged tree sits under the UPLOADER, never at the shared root.
@@ -330,6 +333,7 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     const call = startSpy.mock.calls[0]?.[0];
     expect(call?.input.kind).toBe("import-st");
     expect(call?.ownerId).toBe(OWNER.userId);
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const token = call?.input.params["stagedDir"] as string;
     // importAll walks a PARENT-of-profiles: exactly one profile subdir under the staged root.
     const roots = await readdir(join(ownerStagingRoot(), token), { withFileTypes: true });

@@ -1,5 +1,6 @@
 // verb: attachToPersona — the persona-book join. Load-bearing: both ownership gates fire (foreign persona OR
 // foreign book → NotFound); idempotent; the book then appears in listForPersona with role null.
+// @subject packages/server/src/domain/world-info/verbs/attachments/attach-to-persona.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

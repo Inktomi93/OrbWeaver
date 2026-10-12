@@ -3,6 +3,7 @@
 // vector (no re-embed), the seed excluded, the DEFAULT lens is the pure-visual `image-raw` portrait lens,
 // owner isolation, and — THE LOAD-BEARING CASE — a cross-tenant seed REFUSAL (a foreign seed id resolves to
 // no owner-belted avatar vector ⇒ an empty result; neo V2-2). CSLS APPLIES here (same-space image↔image).
+// @subject packages/server/src/domain/search/verbs/similar-art.ts
 
 import type { Db } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(HoverFailureReport): baselined when the gate widened to value casts; burn-down item 906.
+
 // The forced-state pass's FAILURE arm — the one `ops/hover.ts` recorded as having no fixture (#1093).
 //
 // MIRRORS `ops/hover.ts`, the Node half of the pass. Its header states the divergence it keeps on

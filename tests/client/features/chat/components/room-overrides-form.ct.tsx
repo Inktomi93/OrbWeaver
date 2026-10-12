@@ -93,12 +93,14 @@ test("full-row tap target — the trigger fills its row; the card's top edge hit
 
   const readProbeAtAssertion = async (): Promise<typeof probe> =>
     await trigger.evaluate((btn) => {
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const card = btn.closest('[data-slot="card-root"]') as HTMLElement;
       const rect = card.getBoundingClientRect();
       const topEdgeHit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 2);
       return { inTrigger: btn.contains(topEdgeHit), triggerHeight: btn.getBoundingClientRect().height, cardHeight: rect.height };
     });
   const probe = await trigger.evaluate((btn) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const card = btn.closest('[data-slot="card-root"]') as HTMLElement;
     const rect = card.getBoundingClientRect();
     const topEdgeHit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 2);

@@ -1,4 +1,5 @@
 // share.status — owner only; the relay state and the live socket count the Share card shows.
+// @subject packages/server/src/domain/share/verbs/status.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

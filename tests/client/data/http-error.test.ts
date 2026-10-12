@@ -7,6 +7,7 @@
 // TypeError). Uses real `Response` (a web global under Node/es2025) — never a hand-mock, which would erase the
 // exact `.text()`/status/statusText wiring this seam is here to get right.
 
+// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import { throwHttpError } from "@orb/client/data";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";

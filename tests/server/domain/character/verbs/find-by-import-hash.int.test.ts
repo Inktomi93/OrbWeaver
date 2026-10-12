@@ -2,6 +2,7 @@
 // (returns the identity ref), a missing one is `null`, the lookup is OWNER-SCOPED (a different owner's
 // byte-identical import is NOT returned — the dedup is per-user, not global), and a card created with
 // provenance is itself findable (the create→dedup round-trip the import composition root relies on).
+// @subject packages/server/src/domain/character/verbs/find-by-import-hash.ts
 
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

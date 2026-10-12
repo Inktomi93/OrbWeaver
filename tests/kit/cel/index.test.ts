@@ -2,6 +2,7 @@
 // parse-time cap, the runtime-error posture, and the determinism guarantee that makes testRule replays
 // exact. One evaluator, two roles (rule predicates + the {{expr}} macro).
 
+// @orb-waive-file no-test-fabrication(readonly Golden[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { CelBindings, CelProgram } from "@orb/kit/cel";
 import { CelEvalError, evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

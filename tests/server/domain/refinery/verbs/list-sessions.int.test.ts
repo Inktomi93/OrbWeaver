@@ -1,6 +1,7 @@
 // .int tests for `listSessions` — the D62 roster: newest-updated first, the latestVerdict badge (null
 // before the first analyze; the NEWEST analyze wins), owner-scoped (a stranger sees an empty roster —
 // a list is never an oracle).
+// @subject packages/server/src/domain/refinery/verbs/list-sessions.ts
 
 import { characters } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

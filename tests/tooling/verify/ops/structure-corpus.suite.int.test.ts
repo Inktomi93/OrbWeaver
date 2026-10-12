@@ -99,6 +99,7 @@ const PLATELESS_COMPOSER =
   'html[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n';
 
 function readArtifact(root: string): StructureReport {
+  // @orb-waive no-test-fabrication(StructureReport): baselined when the gate widened to value casts; burn-down item 906.
   return JSON.parse(readFileSync(join(root, "reports", "check-structure.json"), "utf8")) as StructureReport;
 }
 
@@ -310,6 +311,7 @@ test("an unbranded lookalike in the corpus is a load refusal (exit 2, the in-fli
   // the load never got far enough to write a report — the stub survives, and it says so
   const slots = readdirSync(join(root, "reports", "runs", "structure"));
   expect(slots).toHaveLength(1);
+  // @orb-waive no-test-fabrication(StructureReport): baselined when the gate widened to value casts; burn-down item 906.
   const stub = JSON.parse(readFileSync(join(root, "reports", "runs", "structure", slots[0] ?? "", "check-structure.json"), "utf8")) as StructureReport;
   expect(stub.run.complete).toBe(false);
   expect(existsSync(join(root, "reports", "check-structure.json"))).toBe(false);

@@ -6,6 +6,7 @@
 //   • rooms go through chat's injected `resolveVisibleRooms` and NOTHING else. The harness default THROWS
 //     ("not stubbed"), so a verb that stopped consulting chat would fail LOUDLY here rather than quietly
 //     answer `[]` — and the leak arm below pins that a room the resolver drops leaves no residue at all.
+// @subject packages/server/src/domain/databank/verbs/list-attachments.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

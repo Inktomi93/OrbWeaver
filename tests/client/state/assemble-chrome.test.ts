@@ -3,6 +3,7 @@
 // placement→zone map (`rail.end` + `topbar.trail` map, #1789; `surface`/`mobile-tab` do NOT), the dupe-id
 // and zone-validation throws, and the canonical `(order, id)` per-zone order.
 
+// @orb-waive-file no-test-fabrication(ChromeZone): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChromeEntry, ChromeZone, ModalDefinition, SectionDefinition } from "@orb/client/state";
 import { assembleChrome, NO_SELECTION_TITLE } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

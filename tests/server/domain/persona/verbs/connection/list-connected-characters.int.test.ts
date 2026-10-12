@@ -1,6 +1,7 @@
 // verb: listConnectedCharacters — persona-scoped, owner-gated junction read (the persona-side twin of
 // listConnectedToCharacter, #866 S4). Load-bearing: returns only characters connected to THIS persona
 // (not the owner's other characters), as summary views; a foreign persona throws.
+// @subject packages/server/src/domain/persona/verbs/connection/list-connected-characters.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";

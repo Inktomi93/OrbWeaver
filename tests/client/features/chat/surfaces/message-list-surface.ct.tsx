@@ -18,6 +18,7 @@
 // The owner-scoped `persona.list` read is GONE (the member-gated producer replaced it), so no stub for
 // it remains.
 
+// @orb-waive-file no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";

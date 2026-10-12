@@ -1,5 +1,6 @@
 // verbs/journal/edit-journal-entry — editJournalEntry (docs/plans/rpg/design.md). Host-gated, game-scoped.
 // Asserted at the lineage-projected read.
+// @subject packages/server/src/domain/rpg/verbs/journal/edit-journal-entry.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

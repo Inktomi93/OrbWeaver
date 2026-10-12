@@ -1,3 +1,6 @@
+// verb: get — reads the owner's own preset or the shared system default; another owner's preset is not found.
+// @subject packages/server/src/domain/preset/verbs/get.ts
+
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";

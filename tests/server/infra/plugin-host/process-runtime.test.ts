@@ -1,3 +1,7 @@
+// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(PluginHandlerRef): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<): baselined when the gate widened to value casts; burn-down item 906.
+
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";

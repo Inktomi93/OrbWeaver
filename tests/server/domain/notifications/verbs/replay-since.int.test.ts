@@ -5,6 +5,7 @@
 // walks UP from what the reader last delivered, which is the only shape in which a partial answer is a
 // COMPLETE answer for its prefix. Every receipt below is taken as ALICE except the scope pin, which asks as
 // BOB and proves his page holds none of her rows.
+// @subject packages/server/src/domain/notifications/verbs/replay-since.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

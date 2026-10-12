@@ -1,3 +1,8 @@
+// @orb-waive-file no-test-fabrication(SessionRow): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly log?: { readonly entries?: readonly unknown[] } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly pid: number }): baselined when the gate widened to value casts; burn-down item 906.
+
 // THE STATEFUL SESSION SUBSTRATE, phase 1 (T1/T2/T3/T5/T6/T9 +
 // §10.1) — driven through the REAL cli over `--file` fixtures with a SCRATCH registry (`ORB_SNAP_SESSION_HOME`)
 // and tiny caps/TTLs from env, so no case here touches the box's real `<main>/.cache/snap-session/` (the
@@ -348,6 +353,7 @@ test("T3 — two sessions publishing the SAME --out concurrently keep both PNGs 
     const slots = [ra, rb].map((res) => {
       const rel = /^run slot\s+(\S+)/mu.exec(res.stdout)?.[1];
       expect(rel, `each call names its run slot — got:\n${res.stdout}`).toBeDefined();
+      // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
       return join(repoRoot, rel as string);
     });
     expect(new Set(slots).size).toBe(2);
@@ -673,6 +679,7 @@ test("F4 — a caller from ANOTHER checkout is refused naming the owner, pid and
     expect(existsSync(join(repoRoot, "reports", "sessions", exportBase, "trace-000.zip"))).toBe(true);
     const exportIndexPath = /RESULT snap exit=\d+ index=(\S+)/u.exec(exported.stdout)?.[1];
     expect(exportIndexPath).toBeDefined();
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const exportIndex = JSON.parse(readFileSync(exportIndexPath as string, "utf8")) as {
       readonly artifacts?: readonly { readonly channel: string; readonly relativePath: string }[];
     };
@@ -775,6 +782,7 @@ test("attach — attachProbeSession drives the owner's LIVE page over the sessio
     await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
     const row = rowOf(r.home, a);
     expect(row.cdpEndpoint).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/u);
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const attached = await attachProbeSession(row.cdpEndpoint as string, {
       viewport: row.environment.viewport,
       device: row.environment.device,
@@ -831,6 +839,7 @@ test("T-scope — a daemon's shutdown reaps its own browser and leaves the RUN T
   const siblingPid = sibling.pid;
   expect(siblingPid, "the fixture, not the sweep, is broken if the planted sibling has no pid").toBeDefined();
   try {
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     expect(await until(() => markedPids(outer).includes(siblingPid as number)), "the planted sibling must be IN RANGE of the outer marker").toBe(true);
     await expect(await r.snap(["--session", name, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
     // #1848 IS PRESERVED: the daemon's browser carries the OUTER marker too, so that run's kill path still
@@ -840,6 +849,7 @@ test("T-scope — a daemon's shutdown reaps its own browser and leaves the RUN T
     const close = await r.snap(["--session-close", name]);
     // The closing client carries the marker too — against the pre-fix daemon it is SIGKILLed mid-close.
     await expect(close).toExitWith(EXIT.clean);
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     expect(pidAlive(siblingPid as number), "the daemon swept the run that contained it — this is the exit-137 battery kill").toBe(true);
     expect(await until(() => chromiumPidsCarrying(outer).length === 0), "the daemon's own browser must be gone — a scoped sweep still has to sweep").toBe(true);
   } finally {

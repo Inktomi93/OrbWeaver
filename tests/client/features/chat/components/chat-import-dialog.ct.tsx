@@ -12,6 +12,7 @@
 // off the dialog closes as it always did. The dropzone stays live, so a second drop either widens an unstarted
 // offer or starts a fresh one after a build began.
 
+// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import type { ImportWindow } from "@orb/contracts/chat";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";

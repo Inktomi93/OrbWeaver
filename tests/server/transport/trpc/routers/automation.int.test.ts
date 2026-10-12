@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(typeof automationRules.$inferSelect.timeZone): baselined when the gate widened to value casts; burn-down item 906.
+
 // Strict authoring routes over the real composed graph. The response-loss case drops the HTTP response
 // only after the actual tRPC handler has committed and built it; retry must recover, not mint again.
 import "@orb/testkit/node/composed-real.ts";

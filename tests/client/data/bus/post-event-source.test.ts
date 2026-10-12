@@ -150,6 +150,7 @@ describe("PostEventSource", () => {
     await nextEvent(source, "error");
     answerWith((signal) => eventStream(["data: second\n\n"], signal));
     const values: string[] = [];
+    // @orb-waive no-test-fabrication(MessageEvent): baselined when the gate widened to value casts; burn-down item 906.
     source.addEventListener("message", (event) => values.push(String((event as MessageEvent).data)));
     timer.fire();
     await nextEvent(source, "error");
@@ -213,6 +214,7 @@ describe("PostEventSource", () => {
     answerWith((signal) => eventStream(["id: 7\n\nid:\n\ndata: cleared\n\nid: kept\n\nid: bad\0id\ndata: inherited\n\n"], signal));
     const source = open();
     const seen: string[] = [];
+    // @orb-waive no-test-fabrication(MessageEvent): baselined when the gate widened to value casts; burn-down item 906.
     source.addEventListener("message", (event) => seen.push((event as MessageEvent).lastEventId));
     await nextEvent(source, "error");
     expect(seen).toEqual(["", "kept"]);
@@ -340,6 +342,7 @@ describe("PostEventSource", () => {
     await nextEvent(source, "error");
     answerWith((signal) => eventStream(["data: second\n\n"], signal));
     const second: MessageEvent[] = [];
+    // @orb-waive no-test-fabrication(MessageEvent): baselined when the gate widened to value casts; burn-down item 906.
     source.addEventListener("message", (event) => second.push(event as MessageEvent));
     timer.fire();
     await nextEvent(source, "error");
@@ -353,6 +356,7 @@ describe("PostEventSource", () => {
       eventStream(['event: connected\ndata: {"reconnectAfterInactivityMs":1,"feature":"fixture","nested":{"keep":true}}\n\n'], signal, true),
     );
     const source = open();
+    // @orb-waive no-test-fabrication(MessageEvent): baselined when the gate widened to value casts; burn-down item 906.
     const connected = (await nextEvent(source, "connected")) as MessageEvent;
     expect(JSON.parse(connected.data)).toEqual({ feature: "fixture", nested: { keep: true } });
     expect(timer.armed()).toEqual([45_000]);
@@ -393,6 +397,7 @@ describe("PostEventSource", () => {
     const seen: { type: string; data: unknown; lastEventId: string }[] = [];
     for (const type of ["connected", "message", "ping"]) {
       source.addEventListener(type, (event) => {
+        // @orb-waive no-test-fabrication(MessageEvent): baselined when the gate widened to value casts; burn-down item 906.
         const message = event as MessageEvent;
         seen.push({ type: message.type, data: message.data, lastEventId: message.lastEventId });
       });
@@ -419,6 +424,7 @@ describe("PostEventSource", () => {
     answerWith((signal) => eventStream(["data: a\r", "\n", "\ndata: b\n\n"], signal));
     const source = open();
     const seen: unknown[] = [];
+    // @orb-waive no-test-fabrication(MessageEvent): baselined when the gate widened to value casts; burn-down item 906.
     source.addEventListener("message", (event) => seen.push((event as MessageEvent).data));
     await nextEvent(source, "error");
 
@@ -511,12 +517,14 @@ describe("PostEventSource", () => {
     const source = open();
     const heard: unknown[] = [];
     const listener = (event: Event): void => {
+      // @orb-waive no-test-fabrication(MessageEvent): baselined when the gate widened to value casts; burn-down item 906.
       heard.push((event as MessageEvent).data);
       source.removeEventListener("message", listener);
     };
     source.addEventListener("message", listener);
     const second = new Promise<void>((resolve) => {
       source.addEventListener("message", (event) => {
+        // @orb-waive no-test-fabrication(MessageEvent): baselined when the gate widened to value casts; burn-down item 906.
         if ((event as MessageEvent).data === "second") {
           resolve();
         }

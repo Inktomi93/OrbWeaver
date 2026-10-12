@@ -1,5 +1,6 @@
 // verb: get — one owned party, members in position order. Load-bearing: the not-owned and not-found
 // answers collapse into ONE leak-free NotFound (no foreign-existence oracle).
+// @subject packages/server/src/domain/roster-preset/verbs/get.ts
 
 import { rosterPresetViewSchema } from "@orb/contracts/roster-preset";
 import { rosterPresets } from "@orb/db";

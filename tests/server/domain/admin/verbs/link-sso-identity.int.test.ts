@@ -6,6 +6,7 @@
 // (privilege belt); a subject-taken / target-bound claim maps to the typed code and writes NOTHING; and the
 // bind ↔ audit row is a BICONDITIONAL — a planted audit failure leaves the row UNBOUND, a planted bind
 // failure leaves no audit row, and a claim that bound nothing (already-linked) audits nothing.
+// @subject packages/server/src/domain/admin/verbs/link-sso-identity.ts
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";

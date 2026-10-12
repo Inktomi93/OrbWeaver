@@ -2,6 +2,7 @@
 // test), and `needs`: the agent-sdk wire is built only when the `claude` executable resolves; a skipped wire
 // is absent from the registry and named in `skipped`.
 
+// @orb-waive-file no-test-fabrication(Task[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Task, Wire } from "@orb/contracts/inference";
 import { WIRE_DEFS, WIRES } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

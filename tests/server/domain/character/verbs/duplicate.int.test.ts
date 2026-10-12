@@ -2,6 +2,7 @@
 // content is copied, import provenance is CLEARED (the clone is app-authored), character.updated emits, and
 // the source's attached world-info book REFERENCES are CARRIED onto the clone (the books are never
 // cloned — new junction rows point at the SAME books).
+// @subject packages/server/src/domain/character/verbs/duplicate.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { WorldBookRole } from "@orb/contracts/world-info";

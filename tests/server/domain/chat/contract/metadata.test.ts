@@ -4,6 +4,7 @@
 // against the boolean-default neighbour, and the toolRecurseLimit default-fill tail.
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
 import { getGroupConfig, getRoomOverrides, getToolRecurseLimit, parseChatMetadata, TOOL_RECURSE_LIMIT_DEFAULT } from "#server/domain/chat/contract/metadata.ts";
 

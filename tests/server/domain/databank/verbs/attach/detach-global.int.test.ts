@@ -1,5 +1,6 @@
 // verb: detachGlobal — clear a document's global scope, idempotently (a detach of a non-attached pair is a
 // no-op void).
+// @subject packages/server/src/domain/databank/verbs/attach/detach-global.ts
 
 import { globalDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

@@ -1,5 +1,6 @@
 // .int tests for `updateSchema`: version bumps on CONTENT change only (the P1-B provenance pin), the
 // merged document re-runs the whole belt, and foreign ids collapse leak-free.
+// @subject packages/server/src/domain/refinery/verbs/update-schema.ts
 
 import { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
@@ -27,6 +28,7 @@ test("update bumps version on CONTENT change only; foreign owner collapses to NO
   const bumped = await h.svc.updateSchema({
     principal: principal(owner),
     schemaId: created.id,
+    // @orb-waive no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
     patch: { schema: { ...validScoreSchema(), properties: { ...(validScoreSchema()["properties"] as object), extra: { type: "string" } } } },
   });
   expect(bumped.version).toBe(2);
@@ -80,6 +82,7 @@ test("two CONCURRENT patches to DISJOINT fields cannot silently drop each other 
   const owner = await seedUser(db, { id: "user_usch_cas" });
   const h = makeRefineryHarness(db);
   const created = await h.svc.createSchema({ principal: principal(owner), name: "cas_scorer", description: "v1", stage: "score", schema: validScoreSchema() });
+  // @orb-waive no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
   const widened = { ...validScoreSchema(), properties: { ...(validScoreSchema()["properties"] as object), extra: { type: "string" } } };
 
   // Both patches READ the same pre-edit row, then both write the WHOLE merged document — the shape that

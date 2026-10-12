@@ -10,7 +10,9 @@ import type { PluginEgressBridge } from "#server/infra/plugin-host/net-egress.ts
 import { createPluginNetEgress } from "#server/infra/plugin-host/net-egress.ts";
 import { isBridgeOperation } from "#server/infra/plugin-host/process-protocol.ts";
 
+// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 const CHAT = "chat_authorized00000000000000" as ChatId;
+// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 const OTHER_CHAT = "chat_other00000000000000000" as ChatId;
 
 function authority(

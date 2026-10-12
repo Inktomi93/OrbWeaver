@@ -185,11 +185,13 @@ test("a NON-HOST forker's copy carries NO host secrets: steeringNote stripped, f
   expect(forkGame !== undefined && isDeceptionActive(forkGame.config.features)).toBe(true);
 
   // STRIP 3 — the hidden-span BELT: snapshot recentEvents + journal content lose the `<lie>` truth.
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const forkSnaps = await listSnapshots(db, forkGame?.id as RpgGameId);
   expect(forkSnaps).toHaveLength(1);
   expect(forkSnaps[0]?.recentEvents).toEqual(["Mira smiles warmly "]);
   expect(forkSnaps[0]?.recentEvents?.join("")).not.toContain("assassin");
 
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const forkJournal = await listAllJournal(db, forkGame?.id as RpgGameId);
   const forkModel = forkJournal.find((j) => j.title === "The meeting");
   expect(forkModel?.content).toBe("They met at the ford. ");
@@ -253,6 +255,7 @@ test("a NON-HOST forker's copy strips hidden spans from EVERY free-text plane, n
   });
 
   const forkGameRow = await findGameByChat(db, forkChatId);
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const forkId = forkGameRow?.id as RpgGameId;
   // ONE assertion over the WHOLE clone: no cloned row, on any plane, carries the secret. Serializing the rows
   // is the point — a per-field list would go stale the day a column lands, and the strip is a property of the
@@ -310,6 +313,7 @@ test("a HOST forker's copy keeps the hidden spans in every plane (the walk is ga
     forker: { userId: castId<UserId>("user_gm"), readsHidden: true },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const forkId = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   expect((await listSnapshots(db, forkId))[0]?.location).toBe(`the tavern ${LIE}`);
   expect((await listAllJournal(db, forkId)).map((j) => j.title)).toContain(`The meeting ${LIE}`);
@@ -342,6 +346,7 @@ test("a HAND row rides the fork on every lineage, with its as-of stamp re-keyed 
   expect(result.cloned).toBe(true);
 
   const forkGame = await findGameByChat(db, forkChatId);
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const forkSnaps = await listSnapshots(db, forkGame?.id as RpgGameId);
   const hand = forkSnaps.find((row) => row.variantId === null);
   expect(hand?.location).toBe("the hand-fixed hall");
@@ -374,6 +379,7 @@ test("a FLOORED fork keeps the hand row and SET-NULLs its as-of (state survives,
   expect(result.cloned).toBe(true);
 
   const forkGame = await findGameByChat(db, forkChatId);
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const forkSnaps = await listSnapshots(db, forkGame?.id as RpgGameId);
   // The TURN row is dropped (its variant is past the horizon); the HAND row survives with a NULL as-of.
   expect(forkSnaps).toHaveLength(1);
@@ -381,6 +387,7 @@ test("a FLOORED fork keeps the hand row and SET-NULLs its as-of (state survives,
   expect(forkSnaps[0]?.asOfMessageId).toBeNull();
   expect(forkSnaps[0]?.location).toBe("the hand-fixed hall");
   // It still resolves as the fork's head — pre-baseline state IS the baseline posture, never lost state.
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   expect((await resolveSnapshotForTurn(db, { id: forkGame?.id as RpgGameId, chatId: forkChatId }))?.location).toBe("the hand-fixed hall");
 });
 
@@ -401,6 +408,7 @@ test("cross-tenant: EVERY fork row keys the new game/chat/variant — never a so
   });
 
   const forkGame = await findGameByChat(db, forkChatId);
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = forkGame?.id as RpgGameId;
   // A fresh game id (not the source's), keyed to the fork chat.
   expect(fg).not.toBe(src.gameId);
@@ -490,6 +498,7 @@ test("swipe remap: a two-variant slot forks each variant's snapshot to ITS copie
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   const forkSnaps = await listSnapshots(db, fg);
   expect(forkSnaps).toHaveLength(2);
@@ -540,6 +549,7 @@ test("truncated fork: a snapshot/journal whose variant is NOT in the map is DROP
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   const forkSnaps = await listSnapshots(db, fg);
   // ONLY the in-horizon snapshot copied — the later one is dropped (its variant has no map entry).
@@ -573,6 +583,7 @@ test("a HOST forker (readsHidden) copies verbatim — no strip (they already rea
   const forkGame = await findGameByChat(db, forkChatId);
   expect(forkGame?.config.lite.steeringNote).toBe("GM SECRET: Mira betrays the party in act 3");
   expect(forkGame?.gmPresetId).toBe(ownPreset);
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const forkSnaps = await listSnapshots(db, forkGame?.id as RpgGameId);
   // The host reads the reveal plane — the `<lie>` prose is left intact in their copy.
   expect(forkSnaps[0]?.recentEvents?.join("")).toContain("assassin");
@@ -614,6 +625,7 @@ test("pointer LAST: the pointer fires AFTER the rows exist, mirroring the cloned
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   // EXACTLY one pointer fired, for the fork chat, at the NEW game id, engaged (the source config default).
   expect(h.fakes.pointers).toHaveLength(1);
@@ -758,6 +770,7 @@ test("§3.6 config: EVERY host-plane config field is stripped for a NON-HOST for
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
   // ONE assertion names EVERY field that crossed the member→host boundary. Before the strips landed this read
   // `[ 'userMacros', 'features.relationshipHints', 'features.journalTypeHints' ]`.
@@ -767,6 +780,7 @@ test("§3.6 config: EVERY host-plane config field is stripped for a NON-HOST for
   expect(JSON.stringify(forkConfig)).not.toContain("GM SECRET");
 
   // The SOURCE is untouched — a fork copies, never mutates (and never "fixes" the host's own room).
+  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const srcConfig = (await findGameByChat(db, src.chatId))?.config as RpgGameConfig;
   expect(configLeaks(srcConfig)).toEqual(["lite.steeringNote", "userMacros", "features.relationshipHints", "features.journalTypeHints"]);
 });
@@ -785,6 +799,7 @@ test("§3.6 config: a HOST forker carries every host-plane config field verbatim
     forker: { userId: castId<UserId>("user_cfghost"), readsHidden: true },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
   expect(forkConfig.lite.steeringNote).toBe("GM SECRET: Mira betrays the party in act 3");
   expect(forkConfig.userMacros).toEqual([SECRET_MACRO]);
@@ -806,7 +821,9 @@ test("§3.6 config: the MEMBER-readable config fields survive the strip (it is a
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const srcConfig = (await findGameByChat(db, src.chatId))?.config as RpgGameConfig;
+  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
   // Everything a member reads through `getGame`/`getTrackerView` — plus the prose-free host-only scalars,
   // whose strip would silently re-tune the fork's own game for zero secrecy gain.
@@ -874,6 +891,7 @@ test("§3.6 beats: a NON-HOST forker carries ONLY the source's member-visible be
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   // EXACTLY the window `buildTrackerView` served that member in the source. The forker is HOST of the copy and
   // may widen `recentBeatsKeepLast` at will — so anything carried beyond the window IS the leak.
@@ -896,6 +914,7 @@ test("§3.6 beats: `recentBeatsKeepLast: 0` means the member read NO beats — t
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   // The sharp arm: keepLast 0 drops the whole "Recent beats" block for every member, so the ENTIRE log is
   // host-plane and none of it may cross.
@@ -916,6 +935,7 @@ test("§3.6 beats: a HOST forker carries the WHOLE durable log (the window never
     forker: { userId: castId<UserId>("user_winhost"), readsHidden: true },
   });
 
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   expect((await listSnapshots(db, fg))[0]?.recentEvents).toEqual(["beat-1", "beat-2", "beat-3", "beat-4", "beat-5"]);
 });
@@ -1036,6 +1056,7 @@ test("no COPIED column is silently dropped — every populated row-plane column 
 
   const srcGame = await findGameByChat(db, chatId);
   const forkGame = await findGameByChat(db, forkChatId);
+  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = forkGame?.id as RpgGameId;
   // rpg_games — `gmUserId` is deliberately nulled (lite is seatless) and `gmPresetId`/`config` have their own
   // gates, so the COPIED set is what is left.

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
+
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { vi } from "vitest";

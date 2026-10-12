@@ -6,6 +6,7 @@
 // as the same character for its owner and lands by value, scripts and all, for a fresh owner. No stub of the
 // importer, the serde or the persistence anywhere below.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";

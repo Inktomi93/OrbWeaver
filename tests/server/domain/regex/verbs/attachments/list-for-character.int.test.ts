@@ -1,5 +1,6 @@
 // verb: listForCharacter — the scripts attached to an owned character, in EXECUTION order. Owner-filtered on
 // BOTH sides, so it can never enumerate a foreign character's attachments.
+// @subject packages/server/src/domain/regex/verbs/attachments/list-for-character.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

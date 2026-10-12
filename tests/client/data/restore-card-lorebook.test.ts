@@ -5,6 +5,9 @@
 // (a status the route never uses for its own refusal) throws. `fetch` is stubbed at the global boundary
 // (the `import-characters.test.ts` precedent — "fake at the edges").
 
+// @orb-waive-file no-test-fabrication(File[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";

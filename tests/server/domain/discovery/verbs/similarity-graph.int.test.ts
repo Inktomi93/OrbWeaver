@@ -1,6 +1,7 @@
 // Integration: similarityGraph — DISCOVERY-NATIVE all-pairs card cosine → nodes + edges (zero search).
 // Every within-space pair over `minSimilarity` is an edge; nodes are the highest-degree characters, capped;
 // name + distilled genre per node; owner-scoped (audit #1); synthetic characters excluded.
+// @subject packages/server/src/domain/discovery/verbs/similarity-graph.ts
 
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";

@@ -7,6 +7,7 @@
 // Why that matters more than it looks: revoking on the wrong kind is a self-inflicted lockout. A `rate_limit`
 // is a minute's wait; revoking on it would make a 429 permanently disable the user's key, and they would then
 // have to notice a chip in the Connections pane to get it back.
+// @subject packages/server/src/domain/credentials/verbs/maybe-revoke-on-auth-failed.ts
 
 import { userCredentials } from "@orb/db";
 import type { ProviderErrorKind } from "@orb/inference";

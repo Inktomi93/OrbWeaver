@@ -1,6 +1,7 @@
 // entry/http/host-allowlist — the refusal the middleware sends. The refused host is attacker-chosen and echoed back,
 // so the page escapes it; a refused request never reaches a route; the fix named follows the install shape.
 
+// @orb-waive-file no-test-fabrication({ host: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { HOST_NETWORK_OVERLAY } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { hostAllowlist } from "@orb/server/entry/http";

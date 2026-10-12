@@ -1,6 +1,7 @@
 // verb: snapshot — append a history blob of the live card. No DOMAIN-event emit (the live card is unchanged →
 // the indexer re-reads nothing), but it DOES fire the user-bus `charactersChanged` (a user-facing mutation
 // with the `listSnapshots` History read surface — a second device must refetch).
+// @subject packages/server/src/domain/character/verbs/snapshot.ts
 
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

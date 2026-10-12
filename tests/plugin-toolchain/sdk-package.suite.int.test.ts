@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ version: string }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
@@ -19,10 +21,12 @@ test("the public SDK and toolchain tarballs compile in a clean project with no w
   });
   expect(installed.code, installed.stderr).toBe(0);
 
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const installedManifest = JSON.parse(await readFile(join(scratch, "node_modules", "@orb", "plugin-sdk", "package.json"), "utf8")) as {
     dependencies?: Readonly<Record<string, string>>;
   };
   expect(installedManifest.dependencies).toBeUndefined();
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const installedToolchainManifest = JSON.parse(await readFile(join(scratch, "node_modules", "@orb", "plugin-toolchain", "package.json"), "utf8")) as {
     dependencies?: Readonly<Record<string, string>>;
   };

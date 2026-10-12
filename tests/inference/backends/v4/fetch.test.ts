@@ -8,6 +8,8 @@
 // on the SAME capture entry as the request that produced them — off unless asked, scrubbed on the same terms
 // as the request body, and emitted even when the SDK abandons the stream without cancelling it.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ choices: { delta: Record<string, unknown> }[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Wire } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

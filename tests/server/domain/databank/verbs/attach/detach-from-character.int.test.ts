@@ -3,6 +3,7 @@
 // gate-refused foreign detach leaves the owner's REAL binding intact (non-vacuous — an ungated delete would
 // match and remove it). The attach/detach round-trip + idempotency live in the sibling
 // attach-to-character.int.test.ts (one flow, one file); this mirror pins the detach gate specifically.
+// @subject packages/server/src/domain/databank/verbs/attach/detach-from-character.ts
 
 import { characterDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

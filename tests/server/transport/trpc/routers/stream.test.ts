@@ -14,6 +14,8 @@
 //   • EVERY channel in the wire vocabulary is a real room (S4 closed the fold), so there is no longer any
 //     room reachable by two transports — nor a placeholder that refuses because its procedure still exists.
 
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { STREAM_CHANNELS } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";

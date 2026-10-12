@@ -11,6 +11,7 @@
 //    crown however many rows CLAIM default in user prose; Duplicate/Export/Delete in the editor footer, and a
 //    deleted default names where the crown went; the band's From-character door.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";

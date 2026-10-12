@@ -1,3 +1,7 @@
+// @orb-waive-file no-test-fabrication(ApplicationPartition): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(StageResult): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(VerifyReport): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";

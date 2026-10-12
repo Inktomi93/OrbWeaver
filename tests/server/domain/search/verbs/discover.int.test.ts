@@ -5,6 +5,7 @@
 // producer, and the synthetic group-as-character is never credited); the per-character evidence cap +
 // matchCount; owner isolation (the segment scan is bounded to the owner's materialized chats); rerank-before-
 // grouping; and the empty-query SearchError.
+// @subject packages/server/src/domain/search/verbs/discover.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

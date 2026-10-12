@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+
 // The `devtools-frontend-assets` family test (#1584). Everything a PROOF ROW can express now lives in the
 // module's own `mustFlag`/`mustPass`/`mustRefuse` rows and runs on the static bar through
 // `structure:policy-conformance`; this file carries only what a row structurally cannot.

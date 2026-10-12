@@ -1,6 +1,7 @@
 // verb: createUser — admin-gated mint of a loginable local human. Validation reasons (invalid_handle,
 // weak_password, cannot_grant_owner), the password is hashed (and never surfaces in the view), and a
 // duplicate handle is rejected as user_exists.
+// @subject packages/server/src/domain/admin/verbs/create-user.ts
 
 import { userConnections, users } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";

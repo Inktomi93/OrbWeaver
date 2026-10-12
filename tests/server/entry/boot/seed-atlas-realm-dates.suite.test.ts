@@ -18,6 +18,7 @@
 import type { CannedResponse } from "@orb/testkit/node/atlas-guest.ts";
 import { bootAtlas, lastAtlasState } from "@orb/testkit/node/atlas-guest.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+// @orb-waive-file no-test-fabrication({ stats: readonly { key: string; value: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
 
 /** A foreign wire row — the hubs' snake_case keys are wire tokens, tuple-built so they never become

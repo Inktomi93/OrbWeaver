@@ -5,6 +5,7 @@
 // each), the FULL set is returned (no enabled/flag filtering — that is the kit executor's job), and the D19
 // host-tier scoping (a non-host member's scripts have NO entry point on the resolver surface).
 
+// @orb-waive-file no-test-fabrication(Record<string, boolean>): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterRegexSlice, RegexTierAllow } from "@orb/contracts/chat";
 import { characterRegexTierKey } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";

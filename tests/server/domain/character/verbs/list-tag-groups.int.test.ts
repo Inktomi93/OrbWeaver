@@ -10,6 +10,7 @@
 // ignores the lens (the #493 refusal's first disqualifier — a lens-blind count beside lens-filtered
 // members), it cannot answer Uncategorized (the second disqualifier), or it counts tags the grouped view
 // does not fold by (pending suggestions, hidden-on-card).
+// @subject packages/server/src/domain/character/verbs/list-tag-groups.ts
 
 import { characterTags, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, TagId, UserId } from "@orb/kit/ids";

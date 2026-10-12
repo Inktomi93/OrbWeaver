@@ -26,9 +26,7 @@ test("viewed-run and armed-rewrite pointers move independently and clear to late
   expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: null, armedRewriteRunId: null, requestedDoor: null });
 });
 
-// The workbench-door REQUEST is a one-shot: the owning control acknowledges by clearing it. Both halves
-// shipped referenced by ZERO test until #619 repaired clause C of `test-presence-client` (its mirror here is
-// a `.test.ts`, and the clause only ever resolved `.ct.tsx`, so it silently judged nothing). The invariant
+// The workbench-door REQUEST is a one-shot: the owning control acknowledges by clearing it. The invariant
 // the source comment states is exactly what must not regress: a door left set re-opens itself on the next
 // unrelated render of its owner.
 test("a workbench-door request is one-shot: it is spent by the owner's acknowledgement", () => {

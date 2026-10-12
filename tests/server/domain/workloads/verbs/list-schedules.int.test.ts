@@ -1,5 +1,6 @@
 // Verb test: listSchedules — F3 owner-scoping. A non-admin caller sees ONLY its own schedules (server
 // forces the owner scope); a stranger sees none; an admin sees the deployment-wide set.
+// @subject packages/server/src/domain/workloads/verbs/list-schedules.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

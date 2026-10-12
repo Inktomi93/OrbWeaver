@@ -1,5 +1,6 @@
 // Vite's native initial scan must see the source-consumed UI package's satellites before a browser crawls them.
 
+// @orb-waive-file no-test-fabrication({ readonly ids: readonly string[]; readonly excluded: readonly string[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";

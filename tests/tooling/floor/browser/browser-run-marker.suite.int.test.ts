@@ -96,6 +96,7 @@ test("a browser this process launches carries BOTH identities, so either sweep c
     expect(fresh, "the census named no NEW browser, so nothing below is about the launch under test").toBeDefined();
     // #1848's half, unchanged by the narrowing: the OUTER run's kill path still reaches this browser. If
     // this ever reads the lease alone, a killed run strands the browser again and the ruling is reopened.
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     expect(identitiesOfPid(fresh as number), "a browser must carry the run marker AND this launcher's lease").toEqual([currentRunMarker(), FILE_LEASE]);
   } finally {
     await closeProbeSession(session);
@@ -164,6 +165,7 @@ function plantOwner(): ReturnType<typeof spawn> {
 async function retireOwner(owner: ReturnType<typeof spawn>): Promise<void> {
   owner.kill("SIGKILL");
   await once(owner, "exit");
+  // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
   expect(aliveNow(owner.pid as number), "the planted owner must really be gone before a sweep is asked").toBe(false);
 }
 
@@ -202,6 +204,7 @@ test("a MARKED reparented-leak chromium is reaped once its owner is gone, and le
   // liveness. What separates these two markers is the PID and the crypto nonce, so the subject here is
   // identity, never elapsed time, and a `test-determinism` waiver would have recorded a false reason.
   const owner = plantOwner();
+  // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
   const retiringOwnerMarker = mintRunMarker(owner.pid as number, FROZEN_AT_MS);
   const liveOwnerMarker = mintRunMarker(process.pid, FROZEN_AT_MS);
   const abandonedPid = await spawnLeakChromium("marked-abandoned", retiringOwnerMarker);
@@ -259,6 +262,7 @@ test("a chromium whose LEASE owner is gone is reaped even while its outer run li
   const liveOuter = mintRunMarker(process.pid, FROZEN_AT_MS);
   const liveLease = mintRunMarker(process.pid, FROZEN_AT_MS);
   const owner = plantOwner();
+  // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
   const ownedLease = mintRunMarker(owner.pid as number, FROZEN_AT_MS);
   const abandoned = await spawnLeasedChromium("lease-abandoned", liveOuter, ownedLease);
   const held = await spawnLeasedChromium("lease-held", liveOuter, liveLease);

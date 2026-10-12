@@ -4,6 +4,7 @@
 // trees. This test drives that production dispatcher boundary: an unreadable or absent schema tree makes
 // the resource owner incomplete and withheld; neither state can become a clean policy verdict.
 
+// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import type * as Fs from "node:fs";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";

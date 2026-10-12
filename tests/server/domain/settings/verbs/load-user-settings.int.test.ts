@@ -1,5 +1,6 @@
 // verb: loadUserSettings — the lenient typed-blob loader chat/workloads inject. Returns the parsed
 // UserSettings (defaults for a never-touched account; the written blob otherwise). Raw userId (no gate).
+// @subject packages/server/src/domain/settings/verbs/load-user-settings.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

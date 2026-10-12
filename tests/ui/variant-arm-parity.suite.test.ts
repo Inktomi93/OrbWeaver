@@ -17,6 +17,8 @@
 //      cannot be silently unjudged, and a rule rename breaks the names here against
 //      DESIGN_AUDIT_RULE_IDS.
 
+// @orb-waive-file no-test-fabrication(Readonly<Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly variants?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

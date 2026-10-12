@@ -1,6 +1,7 @@
 // verb: removeFromGallery — gallery v2 (§1.3). Owner resolved THROUGH the asset join; a non-owner/missing
 // item rejects leak-free (NOT_FOUND). Also covers the FK cascade: deleting the underlying asset erases its
 // gallery rows (schema `onDelete: "cascade"`).
+// @subject packages/server/src/domain/assets/verbs/remove-from-gallery.ts
 
 import { assets } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

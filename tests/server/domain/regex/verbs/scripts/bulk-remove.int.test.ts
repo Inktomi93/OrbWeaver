@@ -5,6 +5,7 @@
 // deliberate divergence from the single `removeScript`, which THROWS on a foreign/absent id: a bulk gesture
 // over a visible list is routinely raced by another device, and aborting the whole batch because one row
 // vanished would be worse than the honest count.
+// @subject packages/server/src/domain/regex/verbs/scripts/bulk-remove.ts
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { characterRegexScripts, globalRegexScripts, regexScripts } from "@orb/db";

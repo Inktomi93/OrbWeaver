@@ -13,6 +13,9 @@
 //      property of the RESPONSE, so a direct top-level navigation is opaque-origin too — and the ONLY
 //      nameable script source is the hash of our height script (2026-08-16 tier-B pass, #91)
 
+// @orb-waive-file no-test-fabrication({ granted: unknown }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ url: string }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ url: string; granted: { interactive: boolean } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
 import { CARD_FRAME_MINT_BODY_MAX_BYTES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
@@ -334,6 +337,7 @@ describe("card-frame — the served document", () => {
 
 describe("card-frame — the interactive-card grant", () => {
   const grantedFor = async (characterId: CharacterId, deployInteractive = true): Promise<{ interactive: boolean }> =>
+    // @orb-waive no-test-fabrication({ granted: { interactive: boolean } }): baselined when the gate widened to value casts; burn-down item 906.
     ((await (await harness({ deployInteractive }).mint({ ...CARD, characterId })).json()) as { granted: { interactive: boolean } }).granted;
 
   const cspFor = async (characterId: CharacterId, deployInteractive = true): Promise<string> => {
@@ -422,6 +426,7 @@ describe("card-frame — the interactive-card grant", () => {
     // The opt-out withdraws scripts only: the card is still a TRUSTED card, so its `data:` door stays open.
     expect(served.headers.get("content-security-policy")).toContain("img-src 'self' data: https:");
 
+    // @orb-waive no-test-fabrication({ granted: { interactive: boolean } }): baselined when the gate widened to value casts; burn-down item 906.
     const member = (await (await h.mint({ ...CARD, characterId: INTERACTIVE }, { as: MALLORY })).json()) as { granted: { interactive: boolean } };
     expect(member.granted.interactive).toBe(true);
   });

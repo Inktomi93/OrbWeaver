@@ -1,3 +1,6 @@
+// verb: count — the owner-scoped census behind the library header.
+// @subject packages/server/src/domain/character/verbs/count.ts
+
 import { createCharacterService } from "@orb/server/domain/character";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";

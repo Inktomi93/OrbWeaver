@@ -7,6 +7,7 @@
 // admin" would red here rather than quietly turning a structural guarantee into a missing check.
 //
 // The admission matrix that decides which rules can EXIST on this lane is `../substrate/validate.int.test.ts`.
+// @subject packages/server/src/domain/automation/verbs/list-owner-rules.ts
 
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import { UTC_TIME_ZONE } from "@orb/kit/time";

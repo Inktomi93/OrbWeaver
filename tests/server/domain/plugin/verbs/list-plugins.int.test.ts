@@ -1,5 +1,6 @@
 // verb: listPlugins — the owner's own plugins, newest-installed first (02 §4). Owner-scoped: a stranger's
 // plugins never appear.
+// @subject packages/server/src/domain/plugin/verbs/list-plugins.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

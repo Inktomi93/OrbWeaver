@@ -1,6 +1,7 @@
 // Integration: the CSLS hub passes — values written THROUGH the injected writeHubScores seam (never a direct
 // vector-table write, invariant #2), the hub-vs-outlier ordering, collapse inheritance (esoteric #3), the
 // per-(tier,model) digest grouping (esoteric #5), and the segment/image passes.
+// @subject packages/server/src/domain/discovery/verbs/compute-hub-scores.ts
 
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { freshDb } from "@orb/testkit/node/db.ts";

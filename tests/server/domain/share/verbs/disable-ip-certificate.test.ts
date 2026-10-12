@@ -1,5 +1,6 @@
 // share.disableIpCertificate — owner only (D275). The stored choice clears before https closes, so a crash between
 // the two never brings the certificate back at the next boot.
+// @subject packages/server/src/domain/share/verbs/disable-ip-certificate.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

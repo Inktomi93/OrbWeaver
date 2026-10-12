@@ -1,3 +1,6 @@
+// verb: exportAll — exports the owner's native imagery history as portable call files, without gallery curation.
+// @subject packages/server/src/domain/imagery/verbs/export-provenance.ts
+
 import type { PortableImageryCall } from "@orb/contracts/imagery";
 import { responseCacheSchema } from "@orb/contracts/inference";
 import type { PortableFile } from "@orb/contracts/portability";

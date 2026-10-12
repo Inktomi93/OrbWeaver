@@ -2,6 +2,7 @@
 // first (host-only). Distinct from listFires (per-rule): it scopes by chat_id, so it merges every rule's
 // fires into one room history in a single read. The cross-tenant refusal is proven here at the domain
 // guard AND in tests/server/transport/cross-tenant-sweep.suite.int.test.ts at the transport boundary.
+// @subject packages/server/src/domain/automation/verbs/list-chat-activity.ts
 
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";

@@ -11,6 +11,7 @@
 // The third is that a recipient's own consent path still works end to end afterwards (#677's per-owner tool
 // registry is what makes N users enabling the same slug possible at all), which is what makes the mint a real
 // install rather than a decorative row.
+// @subject packages/server/src/domain/plugin/verbs/install-for-all-users.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";

@@ -2,6 +2,7 @@
 // name its owner rebinds to 127.0.0.1 is same-origin with this server: its requests arrive on a loopback
 // socket with no forwarding header, so the owner fallback admits them. The only tell is the foreign `Host`.
 
+// @orb-waive-file no-test-fabrication({ host: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";

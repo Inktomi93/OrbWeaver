@@ -2,6 +2,7 @@
 // real filesystem with a real libSQL db. The moves are renames under a journal, so every arm here is about
 // what the step refuses, resumes or leaves alone, as much as about what it moves.
 
+// @orb-waive-file no-test-fabrication(ChildMigrationOutcome): baselined when the gate widened to value casts; burn-down item 906.
 import {
   cpSync,
   existsSync,

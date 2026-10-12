@@ -1,3 +1,5 @@
+// @subject packages/server/src/domain/stats/verbs/timeseries.ts
+
 import type { Db } from "@orb/db";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";

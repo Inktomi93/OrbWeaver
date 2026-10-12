@@ -8,6 +8,7 @@
 // `trackersReadOnly`. The participants/view stubs return only what the panel reads (a partial shape, the chats-
 // section.ct ROSTER_STUB posture); every value crosses the routeTrpc JSON boundary as a plain object.
 
+// @orb-waive-file no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
 import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import { actorRefKey, carriesTracker, RPG_PROFILE_D20, RPG_SEED_HP_MAX, rpgSeedTrackers } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -3420,6 +3421,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
     const token = probe.getBoundingClientRect().width;
     probe.remove();
     const box = el.getBoundingClientRect();
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const row = (el.parentElement as HTMLElement).getBoundingClientRect();
     const after = getComputedStyle(el, "::before");
     return {
@@ -3443,6 +3445,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             const token = probe.getBoundingClientRect().width;
             probe.remove();
             const box = el.getBoundingClientRect();
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
             const after = getComputedStyle(el, "::before");
             return {
@@ -3468,6 +3471,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             const token = probe.getBoundingClientRect().width;
             probe.remove();
             const box = el.getBoundingClientRect();
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
             const after = getComputedStyle(el, "::before");
             return {
@@ -3493,6 +3497,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             const token = probe.getBoundingClientRect().width;
             probe.remove();
             const box = el.getBoundingClientRect();
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
             const after = getComputedStyle(el, "::before");
             return {
@@ -3519,6 +3524,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             const token = probe.getBoundingClientRect().width;
             probe.remove();
             const box = el.getBoundingClientRect();
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
             const after = getComputedStyle(el, "::before");
             return {
@@ -3544,6 +3550,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             const token = probe.getBoundingClientRect().width;
             probe.remove();
             const box = el.getBoundingClientRect();
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
             const after = getComputedStyle(el, "::before");
             return {
@@ -3573,6 +3580,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             const token = probe.getBoundingClientRect().width;
             probe.remove();
             const box = el.getBoundingClientRect();
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
             const after = getComputedStyle(el, "::before");
             return {
@@ -3677,6 +3685,7 @@ test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three gl
         const token = probe.getBoundingClientRect().width;
         probe.remove();
         const box = el.getBoundingClientRect();
+        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const band = (el.parentElement as HTMLElement).getBoundingClientRect();
         return { token, width: box.width, height: box.height, overflows: box.right > band.right + 1 };
       }),
@@ -3731,6 +3740,7 @@ test.describe("coarse HUD budget", () => {
         readonly gameCells: number;
       }> =>
         band.evaluate((el: HTMLElement) => {
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           const paneEl = el.closest(".shell-panel") as HTMLElement;
           const panel = paneEl.querySelector('[data-slot="tabs-panel"]:not([hidden])') as HTMLElement | null;
           const rails = Array.from(paneEl.querySelectorAll<HTMLElement>('[data-slot="context-rail"]'));
@@ -3877,8 +3887,10 @@ test.describe("coarse game rail cells", () => {
         .poll(
           async () =>
             await rail.evaluate((el: HTMLElement) => {
+              // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
               const list = el.querySelector('[role="toolbar"]') as HTMLElement;
               const cells = Array.from(list.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]'));
+              // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
               const last = cells.at(-1) as HTMLElement;
               return list.getBoundingClientRect().right - last.getBoundingClientRect().right;
             }),
@@ -3930,7 +3942,9 @@ test.describe("coarse game rail focus ring", () => {
       readonly boxShadow: string;
     }> =>
       rail.evaluate((el: HTMLElement) => {
+        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const list = el.querySelector('[role="toolbar"]') as HTMLElement;
+        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const cell = document.activeElement as HTMLElement;
         const listBox = list.getBoundingClientRect();
         const cellBox = cell.getBoundingClientRect();

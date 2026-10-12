@@ -60,6 +60,7 @@
 // OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+import { blankText } from "@orb/kit/strings";
 import { defineGate } from "../contract/policy.ts";
 import type { CssDeclarationFact } from "../contract/resource-css.ts";
 import type { AuthoredCssFile } from "../contract/resource-tree.ts";
@@ -110,7 +111,7 @@ const RAW_EASE_RE = /\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-(?:expo|out-ex
  *  reported line/column actually holds its position token, so an offset shifted by a collapsing replace is
  *  an `AUTHORITY ALARM`, not a cosmetic slip. */
 function blankTokenGroups(span: string): string {
-  return span.replace(/\b(?:var|calc)\s*\([^()]*\)/gu, (group) => " ".repeat(group.length));
+  return span.replace(/\b(?:var|calc)\s*\([^()]*\)/gu, blankText);
 }
 
 /** The authored VALUE span of one declaration: from just after its colon to the `;`/`}` that ends it at

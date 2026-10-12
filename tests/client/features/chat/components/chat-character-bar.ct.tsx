@@ -265,8 +265,10 @@ function measureStrip(page: Page): Promise<{
   readonly avatarWidth: number;
 }> {
   return page.evaluate(() => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const strip = document.querySelector('[data-testid="chat-character-bar"]') as HTMLElement;
     const chips = [...document.querySelectorAll('[data-slot="character-chip"],[data-slot="human-chip"]')];
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const avatar = strip.querySelector('[data-slot="avatar-root"]') as HTMLElement;
     return {
       height: Math.round(strip.getBoundingClientRect().height),

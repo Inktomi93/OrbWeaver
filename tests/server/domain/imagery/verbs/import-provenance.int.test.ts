@@ -1,4 +1,6 @@
 // Real persistence and ownership, including overlapping retained cohorts and identical output bytes.
+// @subject packages/server/src/domain/imagery/verbs/import-provenance.ts
+
 import type { PortableImageryCall } from "@orb/contracts/imagery";
 import { RESPONSE_CACHE_STATUSES, responseCacheSchema } from "@orb/contracts/inference";
 import type { PortableFile } from "@orb/contracts/portability";

@@ -5,6 +5,7 @@
 // silently drift this harness. Run BODIES are irrelevant here and each domain pins its own at its mirror;
 // an engine test swaps in a double via `contributionsWith`. Determinism: a fixed T0 + `castId` ids.
 
+// @orb-waive-file no-test-fabrication(WorkloadContributions): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({ backfillAvatars: stub): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({ embedCorpus: stub): baselined when the gate widened; burn-down item 906.

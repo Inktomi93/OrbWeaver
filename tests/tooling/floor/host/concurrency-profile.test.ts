@@ -1,3 +1,7 @@
+// @orb-waive-file no-test-fabrication(Record<string, Record<string, Record<string, unknown>>>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(WrapperCapture): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ unitCosts: Record<string, unknown> }): baselined when the gate widened to value casts; burn-down item 906.
+
 // The ONE home for the fleet's worker/slot caps (tooling/concurrency-profile.json + its typed door,
 // tooling/src/floor/host/concurrency-profile.ts). Home per Spine-Testing §2: a tooling module's test lives in
 // tests/tooling/.

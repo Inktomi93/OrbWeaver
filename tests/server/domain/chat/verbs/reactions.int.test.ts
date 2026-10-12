@@ -127,6 +127,7 @@ describe("toggleReaction — the write path", () => {
 
     const err = await verb.toggleReaction({ principal: principal(stranger), chatId, variantId, emoji: "🔥" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
+    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as Error).name).toBe("ChatNotFoundError");
     expect(await db.select().from(messageReactions)).toHaveLength(0);
     expect(emitted).toHaveLength(0);
@@ -140,6 +141,7 @@ describe("toggleReaction — the write path", () => {
     // `a.host` is a real member of chat A, and `b.variantId` is a REAL variant — of somebody else's room.
     // The chatId gate passes; the belt this test exists for is what refuses.
     const err = await verb.toggleReaction({ principal: principal(a.host), chatId: a.chatId, variantId: b.variantId, emoji: "👀" }).catch((e: unknown) => e);
+    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as Error).name).toBe("ChatNotFoundError");
     expect(await db.select().from(messageReactions)).toHaveLength(0);
   });
@@ -156,6 +158,7 @@ describe("toggleReaction — the write path", () => {
     const verb = reactions();
 
     const err = await verb.toggleReaction({ principal: principal(late), chatId, variantId: old.variantId, emoji: "🎉" }).catch((e: unknown) => e);
+    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as Error).name).toBe("ChatNotFoundError");
     // …and the SAME member reacts freely at/above their floor (the floor is a clamp, never a block).
     expect(await verb.toggleReaction({ principal: principal(late), chatId, variantId: fresh.variantId, emoji: "🎉" })).toBe(true);
@@ -172,6 +175,7 @@ describe("the reactions-enabled posture gate", () => {
     // A coded posture refusal, NOT a NOT_FOUND collapse: the caller IS a member — they may know the host
     // turned the plane off (their own client hides the doors off this same verdict).
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("reactions_disabled");
     expect(await db.select().from(messageReactions)).toHaveLength(0);
     expect(emitted).toHaveLength(0);
@@ -188,6 +192,7 @@ describe("the reactions-enabled posture gate", () => {
     const err = await hostOff
       .toggleReaction({ principal: principal(inheritRoom.member), chatId: inheritRoom.chatId, variantId: inheritRoom.variantId, emoji: "👍" })
       .catch((e: unknown) => e);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("reactions_disabled");
 
     // The SAME host default, but this room explicitly pinned ON: the room's choice wins (the
@@ -256,12 +261,14 @@ describe("toggleReaction — the segment anchor", () => {
     const range = await verb
       .toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍", segmentIndex: 5, segmentSpeaker: "Bob" })
       .catch((e: unknown) => e);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((range as ChatOperationError).code).toBe("invalid_segment");
     // Wrong speaker at a real index: span 0 is Alice's — a content/speaker race must REFUSE, never silently
     // land the click on somebody else's line.
     const wrong = await verb
       .toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍", segmentIndex: 0, segmentSpeaker: "Bob" })
       .catch((e: unknown) => e);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((wrong as ChatOperationError).code).toBe("invalid_segment");
     expect(await db.select().from(messageReactions)).toHaveLength(0);
     expect(emitted).toHaveLength(0);
@@ -276,6 +283,7 @@ describe("toggleReaction — the segment anchor", () => {
     const err = await verb
       .toggleReaction({ principal: principal(host), chatId, variantId: standard.variantId, emoji: "👍", segmentIndex: 1, segmentSpeaker: "Bob" })
       .catch((e: unknown) => e);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("invalid_segment");
 
     // …but a `<speaker>` TAG is invisible markup, not prose — it splits unconditionally on BOTH sides
@@ -487,6 +495,7 @@ describe("listReactions — the read", () => {
     expect(await verb.listReactions({ principal: principal(late), chatId })).toEqual({ reactionsEnabled: true, groups: [] });
 
     const err = await verb.listReactions({ principal: principal(stranger), chatId }).catch((e: unknown) => e);
+    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as Error).name).toBe("ChatNotFoundError");
   });
 });

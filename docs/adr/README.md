@@ -159,7 +159,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D172 | [Rewrite toggles and greeting transforms are preset slots composed on the server](0172-steer-fragments-are-preset-slots-composed-on-the-server.md) | active |
 | D173 | [The brand mark is the Open Orb, one emblem at every scale](0173-the-brand-mark-is-the-open-orb.md) | active |
 | D174 | [Provider wires stay our own adapters](0174-provider-wires-stay-our-own-adapters.md) | active |
-| D175 | [Test setup stays inline; per-domain fixture families are not built](0175-test-setup-stays-inline.md) | active |
+| D175 | [Test setup stays inline; per-domain fixture families are not built](0175-test-setup-stays-inline.md) | superseded by [0316-test-setup-stays-inline-under-a-cpd-ratchet.md](0316-test-setup-stays-inline-under-a-cpd-ratchet.md) |
 | D176 | [HOME tiles keep a static order; no conditional promotion](0176-home-tiles-keep-a-static-order.md) | active |
 | D177 | [Inference owns tool and history delivery; the server owns which tools act](0177-inference-owns-tool-and-history-delivery.md) | active |
 | D179 | [No gate forces Field.Control wrapping or namespaced Base UI type imports](0179-no-gate-forces-field-control-or-namespaced-base-ui-imports.md) | active |
@@ -262,3 +262,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D313 | [The context pane's tabs live in its header row, as the pane's one tablist: no foot rail, no kicker, no band title](0313-the-context-panes-tabs-live-in-its-header-row.md) | active |
 | D314 | [Persona pointers have one writer each, the default decides new chats, and the pin holds](0314-persona-pointers-have-one-writer-and-the-pin-holds.md) | superseded by [0315-persona-pointers-one-writer-pin-read-through-chat.md](0315-persona-pointers-one-writer-pin-read-through-chat.md) |
 | D315 | [Persona pointers have one writer each, the default decides new chats, and the pin holds through its chat](0315-persona-pointers-one-writer-pin-read-through-chat.md) | active |
+| D316 | [Test setup stays inline; test duplication is held by a ratchet, never swept](0316-test-setup-stays-inline-under-a-cpd-ratchet.md) | active |

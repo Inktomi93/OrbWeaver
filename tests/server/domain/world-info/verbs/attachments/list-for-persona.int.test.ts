@@ -1,5 +1,6 @@
 // verb: listForPersona — the caller's persona-attached books, newest first, role null. Load-bearing: a
 // foreign persona is NotFound; only the joined books surface.
+// @subject packages/server/src/domain/world-info/verbs/attachments/list-for-persona.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

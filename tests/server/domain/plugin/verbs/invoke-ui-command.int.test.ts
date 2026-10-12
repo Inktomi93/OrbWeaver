@@ -10,6 +10,7 @@
 // scope, read through `chat.current()`'s single-mint opaque handle), and the drained UI OUTCOME comes back even
 // when the handler THREW, because a handler that toasts "couldn't reach the API" and then throws should still
 // reach the person who acted.
+// @subject packages/server/src/domain/plugin/verbs/invoke-ui-command.ts
 
 import { PLUGIN_TEXT_MAX_CHARS } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";

@@ -79,6 +79,7 @@ test("a truncated rung-1 census reaches the JSON artifact, which has no populati
   await writeFile(join(scratch, "overflow-cap.html"), relationalDocument(spillCarriers(over)));
   const res = await runCli("snap", ["--file", join(scratch, "overflow-cap.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
     readonly censusCaps: Readonly<Record<string, { readonly cap: number; readonly dropped: number }>> | null;
     readonly censusCapVerdict: unknown;
@@ -113,6 +114,7 @@ test("the artifact carries the cap ledger and a complete verdict when nothing tr
   await writeFile(join(scratch, "cap-fits-json.html"), relationalDocument(shadowCarriers(SHADOW_GLOW_CAP)));
   const res = await runCli("snap", ["--file", join(scratch, "cap-fits-json.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
     readonly censusCaps: Readonly<Record<string, { readonly cap: number; readonly dropped: number }>> | null;
     readonly censusCapVerdict: unknown;

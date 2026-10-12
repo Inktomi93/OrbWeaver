@@ -5,6 +5,7 @@
 // maxBytes cap on every stored blob, dryRun's ZERO-write prediction, and idempotency (a byte-identical
 // second run scans the same set but changes nothing).
 
+// @orb-waive-file no-test-fabrication({ name?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

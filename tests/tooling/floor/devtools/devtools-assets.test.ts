@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ readonly files: { readonly includes: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
@@ -35,6 +37,7 @@ function untrackedManifestResources(resources: readonly { readonly file: string 
 }
 
 async function syntheticRoot(): Promise<{ readonly root: string; readonly asset: string; readonly notice: string }> {
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const realPin = JSON.parse(await readFile(REAL_PIN, "utf8")) as Record<string, unknown>;
   const root = await mkdtemp(join(tmpdir(), "orb-devtools-assets-test-"));
   roots.push(root);
@@ -138,6 +141,7 @@ test("the formatter worker cannot disappear from the generated closure", async (
 test("the installed Playwright and Chromium versions must match the tuple pin", async () => {
   const { root } = await syntheticRoot();
   const pinPath = join(root, "pin.json");
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const pin = JSON.parse(await readFile(pinPath, "utf8")) as Record<string, unknown>;
   pin["playwrightVersion"] = "0.0.0-planted-drift";
   await writeFile(pinPath, canonical(pin));
@@ -161,6 +165,7 @@ test("symlinks are forbidden even when their target is an ordinary file", async 
 });
 
 test("every real manifest resource is Git-tracked, including resources beneath ignored directory names", async () => {
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const manifest = JSON.parse(
     await readFile(fileURLToPath(new URL("../../../../tooling/src/snap/lib/devtools-frontend/manifest.json", import.meta.url)), "utf8"),
   ) as {
@@ -209,6 +214,7 @@ function adjudicationInput(root: string): DevToolsClosureInput {
 
 test("the pure adjudicator and the filesystem entry point cannot drift apart", async () => {
   const { root, asset } = await syntheticRoot();
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const pin = JSON.parse(await readFile(join(root, "pin.json"), "utf8")) as Record<string, unknown>;
   const installed = { version: String(pin["playwrightVersion"]), browserVersion: String(pin["browserVersion"]) };
 
@@ -236,6 +242,7 @@ test("the pure adjudicator and the filesystem entry point cannot drift apart", a
 
 test("the generated closure is excluded exactly from first-party source analyzers", async () => {
   const biome = JSON.parse(await readFile(join(REPO_ROOT, "biome.json"), "utf8")) as { readonly files: { readonly includes: readonly string[] } };
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const dependencyCruiser = createRequire(import.meta.url)("../../../../.dependency-cruiser.cjs") as {
     readonly options: { readonly exclude: { readonly path: readonly string[] } };
   };

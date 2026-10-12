@@ -1,4 +1,5 @@
 // verb: listSnapshots — browse history newest-first; owner-gated.
+// @subject packages/server/src/domain/character/verbs/list-snapshots.ts
 
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

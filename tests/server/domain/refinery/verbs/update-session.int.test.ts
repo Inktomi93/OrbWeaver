@@ -1,6 +1,7 @@
 // .int tests for `updateSession` — the Setup patch: per-member re-parse at the verb (the internal-
 // boundary belt), null-clears, the status label, the ownership collapse, and the SELECTION TWO-WRITER
 // seam (the straddle below — `selection` is the one column `applyFields` also writes).
+// @subject packages/server/src/domain/refinery/verbs/update-session.ts
 
 import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

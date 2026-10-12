@@ -2,6 +2,7 @@
 // databank-reindex re-embeds every document chunk into the box's active embed (model) space, rows left in any
 // OTHER space are stranded (document_chunks keys its upsert ON model, so a model change accretes a new space
 // beside the old). This deletes them, mirroring purgeMemoryVectors. The active model is roleClients.embedModel.
+// @subject packages/server/src/domain/embeddings/verbs/purge-document-vectors.ts
 
 import { documentChunks } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

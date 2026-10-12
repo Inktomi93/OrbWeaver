@@ -7,6 +7,7 @@
 // wire under D143 — the note must not appear at all). Both go through the REAL `createAutosaveEntityForm`
 // boundary the production editor mounts the section under.
 
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance } from "@orb/client/forms/editor";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { GenerationCapability, UserRoleHandling } from "@orb/contracts/inference";

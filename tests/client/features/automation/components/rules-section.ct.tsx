@@ -12,6 +12,9 @@
 // own copy. Every one of them was RED against the pre-fix source (measured 2026-08-24, cb-rules-section).
 // The mount is 384px — the narrowest REAL host (the docked CONTEXT pane), never a roomy story width.
 
+// @orb-waive-file no-test-fabrication(PerformanceEntry & {): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(ShiftLedger | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(keyof typeof SETTLED_CEILING_PX): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
@@ -338,7 +341,9 @@ test("a same-task repeat admits one enable write, owns only its rule row, and re
   const first = page.getByRole("switch", { name: "Enable Illustrate the scene" });
   const sibling = page.getByRole("switch", { name: "Enable Count the beats" });
   await first.evaluate((element) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
   });
   await held.requested;
@@ -1186,7 +1191,9 @@ for (const theme of THEMES) {
       await expect
         .poll(async () =>
           name.evaluate((el) => {
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const trigger = el.closest('[data-slot="collapsible-trigger"]') as HTMLElement;
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const row = trigger.parentElement as HTMLElement;
             return trigger.getBoundingClientRect().width / row.getBoundingClientRect().width;
           }),
@@ -1201,6 +1208,7 @@ for (const theme of THEMES) {
       const readGlossAtAssertion = async (): Promise<typeof gloss> =>
         await page.getByText("Generate a picture of the current scene on a cadence, and post it into the room.").evaluate((el, transparent: string) => {
           const ink = getComputedStyle(el).color;
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           let node: HTMLElement | null = el as HTMLElement;
           let backdrop = transparent;
           while (node !== null && backdrop === transparent) {
@@ -1213,6 +1221,7 @@ for (const theme of THEMES) {
         .getByText("Generate a picture of the current scene on a cadence, and post it into the room.")
         .evaluate((el, transparent: string) => {
           const ink = getComputedStyle(el).color;
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           let node: HTMLElement | null = el as HTMLElement;
           let backdrop = transparent;
           while (node !== null && backdrop === transparent) {

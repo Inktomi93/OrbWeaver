@@ -1,6 +1,7 @@
 // Verb test: estimateModelCalls — the size of a run before a person confirms it. It must count over the SAME
 // scope `start` would enqueue under (singular = the caller's library, bulk = every owner, owner-only), ask the
 // owning domain, and answer `null` for a kind that calls no generative model.
+// @subject packages/server/src/domain/workloads/verbs/estimate-model-calls.ts
 
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId, WorkloadId } from "@orb/kit/ids";

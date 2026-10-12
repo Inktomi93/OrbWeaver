@@ -2,6 +2,7 @@
 // CONTINUES; the six steps each pinned. `result` is ALWAYS a JSON document (the ONE-stringify-site
 // pin); records are provenance-faithful; durationMs rides the injected clock; execution is sequential
 // in emission order.
+// @subject packages/server/src/domain/tool-use/verbs/execute-tool-calls.ts
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";

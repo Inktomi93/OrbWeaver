@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(EventEmitter & {): baselined when the gate widened to value casts; burn-down item 906.
+
 // FullPriorityChild signal ownership: an already-exited/ESRCH child is idempotent teardown; every other
 // child.kill failure stays loud so invalid signals and permission failures cannot masquerade as success.
 import { EventEmitter } from "node:events";

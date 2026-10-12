@@ -8,6 +8,7 @@
 // owners coexists; same owner+key collides), the 128-char key CHECK, and the 64 KiB BYTE-accurate value
 // CHECK (multibyte text counts bytes, not characters).
 
+// @orb-waive-file no-test-fabrication(ChatTriggerType): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatTriggerType } from "@orb/contracts/automation";
 import { ANALYSIS_GUIDANCE_MAX, AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";

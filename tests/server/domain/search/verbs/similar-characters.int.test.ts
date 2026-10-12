@@ -3,6 +3,7 @@
 // re-embed — the fake embedder is never consulted), excludes the seed itself, ranks by CSLS, enriches like
 // findCharacters, and — THE LOAD-BEARING CASE — REFUSES a cross-tenant seed (a foreign/unknown seed id
 // resolves to no owner-belted vector ⇒ an empty result, never another tenant's neighbourhood; neo V2-2).
+// @subject packages/server/src/domain/search/verbs/similar-characters.ts
 
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

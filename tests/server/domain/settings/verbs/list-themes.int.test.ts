@@ -1,4 +1,5 @@
 // verb: listThemes — owned ∪ seeds, as views; never another user's rows.
+// @subject packages/server/src/domain/settings/verbs/list-themes.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

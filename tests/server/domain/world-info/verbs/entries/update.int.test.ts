@@ -1,6 +1,7 @@
 // verb: updateEntry — owner-scoped via the owned-book inArray subquery. Load-bearing (invariant #4): a
 // FOREIGN entry id is NotFound, NEVER a silent cross-tenant write; a patch updates whitelisted fields;
 // `metadata: null` clears the blob; a no-op re-reads.
+// @subject packages/server/src/domain/world-info/verbs/entries/update.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -4,6 +4,7 @@
 // unchanged (byte-identical, D16); an off-roster PER-SPEAKER ref is REFUSED (#1462 — keeping the primary
 // shipped the wrong character's card under the asked-for speaker's name).
 
+// @orb-waive-file no-test-fabrication({ code?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { AssembleCharacter, AssembleContext, SpeakerRef } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";

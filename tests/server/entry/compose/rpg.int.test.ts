@@ -1,3 +1,19 @@
+// @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ dropped?: { plane: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ dropped?: { plane: string; index: number | null }[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ droppedFields?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ event?: string; code?: string }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ healedJournalTypes?: number[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ message: { content: string } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ name: string; description: string; parameters: Record<string, unknown> }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ properties: { changes: { items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ properties: { changes: { minItems: number; items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ properties?: Record<string, unknown> }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ properties?: { key?: { enum?: string[] } } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ properties?: { trackerDeltas?: { items?: { properties?: { key?: { enum?: string[] } } } } } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ required?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { stateRoundNeededTokens } from "#server/domain/rpg/substrate/state-round-fit.ts";
 // entry/compose/rpg — the lite-rpg vertical, COMPOSED-REAL (docs/plans/rpg/design.md). The [compose-stub-goes-stale]/
 // [ct-stub-lie] antidote: drive the domain end-to-end through the ACTUAL `buildRpg` wiring — the real
@@ -799,6 +815,7 @@ function objectNodes(node: unknown, out: Record<string, unknown>[] = []): Record
   if (node === null || typeof node !== "object") {
     return out;
   }
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const record = node as Record<string, unknown>;
   if (record["type"] === "object" && typeof record["properties"] === "object" && record["properties"] !== null) {
     out.push(record);
@@ -809,6 +826,7 @@ function objectNodes(node: unknown, out: Record<string, unknown>[] = []): Record
   return out;
 }
 
+// @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 const propertyNames = (node: Record<string, unknown>): string[] => Object.keys(node["properties"] as Record<string, unknown>);
 const requiredNames = (node: Record<string, unknown>): string[] => (Array.isArray(node["required"]) ? (node["required"] as string[]) : []);
 
@@ -820,8 +838,10 @@ function nullUnionCount(node: unknown, count = 0): number {
   if (node === null || typeof node !== "object") {
     return count;
   }
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const record = node as Record<string, unknown>;
   const arms = record["anyOf"];
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const isNullUnion = Array.isArray(arms) && arms.some((arm) => arm !== null && typeof arm === "object" && (arm as Record<string, unknown>)["type"] === "null");
   return Object.values(record).reduce<number>((n, value) => nullUnionCount(value, n), count + (isNullUnion ? 1 : 0));
 }
@@ -1160,6 +1180,7 @@ test("§10.1a: the cheap TOOL ROUND logs its usage (tokens + cost) — the vehic
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = infoSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.toolround.usage")?.[0] as Record<string, unknown> | undefined;
   expect(line).toBeDefined();
   expect(line).toMatchObject({
@@ -1185,6 +1206,7 @@ test("R3: an extraction that writes NOTHING renderable logs rpg.extraction.empty
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing tracked changed." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = infoSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty");
   expect(line).toBeDefined();
 });
@@ -1209,12 +1231,15 @@ test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A stranger appears." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
   expect(line).toBeDefined();
+  // @orb-waive no-test-fabrication({ phantomTargets?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { phantomTargets?: string[] }).phantomTargets).toContain("Zzyzx the Unknown");
   // R5: the ghost arg was DROPPED, so nothing was tracked — the panel never gains a hallucinated actor. The
   // empty-outcome line fires ALONGSIDE the ghost line (independent branches: the cause must not hide behind
   // the symptom now that a ghost-only extraction is by definition a write-nothing extraction).
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
@@ -1668,7 +1693,9 @@ test("R1 degrade: a MALFORMED tool arg is dropped + logged; the rest of the turn
   const rows = await db.select({ content: messageVariants.content }).from(messageVariants).where(eq(messageVariants.id, variantId));
   expect(rows[0]?.content).toBe("The prose is fine.");
   // The loss is NAMED (D109-7 totality) — both bad calls, by tool name.
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
+  // @orb-waive no-test-fabrication({ droppedTools?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { droppedTools?: string[] }).droppedTools).toEqual(["update_party", "upsert_quest"]);
 });
 
@@ -1706,10 +1733,13 @@ test("D112 (3): an INVENTED key on an otherwise-valid folded call is NAMED, neve
   expect(view.ambient?.location).toBe("the ford");
   expect(view.actors.map((a) => a.volatile?.status ?? null)).toContain("wounded");
   // …and the vanished writes are NAMED, with the path that says which key on which tool.
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.stripped");
   expect(line).toBeDefined();
+  // @orb-waive no-test-fabrication({ strippedKeys?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { strippedKeys?: string[] }).strippedKeys).toEqual(["update_party.mana", "update_scene.presentUpsert.0.vibe"]);
   // A strip is NOT a drop: nothing was thrown away whole, so the drop channel must stay silent about it.
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable")).toBe(false);
 });
 
@@ -1736,8 +1766,10 @@ test("D112 (3): the STRUCTURED arm names the same strips — incl. a whole plane
 
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the ford"); // the conforming writes landed
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.stripped");
   expect(line).toBeDefined();
+  // @orb-waive no-test-fabrication({ strippedKeys?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { strippedKeys?: string[] }).strippedKeys).toEqual(["trackerDeltas", "party.0.mana"]);
 });
 
@@ -1754,10 +1786,13 @@ test("R1 degrade: ZERO terminal tool calls trigger the required fallback round i
 
   expect(spy.summarizeModels).toEqual([]);
   expect(spy.chatTurns).toHaveLength(1); // no terminal call is ambiguous, so the required round gets one chance
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const path = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.path");
   expect(path?.[0]).toMatchObject({ mode: "folded", path: "tool-round", fallbackReason: "no-terminal-calls" });
   // The fallback produced nothing: name the empty extraction, but never misreport it as a parse failure.
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable")).toBe(false);
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
 });
 
@@ -1777,7 +1812,9 @@ test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + log
     foldedTurn([{ name: "update_party", args: { targetRef: "Zzyzx the Unknown", status: "cursed" } }]),
   );
 
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
+  // @orb-waive no-test-fabrication({ phantomTargets?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { phantomTargets?: string[] }).phantomTargets).toContain("Zzyzx the Unknown");
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
@@ -1879,13 +1916,17 @@ test("EXT-4a: the SAME malformed payload leaves IDENTICAL state on all three del
   });
   // Every path NAMED its loss (D109-7 totality): the structured arm itemizes plane+entry, the tool arms name
   // the tool — and the heal has its own line, so a silently-degrading model is visible on all three.
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const unparseable = warnSpy.mock.calls.filter((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
   expect(unparseable.length).toBe(3);
   expect((unparseable[0]?.[0] as { dropped?: { plane: string; index: number | null }[] }).dropped).toEqual([
     { plane: "journal", index: 0, issues: expect.arrayContaining([expect.stringContaining("content")]) },
   ]);
+  // @orb-waive no-test-fabrication({ droppedTools?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((unparseable[1]?.[0] as { droppedTools?: string[] }).droppedTools).toEqual(["add_journal_entry"]);
+  // @orb-waive no-test-fabrication({ droppedTools?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((unparseable[2]?.[0] as { droppedTools?: string[] }).droppedTools).toEqual(["add_journal_entry"]);
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const healed = warnSpy.mock.calls.filter((c) => (c[0] as { event?: string }).event === "rpg.extraction.healed");
   expect(healed).toHaveLength(3);
   expect((healed[0]?.[0] as { healedJournalTypes?: number[] }).healedJournalTypes).toEqual([0]);
@@ -1900,6 +1941,7 @@ test("EXT-4a: a totally unparseable structured payload is still one WARN + an em
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing lands." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
   expect((line?.[0] as { dropped?: { plane: string }[] }).dropped).toEqual([{ plane: "root", index: null, issues: ["expected a JSON object"] }]);
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
@@ -1925,6 +1967,7 @@ test("BORN FOLDED: a FRESH game on an agent-sdk wire still lands state — via t
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
   // …and the extra call the fold exists to delete is VISIBLE in the trail, named.
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const path = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.path");
   expect(path?.[0]).toMatchObject({ mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" });
 });
@@ -1987,6 +2030,7 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   expect(folded?.terminalTools?.map((t) => t.name)).toEqual([...RPG_TOOL_ROUND_TOOL_NAMES].filter((n) => n !== "set_tracker"));
   // …carrying the CACHE-STABLE ref projection (F4): the party plane is fully writable, but its scene-derived
   // enums are gone — this payload opens the character turn's cached prefix (the byte-stability pin is below).
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const party = folded?.terminalTools?.find((t) => t.name === "update_party")?.parameters as {
     properties?: { targetRef?: { enum?: string[]; type?: string }; hpDelta?: unknown; addCondition?: unknown };
   };
@@ -2113,6 +2157,7 @@ test("PROMPT-CACHE (probe F4): a gained actor + condition leave the FOLDED tools
   await roundCompose.service.updateConfig({ principal, chatId, extractionMode: "cheap" });
   const roundSlot = await seedMessage(db, chatId, 3, { role: "assistant", content: "She presses a hand to the wound." });
   await roundCompose.chatOps.onTurnCompleted(chatId, roundSlot.messageId, roundSlot.variantId, TURN, tc("chat-completions"));
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const roundParty = spy.wireTools[0]?.find((t) => t.name === "update_party")?.parameters as {
     properties?: { targetRef?: { enum?: string[] }; removeCondition?: { enum?: string[] } };
   };
@@ -2449,6 +2494,7 @@ test("RESYNC: the catch-up round sends the per-plane TOOLS (not a monolithic sch
   // Every per-plane schema is SMALL — that is the whole point of the round (the 46-optional monolith is what
   // Anthropic's grammar compiler refused). None of them is the whole extraction object.
   for (const tool of roundTools) {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect(Object.keys((tool.parameters["properties"] ?? {}) as Record<string, unknown>)).not.toContain("journal");
   }
   // …and the calls folded through the SAME tail the in-turn vehicles use: the state plane landed. (The
@@ -2689,6 +2735,7 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
   // The round rode the `structured` dispatcher (a non-agent-sdk wire) with the POPULATE grammar: the sheet
   // plane is REQUIRED (the xgrammar lever) and the one target is the whole inventory ref enum.
   expect(spy.summarizeModels).toEqual(["fake-chat-model"]);
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const schema = spy.schemas[0] as {
     required?: string[];
     properties: { sheet: { required?: string[] }; inventory: { items: { properties: { targetRef: { enum?: string[] } } } } };
@@ -3060,6 +3107,7 @@ test("0511: a structured reply outside the schema fails LOUDLY — a durable fai
   const [record] = await findTurnToolCallsByVariant(db, variantId);
   expect(record?.calls).toEqual([]);
   expect(record?.failure).toContain(RPG_STATE_ROUND_FAILED_SUMMARY);
+  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warn.mock.calls.some(([line]) => (line as { event?: string }).event === "rpg.toolround.unparseable")).toBe(true);
   warn.mockRestore();
 });

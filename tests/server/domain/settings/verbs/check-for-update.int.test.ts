@@ -10,6 +10,7 @@
 //     it swallowed the failure entirely it would print "up to date" on an offline box.
 //   • neither verb reads the db or takes a principal — the property that makes their cross-tenant-sweep
 //     exemption true rather than asserted.
+// @subject packages/server/src/domain/settings/verbs/check-for-update.ts
 
 import type { UpstreamOf, UpstreamProbeResult, UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
 import { freshDb } from "@orb/testkit/node/db.ts";

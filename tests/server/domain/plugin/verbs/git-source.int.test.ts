@@ -1,5 +1,6 @@
 // #0081's guarded Git source: preview-bound commits, exact provenance, owner-first upgrade ordering, and
 // leak-free credential refusal. Existing zip-upload and bundle-URL coverage stays in install/install-from-url.
+// @subject packages/server/src/domain/plugin/verbs/git-source.ts
 
 import { plugins } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

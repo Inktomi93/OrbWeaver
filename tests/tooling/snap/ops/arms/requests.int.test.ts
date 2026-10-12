@@ -1,3 +1,7 @@
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ total: number; requests: readonly { sizes: { responseBodySize: number } | null }[] }): baselined when the gate widened to value casts; burn-down item 906.
+
 // @instrument-proof: a loopback page issues a document, stylesheet, and two named JSON fetches. The
 // shipped request ring reports their stable order and available Playwright sizes(), retains whole eligible
 // JSON only while a matching body filter is active,
@@ -84,6 +88,7 @@ test("every request is ordered under one denominator with measured sizes() evide
     expect(run.stdout).toMatch(/size=(?:\d+|unknown)/u);
     const indexPath = /\bindex=(\S+\/run\.json)\b/u.exec(run.stdout)?.[1];
     expect(indexPath).toBeDefined();
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const index = JSON.parse(await readFile(indexPath as string, "utf8")) as {
       readonly resultPairs: readonly (readonly [string, string])[];
       readonly artifacts: readonly {
@@ -145,7 +150,9 @@ test("every request is ordered under one denominator with measured sizes() evide
       ],
     });
     expect(artifact?.publishedPath).not.toBeNull();
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     await expect(readFile(artifact?.publishedPath as string, "utf8")).resolves.toContain('"requests"');
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const report = await runCli("snap", ["--report", indexPath as string, "--arm", "requests"]);
     expect(report.stdout).toContain("producer=requests arm=requests channel=request-log");
     expect(report.stdout).toContain("schema=snap-request-log-v1");
@@ -179,6 +186,7 @@ test("eligible JSON is retained whole and the filed log redacts URL secrets", as
     expect(run.stdout).toContain("content-type=application/json, complete");
     const logPath = /^ {2}log {10}(\S+)$/mu.exec(run.stdout)?.[1];
     expect(logPath).toBeDefined();
+    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const logText = await readFile(logPath as string, "utf8");
     expect(logText).not.toContain(REQUEST_SECRET);
     expect(logText).toContain("[REDACTED]");
@@ -278,6 +286,7 @@ test("minting repeated call arms does not add request listeners", async () => {
   const opts = parseSnapArgs(["--file", import.meta.filename, "--requests", ...ARGS]);
   const session = await launchSnapSession(opts);
   try {
+    // @orb-waive no-test-fabrication(typeof session.page & { readonly listenerCount:): baselined when the gate widened to value casts; burn-down item 906.
     const listenerPage = session.page as typeof session.page & { readonly listenerCount: (event: string) => number };
     const before = ["request", "response", "requestfinished", "requestfailed"].map((event) => listenerPage.listenerCount(event));
     for (let call = 0; call < 8; call += 1) {

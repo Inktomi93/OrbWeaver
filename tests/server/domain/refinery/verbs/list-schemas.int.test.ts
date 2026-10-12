@@ -1,4 +1,5 @@
 // .int tests for `listSchemas`: the OWNER's library only (no cross-tenant rows), newest-updated first.
+// @subject packages/server/src/domain/refinery/verbs/list-schemas.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

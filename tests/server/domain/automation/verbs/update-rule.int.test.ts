@@ -1,4 +1,5 @@
 // verb: updateRule — replace editable fields (host-only), same validation, resets the error ledger.
+// @subject packages/server/src/domain/automation/verbs/update-rule.ts
 
 import { automationRules, chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";

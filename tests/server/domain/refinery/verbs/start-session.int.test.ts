@@ -1,6 +1,7 @@
 // .int tests for `startSession`: the anti-drift anchor snapshot (through the injected character card
 // read), the populated-fields default selection, the born config, the name belt, and the leak-free
 // ownership collapse on a foreign/absent character.
+// @subject packages/server/src/domain/refinery/verbs/start-session.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle } from "@orb/kit/ids";

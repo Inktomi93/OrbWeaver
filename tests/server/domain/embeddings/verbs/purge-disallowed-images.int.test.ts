@@ -1,3 +1,6 @@
+// verb: purgeDisallowedImages — drops the image vectors of non-avatar assets and retains the assets themselves.
+// @subject packages/server/src/domain/embeddings/verbs/purge-disallowed-images.ts
+
 import { ASSET_KINDS } from "@orb/contracts/assets";
 import { assets, imageEmbeddings } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

@@ -9,6 +9,7 @@
 //     (WebSpinner's dash period), the dew at its named fraction, 24-space emission for the icon seal.
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+// @orb-waive-file no-test-fabrication(readonly number[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { WeavePoint, WovenWeb } from "@orb/ui/web-weave";
 import {
   buildStrandOut,
@@ -135,6 +136,7 @@ describe("buildWeb — the choreography as data", () => {
   test("the capture spiral runs rim-INWARD and stops short of the hub (the free zone)", () => {
     const pts = web.capture.pts;
     const first = dist(pts[0] as WeavePoint, web.hub);
+    // @orb-waive no-test-fabrication(WeavePoint): baselined when the gate widened to value casts; burn-down item 906.
     const last = dist(pts.at(-1) as WeavePoint, web.hub);
     expect(first).toBeGreaterThan(last); // laid from the rim toward the hub
     expect(last).toBeGreaterThanOrEqual(web.freeZoneRadius); // …but never into the free zone
@@ -174,6 +176,7 @@ describe("buildWeb — the choreography as data", () => {
   test("the strand-out line leaves the hub and exits the right edge", () => {
     const line = buildStrandOut(web, BOX.width, BOX.height);
     expect(dist(line[0] as WeavePoint, web.hub)).toBeLessThan(1);
+    // @orb-waive no-test-fabrication(WeavePoint): baselined when the gate widened to value casts; burn-down item 906.
     expect((line.at(-1) as WeavePoint).x).toBeGreaterThan(BOX.width);
   });
 });
@@ -186,6 +189,7 @@ describe("buildWeb — the silk actually connects", () => {
     // aimed at one is CUT by the canvas instead — it must cross the edge, not stop shy of it.
     const hostWeb = buildWeb(host);
     const verdicts = hostWeb.radii.map((radius) => {
+      // @orb-waive no-test-fabrication(WeavePoint): baselined when the gate widened to value casts; burn-down item 906.
       const tip = radius.pts.at(-1) as WeavePoint;
       const { verdict, gap, edgeGap } = classifyTip(hostWeb, tip, host);
       return { verdict, tip, gap: gap === null ? null : Number(gap.toFixed(2)), edgeGap: Number(edgeGap.toFixed(2)) };

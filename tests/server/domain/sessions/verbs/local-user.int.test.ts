@@ -1,6 +1,7 @@
 // D257 — the handle writes other tiers make through sessions: admin's local-account mint statement and boot's
 // owner seed-key rename. Each stores the handle's key beside the handle, and a key another row holds is a
 // unique violation the caller sees, never an absorbed no-op.
+// @subject packages/server/src/domain/sessions/verbs/local-user.ts
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";

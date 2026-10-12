@@ -3,6 +3,7 @@
 // project (keyword-scoped and disabled entries are excluded; an unattached book contributes nothing);
 // priority DESC ordering; the projection is title+content only (lean pre-play canon, room-public — the
 // caller gates membership upstream, mirroring listChatBooks).
+// @subject packages/server/src/domain/world-info/verbs/entries/list-constant-canon.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

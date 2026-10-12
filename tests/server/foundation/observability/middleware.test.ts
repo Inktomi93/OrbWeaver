@@ -6,6 +6,7 @@
 // charset guard (a malicious X-Request-Id → a fresh safe id; a valid one propagates unchanged) and the
 // /api/_debug skip (no trace root, no request-ring record — introspection traffic doesn't evict real traces).
 
+// @orb-waive-file no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-loose-id-cast(ctx): baselined when the gate widened; burn-down item 906.
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -1,5 +1,6 @@
 // verb: listForCharacter — attachments of an owned character, primary first then newest, carrying the role.
 // Load-bearing: ordering (primary before auxiliary); the role is surfaced; a foreign character is NotFound.
+// @subject packages/server/src/domain/world-info/verbs/attachments/list-for-character.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -20,6 +20,7 @@
 // The caption ladder is driven end-to-end through `extractPrompt` in a multimodal mode (every op on that
 // path is one this seam wired), and the chat-bound lane through an extraction mode.
 
+// @orb-waive-file no-test-fabrication([readonly { systemPrompt: string; userPrompt: string; images: readonly Uint8Array[] }[]]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { UserSettings } from "@orb/contracts/settings";
 import { parseUserSettings } from "@orb/contracts/settings";

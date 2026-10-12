@@ -12,6 +12,8 @@
 // there is no restore logic and no race window (the removed phase-gate). To exercise the clear/keep
 // windows deterministically, `chat.send` is HELD (its listener stays alive) while the signal is driven.
 
+// @orb-waive-file no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 // The helper copy is asserted from its ONE home, never re-typed here — a re-spelled literal is how a copy
 // change goes green against a string nobody ships.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.

@@ -2,6 +2,7 @@
 // REAL scrypt hasher (the same pepper the context binds). Pins the four leak-free-null failure shapes
 // (unknown handle / SSO-only null hash / wrong password / disabled row), the happy path, and the trimmed
 // handle (a stored row never carries whitespace — the ensureUser discipline).
+// @subject packages/server/src/domain/sessions/verbs/authenticate.ts
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";

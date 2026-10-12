@@ -5,6 +5,7 @@
 // stripped 2026-07-24 — enterprise spend enforcement; loop safety rides the per-chat fire-rate cap + the chat
 // member turn budget + the cascade guard.)
 
+// @orb-waive-file no-test-fabrication(Extract<AutomationActionInput, { type: "generate_image" }>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AutomationAction, AutomationActionInput, AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
 import { AUTOMATION_VARIABLE_VALUE_MAX, automationActionSchema } from "@orb/contracts/automation";
 import type { NotificationEvent } from "@orb/contracts/notifications";

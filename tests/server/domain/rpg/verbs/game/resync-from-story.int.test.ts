@@ -13,6 +13,7 @@
 //   • THE RECONCILER SHAPE (VER-1a) — the rebuild lands state ONLY: the journal archive is never appended to,
 //     so repeated clicks cannot grow the panel. (The end-to-end idempotence proof, over the REAL fold + the
 //     real append semantics `resyncStatePatch` un-appends, lives in `tests/server/entry/compose/rpg.int`.)
+// @subject packages/server/src/domain/rpg/verbs/game/resync-from-story.ts
 
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatTurnId, Handle } from "@orb/kit/ids";

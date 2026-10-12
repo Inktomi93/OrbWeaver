@@ -57,6 +57,7 @@ import { probeGate } from "./tooling-tests.ts";
 const DOMAIN = "packages/server/src/domain/character";
 const FEATURE = "packages/client/src/features/chat";
 const PRIMITIVE = "packages/ui/src/primitives/livenessthing";
+const STANDING_CONTRAST_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
 /** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
  *  source (the noRawRandom fixture below) does. */
 const RANDOM_CALL = ["Math", ".random()"].join("");
@@ -232,9 +233,13 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: testPresenceClient,
-    // Only the data/forms/state primitives owe a per-file mirror.
-    overlays: [add("packages/client/src/data/use-liveness.ts", "export const useLiveness = () => 1;\n")],
-    messageIncludes: "client data/forms/state primitive has no test",
+    // The standing contrast CT leaves both views; the absence is reported at the room it covers.
+    overlays: [
+      { kind: "remove", path: STANDING_CONTRAST_CT },
+      { kind: "resource", path: STANDING_CONTRAST_CT, delete: true },
+    ],
+    reportsAt: ["packages/client/src/features/chat/surfaces/chat-room-surface.tsx"],
+    messageIncludes: "standing DOM-derived worst-legal-art contrast CT",
   },
   {
     policy: testReach,

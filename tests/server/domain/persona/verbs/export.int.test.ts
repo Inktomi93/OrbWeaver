@@ -1,6 +1,7 @@
 // verb: export — read an owned persona as the portable backup shape (FINAL-Persona §A.6b gap #3).
 // Load-bearing: projects the owned persona to the backup shape (no `avatarAssetId`); a foreign/missing
 // persona throws.
+// @subject packages/server/src/domain/persona/verbs/export.ts
 
 import type { PortableParse } from "@orb/contracts/portability";
 import type { Handle } from "@orb/kit/ids";

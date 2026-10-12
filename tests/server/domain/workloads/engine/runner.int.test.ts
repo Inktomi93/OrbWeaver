@@ -8,6 +8,7 @@
 // domain's real contribution: this file tests the STATE MACHINE, and each domain's body is pinned at its own
 // mirror. That also keeps this file stable as kinds re-home.
 
+// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import type { WorkloadProgress } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";

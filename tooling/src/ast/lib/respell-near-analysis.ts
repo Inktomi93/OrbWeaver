@@ -1,12 +1,13 @@
 // Pure Jaccard candidate analysis for `ast respell --near`.
 
 import type { Node } from "ts-morph";
+import type { AssignabilityChecker } from "../../floor/code-facts/assignability.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { coLocatedSemanticNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
 import { declKey } from "./keys.ts";
 import { exitToolError } from "./ledger.ts";
-import type { AssignabilityChecker, FieldPair, ShapeEntry } from "./respell-shapes.ts";
+import type { FieldPair, ShapeEntry } from "./respell-shapes.ts";
 import { assignabilityChecker, directDerivationTargetKeys, mutuallyAssignable, shapesUnder } from "./respell-shapes.ts";
 
 export const RESPELL_NEAR_PROPERTY_FLOOR = 4;

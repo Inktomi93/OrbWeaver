@@ -1,5 +1,6 @@
 // verbs/journal/delete-journal-entry — deleteJournalEntry (docs/plans/rpg/design.md). Host-gated, game-scoped.
 // Asserted at the lineage-projected read (the entry is gone).
+// @subject packages/server/src/domain/rpg/verbs/journal/delete-journal-entry.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

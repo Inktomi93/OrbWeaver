@@ -1,5 +1,6 @@
 // verb: restore — copy a snapshot blob → the live row in place. Load-bearing: snapshot-current-FIRST (so
 // restore is reversible) and character.updated emits. A foreign/absent snapshot collapses to NotFound.
+// @subject packages/server/src/domain/character/verbs/restore.ts
 
 import type { CharacterHandle, CharacterSnapshotId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -1,3 +1,5 @@
+// @subject packages/server/src/domain/stats/verbs/persona-usage.ts
+
 import type { Db } from "@orb/db";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

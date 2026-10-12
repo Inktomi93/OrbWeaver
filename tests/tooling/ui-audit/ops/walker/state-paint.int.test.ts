@@ -39,6 +39,7 @@ test("an escaped Tailwind class name no longer mangles the :hover strip — the 
 <p style="padding:12px">a paragraph no state rule touches</p>`),
   );
   const res = await runCli("snap", ["--file", join(scratch, "escape-fix.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  // @orb-waive no-test-fabrication(StatePaintReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
@@ -72,6 +73,7 @@ test("the attribute census forces Base-UI state paint: a failing pair fires, the
 <p style="padding:12px">a paragraph no state rule touches</p>`),
   );
   const res = await runCli("snap", ["--file", join(scratch, "attr-census.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  // @orb-waive no-test-fabrication(StatePaintReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
   const hover = report.findings.filter(({ rule }) => rule === "hover-contrast");
@@ -119,6 +121,7 @@ test("a listener re-arming the forced attribute is caught by the pass-final veri
 </script>`),
   );
   const res = await runCli("snap", ["--file", join(scratch, "attr-stuck.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  // @orb-waive no-test-fabrication(StatePaintReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
@@ -164,6 +167,7 @@ test("state-gated glow is read under force: a non-house layer under [data-select
   const res = await runCli("snap", ["--file", join(scratch, "state-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(StatePaintReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const glow = report.findings.filter(({ rule }) => rule === "glow-shadow").map(({ selector }) => selector);
 

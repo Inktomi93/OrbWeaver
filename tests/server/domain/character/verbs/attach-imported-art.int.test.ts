@@ -1,6 +1,7 @@
 // verb: attachImportedArt — the JSON-then-PNG exception of the import identity. A no-art row takes the art
 // once and re-keys to the with-art hash, keeping the art-less hash as a second key; a row that already has
 // art, another owner's row, and a foreign asset all leave the row untouched, with no audit and no emit.
+// @subject packages/server/src/domain/character/verbs/attach-imported-art.ts
 
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";

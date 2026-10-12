@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(typeof SOURCES): baselined when the gate widened to value casts; burn-down item 906.
+
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

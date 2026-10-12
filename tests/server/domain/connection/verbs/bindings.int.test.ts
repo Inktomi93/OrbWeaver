@@ -4,6 +4,7 @@
 // surfaces inline (a background task on a row with `allowBackground` off; a task the row's kind cannot
 // serve), the upsert's re-point-in-place (never a second row), `useForEverything`'s SKIP-not-refuse rule for
 // background tasks, the per-ROUTABLE-task readout `listBindings` always returns, and the embed-space trigger.
+// @subject packages/server/src/domain/connection/verbs/bindings.ts
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";

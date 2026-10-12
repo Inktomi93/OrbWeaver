@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
+
 // CT: the MessageList seal — a bottom-anchored TanStack Virtual chat-thread list (ui-package-design
 // §6.1/§9, un-parked). Asserts virtualization + bottom-anchor + stick-to-bottom (+ the no-yank flip
 // side, + reduced-motion), matching virtual-list.ct.tsx's tripwire test for the shared discipline.

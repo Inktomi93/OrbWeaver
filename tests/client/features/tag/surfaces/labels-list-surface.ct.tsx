@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(TagTargetType[]): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { TagTargetType } from "@orb/contracts/tag";
 // CT: the Corpus Labels mode (D271) — the tag library's ONE home. Mounted through the mode contribution the
 // door hands the Corpus section, so every pin runs on production wiring: the finder (filter · sort · overflow
@@ -99,7 +101,9 @@ test("the finder reads filter · sort · overflow, the band carries New tag, and
   await test.info().attach("0314-labels", { body: await workspace.screenshot(), contentType: "image/png" });
   await workspace.evaluate((element) => {
     element.setAttribute("data-theme", "light");
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).style.backgroundColor = "var(--color-background)";
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).style.color = "var(--color-foreground)";
   });
   await test.info().attach("0314-labels-light", { body: await workspace.screenshot(), contentType: "image/png" });
@@ -439,6 +443,7 @@ test("pending-only labels stay outside In use and prune until Apply; Reject remo
   await expect.poll(() => recorder.count("tag.attachTag")).toBe(1);
   await expect(apply).toBeEnabled();
   await expect(apply).toBeFocused();
+  // @orb-waive no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
   await workspace.getByRole("button", { name: "deliver tag change" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect(apply).toBeFocused();
   await apply.press("Enter");
@@ -446,6 +451,7 @@ test("pending-only labels stay outside In use and prune until Apply; Reject remo
   await expect
     .poll(() => recorder.lastInput("tag.attachTag"))
     .toEqual({ tagId: "tag_staged", targetType: "character", targetId: stagedCharacterId, status: "accepted" });
+  // @orb-waive no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
   await workspace.getByRole("button", { name: "deliver tag change" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect(facts).toContainText("In use1");
   await expect(content(workspace).getByRole("group", { name: "Suggested staged for Aria" })).toHaveCount(0);
@@ -455,6 +461,7 @@ test("pending-only labels stay outside In use and prune until Apply; Reject remo
   await reject.focus();
   await reject.press("Enter");
   await expect.poll(() => recorder.count("tag.detachTag")).toBe(1);
+  // @orb-waive no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
   await workspace.getByRole("button", { name: "deliver tag change" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect(content(workspace).getByRole("status")).toHaveText("No suggested tags awaiting review.");
   await expect(content(workspace).getByRole("status")).toBeFocused();
@@ -549,6 +556,7 @@ test("a delete decision survives a bus refresh before its response and does not 
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
   await hold.requested;
   rows = FEW_TAGS.filter((row) => row.name !== "orphan");
+  // @orb-waive no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
   await workspace.getByRole("button", { name: "deliver tag change", includeHidden: true }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect(orphan).toHaveCount(0);
   await expect(page.getByRole("alertdialog")).toBeVisible();

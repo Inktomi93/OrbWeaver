@@ -112,6 +112,7 @@ describe("compact — the manual lever (host)", () => {
     const compaction = compactionWith("x");
     const err = await compaction.compact({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     expect(quietCalls).toHaveLength(0);
   });
@@ -241,6 +242,7 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
       .runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe(CHAT_OP_CODES.compactionEmpty);
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.compactSummary).toBe("GOOD-MARKER"); // untouched

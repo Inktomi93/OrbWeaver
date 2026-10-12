@@ -1,6 +1,7 @@
 // verb: purgeMemoryVectors — memory completion records a generation receipt. Retired generations remain
 // readable until cards, memory, and documents have all completed the same pending generation; promotion
 // then performs the old-space reclaim atomically.
+// @subject packages/server/src/domain/embeddings/verbs/purge-memory-vectors.ts
 
 import type { Db } from "@orb/db";
 import { chatDigests, chatSegments, embedGenerations } from "@orb/db";

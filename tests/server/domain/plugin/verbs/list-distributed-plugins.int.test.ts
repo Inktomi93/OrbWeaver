@@ -1,6 +1,7 @@
 // verb: listDistributedPlugins — the published set, admin-only (D147 clause (d)). Two pins: the projection is
 // deployment POLICY (a bundle the server publishes, never anyone's install state), and a plain member cannot
 // read it at all — their own copies already arrive through `list`.
+// @subject packages/server/src/domain/plugin/verbs/list-distributed-plugins.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";

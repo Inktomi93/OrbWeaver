@@ -1,6 +1,7 @@
 // verb: readProvenance — read a generated image's durable provenance by asset. Proves
 // against a real db: a free-mode generation's provenance is readable by its owner, and a foreign caller reads
 // null (owner-scoped through the `assets` join — no cross-owner leak).
+// @subject packages/server/src/domain/imagery/verbs/read-provenance.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

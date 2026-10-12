@@ -5,6 +5,7 @@
 // strikes NOTHING ("the box is off" is not "the key is bad", owner ruling); a recovered `ok` clears a prior
 // revocation; and the throttle is claimed AFTER the dial on the credential id, so a second ask inside the
 // window answers `throttled` with no row write.
+// @subject packages/server/src/domain/credentials/verbs/record-probe-outcome.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

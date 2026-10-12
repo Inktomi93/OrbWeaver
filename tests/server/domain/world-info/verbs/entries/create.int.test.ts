@@ -1,5 +1,6 @@
 // verb: createEntry — owner-scoped mint into a book. Load-bearing: a foreign book is NotFound; defaults are
 // applied (enabled/priority/ignoreBudget); `metadata` is coerced to the typed shape at the write seam.
+// @subject packages/server/src/domain/world-info/verbs/entries/create.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

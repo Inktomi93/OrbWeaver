@@ -5,6 +5,10 @@
 // pending across the asynchronous state round; `turnToolCallsRecorded` has its OWN durable member because
 // a turn whose calls ALL dropped writes a record and no snapshot, and that is the turn worth refetching for.
 
+// @orb-waive-file no-test-fabrication(Extract<RpgBusEvent, { type: "sheetChanged" }>["sheetId"]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Extract<RpgBusEvent, { type: "snapshotPatched" }>["snapshotId"]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Extract<RpgBusEvent, { type: "stateRoundStarted" }>["turnId"]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(RpgBusEvent["chatId"]): baselined when the gate widened to value casts; burn-down item 906.
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

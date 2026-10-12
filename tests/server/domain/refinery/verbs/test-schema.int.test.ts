@@ -1,5 +1,6 @@
 // .int tests for `testSchema` — the DRILL contract: the typed-per-schema payload comes back for preview
 // rendering, and NOTHING persists (no run row, no signal stamp, no session).
+// @subject packages/server/src/domain/refinery/verbs/test-schema.ts
 
 import { refineryRuns } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

@@ -2,6 +2,7 @@
 // it spans ALL owners (the sweep is a trusted SYSTEM consumer — no owner scope), and it filters to image
 // mimes at the source (`mime LIKE 'image/%'`) so a non-image asset — an export zip — never reaches the
 // imageEmbed role.
+// @subject packages/server/src/domain/assets/verbs/list-image-asset-ids.ts
 
 import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { Handle } from "@orb/kit/ids";

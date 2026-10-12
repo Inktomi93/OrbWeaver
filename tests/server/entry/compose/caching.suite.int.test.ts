@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(RecordedRequest["body"]): baselined when the gate widened to value casts; burn-down item 906.
+
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptCacheSettings } from "@orb/contracts/inference";

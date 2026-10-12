@@ -100,7 +100,9 @@ test.for([
     .where(eq(messageVariants.id, source.variantId));
   const ctx = makeChatContext(db, {
     now: () => OBSERVED_AT,
+    // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
     applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch as BatchStmt[], opDb, delta),
+    // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
     bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId),
   });
   const parent: GenerationObservationParent = {
@@ -317,6 +319,7 @@ test("a later room database failure preserves its paid facts while the earlier c
   const life = createChatLifecycle(
     makeChatContext(db, {
       now: ctx.now,
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch as BatchStmt[], opDb, delta),
     }),
     {
@@ -377,6 +380,7 @@ test("paid TTL cleanup skips a claimed room, deletes another independently and e
   const life = createChatLifecycle(
     makeChatContext(db, {
       now: () => OBSERVED_AT,
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch as BatchStmt[], opDb, delta),
       emitChatChanged: (chatId): Promise<void> => {
         repaints.push(chatId);
@@ -419,6 +423,7 @@ test("a completion appended after the deletion read refuses the stale empty snap
   }
   const liveEvents: string[] = [];
   const ctx = { db, now: () => OBSERVED_AT, applyStatsDelta };
+  // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
   const life = createChatLifecycle(makeChatContext(db, { applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch as BatchStmt[], opDb, delta) }), {
     emit: () => Promise.resolve(),
     emitLive: (event): void => {
@@ -506,6 +511,7 @@ test("actual chat deletion reverses every pending funder in its original bucket 
   const life = createChatLifecycle(
     makeChatContext(db, {
       now: ctx.now,
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch as BatchStmt[], opDb, delta),
     }),
     {

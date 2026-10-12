@@ -1,3 +1,6 @@
+// verb: count — the owner-scoped library census, answered without full-list enrichment.
+// @subject packages/server/src/domain/roster-preset/verbs/count.ts
+
 import { rosterPresets } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createRosterPresetService } from "@orb/server/domain/roster-preset";

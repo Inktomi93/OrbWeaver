@@ -1,5 +1,6 @@
 // verbs/checkpoint/list-checkpoints — listCheckpoints (docs/plans/rpg/design.md). Member-gated read of the
 // game's labeled bookmarks.
+// @subject packages/server/src/domain/rpg/verbs/checkpoint/list-checkpoints.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

@@ -4,6 +4,7 @@
 // leaves the other cells estimated; and a chat template refusing the conversation's roles is not retried and
 // keeps the server's sentence. Servers are the rig's recordings.
 
+// @orb-waive-file no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
 import type { DeclaredCapability, GenerationCapability } from "@orb/contracts/inference";
 import { createInferenceRuntime, ProviderError } from "@orb/inference";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
@@ -165,6 +166,7 @@ async function sentTurn(
   const sse = scriptedSseFetch([openAiTextStream("ok")], recorded);
   const fetchImpl: typeof fetch = native
     ? (input, init): Promise<Response> => {
+        // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
         recorded.push({ url: String(input), body: JSON.parse(String(init?.body)) as Record<string, unknown> });
         return Promise.resolve(new Response(NATIVE_DONE, { headers: { "content-type": "application/x-ndjson" } }));
       }
@@ -294,6 +296,7 @@ function llamaCppReranker(): { readonly fetch: typeof fetch; readonly scored: { 
   const scored: { readonly url: string; readonly body: Record<string, unknown> }[] = [];
   const fetchImpl = ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = new URL(String(input));
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
     if ((url.pathname === "/rerank" || url.pathname === "/v1/rerank") && "query" in body) {
       scored.push({ url: url.toString(), body });

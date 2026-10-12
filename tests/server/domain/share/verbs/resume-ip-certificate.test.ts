@@ -1,5 +1,6 @@
 // share.resumeIpCertificate — the boot start of a stored IP certificate choice (D275). It re-runs the preconditions,
 // because the sign-in mode and the bind are env and may have changed since the owner chose.
+// @subject packages/server/src/domain/share/verbs/resume-ip-certificate.ts
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";

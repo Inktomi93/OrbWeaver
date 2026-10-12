@@ -1,5 +1,6 @@
 // verb: createBook — owner-scoped mint. Load-bearing: the new row is owned by `principal.userId`; the view
 // matches the inserted values; every create audits `worldInfo.createBook`.
+// @subject packages/server/src/domain/world-info/verbs/books/create.ts
 
 import { worldBooks } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

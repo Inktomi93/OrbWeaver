@@ -2,6 +2,7 @@
 // module (`_stub-model-cache.ts`): the request loop keeps turning while the worker is held, results and typed
 // failures cross the boundary intact, and a dead worker rejects its callers instead of hanging them.
 
+// @orb-waive-file no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

@@ -6,6 +6,7 @@
 // QueryClient (the one whose MutationCache.onError reads `meta.errorToast`), binds `notify` to a real
 // toast manager, and fires a mutation whose `meta.errorToast` message must reach a rendered toast.
 
+// @orb-waive-file no-test-fabrication(typeof globalThis & {): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("audit-pause-animation"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("audit-pause-flaggers-settled"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("blocked-animation"): baselined when the gate widened; burn-down item 906.

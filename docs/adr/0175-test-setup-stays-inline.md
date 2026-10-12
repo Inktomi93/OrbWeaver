@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-23
+status: superseded
+updated: 2026-10-12
+superseded-by: docs/adr/0316-test-setup-stays-inline-under-a-cpd-ratchet.md
 ---
 
 # Test setup stays inline; per-domain fixture families are not built

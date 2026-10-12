@@ -4,6 +4,7 @@
 // the tasks the table names and refuse every other with `taskUnservable`. The table is the stated intent; a
 // provider row or wire change that moves a cell reds here and has to be restated on purpose.
 
+// @orb-waive-file no-test-fabrication({ readonly code?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ModelKind, ProviderDef, RoutableTask } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, MODEL_KINDS, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";

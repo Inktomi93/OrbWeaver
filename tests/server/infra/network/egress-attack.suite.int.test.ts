@@ -20,6 +20,8 @@
 // pins) and at exactly the named port(s) for the OPTIONAL `host:port` spelling (2026-09-20) — so the
 // operator who needs one engine port can stop handing out `:22` and `:5432` along with it.
 
+// @orb-waive-file no-test-fabrication(EgressBlockedError): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import {
   __setEgressResolverForTest,
   ANY_HOST,

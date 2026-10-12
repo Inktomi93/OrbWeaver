@@ -252,6 +252,7 @@ test("#2575: with no structured output stated, the plan forces the one tool wher
   const refusing = await structuredBodyWithout("claude-fable-5-1");
   expect(refusing.body["tool_choice"]).toMatchObject({ type: "auto", disable_parallel_tool_use: true });
   expect(refusing.body["tools"]).toMatchObject([{ name: "row" }]);
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect((refusing.body["output_config"] ?? {}) as Record<string, unknown>).not.toHaveProperty("format");
 });
 
@@ -305,6 +306,7 @@ test("an over-limit schema on a model that takes tools rides one offered tool, w
     batchDeps(recorded, []),
   );
   expect(recorded[0]?.body["tool_choice"]).toMatchObject({ type: "auto", disable_parallel_tool_use: true });
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect((recorded[0]?.body["output_config"] ?? {}) as Record<string, unknown>).not.toHaveProperty("format");
 });
 

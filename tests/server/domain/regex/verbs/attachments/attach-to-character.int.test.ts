@@ -1,5 +1,6 @@
 // verb: attachToCharacter — attach an owned script to an owned character. BOTH ends are gated: a foreign script
 // and a foreign character are each refused with the same not-found answer. Positions APPEND.
+// @subject packages/server/src/domain/regex/verbs/attachments/attach-to-character.ts
 
 import { characterRegexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

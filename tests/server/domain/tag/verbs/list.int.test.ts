@@ -1,4 +1,5 @@
 // verb: listTags — returns ONLY the requesting owner's tags (cross-user isolation).
+// @subject packages/server/src/domain/tag/verbs/list.ts
 
 import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";

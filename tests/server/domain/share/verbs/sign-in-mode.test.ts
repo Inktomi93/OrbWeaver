@@ -1,5 +1,6 @@
 // share.signInMode: owner or admin; the boot-fixed mode, its source and install shape, and per target mode the refusal
 // Start sharing answers with, so the helper and a refused start say the same sentence.
+// @subject packages/server/src/domain/share/verbs/sign-in-mode.ts
 
 import type { AuthMode, ShareRefusalNotice, SignInModeView, SignInTargetMode } from "@orb/contracts/identity";
 import { SIGN_IN_TARGET_MODES, signInModeViewSchema } from "@orb/contracts/identity";

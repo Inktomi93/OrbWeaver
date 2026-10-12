@@ -1,6 +1,7 @@
 // verbs: getGlobalSetting / setGlobalSetting — the raw KV escape hatch. The load-bearing invariant: the
 // generic setter REFUSES the reserved APP_SETTINGS_KEY (`"app"`) with DomainOperationError(reserved_key);
 // a normal key round-trips + audits as a system event (actorUserId: null); a missing key reads null.
+// @subject packages/server/src/domain/settings/verbs/global-settings.ts
 
 import { DomainOperationError } from "@orb/kit/errors";
 import { freshDb } from "@orb/testkit/node/db.ts";

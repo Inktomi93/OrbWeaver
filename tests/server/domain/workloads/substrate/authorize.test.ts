@@ -1,6 +1,7 @@
 // substrate/authorize — the F3 per-user authorization predicates. Pure. Pins: the leak-free
 // visible/owner-filter rules, and the mode-support gate's asymmetry (assets-gc is bulk-only).
 
+// @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";

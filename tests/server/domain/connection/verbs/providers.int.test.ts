@@ -3,6 +3,7 @@
 // would silently re-point every existing connection on it); a row on an unbuilt wire is LISTED DISABLED with
 // its cause rather than hidden (the picker explains itself instead of losing an option); and a dropped
 // provider leaves its connections resolvable-as-`no-connection` rather than dangling.
+// @subject packages/server/src/domain/connection/verbs/providers.ts
 
 import type { ProviderId } from "@orb/contracts/inference";
 import type { PluginId } from "@orb/kit/ids";

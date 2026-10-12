@@ -1,6 +1,7 @@
 // verb: writeHubScores — the discovery → embeddings hub-score write seam (the ONLY hub_score writer;
 // §invariant 3). Asserts: scores land keyed `(id, model)`; `rowsUpdated` counts touched rows; a write to a
 // non-matching model leaves the row alone (space-scoped); an empty batch is a 0-row noop.
+// @subject packages/server/src/domain/embeddings/verbs/write-hub-scores.ts
 
 import { characterEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, Handle } from "@orb/kit/ids";

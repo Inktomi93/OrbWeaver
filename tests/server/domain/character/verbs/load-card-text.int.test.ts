@@ -3,6 +3,7 @@
 // returns the SAME card-text projection the indexer embeds (substrate/embed-text), a missing id is null (not a
 // throw — the source was deleted between emit and handler), and a synthetic group bucket is null (never
 // embedded).
+// @subject packages/server/src/domain/character/verbs/load-card-text.ts
 
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

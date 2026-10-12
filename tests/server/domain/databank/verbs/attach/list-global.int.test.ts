@@ -1,6 +1,7 @@
 // verb: listGlobal — the caller's global document ids. Load-bearing: the
 // OWNER SCOPE (another user's global document must never appear — the junction's `ownerId` is the belt) and
 // that the set tracks attach/detach, since the library row's `Everywhere` toggle renders straight off it.
+// @subject packages/server/src/domain/databank/verbs/attach/list-global.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

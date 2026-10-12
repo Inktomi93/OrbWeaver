@@ -2,6 +2,7 @@
 // owner row (drives the localFirstRun config flag); `claimOwnerPassword` is the ONE-SHOT write that can only
 // set a NULL password and never overwrite an existing one (the security invariant the unauthenticated
 // first-run route rests on).
+// @subject packages/server/src/domain/sessions/verbs/owner-password.ts
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";

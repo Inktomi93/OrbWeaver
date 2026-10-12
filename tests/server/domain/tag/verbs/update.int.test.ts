@@ -1,5 +1,7 @@
 // verb: updateTag — partial patch, `null` clears color to theme default, rename conflict, missing → 404.
+// @subject packages/server/src/domain/tag/verbs/update.ts
 
+// @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

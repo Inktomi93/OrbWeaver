@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ font: Record<string, { $value: readonly string[] }> }): baselined when the gate widened to value casts; burn-down item 906.
+
 // The app-face pin (client-architecture-lockdown.md §4.3 — an authored CSS mechanism carries a test).
 //
 // WHY THIS EXISTS: the font.sans / font.mono token stacks named "Geist" / "Geist Mono" for the app's

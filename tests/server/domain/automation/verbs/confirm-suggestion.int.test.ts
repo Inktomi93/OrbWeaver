@@ -12,6 +12,7 @@
 //
 // It drives the REAL dispatch with the REAL arm executors over a real db: the only fake is the injected
 // cross-feature op bundle (a capturing `requestTurn`), because "the op did not fire" is the assertion.
+// @subject packages/server/src/domain/automation/verbs/confirm-suggestion.ts
 
 import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationFires, chatParticipants } from "@orb/db";

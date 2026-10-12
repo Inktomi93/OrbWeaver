@@ -121,6 +121,7 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
 });
 
 test("section() dispatches setActiveSection with the exact id and returns ok:true", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "setActiveSection");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -131,6 +132,7 @@ test("section() dispatches setActiveSection with the exact id and returns ok:tru
 });
 
 test("section() REFUSES an unknown section id — no store call, a loud ok:false", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "setActiveSection");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -143,7 +145,9 @@ test("section() REFUSES an unknown section id — no store call, a loud ok:false
 // D271: Analytics is Corpus Insights. The bridge refuses the retired id rather than aliasing it, and reaches
 // the mode through the same action the switch writes.
 test("section() refuses the retired `analytics` id; corpusMode() lands on Corpus in that mode", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const sectionSpy = vi.spyOn(state, "setActiveSection");
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const modeSpy = vi.spyOn(state, "setCorpusMode");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -159,6 +163,7 @@ test("section() refuses the retired `analytics` id; corpusMode() lands on Corpus
 });
 
 test("openModal() dispatches the real openModal action; an unknown slot refuses without dispatching", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openModal");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -171,6 +176,7 @@ test("openModal() dispatches the real openModal action; an unknown slot refuses 
 });
 
 test("openConfig() dispatches openConfigTo (group + optional sub); an unknown group refuses", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openConfigTo");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -196,6 +202,7 @@ test("openConfig() dispatches openConfigTo (group + optional sub); an unknown gr
 // These assert THROUGH the store action (what a real "Related" link click dispatches), because the return
 // value was already `{ok:true}` while the argument was being thrown away: a passing `ok` is the defect.
 test("openConfig() carries the setting LEAF through to openConfigTo — the third argument is not dropped", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openConfigTo");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -204,6 +211,7 @@ test("openConfig() carries the setting LEAF through to openConfigTo — the thir
 });
 
 test("openConfig() REFUSES a setting handed over without its section, and dispatches nothing", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openConfigTo");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -233,6 +241,7 @@ const fixtureSection: ConfigSectionContribution = {
 };
 
 test("openConfig() validates sub/setting against an INJECTED registry — a real target dispatches", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openConfigTo");
   const registry = createContributorRegistry<ConfigSectionContribution>("test-fixture", [fixtureSection]);
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => registry);
@@ -242,6 +251,7 @@ test("openConfig() validates sub/setting against an INJECTED registry — a real
 });
 
 test("openConfig() REFUSES an unknown sub against an injected registry — no dispatch, nearest real sub named", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openConfigTo");
   const registry = createContributorRegistry<ConfigSectionContribution>("test-fixture", [fixtureSection]);
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => registry);
@@ -255,6 +265,7 @@ test("openConfig() REFUSES an unknown sub against an injected registry — no di
 });
 
 test("openConfig() REFUSES an unknown setting against an injected registry — no dispatch, nearest real leaf named", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openConfigTo");
   const registry = createContributorRegistry<ConfigSectionContribution>("test-fixture", [fixtureSection]);
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => registry);
@@ -268,6 +279,7 @@ test("openConfig() REFUSES an unknown setting against an injected registry — n
 });
 
 test("openConfig() with a sub, when the injected thunk has not loaded the registry yet, REFUSES loudly — never validates vacuously", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openConfigTo");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => null);
 
@@ -279,6 +291,7 @@ test("openConfig() with a sub, when the injected thunk has not loaded the regist
 });
 
 test("openConfig() with NO sub, when the injected thunk has not loaded, still dispatches — no lookup needed", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "openConfigTo");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => null);
 
@@ -390,6 +403,7 @@ test("contextTab() refuses an AMBIGUOUS label immediately rather than picking on
 });
 
 test("closeModal() dispatches the real closeModal action", () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const spy = vi.spyOn(state, "closeModal");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -398,7 +412,9 @@ test("closeModal() dispatches the real closeModal action", () => {
 });
 
 test("openChat(id) composes setActiveSection('chats') + selectChat — the exact pair a chat-row click performs", async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const sectionSpy = vi.spyOn(state, "setActiveSection");
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectChat");
   const trpc = fakeTrpc([{ id: CHAT_ID, title: "The Weave", participantNames: ["You"] }], []);
   const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
@@ -411,6 +427,7 @@ test("openChat(id) composes setActiveSection('chats') + selectChat — the exact
 });
 
 test("openChat(id) resolves directly even when a temporary or old chat is absent from the recent list", async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectChat");
   const trpc = fakeTrpc([], [], [{ id: CHAT_ID }]);
   const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
@@ -422,6 +439,7 @@ test("openChat(id) resolves directly even when a temporary or old chat is absent
 });
 
 test("openChat('latest') resolves the top of the list without a caller-known id", async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectChat");
   const trpc = fakeTrpc(
     [
@@ -443,7 +461,9 @@ test("openChat('current') resolves the ACTIVE room even when it is absent from t
   // "latest" resolves the wrong chat (last night a probe message landed in the owner's room). `current`
   // reads the active-chat pointer and never consults the list at all.
   state.selectChat(CHAT_ID);
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectChat");
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const sectionSpy = vi.spyOn(state, "setActiveSection");
   const trpc = fakeTrpc([{ id: castId<ChatId>("chat_agentnav_b"), title: "Some other chat", participantNames: ["You"] }], []);
   const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
@@ -457,6 +477,7 @@ test("openChat('current') resolves the ACTIVE room even when it is absent from t
 
 test("openChat('current') REFUSES with a named reason when no room is open — no dispatch", async () => {
   state.goToLanding();
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectChat");
   const nav = buildAgentNav(fakeTrpc([{ id: CHAT_ID, title: "The Weave", participantNames: ["You"] }], []), new RealQueryClient() as QueryClient);
 
@@ -470,6 +491,7 @@ test("openChat('current') REFUSES with a named reason when no room is open — n
 test("openChat('current') is a RESERVED word — a chat literally titled \"current\" stays reachable by its id", async () => {
   const titledCurrent = castId<ChatId>("chat_agentnav_d");
   state.selectChat(CHAT_ID);
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectChat");
   const trpc = fakeTrpc([{ id: titledCurrent, title: "current", participantNames: ["You"] }], []);
   const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
@@ -484,6 +506,7 @@ test("openChat('current') is a RESERVED word — a chat literally titled \"curre
 });
 
 test("openChat() with no id/title match REFUSES loudly, naming its search reach — no dispatch", async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectChat");
   const trpc = fakeTrpc([{ id: CHAT_ID, title: "The Weave", participantNames: ["You"] }], []);
   const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
@@ -495,6 +518,7 @@ test("openChat() with no id/title match REFUSES loudly, naming its search reach 
 });
 
 test("openChat() with an ambiguous title REFUSES rather than silently picking one", async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectChat");
   const dupeId = castId<ChatId>("chat_agentnav_c");
   const trpc = fakeTrpc(
@@ -513,7 +537,9 @@ test("openChat() with an ambiguous title REFUSES rather than silently picking on
 });
 
 test("openCharacter(id) dispatches setActiveSection('characters') + selectCharacter via the direct get read", async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const sectionSpy = vi.spyOn(state, "setActiveSection");
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectCharacter");
   const trpc = fakeTrpc([], [{ id: CHARACTER_ID, name: "Zandik" }]);
   const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
@@ -526,6 +552,7 @@ test("openCharacter(id) dispatches setActiveSection('characters') + selectCharac
 });
 
 test("openCharacter() with no id/name match REFUSES — no dispatch", async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const selectSpy = vi.spyOn(state, "selectCharacter");
   const trpc = fakeTrpc([], [{ id: CHARACTER_ID, name: "Zandik" }]);
   const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
@@ -546,7 +573,9 @@ test("openCharacter() with no id/name match REFUSES — no dispatch", async () =
 // and the end-to-end bridge call is proven live (`pnpm snap --dirty`) in both viewport regimes.
 
 test("panel() refuses an unknown panel name — no store dispatch", async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const dockSpy = vi.spyOn(state, "dockListPanel");
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const revealSpy = vi.spyOn(state, "revealContextPanel");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
@@ -559,6 +588,7 @@ test("panel() refuses an unknown panel name — no store dispatch", async () => 
 });
 
 test('panel() refuses an unknown mode, including the resolved-only "overlay" — no store dispatch', async () => {
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const dockSpy = vi.spyOn(state, "dockListPanel");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 

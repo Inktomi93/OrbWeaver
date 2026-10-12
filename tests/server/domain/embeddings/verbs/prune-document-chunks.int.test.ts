@@ -2,6 +2,7 @@
 // document's current chunks, this reclaims the strays: tail rows (chunkIdx >= keepCount, a shrunk set) AND
 // rows in a retired (model) space, scoped to the one document. Load-bearing: it is the ONLY non-store write
 // to document_chunks the databank domain reaches (via injection), and it must never touch another document.
+// @subject packages/server/src/domain/embeddings/verbs/prune-document-chunks.ts
 
 import { documentChunks, userConnections } from "@orb/db";
 import type { DocumentId, Handle, ModelId, UserId } from "@orb/kit/ids";

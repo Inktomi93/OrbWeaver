@@ -6,6 +6,7 @@
 //   3. the bundle FK is ON DELETE CASCADE, deliberately the opposite of `plugins.bundle_asset_id`: assets are
 //      per-user, so RESTRICT here would make the publishing admin's account undeletable by a policy row.
 
+// @orb-waive-file no-test-fabrication(NonNullable<typeof row>): baselined when the gate widened to value casts; burn-down item 906.
 import { adminDistributedPlugins, assets } from "@orb/db";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

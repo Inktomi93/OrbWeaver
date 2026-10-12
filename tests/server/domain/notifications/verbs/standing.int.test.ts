@@ -3,6 +3,7 @@
 // consent prompt's whole point rests on: the reader never holds two copies of one ask, answering asks one
 // at a time does not re-badge the bell, the last answer takes the row away, and a reader who dismissed the
 // row is left alone.
+// @subject packages/server/src/domain/notifications/verbs/standing.ts
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";

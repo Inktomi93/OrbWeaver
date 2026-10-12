@@ -3,6 +3,7 @@
 // roster, each assistant slot is attributed to the character that voiced it (`original_avatar` first, a
 // roster-SCOPED name second, the primary as the floor), the room is born with the group's own behaviour blob,
 // and isolation holds PER MEMBER and PER GROUP.
+// @subject packages/server/src/domain/import/verbs/import-group-chats.ts
 
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";

@@ -2,6 +2,7 @@
 // `chats/<character-handle>/<leaf>.jsonl`; the directory handle re-links first, then the transcript's own
 // display name, because an ST transcript names its character the way the user sees it.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

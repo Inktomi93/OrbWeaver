@@ -2,6 +2,7 @@
 // Load-bearing: returns ONLY pending rows (accepted tags read through the character's own accepted surface),
 // joined to the tag row (name + colors for the chip), owner-scoped via `characters.ownerId` (the junction
 // carries no owner), and narrowable to ONE character.
+// @subject packages/server/src/domain/tag/verbs/list-pending-suggestions.ts
 
 import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";

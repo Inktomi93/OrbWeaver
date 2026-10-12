@@ -4,6 +4,7 @@
 // events), while a present host/member resolves the tier the subscription projects by (`host` sees every
 // event; `member` sees only the room-visible quickReplySurfaced chips). The injected-op-caller-gate class,
 // fail-closed: the chatId is the untrusted input and present-membership is the chokepoint.
+// @subject packages/server/src/domain/automation/verbs/resolve-stream-authority.ts
 
 import { AutomationChatNotFoundError } from "@orb/server/domain/automation";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

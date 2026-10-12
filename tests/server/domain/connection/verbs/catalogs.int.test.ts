@@ -3,7 +3,9 @@
 // admission and the credential-ownership belt must both run BEFORE any fetch leaves the box (a belt that ran
 // after the dial would have already made the request it was there to prevent). Both reads answer one shape: a
 // failed or empty dial is the typed-id FALLBACK — `{ listed: false, reason }`, with no model list — never a throw.
+// @subject packages/server/src/domain/connection/verbs/catalogs.ts
 
+// @orb-waive-file no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

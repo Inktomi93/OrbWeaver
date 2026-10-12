@@ -160,6 +160,7 @@ describe("createHostNotAllowedNotice", () => {
       },
       logged: (): unknown[] =>
         spy.mock.calls.flatMap(([bindings]) => {
+          // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
           const fields = bindings as Record<string, unknown>;
           return fields["event"] === EVENT ? [fields["host"]] : [];
         }),
@@ -169,6 +170,7 @@ describe("createHostNotAllowedNotice", () => {
   test.each([true, false])("inContainer=%s: the line carries that install shape's ALLOWED_HOSTS fix, and never the overlay sentence", (inContainer) => {
     const spy = vi.spyOn(logger, "warn");
     createHostNotAllowedNotice(() => T0, inContainer)(REBOUND);
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const message = String(spy.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === EVENT)?.[1]);
     expect(message.includes("docker/orbweaver.local.env")).toBe(inContainer);
     expect(message.includes("docker compose up -d")).toBe(inContainer);
@@ -219,6 +221,7 @@ describe("the relay host registry", () => {
       },
       logged: (): (readonly [unknown, unknown])[] =>
         spy.mock.calls.flatMap(([bindings, message]) => {
+          // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
           const fields = bindings as Record<string, unknown>;
           return fields["event"] === EVENT ? [[fields["host"], message] as const] : [];
         }),

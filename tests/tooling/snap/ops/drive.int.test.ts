@@ -37,6 +37,7 @@ async function coldStageServer(warmAfter: number): Promise<{ readonly base: stri
     response.end(documents > warmAfter ? WARM_DOCUMENT : COLD_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const address = server.address() as AddressInfo;
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
@@ -109,6 +110,7 @@ async function degradedThenWarmServer(
     response.end(documents > warmAfter ? WARM_DOCUMENT : DEGRADED_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const address = server.address() as AddressInfo;
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
@@ -221,6 +223,7 @@ async function notFoundServer(): Promise<{ readonly base: string; readonly docum
     response.end(NOT_FOUND_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const address = server.address() as AddressInfo;
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
@@ -320,6 +323,7 @@ async function touchFixtureServer(): Promise<{ readonly base: string; readonly c
     response.end(TOUCH_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const address = server.address() as AddressInfo;
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
@@ -414,6 +418,7 @@ test("--swipe scrolls a touch scroller by dispatched touch events, and refuses w
     response.end(SWIPE_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
   const browser = await chromium.launch({ headless: true });
   try {
@@ -462,6 +467,7 @@ async function driveGestureFixture(argv: readonly string[]): Promise<GestureRead
     response.end(GESTURE_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
   const browser = await chromium.launch({ headless: true });
   try {
@@ -531,6 +537,7 @@ test("--soft-keyboard shrinks the visual viewport iOS-style, fires resize and sc
     response.end(KEYBOARD_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
   const browser = await chromium.launch({ headless: true });
   try {

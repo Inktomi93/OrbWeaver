@@ -5,6 +5,7 @@
 // ST corpus trips none of them (all five shipped themes are dark and convert cleanly), so a gate proven only
 // against the corpus would be a gate that has never been shown to fire.
 
+// @orb-waive-file no-test-fabrication({ override: { background: string; userBubble: { bg: string } } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ParsedStTheme } from "@orb/server/primitives/serde/theme";
 import { parseThemeFile, stThemeFromJson, stThemeName } from "@orb/server/primitives/serde/theme";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -78,6 +79,7 @@ describe("stThemeFromJson — the mapping", () => {
   });
 
   test("falls back to `chat_tint_color` when only it is readable", () => {
+    // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
     const parsed = converted({ name: "Chat only", chat_tint_color: "rgb(20,20,20)", main_text_color: "rgb(240,240,240)" }) as {
       override: { background: string };
     };
@@ -106,6 +108,7 @@ describe("stThemeFromJson — the mapping", () => {
 
 describe("stThemeFromJson — the SAFETY GATE (planted positive controls)", () => {
   test("ACCEPTS a mid-grey base now that foregrounds are solved per paint surface", () => {
+    // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
     const parsed = converted({ name: "Mid grey", blur_tint_color: "rgb(128,128,128)", main_text_color: "rgb(255,255,255)" }, "mid") as {
       override: { background: string };
     };

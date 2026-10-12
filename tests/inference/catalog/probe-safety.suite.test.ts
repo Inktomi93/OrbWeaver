@@ -3,6 +3,7 @@
 // at once. And neither new fetch follows a redirect (host pin #25): a 3xx would replay the transport headers and
 // a POST body to another origin, and that origin's answer would decide the shared detect cache.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-loose-id-cast("ollama"): baselined when the gate widened; burn-down item 906.
 import { createInferenceRuntime } from "@orb/inference";
 import { principal } from "@orb/testkit/node/factories/principal.ts";

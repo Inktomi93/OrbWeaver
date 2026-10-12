@@ -1,6 +1,7 @@
 // verb: detachFromChat — idempotent removal under the INJECTED host gate. Load-bearing: only a REAL
 // removal emits `wiBookDetached` + audits (`detached:false` is silent); the book owner is NOT re-checked
 // (host authority over room config — a prior host's book stays cleanable after a handoff).
+// @subject packages/server/src/domain/world-info/verbs/attachments/detach-from-chat.ts
 
 import { chatBooks } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

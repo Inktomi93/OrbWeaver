@@ -1,6 +1,7 @@
 // verb: update — whitelisted patch. Load-bearing: only whitelisted fields change (identity columns can't
 // be smuggled in); a no-op edit (all-undefined) re-reads WITHOUT writing or auditing; `null` clears a
 // nullable field; updatedAt advances on a real edit; a not-owned target throws.
+// @subject packages/server/src/domain/persona/verbs/update.ts
 
 import { personas } from "@orb/db";
 import type { Handle, PersonaId } from "@orb/kit/ids";

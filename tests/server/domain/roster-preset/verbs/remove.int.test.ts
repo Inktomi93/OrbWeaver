@@ -1,5 +1,6 @@
 // verb: remove — delete an owned party. Load-bearing: the seats CASCADE with the row, siblings survive,
 // the not-owned answer collapses leak-free, and the bus emit carries the removed id.
+// @subject packages/server/src/domain/roster-preset/verbs/remove.ts
 
 import { rosterPresetMembers, rosterPresets } from "@orb/db";
 import { createRosterPresetService, RosterPresetNotFoundError } from "@orb/server/domain/roster-preset";

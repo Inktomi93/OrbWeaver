@@ -5,6 +5,7 @@
 //   • a reference via a DIFFERENT column (gallery) also protects it (the registry is a UNION).
 //   • CRASH-INJECTION: a mid-delete `cas.remove` failure leaves a blob-with-no-row (benign, self-heals),
 //     NEVER a row-with-no-blob — the drop-row-BEFORE-blob ordering.
+// @subject packages/server/src/domain/assets/verbs/reap-if-orphan.ts
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { assets, characters, chats, userSettings } from "@orb/db";

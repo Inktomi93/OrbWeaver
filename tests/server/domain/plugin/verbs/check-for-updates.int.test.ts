@@ -12,6 +12,7 @@
 //     drops out of the batch rather than claiming a source it never reached for was unreachable.
 // The check re-fetches through the SAME injected egress guard the install rode (`ctx.fetchBundle`); a mutable
 // served-bundle proves the install→publish-upstream→check sequence without live DNS.
+// @subject packages/server/src/domain/plugin/verbs/check-for-updates.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

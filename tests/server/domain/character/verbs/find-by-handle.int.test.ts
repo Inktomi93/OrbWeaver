@@ -2,6 +2,7 @@
 // handle resolves to the identity ref, a missing one is `null`, the lookup is OWNER-SCOPED (a different
 // owner's same-handle card is NOT returned), and a card created through the service is findable by its handle
 // (the create→resolve round-trip the seeder's handle_conflict tolerance relies on).
+// @subject packages/server/src/domain/character/verbs/find-by-handle.ts
 
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

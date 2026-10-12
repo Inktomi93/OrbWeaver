@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
+
 // `loginFixtureUser` against a loopback server that answers the login form with the exact `Set-Cookie`
 // shapes the app writes: a mint under the transport's name plus a `Max-Age=0` clear of the other name.
 import { createServer } from "node:http";

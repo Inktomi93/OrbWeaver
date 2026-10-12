@@ -1,6 +1,7 @@
 // verb: getSnapshot — the compare/inspect blob read (the refinery Versions walk, schema-renderer §16.2):
 // the owned path returns the snapshot WITH its card content; a foreign owner and a snapshot under a
 // DIFFERENT character both collapse to the same NOT_FOUND (leak-free — the pair predicate).
+// @subject packages/server/src/domain/character/verbs/get-snapshot.ts
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { characterSnapshots } from "@orb/db";

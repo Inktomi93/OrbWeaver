@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
+
 // CT: the radio-group seal — one-of-many selection (role="radio" per item, name from the wrapping
 // label). Pointer selects one; arrow keys move the selection (Base UI roving tabindex).
 

@@ -3,6 +3,7 @@
 // (kit), the CONSEQUENCE asserted is "zero truth bytes in the serialized payload". The per-view projection
 // itself is pinned in tests/contracts/chat/member-projection.contract.test.ts.
 
+// @orb-waive-file no-test-fabrication(ChatBusReplayEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { projectViewForMember } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";

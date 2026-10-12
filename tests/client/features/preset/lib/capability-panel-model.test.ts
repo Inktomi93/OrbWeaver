@@ -6,6 +6,7 @@
 // quality dial exposes DISPLAY COPY only (its effort mapping lives server-side in the funnel, not here).
 // These are exactly the invariants that keep the panel descriptor-driven rather than a hardcoded knob stack.
 
+// @orb-waive-file no-test-fabrication(readonly { readonly value: string; readonly label: string }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { GenerationCapability, Range } from "@orb/contracts/inference";
 import { builtinProvider, DEFAULT_SAMPLER_KEYS } from "@orb/contracts/inference";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";

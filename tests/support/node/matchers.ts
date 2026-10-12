@@ -111,7 +111,9 @@ expect.extend({
     } catch (e) {
       const trpcError = asTrpcError(e);
       if (trpcError === null) {
+        // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
         const got = (e as Error | null)?.constructor?.name ?? typeof e;
+        // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
         const message = (e as Error | null)?.message ?? "";
         return {
           pass: false,
@@ -141,7 +143,9 @@ expect.extend({
       resolved = await toPromise(received);
     } catch (e) {
       if (!(e instanceof ProviderError)) {
+        // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
         const got = (e as Error | null)?.constructor?.name ?? typeof e;
+        // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
         const message = (e as Error | null)?.message ?? "";
         return {
           pass: false,

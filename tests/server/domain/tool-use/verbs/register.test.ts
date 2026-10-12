@@ -1,6 +1,7 @@
 // register — compose-time insertion: collision is BOOT-FATAL (thrown, never last-write-wins), a name
 // outside the OpenAI∩MCP charset refuses, and the JSON-schema projection is computed once and cached
 // on the entry (read back through resolveTools).
+// @subject packages/server/src/domain/tool-use/verbs/register.ts
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";

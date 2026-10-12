@@ -2,6 +2,7 @@
 // (`foldVarOps`), and the op-log capture the mutation handlers push (`ctx.opLog`). These are the primitives the
 // chat domain persists per-variant + folds along the selected-variant chain to kill the swipe-clobber (#3263).
 
+// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import type { MacroDiagnostic, MacroEnv, VarOp } from "@orb/kit/macro";
 import { applyVarOp, foldVarOps, processMacros } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

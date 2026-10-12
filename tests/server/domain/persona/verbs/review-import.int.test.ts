@@ -1,6 +1,7 @@
 // verb: reviewImport — the read-only list of incoming personas the profile import would split. It must agree
 // with the bulk write: equal content is reused (never listed), a same-name, different-content persona is
 // listed once per name, and nothing is written.
+// @subject packages/server/src/domain/persona/verbs/review-import.ts
 
 import { personas } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

@@ -9,6 +9,7 @@
 //           host handoff (#612 — the one state where reordering `runGates` reds something)
 // plus the property that makes F4 non-circular: a manual run can never raise an invitation, because it
 // cannot reach `budget_refused` at all.
+// @subject packages/server/src/domain/automation/verbs/run-rule-now.ts
 
 import { chatParticipants } from "@orb/db";
 import type { AutomationRuleId } from "@orb/kit/ids";

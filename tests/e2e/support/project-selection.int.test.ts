@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(JSONReport): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(readonly string[]): baselined when the gate widened to value casts; burn-down item 906.
+
 // Native collection is independent of the shared stack-boot/seed selector; no stack starts under --list.
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";

@@ -1,6 +1,7 @@
 // verb: updateScript — patch an owned row. THE load-bearing property: the behavior blob MERGES. A
 // `.partial()` input carries an explicit `undefined` for every omitted key, so a bare spread under
 // `exactOptionalPropertyTypes` would ERASE the fields the caller never named.
+// @subject packages/server/src/domain/regex/verbs/scripts/update.ts
 
 import { regexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

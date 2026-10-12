@@ -18,15 +18,11 @@
 // find". No specifier-resolution control is owed — resource rows import nothing.
 //
 // THE MATRIX IS ONE PIN PER DECLARATION PER REACHABLE STATUS (`docs/law/resource-policy-contract.md`
-// obligation 6), and three cells were missing until #2130: `unresolved` on BOTH `mirror-index` declarations
-// and `empty` on `package-test`. Those three are the arms that cannot be built from an overlay — an overlay
-// entry is text, so it is never a symlink, and it cannot make a directory EXIST while staying empty — so
-// they plant a real tree under the `scratch` `mkdtemp` root and pass an empty overlay. The fourth cell,
-// `authored-text` non-ready, is a DECLARED LIMIT rather than a missing pin: every demanded subject is drawn
-// from `mirror.testFiles`, and the mirror walk reads each member's BYTES, so an unreadable subject refuses
-// the mirror declaration at the population phase and the demand door is never reached. The argument and its
-// mechanism live in `test-presence-client.ts`'s header beside the declaration.
-import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+// obligation 6): `unresolved` on BOTH `mirror-index` declarations and `empty` on `package-test`. Those are the
+// arms that cannot be built from an overlay — an overlay entry is text, so it is never a symlink, and it cannot
+// make a directory EXIST while staying empty — so they plant a real tree under the `scratch` `mkdtemp` root and
+// pass an empty overlay.
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
@@ -385,8 +381,19 @@ const HEALTH = "packages/server/src/entry/http/health.ts";
 const HEALTH_SOURCE = "export function health(): number {\n  const status = 200;\n  return status;\n}\n";
 const HEALTH_TEST = 'import { health } from "../../../../packages/server/src/entry/http/health.ts";\nexport const t = health();\n';
 
+/** An inference, a client and a ui module, each named by an `@subject` header: the tripwires see them, no import
+ *  resolves, and nothing is left unreached. */
+const FRONT_TREE = {
+  "packages/inference/src/extensions/live.ts": "export const live = 1;\n",
+  "tests/inference/extensions/live.test.ts": "// @subject packages/inference/src/extensions/live.ts\nexport {};\n",
+  "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
+  "tests/client/data/use-thing.test.ts": "// @subject packages/client/src/data/use-thing.ts\nexport {};\n",
+  "packages/ui/src/markdown/policy.ts": "export function build(): number {\n  return 1;\n}\n",
+  "tests/ui/markdown/policy.test.ts": "// @subject packages/ui/src/markdown/policy.ts\nexport {};\n",
+} as const;
+
 test("test-reach: each blindness diagnosis discards a prior potential finding from raw and effective results", ({ scratch }) => {
-  const anchor = { ...TOOL_SPACE, "packages/db/src/schema/index.ts": "export const schema = 1;\n" };
+  const anchor = { ...TOOL_SPACE, ...FRONT_TREE, "packages/db/src/schema/index.ts": "export const schema = 1;\n" };
   const cases = [
     {
       message: "the entry/transport scan matched ZERO files",
@@ -421,6 +428,7 @@ test("test-reach: each blindness diagnosis discards a prior potential finding fr
 test("test-reach: a corpus whose tests resolve no reference refuses instead of accusing every module", ({ scratch }) => {
   const tree = {
     ...TOOL_SPACE,
+    ...FRONT_TREE,
     "packages/db/src/schema/index.ts": "export const schema = 1;\n",
     [PCA]: PCA_SOURCE,
     [HEALTH]: HEALTH_SOURCE,
@@ -484,30 +492,19 @@ test("test-presence-client: the standing-CT absence fires on a whole run and the
   expect(messages(staged)).toEqual([]);
 });
 
-test("test-presence-client: a staged new client data hook with no mirror test is judged", ({ scratch }) => {
-  const hook = "packages/client/src/data/use-thing.ts";
-  const tree = { [hook]: "export const useThing = () => 1;\n", "tests/client/data/other.test.ts": "export const t = 1;\n" };
+const ROOM = "packages/client/src/features/chat/surfaces/chat-room-surface.tsx";
+const ROOM_SOURCE = "export function ChatRoomSurface(): null {\n  return null;\n}\n";
+const STANDING_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
 
-  const flagged = passRequesting([testPresenceClient], scratch, tree, { requestedPaths: [hook] });
-  expect(flagged.toolErrors).toEqual([]);
-  expect(flagged.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence-client" }]);
-});
-
-/** `test-presence-client`'s TWO declarations, including the `authored-text` DEMAND door — which owns no
- *  population, so its receipt is per-CALL (`#1`) rather than per-declaration. */
-const CLIENT_TREE = {
-  "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
-  "tests/client/data/use-thing.test.ts": "export const t = 1;\n",
+/** The room exists and its standing contrast CT does not. */
+const MISSING_STANDING_CT_TREE = {
+  [ROOM]: ROOM_SOURCE,
+  "tests/client/features/chat/surfaces/chat-room-surface.ct.tsx": "export const t = 1;\n",
 } as const;
 
-const MISSING_CLIENT_TEST_TREE = {
-  "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
-  "tests/client/data/other.test.ts": "export const t = 1;\n",
-} as const;
-
-test("test-presence-client: a missing client test is an unsuppressible error that blocks WITHOUT promotion", ({ scratch }) => {
-  const unpromoted = pass(testPresenceClient, scratch, MISSING_CLIENT_TEST_TREE);
-  const promoted = pass(testPresenceClient, scratch, MISSING_CLIENT_TEST_TREE, true);
+test("test-presence-client: a missing standing CT is an unsuppressible error that blocks WITHOUT promotion", ({ scratch }) => {
+  const unpromoted = pass(testPresenceClient, scratch, MISSING_STANDING_CT_TREE);
+  const promoted = pass(testPresenceClient, scratch, MISSING_STANDING_CT_TREE, true);
 
   expect(unpromoted.policies[0]?.findings).toHaveLength(1);
   expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence-client", severity: "error" }]);
@@ -520,9 +517,8 @@ test("test-presence-client: a missing client test is an unsuppressible error tha
 
 test("test-presence-client: a marker cannot suppress the hard finding", ({ scratch }) => {
   const attempted = pass(testPresenceClient, scratch, {
-    ...MISSING_CLIENT_TEST_TREE,
-    "packages/client/src/data/use-thing.ts":
-      "// @orb-waive test-presence-client(export): hard finding must reject this marker.\nexport const useThing = () => 1;\n",
+    ...MISSING_STANDING_CT_TREE,
+    [ROOM]: `// @orb-waive test-presence-client(export): hard finding must reject this marker.\n${ROOM_SOURCE}`,
   });
 
   expect(attempted.authority.effectiveFindings).toHaveLength(1);
@@ -532,54 +528,22 @@ test("test-presence-client: a marker cannot suppress the hard finding", ({ scrat
   );
 });
 
-test("test-presence-client: an unreadable store mirror discards a prior potential finding from raw and effective results", ({ scratch }) => {
-  const refusing = {
-    ...MISSING_CLIENT_TEST_TREE,
-    "packages/client/src/state/example-store.ts":
-      'import { createGatedStore } from "./create-gated-store";\nconst store = createGatedStore<{ n: number }>("example", () => ({ n: 0 }));\nexport function setExample(): void {\n  store.setState({ n: 1 });\n}\n',
-    "tests/client/state/example-store.test.ts": "\n",
-  } as const;
-  const result = pass(testPresenceClient, scratch, refusing);
-
-  expect(refusalShape(result)).toEqual(evaluateRefusal("test-presence-client", "could not read ANY corpus"));
-
-  const readable = pass(testPresenceClient, scratch, { ...refusing, "tests/client/state/example-store.test.ts": "setExample();\n" });
-  expect(readable.toolErrors).toEqual([]);
-  expect(readable.authority.withheldPolicyIds).toEqual([]);
-  expect(readable.policies.flatMap(({ findings }) => findings)).toMatchObject([{ file: "packages/client/src/data/use-thing.ts" }]);
-  expect(readable.authority.effectiveFindings).toMatchObject([{ file: "packages/client/src/data/use-thing.ts", severity: "error" }]);
-});
-
-test("test-presence-client: a complete population files the mirror receipt AND the per-call demand receipt", ({ scratch }) => {
-  const result = pass(testPresenceClient, scratch, CLIENT_TREE);
+test("test-presence-client: a complete population files the mirror receipt", ({ scratch }) => {
+  const result = pass(testPresenceClient, scratch, { [ROOM]: ROOM_SOURCE, [STANDING_CT]: "export const t = 1;\n" });
 
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toEqual([]);
-  // Sorted: the receipt LIST is what matters (one per declaration, plus one per demand CALL), not the order
-  // the sink happens to publish them in.
-  expect(result.policies.map(({ receipts }) => receipts.map(({ source, unresolved }) => `${source}=${String(unresolved)}`).toSorted())).toEqual([
-    ["authored-text#1=0", "mirror-index:package-test=0"],
+  expect(result.policies.map(({ receipts }) => receipts.map(({ source, unresolved }) => `${source}=${String(unresolved)}`))).toEqual([
+    ["mirror-index:package-test=0"],
   ]);
 });
 
-test("test-presence-client: an absent test tree REFUSES — clause A cannot read a mirror that is not there", ({ scratch }) => {
-  const { "tests/client/data/use-thing.test.ts": _test, ...rest } = CLIENT_TREE;
-  const result = pass(testPresenceClient, scratch, rest);
+test("test-presence-client: an absent test tree REFUSES rather than reading as a missing standing CT", ({ scratch }) => {
+  const result = pass(testPresenceClient, scratch, { [ROOM]: ROOM_SOURCE });
 
   expect(refusalShape(result)).toEqual(populationRefusal("test-presence-client", "resource declaration mirror-index:package-test is missing"));
 });
 
-/** THE LIVE-TREE ARM, carried over from the retired `test-presence-client.int.test.ts` because it is the
- *  only assertion there that does not touch the gate's code at all. Clause C was inert on 15 of 34 stores
- *  because its header asserted every state-store mirror is a `.ct.tsx`; the tree disagreed by 15 files. If
- *  anyone re-narrows the mirror resolution to a single suffix, THIS is the receipt that the narrowing is
- *  wrong — and it keeps proving after every conversion, since it reads the tree and nothing else. */
-test("state store mirrors are NOT all .ct.tsx — the false premise that made clause C inert (#619)", ({ repoRoot }) => {
-  const names = readdirSync(join(repoRoot, "tests/client/state")).filter((name) => name.endsWith(".test.ts") || name.endsWith(".ct.tsx"));
-
-  expect(names.filter((name) => name.endsWith(".ct.tsx")).length).toBeGreaterThan(0);
-  expect(names.filter((name) => name.endsWith(".test.ts")).length).toBeGreaterThan(5);
-});
 /** #2142'S `test-layout` PARK IS RETIRED, AND SO ARE ITS THREE PINS (#2388, 2026-09-18).
  *
  *  The park held one class: `tests/tooling/verify/gates/**` family/wave tests reported by the §4.7 TOOLING

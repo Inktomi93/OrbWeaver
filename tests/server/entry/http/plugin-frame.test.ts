@@ -17,6 +17,7 @@
 //   8. every refusal arm is itself policied (the 401/404 replies are not un-policied HTML)
 //   9. the plugin's bytes reach the document verbatim, and the theme values are re-clamped on OUR side
 
+// @orb-waive-file no-test-fabrication({ url: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PluginFrameBody } from "@orb/contracts/plugin";

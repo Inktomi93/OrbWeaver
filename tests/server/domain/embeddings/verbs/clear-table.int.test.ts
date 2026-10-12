@@ -1,5 +1,6 @@
 // verb: clearTable — the maintenance wipe. Asserts a `DELETE FROM` empties the named table (and leaves the
 // others alone — the typed VectorTable routes to exactly one table).
+// @subject packages/server/src/domain/embeddings/verbs/clear-table.ts
 
 import { characterEmbeddings, imageEmbeddings } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

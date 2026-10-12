@@ -7,6 +7,7 @@
 //     NOT resolve (membership is not sufficient — the structural reference is the gate);
 //   • the owner's own attachment still resolves (the owner path via the chat-scoped call);
 //   • once the OWNER leaves the chat, the attachment stops resolving (mirrors `resolve-image-ref.ts`).
+// @subject packages/server/src/domain/assets/verbs/resolve-chat-asset-refs.ts
 
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, Handle, UserId } from "@orb/kit/ids";

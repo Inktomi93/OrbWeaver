@@ -5,6 +5,7 @@
 //
 // EACH TEST USES A UNIQUE OWNER — the field-index cache is a module-scope singleton keyed by ownerId, so a
 // shared handle would bleed one test's index into another (a fresh db won't reset the cache).
+// @subject packages/server/src/domain/search/verbs/fields.ts
 
 import { characters } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

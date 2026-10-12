@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(TraceEvent): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(TraceIndex): baselined when the gate widened to value casts; burn-down item 906.
+
 // Retained failure traces must carry the native popover's open state and its painted pixels.
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

@@ -123,3 +123,11 @@ test("blanking rides the same walk: comment text becomes spaces, code and every 
   expect(blanked.includes('"// not a comment"')).toBe(true);
   expect(blanked.includes('title="/* not a comment */"')).toBe(true);
 });
+
+test("an astral character in a comment blanks to two spaces, so every later offset still lands on its code", () => {
+  const source = "// two members' 👍 is ONE chip\nexport const err = (value as Error).name;\n";
+  const blanked = blankTsComments(parse(source));
+  expect(blanked.length).toBe(source.length);
+  const offset = source.indexOf("Error");
+  expect(blanked.slice(offset, offset + "Error".length)).toBe("Error");
+});

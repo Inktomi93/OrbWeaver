@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ reason?: unknown } | undefined): baselined when the gate widened to value casts; burn-down item 906.
+
 // foundation/observability/debug/routes — the /api/_debug two-tier auth gate (this gate previously
 // shipped untested). Pins: timing-safe token equality;
 // admin-session short-circuit; DEBUG_TOKEN fallback; `expectedToken === undefined` → 404 only when no

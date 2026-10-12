@@ -1,5 +1,6 @@
 // verb: attachToPreset — attach an owned script to an owned preset. BOTH ends are gated: a foreign script
 // and a foreign preset are each refused with the same not-found answer. Positions APPEND.
+// @subject packages/server/src/domain/regex/verbs/attachments/attach-to-preset.ts
 
 import { presetRegexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

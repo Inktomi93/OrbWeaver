@@ -7,6 +7,7 @@
 // must actually DIE. If dismissal were client-side state the record would sit in the server's map until its
 // TTL, another host tab would keep offering it, and — because the store replaces per `(chatId, ruleId)` —
 // the rule's next fire would be silently "answered" by a card the host already refused.
+// @subject packages/server/src/domain/automation/verbs/dismiss-suggestion.ts
 
 import type { AutomationSuggestionId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";

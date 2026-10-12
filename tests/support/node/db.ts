@@ -10,6 +10,7 @@
 // `LibSqlWrap` seam — the SAME seam `foundation/observability`'s `wrapLibSqlClient` uses for OTel spans
 // in production — so what a budget test counts is exactly what shows up as `db.*` spans at runtime.
 
+// @orb-waive-file no-test-fabrication({ sql?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db, LibSqlWrap } from "@orb/db";
 import { createDb } from "@orb/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
@@ -169,6 +170,7 @@ function countingClient<T extends object>(client: T, log: string[]): T {
         } else {
           log.push(sqlOf(args[0]));
         }
+        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         return (value as (...a: unknown[]) => unknown).apply(target, args);
       };
     },
@@ -235,9 +237,11 @@ function holdingClient<T extends object>(client: T, current: () => StatementGate
         return value;
       }
       if (prop === "execute") {
+        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         return heldExecute(target, value as (...a: unknown[]) => unknown, current);
       }
       if (prop === "batch") {
+        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         return heldBatch(target, value as (...a: unknown[]) => unknown, current);
       }
       return value.bind(target);

@@ -15,6 +15,7 @@
 // sections have no such mapper at all — each reads `getAppSettingsWithOverrides` (floor AND stored override)
 // and writes a sparse patch of its own keys, so there is no project→save→echo cycle left to oscillate.
 
+// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppearanceSettings, ChatSettings } from "@orb/contracts/settings";
 import {
   backgroundLibraryEntrySchema,

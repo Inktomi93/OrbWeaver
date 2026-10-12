@@ -1,3 +1,5 @@
+// @subject packages/server/src/domain/stats/verbs/leaderboard.ts
+
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";

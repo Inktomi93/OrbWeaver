@@ -11,6 +11,7 @@
 //  - the shell's own band slot renders NOTHING over a tabs pane, claimed or not.
 
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
+// @orb-waive-file no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
 import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";

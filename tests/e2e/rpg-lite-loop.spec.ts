@@ -36,6 +36,7 @@
 // SEED (owner rule): NEVER seed the "Mira" character in a live-inference seed — she destabilizes the 8B →
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
 
+// @orb-waive-file no-test-fabrication(readonly { readonly content?: unknown }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";

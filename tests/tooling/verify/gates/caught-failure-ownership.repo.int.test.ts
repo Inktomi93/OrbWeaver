@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(CaughtFailurePopulation): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<CaughtFailureVerdict, number>): baselined when the gate widened to value casts; burn-down item 906.
+
 // The PERMANENT PIN for `caught-failure-ownership` (issue #751) and for the durable census it produces
 // (tooling/src/verify/gates/caught-failure-ownership.population.json). Conformance proves the MATCHER against
 // synthetic mini-projects; this proves the three things conformance structurally cannot:

@@ -3,6 +3,7 @@
 // USER_ROLES (db === contracts), the role default, the handle UNIQUE, the externalId UNIQUE-when-set
 // partial index (multiple nulls coexist, equal non-nulls collide), and the epoch-ms NUMBER timestamps.
 
+// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { USER_KINDS, USER_ROLES } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";

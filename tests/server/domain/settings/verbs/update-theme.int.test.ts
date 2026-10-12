@@ -1,5 +1,6 @@
 // verb: updateTheme — patch an OWNED theme; a seed id 404s BY CONSTRUCTION (fetchOwned's NULL-owner
 // predicate can never match); a taken name on rename throws DomainConflictError.
+// @subject packages/server/src/domain/settings/verbs/update-theme.ts
 
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { freshDb } from "@orb/testkit/node/db.ts";

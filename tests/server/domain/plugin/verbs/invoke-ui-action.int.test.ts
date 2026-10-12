@@ -3,6 +3,7 @@
 // success arm re-enters the surface's `onAction` through the resident's crash-policy'd invoke with one
 // `{actionId, values, chat}` object; the fakePort rejects invoke (that path is the composed-real runtime), so
 // the re-entry ARGS are proven with a recording port and the GATES with the default fake.
+// @subject packages/server/src/domain/plugin/verbs/invoke-ui-action.ts
 
 import type { InvocationChat } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";

@@ -1,5 +1,6 @@
 // verb: probeKeyDecrypt — the boot decrypt-probe. Asserts: enabled box with no credentials → true;
 // enabled box with a valid credential → true; enabled box with a credential under a DIFFERENT key → false.
+// @subject packages/server/src/domain/credentials/verbs/probe-key-decrypt.ts
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -14,6 +14,7 @@ describe("recordMemoryLog", () => {
     const spy = vi.spyOn(logger, "debug");
     recordMemoryLog({ event: "memory.recall" });
     expect(spy).toHaveBeenCalledOnce();
+    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields, msg] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(fields["memory"]).toBe(true);
     expect(msg).toBe("memory.recall");
@@ -22,6 +23,7 @@ describe("recordMemoryLog", () => {
   test("structured fields ride through alongside the tag (event kept as a field too)", () => {
     const spy = vi.spyOn(logger, "debug");
     recordMemoryLog({ event: "memory.build", chatId: "chat_x", digestCount: 3 });
+    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(fields["memory"]).toBe(true);
     expect(fields["chatId"]).toBe("chat_x");

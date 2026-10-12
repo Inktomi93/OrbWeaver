@@ -176,6 +176,7 @@ test("#1326 — every emitted finding selector resolves to exactly one element, 
   // The SECOND one lives in `representatives` (both instances share one authored target-size decision, so
   // the rung-4 strategy collapses them into one row), and that is exactly why the proof above covers the
   // representative list too — reading only the printed row would have proved the easy half.
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(reportPath(audited.stdout), "utf8")) as {
     readonly findings: readonly { readonly rule: string; readonly selector: string; readonly representatives?: readonly string[] }[];
     readonly selectorProof: readonly { readonly selector: string; readonly matches: number }[];
@@ -256,6 +257,7 @@ test("a page the app declares a FAILURE SURFACE is refused on sight, tables and 
 async function auditFact(stdout: string): Promise<Record<string, unknown>> {
   const indexPath = /\bindex=(\/\S+\/run\.json)\b/u.exec(stdout)?.[1];
   expect(indexPath, `no run index in:\n${stdout}`).toBeTypeOf("string");
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(String(indexPath), "utf8")) as {
     readonly results?: { readonly batches: readonly { readonly arms: readonly { readonly arm: string; readonly data: Record<string, unknown> }[] }[] };
   };
@@ -332,6 +334,7 @@ test("#1538 — a TRUNCATED selector proof publishes its remainder end-to-end, a
   expect(capped.stdout).toContain("selectors-proven=1");
   expect(capped.stdout).toContain("selectors-unproven=1");
   expect(capped.stdout).toContain("proof cap truncated the list");
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(reportPath(capped.stdout), "utf8")) as {
     readonly selectorsUnproven: number;
     readonly problems: readonly { readonly metric: string; readonly subject: string; readonly observed: string }[];

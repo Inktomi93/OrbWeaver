@@ -5,6 +5,7 @@
 // root wires the real ones — see invites.ts FLAG[invite-deps-not-on-ctx]). The verbs are reached through the
 // grouped-file BUNDLE (`createInvites(ctx, deps)`).
 
+// @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
@@ -157,6 +158,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
 
     const err = await invites.createInvite({ principal: principal(member), chatId, input: {} }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
@@ -241,6 +243,7 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
     const invites = createInvites(makeChatContext(db), makeDeps());
     const err = await invites.createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("invite_signup_shape");
     expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, admin.chatId))).toHaveLength(0);
   });
@@ -262,6 +265,7 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
     const err = await invites
       .createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input: valid })
       .catch((e: unknown) => e);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("invite_signup_unavailable");
     expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, admin.chatId))).toHaveLength(0);
   });
@@ -916,6 +920,7 @@ describe("listInvites — the host-management outstanding-invites read (FIX #4)"
 
     const err = await invites.listInvites({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 

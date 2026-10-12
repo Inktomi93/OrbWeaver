@@ -25,6 +25,7 @@
 import type { AtlasBootOptions, CannedResponse } from "@orb/testkit/node/atlas-guest.ts";
 import { bootAtlas, lastAtlasState } from "@orb/testkit/node/atlas-guest.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+// @orb-waive-file no-test-fabrication({ owned?: unknown } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
 
 /** A one-row Wyvern page — the hub whose rows carry native card JSON, so the add path's JSON arm resolves

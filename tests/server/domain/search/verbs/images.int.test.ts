@@ -3,6 +3,7 @@
 // assets.ownerId), lens gating (only the requested lens is scanned), caption rerank reordering, the empty-
 // query SearchError, and — THE LOAD-BEARING INVARIANT — that a hub-score-dominant outlier does NOT outrank a
 // relevant match (the verb skips CSLS on the cross-modal path; applying `hub_score` would invert the order).
+// @subject packages/server/src/domain/search/verbs/images.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -13,6 +13,7 @@
 // column projection then dropped, so the call wrote nothing, returned `{}`, and stamped a junk lock. The four
 // pins: `{}` = no-op · null = clear (down to the leaf) · an unknown plane = errors-as-data · a null on a
 // NON-nullable leaf = errors-as-data at the F1 write boundary.
+// @subject packages/server/src/domain/rpg/verbs/edit-snapshot.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

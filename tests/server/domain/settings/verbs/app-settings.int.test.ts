@@ -2,6 +2,7 @@
 // the admin gate (owner ∪ admin) on BOTH verbs; the OWNER-ONLY gate on a PATCH that touches a D17
 // governance field (the box-governance split); the floor⊕override resolution; the null=CLEAR sentinel
 // (a cleared override reads the env floor back); every successful write audits.
+// @subject packages/server/src/domain/settings/verbs/app-settings.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { env } from "@orb/server/foundation/env";

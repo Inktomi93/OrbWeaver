@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ readonly dependencies?: Readonly<Record<string, string>> }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,6 +37,7 @@ test("a clean build materializes every indexed slug as deterministic installable
     const second = await reader.packBundle(slug);
     expect(first, `${slug} ships no release artifact`).not.toBeNull();
     expect(second).toEqual(first);
+    // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
     const parsed = parseBundle(first as Uint8Array);
     expect(parsed.manifest.id).toBe(slug);
     expect(parsed.uiJs !== undefined, `${slug}'s ui.js presence disagrees with its uiEntry declaration`).toBe(parsed.manifest.uiEntry !== undefined);
@@ -73,6 +76,7 @@ test("a present but corrupt release artifact fails loudly instead of hiding an u
 test("the install funnel refuses undeclared ui.js, declared-but-absent ui.js, and stray entries", async ({ scratch }) => {
   const reader = await materializedReader(scratch);
   const packed = await reader.packBundle(SHOWCASE_PLUGIN_SLUGS[0]);
+  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const original = parseBundle(packed as Uint8Array);
   const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
   const manifestOf = (overrides: Record<string, string | undefined>): Uint8Array => encode(JSON.stringify({ ...original.manifest, ...overrides }));

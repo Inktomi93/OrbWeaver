@@ -1,4 +1,5 @@
 // .int tests for `deleteSchema`: the owner's delete lands; foreign/absent ids collapse leak-free.
+// @subject packages/server/src/domain/refinery/verbs/delete-schema.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefinerySchemaId } from "@orb/kit/ids";

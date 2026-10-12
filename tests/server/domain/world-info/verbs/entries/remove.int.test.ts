@@ -1,5 +1,6 @@
 // verb: removeEntry — owner-scoped via the owned-book inArray subquery (invariant #4). Load-bearing: a
 // foreign entry id is NotFound (never a silent cross-tenant delete); an owned entry deletes.
+// @subject packages/server/src/domain/world-info/verbs/entries/remove.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

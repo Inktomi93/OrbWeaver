@@ -3,6 +3,7 @@
 // run the real ring and the real builder, and prove none of it reaches the summary, the issue link or the
 // downloaded bundle — while the user's own words, which they typed for this, do.
 
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
 import { readFileSync } from "node:fs";
 import type { BugReportDiagnostics } from "@orb/contracts/diagnostics";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";

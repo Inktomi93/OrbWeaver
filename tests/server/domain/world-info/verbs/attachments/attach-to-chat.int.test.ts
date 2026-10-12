@@ -2,6 +2,7 @@
 // (a guard rejection propagates and NOTHING writes/emits/audits); the book ownership gate fires (a foreign
 // book is NotFound); idempotent on the composite key — only the REAL insert emits `wiBookAttached` + audits
 // (a re-attach is silent: no phantom pool-invalidation event, no duplicate audit row).
+// @subject packages/server/src/domain/world-info/verbs/attachments/attach-to-chat.ts
 
 import { chatBooks } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

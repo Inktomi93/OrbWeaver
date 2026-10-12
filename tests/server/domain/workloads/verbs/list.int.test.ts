@@ -1,4 +1,5 @@
 // Verb test: list — newest-first, filterable by kind/status/owner; owner-scoping is by the owner_id column.
+// @subject packages/server/src/domain/workloads/verbs/list.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

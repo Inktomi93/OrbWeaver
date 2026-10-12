@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(SessionRow): baselined when the gate widened to value casts; burn-down item 906.
+
 // T4's missing behavioral control: a REAL snap daemon
 // boots and binds a REAL isolated stage, measures once, then observes one killed half of the stage's port
 // pair. The next daemon call must stamp the death in BOTH registries and refuse loudly; the real status
@@ -132,7 +134,9 @@ test("T4 — killing one half of a real daemon-bound stage makes death sticky, s
 
     // The plant: kill EXACTLY the vite half. The stack leader may subsequently take its sibling down,
     // but this test sends one signal to one bound pid and lets production lifecycle code do the rest.
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     process.kill(vitePid as number, "SIGKILL");
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     expect(await until(() => !pidAlive(vitePid as number))).toBe(true);
 
     const op = ["--eval", "40 + 2", ...QUIET];

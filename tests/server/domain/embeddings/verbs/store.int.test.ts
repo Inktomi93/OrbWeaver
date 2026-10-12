@@ -7,6 +7,7 @@
 //   • `hub_score` is NEVER touched by a store (a re-embed preserves a discovery-written score — §invariant 2);
 //   • both image lenses (`image-raw` pure-visual + `image-captioned` joint-VL) coexist per asset, caption
 //     persisted only on the captioned lens.
+// @subject packages/server/src/domain/embeddings/verbs/store.ts
 
 import { createHash } from "node:crypto";
 import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";

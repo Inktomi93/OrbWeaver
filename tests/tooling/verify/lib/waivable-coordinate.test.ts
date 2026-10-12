@@ -66,7 +66,7 @@ test("isWaivablePosition accepts what a marker can hold and rejects blanks as th
 });
 
 test("a value the grammar can already hold comes back unchanged — the split costs the paren-free case nothing", () => {
-  for (const value of ["#ff0000", "dark:bg-card", "var--brand", " leading-space"]) {
+  for (const value of ["#ff0000", "dark:bg-card", "var--brand"]) {
     expect([value, waivableCoordinate(value)]).toEqual([value, value]);
   }
 });
@@ -79,11 +79,19 @@ test("a value the grammar cannot hold narrows to its leading paren-free slice", 
   ).toEqual(["oklch", "[&:where", "translate", "supports-[selector", "process.cwd"]);
 });
 
-test("the scan uses the excluded SET, so a leading SPACE keeps its head instead of refusing", () => {
-  // The module header states this as the reason the scan does not re-derive through `isWaivablePosition` one
-  // character at a time: that alternative rejects the one-character head " " as blank and returns `undefined`
-  // for a value the pre-move code accepted. This is the arm that fails if someone "simplifies" the scan.
-  expect(waivableCoordinate(" oklch(1)")).toBe(" oklch");
+test("a coordinate never carries edge whitespace, because the marker parser trims its position", () => {
+  const cuts = ["typeof globalThis & { __x: ", "typeof globalThis & { __x: (y)", "ok ", "a\t(b)"].map((value) => [value, waivableCoordinate(value)] as const);
+
+  expect(cuts).toEqual([
+    ["typeof globalThis & { __x: ", "typeof globalThis & { __x:"],
+    ["typeof globalThis & { __x: (y)", "typeof globalThis & { __x:"],
+    ["ok ", "ok"],
+    ["a\t(b)", "a"],
+  ]);
+});
+
+test("a leading-whitespace value is a refusal: trimming its head would move the coordinate off the reported column", () => {
+  expect([" leading-space", " oklch(1)", "\tx"].map((value) => waivableCoordinate(value))).toEqual([undefined, undefined, undefined]);
 });
 
 test("no anchorable head is a REFUSAL, including the declared zero-argument-arrow limit", () => {

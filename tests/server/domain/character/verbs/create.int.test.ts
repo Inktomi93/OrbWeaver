@@ -1,6 +1,7 @@
 // verb: create — app-authored card mint. Load-bearing: the `contentHash` flatten is always present, import
 // provenance is null (app-authored), `character.updated` is emitted (the indexer re-embeds), and a per-owner
 // handle collision throws `CharacterOperationError("handle_conflict")`.
+// @subject packages/server/src/domain/character/verbs/create.ts
 
 import { statsCanonVersions } from "@orb/db";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";

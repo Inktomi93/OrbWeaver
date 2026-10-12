@@ -7,6 +7,7 @@
 // ONE room-level query and then make zero per-row calls. An empty answer is the whole feature when it is off,
 // and these pins are what make "empty" a fact rather than an assumption. The round-trip itself (the fold, the
 // D53 skip posture, the guest's `env`) is pinned beside its own verb in transform-for-display.int.test.ts.
+// @subject packages/server/src/domain/plugin/verbs/list-display-transforms.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -1,6 +1,7 @@
 // verb: duplicateScript — copy the body into a fresh "<name> (copy)" row. Load-bearing: the copy is
 // UNATTACHED at every scope. A duplicate is a new authored artifact, not a second attachment of the
 // original — cloning the source's attachments would silently double its effect in every room it ran in.
+// @subject packages/server/src/domain/regex/verbs/scripts/duplicate.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

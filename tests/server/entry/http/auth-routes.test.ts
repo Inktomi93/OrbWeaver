@@ -4,6 +4,8 @@
 // registration (login present only with `authenticate`, OIDC present only with `oidc`). Hono isn't
 // test-resolvable, so the registrar runs over a captured mock app + context.
 
+// @orb-waive-file no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
@@ -456,6 +458,7 @@ describe("logout — CSRF gate", () => {
     expect(res.status).toBe(200);
     expect(rec.revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
+    // @orb-waive no-test-fabrication({ endSessionUrl: string | null }): baselined when the gate widened to value casts; burn-down item 906.
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBeNull(); // no oidc deps here
   });
 
@@ -576,6 +579,7 @@ describe("logout — CSRF gate", () => {
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
     expect(res.status).toBe(200);
     // No forwarded-host on this ctx ⇒ the origin is unresolvable ⇒ no post_logout param, just the bare endpoint.
+    // @orb-waive no-test-fabrication({ endSessionUrl: string | null }): baselined when the gate widened to value casts; burn-down item 906.
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBe(endSession);
   });
 
@@ -608,6 +612,7 @@ describe("logout — CSRF gate", () => {
   async function logoutEndSessionUrl(deps: AuthRoutesDeps, origin: Record<string, string> = {}): Promise<string | null> {
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1", ...origin } }));
     expect(res.status).toBe(200);
+    // @orb-waive no-test-fabrication({ endSessionUrl: string | null }): baselined when the gate widened to value casts; burn-down item 906.
     return ((await res.json()) as { endSessionUrl: string | null }).endSessionUrl;
   }
 
@@ -939,10 +944,12 @@ describe("OIDC groups-claim ARRIVAL observability (#140)", () => {
   function arrivalLine(raw: Record<string, unknown>, claimMap: OidcClaimMap = claims): Record<string, unknown> {
     const spy = vi.spyOn(logger, "info");
     identityFromClaims(raw, claimMap);
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = spy.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "oidc_groups_claim");
     if (call === undefined) {
       throw new Error("no oidc_groups_claim line was emitted");
     }
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     return call[0] as Record<string, unknown>;
   }
 
@@ -1010,7 +1017,9 @@ describe("OIDC groups-claim missing → securityEvent when group governance is A
   function missingWarn(raw: Record<string, unknown>): Record<string, unknown> | undefined {
     const spy = vi.spyOn(logger, "warn");
     identityFromClaims(raw, claims);
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = spy.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "oidc_groups_claim_missing");
+    // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
     return call?.[0] as Record<string, unknown> | undefined;
   }
 
@@ -1209,6 +1218,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ peer, headers }));
     expect(res.status).toBe(400);
     expect(res.headers.get("location")).toBeNull();
+    // @orb-waive no-test-fabrication({ error: string }): baselined when the gate widened to value casts; burn-down item 906.
     expect(((await res.json()) as { error: string }).error).toContain("X-Forwarded-Proto");
     expect(rec.mints).toBe(0);
   });
@@ -1221,6 +1231,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     )(makeCtx({ peer: "127.0.0.1", headers: { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": "https" } }));
     expect(res.status).toBe(400);
     expect(res.headers.get("location")).toBeNull();
+    // @orb-waive no-test-fabrication({ error: string }): baselined when the gate widened to value casts; burn-down item 906.
     expect(((await res.json()) as { error: string }).error).toContain("https://chat.example.com/api/auth/oidc/callback");
   });
 
@@ -1382,7 +1393,9 @@ describe("OIDC callback — the browser binding (login CSRF)", () => {
   /** The bindings of the `oidc_callback_unbound` security warn among a `logger.warn` spy's calls, or undefined
    *  when it did not fire. */
   function unboundWarn(calls: readonly (readonly unknown[])[]): Record<string, unknown> | undefined {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "oidc_callback_unbound");
+    // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
     return call?.[0] as Record<string, unknown> | undefined;
   }
 

@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(SurfaceManifest): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ status?: number; stderr?: string }): baselined when the gate widened to value casts; burn-down item 906.
+
 // The Base UI surface READER's own proof — the half `gate-conformance` structurally cannot reach.
 //
 // Conformance proves that `baseui-surface-manifest` REPORTS a blind part. It cannot prove that the

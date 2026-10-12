@@ -1,5 +1,6 @@
 // verb: detachGlobal — un-mark an owned book global (idempotent). Load-bearing: detached:true on a real
 // removal, detached:false when not global; a foreign book is NotFound.
+// @subject packages/server/src/domain/world-info/verbs/attachments/detach-global.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

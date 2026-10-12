@@ -1,6 +1,7 @@
 // verb: generateGreeting — greeting studio (audit §3). Owner-gated bounded completion that RETURNS a fresh
 // greeting and NEVER writes. Pins: owner ok (ONE completion, greeting_new template, NO {{base}}), non-owner →
 // leak-free CharacterNotFoundError BEFORE any template read / completion, and no DB write.
+// @subject packages/server/src/domain/character/verbs/generate-greeting.ts
 
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

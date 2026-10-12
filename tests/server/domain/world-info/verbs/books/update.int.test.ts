@@ -1,5 +1,6 @@
 // verb: updateBook — owner-scoped patch. Load-bearing: a foreign book is NotFound (no silent write); a
 // patch updates the whitelisted fields; a no-op edit re-reads without throwing.
+// @subject packages/server/src/domain/world-info/verbs/books/update.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

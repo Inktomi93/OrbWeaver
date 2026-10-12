@@ -3,6 +3,7 @@
 // the apply scope, and a kept set never half-lands), the completed-session refusal, the LIVE
 // greeting-index assert, snapshot-first reversibility, the real `character.update` write, and the honest
 // zero-write arm. The REAL character service runs under the apply (its own belts included).
+// @subject packages/server/src/domain/refinery/verbs/apply-fields.ts
 
 import { GREETING_SLOTS_MAX } from "@orb/contracts/refinery";
 import { characterSnapshots } from "@orb/db";

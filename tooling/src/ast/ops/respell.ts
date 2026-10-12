@@ -3,6 +3,7 @@
 import process from "node:process";
 import type { Node, Project } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { AssignabilityChecker } from "../../floor/code-facts/assignability.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticWorkspaceOf } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, MalformedNearPairMarker, NearPairExemption, StaleNearPairMarker } from "../contract/types.ts";
@@ -12,7 +13,6 @@ import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
 import { RESPELL_NEAR_PROPERTY_FLOOR } from "../lib/respell-near-analysis.ts";
 import { respellNearAuditFor } from "../lib/respell-near-markers.ts";
 import { malformedNearPairMarkerEvidence, nearPairExemptionEvidence, nearPairHit, staleNearPairMarkerEvidence } from "../lib/respell-near-report.ts";
-import type { AssignabilityChecker } from "../lib/respell-shapes.ts";
 import { assignabilityChecker, domainsWithContracts, RESPELL_PROPERTY_FLOOR, respellHitsFor } from "../lib/respell-shapes.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");

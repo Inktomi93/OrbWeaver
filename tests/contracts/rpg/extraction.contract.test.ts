@@ -3,6 +3,10 @@
 // transform] class the tools pin), it DERIVES from the same tool arg shapes (the shared-plane proof — a party
 // entry parses exactly like `update_party` args), and an empty object is a valid "nothing changed" extraction.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ required?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { scrubWireSchema } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgGameConfig, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import {
@@ -124,6 +128,7 @@ test("the full 7-plane delta parses as one object", () => {
 function refEnum(schema: Record<string, unknown>, path: readonly string[]): unknown {
   let node: unknown = schema;
   for (const key of path) {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     node = node !== null && typeof node === "object" ? (node as Record<string, unknown>)[key] : undefined;
   }
   return node;
@@ -213,6 +218,7 @@ test("R6: an actor who does NOT carry a tracker is never offered it (the whole p
   expect(branches).toHaveLength(3);
   const byTarget = new Map(
     branches.map((b) => {
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const props = b["properties"] as Record<string, Record<string, unknown>>;
       const target = ((props["targetRef"]?.["enum"] ?? []) as string[])[0] ?? "";
       return [target, props] as const;
@@ -371,6 +377,7 @@ test("PROMPT-CACHE (probe F4): only the SCENE-derived enums are dropped (targetR
 
 test("PROMPT-CACHE (probe F4): a game with NO actor trackers keeps a targetable party plane (both arms pruned, condition/status intact)", () => {
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), cacheStableExtractionRefs({ ...BARE_REFS, actorRefs: ["Kael"] }, []));
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const props = refEnum(constrained, ["properties", "party", "items", "properties"]) as Record<string, unknown>;
   expect(props["trackerDeltas"]).toBeUndefined();
   expect(props["trackerSets"]).toBeUndefined();
@@ -617,8 +624,11 @@ test("weather.type reaches the WIRE schema as an enum (the grammar binds it); we
   // response_format mapping enforces it with zero per-provider code. Read off the PROJECTED schema — the thing
   // the model is actually handed.
   const projected = projectJsonSchema(rpgExtractionSchema) as Record<string, unknown>;
+  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const scene = (projected["properties"] as Record<string, Record<string, unknown>>)["scene"];
+  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const weather = (scene?.["properties"] as Record<string, Record<string, unknown>>)["weather"];
+  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const weatherProps = weather?.["properties"] as Record<string, Record<string, unknown>>;
   expect(weatherProps["type"]?.["enum"]).toEqual(["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"]);
   // The xgrammar-visible arm of the widening: `indoors` has to reach the PROJECTED schema, or the model is
@@ -1093,6 +1103,7 @@ function wireKeywords(node: unknown, acc: Set<string> = new Set<string>()): Set<
   for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
     acc.add(key);
     if (NAME_MAP_KEYS.has(key) && value !== null && typeof value === "object" && !Array.isArray(value)) {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       for (const child of Object.values(value as Record<string, unknown>)) {
         wireKeywords(child, acc);
       }

@@ -1,5 +1,6 @@
 // verb: detachFromCharacter — idempotent removal. Load-bearing: removing an existing attachment returns
 // detached:true; detaching when absent is detached:false (no error); a foreign character is NotFound.
+// @subject packages/server/src/domain/world-info/verbs/attachments/detach-from-character.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

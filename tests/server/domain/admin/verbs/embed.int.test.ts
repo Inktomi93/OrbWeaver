@@ -2,6 +2,7 @@
 // gate (a plain user is refused BEFORE the port is touched), the leak-free not-found when the composed
 // port reports not-owned/missing (`false`), and the happy path (port called with the caller's principal +
 // the target id, then audited).
+// @subject packages/server/src/domain/admin/verbs/embed.ts
 
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle } from "@orb/kit/ids";

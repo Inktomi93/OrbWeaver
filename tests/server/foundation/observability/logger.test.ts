@@ -2,6 +2,7 @@
 // output shape (requestId stamped on the line), and securityEvent. The rings are module singletons shared
 // across tests, so each test pushes its OWN markers and asserts on those (most-recent-first).
 
+// @orb-waive-file no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
 import { ProviderError } from "@orb/inference";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

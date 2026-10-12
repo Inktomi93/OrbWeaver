@@ -2,6 +2,7 @@
 // is the load-bearing one: ≥3 rows share one `uploadedAt` (the frozen clock stamps every store the same
 // millisecond — exactly the bulk-import case the `(uploadedAt, id)` tiebreak exists for), walked in pages
 // of 2 with no skip and no duplicate.
+// @subject packages/server/src/domain/assets/verbs/list-owned.ts
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";

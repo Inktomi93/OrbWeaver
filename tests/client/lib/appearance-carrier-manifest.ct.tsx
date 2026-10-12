@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication([keyof AppearanceCarrierSnapshot, AppearanceCarrierObservable][]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
@@ -24,15 +27,15 @@ function readCarrierSnapshot(page: Page): Promise<Partial<AppearanceCarrierSnaps
       if (observable.kind === "inline-style") {
         return { found: true, value: element.style.getPropertyValue(observable.signal) };
       }
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const payload = JSON.parse(element.textContent ?? "{}") as Record<string, unknown>;
       return {
         found: true,
-        value: observable.signal
-          .split(".")
-          .reduce<unknown>(
-            (current, part) => (typeof current === "object" && current !== null ? (current as Record<string, unknown>)[part] : undefined),
-            payload,
-          ),
+        value: observable.signal.split(".").reduce<unknown>(
+          // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+          (current, part) => (typeof current === "object" && current !== null ? (current as Record<string, unknown>)[part] : undefined),
+          payload,
+        ),
       };
     };
     const snapshot: Partial<AppearanceCarrierSnapshot> = {};
@@ -69,6 +72,7 @@ test("#935 every armed appearance key changes its declared real carrier across t
   const captureArm = async (appearance: AppearanceSettings, arm: string): Promise<Partial<AppearanceCarrierSnapshot>> => {
     await routeAppearance(page, appearance, arm);
     const component = await mount(<AppearanceCarrierStory />);
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     await expect
       .poll(async () => JSON.parse((await page.getByRole("region", { name: "CT Appearance hook snapshot" }).textContent()) ?? "{}") as Record<string, unknown>)
       .toMatchObject({ avatarSize: appearance.avatarSize });

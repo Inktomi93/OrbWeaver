@@ -1,3 +1,5 @@
+// @orb-waive-file test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
+
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";

@@ -231,7 +231,9 @@ test("a horizontal row with NO description centres its label against the control
     .poll(
       async () =>
         await page.locator('[data-slot="field-root"]').evaluate((root: HTMLElement): number => {
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           const label = root.querySelector('[data-slot="field-label"]') as HTMLElement;
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           const control = root.querySelector('[data-slot="field-control-col"]') as HTMLElement;
           const labelBox = label.getBoundingClientRect();
           const controlBox = control.getBoundingClientRect();
@@ -249,7 +251,9 @@ test("a horizontal row WITH a description keeps the control on the first line", 
   );
   // The label BLOCK is now two lines tall; the control must sit at its top, not float to its middle.
   const tops = await page.locator('[data-slot="field-root"]').evaluate((root: HTMLElement): readonly [number, number, number] => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const block = root.querySelector('[data-slot="field-label-block"]') as HTMLElement;
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const control = root.querySelector('[data-slot="field-control-col"]') as HTMLElement;
     return [block.getBoundingClientRect().top, control.getBoundingClientRect().top, block.getBoundingClientRect().height];
   });

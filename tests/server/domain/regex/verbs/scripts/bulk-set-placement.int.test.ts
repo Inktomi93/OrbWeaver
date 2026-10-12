@@ -6,6 +6,7 @@
 // it can only do that if the derivation actually runs on the server. A verb that just wrote `placement` and
 // left the flags alone would fail the first two tests; one that forgot the depth derivation would throw on the
 // re-parse (the behavior schema refuses `PROMPT_HISTORY` without a scope, and any other leg WITH one).
+// @subject packages/server/src/domain/regex/verbs/scripts/bulk-set-placement.ts
 
 import type { RegexScriptBehavior } from "@orb/contracts/regex";
 import { regexScripts } from "@orb/db";

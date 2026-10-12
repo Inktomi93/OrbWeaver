@@ -1,4 +1,5 @@
 // verb: removeTheme — delete an OWNED theme; a seed id 404s BY CONSTRUCTION (never removable).
+// @subject packages/server/src/domain/settings/verbs/remove-theme.ts
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

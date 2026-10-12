@@ -1,5 +1,6 @@
 // verb: applyEntryOrder — rewrite priority from a display order. Load-bearing: position i → priority N-i
 // (so listEntries returns the new order); stale/foreign ids are dropped; an empty list is a 0 no-op.
+// @subject packages/server/src/domain/world-info/verbs/entries/reorder.ts
 
 import type { Handle, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

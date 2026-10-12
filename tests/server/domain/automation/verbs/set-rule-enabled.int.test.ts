@@ -1,4 +1,5 @@
 // verb: setRuleEnabled — the consent flip (rules are born disabled).
+// @subject packages/server/src/domain/automation/verbs/set-rule-enabled.ts
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

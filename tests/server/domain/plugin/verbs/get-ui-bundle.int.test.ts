@@ -14,6 +14,7 @@
 // DELIBERATELY NOT ASSERTED HERE: an `enabled` gate. There isn't one, and its absence is a decision (see the
 // verb's header) — this verb returns inert text the client can only run inside its own sandbox, and gating it
 // on status would break the one legitimate read of a disabled plugin's UI: someone looking at why it broke.
+// @subject packages/server/src/domain/plugin/verbs/get-ui-bundle.ts
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

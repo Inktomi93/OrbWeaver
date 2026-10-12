@@ -1,6 +1,7 @@
 // Engine test: reapOrphanedWorkloads — sweeps stale IN-FLIGHT rows to worker_died (freeing the kind's slot),
 // leaves fresh rows alone, and is guarded (a terminal row is never reaped).
 
+// @orb-waive-file no-test-fabrication(WorkloadKind): baselined when the gate widened to value casts; burn-down item 906.
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

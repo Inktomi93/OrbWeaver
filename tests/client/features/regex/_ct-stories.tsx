@@ -4,6 +4,7 @@
 // story lives in the `#data` mirror beside the hook it exercises (`tests/client/data/_ct-stories.tsx`) —
 // the CT bundler registers stories per directory, so a cross-directory story import double-declares.
 
+// @orb-waive-file no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
 import { QueryBoundary, RegexScriptPicker } from "@orb/client/components";
 import { useTRPC } from "@orb/client/data";
 import type { CollectionGroupDefinition } from "@orb/client/state";

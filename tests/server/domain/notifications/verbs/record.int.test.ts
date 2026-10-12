@@ -1,4 +1,5 @@
 // verb: record — durable-first write + the secret-free belt + db-driven monotonic seq.
+// @subject packages/server/src/domain/notifications/verbs/record.ts
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";

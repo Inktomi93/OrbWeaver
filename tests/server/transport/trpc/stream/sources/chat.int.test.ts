@@ -12,6 +12,7 @@
 // `chat_events`). It closes the gap the mock-based test structurally cannot: that the resume path returns
 // real persisted DELTAS (the token-carrying member), not just that the wiring is shaped right.
 
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent, DurableChatBusEvent, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";

@@ -4,6 +4,7 @@
 // DETACH (the dangling-pointer heal §3.3): a `null` pointer DROPS the `metadata.rpg` sub-blob entirely so the
 // chat is byte-identical to a never-a-game chat (the takeover gate reads presence), siblings preserved.
 
+// @orb-waive-file no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";

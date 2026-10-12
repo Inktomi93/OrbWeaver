@@ -6,6 +6,7 @@
 //
 // The rest pin the LABEL half the parity test cannot see: which rung produced each value (explicit /
 // quality / modelDefault / clamped / floor) and the stored-but-unhonored (staleness) list.
+// @subject packages/server/src/domain/preset/verbs/resolve-effective.ts
 
 import type { CapabilityTarget, GenerationCapability, Wire } from "@orb/contracts/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";

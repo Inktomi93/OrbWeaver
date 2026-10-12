@@ -2,6 +2,7 @@
 // markers. Load-bearing: it returns one match per FOUND `importedFrom` value (absent values omitted), the
 // lookup is OWNER-SCOPED (a different owner's same-provenance card is NOT returned), and an empty `values`
 // short-circuits to `[]` (never a bare `IN ()`).
+// @subject packages/server/src/domain/character/verbs/find-by-imported-from.ts
 
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

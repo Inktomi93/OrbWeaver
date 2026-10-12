@@ -2,6 +2,7 @@
 // swap is whole-list (a dropped member's seat row is GONE), the same producer belts as create run
 // against the NEW list, the name-conflict pre-check excludes SELF (a same-name save is not a
 // self-conflict), and not-owned/not-found collapse to one leak-free NotFound.
+// @subject packages/server/src/domain/roster-preset/verbs/update.ts
 
 import { rosterPresetMembers } from "@orb/db";
 import type { RosterPresetId } from "@orb/kit/ids";

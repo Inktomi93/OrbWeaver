@@ -1,5 +1,6 @@
 // verb: create — owner-scoped mint. Load-bearing: the new row is owned by `principal.userId`; the avatar
 // JOIN surfaces `avatarHash`; write-metadata is coerced + stored typed; every create audits `persona.create`.
+// @subject packages/server/src/domain/persona/verbs/create.ts
 
 import { personas } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

@@ -5,6 +5,7 @@
 // chunks; scope delete drops the junction, document survives); document_chunks vector round-trip +
 // unique(documentId, chunkIdx, model) + document CASCADE.
 
+// @orb-waive-file no-test-fabrication("text"): baselined when the gate widened to value casts; burn-down item 906.
 import { DOC_ORIGINS } from "@orb/contracts/databank";
 import type { Db } from "@orb/db";
 import {

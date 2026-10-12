@@ -9,6 +9,7 @@
 // YIELDED. Everything else (the withheld-row gap rule §5.5, the `lag` policy's "the replay refills it" §7,
 // the reconnect story §5.3) is downstream of it.
 
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { SessionId, SocketId, UserId } from "@orb/kit/ids";

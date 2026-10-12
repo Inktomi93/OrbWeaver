@@ -3,6 +3,7 @@
 // (additive: an equal file reuses its row, a same-named different one lands beside it; contained error on a malformed file) reach the caller
 // unchanged. A divergence here would mean a second serde or a second collision rule had grown — the banned
 // parallel path.
+// @subject packages/server/src/domain/preset/verbs/import-file.ts
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

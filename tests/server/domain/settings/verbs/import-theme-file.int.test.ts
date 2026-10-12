@@ -2,6 +2,7 @@
 // grammars one picked file can arrive in — the Looks section's own `{name, override, css}` export (the
 // round trip), an `orb.theme` backup, a raw SillyTavern theme (named from the picked file) — and that a
 // non-theme file is a refusal as words, never a blank theme.
+// @subject packages/server/src/domain/settings/verbs/import-theme-file.ts
 
 import { createSettingsService } from "@orb/server/domain/settings";
 import { buildThemeBackup } from "@orb/server/primitives/serde/theme";

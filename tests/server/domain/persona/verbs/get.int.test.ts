@@ -1,5 +1,6 @@
 // verb: get — owner-scoped single read. Load-bearing: "not found" and "not yours" collapse into one
 // answer (no foreign-existence leak) — both throw PersonaNotFoundError.
+// @subject packages/server/src/domain/persona/verbs/get.ts
 
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

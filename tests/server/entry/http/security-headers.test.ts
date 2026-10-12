@@ -494,9 +494,12 @@ describe("securityHeaders", () => {
 
       const res = await app.request("/boom");
       expect(seen).toBeInstanceOf(Error);
+      // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
       expect((seen as Error).cause).toBe(secretish);
       // The MESSAGE names only the closed `typeof` vocabulary — never the value itself.
+      // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
       expect((seen as Error).message).toContain("string");
+      // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
       expect((seen as Error).message).not.toContain(secretish);
       expect(await res.text()).not.toContain(secretish);
     });

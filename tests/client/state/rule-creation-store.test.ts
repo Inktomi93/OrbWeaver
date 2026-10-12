@@ -2,6 +2,7 @@
 // re-imports the store over an in-memory localStorage, because the store's storage key and its
 // durable-local namespace binding are both fixed at module init.
 
+// @orb-waive-file no-test-fabrication({ state: { sessions: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, VerifiedUserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";

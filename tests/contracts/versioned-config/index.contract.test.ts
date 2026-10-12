@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(Cfg): baselined when the gate widened to value casts; burn-down item 906.
+
 import { defineVersionedConfig, tolerantArray } from "@orb/contracts/versioned-config";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";

@@ -9,6 +9,7 @@
 // taken on trust, which would turn an owned-plugin read into a MEMBERSHIP ORACLE (walk chat ids against your
 // own plugin, watch which ones answer differently). The membership test is the one that would go red if a
 // future edit dropped `resolveChatAuthority` from the verb.
+// @subject packages/server/src/domain/plugin/verbs/get-surface-state.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, PluginId } from "@orb/kit/ids";

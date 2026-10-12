@@ -6,6 +6,7 @@
 //   • the book embed (only the PRIMARY book's entries ride into the card's character_book, D286);
 //   • avatar embedding (the avatar blob is the base; a non-PNG is transcoded via the injected op; a
 //     missing/absent avatar falls back to the placeholder via a SINGLE TOCTOU-safe cas.read).
+// @subject packages/server/src/domain/export/verbs/export-character.ts
 
 import { characterCardV3Schema } from "@orb/contracts/character";
 import { characterBooks } from "@orb/db";

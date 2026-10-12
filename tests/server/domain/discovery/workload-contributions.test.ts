@@ -223,6 +223,7 @@ describe("distill-characters", () => {
     const { contributions } = build(DEFAULT_USER_SETTINGS, { distill: { scanned: 8, distilled: 6, skipped: 2 } });
     const report = vi.fn();
     await contributions[1].run(ctx, {}, report, sig());
+    // @orb-waive no-test-fabrication({ message?: string }): baselined when the gate widened to value casts; burn-down item 906.
     const messages = report.mock.calls.map((c) => (c[0] as { message?: string }).message ?? "");
     expect(messages.at(-1)).toBe("distilled 6 of 8 characters — skipped 2 with no card text to summarize (add a description first)");
   });
@@ -231,6 +232,7 @@ describe("distill-characters", () => {
     const { contributions } = build();
     const report = vi.fn();
     await contributions[1].run(ctx, {}, report, sig());
+    // @orb-waive no-test-fabrication({ message?: string }): baselined when the gate widened to value casts; burn-down item 906.
     const messages = report.mock.calls.map((c) => (c[0] as { message?: string }).message ?? "");
     expect(messages.at(-1)).toBe("distilled 8 of 8 characters");
   });

@@ -3,6 +3,14 @@
 // explicit transition test (memory: merge-clear needs a transition test). Locks: manual-edit-wins — a
 // tool patch on a locked path is dropped.
 
+// @orb-waive-file no-test-fabrication({ actorRef: { npcKey: string } }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ actorRef: { npcKey: string }; volatile: { trackerValues: Record<string, { value: number }> } }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ id: string; status: string }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ volatile: { inventory: { id: string; location: string }[] } }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ volatile: { inventory: { id: string; name: string; location: string; quantity: number }[] } }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ volatile: { status: string; trackerValues: Record<string, { value: number }> } }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ volatile: { trackerValues: Record<string, { value: number }> } }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ volatile: { wallet: { amount: number }[] } }[]): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
 import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "#server/domain/rpg/substrate/merge.ts";
 import { actorWithWallet, expect, quest, questId, test } from "../_support.ts";

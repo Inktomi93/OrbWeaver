@@ -1,6 +1,7 @@
 // entry/index, booted for real: a closed terminal window (SIGHUP) runs the graceful shutdown and exits 0 inside the
 // window Windows allows before it terminates the process, instead of Node dying on the signal mid-write.
 
+// @orb-waive-file no-test-fabrication([number | null, NodeJS.Signals | null]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { once } from "node:events";

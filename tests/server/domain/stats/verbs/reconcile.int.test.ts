@@ -4,6 +4,7 @@
 // other owner's — the router passes `principal.userId`, so this is the whole authorization surface. Second:
 // the SINGLE-FLIGHT wiring (owner ruling 2026-08-02) — a caller with a rebuild in flight is refused, per
 // owner. The gate's own mechanics (deferred hold, release-on-throw) are pinned at `../reconcile-in-flight`.
+// @subject packages/server/src/domain/stats/verbs/reconcile.ts
 
 import type { Db } from "@orb/db";
 import { messageVariants, ownerStats } from "@orb/db";

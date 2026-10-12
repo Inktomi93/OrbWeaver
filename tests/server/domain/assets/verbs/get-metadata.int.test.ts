@@ -1,5 +1,6 @@
 // verb: getMetadata — the owner-gated blob-serve gate (D21). Load-bearing: "not found" and "not yours"
 // collapse into one answer (undefined → 404; no foreign-existence leak).
+// @subject packages/server/src/domain/assets/verbs/get-metadata.ts
 
 import type { Db } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";

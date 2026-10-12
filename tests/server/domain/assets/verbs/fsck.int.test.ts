@@ -3,6 +3,7 @@
 //   • an ORPHAN BLOB (blob, no row) is counted.
 //   • a DANGLING ROW (row, no blob) is counted (the never-supposed-to-happen fault the ordering prevents).
 //   • fsck mutates NOTHING (the row + blob survive a scan).
+// @subject packages/server/src/domain/assets/verbs/fsck.ts
 
 import { assets } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

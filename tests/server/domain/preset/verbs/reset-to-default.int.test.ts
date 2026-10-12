@@ -1,3 +1,6 @@
+// verb: resetToDefault — replaces an owned preset's config with the default, including one this build cannot read.
+// @subject packages/server/src/domain/preset/verbs/reset-to-default.ts
+
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

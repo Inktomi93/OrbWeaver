@@ -157,6 +157,7 @@ function chat(over: Partial<PortableChat> = {}): PortableChat {
 
 describe("primitives/serde/chat-bundle", () => {
   test("pending completed facts carry normalized legs and positional parents without private payer or connection identity", () => {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as Record<string, unknown>;
     const pending = [pendingObservation(), { ...pendingObservation(), turnIndex: 1, sourceMessageIndex: null, sourceVariantIdx: null }];
     wire["pendingGenerationObservations"] = pending;
@@ -168,6 +169,7 @@ describe("primitives/serde/chat-bundle", () => {
   });
 
   test("duplicate pending logical ordinals refuse instead of collapsing two completed facts at restore", () => {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as Record<string, unknown>;
     wire["pendingGenerationObservations"] = [pendingObservation(), pendingObservation()];
     expect(parseChatBundleFile(ENC.encode(JSON.stringify(wire)))).toMatchObject({ ok: false });
@@ -184,6 +186,7 @@ describe("primitives/serde/chat-bundle", () => {
       costProvenance: "estimated",
       costDetails: { totalUsd: 0, pricing: { inputPerMTok: 0, outputPerMTok: 0, cacheWritePerMTok: 0 } },
     });
+    // @orb-waive no-test-fabrication({ messages: { variants: Record<string, unknown>[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as { messages: { variants: Record<string, unknown>[] }[] };
     const variant = wire.messages[0]?.variants[0];
     if (variant === undefined) {
@@ -198,6 +201,7 @@ describe("primitives/serde/chat-bundle", () => {
   });
 
   test("native usage refuses contradictory legacy token copies rather than silently choosing one", () => {
+    // @orb-waive no-test-fabrication({ messages: { variants: Record<string, unknown>[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as { messages: { variants: Record<string, unknown>[] }[] };
     const variant = wire.messages[0]?.variants[0];
     if (variant === undefined) {
@@ -209,6 +213,7 @@ describe("primitives/serde/chat-bundle", () => {
 
   test("build stamps the envelope and parse returns the canonical value unchanged", () => {
     const bytes = buildChatBundleFile(chat());
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(bytes)) as Record<string, unknown>;
     expect(wire["schemaKind"]).toBe(CHAT_BUNDLE_SCHEMA_KIND);
     expect(wire["schemaVersion"]).toBe(CHAT_BUNDLE_SCHEMA_VERSION);
@@ -227,6 +232,7 @@ describe("primitives/serde/chat-bundle", () => {
   });
 
   test("a recorded tool call with missing issues heals to an unfrozen readonly output array", () => {
+    // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
       rpg: { turnToolCalls: { calls: Record<string, unknown>[] }[] };
     };
@@ -243,6 +249,7 @@ describe("primitives/serde/chat-bundle", () => {
 
   test("rpg sheet handles are opaque wire strings: blank heals to null and over-cap text is carried", () => {
     const overCap = "h".repeat(201);
+    // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
       rpg: { sheets: { characterHandle: unknown }[] };
     };
@@ -268,6 +275,7 @@ describe("primitives/serde/chat-bundle", () => {
   });
 
   test("a file written by a NEWER orbweaver refuses by name instead of being half-read with today's semantics", () => {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as Record<string, unknown>;
     wire["schemaVersion"] = CHAT_BUNDLE_SCHEMA_VERSION + 1;
     expect(refusalOf(parseChatBundleFile(ENC.encode(JSON.stringify(wire))))).toBe("newer-version");
@@ -283,6 +291,7 @@ describe("primitives/serde/chat-bundle", () => {
   // variant, never the chat.
   test("a token provenance that contradicts the recorded axes is RE-DERIVED, never a refusal", () => {
     const withProvenance = (tokenProvenance: "measured" | "unrecorded", tokensOut: number | null): Uint8Array => {
+      // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
       const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
         messages: { variants: Record<string, unknown>[] }[];
       };
@@ -308,6 +317,7 @@ describe("primitives/serde/chat-bundle", () => {
     const agreeing = must(parseChatBundleFile(withProvenance("measured", 17))).messages[0]?.variants[0];
     expect(agreeing).toMatchObject({ tokensOut: 17, tokenProvenance: "measured" });
 
+    // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
     const legacy = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
       messages: { variants: Record<string, unknown>[] }[];
     };

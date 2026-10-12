@@ -528,6 +528,7 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
     "settings.updateUserSettingsSection": (input) => {
+      // @orb-waive no-test-fabrication(string | null): baselined when the gate widened to value casts; burn-down item 906.
       activeId = input.patch["defaultPresetId"] as string | null;
       return SETTINGS_VIEW;
     },
@@ -658,6 +659,7 @@ test("P2-A the silent fork ANNOUNCES — naming the copy, the untouched source, 
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
     "settings.updateUserSettingsSection": (input) => {
+      // @orb-waive no-test-fabrication(string | null): baselined when the gate widened to value casts; burn-down item 906.
       activeId = input.patch["defaultPresetId"] as string | null;
       return SETTINGS_VIEW;
     },
@@ -717,6 +719,7 @@ function routeForkChoice(page: Page, updateOverride?: PresetUpdateResponder): Pr
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
     "settings.updateUserSettingsSection": (input) => {
+      // @orb-waive no-test-fabrication(string | null): baselined when the gate widened to value casts; burn-down item 906.
       activeId = input.patch["defaultPresetId"] as string | null;
       return SETTINGS_VIEW;
     },

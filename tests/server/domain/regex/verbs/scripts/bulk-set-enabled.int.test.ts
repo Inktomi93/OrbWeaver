@@ -3,6 +3,7 @@
 // The two properties that make this a VERB rather than a client loop: the whole batch is one owner-scoped
 // write with ONE audit row and ONE `regexChanged` emit, and a foreign id is DROPPED rather than thrown on —
 // a bulk verb that refused the first id the caller no longer owns would be an ownership oracle over a list.
+// @subject packages/server/src/domain/regex/verbs/scripts/bulk-set-enabled.ts
 
 import { regexScripts } from "@orb/db";
 import type { Handle, RegexScriptId } from "@orb/kit/ids";

@@ -1,6 +1,7 @@
 // verb: connectToCharacter — idempotent junction insert, double ownership gate. Load-bearing: a re-connect
 // is a no-op (not an error); BOTH owner gates fire (a foreign character OR a foreign persona throws); a
 // real connect audits.
+// @subject packages/server/src/domain/persona/verbs/connection/connect.ts
 
 import { characterPersonas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

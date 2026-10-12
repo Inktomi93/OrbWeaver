@@ -3,6 +3,7 @@
 // paths. These need a live limiter (db) + a real conninfo env for `clientIp`, so they run here rather than
 // on the pure mock harness in auth-routes.test.ts. Determinism: the throttle window is pinned via `now`.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import { JOINER_PERSONA_DESCRIPTION_MAX } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";

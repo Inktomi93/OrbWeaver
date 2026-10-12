@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(readonly SyntaxKind[]): baselined when the gate widened to value casts; burn-down item 906.
+
 // @orb-waive-file no-loose-id-cast(details): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file no-loose-id-cast({ kind: "bogus", source: "bogus-kind", resources: 1 }): baselined when the gate widened; burn-down item 906.

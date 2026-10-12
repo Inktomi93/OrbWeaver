@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
+
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -71,6 +73,7 @@ test("disconnecting the dev parent terminates the compiler descendants and relea
   const { child, exited, pool } = startWrapper(repoRoot, scratch);
   try {
     await expect.poll(() => existsSync(join(scratch, "pids.json"))).toBe(true);
+    // @orb-waive no-test-fabrication(number[]): baselined when the gate widened to value casts; burn-down item 906.
     const pids = JSON.parse(readFileSync(join(scratch, "pids.json"), "utf8")) as number[];
     expect(pids).toHaveLength(2);
     expect(pids.every(live)).toBe(true);
@@ -117,6 +120,7 @@ test("an abruptly killed dev process leaves no detached native compiler or host 
   const { child, exited, pool } = startWrapper(repoRoot, scratch, true);
   try {
     await expect.poll(() => existsSync(join(scratch, "pids.json"))).toBe(true);
+    // @orb-waive no-test-fabrication(number[]): baselined when the gate widened to value casts; burn-down item 906.
     const compilerPids = JSON.parse(readFileSync(join(scratch, "pids.json"), "utf8")) as number[];
     const wrapperPid = JSON.parse(readFileSync(join(scratch, "wrapper-pid.json"), "utf8")) as number;
     expect([...compilerPids, wrapperPid].every(live)).toBe(true);

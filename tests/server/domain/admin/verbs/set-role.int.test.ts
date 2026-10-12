@@ -2,6 +2,7 @@
 // invariants: a delegated admin is REFUSED (owner-only); the owner can't be demoted (both the friendly
 // pre-check AND the atomic WHERE-clause); the owner role can't be granted; demoting the LAST delegated
 // admin succeeds (no last-admin guard — the owner is always admin-capable). Every success audits.
+// @subject packages/server/src/domain/admin/verbs/set-role.ts
 
 import { users } from "@orb/db";
 import { DomainConflictError, DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";

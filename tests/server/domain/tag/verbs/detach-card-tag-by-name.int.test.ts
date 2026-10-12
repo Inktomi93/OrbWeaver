@@ -2,6 +2,7 @@
 // DetachCardTagOp), the mirror of attachCardTagByName. Load-bearing: resolve-by-name is owner-scoped (a
 // foreign owner's same-name tag is NOT touched), removes EXACTLY the one junction row, and is idempotent on an
 // absent tag / already-detached junction (returns false, never throws, never mints a tag).
+// @subject packages/server/src/domain/tag/verbs/detach-card-tag-by-name.ts
 
 import { characterTags, tags } from "@orb/db";
 import { createTagService } from "@orb/server/domain/tag";

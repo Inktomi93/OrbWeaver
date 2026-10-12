@@ -1,6 +1,7 @@
 // verb: createFromCharacter — non-lossy mint from an owned character card. Load-bearing: copies
 // name/description/avatar; when swapMacros, {{char}}/{{user}} invert; stores sourceCharacterId +
 // swapMacros provenance in typed metadata; a foreign/missing character throws (DomainNotFound); audits.
+// @subject packages/server/src/domain/persona/verbs/create-from-character.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle } from "@orb/kit/ids";

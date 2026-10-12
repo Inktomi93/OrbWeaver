@@ -2,6 +2,7 @@
 // The `listSurfaces` twin, so the pins are its twin too: the read IS the gate (owner-scoped `listOwned`, no
 // foreign id anywhere), a plugin with no resident contributes nothing, and the projection carries the SLUG —
 // the first token of `/plugin <slug> <name> …`, which only this side can supply.
+// @subject packages/server/src/domain/plugin/verbs/list-commands.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

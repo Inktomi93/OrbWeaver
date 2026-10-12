@@ -10,6 +10,7 @@
 //   3. THE SURFACE — a live registration of THIS plugin, at the `frame` tier, carrying a body.
 //
 // Everything that is not "yes" is the same `null`, so the doorway serves one identical miss for all of them.
+// @subject packages/server/src/domain/plugin/verbs/get-frame-body.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -19,6 +19,7 @@
 // Every op is driven THROUGH the real `AdminService` the seam returns, so the admin gate (`requireAdmin`)
 // is exercised on the same path — a non-admin must be refused before any injected port is touched.
 
+// @orb-waive-file no-test-fabrication({ model: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";

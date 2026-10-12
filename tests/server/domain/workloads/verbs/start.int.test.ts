@@ -1,6 +1,7 @@
 // Verb test: start — enqueue, the re-parse defense, the single-active conflict, and the MODE model (the
 // security core): a SINGULAR run is any authed caller (owned by self); a BULK run is BOX-OWNER-only; an
 // unsupported mode / a missing bulk-create target / a bad target are typed errors.
+// @subject packages/server/src/domain/workloads/verbs/start.ts
 
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import { DomainConflictError, DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";

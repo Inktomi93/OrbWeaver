@@ -1,6 +1,7 @@
 // verb: setEnabled — activate/deactivate (02 §4). Enable activates on the CAS bundle under the granted subset
 // (a contained failure surfaces as PluginCrashedError after the row lands errored); disable disposes + status
 // disabled. Idempotent per target state.
+// @subject packages/server/src/domain/plugin/verbs/set-enabled.ts
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

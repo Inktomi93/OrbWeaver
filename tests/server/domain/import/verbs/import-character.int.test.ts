@@ -6,6 +6,7 @@
 // and `findByImportedFrom` could never match a plugin-ingested row. RED-FIRST: on the unmodified funnel
 // (pre-fix) `card.pluginId` did not exist on `ImportCardInput`, so this same assertion read
 // `importedFrom === null` / `provenance === "authored"`.
+// @subject packages/server/src/domain/import/verbs/import-character.ts
 
 import { characterProvenanceOf, pluginImportedFrom } from "@orb/contracts/character";
 import type { Handle, PluginId } from "@orb/kit/ids";

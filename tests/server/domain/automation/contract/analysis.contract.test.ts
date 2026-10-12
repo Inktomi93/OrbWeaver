@@ -5,6 +5,7 @@
 // (the needle wall's server-side tier: an un-authored route's field is STRIPPED by the very zod the wire
 // schema projects from).
 
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { expectTypeOf } from "vitest";
@@ -300,9 +301,11 @@ test("buildAnalysisPayloadSchema: every enabled route field remains required in 
 test("projectAnalysisWireSchema: exactly the authored routes' fields, all required", () => {
   const base = ["arcStatus", "updatedArc", "successorArc", "twistOps"];
   const all = projectAnalysisWireSchema(ALL_ROUTES);
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect(Object.keys(all["properties"] as Record<string, unknown>).sort()).toEqual([...base, "guidance", "lore", "rewrite", "score", "suggestions"].sort());
   expect([...(all["required"] as string[])].sort()).toEqual([...base, "guidance", "lore", "rewrite", "score", "suggestions"].sort());
   // The needle's wire half: an un-authored vars route leaves `score` off the grammar entirely.
   const steerOnly = projectAnalysisWireSchema({ steer: { apply: "direct" } });
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect(Object.keys(steerOnly["properties"] as Record<string, unknown>).sort()).toEqual([...base, "guidance"].sort());
 });

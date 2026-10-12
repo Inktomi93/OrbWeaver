@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ schemaKind: string }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { PRESET_SCHEMA_KIND, parsePresetFile } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

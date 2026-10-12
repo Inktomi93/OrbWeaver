@@ -20,6 +20,7 @@
 //     automation's kickable membership, which is re-derived per pump start), and re-reading would turn a
 //     reaped row's disappearance into a `roomFailed` on a tail that pre-fold simply went quiet.
 
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
