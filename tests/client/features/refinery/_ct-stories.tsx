@@ -328,7 +328,7 @@ export function RefineryRosterStory({ mobile = false, selectedSessionId }: Refin
     if (selectedSessionId === undefined) {
       refinerySectionSelection.clear();
     } else {
-      selectRefinerySession(selectedSessionId);
+      selectRefinerySession(selectedSessionId, { swap: false });
     }
     return null;
   });
@@ -423,7 +423,7 @@ export function RunsTabBodyStory({ sessionId, characterId }: SetupTabBodyStoryPr
  *  effect), for the same reason `RefineryContentStory` seeds one there. */
 export function RefineryDoorStory({ sessionId, characterId }: SetupTabBodyStoryProps): ReactElement {
   useState((): null => {
-    selectRefinerySession(sessionId);
+    selectRefinerySession(sessionId, { swap: false });
     setRefineryViewedRun(null);
     return null;
   });
