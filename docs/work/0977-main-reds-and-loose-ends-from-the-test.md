@@ -37,4 +37,8 @@ Remaining findings: legacy disposal and typed-lint errors; maintained classes ab
 
 Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Other findings and authority alarms remain unresolved. Repair product, security or checker defects, not waivers or disposable legacy suites. Preserve useful cases for the rebuild.
 
-Knip baseline typing defects are corrected on main: JSON validation derives a checked string array, and the CLI proof uses Node's declared spawn result type. The focused native Knip controls and root compiler program pass. This does not establish a fresh production liveness verdict.
+Knip baseline typing and CLI spawn types are corrected. Focused Knip controls and root compilation pass, not a fresh production liveness verdict.
+
+The caught-failure census relocates domain sites and retains unproven reindex/auth sites. Compose and Principal budgets shrink. Only the removed chat catch reduces its application budget; remaining census differences need population-specific adjudication.
+
+Native server import analysis finds circular domain dependencies and an illegal chat verb-to-assembly import after the composition moves. The compose item owns correction. Compiler success does not establish import-policy success; repeat only the focused import check after the affected source changes.

@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 705,
-    "reported": 0,
+    "sites": 698,
+    "reported": 2,
     "byVerdict": {
-      "deliberate-absorb": 705,
-      "unproven": 0
+      "deliberate-absorb": 696,
+      "unproven": 2
     },
     "byGrammar": {
-      "default": 160,
-      "empty": 358,
-      "promise": 187
+      "default": 161,
+      "empty": 356,
+      "promise": 181
     }
   },
   "rows": [
@@ -71,34 +71,14 @@
       "reason": "the selected mutation's own errorToast surfaces the failure. Ends if the mutation stops wiring an errorToast."
     },
     {
-      "siteId": "packages/client/src/components/reindex-confirm.tsx::useReindexConfirm.guard::query::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable preview opens the existing confirm without counts; no write proceeds without consent. Ends if preview failure bypasses confirmation."
+      "siteId": "packages/client/src/components/reindex-confirm.tsx::useReindexConfirm.guard::readFresh::1",
+      "verdict": "unproven",
+      "reason": null
     },
     {
-      "siteId": "packages/client/src/data/auth-bootstrap.ts::confirmPendingJoin::res.json::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed."
-    },
-    {
-      "siteId": "packages/client/src/data/auth-bootstrap.ts::firstRunSetup::res.json::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed."
-    },
-    {
-      "siteId": "packages/client/src/data/auth-bootstrap.ts::login::res.json::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed."
-    },
-    {
-      "siteId": "packages/client/src/data/auth-bootstrap.ts::logout::res.json::1",
-      "verdict": "deliberate-absorb",
-      "reason": "`res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field."
-    },
-    {
-      "siteId": "packages/client/src/data/auth-bootstrap.ts::signUpWithInvite::res.json::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed."
+      "siteId": "packages/client/src/data/auth-bootstrap.ts::optionalAuthBody::catch::1",
+      "verdict": "unproven",
+      "reason": null
     },
     {
       "siteId": "packages/client/src/data/bus/post-event-source.ts::PostEventSource.#connectedPayload::catch::1",
@@ -249,11 +229,6 @@
       "siteId": "packages/client/src/features/app-shell/lib/bug-report-capture.ts::refusalReason::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive."
-    },
-    {
-      "siteId": "packages/client/src/features/auth/components/login-signup-form.tsx::LoginSignupForm.onSubmit::signUpWithInvite::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the FORM is the owner — a network rejection sets the visible role=alert error and re-enables submit, the same surface a coded refusal lands on. Ends if the form stops rendering its error state."
     },
     {
       "siteId": "packages/client/src/features/auth/lib/route-guards.ts::meOrNull::catch::1",
@@ -703,7 +678,7 @@
     {
       "siteId": "packages/client/src/lib/use-router-url-replace.ts::useRouterUrlReplace::router.commitLocation::1",
       "verdict": "deliberate-absorb",
-      "reason": "false positive: the original rejection is rethrown on the queued microtask error surface, proved by tests/client/lib/use-router-url-replace.dom.test.ts. The classifier excludes nested callbacks. Ends when it recognizes native queued throws."
+      "reason": "false positive: the original rejection is rethrown on the queued microtask error surface, proved by tests/legacy/client/lib/use-router-url-replace.dom.test.ts. The classifier excludes nested callbacks. Ends when it recognizes native queued throws."
     },
     {
       "siteId": "packages/client/src/lib/view-transition-settlement.ts::observeViewTransition.observe::settled::1",
@@ -1196,6 +1171,16 @@
       "reason": "the owner IS this per-item result — `failed` rides `outcomes` into `buildBulkTagResult`, which classifies it onto the wire's `CharacterBulkTagResult.failed[].error` (never swallowed; the client's `refusal` toast is the surfaced state). End condition: this batch's `Promise.all` resolving."
     },
     {
+      "siteId": "packages/server/src/domain/character/verbs/room-projections.ts::createCharacterRoomProjections.resolveCharacterTags::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure."
+    },
+    {
+      "siteId": "packages/server/src/domain/character/verbs/room-projections.ts::createCharacterRoomProjections.resolveSeatDeco::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — the comment block above states the contract: a no-host/unreadable-card seat resolves to the bare global floor + a null card, never a throw into roster assembly. Ends if an unreadable card needs to surface distinctly from absence."
+    },
+    {
       "siteId": "packages/server/src/domain/chat/bus.ts::appendWithRetry::err::1",
       "verdict": "deliberate-absorb",
       "reason": "`err` is handed to `handleAppendFailure`, which classifies it (classifyFailedAppend, ground-truth probe) and reports it (getLog().warn on a live retry, getLog().error via reportTerminalDrop on the last attempt) per FLAG[emit-is-total] above — never rethrown, never silently dropped, just not directly visible to the gate's own-file scan since the report lives one call away. Ends if a caller needs the durable-write failure to propagate."
@@ -1236,6 +1221,11 @@
       "reason": "this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise."
     },
     {
+      "siteId": "packages/server/src/domain/chat/engine/provider-bridge.ts::createRunChatTurnBridge.runChatTurn::runChatTurn::1",
+      "verdict": "deliberate-absorb",
+      "reason": "propagated — the rejection reaches `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the caller; never swallowed. Ends if `pump.fail` stops being read by the drain."
+    },
+    {
       "siteId": "packages/server/src/domain/chat/engine/rerank-pick.ts::rerankPick::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "an unbound, refused or failing rerank role is the documented degrade, consumed as the visible fallback; an abort is classified by the turn's signal instead."
@@ -1259,6 +1249,11 @@
       "siteId": "packages/server/src/domain/chat/verbs/claim-chat.ts::createClaimChat.claim::incumbent::1",
       "verdict": "deliberate-absorb",
       "reason": "retried, not swallowed — a failed incumbent claim is retried via `claim(chatId)`, whose returned promise is awaited here, so a final rejection still propagates to this caller. Ends if the retry needs a bound (unbounded today)."
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/verbs/emit-chat-changed.ts::createEmitChatChanged::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort — documented below: a failed roster read fans only the pre-captured extras; the rest heals on the next client reconnect (this is a live- notification fan-out, not the durable write itself). Ends if a client stops reconnect-healing."
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::createImpersonateStream::run::1",
@@ -1396,6 +1391,11 @@
       "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed."
     },
     {
+      "siteId": "packages/server/src/domain/persona/verbs/resolve-user-publics.ts::createResolveUserPublics::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a persona/handle display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed read just leaves `avatarAssetId` at its already-established `null`. Ends if this read becomes the only source of `displayName`/`handle`."
+    },
+    {
       "siteId": "packages/server/src/domain/plugin/activation/activate.ts::providerActivationError::err::1",
       "verdict": "deliberate-absorb",
       "reason": "the refusal becomes the returned activation error string; createActivate persists it as `plugins.lastError` and returns `{ok:false,error}`. Ends if that caller stops recording and returning this detail."
@@ -1454,6 +1454,16 @@
       "siteId": "packages/server/src/domain/rpg/substrate/delta.ts::renderPlane::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "§2.7.4 D79-heal DEFENSIVE arm (comment below) — pure prose rendering, no write/persistence in this path; a malformed plane degrades to no lines for THAT plane only, the other planes still render. Consumed as the returned empty array."
+    },
+    {
+      "siteId": "packages/server/src/domain/rpg/tools/rounds/round-log.ts::safeJson::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "client-input — the docstring states the contract: `null` on non-JSON, and the caller's schema parse then fails → empty delta. Ends if this stops feeding a schema-validated read."
+    },
+    {
+      "siteId": "packages/server/src/domain/rpg/tools/rounds/tool-round.ts::buildRunToolRound::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "errors-as-data — the structured arm's twin: a CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed by failedToolRoundDelta. Ends if its warn log is removed."
     },
     {
       "siteId": "packages/server/src/domain/search/substrate/space.ts::resolveConnection::catch::1",
@@ -1591,54 +1601,14 @@
       "reason": "FAIL-CLOSED — documented above: any unreadable asset (a foreign/absent id, `AssetNotFoundError`) collapses to `null`, leak-free (no existence oracle). Ends if this needs to tell \"foreign\" apart from an infra failure."
     },
     {
-      "siteId": "packages/server/src/entry/compose/chat.ts::buildChatService.resolveCharacterTags::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure."
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/chat.ts::buildChatService.resolvePromptConfigWithOverride::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "narrow rethrow — documented below: only a genuinely stale/unowned/missing override falls through to the host's default (the lenient-id rule, #759); a database/I/O/program failure rethrows below unhandled. Ends if #759's ruling changes."
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/chat.ts::buildChatService.resolveSeatDeco::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "FAIL-CLOSED — the comment block above states the contract: a no-host/unreadable-card seat resolves to the bare global floor + a null card, never a throw into roster assembly. Ends if an unreadable card needs to surface distinctly from absence."
-    },
-    {
-      "siteId": "packages/server/src/domain/persona/verbs/resolve-user-publics.ts::createResolveUserPublics::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — a persona/handle display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed read just leaves `avatarAssetId` at its already-established `null`. Ends if this read becomes the only source of `displayName`/`handle`."
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/chat.ts::createRunChatTurnBridge.runChatTurn::runChatTurn::1",
-      "verdict": "deliberate-absorb",
-      "reason": "propagated — the rejection reaches `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the caller; never swallowed. Ends if `pump.fail` stops being read by the drain."
-    },
-    {
-      "siteId": "packages/server/src/domain/chat/verbs/emit-chat-changed.ts::createEmitChatChanged::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "best-effort — documented below: a failed roster read fans only the pre-captured extras; the rest heals on the next client reconnect (this is a live- notification fan-out, not the durable write itself). Ends if a client stops reconnect-healing."
-    },
-    {
       "siteId": "packages/server/src/entry/compose/inline-reply-image.ts::materialize::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "an attacker-influenceable provider image URL whose every belt refusal is ALREADY owned twice — `blockEgress` (infra/network/egress.ts:624) securityEvent's every `EgressBlockedError` before it throws, and the caller's `absorbInlineReplyImages` (domain/chat/engine/engine.ts:1498) emits the `reply_image_failed` bus warning the author reads as \"the picture didn't save\" (pinned: tests/server/domain/chat/engine/inline-reply-images.suite.int.test.ts:240). The same reasoning and the same marker sit on the sibling fetch at egress.ts:530. Ends if a refusal can reach here un-securityEvent'd, or if the engine stops emitting that warning."
+      "reason": "an attacker-influenceable provider image URL whose every belt refusal is ALREADY owned twice — `blockEgress` (infra/network/egress.ts:624) securityEvent's every `EgressBlockedError` before it throws, and the caller's `absorbInlineReplyImages` (domain/chat/engine/engine.ts:1498) emits the `reply_image_failed` bus warning the author reads as \"the picture didn't save\" (pinned: tests/legacy/server/domain/chat/engine/inline-reply-images.suite.int.test.ts:240). The same reasoning and the same marker sit on the sibling fetch at egress.ts:530. Ends if a refusal can reach here un-securityEvent'd, or if the engine stops emitting that warning."
     },
     {
       "siteId": "packages/server/src/entry/compose/portability-runner.ts::createSettleImportMemory::err::1",
       "verdict": "deliberate-absorb",
       "reason": "the one absorbed failure is the memory-off admission refusal, a normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the import run. Ends if another refusal code is absorbed here."
-    },
-    {
-      "siteId": "packages/server/src/domain/rpg/tools/rounds/tool-round.ts::buildRunToolRound::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "errors-as-data — the structured arm's twin: a CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed by failedToolRoundDelta. Ends if its warn log is removed."
-    },
-    {
-      "siteId": "packages/server/src/domain/rpg/tools/rounds/round-log.ts::safeJson::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "client-input — the docstring states the contract: `null` on non-JSON, and the caller's schema parse then fails → empty delta. Ends if this stops feeding a schema-validated read."
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::admitPendingConfirm::catch::1",

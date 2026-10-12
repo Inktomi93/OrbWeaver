@@ -23,7 +23,7 @@ Each fork has a recorded ruling and matching enforcement or a scoped follow-up. 
 
 ## Evidence
 
-Pending integration, `621774c21c` removes legacy reach credit and CPD contamination, updates qualification to `product-v4`, and fixes singleton matrix group identity. Legacy CI jobs and regression files remain unchanged. Focused checker/production-CLI controls pass, as does the tooling compiler program. Root compilation reports unrelated Knip baseline typing errors; the main findings item owns those errors.
+Pending integration, the lane removes legacy reach credit and CPD contamination, updates qualification to `product-v4`, and fixes singleton matrix group identity. Legacy CI jobs and regression files remain unchanged. Focused checker/production-CLI and affected native compiler checks pass. Combined review exposed alias, dynamic-import and republished-binding bypasses; the final binding-specific correction remains under review. Do not treat a completed intermediate commit as landing approval.
 
 Exact shrinking filenames remain unresolved: current resources expose current membership, not historical membership. Keep the ceiling until a lawful monotonic Git-boundary check is designed; do not add a private gate baseline.
 

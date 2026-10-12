@@ -23,9 +23,13 @@ The gate holds with planted controls; no compose module runs a query or carries 
 
 ## Evidence
 
-Active implementation is split between `codex/compose-chat-964` for chat and identity-sensitive composition, and `wt/agent-a6794d7670332ac98` for search/discovery composition. Each lane moves rules to owning domains and reports shared budget changes for main. Other compose and entry groups remain open; neither partial leg closes this item.
+Chat and search/discovery moves landed at `980a8e07bd` after combined review and the authenticated-Principal correction. Matching focused behavior and native server evidence passed. The compose policy reports 187 remaining excused sites; chat and search/discovery contain no compose markers. The source census matches the completed policy result.
+
+`codex/compose-chat-964` now owns automation/plugin composition plus its watcher and chat-read helpers. Services, other adapters, imports and boot remain open. The item stays open until the complete boundary is clean.
+
+Native server import analysis rejects the integrated domain graph: cross-domain type ports close cycles, and a chat verb imports its assembly subsystem directly. The active lane owns these corrections with automation/plugin. Use canonical lower-package shapes and consumer-owned narrow ports; keep sibling imports through their front doors.
 
 The gate is `compose-wiring-only` (`tooling/src/verify/gates/compose-wiring-only.ts`); its header defines a rule. `pnpm check:structure --check compose-wiring-only` reports one finding per handed-out function or helper, so the counts below are functions, not decisions.
 
 - Work set on the gate's first run: the findings by file: rpg 51, chat 41, automation-plugin 25, search-discovery 19, services 18, room-reach 10, portability 9, assets-character 8, imagery 6, memory-embedding-ops 5, update-check 5, vector-sweep-ops 5, embedding-connection 4, portability-runner 4, session-entries 4, side-gen-params 4, materialize-background 3, admin 2, automation-watcher 2, co-participant-assets 2, databank 2, gallery-character-ops 2, inline-reply-image 2, plugin-chat-reads 2, preset-usage 2, refinery 2, resolve-image-ref 2, retrieval-degrade 2, seed-avatar-ops 2, visible-rooms 2, and 1 each in chat-tools, debug-inspectors, emit-chat-changed, event-bus, regex, roster-preset and share-seating.
-- Leg 1 moved the named sites and `rpg.ts`, then widened the subject to every `entry/**` function compose reaches, which added 63 findings in `entry/auth`, `entry/boot` and `entry/import`. The 246 findings that remain carry `@orb-waive compose-wiring-only(...)` markers that name this item, and the `compose-wiring-only` row in `tooling/src/verify/lib/waiver-budget.ts` holds them shrink-only. This item lands when that row reaches zero.
+- The subject includes every `entry/**` function compose reaches, including auth, boot and import drivers. Remaining sites carry `@orb-waive compose-wiring-only(...)` markers naming this item. The shrink-only row in `tooling/src/verify/lib/waiver-budget.ts` owns the current count; this item lands when it reaches zero.
