@@ -194,7 +194,7 @@ export type ShareRefusalNotice = z.infer<typeof shareRefusalNoticeSchema>;
 const PORT_MIN = 1;
 const PORT_MAX = 65_535;
 const IP_LITERAL_MAX_LENGTH = 45;
-const listenerPortSchema = z.number().int().min(PORT_MIN).max(PORT_MAX);
+const listenerPortSchema = z.int().min(PORT_MIN).max(PORT_MAX);
 
 /** The owner's IP certificate choice (D275): this server's public address, and the two ports on this machine the
  *  router forwards to, 443 to `httpsPort` and 80 to `challengePort`. The server refuses any address that is not
@@ -238,8 +238,8 @@ const ipCertificateStatusSchemas = {
     state: z.literal("active"),
     setting: ipCertificateSettingSchema,
     url: z.url({ protocol: /^https$/u }),
-    notAfter: z.number().int(),
-    renewAt: z.number().int(),
+    notAfter: z.int(),
+    renewAt: z.int(),
     renewalFailure: ipCertificateFailureSchema.nullable(),
   }),
   failed: z.strictObject({ state: z.literal("failed"), setting: ipCertificateSettingSchema, failure: ipCertificateFailureSchema }),
@@ -259,7 +259,7 @@ export type IpCertificateStatus = z.infer<typeof ipCertificateStatusSchema>;
  *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay, and the IP certificate. */
 export const shareStatusSchema = z.strictObject({
   relay: relayStatusSchema,
-  liveSocketCount: z.number().int().nonnegative(),
+  liveSocketCount: z.int().nonnegative(),
   publicAddresses: z.array(z.string()),
   certificate: ipCertificateStatusSchema,
 });

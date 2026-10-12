@@ -43,8 +43,8 @@ export type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
  *  going forward without bricking a stored one; that is the trade, stated. */
 export const rpgStatProfileSchema = z.object({
   attributes: z.array(rpgStatAttributeDefSchema).max(RPG_PROFILE_MAX_ATTRIBUTES),
-  range: z.object({ min: z.number().int(), max: z.number().int() }),
-  modifier: z.object({ center: z.number().int(), step: z.number().int().min(1) }),
+  range: z.object({ min: z.int(), max: z.int() }),
+  modifier: z.object({ center: z.int(), step: z.int().min(1) }),
   skillGoverning: z.record(z.string(), z.string()).default({}),
   defaultAttribute: z.string(),
   perceptionAttribute: z.string(),

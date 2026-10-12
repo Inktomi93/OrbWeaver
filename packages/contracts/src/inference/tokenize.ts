@@ -10,7 +10,7 @@ export const TOKENIZE_WORDS_MAX = 64;
 export const TOKENIZE_WORD_CHARS_MAX = 64;
 
 export const wordTokensSchema = z.discriminatedUnion("ok", [
-  z.object({ ok: z.literal(true), word: z.string(), ids: z.array(z.number().int().nonnegative()), pieces: z.array(z.string()).optional() }),
+  z.object({ ok: z.literal(true), word: z.string(), ids: z.array(z.int().nonnegative()), pieces: z.array(z.string()).optional() }),
   z.object({ ok: z.literal(false), word: z.string(), reason: z.string() }),
 ]);
 export type WordTokens = z.infer<typeof wordTokensSchema>;

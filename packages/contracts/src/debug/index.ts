@@ -31,13 +31,13 @@ export type WireCapture = z.infer<typeof wireCaptureSchema>;
 /** The `GET /api/_debug/wire/captures` response. */
 export const wireCapturesResponseSchema = z.strictObject({
   enabled: z.boolean(),
-  count: z.number().int(),
+  count: z.int(),
   captures: z.array(wireCaptureSchema).readonly(),
 });
 export type WireCapturesResponse = z.infer<typeof wireCapturesResponseSchema>;
 
 /** The `GET /api/_debug/rpg/traces` response: the recorder ring, oldest first. */
-export const rpgTracesResponseSchema = z.strictObject({ count: z.number().int(), events: z.array(rpgTraceRecordSchema).readonly() });
+export const rpgTracesResponseSchema = z.strictObject({ count: z.int(), events: z.array(rpgTraceRecordSchema).readonly() });
 export type RpgTracesResponse = z.infer<typeof rpgTracesResponseSchema>;
 
 /** The `GET /api/_debug/errors` response: the error ring, whose lines are opaque to the harness (it asserts emptiness). */
@@ -55,7 +55,7 @@ const inspectedParticipantSchema = z.strictObject({
 
 const inspectedMessageSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.message),
-  seq: z.number().int(),
+  seq: z.int(),
   role: z.string(),
   authorUserId: brandedId<UserId>().nullable(),
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
@@ -78,7 +78,7 @@ const inspectedChatSchema = z.strictObject({
   startedAt: z.number().nullable(),
   parentChatId: chatIdSchema.nullable(),
   forkedAt: z.number().nullable(),
-  streamSeq: z.number().int(),
+  streamSeq: z.int(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -86,7 +86,7 @@ const inspectedChatSchema = z.strictObject({
 /** One durable bus event as the debug dump projects it: its replay cursor and discriminant, never the payload. */
 const inspectedEventSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.chatEvent),
-  seq: z.number().int(),
+  seq: z.int(),
   type: z.string(),
   createdAt: z.number(),
 });
@@ -97,7 +97,7 @@ export const chatInspectionSchema = z.strictObject({
   chat: inspectedChatSchema.nullable(),
   participants: z.array(inspectedParticipantSchema),
   messages: z.array(inspectedMessageSchema),
-  sessionFrameCount: z.number().int(),
+  sessionFrameCount: z.int(),
   recentEvents: z.array(inspectedEventSchema),
 });
 export type ChatInspection = z.infer<typeof chatInspectionSchema>;

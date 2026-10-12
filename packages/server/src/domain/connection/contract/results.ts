@@ -92,7 +92,7 @@ export interface CatalogRefreshOutcome {
   readonly models: number | null;
 }
 
-export const catalogRefreshOutcomeSchema = z.strictObject({ models: z.number().int().nonnegative().nullable() }) satisfies z.ZodType<CatalogRefreshOutcome>;
+export const catalogRefreshOutcomeSchema = z.strictObject({ models: z.int().nonnegative().nullable() }) satisfies z.ZodType<CatalogRefreshOutcome>;
 
 export interface EmbedSpace {
   readonly fingerprint: string;
@@ -118,7 +118,7 @@ export interface EmbedSpaceChangePreview {
   readonly utilityModelSet: boolean;
 }
 
-const storedCount = z.number().int().nonnegative();
+const storedCount = z.int().nonnegative();
 
 export const embedSpaceChangePreviewSchema = z.strictObject({
   reindex: z.boolean(),

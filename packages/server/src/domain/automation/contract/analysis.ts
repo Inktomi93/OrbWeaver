@@ -102,7 +102,7 @@ const analysisStateSchema = z.object({
   arc: z.string().catch("").default(""),
   twists: z.array(z.string()).readonly().catch([]).default([]),
   retiredTwists: z.array(z.string()).readonly().catch([]).default([]),
-  settledThroughSeq: z.number().int().nonnegative().catch(0).default(0),
+  settledThroughSeq: z.int().nonnegative().catch(0).default(0),
 });
 
 export const EMPTY_ANALYSIS_STATE: AnalysisState = { arc: "", twists: [], retiredTwists: [], settledThroughSeq: 0 };

@@ -37,7 +37,7 @@ export const imageryRouter = t.router({
       z.object({
         sourceAssetId: assetIdSchema,
         instruction: z.string().trim().min(1).max(MAX_INSTRUCTION_CHARS),
-        n: z.number().int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
+        n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
         size: sizePresetSchema.optional(),
         chatId: typeIdSchema(ID_PREFIX.chat).optional(),
       }),

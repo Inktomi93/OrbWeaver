@@ -113,7 +113,7 @@ export interface BankHealthView {
  *  and none is skipped. An OFFSET would do neither: it re-counts from the top of a list whose head moves
  *  every time an ingest bumps a row's `updatedAt` (the `character.list` keyset precedent). */
 export const documentListCursorSchema = z.object({
-  updatedAt: z.number().int(),
+  updatedAt: z.int(),
   id: documentIdSchema,
 });
 
@@ -133,9 +133,9 @@ export const MIN_SCORE_DEFAULT = 0.25;
 
 // ── chunk params (the wire twin of @orb/kit/chunk's ChunkParams; pinned by ChunkParamsPin below) ─────────
 export const chunkParamsSchema = z.object({
-  chunkSize: z.number().int().min(CHUNK_SIZE_MIN).max(CHUNK_SIZE_MAX).default(CHUNK_SIZE_DEFAULT), // chars — ST chunk_size_db
-  overlapPercent: z.number().int().min(0).max(OVERLAP_PERCENT_MAX).default(0), // ST overlap_percent_db
-  wholeFileThreshold: z.number().int().min(0).max(WHOLE_FILE_THRESHOLD_MAX).default(WHOLE_FILE_THRESHOLD_DEFAULT), // chars — ST size_threshold_db (5 KB)
+  chunkSize: z.int().min(CHUNK_SIZE_MIN).max(CHUNK_SIZE_MAX).default(CHUNK_SIZE_DEFAULT), // chars — ST chunk_size_db
+  overlapPercent: z.int().min(0).max(OVERLAP_PERCENT_MAX).default(0), // ST overlap_percent_db
+  wholeFileThreshold: z.int().min(0).max(WHOLE_FILE_THRESHOLD_MAX).default(WHOLE_FILE_THRESHOLD_DEFAULT), // chars — ST size_threshold_db (5 KB)
 });
 
 export type ChunkParamsWire = z.infer<typeof chunkParamsSchema>;
@@ -152,7 +152,7 @@ void _chunkParamsHolds;
 
 // ── retrieval settings (the user-setting blob) ────────────────────────────────────────────────────────────
 export const databankRetrievalSettingsSchema = z.object({
-  k: z.number().int().min(1).max(RETRIEVAL_K_MAX).default(RETRIEVAL_K_DEFAULT), // ST chunk_count_db
+  k: z.int().min(1).max(RETRIEVAL_K_MAX).default(RETRIEVAL_K_DEFAULT), // ST chunk_count_db
   minScore: z.number().min(0).max(1).default(MIN_SCORE_DEFAULT), // ST score_threshold
   rerank: z.boolean().default(false), // LEAN default off
 });
@@ -172,12 +172,12 @@ export const documentViewSchema = z.object({
   mime: z.string(),
   origin: docOriginSchema,
   sourceUrl: z.url().nullable(),
-  byteSize: z.number().int().nonnegative(),
-  charCount: z.number().int().nonnegative(), // extractedText.length — derived at read
-  chunkCount: z.number().int().nonnegative(), // derived (LEFT JOIN count; active model only)
-  embeddedCount: z.number().int().nonnegative(), // = chunkCount when ingest is complete
-  createdAt: z.number().int(),
-  updatedAt: z.number().int(),
+  byteSize: z.int().nonnegative(),
+  charCount: z.int().nonnegative(), // extractedText.length — derived at read
+  chunkCount: z.int().nonnegative(), // derived (LEFT JOIN count; active model only)
+  embeddedCount: z.int().nonnegative(), // = chunkCount when ingest is complete
+  createdAt: z.int(),
+  updatedAt: z.int(),
 });
 
 export type DocumentView = z.infer<typeof documentViewSchema>;

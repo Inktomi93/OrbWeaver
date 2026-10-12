@@ -54,7 +54,7 @@ const scriptIdInput = z.object({ scriptId: typeIdSchema(ID_PREFIX.regexScript) }
 const scriptIdsInput = z.array(typeIdSchema(ID_PREFIX.regexScript)).max(MAX_BULK_SCRIPTS);
 
 export const regexRouter = t.router({
-  countScripts: authedProcedure.output(z.number().int().nonnegative()).query(({ ctx }) => ctx.services.regex.countScripts({ principal: ctx.auth })),
+  countScripts: authedProcedure.output(z.int().nonnegative()).query(({ ctx }) => ctx.services.regex.countScripts({ principal: ctx.auth })),
 
   listScripts: authedProcedure.output(z.array(regexScriptViewSchema)).query(({ ctx }) => ctx.services.regex.listScripts({ principal: ctx.auth })),
 

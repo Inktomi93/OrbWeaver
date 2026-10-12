@@ -54,7 +54,7 @@ const wireItemSchema = z
   .object({
     assetId: typeIdSchema(ID_PREFIX.asset),
     subjectCharacterHandle: z.string().trim().min(1).nullish().catch(null),
-    createdAt: z.number().int().nonnegative().nullish().catch(null),
+    createdAt: z.int().nonnegative().nullish().catch(null),
   })
   .transform(
     (item): CanonicalGalleryItem => ({

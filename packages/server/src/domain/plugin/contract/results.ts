@@ -282,7 +282,7 @@ export const pluginFanoutResultSchema = z.strictObject({
   slug: z.string(),
   name: z.string(),
   version: z.string(),
-  applied: z.number().int().nonnegative(),
+  applied: z.int().nonnegative(),
   skipped: z.array(z.strictObject({ userId: brandedId<UserId>(), userHandle: z.string(), reason: z.enum(PLUGIN_FANOUT_SKIP_REASONS) })).readonly(),
 }) satisfies z.ZodType<PluginFanoutResult>;
 
@@ -325,7 +325,7 @@ export const snippetResultSchema = z.strictObject({
   logLines: z.array(z.string()).readonly(),
   error: z.string().exactOptional(),
   errorKind: z.enum(["parse", "runtime"]).exactOptional(),
-  errorLine: z.number().int().exactOptional(),
+  errorLine: z.int().exactOptional(),
 }) satisfies z.ZodType<SnippetResult>;
 
 /** `uiHostCall`'s reply: the host function's result as an inert JSON string, never a materialized object. */

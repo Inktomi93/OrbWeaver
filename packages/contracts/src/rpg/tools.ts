@@ -61,7 +61,7 @@ const targetRefField = z.string().min(1);
 // wire vocabularies for one concept, gone.
 
 /** A `write:"delta"` tracker write — spend/restore a resource by a signed amount. */
-const trackerDeltaSchema = z.object({ key: z.string().min(1), delta: z.number().int() });
+const trackerDeltaSchema = z.object({ key: z.string().min(1), delta: z.int() });
 
 /** A `write:"set"` tracker write — record the new reading. `value` carries a `meter`'s number or a `text`
  *  tracker's string (the projection narrows it to the one type when this call's set-trackers are all one
@@ -104,7 +104,7 @@ export const updatePartyArgsSchema = z.object({
   targetRef: targetRefField,
   trackerDeltas: z.array(trackerDeltaSchema).optional(),
   trackerSets: z.array(trackerSetSchema).optional(),
-  addCondition: z.object({ name: z.string().min(1), modifier: z.number().int().optional() }).optional(),
+  addCondition: z.object({ name: z.string().min(1), modifier: z.int().optional() }).optional(),
   removeCondition: z.string().min(1).optional(),
   status: z.string().optional(),
 });
@@ -121,7 +121,7 @@ export const updateInventoryArgsSchema = z.object({
       z.object({
         name: z.string().min(1),
         description: z.string().optional(),
-        quantity: z.number().int().min(1).optional(),
+        quantity: z.int().min(1).optional(),
         location: z.string().optional(),
       }),
     )
@@ -131,13 +131,13 @@ export const updateInventoryArgsSchema = z.object({
       z.object({
         name: z.string().min(1),
         description: z.string().optional(),
-        quantity: z.number().int().min(1).optional(),
+        quantity: z.int().min(1).optional(),
         location: z.string().optional(),
       }),
     )
     .optional(),
-  remove: z.array(z.object({ name: z.string().min(1), quantity: z.number().int().min(1).optional() })).optional(),
-  walletDeltas: z.array(z.object({ name: z.string().min(1), delta: z.number().int() })).optional(),
+  remove: z.array(z.object({ name: z.string().min(1), quantity: z.int().min(1).optional() })).optional(),
+  walletDeltas: z.array(z.object({ name: z.string().min(1), delta: z.int() })).optional(),
 });
 export type UpdateInventoryArgs = z.infer<typeof updateInventoryArgsSchema>;
 
@@ -146,7 +146,7 @@ export type UpdateInventoryArgs = z.infer<typeof updateInventoryArgsSchema>;
 // current act's title/summary + the story title; the APPLIER maintains the `acts` array (padding untitled
 // acts up to `act`) so the model never manages a nested list. Omit = keep (MA-4).
 const plotPatchSchema = z.object({
-  act: z.number().int().min(1).optional(),
+  act: z.int().min(1).optional(),
   title: z.string().optional(),
   actTitle: z.string().optional(),
   actSummary: z.string().optional(),
@@ -156,7 +156,7 @@ const plotPatchSchema = z.object({
 export const updateSceneArgsSchema = z.object({
   location: z.string().optional(),
   calendarDate: z.string().optional(),
-  day: z.number().int().min(1).optional(),
+  day: z.int().min(1).optional(),
   timeOfDay: z.enum(TIME_OF_DAY).optional(),
   weather: weatherUpsertSchema.optional(),
   presentUpsert: z
@@ -186,7 +186,7 @@ export type UpdateSceneArgs = z.infer<typeof updateSceneArgsSchema>;
  *  game-subject trackers never sees the tool at all. */
 export const setTrackerArgsSchema = z.object({
   key: z.string().min(1),
-  delta: z.number().int().optional(),
+  delta: z.int().optional(),
   value: z.union([z.number(), z.string()]).optional(),
   items: z.array(z.string()).optional(),
 });

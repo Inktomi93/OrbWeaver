@@ -52,7 +52,7 @@ export type CredentialHealth =
 export const credentialHealthSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("ok"), checkedAt: z.number() }),
   z.strictObject({ status: z.literal("revoked"), checkedAt: z.number(), reason: z.string() }),
-  z.strictObject({ status: z.literal("unreachable"), checkedAt: z.number(), reason: z.string(), httpStatus: z.number().int().optional() }),
+  z.strictObject({ status: z.literal("unreachable"), checkedAt: z.number(), reason: z.string(), httpStatus: z.int().optional() }),
   z.strictObject({ status: z.literal("throttled"), checkedAt: z.number() }),
   z.strictObject({ status: z.literal("unchecked"), checkedAt: z.number(), reason: z.string() }),
 ]) satisfies z.ZodType<CredentialHealth>;

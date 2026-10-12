@@ -62,8 +62,8 @@ export const themeSchema = z.object({
   css: z.string().max(THEME_CSS_MAX).nullable(),
   isSeed: z.boolean(),
   isDefault: z.boolean(),
-  createdAt: z.number().int(),
-  updatedAt: z.number().int(),
+  createdAt: z.int(),
+  updatedAt: z.int(),
 });
 export type Theme = z.infer<typeof themeSchema>;
 

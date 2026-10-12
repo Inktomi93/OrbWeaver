@@ -139,7 +139,7 @@ const BLUR_STRENGTH_DEFAULT = 14;
  */
 export const appearanceSettingsSchema = z
   .object({
-    chatWidthPct: z.number().int().min(CHAT_WIDTH_PCT_MIN).max(CHAT_WIDTH_PCT_MAX).catch(CHAT_WIDTH_PCT_DEFAULT).default(CHAT_WIDTH_PCT_DEFAULT),
+    chatWidthPct: z.int().min(CHAT_WIDTH_PCT_MIN).max(CHAT_WIDTH_PCT_MAX).catch(CHAT_WIDTH_PCT_DEFAULT).default(CHAT_WIDTH_PCT_DEFAULT),
     fontScale: z.number().min(FONT_SCALE_MIN).max(FONT_SCALE_MAX).catch(FONT_SCALE_DEFAULT).default(FONT_SCALE_DEFAULT),
     avatarSize: z.enum(["sm", "md", "lg"]).catch("lg").default("lg"),
     avatarShape: z.enum(["round", "square", "rounded"]).catch("round").default("round"),

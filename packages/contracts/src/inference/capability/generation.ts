@@ -291,9 +291,9 @@ export const turnsCapabilitySchema = z.object({
   disablesImplicitPromptCache: z.boolean().optional(),
   cacheRetentionRefresh: z.boolean().optional(),
   /** Fixed request-wide retention for a protocol that does not use block TTLs. */
-  cacheRetentionSeconds: z.number().int().positive().optional(),
+  cacheRetentionSeconds: z.int().positive().optional(),
   /** Per-model minimum cacheable prefix; `CACHE_MIN_FLOOR` when absent. */
-  cacheMinTokens: z.number().int().positive().optional(),
+  cacheMinTokens: z.int().positive().optional(),
   /** The route fixes cache retention; a different requested TTL is reported and clamped. */
   fixedCacheTtl: z.enum(PROMPT_CACHE_TTLS).optional(),
   /** Whether explicit markers default on when the connection stores no preference. Automatic caching is independent. */
@@ -371,13 +371,13 @@ export const generationCapabilitySchema = z.object({
      *  its vendor's table is a row, never a branch. */
     structuredLimits: z
       .object({
-        maxOptionalProps: z.number().int().nonnegative().optional(),
-        maxUnionProps: z.number().int().nonnegative().optional(),
-        maxStrictTools: z.number().int().nonnegative().optional(),
-        maxObjectProps: z.number().int().nonnegative().optional(),
-        maxDepth: z.number().int().nonnegative().optional(),
-        maxEnumValues: z.number().int().nonnegative().optional(),
-        maxNameChars: z.number().int().nonnegative().optional(),
+        maxOptionalProps: z.int().nonnegative().optional(),
+        maxUnionProps: z.int().nonnegative().optional(),
+        maxStrictTools: z.int().nonnegative().optional(),
+        maxObjectProps: z.int().nonnegative().optional(),
+        maxDepth: z.int().nonnegative().optional(),
+        maxEnumValues: z.int().nonnegative().optional(),
+        maxNameChars: z.int().nonnegative().optional(),
       })
       .optional(),
     /** What the model can PRODUCE. `image` here is what makes a chat model answer with pictures (§6.7) and

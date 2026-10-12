@@ -51,7 +51,7 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
  *  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee. */
 export const loreEntryProvenanceSchema = z.object({
   contentHash: z.string(),
-  span: z.object({ fromSeq: z.number().int().nonnegative(), toSeq: z.number().int().nonnegative() }).optional(),
+  span: z.object({ fromSeq: z.int().nonnegative(), toSeq: z.int().nonnegative() }).optional(),
 });
 export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 
@@ -102,7 +102,7 @@ export const createEntrySchema = z.object({
    *  whole-word against the scan-depth window of recent messages. */
   keys: z.array(z.string().max(KEY_MAX)).max(KEYS_MAX).optional(),
   enabled: z.boolean().optional(),
-  priority: z.number().int().min(PRIORITY_MIN).max(PRIORITY_MAX).optional(),
+  priority: z.int().min(PRIORITY_MIN).max(PRIORITY_MAX).optional(),
   /** Opt-out of the per-turn WI token budget — must-have lore that should never be silently dropped. */
   ignoreBudget: z.boolean().optional(),
   metadata: entryMetadataWriteSchema.nullable().optional(),
@@ -115,7 +115,7 @@ export const updateEntrySchema = z.object({
   content: z.string().min(1).max(CONTENT_MAX).optional(),
   keys: z.array(z.string().max(KEY_MAX)).max(KEYS_MAX).optional(),
   enabled: z.boolean().optional(),
-  priority: z.number().int().min(PRIORITY_MIN).max(PRIORITY_MAX).optional(),
+  priority: z.int().min(PRIORITY_MIN).max(PRIORITY_MAX).optional(),
   ignoreBudget: z.boolean().optional(),
   metadata: entryMetadataWriteSchema.nullable().optional(),
 });

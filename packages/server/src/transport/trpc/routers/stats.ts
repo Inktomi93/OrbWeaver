@@ -39,7 +39,7 @@ export const statsRouter = t.router({
       z
         .object({
           sort: z.enum(LEADERBOARD_SORTS).optional(),
-          limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional(),
+          limit: z.int().positive().max(STATS_LIST_MAX_LIMIT).optional(),
           // The LIST-pane name search — narrows the ranked page AND its census to the match. Owner-scoping
           // is unchanged (positional `ownerId` below); this only filters within the owner's own characters.
           search: z.string().optional(),
@@ -52,12 +52,12 @@ export const statsRouter = t.router({
   // client, so the server takes no zone (docs/law/UI-Gates-and-Lessons.md §11.5).
   timeseries: authedProcedure
     .output(z.array(activityBucketSchema))
-    .input(z.object({ from: z.number().int().optional(), to: z.number().int().optional() }).optional())
+    .input(z.object({ from: z.int().optional(), to: z.int().optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.timeseries(ctx.auth.userId, { from: input?.from, to: input?.to })),
 
   byModel: authedProcedure
     .output(z.array(modelStatRowSchema))
-    .input(z.object({ limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional())
+    .input(z.object({ limit: z.int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.byModel(ctx.auth.userId, { limit: input?.limit })),
 
   freshness: authedProcedure.output(statsFreshnessSchema).query(({ ctx }) => ctx.services.stats.freshness(ctx.auth.userId)),

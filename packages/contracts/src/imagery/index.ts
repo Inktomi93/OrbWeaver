@@ -243,7 +243,7 @@ const MAX_IMAGE_COUNT = 4;
 export const generatePictureRequestSchema = z.object({
   mode: promptTemplateModeSchema,
   prompt: z.string().max(MAX_PROMPT_CHARS).optional(),
-  n: z.number().int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
+  n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
   size: sizePresetSchema.optional(),
   gallery: z.boolean().optional(),
 });
@@ -279,7 +279,7 @@ export const generateImageActionArgsSchema = z.object({
   mode: promptTemplateModeSchema.default(DEFAULT_ACTION_MODE),
   prompt: z.string().max(MAX_PROMPT_CHARS).optional(),
   negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
-  n: z.number().int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).default(DEFAULT_IMAGE_COUNT),
+  n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).default(DEFAULT_IMAGE_COUNT),
   size: sizePresetSchema.optional(),
   subjectCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
   useAvatarReference: z.boolean().default(false),

@@ -304,7 +304,7 @@ export function proseOverBy(text: string): number {
  *  ONLY staleness signal (PROSE-1 §4.4) and is never used to pick which text wins. */
 export const proseOverrideSchema = z.object({
   text: z.string().max(PROSE_MAX_CHARS),
-  baseVersion: z.number().int().positive(),
+  baseVersion: z.int().positive(),
 });
 export type ProseOverride = z.infer<typeof proseOverrideSchema>;
 

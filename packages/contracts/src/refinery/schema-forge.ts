@@ -125,7 +125,7 @@ export const forgeFieldRowSchema = z
     enum: z.array(z.string().max(REFINERY_SCHEMA_NAME_MAX)).min(1).max(REFINERY_SCHEMA_MAX_ENUM).optional(),
     minimum: z.number().optional(),
     maximum: z.number().optional(),
-    maxLength: z.number().int().min(1).optional(),
+    maxLength: z.int().min(1).optional(),
     // ── the display vocabulary — flat here, assembled into one `x-orb-ui` by the
     //    transpiler, because a nested hint object is another closed-object level the hosted wires charge for.
     role: z.enum(RENDER_HINT_ROLES).optional(),

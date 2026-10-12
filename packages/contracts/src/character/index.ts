@@ -240,9 +240,9 @@ export const characterCardSchema = z.object({
   /** Provenance URLs / ids the card was sourced from (ST V3 `data.source`). */
   source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable(),
   /** Unix-seconds authorship timestamp (ST V3 `data.creation_date`). */
-  creationDate: z.number().int().nullable(),
+  creationDate: z.int().nullable(),
   /** Unix-seconds last-modification timestamp (ST V3 `data.modification_date`). */
-  modificationDate: z.number().int().nullable(),
+  modificationDate: z.int().nullable(),
   /** ST's favorite flag (`data.extensions.fav`) promoted onto `characters.starred` — the
    *  promote-out-of-residue pattern of `depth_prompt`/`regex_scripts` (D28): the IN-adapter reads it, the
    *  residue drops the key, and the OUT-emitter writes it back FROM THE LIVE ROW (so a star toggled in orb
@@ -323,8 +323,8 @@ export const createCharacterSchema = z.object({
   cardVersion: z.string().max(CARD_VERSION_MAX).nullable().optional(),
   nickname: z.string().max(NICKNAME_MAX).nullable().optional(),
   source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable().optional(),
-  creationDate: z.number().int().nullable().optional(),
-  modificationDate: z.number().int().nullable().optional(),
+  creationDate: z.int().nullable().optional(),
+  modificationDate: z.int().nullable().optional(),
   // NO `regexScripts` (D121-E): a character does not carry scripts by value, so the CREATE input has no
   // slot for them. The import path reads them off the PARSED CARD and hands them to the regex domain's lift
   // op (which mints library rows + the `character_regex_scripts` attachment) — the `importLorebook` shape.
@@ -436,8 +436,8 @@ export const characterListCursorSchema = z.discriminatedUnion("sort", [
   z.object({
     sort: z.literal("recent"),
     /** `null` = the boundary row has never been chatted (the NULLS-LAST tail). */
-    lastChattedAt: z.number().int().nullable(),
-    createdAt: z.number().int(),
+    lastChattedAt: z.int().nullable(),
+    createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({
@@ -453,12 +453,12 @@ export const characterListCursorSchema = z.discriminatedUnion("sort", [
   }),
   z.object({
     sort: z.literal("newest"),
-    createdAt: z.number().int(),
+    createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({
     sort: z.literal("oldest"),
-    createdAt: z.number().int(),
+    createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({
@@ -467,25 +467,25 @@ export const characterListCursorSchema = z.discriminatedUnion("sort", [
      *  character, so a never-chatted boundary row is `0`, not absent. `0` is the tail in both directions —
      *  DESC reaches it last by arithmetic, ASC by an explicit leading term (an unchatted card is unjudged,
      *  never "fewest"; the `bestScore`/`worstScore` precedent). */
-    chatCount: z.number().int(),
+    chatCount: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({
     sort: z.literal("fewestChats"),
     /** NOT NULLABLE — see the `mostChats` arm. */
-    chatCount: z.number().int(),
+    chatCount: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({
     sort: z.literal("largestCards"),
     /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
-    tokenSize: z.number().int(),
+    tokenSize: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({
     sort: z.literal("smallestCards"),
     /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
-    tokenSize: z.number().int(),
+    tokenSize: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({

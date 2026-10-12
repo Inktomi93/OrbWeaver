@@ -51,7 +51,7 @@ export const rpgGameFeaturesSchema = z.object({
   deception: z.boolean().default(false),
   omniscience: z.boolean().default(false),
   hiddenContentReveal: z.boolean().default(true),
-  recentBeatsKeepLast: z.number().int().min(0).default(RPG_RECENT_BEATS_KEEP_DEFAULT),
+  recentBeatsKeepLast: z.int().min(0).default(RPG_RECENT_BEATS_KEEP_DEFAULT),
   // Feature 7 — immersive HTML cards. `immersiveHtml` gates the TEACHING ask + the
   // §4.8 lenient wrap only — an emitted `:::card` ALWAYS renders (the render is toggle-independent, so a
   // stored card never breaks on a later toggle-off). Default on: the sandbox is the wall.
@@ -62,7 +62,7 @@ export const rpgGameFeaturesSchema = z.object({
   // At least the X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub
   // X at a time, so the prompt cache breaks once per X cards.
   // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture).
-  cardKeepLastX: z.number().int().min(0).default(RPG_CARD_KEEP_LAST_DEFAULT),
+  cardKeepLastX: z.int().min(0).default(RPG_CARD_KEEP_LAST_DEFAULT),
   // CYOA as a first-class MODE (§5.4): ON composes the choices-fence teaching into the reminder so the
   // model ends turns with a clickable choice set. Default OFF (a strong play-style many tables don't want);
   // the wand's one-shot "Offer choices" covers the this-turn-only ask regardless of the knob. The render is
@@ -245,9 +245,7 @@ export const rpgGameConfigSchema = z.object({
   // `window` arm's transcript budget (message-boundary sliced), floored for the sad-path 8B and capped so a
   // hosted room can raise it without unbounded prefill ([[plan-for-small-hardware]]).
   extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).default("window"),
-  extractionWindowTokens: z
-    .number()
-    .int()
+  extractionWindowTokens: z.int()
     .min(RPG_EXTRACTION_WINDOW_TOKENS_MIN)
     .max(RPG_EXTRACTION_WINDOW_TOKENS_MAX)
     .default(RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT),
@@ -255,7 +253,7 @@ export const rpgGameConfigSchema = z.object({
   // (scene + present characters, via the establish-when-unset machinery applied unconditionally) so a deep story's
   // panel self-heals instead of decaying. `0` = off. DEFINED here (wired-on-arrival, D107) so the config
   // view + write door carry it; the cadence CONSUMPTION at `stageStateRound` lands with the reconcile lane.
-  reconcileEveryBeats: z.number().int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).default(RPG_RECONCILE_EVERY_BEATS_DEFAULT),
+  reconcileEveryBeats: z.int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).default(RPG_RECONCILE_EVERY_BEATS_DEFAULT),
   dateMode: z.enum(RPG_DATE_MODES).default("narrated"),
   // The feature knobs (relationship/journal hints + the hidden-channel + card options) — additive,
   // self-healing at the parse seam (a pre-feature blob absent from a stored config parses to the

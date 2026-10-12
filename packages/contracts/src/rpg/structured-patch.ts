@@ -240,9 +240,9 @@ export function stateRoundPatchSchema(tools: readonly RpgStateRoundTool[]): z.Zo
       return z
         .strictObject({
           [PLANE_KEY]: z.enum([tool.name]),
-          [CALL_KEY]: z.number().int().nonnegative().max(RPG_PATCH_INDEX_MAX),
+          [CALL_KEY]: z.int().nonnegative().max(RPG_PATCH_INDEX_MAX),
           [FIELD_KEY]: z.enum([first, ...rest]),
-          [ITEM_KEY]: z.number().int().nonnegative().max(RPG_PATCH_INDEX_MAX),
+          [ITEM_KEY]: z.int().nonnegative().max(RPG_PATCH_INDEX_MAX),
           [VALUE_KEY]: z.string(),
         })
         .describe(tool.description);

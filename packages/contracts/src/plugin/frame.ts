@@ -106,7 +106,7 @@ export type PluginFrameMintRequest = z.infer<typeof pluginFrameMintRequestSchema
  *  remount finds an expired handle rather than discovering it as a blank frame. */
 export const pluginFrameMintResponseSchema = z.strictObject({
   url: z.string(),
-  expiresInMs: z.number().int().positive(),
+  expiresInMs: z.int().positive(),
 });
 /** Type twin of {@link pluginFrameMintResponseSchema}. */
 export type PluginFrameMintResponse = z.infer<typeof pluginFrameMintResponseSchema>;

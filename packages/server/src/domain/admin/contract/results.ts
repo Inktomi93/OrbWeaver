@@ -28,4 +28,4 @@ export interface RevokeUserSessionsResult {
   readonly revoked: number;
 }
 
-export const revokeUserSessionsResultSchema = z.strictObject({ revoked: z.number().int().nonnegative() }) satisfies z.ZodType<RevokeUserSessionsResult>;
+export const revokeUserSessionsResultSchema = z.strictObject({ revoked: z.int().nonnegative() }) satisfies z.ZodType<RevokeUserSessionsResult>;

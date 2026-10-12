@@ -702,7 +702,7 @@ export function salvageExtraction(value: unknown): RpgExtractionSalvage {
  *  D112 (3) documents: an enforcing wire must answer, a non-enforcing one degrades to "the card said nothing". */
 export const rpgPopulateSheetSchema = z.object({
   title: z.string().min(1).optional(),
-  level: z.number().int().min(0).optional(),
+  level: z.int().min(0).optional(),
 });
 export type RpgPopulateSheet = z.infer<typeof rpgPopulateSheetSchema>;
 

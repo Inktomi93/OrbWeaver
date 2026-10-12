@@ -71,11 +71,11 @@ export const rpgTrackerDefSchema = z.object({
   write: rpgTrackerWriteSchema,
   subject: rpgTrackerSubjectSchema,
   appliesTo: rpgTrackerAppliesToSchema.default("everyone"),
-  max: z.number().int().min(1).nullable().default(null),
+  max: z.int().min(1).nullable().default(null),
   hint: z.string().max(RPG_HINT_MAX).default(""),
   color: z.string().regex(RPG_TRACKER_COLOR_RE).nullable().default(null),
   icon: z.string().nullable().default(null),
-  sort: z.number().int().default(0),
+  sort: z.int().default(0),
   pinned: z.boolean().default(false),
   locked: z.boolean().default(false),
 });
@@ -100,7 +100,7 @@ export type RpgTrackerDef = z.infer<typeof rpgTrackerDefSchema>;
 export const rpgTrackerValueSchema = z.object({
   value: z.union([z.number(), z.string()]).nullable().default(null),
   items: z.array(z.string()).nullable().default(null),
-  max: z.number().int().min(1).nullable().default(null),
+  max: z.int().min(1).nullable().default(null),
 });
 export type RpgTrackerValue = z.infer<typeof rpgTrackerValueSchema>;
 

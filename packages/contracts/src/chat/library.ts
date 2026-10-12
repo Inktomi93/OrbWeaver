@@ -7,6 +7,6 @@ export const chatCensusInputSchema = z.object({
   characterId: typeIdSchema(ID_PREFIX.character).optional(),
   search: z.string().optional(),
   /** Exclusive epoch-millisecond ceiling over displayed recency. */
-  beforeRecencyAt: z.number().int().optional(),
+  beforeRecencyAt: z.int().optional(),
 });
 export type ChatLibraryLens = z.infer<typeof chatCensusInputSchema>;

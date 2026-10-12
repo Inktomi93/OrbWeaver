@@ -28,7 +28,7 @@ export const statsDeltaSchema = z.object({
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
   // The epoch-ms start of the message's UTC quarter-hour (the `daily_stats` key — produced by
   // `@orb/kit/stats-tally.statsBucketStart`).
-  bucketStart: z.number().int(),
+  bucketStart: z.int(),
   // null → `model_stats` is skipped; `provider` coalesces to '(unknown)' at the model-key seam, not here.
   model: modelIdSchema.nullable(),
   provider: z.union([providerIdSchema, z.literal(MODEL_PROVIDER_UNKNOWN)]).nullable(),
@@ -643,7 +643,7 @@ export const leaderboardPageSchema = z.strictObject({
 }) satisfies z.ZodType<LeaderboardPage>;
 
 export const activityBucketSchema = z.strictObject({
-  bucketStart: z.number().int(),
+  bucketStart: z.int(),
   chatsCreated: z.number(),
   userTurns: z.number(),
   assistantTurns: z.number(),
@@ -715,7 +715,7 @@ export const wrappedSummarySchema = z.strictObject({
 export const momentumBucketSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
-  bucketStart: z.number().int(),
+  bucketStart: z.int(),
   replies: z.number(),
 }) satisfies z.ZodType<MomentumBucket>;
 

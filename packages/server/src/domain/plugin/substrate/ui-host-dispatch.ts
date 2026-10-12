@@ -37,7 +37,7 @@ const kvKey = z.string().min(1).max(KV_KEY_MAX);
 /** The ten argument schemas, one per proxyable function. Each parses the DECODED `argsJson` value — a
  *  positional array, mirroring the membrane's own `args` convention so a plugin author writes the same call on
  *  both sides of the wire. */
-const listMessagesArgs = z.tuple([z.object({ limit: z.number().int().positive().max(LIST_MESSAGES_LIMIT_MAX).optional() }).optional()]);
+const listMessagesArgs = z.tuple([z.object({ limit: z.int().positive().max(LIST_MESSAGES_LIMIT_MAX).optional() }).optional()]);
 const noArgs = z.tuple([]);
 const oneKey = z.tuple([kvKey]);
 const keyAndValue = z.tuple([kvKey, z.string()]);

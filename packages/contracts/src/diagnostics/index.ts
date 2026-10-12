@@ -27,7 +27,7 @@ export const DIAGNOSTIC_GRAMMARS = {
 
 /** One error-level log line, reduced to grammar-checked fields; `at` is epoch ms. */
 const bugReportServerErrorSchema = z.strictObject({
-  at: z.number().int().positive(),
+  at: z.int().positive(),
   source: z.string().regex(DIAGNOSTIC_GRAMMARS.source).nullable(),
   event: z.string().regex(DIAGNOSTIC_GRAMMARS.identifier).nullable(),
   errorType: z.string().regex(DIAGNOSTIC_GRAMMARS.identifier).nullable(),
@@ -50,7 +50,7 @@ export const bugReportDiagnosticsSchema = z.strictObject({
     z.strictObject({
       kind: z.literal("included"),
       records: z.array(bugReportServerErrorSchema).max(BUG_REPORT_SERVER_ERRORS_MAX),
-      held: z.number().int().nonnegative(),
+      held: z.int().nonnegative(),
     }),
     z.strictObject({ kind: z.literal("owner-only") }),
   ]),

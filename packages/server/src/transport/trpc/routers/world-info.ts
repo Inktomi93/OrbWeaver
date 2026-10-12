@@ -32,7 +32,7 @@ const MAX_FILENAME_CHARS = 512;
 const DEC = new TextDecoder();
 
 export const worldInfoRouter = t.router({
-  countBooks: authedProcedure.output(z.number().int().nonnegative()).query(({ ctx }) => ctx.services.worldInfo.countBooks({ principal: ctx.auth })),
+  countBooks: authedProcedure.output(z.int().nonnegative()).query(({ ctx }) => ctx.services.worldInfo.countBooks({ principal: ctx.auth })),
 
   listBooks: authedProcedure.output(z.array(bookViewSchema)).query(({ ctx }) => ctx.services.worldInfo.listBooks({ principal: ctx.auth })),
 

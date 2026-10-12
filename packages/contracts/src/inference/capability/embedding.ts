@@ -19,10 +19,10 @@ export type LocalTextEncoding = z.infer<typeof localTextEncodingSchema>;
 export const LOCAL_TEXT_ENCODING = { version: 1, maxTokens: NATIVE_TEXT_WINDOW_TOKENS, pooling: "mean-normalized" } as const satisfies LocalTextEncoding;
 
 export const embeddingCapabilitySchema = z.object({
-  dims: z.number().int().positive(),
+  dims: z.int().positive(),
   /** Matryoshka: the model honours `dimensions` truncation. */
   mrl: z.boolean(),
-  maxInputTokens: z.number().int().positive(),
+  maxInputTokens: z.int().positive(),
   /** `text`, and `image` for a joint-space encoder (jina-clip-v2, a VL embedder on vLLM). */
   input: z.array(modalitySchema),
   output: z.tuple([z.literal("vector")]),

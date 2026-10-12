@@ -92,7 +92,7 @@ const CAS_HASH_HEX_LENGTH = 64;
 export const storedAssetSchema = z.object({
   assetId: assetIdSchema,
   hash: z.string().length(CAS_HASH_HEX_LENGTH),
-  size: z.number().int().nonnegative(),
+  size: z.int().nonnegative(),
   created: z.boolean(),
 }) satisfies z.ZodType<StoredAsset>;
 /** The body of a refused `POST /api/assets/upload` (415 wrong contents, 413 over the cap): the reason the
@@ -133,7 +133,7 @@ export const assetListItemSchema = z.strictObject({
 /** The keyset position after one owned asset: the previous page's last `(uploadedAt, assetId)`. One object,
  *  because a tRPC infinite query carries exactly one `cursor`. */
 const ownedAssetCursorSchema = z.object({
-  uploadedAt: z.number().int(),
+  uploadedAt: z.int(),
   assetId: assetIdSchema,
 });
 export type OwnedAssetCursor = z.infer<typeof ownedAssetCursorSchema>;
@@ -142,7 +142,7 @@ export type OwnedAssetCursor = z.infer<typeof ownedAssetCursorSchema>;
  *  character's gallery (the add-picker's read); it filters inside the owner scope and never widens it. */
 export const listOwnedParamsSchema = z.object({
   kind: assetKindSchema.optional(),
-  limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
+  limit: z.int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
   galleryCandidatesFor: characterIdSchema.optional(),
   cursor: ownedAssetCursorSchema.optional(),
 });
@@ -165,7 +165,7 @@ export const DEFAULT_GALLERY_SORT: GallerySort = "newest";
 /** The keyset position after one gallery row: the previous page's last `(createdAt, galleryItemId)`. One
  *  object, because a tRPC infinite query carries exactly one `cursor`. */
 const galleryCursorSchema = z.object({
-  createdAt: z.number().int(),
+  createdAt: z.int(),
   galleryItemId: galleryItemIdSchema,
 });
 export type GalleryCursor = z.infer<typeof galleryCursorSchema>;
@@ -176,7 +176,7 @@ export type GalleryCursor = z.infer<typeof galleryCursorSchema>;
 export const galleryListParamsSchema = z.object({
   subjectCharacterId: characterIdSchema.optional(),
   chatId: (typeIdSchema(ID_PREFIX.chat) satisfies z.ZodType<ChatId>).optional(),
-  limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
+  limit: z.int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
   sort: z.enum(GALLERY_SORTS).optional(),
   cursor: galleryCursorSchema.optional(),
 });

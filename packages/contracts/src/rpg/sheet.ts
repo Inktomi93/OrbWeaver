@@ -21,7 +21,7 @@ import { z } from "zod";
  *  now has ONE home (`RpgTrackerValue.max`, resolved through `trackerCeiling`), health included. */
 export const rpgSheetSchema = z.object({
   className: z.string().default(""),
-  attributes: z.record(z.string(), z.number().int()).default({}),
+  attributes: z.record(z.string(), z.int()).default({}),
   flavor: z.string().default(""),
   // `level` — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:
   // the panel renders nothing, never a phantom "Level 0"). It is IDENTITY (like className), NOT a beat-driven
@@ -32,7 +32,7 @@ export const rpgSheetSchema = z.object({
   // hand edit) and `populateFromCharacter` (the ONE sanctioned model doorway — a host-clicked, per-character,
   // one-shot round over the character CARD + the room's opening, which FILLS this only while it is still null;
   // `rpgPopulateSchema`, a schema no turn vehicle rides). Birth is not progression.
-  level: z.number().int().min(0).nullable().default(null),
+  level: z.int().min(0).nullable().default(null),
   // The per-actor TRACKER EXCEPTIONS (the unification's applicability model, §5.1). The def carries the class
   // (`party`/`npcs`/`everyone`/an explicit ref list); THIS actor may additionally be GRANTED a tracker the
   // class missed (the one-off — a character who alone carries "Bound Will") or have one REVOKED (a party

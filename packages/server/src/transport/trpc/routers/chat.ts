@@ -111,7 +111,7 @@ const listMessagesSchema = z.object({
   // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask is a
   // BAD_REQUEST naming the bound, never an unbounded canon fetch (`CHAT_MESSAGE_LIST_MAX_LIMIT`). The domain
   // still applies its own DoS backstop for internal callers.
-  limit: z.number().int().min(1).max(CHAT_MESSAGE_LIST_MAX_LIMIT).optional(),
+  limit: z.int().min(1).max(CHAT_MESSAGE_LIST_MAX_LIMIT).optional(),
 });
 
 // The swipe strip's step-target resolver (chat-surface-lane follow-up to #19): `ChatService.listMessageVariants`
@@ -247,7 +247,7 @@ const editMessageSchema = z.object({
 const setSeededGreetingSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
-  greetingIndex: z.number().int().min(0),
+  greetingIndex: z.int().min(0),
 });
 
 const setMessageHiddenSchema = z.object({
@@ -258,7 +258,7 @@ const setMessageHiddenSchema = z.object({
 
 const editToolCallSchema = z.object({
   turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
-  callOrdinal: z.number().int().nonnegative().optional(),
+  callOrdinal: z.int().nonnegative().optional(),
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
   variantId: typeIdSchema(ID_PREFIX.messageVariant),
@@ -370,7 +370,7 @@ const toggleReactionSchema = z.object({
   // speaker ONLY; the verb re-parses the variant's CANON itself and stores ITS OWN speaker + snippet, so
   // free text never crosses this boundary into a rendered column (the emoji-vocabulary posture). The name
   // cap DERIVES the contracts bound (the `<speaker>` tag grammar's own).
-  segmentIndex: z.number().int().min(0).optional(),
+  segmentIndex: z.int().min(0).optional(),
   segmentSpeaker: z.string().max(REACTION_SPEAKER_NAME_MAX).nullable().optional(),
 });
 const listReactionsSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
@@ -541,7 +541,7 @@ export const chatRouter = t.router({
     .input(startChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.startChat({ principal: ctx.auth, ...input })),
   countChats: authedProcedure
-    .output(z.number().int().nonnegative())
+    .output(z.int().nonnegative())
     .input(chatCensusInputSchema.optional())
     .query(({ ctx, input }) =>
       ctx.services.chat.countChats({
@@ -563,7 +563,7 @@ export const chatRouter = t.router({
     .input(
       chatCensusInputSchema
         .extend({
-          limit: z.number().int().min(1).max(CHAT_LIST_MAX_LIMIT).optional(),
+          limit: z.int().min(1).max(CHAT_LIST_MAX_LIMIT).optional(),
           cursor: chatListCursorSchema.nullish(),
         })
         .optional(),
@@ -619,7 +619,7 @@ export const chatRouter = t.router({
         chatId: typeIdSchema(ID_PREFIX.chat),
         target: messageWindowTargetSchema,
         cursor: messageWindowCursorSchema.nullish(),
-        limit: z.number().int().min(1).max(CHAT_MESSAGE_LIST_MAX_LIMIT).optional(),
+        limit: z.int().min(1).max(CHAT_MESSAGE_LIST_MAX_LIMIT).optional(),
       }),
     )
     .query(({ ctx, input }) => ctx.services.chat.getMessageWindow({ principal: ctx.auth, ...input })),

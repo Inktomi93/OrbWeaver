@@ -33,7 +33,7 @@ const searchScopeInput = z.discriminatedUnion("kind", [
 
 const unifiedSearchInput = z.object({
   query: z.string().min(1),
-  topN: z.number().int().positive().max(SEARCH_TOP_N_MAX),
+  topN: z.int().positive().max(SEARCH_TOP_N_MAX),
   over: z.enum(SEARCH_TARGETS),
   scope: searchScopeInput,
   rerank: z.boolean().optional(),
@@ -44,7 +44,7 @@ const unifiedSearchInput = z.object({
 // returns nothing for a foreign id, so a stranger gets an empty result, never another tenant's neighbourhood).
 const similarCharactersInput = z.object({
   characterId: typeIdSchema(ID_PREFIX.character),
-  topN: z.number().int().positive().max(SEARCH_TOP_N_MAX),
+  topN: z.int().positive().max(SEARCH_TOP_N_MAX),
 });
 
 const similarArtInput = similarCharactersInput.extend({
@@ -54,7 +54,7 @@ const similarArtInput = similarCharactersInput.extend({
 export const searchRouter = t.router({
   fields: authedProcedure
     .output(fieldSearchResultSchema)
-    .input(z.object({ query: z.string().min(1), topN: z.number().int().positive().max(SEARCH_TOP_N_MAX) }))
+    .input(z.object({ query: z.string().min(1), topN: z.int().positive().max(SEARCH_TOP_N_MAX) }))
     .query(({ ctx, input }) =>
       ctx.services.search.fields({
         ownerId: ctx.auth.userId,
@@ -65,7 +65,7 @@ export const searchRouter = t.router({
 
   suggest: authedProcedure
     .output(z.array(searchSuggestionSchema))
-    .input(z.object({ query: z.string().min(1), limit: z.number().int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) }))
+    .input(z.object({ query: z.string().min(1), limit: z.int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) }))
     .query(({ ctx, input }) =>
       ctx.services.search.suggest({
         ownerId: ctx.auth.userId,

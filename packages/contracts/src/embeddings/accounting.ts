@@ -15,7 +15,7 @@ export const EMBEDDING_INVOCATION_OUTCOMES = ["completed", "failed"] as const;
 export type EmbeddingInvocationOutcome = (typeof EMBEDDING_INVOCATION_OUTCOMES)[number];
 
 export const embeddingBatchObservationSchema = z.object({
-  inputCount: z.number().int().positive(),
+  inputCount: z.int().positive(),
   inputModalities: z.array(modalitySchema),
   servedModel: z.string().min(1).nullable(),
   usage: embedUsageSchema,

@@ -80,7 +80,7 @@ export type MemoryDefaultsBoundKey = keyof typeof MEMORY_DEFAULTS_BOUNDS;
 // re-spelled literal that could drift from the surface's clamp).
 function memoryKnob(key: MemoryDefaultsBoundKey, describe: string): z.ZodOptional<z.ZodNumber> {
   const b = MEMORY_DEFAULTS_BOUNDS[key];
-  const withInt = b.int ? z.number().int() : z.number();
+  const withInt = b.int ? z.int() : z.number();
   const withMin = withInt.min(b.min);
   const bounded = b.max === null ? withMin : withMin.max(b.max);
   return bounded.optional().describe(describe);
@@ -146,7 +146,7 @@ export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
 // (fail-safe: an absurd override never LOOSENS or breaks the limiter, it falls back to the known-good floor).
 export const RATE_LIMIT_CAP_MIN = 5;
 export const RATE_LIMIT_CAP_MAX = 100_000;
-const rateLimitCap = (): z.ZodOptional<z.ZodNumber> => z.number().int().min(RATE_LIMIT_CAP_MIN).max(RATE_LIMIT_CAP_MAX).optional();
+const rateLimitCap = (): z.ZodOptional<z.ZodNumber> => z.int().min(RATE_LIMIT_CAP_MIN).max(RATE_LIMIT_CAP_MAX).optional();
 export const rateLimitsSchema = z.object({
   aiTurn: rateLimitCap(),
   publicIp: rateLimitCap(),
@@ -172,12 +172,12 @@ export function clampRateLimit(raw: number): number | null {
 // admin change yields fresh keys → regeneration, never a stale-quality variant served forever.
 export const IMAGE_VARIANT_QUALITY_MIN = 1;
 export const IMAGE_VARIANT_QUALITY_MAX = 100;
-const imageVariantQualitySchema = (): z.ZodOptional<z.ZodNumber> => z.number().int().min(IMAGE_VARIANT_QUALITY_MIN).max(IMAGE_VARIANT_QUALITY_MAX).optional();
+const imageVariantQualitySchema = (): z.ZodOptional<z.ZodNumber> => z.int().min(IMAGE_VARIANT_QUALITY_MIN).max(IMAGE_VARIANT_QUALITY_MAX).optional();
 
 // Positive-integer millisecond durations (born-in-DB admin floors, no env): the prompt-transform per-transform
 // deadline (floor 250ms), the non-owner local-compute budget WINDOW (floor 24h — the cap's sibling), and the
 // model-catalog success-refresh cadence (floor 24h). A value ≤0 / non-finite drops at parse → the floor governs.
-const durationMs = (): z.ZodOptional<z.ZodNumber> => z.number().int().positive().optional();
+const durationMs = (): z.ZodOptional<z.ZodNumber> => z.int().positive().optional();
 
 // The retired FINAL-Auth-Modes-and-Onboarding design set §9 — runtime-flippable, so AppSettings not ENV.
 export const DEFAULT_LOCAL_MULTI_USER = false;
@@ -238,9 +238,9 @@ const appSettingsShape = {
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
   // The non-owner local-compute budget WINDOW (ms) — the cap's sibling (compose read it hardcoded at 24h).
-  maxImageBytes: z.number().int().min(MAX_IMAGE_BYTES_FLOOR).max(MAX_IMAGE_BYTES_CEIL).nullable().optional().catch(undefined),
+  maxImageBytes: z.int().min(MAX_IMAGE_BYTES_FLOOR).max(MAX_IMAGE_BYTES_CEIL).nullable().optional().catch(undefined),
   // Databank single-document upload cap — TIGHTEN-only (schema max = the route belt).
-  maxDatabankBytes: z.number().int().min(MAX_DATABANK_BYTES_FLOOR).max(MAX_DATABANK_BYTES_CEIL).nullable().optional().catch(undefined),
+  maxDatabankBytes: z.int().min(MAX_DATABANK_BYTES_FLOOR).max(MAX_DATABANK_BYTES_CEIL).nullable().optional().catch(undefined),
   // The per-transform prompt-transform execution deadline (ms). Born-in-DB floor 250.
   promptTransformDeadlineMs: durationMs().nullable().optional().catch(undefined),
   // The model-catalog success-refresh cadence (ms). Born-in-DB floor 24h.
@@ -267,7 +267,7 @@ const appSettingsShape = {
   ipCertificate: ipCertificateSettingSchema.nullable().optional().catch(undefined),
   // The Anthropic prompt-cache breakpoint depth FLOOR (role switches from the end) — see above. Bounded at
   // parse: an out-of-range value drops to the floor rather than pushing a breakpoint past the lookback.
-  promptCacheMinDepth: z.number().int().min(PROMPT_CACHE_MIN_DEPTH_FLOOR).max(PROMPT_CACHE_MIN_DEPTH_CEIL).nullable().optional().catch(undefined),
+  promptCacheMinDepth: z.int().min(PROMPT_CACHE_MIN_DEPTH_FLOOR).max(PROMPT_CACHE_MIN_DEPTH_CEIL).nullable().optional().catch(undefined),
 };
 
 export const appSettingsSchema = z.object(appSettingsShape);
@@ -422,8 +422,8 @@ const seedsSchema = z
 
 const worldInfoSchema = z
   .object({
-    scanDepth: z.number().int().min(SCAN_DEPTH_MIN).max(SCAN_DEPTH_MAX).catch(SCAN_DEPTH_DEFAULT).default(SCAN_DEPTH_DEFAULT),
-    tokenBudget: z.number().int().min(WI_TOKEN_BUDGET_MIN).max(WI_TOKEN_BUDGET_MAX).catch(WI_TOKEN_BUDGET_DEFAULT).default(WI_TOKEN_BUDGET_DEFAULT),
+    scanDepth: z.int().min(SCAN_DEPTH_MIN).max(SCAN_DEPTH_MAX).catch(SCAN_DEPTH_DEFAULT).default(SCAN_DEPTH_DEFAULT),
+    tokenBudget: z.int().min(WI_TOKEN_BUDGET_MIN).max(WI_TOKEN_BUDGET_MAX).catch(WI_TOKEN_BUDGET_DEFAULT).default(WI_TOKEN_BUDGET_DEFAULT),
   })
   .prefault({});
 
@@ -446,9 +446,7 @@ const databankSchema = z
   .object({
     chunk: chunkParamsSchema.prefault({}),
     retrieval: databankRetrievalSettingsSchema.prefault({}),
-    slotTokenBudget: z
-      .number()
-      .int()
+    slotTokenBudget: z.int()
       .min(DATABANK_SLOT_TOKEN_BUDGET_MIN)
       .max(DATABANK_SLOT_TOKEN_BUDGET_MAX)
       .catch(DATABANK_SLOT_TOKEN_BUDGET_DEFAULT)
@@ -471,9 +469,7 @@ const chatSchema = z
     autoContinue: z.boolean().catch(false).default(false),
     // The max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn
     // engine's AUTO_CONTINUE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
-    autoContinueRounds: z
-      .number()
-      .int()
+    autoContinueRounds: z.int()
       .min(AUTO_CONTINUE_ROUNDS_MIN)
       .max(AUTO_CONTINUE_ROUNDS_MAX)
       .catch(AUTO_CONTINUE_ROUNDS_DEFAULT)
@@ -487,14 +483,14 @@ const chatSchema = z
     autoSwipe: z
       .object({
         enabled: z.boolean().default(false),
-        minLength: z.number().int().nonnegative().default(AUTO_SWIPE_MIN_LENGTH_DEFAULT),
+        minLength: z.int().nonnegative().default(AUTO_SWIPE_MIN_LENGTH_DEFAULT),
         // NO `.catch` (#1532's versioned-config class sweep, `#versioned-config`'s header §2): a bad element
         // refuses the WHOLE settings write (loud), deliberately, rather than silently dropping a blacklist
         // entry a swipe-time comparison still needs (lossy with no on-screen signal).
         blacklist: z.array(z.string()).default([]),
         // The max auto-swipe regenerations for a rejected reply (the bound the turn engine's
         // AUTO_SWIPE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
-        maxRetries: z.number().int().min(AUTO_SWIPE_MAX_RETRIES_MIN).max(AUTO_SWIPE_MAX_RETRIES_MAX).default(AUTO_SWIPE_MAX_RETRIES_DEFAULT),
+        maxRetries: z.int().min(AUTO_SWIPE_MAX_RETRIES_MIN).max(AUTO_SWIPE_MAX_RETRIES_MAX).default(AUTO_SWIPE_MAX_RETRIES_DEFAULT),
       })
       .prefault({}),
     // Element-wise (#1365): a non-string element costs THAT entry, not every stop string the user wrote.
@@ -503,9 +499,7 @@ const chatSchema = z
     // caller's hosted chats) may delete it. Was the engine's TEMPORARY_CHAT_REAP_TTL_MS=24h const; per-user
     // because the reaper runs under the caller's principal over THEIR chats. A value outside the bounds
     // self-heals to the default.
-    tempChatTtlHours: z
-      .number()
-      .int()
+    tempChatTtlHours: z.int()
       .min(TEMP_CHAT_TTL_HOURS_MIN)
       .max(TEMP_CHAT_TTL_HOURS_MAX)
       .catch(TEMP_CHAT_TTL_HOURS_DEFAULT)
@@ -515,7 +509,7 @@ const chatSchema = z
     // pacing — and the old "smooth is jankier" objection was measured dead on that build (over-budget
     // commits 205→55, LoAFs 18→11). Off ⇒ raw network-chunk cadence, still faded.
     smoothStream: z.boolean().catch(true).default(true),
-    smoothStreamCps: z.number().int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
+    smoothStreamCps: z.int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
     // Client-honored (the MessageList `scrollMode`). Default `follow`: today's sealed sticky-tail behavior.
     streamScrollMode: z.enum(STREAM_SCROLL_MODES).catch("follow").default("follow"),
     // Client-honored (the streaming ghost's `<ReasoningBlock>`). Default ON = today's behavior: the live
@@ -565,7 +559,7 @@ const LIBRARY_PAGE_SIZE_MAX = 100;
 const LIBRARY_PAGE_SIZE_DEFAULT = 30;
 const librarySchema = z
   .object({
-    pageSize: z.number().int().min(LIBRARY_PAGE_SIZE_MIN).max(LIBRARY_PAGE_SIZE_MAX).catch(LIBRARY_PAGE_SIZE_DEFAULT).default(LIBRARY_PAGE_SIZE_DEFAULT),
+    pageSize: z.int().min(LIBRARY_PAGE_SIZE_MIN).max(LIBRARY_PAGE_SIZE_MAX).catch(LIBRARY_PAGE_SIZE_DEFAULT).default(LIBRARY_PAGE_SIZE_DEFAULT),
   })
   .prefault({});
 
@@ -626,8 +620,8 @@ const personaSchema = z
 const workloadsSchema = z
   .object({
     dupThreshold: z.number().min(DUP_THRESHOLD_FLOOR).max(DUP_THRESHOLD_CEIL).optional().catch(undefined),
-    computeThemesK: z.number().int().positive().max(COMPUTE_THEMES_K_MAX).optional().catch(undefined),
-    maxPairs: z.number().int().min(COOCCURRENCE_MAX_PAIRS_MIN).max(COOCCURRENCE_MAX_PAIRS_MAX).optional().catch(undefined),
+    computeThemesK: z.int().positive().max(COMPUTE_THEMES_K_MAX).optional().catch(undefined),
+    maxPairs: z.int().min(COOCCURRENCE_MAX_PAIRS_MIN).max(COOCCURRENCE_MAX_PAIRS_MAX).optional().catch(undefined),
     hubFraction: z.number().min(HUB_FRACTION_FLOOR).max(HUB_FRACTION_CEIL).optional().catch(undefined),
   })
   .prefault({});
@@ -705,7 +699,7 @@ const profileSchema = z
 export const userSettingsSchema = z.object({
   // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
   // value so a client can't spoof past a lift.
-  schemaVersion: z.number().int().positive().default(USER_SETTINGS_SCHEMA_VERSION),
+  schemaVersion: z.int().positive().default(USER_SETTINGS_SCHEMA_VERSION),
   seeds: seedsSchema,
   worldInfo: worldInfoSchema,
   memory: memorySchema,

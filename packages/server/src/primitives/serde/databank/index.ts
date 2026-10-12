@@ -61,9 +61,9 @@ const wireDocumentSchema = z.object({
   sourceUrl: z.string().nullish().catch(null),
   extractedText: z.string(),
   importHash: z.string().min(1),
-  byteSize: z.number().int().nonnegative(),
+  byteSize: z.int().nonnegative(),
   extractorVersion: z.string(),
-  createdAt: z.number().int().nonnegative().nullish().catch(null),
+  createdAt: z.int().nonnegative().nullish().catch(null),
   // Prefix-strict at the portable-file boundary; the import verb still re-links this opaque carried value
   // against the db behind its own ownership gate (the gallery `assetId` precedent).
   sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullish().catch(null),

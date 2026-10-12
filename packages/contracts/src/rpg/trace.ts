@@ -54,5 +54,5 @@ export const rpgTraceEventSchema = z.discriminatedUnion("phase", [
 export type RpgTraceEvent = z.infer<typeof rpgTraceEventSchema>;
 
 /** A recorded event stamped with its monotonic sequence and wall-clock time. */
-export const rpgTraceRecordSchema = z.strictObject({ seq: z.number().int(), at: z.number(), event: rpgTraceEventSchema });
+export const rpgTraceRecordSchema = z.strictObject({ seq: z.int(), at: z.number(), event: rpgTraceEventSchema });
 export type RpgTraceRecord = z.infer<typeof rpgTraceRecordSchema>;

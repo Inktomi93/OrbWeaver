@@ -151,7 +151,7 @@ export const rpgInventoryItemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   description: z.string().default(""),
-  quantity: z.number().int().min(1).default(1),
+  quantity: z.int().min(1).default(1),
   location: z.string().default(""),
   type: z.string().default(""),
   // #37 — the HOST-picked display icon (a curated `@orb/ui/icons` seal NAME from the client's
@@ -165,8 +165,8 @@ export type RpgInventoryItem = z.infer<typeof rpgInventoryItemSchema>;
 const rpgConditionSchema = z.object({
   name: z.string().min(1),
   stat: z.enum(["attack", "defense", "speed", "hp"]).nullable(),
-  modifier: z.number().int(),
-  turnsLeft: z.number().int().min(1).nullable(),
+  modifier: z.int(),
+  turnsLeft: z.int().min(1).nullable(),
 });
 
 /** A present character's RELATIONSHIP — a first-class field on the actor's IDENTITY half,
@@ -305,7 +305,7 @@ export const rpgActorVolatileSchema = z.object({
   trackerValues: rpgTrackerValuesSchema.default({}),
   conditions: z.array(rpgConditionSchema).default([]),
   inventory: z.array(rpgInventoryItemSchema).default([]),
-  wallet: z.array(z.object({ name: z.string().min(1), amount: z.number().int() })).default([]),
+  wallet: z.array(z.object({ name: z.string().min(1), amount: z.int() })).default([]),
   status: z.string().default(""),
 });
 export type RpgActorVolatile = z.infer<typeof rpgActorVolatileSchema>;
@@ -390,6 +390,6 @@ export const rpgActorOpSchema = z.discriminatedUnion("op", [
   // cardinality), which is also why the field is spelled `id` and not `itemId`.
   z.object({ op: z.literal("patchItem"), id: rpgInventoryItemSchema.shape.id, patch: rpgInventoryItemInputSchema.partial() }),
   z.object({ op: z.literal("removeItem"), id: rpgInventoryItemSchema.shape.id }),
-  z.object({ op: z.literal("setWalletAmount"), name: z.string().min(1), amount: z.number().int() }),
+  z.object({ op: z.literal("setWalletAmount"), name: z.string().min(1), amount: z.int() }),
 ]);
 export type RpgActorOp = z.infer<typeof rpgActorOpSchema>;

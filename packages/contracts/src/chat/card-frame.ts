@@ -83,7 +83,7 @@ export type CardFrameMintRequest = z.infer<typeof cardFrameMintRequestSchema>;
  *  remount finds an expired handle rather than discovering it as a blank frame. */
 export const cardFrameMintResponseSchema = z.strictObject({
   url: z.string(),
-  expiresInMs: z.number().int().positive(),
+  expiresInMs: z.int().positive(),
   /** What the server ACTUALLY granted, echoed so the client can render an honest "images blocked" affordance
    *  instead of inferring one from the trust tier it asked with. Never an input.
    *

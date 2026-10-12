@@ -70,8 +70,8 @@ export const regexPlacementListSchema = z.array(z.enum(REGEX_PLACEMENTS)).max(RE
  *  a stored `min` with no `max` was the ST shape, and it made "unbounded" spellable four ways. */
 export const regexHistoryDepthSchema = z
   .object({
-    min: z.number().int().min(0).default(0),
-    max: z.number().int().min(0).nullable().default(null),
+    min: z.int().min(0).default(0),
+    max: z.int().min(0).nullable().default(null),
   })
   .superRefine((scope, ctx): void => {
     if (scope.max !== null && scope.max < scope.min) {
@@ -139,7 +139,7 @@ export const regexScriptSchema = regexScriptBehaviorSchema.extend({
   id: typeIdSchema(ID_PREFIX.regexScript),
   name: z.string().max(REGEX_SCRIPT_NAME_MAX),
   enabled: z.boolean().default(true),
-  updatedAt: z.number().int(),
+  updatedAt: z.int(),
 });
 
 export type RegexScriptRow = z.infer<typeof regexScriptSchema>;

@@ -56,7 +56,7 @@ import { authedProcedure, multiHumanProcedure, t } from "../trpc.ts";
 export const notificationsRouter = t.router({
   list: authedProcedure
     .output(listInboxResultSchema)
-    .input(z.object({ cursor: z.number().optional(), limit: z.number().int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() }).optional())
+    .input(z.object({ cursor: z.number().optional(), limit: z.int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) =>
       ctx.services.notifications.list({
         principal: ctx.auth,

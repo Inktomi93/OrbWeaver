@@ -10,21 +10,21 @@ const sourceFields = {
   generationId: brandedId<EmbedGenerationId>().refine((id) => SOURCE_FINGERPRINT_PATTERN.test(id)),
   fingerprint: z.string().regex(SOURCE_FINGERPRINT_PATTERN).nullable(),
   contentHash: z.string().max(SOURCE_CONTENT_HASH_MAX),
-  blockIdx: z.number().int().nonnegative(),
-  seqStart: z.number().int().nonnegative().nullable(),
-  seqEnd: z.number().int().nonnegative().nullable(),
+  blockIdx: z.int().nonnegative(),
+  seqStart: z.int().nonnegative().nullable(),
+  seqEnd: z.int().nonnegative().nullable(),
   messageStartId: typeIdSchema(ID_PREFIX.message).nullable(),
   messageEndId: typeIdSchema(ID_PREFIX.message).nullable(),
 };
 
 /** Immutable producer identity retained by a search occurrence across reindexing and transcript edits. */
 export const corpusSourceSchema = z.discriminatedUnion("kind", [
-  z.object({ ...sourceFields, kind: z.literal("segment"), rowId: typeIdSchema(ID_PREFIX.chatSegment), chunkIdx: z.number().int().nonnegative() }),
+  z.object({ ...sourceFields, kind: z.literal("segment"), rowId: typeIdSchema(ID_PREFIX.chatSegment), chunkIdx: z.int().nonnegative() }),
   z.object({
     ...sourceFields,
     kind: z.literal("digest"),
     rowId: typeIdSchema(ID_PREFIX.chatDigest),
-    tier: z.number().int().nonnegative(),
+    tier: z.int().nonnegative(),
     scopedCharacterId: typeIdSchema(ID_PREFIX.character),
   }),
 ]);
@@ -40,8 +40,8 @@ export const messageWindowTargetSchema = z.discriminatedUnion("kind", [
 export type MessageWindowTarget = z.infer<typeof messageWindowTargetSchema>;
 
 export const messageWindowCursorSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("before"), seq: z.number().int().nonnegative() }),
-  z.object({ kind: z.literal("after"), seq: z.number().int().nonnegative() }),
+  z.object({ kind: z.literal("before"), seq: z.int().nonnegative() }),
+  z.object({ kind: z.literal("after"), seq: z.int().nonnegative() }),
 ]);
 export type MessageWindowCursor = z.infer<typeof messageWindowCursorSchema>;
 

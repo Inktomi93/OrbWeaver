@@ -88,8 +88,8 @@ export const userConnectionSchema = z.object({
   allowBackground: z.boolean(),
   /** The prompt-cache settings (`prompt-cache.ts`); `null` ⇒ the shipped behavior (`SHIPPED_PROMPT_CACHE`). */
   promptCache: promptCacheSettingsSchema.nullable(),
-  createdAt: z.number().int(),
-  updatedAt: z.number().int(),
+  createdAt: z.int(),
+  updatedAt: z.int(),
 });
 export type UserConnection = z.infer<typeof userConnectionSchema>;
 

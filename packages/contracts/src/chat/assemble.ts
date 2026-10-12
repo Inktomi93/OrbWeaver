@@ -146,10 +146,10 @@ export const CHAT_INJECTION_POSITIONS = ["before_prompt", "in_static", "in_promp
 export const chatInjectionInputSchema = z.object({
   id: typeIdSchema(ID_PREFIX.chatInjection).optional(),
   position: z.enum(CHAT_INJECTION_POSITIONS),
-  depth: z.number().int(),
+  depth: z.int(),
   role: messageRoleSchema,
   content: z.string(),
-  order: z.number().int().optional(),
+  order: z.int().optional(),
 });
 export type ChatInjectionInput = z.infer<typeof chatInjectionInputSchema>;
 
@@ -541,7 +541,7 @@ export const sentPromptSchema = z.object({
   afterHistory: z.array(
     z.object({
       position: z.enum(CHAT_INJECTION_POSITIONS),
-      depth: z.number().int(),
+      depth: z.int(),
       role: messageRoleSchema,
       content: z.string(),
     }),

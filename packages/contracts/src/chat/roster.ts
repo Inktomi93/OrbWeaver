@@ -93,7 +93,7 @@ export type SeatKnobs = z.infer<typeof seatKnobsSchema>;
 export const characterMemberSpecSchema = z.object({
   kind: z.literal("character"),
   characterId: typeIdSchema(ID_PREFIX.character),
-  position: z.number().int().nonnegative(),
+  position: z.int().nonnegative(),
   ...seatKnobsSchema.shape,
 });
 export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
@@ -567,11 +567,11 @@ export const NO_HANDOFF_OFFER: HandoffOffer = { copyCharacters: false, copyGmPre
  *  would make the confirm's silence ambiguous between "nothing" and "unknown". */
 export const handoffOfferContentsSchema = z.object({
   /** Seated characters that would be copied — the old host's cards the nominee does not already own. */
-  characters: z.number().int().min(0),
+  characters: z.int().min(0),
   /** Distinct world books that would be copied: the copied cards' attached lore plus the room's own books. */
-  worldBooks: z.number().int().min(0),
+  worldBooks: z.int().min(0),
   /** Chat-tier regex scripts that would be copied — EXECUTABLE find/replace over this room's text. */
-  regexScripts: z.number().int().min(0),
+  regexScripts: z.int().min(0),
   /** Would the game's GM voice preset be copied? False for a non-game room, an unset knob, an un-offered
    *  preset, or one the nominee can already read (that knob is left alone rather than duplicated). */
   gmPreset: z.boolean(),
@@ -619,8 +619,8 @@ export const createInviteSchema = z.object({
   /** OMITTED = the verb's safe single-use default; an EXPLICIT `null` = unlimited, the same
    *  say-it-out-loud escape hatch `expiresAt` carries. Nullable because the mint dialog offers unlimited
    *  and had no way to spell it: omission is what the safe default claims, so "unlimited" needed a word. */
-  maxUses: z.number().int().min(INVITE_MAX_USES_MIN).max(INVITE_MAX_USES_MAX).nullable().optional(),
-  expiresAt: z.number().int().nullable().optional(),
+  maxUses: z.int().min(INVITE_MAX_USES_MIN).max(INVITE_MAX_USES_MAX).nullable().optional(),
+  expiresAt: z.int().nullable().optional(),
   /** Targeted-by-handle: the exact public handle to invite (no user directory/listing). */
   invitedHandle: brandedId<Handle>().nullable().optional(),
   /** D259 — the link may create an account for a signed-out visitor. Global admins only; it needs an explicit
@@ -662,7 +662,7 @@ export const invitePreviewSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   roomName: z.string(),
   hostHandle: brandedId<Handle>(),
-  memberCount: z.number().int().nonnegative(),
+  memberCount: z.int().nonnegative(),
   /** A human-readable mode label (e.g. the output × policy summary) — never the raw config. */
   modeLabel: z.string(),
 });
