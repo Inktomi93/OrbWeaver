@@ -7,11 +7,22 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { execGit, runGit } from "../../floor/git/git.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
+import { stageOwnerKey } from "../lib/stage-plan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export function repoRoot(): string {
   return execGit(process.cwd(), ["rev-parse", "--show-toplevel"]).trim();
+}
+
+/** The env variable a session sets to be told apart from the other sessions of its checkout. */
+const STAGE_OWNER_ENV = "ORB_SNAP_OWNER";
+
+/** This process's owner key: the checkout, or the checkout plus the session label `ORB_SNAP_OWNER` names.
+ *  Three reviewers staging from one checkout each set a label; one that sets none is the checkout's owner. */
+export function stageCallerOwner(root: string): string {
+  return stageOwnerKey(root, processEnvValue(STAGE_OWNER_ENV));
 }
 
 /** Resolve a ref (branch/tag/sha/HEAD) to a full COMMIT sha, or null when git cannot name one from this

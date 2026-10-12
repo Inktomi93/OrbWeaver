@@ -11,7 +11,7 @@ import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { installOutputSink, warn } from "../../floor/cli/log.ts";
 import type { SessionEvent, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
 import { sessionCallTarget, sessionIdleMs } from "../lib/session-plan.ts";
-import { foreignSessionRefusal, sessionBusyRefusal, sessionStageDeadRefusal } from "../lib/session-refusals.ts";
+import { foreignSessionRefusal, sessionBusyRefusal, sessionStageDeadRefusal, sessionStageDriftRefusal } from "../lib/session-refusals.ts";
 import { armSessionCallBaseMs } from "./arms/registry.ts";
 import { parseSnapArgs } from "./parse.ts";
 import { takeSnapFactBatches, takeSnapResultPairs } from "./run-bundle.ts";
@@ -21,7 +21,7 @@ import { runSessionCallInDaemon } from "./session-daemon-call.ts";
 import type { SessionEvidenceState } from "./session-evidence.ts";
 import { exportSessionRings } from "./session-evidence.ts";
 import { touchSessionHeartbeat } from "./session-heartbeat.ts";
-import { observeSessionStageDeath } from "./session-stage-liveness.ts";
+import { observeSessionStageDeath, observeSessionStageDrift } from "./session-stage-liveness.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
@@ -227,6 +227,23 @@ function refuseDeadStageCall(state: SessionDaemonState, request: SessionRequest,
   return true;
 }
 
+/** The identity gate: a call is refused before it measures when its band was rebuilt or re-let, or serves
+ *  another database, since the session bound it. */
+export function refuseDriftedStageCall(
+  state: Pick<SessionDaemonState, "name" | "row" | "stageHome">,
+  request: Pick<SessionRequest, "kind">,
+  socket: SessionEventSink,
+): boolean {
+  const drift = request.kind === "call" ? observeSessionStageDrift(state) : null;
+  if (drift === null) {
+    return false;
+  }
+  emitSessionEvent(socket, { kind: "line", text: sessionStageDriftRefusal(state.name, drift) });
+  emitSessionEvent(socket, { kind: "done", exit: EXIT.toolError, pairs: [] });
+  socket.end();
+  return true;
+}
+
 function refuseTerminalOrForeignPing(state: SessionDaemonState, request: SessionRequest, socket: Socket): boolean {
   if (refuseTerminalSessionRequest(state, request, socket)) {
     return true;
@@ -289,7 +306,7 @@ export async function serveSessionRequest(
     socket.end();
     return;
   }
-  if (refuseDeadStageCall(state, request, socket)) {
+  if (refuseDriftedStageCall(state, request, socket) || refuseDeadStageCall(state, request, socket)) {
     return;
   }
   const run =

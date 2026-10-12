@@ -134,6 +134,13 @@ test("a row written under one checkout's table home is read back under another's
   expect(file.v).toBe(1);
 });
 
+test("a row's clone flag survives the table, so a --stage-db stage still reads as a clone", () => {
+  const home = scratchHome("clone-flag");
+  const dbProvenance = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: FROZEN_ISO, devDbMtimeAtCopy: AGED_ISO };
+  writeRow(home, row(1, { dbProvenance }));
+  expect(readBands(home)[0]?.dbProvenance).toEqual(dbProvenance);
+});
+
 test("writeRow REPLACES one band and leaves every sibling row standing — a blind overwrite would drop a lane's stage", () => {
   const home = scratchHome("replace");
   writeRow(home, row(0));

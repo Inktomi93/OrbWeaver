@@ -167,8 +167,9 @@ Sessions:
   --fresh                 force a full re-stage even when the stage is warm (implies --isolated)
   --stage-status          what holds the stage band, how long since it was used
   --stage-down [--stage-owner <checkout> --force]
-                          tear down this checkout's stages; name an owner and --force for deliberate,
-                          per-band cross-checkout teardown (it kills that checkout's run — measured, #447)
+                          tear down the stages your session owns (set ORB_SNAP_OWNER to a label of your
+                          own; unset, the checkout is the session); name a checkout and --force for
+                          deliberate, checkout-wide teardown (it kills that checkout's runs — measured, #447)
   --stage-sweep           reap a stage nothing has used past the idle TTL + prune orphan dirs
 
   STAGE DB: the stage serves its OWN db — a FRESH stage sha copies the dev db at boot; a stage dir that
