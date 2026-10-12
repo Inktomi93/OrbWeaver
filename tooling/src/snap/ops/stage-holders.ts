@@ -5,6 +5,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { warn } from "../../floor/cli/log.ts";
 import { processStartTicks } from "../../floor/host/platform.ts";
 import type { StageHolder, StageRow } from "../contract/stage.ts";
+import { stageBindingDrift } from "../lib/stage-run-binding.ts";
 import { readBands, withBandsLock, writeRow } from "./stage-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -16,12 +17,6 @@ const LATER_BEAT_LOCK_WAIT_MS = 0;
 /** The release at exit waits briefly; an entry it misses is pruned once its pid is gone. */
 const RELEASE_LOCK_WAIT_MS = 1000;
 
-/** The stage a holder bound: a rebuild or a new stage on the same band is a different identity, and a
- *  holder never stamps a row that is not the one it bound. */
-function sameStage(row: StageRow, bound: Pick<StageRow, "sha" | "dir" | "startedAt">): boolean {
-  return row.sha === bound.sha && row.dir === bound.dir && row.startedAt === bound.startedAt;
-}
-
 /** One heartbeat of a holder: under the table lock, replace this process's holder entry and stamp the use.
  *  Returns false when the band no longer carries the stage this holder bound. */
 function stampHolder(home: string, bound: StageRow, beat: { readonly holder: StageHolder; readonly release: boolean; readonly lockWaitMs?: number }): boolean {
@@ -29,7 +24,8 @@ function stampHolder(home: string, bound: StageRow, beat: { readonly holder: Sta
     home,
     () => {
       const row = readBands(home).find((candidate) => candidate.band === bound.band) ?? null;
-      if (row === null || !sameStage(row, bound)) {
+      // A holder never stamps a row that is not the stage it bound; `stageBindingDrift` owns that identity.
+      if (row === null || stageBindingDrift(bound, [row]) !== null) {
         return false;
       }
       const others = (row.holders ?? []).filter((entry) => entry.pid !== beat.holder.pid);

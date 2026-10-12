@@ -320,6 +320,22 @@ test("AT THE CAP, a lane's own idle stage nobody else holds is rebuilt in place;
   expect(allocateStageBand({ ...atCap, views: views([siblings[0] ?? { row: row(1) }, { row: ourOldStage }]) }).kind).toBe("free");
 });
 
+test("two unlabelled runs of one checkout: a --fresh rebuild refuses while the other RUN holds the stage (no tear-down under it)", () => {
+  // Reviewer A holds a live --stage-db clone; reviewer B, same checkout and sha and no label, asks --stage-db
+  // (which implies --fresh). Both are the same owner key, so only the holder's process tells them apart.
+  const clone = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" };
+  const reviewerA = { pid: 111, checkout: MAIN_CHECKOUT, stampedAt: new Date(NOW - 1000).toISOString() };
+  const stage = row(0, { dbProvenance: clone, holders: [reviewerA], lastUsedAt: new Date(NOW - 1000).toISOString() });
+  const live = liveHoldersOf(stage, NOW, () => true);
+  expect(allocateStageBand({ ...ALLOC, fresh: true, views: views([{ row: stage, over: { liveHolders: live } }]) }).kind).toBe("ours");
+  const ask = { targetSha: SHA, checkout: MAIN_CHECKOUT, nowMs: NOW, row: stage, fresh: true, healthy: true, liveHolders: live };
+  expect(stageDecision({ ...ask, selfPid: 222 })).toBe("refuse");
+  // Controls: the holder is this very process, or is no longer running and has gone stale — the owner rebuilds.
+  expect(stageDecision({ ...ask, selfPid: 111 })).toBe("rebuild");
+  const stale = { ...reviewerA, stampedAt: USED_LONG_AGO };
+  expect(stageDecision({ ...ask, selfPid: 222, liveHolders: liveHoldersOf({ ...stage, holders: [stale] }, NOW, () => false) })).toBe("rebuild");
+});
+
 test("a same-sha --fresh or unhealthy rebuild refuses while another checkout holds the stage", () => {
   const stage = row(0, { checkout: LANE_CHECKOUT, lastUsedAt: new Date(NOW - 2000).toISOString(), holders: [SIBLING_HOLDER] });
   const ask = { targetSha: SHA, checkout: LANE_CHECKOUT, nowMs: NOW };

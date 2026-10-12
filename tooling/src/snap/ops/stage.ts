@@ -75,7 +75,7 @@ import { stageBandPorts } from "../../floor/host/ports.ts";
 import { runNicedSync, spawnFullPrioritySync } from "../../floor/process/proc.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
-import { foreignHolders, liveHoldersOf, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildReason, stageRebuildRefusal } from "../lib/stage-bands.ts";
+import { liveHoldersOf, otherRunHolders, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildReason, stageRebuildRefusal } from "../lib/stage-bands.ts";
 import {
   DIRTY_STAGE_KEY,
   missingLauncherRefusal,
@@ -359,12 +359,22 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
     const liveHolders = liveHoldersOf(allocation.row, nowMs, holderProcessRunning);
-    const decision = stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy, auth, checkout: owner, nowMs, liveHolders });
+    const decision = stageDecision({
+      targetSha,
+      row: allocation.row,
+      fresh: opts.fresh,
+      healthy,
+      auth,
+      checkout: owner,
+      nowMs,
+      liveHolders,
+      selfPid: process.pid,
+    });
     if (decision === "reuse") {
       return { row: reuseWarmStage({ root, home }, allocation.row, dirty, nowIso), booted: false };
     }
     if (decision === "refuse") {
-      throw new Error(stageRebuildRefusal(allocation.row, foreignHolders(liveHolders, owner), nowMs));
+      throw new Error(stageRebuildRefusal(allocation.row, otherRunHolders(liveHolders, owner, process.pid), nowMs));
     }
     print(
       `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${stageRebuildReason(allocation.row, { targetSha, auth, fresh: opts.fresh })})`,

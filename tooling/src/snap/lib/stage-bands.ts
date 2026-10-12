@@ -342,6 +342,9 @@ export function stageDecision(opts: {
   readonly checkout?: string;
   readonly nowMs?: number;
   readonly liveHolders?: readonly StageHolder[];
+  /** This process's pid. With it, a live holder that is another process refuses a rebuild even under the
+   *  same owner key, because two unlabelled runs of one checkout share that key. */
+  readonly selfPid?: number;
 }): StageDecision {
   const { row } = opts;
   if (row !== null && !opts.fresh && row.sha === opts.targetSha && stageRowAuth(row) === (opts.auth ?? "single-user") && opts.healthy) {
@@ -350,7 +353,7 @@ export function stageDecision(opts: {
   if (row === null || opts.checkout === undefined || opts.nowMs === undefined) {
     return "rebuild";
   }
-  if (foreignHolders(opts.liveHolders ?? [], opts.checkout).length > 0) {
+  if (otherRunHolders(opts.liveHolders ?? [], opts.checkout, opts.selfPid).length > 0) {
     return "refuse";
   }
   return row.holders === undefined && stageIdleMs(row, opts.nowMs) < OWN_STAGE_REPLACE_IDLE_MS ? "refuse" : "rebuild";
@@ -370,6 +373,12 @@ export function liveHoldersOf(row: StageRow, nowMs: number, running: (holder: St
 
 export function foreignHolders(holders: readonly StageHolder[], checkout: string): readonly StageHolder[] {
   return holders.filter((holder) => holder.checkout !== checkout);
+}
+
+/** The holders that are not this run: another owner's, or (given `selfPid`) the same owner key held by a
+ *  different process. A rebuild tears the stage down, so any such live holder is reading it right now. */
+export function otherRunHolders(holders: readonly StageHolder[], owner: string, selfPid?: number): readonly StageHolder[] {
+  return holders.filter((holder) => holder.checkout !== owner || (selfPid !== undefined && holder.pid !== selfPid));
 }
 
 /** Why a stage on our own band is being rebuilt, for the line that announces it. */
