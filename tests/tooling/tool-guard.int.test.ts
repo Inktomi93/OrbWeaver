@@ -182,15 +182,15 @@ const OLD_PATH_HARNESSES: readonly string[] = [
   "pnpm typecheck 2>&1 | tail -20", // rule 4b generic pipeRewrite (no known artifact)
   "git pull origin main | tail -8", // rule 10 longlived-piped
 ];
-const OLD_PATH_VERBS: readonly ChainVerb[] = [
+const OLD_PATH_VERBS: readonly (ChainVerb & { readonly rule: string })[] = [
   { command: "rm -rf packages/server/src", decision: "ask", rule: "rm-rf-unsafe" },
   { command: "git push --force origin main", decision: "ask", rule: "git-push-force" },
 ];
 const OLD_PATH_ROWS: Row[] = OLD_PATH_VERBS.flatMap((verb) =>
   OLD_PATH_HARNESSES.flatMap((harness) =>
     CHAIN_SEPARATORS.flatMap((sep): Row[] => [
-      chainRow(verb.decision, verb.rule as string, `${verb.command}${sep}${harness}`, verb.ctx),
-      chainRow(verb.decision, verb.rule as string, `${harness}${sep}${verb.command}`, verb.ctx),
+      chainRow(verb.decision, verb.rule, `${verb.command}${sep}${harness}`, verb.ctx),
+      chainRow(verb.decision, verb.rule, `${harness}${sep}${verb.command}`, verb.ctx),
     ]),
   ),
 );
@@ -198,10 +198,7 @@ const OLD_PATH_ROWS: Row[] = OLD_PATH_VERBS.flatMap((verb) =>
 // `playwrightRewrite`) — a verb chained AFTER it never reaches that rewrite at all, and DENIES on its own
 // terms instead (still no less safe, just a different, already-covered rule). The one shape that actually
 // exercises `gateRewrite` for rule 6 is the verb FIRST, playwright LAST.
-const PLAYWRIGHT_GATE_ROWS: Row[] = OLD_PATH_VERBS.map(
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
-  (verb): Row => [verb.decision, verb.rule as string, `${verb.command};npx playwright test tests/client/x.ct.tsx`],
-);
+const PLAYWRIGHT_GATE_ROWS: Row[] = OLD_PATH_VERBS.map((verb): Row => [verb.decision, verb.rule, `${verb.command};npx playwright test tests/client/x.ct.tsx`]);
 
 // Leg 3 (2026-09-29): a lone `&` must still catch every verb with NO harness clause anywhere in the
 // command — the danger detection cannot depend on a harness being present to trigger a clause split.

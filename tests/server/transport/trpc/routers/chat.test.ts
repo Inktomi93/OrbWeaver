@@ -16,6 +16,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
 import { describe, vi } from "vitest";
+import { z } from "zod";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
@@ -496,6 +497,8 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
     };
   }
 
+  const DeltaChunk = z.object({ delta: z.string() });
+
   test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb; yields text deltas", async () => {
     const impersonateStream = vi.fn<ChatService["impersonateStream"]>(() => deltaStream(["drafted ", "opening line"]));
     const ctx = makeContext({
@@ -512,7 +515,7 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
     // The router wraps each `{ delta }` in a `tracked()` envelope: `[id, data, symbol]`, data at index 1.
     const deltas: string[] = [];
     for await (const yielded of sub as AsyncIterable<unknown>) {
-      const data = Array.isArray(yielded) ? (yielded[1] as { delta: string }) : (yielded as { delta: string });
+      const data = DeltaChunk.parse(Array.isArray(yielded) ? yielded[1] : yielded);
       deltas.push(data.delta);
     }
 
