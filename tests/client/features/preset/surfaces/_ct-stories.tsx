@@ -8,7 +8,6 @@
 // re-renders the editor with a new preset id) so the CT proves switching A→B rekeys the boundary's Session
 // and seeds from B's row (never A's surviving frozen seed).
 
-// @orb-waive-file testid-typed-only-stories("list-band"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from "@orb/client/features/preset";
@@ -16,6 +15,7 @@ import { __resetPresetSelection, selectPreset, setNarrowViewport, setPresetSearc
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
@@ -264,7 +264,7 @@ export function PresetLibraryWelcomeListModeStory(): ReactElement {
  *  the count and the create verbs live THERE now (list-pane-projection L4). */
 function PresetListBand(): ReactElement {
   const registry = useSectionRegistry();
-  return <div data-testid="list-band">{<ListPaneHeaderHost useView={registry.get("presets").useListHeader} />}</div>;
+  return <div data-testid={storyTestId("listBand")}>{<ListPaneHeaderHost useView={registry.get("presets").useListHeader} />}</div>;
 }
 
 /** The FORK-ONCE harness: the editor mounted exactly the way production mounts it — off the SELECTION STORE

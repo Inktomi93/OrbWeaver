@@ -8,7 +8,7 @@
 // `@orb/client/*` providers resolve to (one on-disk path ⇒ one vite module id), so context identity holds.
 
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
-// @orb-waive-file testid-typed-only-stories("preset-renamed"): baselined when the gate widened; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -21,7 +21,7 @@ export function PresetRenameDialogStory(): ReactElement {
   const [renamed, setRenamed] = useState("");
   return (
     <div>
-      <output data-testid="preset-renamed">{renamed}</output>
+      <output data-testid={storyTestId("presetRenamed")}>{renamed}</output>
       <PresetRenameDialog currentName="Storyteller" onOpenChange={setOpen} onRename={setRenamed} open={open} />
     </div>
   );

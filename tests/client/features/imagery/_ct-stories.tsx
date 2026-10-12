@@ -6,12 +6,12 @@
 // the whole app-shell. Ids + the blob url ride in as PROPS (minted node-side in the test, serialized to the
 // page) so recorded tRPC inputs assert against the exact values used. Components only (the _ct-stories rule).
 
-// @orb-waive-file testid-typed-only-stories("ct-roster-landed"): baselined when the gate widened; burn-down item 906.
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { ImageDetailBody, ImageEditBody, ImagineBody } from "@orb/client/features/imagery";
 import { openImageDetail, openImageEdit, openImagine, useOpenModal } from "@orb/client/state";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { CtAppDataProviders, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
@@ -38,7 +38,7 @@ function ImageryHost(): ReactElement | null {
 function RosterLandedProbe({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  return data === undefined ? null : <span data-testid="ct-roster-landed" />;
+  return data === undefined ? null : <span data-testid={storyTestId("ctRosterLanded")} />;
 }
 
 /** The imagine modal seeded in FREE mode with an explicit prompt — the fast path. */

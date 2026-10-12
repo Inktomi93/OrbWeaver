@@ -18,44 +18,6 @@
 // maintaining an independent stylesheet roster. At the CT's desktop viewport (1280px > 48rem) the desktop
 // icon column shows, matching production.
 
-// @orb-waive-file testid-typed-only-stories("band-composer-standin"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("band-content-pane"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("band-h1"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("band-slot"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("band-transcript"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("body-slot"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-band-content"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-body-game"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-body-map"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-body-members"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-body-scene"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-body-settings"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-body-status"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-pane-surface"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-strip-container"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctx-tab-store"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("empty-context-content"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("fake-band"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("fake-trail-widget"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("hidden-sheet-lens"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("imported"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("list-band-action"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("list-primary"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("modal-stacking-probe"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("nested-theme-preview"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("plate-ink-probe"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("primary-probe"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rail-probe"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("raise-notice"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("raise-tall-notice"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("reveal-chats-projection"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("section-band"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("sheet-lens"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("tall-modal-body"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("track-composer"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("track-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("trail-sheet-lens"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("width-probe"): baselined when the gate widened; burn-down item 906.
 import { useTRPC } from "@orb/client/data";
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import { chatContextTabs } from "@orb/client/features/chat";
@@ -88,6 +50,7 @@ import {
 } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { chatSettingsSections } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Command, Crown, Drama, Flag, FlaskConical, Gauge, Icon, MessagesSquare } from "@orb/ui/icons";
@@ -315,7 +278,7 @@ export function AppShellListPrimaryStory(): ReactElement {
             // The pane's PRIMARY — a real focusable control inside the LIST panel (DOM-before `<main>`), the
             // same tab-order position the production `useListHeader` band's create button occupies.
             list: (
-              <button type="button" data-testid="list-primary">
+              <button type="button" data-testid={storyTestId("listPrimary")}>
                 New corpus item
               </button>
             ),
@@ -339,13 +302,13 @@ export function AppShellToastOverlayStory(): ReactElement {
           sections={{
             chats: {
               content: (
-                <div data-testid="band-content-pane" style={{ display: "flex", flex: "1 1 auto", flexDirection: "column", minHeight: 0 }}>
-                  <h1 data-testid="band-h1">Transcript</h1>
+                <div data-testid={storyTestId("bandContentPane")} style={{ display: "flex", flex: "1 1 auto", flexDirection: "column", minHeight: 0 }}>
+                  <h1 data-testid={storyTestId("bandH1")}>Transcript</h1>
                   {/* The READING SURFACE: full-column-width and everything the composer does not take,
                       exactly like the real transcript. A narrow stand-in would let a right-aligned overlay
                       stack miss it by luck and make the non-overlap assertions vacuous. */}
-                  <div data-testid="band-transcript" style={{ background: "#111", flex: "1 1 auto", minHeight: 0 }} />
-                  <div data-testid="band-composer-standin" style={{ background: "#333", flex: "none", height: 96 }} />
+                  <div data-testid={storyTestId("bandTranscript")} style={{ background: "#111", flex: "1 1 auto", minHeight: 0 }} />
+                  <div data-testid={storyTestId("bandComposerStandin")} style={{ background: "#333", flex: "none", height: 96 }} />
                 </div>
               ),
             },
@@ -354,7 +317,7 @@ export function AppShellToastOverlayStory(): ReactElement {
           <LandOn section="chats" />
           <AppShell />
           <button
-            data-testid="raise-notice"
+            data-testid={storyTestId("raiseNotice")}
             onClick={(): void => {
               notify.error({ description: "The live connection dropped and could not be restarted.", title: "Lost the live connection" });
             }}
@@ -364,7 +327,7 @@ export function AppShellToastOverlayStory(): ReactElement {
           </button>
           {/* The long notice makes the burst exceed the viewport cap, so the scroll test cannot pass on an uncapped short stack. */}
           <button
-            data-testid="raise-tall-notice"
+            data-testid={storyTestId("raiseTallNotice")}
             onClick={(): void => {
               notify.error({
                 description:
@@ -502,7 +465,7 @@ export function AppShellWidthProbeStory(): ReactElement {
           chats: {
             content: (
               <div style={{ width: "100%" }}>
-                <div className="w-full max-w-(--width-shell-content)" data-testid="width-probe" />
+                <div className="w-full max-w-(--width-shell-content)" data-testid={storyTestId("widthProbe")} />
               </div>
             ),
           },
@@ -532,10 +495,10 @@ export function AppShellChatTrackStory(): ReactElement {
           chats: {
             content: (
               <div className="flex w-full flex-col">
-                <div className={CHAT_TRACK} data-slot="message-row" data-testid="track-row">
+                <div className={CHAT_TRACK} data-slot="message-row" data-testid={storyTestId("trackRow")}>
                   transcript row
                 </div>
-                <div className={CHAT_TRACK} data-slot="composer" data-testid="track-composer">
+                <div className={CHAT_TRACK} data-slot="composer" data-testid={storyTestId("trackComposer")}>
                   composer
                 </div>
               </div>
@@ -570,14 +533,14 @@ export function AppShellTrackDoorsStory(): ReactElement {
             list: <p>chats list pane</p>,
             listHeader: {
               title: "Chats",
-              action: <span data-testid="list-band-action">action</span>,
+              action: <span data-testid={storyTestId("listBandAction")}>action</span>,
             },
             content: (
               <div className="flex w-full flex-col">
-                <div className={CHAT_TRACK} data-slot="message-row" data-testid="track-row">
+                <div className={CHAT_TRACK} data-slot="message-row" data-testid={storyTestId("trackRow")}>
                   transcript row
                 </div>
-                <div className={CHAT_TRACK} data-slot="composer" data-testid="track-composer">
+                <div className={CHAT_TRACK} data-slot="composer" data-testid={storyTestId("trackComposer")}>
                   composer
                 </div>
               </div>
@@ -619,17 +582,17 @@ export function ModalScrollStory({
             want it to genuinely overflow so the scroll assertion measures a real scroll region. */}
         <CtFakeModalRegistry
           body={(): ReactElement => (
-            <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }}>
+            <div data-testid={storyTestId("tallModalBody")} style={{ height: 3000, flexShrink: 0 }}>
               {/* Positioned modal content is the stacking adversary for the drawer's sticky header. It
                   stays pinned to the scrollport while the body moves, so the CT proves the header wins a
                   real overlap rather than merely carrying a non-auto computed z-index. */}
               <div
-                data-testid="modal-stacking-probe"
+                data-testid={storyTestId("modalStackingProbe")}
                 style={{ background: "var(--color-destructive)", height: 48, position: "sticky", top: 0, zIndex: "var(--z-base)" }}
               />
               {includeThemePreview ? (
                 <ThemeScope tokens={{ accent: "oklch(0.66 0.16 42)", background: "oklch(0.92 0.03 88)" }}>
-                  <div className="border border-border" data-testid="nested-theme-preview">
+                  <div className="border border-border" data-testid={storyTestId("nestedThemePreview")}>
                     nested theme preview
                   </div>
                 </ThemeScope>
@@ -654,7 +617,7 @@ function DropZonePane(): ReactElement {
     <div>
       <p>chats content pane</p>
       <FileDropzone multiple={true} instructions="Drop cards here" onFilesSelected={(result): void => setImported(result.accepted.map((file) => file.name))} />
-      <p data-testid="imported">{imported.join(",")}</p>
+      <p data-testid={storyTestId("imported")}>{imported.join(",")}</p>
     </div>
   );
 }
@@ -747,7 +710,7 @@ export function RailSheetBadgeStory(): ReactElement {
         zone: "topbar.trail",
         mobile: "sheet",
         useBadge: (): number => 3,
-        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="trail-sheet-lens">trail:{presentation}</div> },
+        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid={storyTestId("trailSheetLens")}>trail:{presentation}</div> },
       },
       {
         id: "fake-hidden-overflow",
@@ -757,7 +720,7 @@ export function RailSheetBadgeStory(): ReactElement {
         // A gated entry may not badge: `useVisible` is the same door its affordance obeys everywhere else.
         useVisible: (): boolean => false,
         useBadge: (): number => 9,
-        behavior: { kind: "widget", body: (): ReactElement => <div data-testid="hidden-sheet-lens">hidden</div> },
+        behavior: { kind: "widget", body: (): ReactElement => <div data-testid={storyTestId("hiddenSheetLens")}>hidden</div> },
       },
     ],
   );
@@ -823,7 +786,7 @@ export function AppShellChatsProjectionIntentStory(): ReactElement {
         sections={{
           characters: {
             content: (
-              <button data-testid="reveal-chats-projection" onClick={(): void => dockListPanel()} type="button">
+              <button data-testid={storyTestId("revealChatsProjection")} onClick={(): void => dockListPanel()} type="button">
                 Dock the list
               </button>
             ),
@@ -934,7 +897,7 @@ export function YouSheetProjectionStory(): ReactElement {
         label: "Fake identity",
         zone: "rail.end",
         mobile: "sheet",
-        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="sheet-lens">lens:{presentation}</div> },
+        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid={storyTestId("sheetLens")}>lens:{presentation}</div> },
       },
       {
         // A TOPBAR MODAL curated off the phone row — the ⌘K palette's shape (#1789). The sheet's projection
@@ -952,7 +915,7 @@ export function YouSheetProjectionStory(): ReactElement {
         label: "Fake trail widget",
         zone: "topbar.trail",
         mobile: "sheet",
-        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="trail-sheet-lens">trail:{presentation}</div> },
+        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid={storyTestId("trailSheetLens")}>trail:{presentation}</div> },
       },
       {
         id: "fake-overflow",
@@ -997,7 +960,7 @@ function trailWidget(order?: number): ChromeEntry {
     behavior: {
       kind: "widget",
       body: (): ReactElement => (
-        <button data-testid="fake-trail-widget" type="button">
+        <button data-testid={storyTestId("fakeTrailWidget")} type="button">
           Fake trail widget
         </button>
       ),
@@ -1068,10 +1031,10 @@ const FAKE_HEADER_CONTEXT = defineContextTabs<void>({
 export function SectionContextHeaderChannelStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="band-slot">
+      <div data-testid={storyTestId("bandSlot")}>
         <SectionContextHeader definition={fakeHeaderSection(FAKE_HEADER_CONTEXT)} />
       </div>
-      <div style={{ width: 291, height: 320 }} data-testid="body-slot">
+      <div style={{ width: 291, height: 320 }} data-testid={storyTestId("bodySlot")}>
         <SectionContextHost definition={fakeHeaderSection(FAKE_HEADER_CONTEXT)} />
       </div>
     </CtDataProviders>
@@ -1243,12 +1206,12 @@ export function ContextTabStripStory({
     tabs.push(CTX_ICONLESS_TAB);
   }
   return (
-    <div style={{ width, height }} data-testid="ctx-strip-container" data-dismissed={dismissed}>
+    <div style={{ width, height }} data-testid={storyTestId("ctxStripContainer")} data-dismissed={dismissed}>
       <ContextTabsPanel
         tabs={tabs}
         railLabel="Chat"
         {...(paneLabel === undefined ? {} : { paneLabel })}
-        {...(withBand ? { header: <p data-testid="ctx-band-content">Example — Midnight Run</p> } : {})}
+        {...(withBand ? { header: <p data-testid={storyTestId("ctxBandContent")}>Example — Midnight Run</p> } : {})}
         {...(withDismiss ? { dismissLabel: "Close Chats details", onDismiss: (): void => setDismissed((n) => n + 1) } : {})}
       />
     </div>
@@ -1263,17 +1226,17 @@ export function ContextTabStripStory({
 // reason on `title`, NOT `aria-disabled` — it OPENS onto its reason, RV-7, in every pane).
 
 const CTX_TAB_STATE_TABS: readonly ResolvedContextTab[] = [
-  resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid="ctx-body-status">status</div>, strip: "game" }),
+  resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid={storyTestId("ctxBodyStatus")}>status</div>, strip: "game" }),
   // A tab carrying a boolean badge (the 6px changed-dot).
-  resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid="ctx-body-scene">scene</div>, strip: "game", badge: true }),
+  resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid={storyTestId("ctxBodyScene")}>scene</div>, strip: "game", badge: true }),
   // A tab carrying a COUNT badge (the pending-proposals idiom).
-  resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div data-testid="ctx-body-game">game</div>, strip: "game", badge: 3 }),
+  resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div data-testid={storyTestId("ctxBodyGame")}>game</div>, strip: "game", badge: 3 }),
   // A PHASE-disabled tab (the locked-tab pattern — the Map/MA-3 shape).
   resolvedTab({
     id: "rpg.map",
     label: "Map",
     icon: Flag,
-    node: <div data-testid="ctx-body-map">map</div>,
+    node: <div data-testid={storyTestId("ctxBodyMap")}>map</div>,
     strip: "game",
     disabledReason: "Maps unlock with the map arc (MA-3)",
   }),
@@ -1283,7 +1246,7 @@ const CTX_TAB_STATE_TABS: readonly ResolvedContextTab[] = [
 /** The bracket at a fixed size — TWO rails over a mixed-`strip` set, badges + a locked cell. */
 export function ContextTabStatesStory({ width = 291, height = 560 }: { readonly width?: number; readonly height?: number }): ReactElement {
   return (
-    <div style={{ width, height }} data-testid="ctx-strip-container">
+    <div style={{ width, height }} data-testid={storyTestId("ctxStripContainer")}>
       <ContextTabsPanel tabs={CTX_TAB_STATE_TABS} railLabel="Chat" />
     </div>
   );
@@ -1294,8 +1257,15 @@ export function ContextTabStatesStory({ width = 291, height = 560 }: { readonly 
 // shape that regresses without the flag — a fresh panel (no stored contextTab) would land on `members`.
 const CTX_DEFAULT_TAB_TABS: readonly ResolvedContextTab[] = [
   ...CTX_STRIP_TABS.slice(0, 2),
-  resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid="ctx-body-status">status</div>, strip: "game", defaultTab: true }),
-  resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid="ctx-body-scene">scene</div>, strip: "game" }),
+  resolvedTab({
+    id: "rpg.status",
+    label: "Status",
+    icon: Gauge,
+    node: <div data-testid={storyTestId("ctxBodyStatus")}>status</div>,
+    strip: "game",
+    defaultTab: true,
+  }),
+  resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid={storyTestId("ctxBodyScene")}>scene</div>, strip: "game" }),
 ];
 
 /** THE OWNERSHIP AXIS, IN A REAL PANE SURFACE (#875 F1/F2 — the framebuffer arm of context-bracket.ct).
@@ -1310,9 +1280,9 @@ export function ContextOwnershipStory({ paneWidth = 384, height = 700 }: { reado
   return (
     <div className="flex bg-sidebar" style={{ width: paneWidth + PANE_PROBE_WIDTH, height }}>
       {/* The pane's own background, unpainted — the decode's zero point. */}
-      <div data-testid="ctx-pane-surface" style={{ width: PANE_PROBE_WIDTH, height }} />
-      <div style={{ width: paneWidth, height }} data-testid="ctx-strip-container">
-        <ContextTabsPanel tabs={CTX_TAB_STATE_TABS} railLabel="Chat" header={<p data-testid="ctx-band-content">Example — Midnight Run</p>} />
+      <div data-testid={storyTestId("ctxPaneSurface")} style={{ width: PANE_PROBE_WIDTH, height }} />
+      <div style={{ width: paneWidth, height }} data-testid={storyTestId("ctxStripContainer")}>
+        <ContextTabsPanel tabs={CTX_TAB_STATE_TABS} railLabel="Chat" header={<p data-testid={storyTestId("ctxBandContent")}>Example — Midnight Run</p>} />
       </div>
     </div>
   );
@@ -1357,7 +1327,7 @@ const CTX_META_RAIL_TABS: readonly ResolvedContextTab[] = [
  *  ([[ct-viewport-under-48rem-hits-mobile-shell-arm]]) — the pin drives both ends of it. */
 export function ContextMetaRailStory({ paneWidth = 291, withTrail = false }: { readonly paneWidth?: number; readonly withTrail?: boolean }): ReactElement {
   return (
-    <div className="bg-sidebar" style={{ width: paneWidth, height: 480 }} data-testid="ctx-strip-container">
+    <div className="bg-sidebar" style={{ width: paneWidth, height: 480 }} data-testid={storyTestId("ctxStripContainer")}>
       <ContextTabsPanel
         tabs={CTX_META_RAIL_TABS}
         railLabel="Chat"
@@ -1382,7 +1352,7 @@ export function ContextMetaRailStory({ paneWidth = 291, withTrail = false }: { r
  *  `defaultTab`, so a fresh panel (no stored contextTab) must land on Status, not Members. */
 export function ContextDefaultTabStory({ width = 291 }: { readonly width?: number }): ReactElement {
   return (
-    <div style={{ width, height: 480 }} data-testid="ctx-strip-container">
+    <div style={{ width, height: 480 }} data-testid={storyTestId("ctxStripContainer")}>
       <ContextTabsPanel tabs={CTX_DEFAULT_TAB_TABS} railLabel="Chat" />
     </div>
   );
@@ -1396,9 +1366,9 @@ export function CustomThemeStyleStory({ css }: { readonly css: string }): ReactE
   return (
     <div>
       <CustomThemeStyle css={css} />
-      <div className="shell-rail" data-testid="rail-probe" style={{ width: 20, height: 20 }} />
-      <div className="bg-primary" data-testid="primary-probe" style={{ width: 20, height: 20 }} />
-      <div className="text-reading-plate-foreground" data-testid="plate-ink-probe">
+      <div className="shell-rail" data-testid={storyTestId("railProbe")} style={{ width: 20, height: 20 }} />
+      <div className="bg-primary" data-testid={storyTestId("primaryProbe")} style={{ width: 20, height: 20 }} />
+      <div className="text-reading-plate-foreground" data-testid={storyTestId("plateInkProbe")}>
         plate ink
       </div>
     </div>
@@ -1412,22 +1382,22 @@ export function CustomThemeStyleStory({ css }: { readonly css: string }): ReactE
 // (rails, viewport, ground) is the shell's in every case, and its cells write the shared `contextTab` seam.
 
 const REGION_TABS: readonly ContextTabDef<void>[] = [
-  { id: "members", label: "Members", strip: "meta", body: (): ReactNode => <div data-testid="ctx-body-members">members</div> },
-  { id: "settings", label: "Settings", strip: "meta", body: (): ReactNode => <div data-testid="ctx-body-settings">settings</div> },
+  { id: "members", label: "Members", strip: "meta", body: (): ReactNode => <div data-testid={storyTestId("ctxBodyMembers")}>members</div> },
+  { id: "settings", label: "Settings", strip: "meta", body: (): ReactNode => <div data-testid={storyTestId("ctxBodySettings")}>settings</div> },
   {
     id: "fake.status",
     label: "Status",
     strip: "game",
     defaultTab: (): boolean => true,
-    body: (): ReactNode => <div data-testid="ctx-body-status">status</div>,
+    body: (): ReactNode => <div data-testid={storyTestId("ctxBodyStatus")}>status</div>,
   },
-  { id: "fake.scene", label: "Scene", strip: "game", body: (): ReactNode => <div data-testid="ctx-body-scene">scene</div> },
+  { id: "fake.scene", label: "Scene", strip: "game", body: (): ReactNode => <div data-testid={storyTestId("ctxBodyScene")}>scene</div> },
 ];
 
 /** A store PROBE beside the pane — reads `contextTab` straight from `#state`, so a click assertion
  *  proves the shared seam was WRITTEN, not that the bracket re-rendered its own local state. */
 function ContextTabStoreProbe(): ReactElement {
-  return <p data-testid="ctx-tab-store">{useContextTab() ?? "unset"}</p>;
+  return <p data-testid={storyTestId("ctxTabStore")}>{useContextTab() ?? "unset"}</p>;
 }
 
 function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): SectionDefinition {
@@ -1442,7 +1412,7 @@ function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): Se
       useContextState: () => VOID_STATE,
       tabs: REGION_TABS,
       // The section's OWN band — what a claim must REPLACE, never sit beside ("never a second head").
-      header: (): ReactNode => <p data-testid="section-band">Section identity</p>,
+      header: (): ReactNode => <p data-testid={storyTestId("sectionBand")}>Section identity</p>,
       railLabel: "Chat",
       regions,
     }),
@@ -1454,12 +1424,12 @@ function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): Se
 const CLAIMING_REGIONS = isolationRegistry<ContextRegionDef<void>>(
   "ct-regions-claiming",
   "replaces the shipped region claimants with one fake that always claims, so the head-band replacement is the subject",
-  [defineContextRegion<void>({ id: "fake.hud", claims: () => true, band: () => <p data-testid="fake-band">Fake waystone</p> })],
+  [defineContextRegion<void>({ id: "fake.hud", claims: () => true, band: () => <p data-testid={storyTestId("fakeBand")}>Fake waystone</p> })],
 );
 const IDLE_REGIONS = isolationRegistry<ContextRegionDef<void>>(
   "ct-regions-idle",
   "replaces the shipped region claimants with one fake that never claims, so the section keeping its own band is the subject",
-  [defineContextRegion<void>({ id: "fake.hud", claims: () => false, band: () => <p data-testid="fake-band">Fake waystone</p> })],
+  [defineContextRegion<void>({ id: "fake.hud", claims: () => false, band: () => <p data-testid={storyTestId("fakeBand")}>Fake waystone</p> })],
 );
 const CLAIMED_SECTION = regionSection(CLAIMING_REGIONS);
 const UNCLAIMED_SECTION = regionSection(IDLE_REGIONS);
@@ -1493,7 +1463,7 @@ export function ContextRegionNoClaimStory(): ReactElement {
 export function ContextRegionHeaderStory({ claimed = true }: { readonly claimed?: boolean }): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="band-slot">
+      <div data-testid={storyTestId("bandSlot")}>
         <SectionContextHeader definition={claimed ? CLAIMED_SECTION : UNCLAIMED_SECTION} />
       </div>
     </CtDataProviders>
@@ -1567,7 +1537,7 @@ export function EmptyContextScrollStory(): ReactElement {
         tabs={[]}
         railLabel="Details"
         empty={
-          <div data-testid="empty-context-content" style={{ height: 600 }}>
+          <div data-testid={storyTestId("emptyContextContent")} style={{ height: 600 }}>
             Empty context
             <span style={{ position: "absolute" }}>Read status</span>
           </div>

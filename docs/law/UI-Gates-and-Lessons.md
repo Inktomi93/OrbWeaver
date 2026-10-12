@@ -263,8 +263,10 @@ per-theme `color-scheme`).
   does NOT make a type error is a LIVE key whose producer was deleted: the id stays spellable, the
   selector matches nothing, and the assertion fails late or passes falsely. A row lives only as long as a
   component stamps it — add the row and its `data-testid` in the same commit, delete both together.
-  *Gates `testid-typed-only` (spelling) + `testid-liveness` (a consumer or a registry row with no
-  producer).*
+  A CT story stamps its own ids through `storyTestId("key")`, typed by `STORY_TEST_IDS` in
+  `tests/support/browser/story-test-ids.ts`; a production id keeps `testId("key")`.
+  *Gates `testid-typed-only` (spelling) + `testid-typed-only-stories` (the story twin) +
+  `testid-liveness` (a consumer or a registry row, production or story, with no producer).*
 
 ### 11.6 Streamdown + untrusted content — the two-policy spec (BUILT)
 
