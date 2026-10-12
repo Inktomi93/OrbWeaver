@@ -10,7 +10,7 @@
 // leg-4 P2), and it is the same `MobileCuration` axis the rail has always obeyed.
 
 import type { ReactElement, ReactNode } from "react";
-import type { ChromeEntry, ChromeEntryBehavior } from "#state";
+import type { ActionChromeEntry, ChromeEntry } from "#state";
 import { useChromeRegistry } from "#state";
 import { CommandChip } from "./command-chip.tsx";
 
@@ -18,13 +18,21 @@ function assertNever(behavior: never): never {
   throw new Error(`TopbarTrail: unhandled chrome behavior ${JSON.stringify(behavior)}`);
 }
 
+/** The zone narrows the entry: a section entry's zone is a `RailZone`, so a trail entry is a modal or a widget. */
+function isTrailEntry(entry: ChromeEntry): entry is ActionChromeEntry {
+  return entry.zone === "topbar.trail";
+}
+
 /** The zone's render. The registry list is frozen at the door, so calling each entry's `useVisible`
  *  unconditionally, in a fixed loop, is legal (the `contentBySection` precedent). */
 export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): ReactElement {
   const chrome = useChromeRegistry();
-  const entries = chrome.list().filter((e) => e.zone === "topbar.trail" && !(mobile && e.mobile === "sheet"));
+  const entries = chrome
+    .list()
+    .filter(isTrailEntry)
+    .filter((e) => !(mobile && e.mobile === "sheet"));
   // Registry order is the trail's order, so a run of consecutive widgets is the unit that groups.
-  const runs: ChromeEntry[][] = [];
+  const runs: ActionChromeEntry[][] = [];
   for (const entry of entries) {
     const last = runs.at(-1);
     if (last !== undefined && entry.behavior.kind === "widget" && last[0]?.behavior.kind === "widget") {
@@ -60,30 +68,25 @@ export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): Rea
  * `false` from `useVisible` ⇒ render NOTHING (no gap — preserves the notification bell's no-flash rule).
  *
  * THE MODAL ARM'S PRESENTATION IS THE ⌘K CHIP, and that is a DECLARED LIMIT worth reading before adding a
- * second trail modal: `topbar.trail` is a REPEATABLE placement (modal-registry-completeness §4), but the
- * chip's copy is the command palette's own — its `⌘K` key cap and the accessible name WCAG 2.5.3 pins
- * verbatim (#188) are not derived from the entry, because there is nothing to derive them from. A second
- * `topbar.trail` modal is the moment that copy becomes trigger DATA; it is not data today because it would
- * be a shape with one producer and no second value to carry.
+ * second trail modal: `topbar.trail` is a REPEATABLE placement (modal-registry-completeness §4). The glyph
+ * and the tooltip label come from the entry, but the accessible name and the shortcut hint are the command
+ * palette's own. A second `topbar.trail` modal is the moment that copy becomes trigger DATA; it is not data
+ * today because it would be a shape with one producer and no second value to carry.
  *
- * The SECTION arm is unreachable BY TYPE — a section entry's zone is `SectionDefinition.rail.zone`, a
- * `RailZone` (`state/section-registry.ts`), so tsc cannot spell a section outside `rail.*`. It throws
- * rather than returning null: a silent null for a whole behavior arm is exactly the shape that let this
- * zone lose the modal class for a wave.
+ * There is no SECTION arm: `ActionChromeEntry` excludes it by type, because a section entry's zone is a
+ * `RailZone` (`state/chrome-registry.ts`).
  */
-function TrailEntry({ entry }: { readonly entry: ChromeEntry }): ReactNode {
+function TrailEntry({ entry }: { readonly entry: ActionChromeEntry }): ReactNode {
   const visible = entry.useVisible?.() ?? true;
   if (!visible) {
     return null;
   }
-  const behavior: ChromeEntryBehavior = entry.behavior;
+  const behavior = entry.behavior;
   switch (behavior.kind) {
     case "widget":
       return behavior.body("bar");
     case "modal":
-      return <CommandChip modalId={behavior.modalId} />;
-    case "section":
-      throw new Error(`TopbarTrail: chrome entry "${entry.id}" is a section — the trail has no section presentation (a section's zone is a RailZone)`);
+      return <CommandChip icon={behavior.icon} label={entry.label} modalId={behavior.modalId} />;
     default:
       return assertNever(behavior);
   }

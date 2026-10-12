@@ -67,15 +67,10 @@ function RailChromeEntry({
       </div>
     );
   }
-  // A section/modal rail entry always carries an icon (derived from `rail.icon` / `trigger.icon`); the
-  // ChromeEntry type widens it to optional for the widget arm, so narrow it here before rendering a button.
-  if (entry.icon === undefined) {
-    return null;
-  }
   const active = behavior.kind === "section" && behavior.sectionId === activeSection;
   const onClick = behavior.kind === "section" ? (): void => onSelectSection(behavior.sectionId) : (): void => onOpenModal(behavior.modalId);
   const modalIdProp = behavior.kind === "modal" ? { modalId: behavior.modalId } : {};
-  return <RailButton active={active} icon={entry.icon} label={entry.label} mobile={mobile} {...modalIdProp} onClick={onClick} />;
+  return <RailButton active={active} icon={behavior.icon} label={entry.label} mobile={mobile} {...modalIdProp} onClick={onClick} />;
 }
 
 /** The BRAND cell as a real affordance. The Weave glyph was a decorative
@@ -261,10 +256,10 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
           exactly what a fold would produce, one visible Home affordance at every width. That is a decision,
           not neglect — it is not a `matchMedia` read, not a third component, and it does not touch the
           CT-pinned desktop paint at rail.ct.tsx:34-80. */}
-      {brandEntry?.icon === undefined || brandEntry.behavior.kind !== "section" ? null : (
+      {brandEntry?.behavior.kind !== "section" ? null : (
         <RailButton
           active={brandEntry.behavior.sectionId === activeSection}
-          icon={brandEntry.icon}
+          icon={brandEntry.behavior.icon}
           label={brandEntry.label}
           mobile="tab"
           mobileOnly={true}

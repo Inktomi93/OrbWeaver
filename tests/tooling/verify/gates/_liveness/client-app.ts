@@ -69,7 +69,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         `${CHAT_LIB}/liveness-not-a-chrome-file.ts`,
-        'import type { ChromeEntry } from "#state";\nexport const livenessChrome: ChromeEntry = { id: "liveness-chrome", label: "Liveness", zone: "topbar.trail", behavior: { kind: "modal", modalId: "settings" } };\n',
+        'import { Settings } from "@orb/ui/icons";\nimport type { ChromeEntry } from "#state";\nexport const livenessChrome: ChromeEntry = { id: "liveness-chrome", label: "Liveness", zone: "topbar.trail", behavior: { kind: "modal", modalId: "settings", icon: Settings } };\n',
       ),
     ],
     messageIncludes: "Not co-located",
