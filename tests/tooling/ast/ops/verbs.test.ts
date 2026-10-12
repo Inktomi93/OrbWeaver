@@ -46,6 +46,20 @@ interface VerbRunOptions {
   readonly corpus?: string;
 }
 
+// A write verb is drizzle's only when drizzle-orm declares it, so the fixtures' client lives in a drizzle-orm module.
+const MINI_DRIZZLE_ORM = `
+export declare class Builder {
+  values(v: unknown): Builder;
+  set(v: unknown): Builder;
+}
+export declare class Db {
+  insert(t: unknown): Builder;
+  update(t: unknown): Builder;
+  select(shape?: unknown): { from(t: unknown): unknown[] };
+}
+`;
+const DRIZZLE_ORM_FILE = { "node_modules/drizzle-orm/index.ts": MINI_DRIZZLE_ORM };
+
 function projectOf(files: Readonly<Record<string, string>>, compilerOptions: CompilerOptions = {}): Project {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { baseUrl: ROOT, ...compilerOptions } });
   for (const [path, text] of Object.entries(files)) {
@@ -457,10 +471,9 @@ collision.sendTurn();
       "packages/db/src/drizzle.ts": `
 export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
-export declare const db: {
-  insert: (table: unknown) => { values: (value: unknown) => void };
-  select: () => { from: (table: unknown) => unknown[] };
-};`,
+import type { Db } from "drizzle-orm";
+export declare const db: Db;`,
+      ...DRIZZLE_ORM_FILE,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const widgets = sqliteTable("widgets", { live: text("live"), ghost: text("ghost") });
@@ -493,10 +506,9 @@ db.select().from(healthy);`,
       "packages/db/src/drizzle.ts": `
 export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
-export declare const db: {
-  insert: (table: unknown) => { values: (value: unknown) => void };
-  update: (table: unknown) => { set: (value: unknown) => void };
-};`,
+import type { Db } from "drizzle-orm";
+export declare const db: Db;`,
+      ...DRIZZLE_ORM_FILE,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const widgets = sqliteTable("widgets", { live: text("live"), ghost: text("ghost") });`,
@@ -615,7 +627,9 @@ export const readGhost = (): unknown => widgets.ghost;`,
       "packages/db/src/drizzle.ts": `
 export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
-export declare const db: { insert: (table: unknown) => { values: (value: unknown) => void } };`,
+import type { Db } from "drizzle-orm";
+export declare const db: Db;`,
+      ...DRIZZLE_ORM_FILE,
       "packages/db/src/schema/a.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const events = sqliteTable("a_events", { aValue: text("a_value") });`,
