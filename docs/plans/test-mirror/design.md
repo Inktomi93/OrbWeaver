@@ -1,81 +1,42 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Tests run the product
 
 ## Goal
 
-Every test follows a product change without edits. Tests call production, derive types, import constants, mount the real door, and prove presence by reach. Spine-Testing section 10 is the law; this plan is the order of work and the index of known violations.
+Preserve useful migration cases and production contract concerns for the test-foundation program. Tests call production, derive types and inputs, mount the real door and prove exercised behavior. Spine-Testing section 10 owns the law; test-foundation owns execution order.
 
 ## Shape
 
-### Order of work
+### Program ownership
 
-Do the steps in order. A later step may run in parallel only where its row says so.
+[test-foundation](../test-foundation/design.md) owns execution order, the legacy boundary, shared readers, production composition, builders/corpus and replacement suites. This plan retains candidate cases and production contract concerns; it does not authorize a separate legacy retrofit queue.
 
-1. **Land the work in flight.** Merge the architecture-law lane (867 to 870) first, because it changes how tests import package internals. Then 879, 863/873/866, the chat-art batch, 842/874 and 885. Starting test cleanup before these merge causes conflicts.
-2. **Stop new rot: item 899, first half.** One Opus lane. Rewrite Core-0 section 5 and Spine-Testing sections 2 and 5 for the directory mirror and reach-based presence. Replace the file-name checks in test-layout, test-presence and test-presence-inference with a reach gate (a test imports the module and references an export, or declares an @subject header). Add the ratchets at today's baseline: CT door parity, no hand-declared wire shapes in e2e and support, a tests-only CPD ratchet, and a test file size cap with an exception list for the current monoliths.
-3. **Fix the tests that lie: items 889, 888 and 890.** Two or three lanes in parallel after step 2.
-4. **Typed tRPC recorder: item 891.** Mostly mechanical. It can run beside step 3 when the files do not overlap.
-5. **Smoke matrix: item 898,** after item 887 provides the seeded corpus and the stage-db plus local-auth path.
-6. **Everything else as lanes touch an area:** items 892, 893 and 894, the monolith splits, and folding thin per-file tests into feature suites. Every product brief restates Spine-Testing section 10, and the lane cleans the tests it touches.
+The work items own live status. Contract derivation (904) and stored-value parsing (905) require coherent production salvage on current main, preserving ownership before private parsing and refusal before effects. Their reviewed branches are not wholesale merge candidates. The smoke matrix (898) follows the corpus and real-stack foundations.
 
-### Live state
+### Using the inventory
 
-- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests. Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `@orb/testkit/node/fixtures.ts` barrel. Items 888, 889 (with 476), 891, 893, 894, 903, 914, 917, 918, 921, 922, 924, 925, 929, 937, 938, 942, 947, 949 and 950. The waiver budget is keyed by application and implementation parts (item 925, `gate-runtime-standardization.md` section 5).
-- Merged, not yet closed: item 901 (`tests/support` is the world-split `@orb/testkit` package) closes when 890 moves the compose closures to their owning layer. Item 899's second half and item 900's core are merged; check each done line against the tree, then land them. Item 915 removed the verb grants; the client, module and row grant files remain.
-- In flight, each on its work item's lane: item 890 in three lanes (server rows; client, story and UI rows; contracts, inference and tooling rows), 892 with 906, 904 with 905, 923 with 945, 926 with 944, 928, 932, 939, 948 and 887.
-- Waiting: 946 after 906; 952 after 923; 898 after 887. Item 939 stops: its remaining over-cap files leave through the test-foundation legacy ledger.
-- Next phase: [test-foundation](../test-foundation/design.md). It owns the server harness rebuild, so item 890 stops at its verifier fixes and its remaining server harness rows move there, and one code-facts engine for codemods, `pnpm ast` and the gates.
-- Every lane gets a fresh-context verifier before merge. A verifier finding about the item is fixed in that item; an unrelated one becomes a new item.
+Each site below is an investigation lead, not a current verdict or assignment. Re-derive it against the current product and its work item before editing. Keep meaningful regression cases in legacy CI until replacement carries them.
 
-### Rules that hold during the work
+A product rule copied into a harness moves to its owning production domain under compose cleanup. The replacement test then calls the real composition root. Do not export a function solely to preserve a copied legacy harness, repair the widest old harnesses first, or split disposable suites for size compliance.
 
-- Do not add a new per-file mirror test beyond what the current gate forces. Prefer a feature suite.
-- Do not mass-move test files. Folding happens when a lane touches an area.
-- Mutation testing is out of scope.
-- The persona-resolution suite's test code stays untouched; its comments may change (owner ruling).
+Contract shapes, typed responders, production constants and real shared helpers remain valid improvements where maintained consumers need them. Test-only machinery belongs in testkit only when it supports the new population; it cannot contain copied domain rules.
 
-### Burn down the waivers
+### Enforcement
 
-A green structure run hides findings that are waived one by one. The largest waiver populations are `caught-failure-ownership`, `no-test-fabrication` and `ct-no-oneshot-live-read-assert`, followed by `test-determinism`, the id-brand gates and `owner-scoped-reads` and `owner-scoped-writes`. Item 899 adds a ratchet per waived gate so the waived count can only fall. Review the owner-scoped waivers first, because they concern tenancy.
+Follow D317 for verification cadence and D318 for public package doors. Use maintained lint, resolver, compiler and dependency tools where they express the claim. Shared code-facts readers own the remaining typed judgments; do not introduce a second detector.
 
-### Raise the gates to the law
+Existing waivers and grants need semantic judgment, not automatic preservation. Real defects are fixed; false positives are repaired in the checker. Do not create waiver debt or regenerate budgets merely to get green.
 
-The law is the specification. Where a gate enforces less than the law text says, raise the gate. Item 900 owns this.
-
-- Spine-TypeScript-and-Patterns section 7.4 claims a ban on exported types, interfaces, zod objects and structural casts outside the type homes. The gates judge only exported aliases and zod consts, and exported interfaces under `packages/server/src/domain` only. Local types, inline annotations and exported interfaces elsewhere are unjudged, and the contract-enforcement review found exact field-set copies of contract shapes that no gate reports.
-- Gate extensions, in this order: widen `no-inline-domain-interface` to server, inference and client with a wire-name rule; add a structural copy rule to `contract-derives-not-respells`; add a JSON-column parse-on-read sibling to the open-json-column family; add a test-local contract-copy sibling to `no-test-fabrication`; add a `trpc-input-declarations` sibling; add one client rule that `.json()` results are parsed.
-- Production gates that skip tests, cheapest first: `no-vanity-alias`, `zod-modern-spellings`, `zod-error-issues-home`, `zod-export-membership`, Biome `noEmptyPattern` and `noBarrelFile`, then `tsdoc/syntax`; then baseline `no-inline-types` with a test home rule, `no-loose-id-cast` after its multi-line token fix, and `platform-spellings`.
-- Every package declares its internal cake with pinned dependency-cruiser rules: inference first, then tooling, kit and contracts, then default-content, showcase-plugins and plugin-toolchain.
-
-### How a gate is raised
-
-Owner rulings for every gate change in this plan.
-
-- **Reuse the tuned detectors.** `pnpm ast` already judges column writes by receiver type (`tooling/src/ast/lib/columns.ts`), row reads by type including destructuring (`column-reads.ts`), and structural copies by checker assignability (`respell-shapes.ts`). A gate needs the same judgement, so it imports that detector rather than a second spelling. Verify may not import ast, so a shared detector moves to a floor home that both import, and the ast verb's output must not change. Tooling may import `@orb/kit`.
-- **Judge by type and declaration, never by name.** A write is a drizzle write builder, a parse is a call that reaches a zod parse, and a row is a select result. A method name, a callee name or a type-name suffix is a heuristic that hides false negatives.
-- **Fix a false positive in the gate.** A waiver marks real debt under a burn-down item that can clear it. A waiver on a site the gate should not flag is a gate defect, and so is a deleted waiver that hid a real finding.
-- **Prove each spelling.** Every caught spelling gets a planted failing control and every accepted shape a passing control, shown red first.
-- **Baseline at the measured count.** The lane that widens a gate does not fix the findings it surfaces. It writes each existing hit as a waiver naming its burn-down item, and the burn-down item fixes them. The policy's budget row in `tooling/src/verify/lib/waiver-budget.ts` equals the measured count of a complete run. A row only falls. A rise means a new finding to fix, never a row to raise (gate-runtime-standardization section 5).
-- **Red is expected.** A stricter gate turns main red until its debt burns down. Never weaken a gate, add a waiver or loosen a test to get green. A lane whose own work is green commits through a red that lies outside its work with `LEFTHOOK_EXCLUDE=check`, and the message names the red and the owed check. A red in the lane's own files is fixed.
-- **Lanes run focused checks only.** A lane runs `structure --check <gate>` without `--application`, single test files and scoped typecheck. The application-scope structure run and `pnpm ast antipatterns` run once, at merge, by the orchestrator.
-- **Survey before editing.** A lane writes down its whole work set first, found with codegraph, `pnpm ast` and ast-grep in both TS and TSX with scanned counts. rg is a second method for a negative claim, never the first search.
-
-### Contract enforcement fixes
-
-- Mint schemas for the hand-spelled HTTP responses and parse both ends: chat import (`packages/server/src/entry/http/import-chat.ts:59` against `packages/client/src/data/import-chats.ts:27`), auth config (`packages/server/src/entry/http/auth-meta.ts:69-88`), auth me (`packages/client/src/data/auth-bootstrap.ts:54`), import tree and bundle, and the card lorebook restore.
-- Parse typed JSON columns on read: plugin manifest and granted capabilities (`packages/server/src/domain/plugin/persistence/plugins.ts`), connection declared, extras and transport (`packages/server/src/domain/connection/persistence/connections.ts:17-36`), notification payloads, workload progress and result, and character theme and background overrides.
-- Replace contract copies with derived types: the client plugin command view, the card-frame request as `z.input`, the portable chat variant, the discover character group, the variant economics shape (land with any MessageView trim, which edits the same contract file), the import wave outcomes and the character hero detail. The contract-enforcement report names each site.
-- Owner ruled: the brace-scanning JSON extractor on the structured path stays, because it extracts structure that zod then parses.
-- Owner ruled: `testid-typed-only` widens to CT stories with a baseline that burns down; a hand-written JSON-schema literal in a CT is exempt only where the literal is the subject under test.
+The test-foundation plan owns lane floors, review completion and application-check scheduling. A replacement suite proves real product behavior with preserved cases and a production defect control. Whole-tree mutation and legacy fixture polish are not migration phases.
 
 ### Known violations by item
 
-Each row names the test site, the production counterpart, and the fix. The four audit reports in the owner archive (orbweaver-reviews, test-mirror client, server, e2e-ui-contracts and inference-tooling-gates) hold the full tables.
+Each row names a candidate test site and production counterpart. These sites require current-tree confirmation before assignment. Audit material supplies cases for replacement, not instructions to retrofit legacy harnesses.
 
 **889, CT door.**
 
@@ -102,7 +63,7 @@ Each row names the test site, the production counterpart, and the fix. The four 
 
 - Compose closures copied identically (extract and export, then call from both sides): `characterOwned` and `loadCoParticipantOwner` (`compose/assets-character.ts:179-262`), the gallery character ops (`assets-character.ts:376-383`, the import copy also drops the owner scope), `verifyPersonaOwned` and `verifyCharactersOwned` (`compose/chat.ts:1385-1388`, `compose/roster-preset.ts:45-59`), `resolveUserEnabled` (`compose/chat.ts:1321-1324`), the seed avatar ops (`assets-character.ts:442-509`), the rpg trace inspector (`entry/lifecycle.ts:930-950`).
 
-- The four widest server harnesses (`tests/legacy/server/domain/automation/_support.ts`, `assets/_support.ts`, `workloads/_support.ts`, `search/_support.ts`) reach most server domains; fix them first.
+- The wide server harnesses under automation, assets, workloads and search contain candidate cases. Replace their assemblies through the real root rather than repairing them as a prerequisite.
 
 - `tests/legacy/db/schema/rate-limit.int.test.ts:46-56,95-98` copies `packages/server/src/transport/rate-limit.ts:57-73` and never calls the limiter.
 
@@ -131,12 +92,12 @@ Each row names the test site, the production counterpart, and the fix. The four 
 
 ## Rejected
 
-Mutation testing of the whole tree: too slow at this size. A mass move of test files to a new layout: churn with no product gain. A dedicated cleanup marathon that pauses product work: cleanup rides each lane's own area instead.
+Whole-tree mutation and a separate legacy retrofit campaign. Replacing one copied assembly with another does not prove production behavior.
 
 ## Coupled sites
 
-Item 887 (seeded corpus and stage paths) gates item 898. The architecture-law lane gates every step because it changes test imports. Item 0476 folds into 889 and 899.
+The test-foundation plan owns composition, builders/corpus, the CT door and reader dependencies. Its work items own current assignments. The inference-flow plan owns funding and runtime ownership concerns.
 
 ## Test plan
 
-Each gate lands with a planted failing control and a passing control. Each fix shows a red when the production rule it now calls is changed. The smoke matrix runs headless in CI on the seeded corpus.
+Use verdict-logic controls for checker changes and production defect controls for replacement suites. Preserve meaningful cases, then delete the replaced legacy assembly. The smoke matrix drives the real stack on the shared corpus.

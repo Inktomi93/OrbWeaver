@@ -16,6 +16,28 @@ The aim is three things at once. Honest: a test proves what production does, nev
 
 ### Order of work
 
+This plan owns execution order. The [test-mirror inventory](../test-mirror/design.md) supplies migration candidates, not a competing retrofit queue. Work items own current assignments, blockers and verification evidence; temporary handoffs do not establish completion.
+
+### Execution sequence
+
+| Phase | Work | Exit condition |
+| - | - | - |
+| Current foundation | Finish compose cleanup (964) and legacy-boundary follow-ups (987). | Rules and queries have domain homes; legacy remains a CI regression population, not strict test evidence. |
+| Shared readers | Start Drizzle facts (953), then shape identity, references, import reach and codemods (954 to 957). | Consumers share the floor reader and preserve findings or record proven corrections. |
+| Real harness | Build the server composition root (958) after 964; continue readers in independent files. | Every external edge is injectable and a complete domain case set proves the real graph. |
+| Test inputs and mounting | Finish builders/corpus (959) and the client compose door (960). | Test data derives from production and CT wiring derives from client composition. |
+| Replacement suites | Corpus-backed e2e smoke, server domains, component CTs, then remaining suites. | Replacement preserves meaningful cases, catches a production defect and deletes the corresponding legacy harness. |
+
+Production funding (969), identity (972), every-owner tokens (984), type homes (981) and boundary parsing (982) remain production work. Schedule their owner-specific batches after the compose and initial Drizzle work, without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
+
+### Foundation boundaries
+
+The legacy folder, maintained lint migration, explicit package exports and native integer migration are implemented. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. The [legacy-boundary item](../../work/0987-close-the-legacy-folder-migration-forks.md) owns monotonic-folder enforcement and probe dependencies.
+
+Testkit exists as a world-split package. The complete server composition root, shared fact store, builders/corpus and client door remain work, not assumptions. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
+
+### Architecture workstreams
+
 1. **One code-facts engine.** Every reader of code lives once in `tooling/src/floor/code-facts/`, behind one fact store: built once per world program, updated incrementally from file changes, persisted, and queried by every caller. A caller reads facts; it never loads its own program, so concurrent `pnpm ast` verbs, gates and codemods share one load. `pnpm ast` verbs, codemods and gates call it. A reader in `tooling/src/ast/lib/`, `tooling/src/codemod/lib/` or `tooling/src/verify/lib/` that answers the same question is deleted. Start with drizzle query facts (tables, joins, columns, reads and writes) and shape identity, then symbol references and member reads, import doors and reach, liveness, tRPC wiring, ambient calls and casts. Each move proves `pnpm ast` output and gate findings unchanged.
 2. **The server test harness.** A test composition root in `@orb/testkit/node` builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes those seams at the composition root. Domain harnesses are deleted as their suites move onto the root. Runs in parallel with step 1.
 3. **Builders and corpus.** One builder per contract output and database row, built from contract defaults or by running production. One synthetic corpus from the seed tool, shared by e2e, CT, server tests and side-eye.
@@ -40,6 +62,9 @@ Then the rebuild, cheapest proof first: the e2e smoke matrix on the corpus, whic
 
 ### Rules
 
+- Repair product, security and checker defects. Preserve useful legacy cases for replacement; stop fixture polish, copied-harness repair and waiver bookkeeping as independent deliverables.
+- Rejudge waivers and grants against their actual subjects. Their existence does not establish authority or justify weakening enforcement.
+- Recover unfinished production branches by coherent current-tree changes, not wholesale stale merges. The work items for contract derivation and stored-value parsing own their security blockers.
 - Not yet built: the engine, the composition root, and the builders and corpus.
 - A rebuilt test calls production through a public entry, builds data through a builder, and carries no fake that stands in for domain logic.
 - A ported suite keeps every case of the file it replaces; the verifier checks the case list.
@@ -98,6 +123,26 @@ The fact store is built once per world program, updated from file changes and pe
 A rule about names, imports, globals, JSX elements or syntax lives in Biome, ESLint or dependency-cruiser config, not in a custom gate. Tailwind's generated `@theme` resets its default scales, so an off-token class is an unknown class and `no-unknown-classes` rejects it. A custom gate stays only where a judgement needs types or code facts, or protects users with a computed value (contrast, density, theming). World purity stays native: per-world tsconfigs written by the type-config generator, checked by `tsc`, plus `noNodejsModules` and the dependency-cruiser world rules; both stay by owner ruling. The config-liveness parsers, their health twins, `verify-registry-parity` and the ESLint selector model are cut: the tools report their own unused suppressions, and one generic dead-path check covers the config paths that remain. The gates about gates are examined last, one by one.
 
 Tooling tests follow one rule: test verdict logic and lifecycle or concurrency rules (caps, races, reaping, ownership, slots, bands) fast against the decision code; an instrument's plumbing is proven by use; a test that reruns a gate over the real tree is deleted, because CI's structure stage already does it.
+
+The [CT live-read checker decision](../../work/0990-decide-the-maintained-ct-live-read-assertion-checker.md) requires a semantic comparison with maintained Playwright lint before replacement. Population shrink does not establish equivalent enforcement.
+
+### Public doors and production usage
+
+D318 separates package paths from exported symbols. Explicit package maps restrict cross-package entry; private imports retain their wildcards. Legacy reaches internals through the root raw-reach map. Rebuilt tests use genuine public entries and testkit world doors.
+
+Native Knip judges production usage without testkit, tooling or test-only consumers keeping application exports alive. `knip-production.baseline.json` records shrink-only findings, not permission to keep them. Its entries can repeat a symbol at several barrels; an unused export does not establish a dead implementation.
+
+The [production export work item](../../work/0989-adjudicate-unused-production-exports-behind-explicit-package-doors.md) owns adjudication in cohesive package/domain batches as compose and shared-reader work stabilizes. Remove unnecessary re-exports, follow remaining findings to implementation callers, then delete truly unused code. Keep a deliberately supported external API with its actual contract; never add fake consumers or widen the baseline. This work must not pause all foundations for a repository-wide deletion campaign.
+
+Use existing alias-aware `pnpm ast apisurface`, `rot` and `dead` evidence with native Knip's production work set. Apply adjudicated mechanical removals through one batched codemod, not a lane per barrel. Preserve reader limitations and distinguish tool consumers from application production callers. The shared-reader migration owns detector consolidation; this cleanup adds no replacement liveness gate.
+
+### Execution and verification
+
+Give lanes cohesive assignments with explicit ownership, affected behavior and a scoped floor. Batch review corrections into the assignment's final commit. The orchestrator schedules compiler and gate-heavy work; lanes request permission before whole-tree checks.
+
+Commit red is permitted under the owner-authorized check bypass, retaining commit-message validation and recording the reason and deferred checks. This does not permit suppressions, waiver inflation or weakened assertions.
+
+Use one independent review per substantive wave and reuse matching completed checks. Recheck only concrete failures or changed behavior. D317 owns the single application check before an owner-authorized push; no whole-tree check follows each merge. The dev stack is disposable; the release container is outside this program's authority.
 
 ### Compose holds wiring only
 

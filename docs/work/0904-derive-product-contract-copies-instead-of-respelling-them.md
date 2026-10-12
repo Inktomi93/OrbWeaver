@@ -4,7 +4,7 @@ status: open
 updated: 2026-10-12
 priority: P2
 area: contracts
-plan: test-mirror
+plan: test-foundation
 ---
 
 # Derive product contract copies instead of respelling them

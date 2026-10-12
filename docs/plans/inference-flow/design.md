@@ -12,6 +12,14 @@ Settle how inference flows through the server: which domain owns each table the 
 
 ## Shape
 
+### Execution dependencies
+
+The [test-foundation plan](../test-foundation/design.md) owns the combined program order. Compose cleanup (964) moves runtime ports and reads to owning domains before the server harness (958) is built. Initial Drizzle facts (953) provide shared tenancy and query judgments.
+
+After those batches, prioritize runtime funding and strike-out (969), identity enforcement (972), then typed every-owner authority (984). Settings ownership (967), connection capabilities (968) and law alignment (970) remain tracked production work. Route identity-sensitive changes to the security role.
+
+Stored connection parsing must follow ownership checks without losing owner-mismatch detection. The stored-value parsing work item owns the salvage blockers. Preserve runtime refusal and accounting semantics during relocation; legacy harness repair is not a prerequisite.
+
 ### Rulings
 
 1. **The settings table has one writer.** `domain/settings` owns the `settings` table and exposes a prefix-scoped key-value port. Tenant prefixes are a registered tuple; a tenant reads and writes only its own prefix through the port. `domain/connection` builds the runtime's `SnapshotStore` on that port and imports no `settings` table. Tier-1 invariant 6 and Core-0 section 8 say so in one sentence each, and `own-tables-only` checks the write half inside `persistence/` too. The stale `openrouter-model-catalog` key name leaves the schema header and the tests.

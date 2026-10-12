@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
-updated: 2026-10-11
+status: open
+updated: 2026-10-12
 priority: P2
 area: chat
-lane: wt/agent-a4fd81354ff8efecd
 ---
 
 # Duplicate and prose rewrite keep the generation stamp so a greeting never overwrites them
@@ -23,4 +22,4 @@ Int tests in tests/legacy/server/domain/chat/verbs/seeded-greeting.suite.int.tes
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Recovery material remains in `wt/agent-a4fd81354ff8efecd`: committed greeting preservation and uncommitted generation-stamp changes. No active lane owns this draft. Inspect and reproduce the production defect on current main before salvage; do not merge or discard it wholesale. Legacy fixture repair is not its deliverable.

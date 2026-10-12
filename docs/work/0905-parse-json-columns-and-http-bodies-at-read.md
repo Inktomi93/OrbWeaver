@@ -4,7 +4,7 @@ status: open
 updated: 2026-10-12
 priority: P2
 area: server
-plan: test-mirror
+plan: test-foundation
 ---
 
 # Parse JSON columns and HTTP bodies at read

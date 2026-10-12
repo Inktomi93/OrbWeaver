@@ -9,7 +9,9 @@ priority: P2
 
 ## What
 
-Known reds and loose ends surfaced by lanes and verifiers: the release-please-config cmdk dependabot-ignore case fails on main; real-corpus-liveness-manifest is red for policies that lack liveness pins (contract-structural-copy, json-column-read-parsed, test-file-size, test-production-clone, trpc-input-declarations, wire-json-parsed-at-consumer and test-hand-shape); the no-inline-types waiver budget disagrees with its measured count; dependency-cruiser-worlds and application-knip failed from tests/support/node_modules before the vitest exclusion fix and need a clean rerun; session-daemon.int T5 failed twice under load and is unproven either way; gate-spelling-twins.int has no verdict yet because it times out under load. `pnpm knip:prod` is red on main: three unused testkit dependencies and five unused client exports. `@orb/ui` exports its node-only token build modules (the token-contract and tokens-build subpaths) because tooling imports them, so their build tools (`ajv`, `ajv-formats`, `style-dictionary`, `tailwindcss`) must sit in ui's runtime dependencies; those modules belong outside ui's shipped exports (with D318), and the `token-contract.ts` header that says they were dropped is stale. The CT `use-databank-list-header.ct.tsx` fails on main.
+Findings needing current adjudication: release-please-config's cmdk ignore case; real-corpus-liveness pins; the no-inline-types budget; session-daemon.int T5 under load; gate-spelling-twins.int without a completed verdict; and the use-databank-list-header CT. Earlier node_modules pollution and production Knip findings are leads, not current verdicts after the package-door changes. The production export work item owns native inventory adjudication.
+
+UI exposes node-only token build modules through token-contract and tokens-build doors. Their runtime dependencies and stale token-contract header need review against D318; do not delete supported APIs merely because tooling is their consumer.
 
 ## Population and migration checks
 
@@ -34,3 +36,5 @@ Migration corrections landed in `a5b297e094` and `bd6e38bf81`: nullable RPG read
 Remaining findings: legacy disposal and typed-lint errors; maintained classes above; client formatting/import order; caught-failure census differences; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Default application Knip reports unused exports/types and configuration hints, not production-baseline reconciliation. Adjudicate intended consumers before deleting supported doors.
 
 Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Other findings and authority alarms remain unresolved. Repair product, security or checker defects, not waivers or disposable legacy suites. Preserve useful cases for the rebuild.
+
+Scoped root compilation on the legacy-boundary branch reports unchanged typing errors in `knip-baseline.config.ts:15` and `tests/tooling/knip-production-baseline.test.ts:31`. Repair these maintained checker defects; they are not legacy-suite polish.
