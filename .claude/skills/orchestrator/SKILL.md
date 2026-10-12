@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: "Orchestration for orbweaver: role routing, briefs, lane cap, merge trains, the barrier, worktrees, pushes, session start, the claude-b bridge. A SessionStart hook injects it into every main session."
+description: "Orchestration for orbweaver: role routing, briefs, lane cap, merge trains, the pre-push barrier, worktrees, pushes, session start, the claude-b bridge. A SessionStart hook injects it into every main session."
 ---
 
 # Orchestrator
@@ -108,7 +108,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 ## Before calling work done
 
 - Assign verification ownership in the brief. Reuse completed lane checks under the `lane` skill's completion policy.
-- Call work done after its applicable checks. Use `AGENTS.md` to decide whether the barrier is required.
+- Call work done after its applicable checks. CI is the verdict (D317). Run the barrier once before the owner pushes ("The barrier").
 - Use fresh-context review for substantive code changes. Review routine prose and configuration edits directly; add independent review for a concrete correctness or security risk.
 - For a multi-wave program, run one `verifier` pass per wave over every change landed in it. That pass covers each item; spawn no second `verifier` per item inside a covered wave.
 - Call `side-eye` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
@@ -118,7 +118,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 
 ## Merge trains
 
-A merge train lands frozen lane results on main. Its start and end commits define the combined change.
+A merge train lands frozen lane results on main. The owner works on local main and pushes in batches, so no branch holds a train.
 Scoped lane green does not prove the combined tree, including a fast-forward with no commit hook.
 
 1. Read lane results. Reuse completed checks only while their files, dependencies, scope and execution population still match.
@@ -126,23 +126,30 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 3. Record the starting HEAD before integration. Check that no whole-tree check is reading the checkout.
 4. Merge the frozen batch. Confirm HEAD moved and review conflict resolutions and shared composition changes.
 5. Commit integration changes, then record the ending HEAD. Keep the tested checkout clean.
-6. Defer whole-tree static evidence to the pre-push check: run `pnpm check --application` once on main before the owner pushes, not after each train (D317). CI qualifies the push.
-7. Run `pnpm test:ratchets`, or credit matching completed broader evidence that actually includes its current member population.
-8. Run affected integration and rendered checks not established by matching lane evidence. Weekly checker proof remains independent of product qualification.
-9. Read completed artifacts from the printed slots. Return concrete failures to their owning lanes together.
-10. Recheck only changed behavior or invalidated evidence after corrections.
+6. Leave whole-tree evidence to the barrier. Run no combined check after a train (D317).
 
-Use the recorded start incrementally only with matching prior qualified evidence. Follow `UNIFIED-VERIFICATION-DESIGN.md` §4.4 when that evidence is unavailable.
-The range uses explicit Git commit IDs, not a stale remote backlog. Empty, missing, unresolvable or dirty boundaries refuse.
-Run broad application qualification with `pnpm verify --product` when the batch requires it.
-Nightly full verification is a backstop, not a replacement for pre-release event qualification.
-
-- Freeze the batch before its combined-tree check. A merge or edit changes the tested tree and invalidates affected evidence.
+- Freeze the batch before the barrier. A merge or edit changes the tested tree and invalidates affected evidence.
 - A merge that combines shared-interface edits needs typechecking. The barrier covers it; run a separate typecheck only for earlier feedback.
 - A merge touching `packages/server/src/transport/trpc/routers/**` runs `tests/server/transport/cross-tenant-sweep.suite.int.test.ts` first.
 - The sweep does not cover a room's resume read. A merge touching a room's `authorizeAttach` or replay verb also runs that room's recipient-scope test, for example `tests/server/domain/notifications/verbs/replay-since.int.test.ts`.
 - A merge restarts the dev server and clears the in-memory recorders. Never merge while a live drive depends on them.
 - `pnpm check:ledgers-fresh` fails when a merge shifts the lines a ledger row cites. Run the regeneration yourself on the merged tree. Lanes only hand-edit their own row.
+
+## The barrier
+
+The barrier is the whole-tree check on main before the owner pushes. Run it once per push batch, never after each train (D317).
+It is separate from the pre-push hook, which checks GitHub synchronization.
+
+1. Check that main is clean and that no whole-tree check is reading the checkout.
+2. Run `pnpm check --application`.
+3. Run `pnpm test:ratchets`, or credit matching completed broader evidence that actually includes its current member population.
+4. Run affected integration and rendered checks not established by matching lane evidence.
+5. Read completed artifacts from the printed slots. Return concrete failures to their owning lanes together.
+6. Recheck only changed behavior or invalidated evidence after corrections.
+
+CI qualifies the push and is the verdict. Follow `UNIFIED-VERIFICATION-DESIGN.md` §4.4 for the qualification boundary.
+Run broad application qualification with `pnpm verify --product` when the batch requires it.
+Nightly full verification is a backstop, not a replacement for pre-release event qualification.
 
 ## Stopping checks and commits
 
@@ -154,7 +161,7 @@ Nightly full verification is a backstop, not a replacement for pre-release event
 
 ## Hooks and pushes
 
-- Lanes and you commit through the hooks. Only the user or you may authorize a specific bypass under measured load. Use `LEFTHOOK_EXCLUDE=check git commit …`, which keeps the commit-msg check. Record the reason and the owed checks in the commit message, then run them when the train is quiet.
+- Lanes and you commit through the hooks. Only the user or you may authorize a specific bypass under measured load. Use `LEFTHOOK_EXCLUDE=check git commit …`, which keeps the commit-msg check. Record the reason and the owed checks in the commit message, then run them when the box is quiet.
 - Main integration is yours. Pushes are the owner's.
 - Never push `origin` without fresh owner authorization for that exact push.
 - Never commit while a push runs.
@@ -198,7 +205,7 @@ Lanes can share main's checkout with you.
 
 Run autonomously only when the user says overnight, finish, or keep going.
 
-- In that mode, re-derive, dispatch, merge, and run the barrier while safe work exists.
+- In that mode, re-derive, dispatch and merge while safe work exists. Run the barrier when a batch is ready for the owner to push.
 - Stop only for a destructive or irreversible action, an owner-reserved product choice, a scope change, or a push.
 - The engines and the dev stack are yours to start and stop without asking.
 - Before a decision becomes a question for the owner, try in order: a `stickler` pass, `pnpm ast` on the code, the docs and the ledger, then your own judgment.
