@@ -1,84 +1,67 @@
-// Composition seam for the derived-data cluster + the two broad-consumer singletons built in the same region:
-// embeddings (+ its event-driven indexer and the corpusAutoindex bus subscription), the character.updated→chat
-// fan, persona, preset (+ its portability ctx), stats, search, discovery, notifications, workloads, and the
-// embed-model-change → bulk purge+reindex enqueue. Owns no business logic — it wires each service's
-// injected ops onto the already-built infra handles + sibling front doors.
-//
-// FORWARD-REFS this seam PRODUCES for earlier blocks: `persona` (the character seeder's createPersona +
-// character block's persona reads deref it at request time) and `preset` (character's greeting-template resolver).
-// The keystone threads those back as request-time getters. `workloads` is produced here and consumed by the
-// keystone's `enqueueEmbedReindex` holder, databank, and portability — the keystone assigns the returned
-// `enqueueEmbedReindex` onto its late-bound holder so the settings write's embed-model trigger fires it.
+// Build the derived-data and persona graph; runtime policies live behind their domain front doors.
+// Workload admission is late-bound because chat contributes runners after this graph is constructed.
 
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
-import type { DomainEvent } from "@orb/contracts/events";
-import type { Principal } from "@orb/contracts/identity";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { characters as charactersTable, chatParticipants as chatParticipantsTable, personas as personasTable } from "@orb/db";
-import { findSeedEmbedding } from "@orb/default-content";
 import type { RoleClientsWithSignal } from "@orb/inference";
-import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import type { UserId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { can, isAdmin, isOwner, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
+import { createAssetEmbeddingReads } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
+import { createEmbeddableCardText, createLoadCharacterEmbeddingOwner } from "#domain/character";
 import type { MemoryEmbedSpace } from "#domain/chat";
 import {
   consolidationHash,
+  createCapturePersonaSeatsForDelete,
+  createLiveTier0Range,
   createResolveStandingAsks,
   createResolveViewerVisibility,
   loadPresentHostUserId,
   requireAuthorOrHost,
-  resolveTier0Range,
   setParticipantActivePersona,
 } from "#domain/chat";
 import { resolveActiveDocumentIds } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
-import { createDiscoveryService, distinctCorpusOwners } from "#domain/discovery";
+import { createDiscoveryService, createDossierNeighbors, distinctCorpusOwners } from "#domain/discovery";
 import type { EmbeddingsContext, EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection } from "#domain/embeddings";
-import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
+import {
+  createEmbeddingReindexTriggers,
+  createEmbeddingsIndexer,
+  createEmbeddingsIndexerSubscription,
+  createEmbeddingsService,
+  createVacuousMemoryReceipt,
+  precomputedSeedEmbedding,
+} from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
 import type { JoinerPersonaStatementOp, PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
-import { createJoinerPersonaStatement, createPersonaService, createResolvePersonasForParticipants } from "#domain/persona";
+import {
+  createJoinerPersonaStatement,
+  createPersonaService,
+  createRepointSeedsAfterPersonaDelete,
+  createResolvePersonasForParticipants,
+} from "#domain/persona";
 import type { PresetContext, PresetService } from "#domain/preset";
 import { createPresetService, createResolvePresetUsage } from "#domain/preset";
 import { listGmPresetChatIds } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import { createDigestSources, createSearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
+import { createResolveUserProse } from "#domain/settings";
 import type { StatsService } from "#domain/stats";
 import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import type { AuditEntry, SpanAttrs } from "#foundation/observability";
-import { superviseDetached, superviseSettled } from "#foundation/observability";
+import type { AuditEntry } from "#foundation/observability";
 import { publishUserEvent } from "#transport/trpc";
 import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
-import { createVacuousMemoryReceipt } from "./vector-sweep-ops.ts";
 import { createVisibleRoomsReader } from "./visible-rooms.ts";
-
-/** The embed-space sweep enqueues' own trace root, for both scopes. One name so the debug surface and any future
- *  filter agree; the enqueues share it and are told apart by the `workloadKind` attribute and the request id. */
-const EMBED_REINDEX_SPAN = "embeddings.modelChangeReindex";
-
-/** One embed-space sweep enqueue, run under its own root span. */
-interface EmbedSweep {
-  readonly requestId: string;
-  readonly attrs: SpanAttrs;
-  readonly start: () => Promise<unknown>;
-}
-
-/** Exhaustiveness guard for the closed `DomainEvent` union — a new event member without a bus route is a
- *  tsc error here, not a silent drop. */
-function assertNeverEvent(event: never): never {
-  throw new Error(`unhandled domain event: ${JSON.stringify(event)}`);
-}
 
 // @orb-waive no-inline-package-interface(SearchDiscoveryComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the search/discovery cluster seam needs from the composition root. */
@@ -157,43 +140,15 @@ export interface SearchDiscoveryComposeResult {
   readonly listCorpusOwners: () => Promise<UserId[]>;
 }
 
-/** The seed pointers after `deletedId` is gone. A deleted default moves to the last-played persona, else
- *  `newest`; a deleted last-played moves to the default, else `newest`. PURE. */
-// @orb-waive compose-wiring-only(nextSeedsAfterPersonaDelete): baselined when the gate landed; burn-down item 964.
-function nextSeedsAfterPersonaDelete(
-  stored: { readonly defaultPersonaId: PersonaId | null; readonly currentPersonaId: PersonaId | null },
-  deletedId: PersonaId,
-  newest: PersonaId | null,
-): { readonly defaultPersonaId: PersonaId | null; readonly currentPersonaId: PersonaId | null; readonly defaultMoved: boolean } {
-  const surviving = (id: PersonaId | null): PersonaId | null => (id === deletedId ? null : id);
-  const defaultMoved = stored.defaultPersonaId === deletedId;
-  const defaultPersonaId = defaultMoved ? (surviving(stored.currentPersonaId) ?? newest) : stored.defaultPersonaId;
-  return { defaultPersonaId, currentPersonaId: surviving(stored.currentPersonaId) ?? defaultPersonaId ?? newest, defaultMoved };
-}
-
 export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDiscoveryComposeResult {
   const { db, now, audit, roleClientsFor, eventBus, character, assets, settings } = deps;
-  // The two OWNER reads the vector substrate needs to pick a space: a card's owner (`characters.ownerId`, a
-  // plain column read — the character front door is Principal-scoped and a sweep has none) and an asset's.
-  // @orb-waive compose-wiring-only(loadCharacterOwner): baselined when the gate landed; burn-down item 964.
-  const loadCharacterOwner = async (characterId: Parameters<typeof character.loadCardText>[0]): Promise<UserId | null> => {
-    // @orb-waive owner-scoped-reads(charactersTable): a trusted system consumer (D20) — the embeddings indexer and corpus sweep read a card's owner to choose whose vector space the write lands in; no Principal or caller-supplied id reaches it. Ends if a user-facing door calls this op.
-    const rows = await db.select({ ownerId: charactersTable.ownerId }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
-    return rows[0]?.ownerId ?? null;
-  };
-  // @orb-waive compose-wiring-only(loadAssetOwner): baselined when the gate landed; burn-down item 964.
-  const loadAssetOwner = async (assetId: Parameters<typeof assets.assetCasRefById>[0]): Promise<UserId | null> =>
-    (await assets.assetCasRefById(assetId))?.ownerId ?? null;
-
+  const loadCharacterOwner = createLoadCharacterEmbeddingOwner(db);
+  const loadCardText = createEmbeddableCardText((characterId) => character.loadCardText(characterId));
+  const assetReads = createAssetEmbeddingReads(assets);
+  const tier0RangeOf = createLiveTier0Range(deps.getEffectiveConfig);
   const embeddings = createEmbeddingsService({
-    // @orb-waive compose-wiring-only(precomputedEmbedding): baselined when the gate landed; burn-down item 964.
-    precomputedEmbedding: (hash, space, kind, connection) => (connection.wire === "local-light" ? findSeedEmbedding(hash, space, kind) : null),
-    // @orb-waive compose-wiring-only(loadAssetKind): baselined when the gate landed; burn-down item 964.
-    loadAssetKind: async (assetId) => (await assets.assetCasRefById(assetId))?.kind ?? null,
-    // @orb-waive compose-wiring-only(loadAssetMime): baselined when the gate landed; burn-down item 964.
-    loadAssetMime: async (assetId) => (await assets.assetCasRefById(assetId))?.mime ?? null,
-    // @orb-waive compose-wiring-only(loadAssetHash): baselined when the gate landed; burn-down item 964.
-    loadAssetHash: async (assetId) => (await assets.assetCasRefById(assetId))?.hash ?? null,
+    precomputedEmbedding: precomputedSeedEmbedding,
+    ...assetReads,
     db,
     roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
@@ -206,18 +161,14 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newChatSegmentId: minter(ID_PREFIX.chatSegment),
     newDocumentChunkId: minter(ID_PREFIX.documentChunk),
     listCharacterIds: character.listEmbeddableCharacterIds,
-    // @orb-waive compose-wiring-only(loadCardText): baselined when the gate landed; burn-down item 964.
-    loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
+    loadCardText,
     listImageAssetIds: assets.listImageAssetIds,
-    // @orb-waive compose-wiring-only(loadAssetBytes): baselined when the gate landed; burn-down item 964.
-    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     loadCharacterOwner,
-    loadAssetOwner,
     loadChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
     // Every target move, from any caller (a write, a sweep, a sync after a re-point, boot), emptied that owner's
     // index: their forced sweeps refill it. Derefs the sweep starter below at call time, never during compose.
     onTargetGenerationMoved: (ownerId) => {
-      detachRepointReindex(ownerId);
+      reindex.detachRepointReindex(ownerId);
     },
     // A promotion ends the owner's search pause and moves the space every vector read uses. The member that refreshes
     // those reads is `corpusRecomputed`, and the last scope to finish may be one whose sweep announces nothing.
@@ -229,32 +180,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const indexer = createEmbeddingsIndexer({
     indexAsset: embeddings.indexAsset,
     store: embeddings.store,
-    // @orb-waive compose-wiring-only(loadCardText): baselined when the gate landed; burn-down item 964.
-    loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
+    loadCardText,
     loadCharacterOwner,
     roleClientsFor,
   });
-  // The subscription stays live so an admin save can enable indexing without rebuilding composition.
-  // @orb-waive compose-wiring-only(event): baselined when the gate landed; burn-down item 964.
-  eventBus.subscribe((event: DomainEvent): Promise<void> => {
-    if (deps.getEffectiveConfig().corpusAutoindex !== true) {
-      return Promise.resolve();
-    }
-    switch (event.type) {
-      case "character.updated":
-        return indexer.onCharacterUpdated(event);
-      case "asset.created":
-        return indexer.onAssetCreated(event);
-      // The entity→room bridge's two members (§3.6). NOT indexer inputs — personas and lorebooks are not
-      // embedded sources — and named explicitly rather than caught by a fallthrough, which is what makes the
-      // `assertNeverEvent` below a real belt on the NEXT member.
-      case "persona.updated":
-      case "world-info.updated":
-        return Promise.resolve();
-      default:
-        return assertNeverEvent(event);
-    }
-  });
+  eventBus.subscribe(createEmbeddingsIndexerSubscription({ getEffectiveConfig: deps.getEffectiveConfig, indexer }));
 
   // THE ENTITY→ROOM BRIDGE (design §3.5): every content-affecting entity event → a live-only
   // `roomEntityChanged` on each room whose member-visible projection reads that entity. Always-on (not gated
@@ -294,51 +224,17 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
       await setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId, personaId });
     },
-    // Owner invariant "never NO current persona while you own one": after remove deletes deletedId,
-    // re-point the global seed pointers if either named it, runs through the settings section-patch verb.
-    // @orb-waive compose-wiring-only(repointSeedsAfterPersonaDelete): baselined when the gate landed; burn-down item 964.
-    repointSeedsAfterPersonaDelete: async (ownerId, deletedId) => {
-      const seeds = (await settings.loadUserSettings(ownerId)).seeds;
-      const stored = {
-        defaultPersonaId: seeds.defaultPersonaId === null ? null : castId<PersonaId>(seeds.defaultPersonaId),
-        currentPersonaId: seeds.currentPersonaId === null ? null : castId<PersonaId>(seeds.currentPersonaId),
-      };
-      if (stored.defaultPersonaId !== deletedId && stored.currentPersonaId !== deletedId) {
-        return { ...stored, defaultMoved: false };
-      }
-      const [newest] = await db
-        .select({ id: personasTable.id })
-        .from(personasTable)
-        .where(eq(personasTable.ownerId, ownerId))
-        .orderBy(desc(personasTable.createdAt))
-        .limit(1);
-      const next = nextSeedsAfterPersonaDelete(stored, deletedId, newest?.id ?? null);
-      // @orb-waive one-principal-mint-population(Principal): synthetic principal for persona-seed settings update; ends when a shared factory replaces it
-      const principal: Principal = {
-        userId: ownerId,
-        role: "user",
-        handle: castId<Handle>(ownerId),
-        externalId: null,
-        via: "fallback",
-      };
-      await settings.updateUserSettingsSection({
-        principal,
-        input: { section: "seeds", patch: { currentPersonaId: next.currentPersonaId, defaultPersonaId: next.defaultPersonaId } },
-      });
-      return next;
-    },
-    // @orb-waive compose-wiring-only(captureSeatsForDelete): baselined when the gate landed; burn-down item 964.
-    captureSeatsForDelete: async (ownerId, personaId) => {
-      const seats = await db
-        .select({ chatId: chatParticipantsTable.chatId })
-        .from(chatParticipantsTable)
-        .where(and(eq(chatParticipantsTable.userId, ownerId), eq(chatParticipantsTable.activePersonaId, personaId), isNull(chatParticipantsTable.leftSeq)));
-      return async (reseatWith): Promise<void> => {
-        for (const { chatId } of seats) {
-          await setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId: ownerId, personaId: reseatWith });
-        }
-      };
-    },
+    repointSeedsAfterPersonaDelete: createRepointSeedsAfterPersonaDelete({
+      db,
+      loadUserSettings: (ownerId) => settings.loadUserSettings(ownerId),
+      writeSeeds: async (principal, patch) => {
+        await settings.updateUserSettingsSection({ principal, input: { section: "seeds", patch } });
+      },
+    }),
+    captureSeatsForDelete: createCapturePersonaSeatsForDelete({
+      db,
+      setActivePersona: (chatId, targetUserId, personaId) => setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId, personaId }),
+    }),
   };
   const persona = createPersonaService(personaCtx);
   const resolvePersonasForParticipants = createResolvePersonasForParticipants(personaCtx);
@@ -365,7 +261,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const search = createSearchService({
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     digestConsolidationHash: consolidationHash,
-    tier0RangeOf: (tier, blockIdx) => resolveTier0Range(deps.getEffectiveConfig().memoryDefaults, tier, blockIdx),
+    tier0RangeOf,
     db,
     roleClientsFor,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
@@ -376,7 +272,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     resolveDigestSources: createDigestSources({
       db,
       digestConsolidationHash: consolidationHash,
-      tier0RangeOf: (tier, blockIdx) => resolveTier0Range(deps.getEffectiveConfig().memoryDefaults, tier, blockIdx),
+      tier0RangeOf,
     }),
     db,
     now,
@@ -391,27 +287,16 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // PROSE-1 — the compare / ask / distill system prompts off the CARD OWNER's `UserSettings.prose` (the
     // same caller scoping imagery's template resolvers use: a library analysis is one human's request about
     // their own cards, not a room-level side generation). No override ⇒ the shipped prompts.
-    resolveUserProse: async (userId) => (await deps.settings.loadUserSettings(userId)).prose,
+    resolveUserProse: createResolveUserProse((userId) => settings.loadUserSettings(userId)),
     writeHubScores: embeddings.writeHubScores,
     // discovery receives only the narrowed economics results — raw message_variants columns never cross the fence.
     characterEconomics: stats.characterEconomics,
     characterModelEconomics: stats.characterModelEconomics,
-    // The cross-domain `similar` seam (characterDossier) — search's `similarCharacters`, narrowed to the
-    // discovery-local DossierNeighbor shape here (search's CharacterCardHit never enters the discovery contract).
-    similar: async (userId, characterId, topN) =>
-      (await search.similarCharacters({ ownerId: userId, characterId, topN })).map((h) => ({
-        characterId: h.characterId,
-        name: h.name,
-        score: h.score,
-        relevance: h.relevance,
-        avatarHash: h.avatarHash,
-        genre: h.genre,
-        tone: h.tone,
-        elevatorPitch: h.elevatorPitch,
-      })),
+    // Discovery narrows injected search results to its content-only dossier surface.
+    similar: createDossierNeighbors({ similarCharacters: (params) => search.similarCharacters(params) }),
     // The memory tier-grid seam (tier-k) — chat/memory's fanOut math (ONE home) bound over the LIVE
     // AppSettings.memoryDefaults, the same source the digest build resolves per call.
-    tier0RangeOf: (tier, blockIdx) => resolveTier0Range(deps.getEffectiveConfig().memoryDefaults, tier, blockIdx),
+    tier0RangeOf,
   });
   const notifications = createNotificationsService({
     db,
@@ -439,116 +324,16 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // The memory receipt for an owner a sweep covers but builds no space for.
   const vacuousMemoryReceipt = createVacuousMemoryReceipt({ isMemoryEnabled: deps.isMemoryEnabled, embeddings });
 
-  // An owner's memory sweep: a memory-backfill run, or for a memory-off owner (refused at admission, and it
-  // would derive nothing) the vacuous receipt recorded directly.
-  // @orb-waive compose-wiring-only(enqueueOwnerMemory): baselined when the gate landed; burn-down item 964.
-  const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {
-    const vacuous = await vacuousMemoryReceipt(ownerId);
-    if (vacuous === null) {
-      return await workloads.start({ input: { kind: "memory-backfill", params }, caller: null, mode: "singular", ownerId, adoptActive: true });
-    }
-    return await embeddings.purgeMemoryVectors({
-      ownerId,
-      generation: { id: vacuous.generationId, task: "embed", via: "embed", epoch: vacuous.generationEpoch, space: vacuous.model },
-    });
-  };
-
-  // THE EMBED-SPACE SWEEPS: `index` for card/image vectors, `databank-reindex` for document chunks and the memory
-  // sweep for chat segments/digests, so every scope lands in the new target and search reads it.
-  //   • `null` — three GLOBAL BULK sweeps (`ownerId: null` spans every owner), the index pass FORCED, because a
-  //     non-forced one no-ops on rows whose text hash still matches the old space.
-  //   • a `UserId` — a seed bound that owner's encoder outside the binding verb: that owner's SINGULAR sweeps. None
-  //     with the autoindex off: then nothing embeds in the background, no target is pinned, and search reads the
-  //     live space with no migration to wait on.
-  //   • a `UserId` with `embedderChanged` — the owner's target moved, or boot found their stored generation stale:
-  //     their SINGULAR sweeps, the index pass forced, whatever the autoindex says, because the switch empties
-  //     their index.
-  // `caller: null` is the trusted-system mode-gate bypass. Every start ADOPTS an active run of the same unit rather
-  // than conflicting, so two triggers for one move (the text and picture targets, boot and a write) queue one set.
-  // Each enqueue runs in its own root span, and any enqueue failure is logged there, never thrown at the write
-  // that triggered it.
-  // @orb-waive compose-wiring-only(embedSweeps): baselined when the gate landed; burn-down item 964.
-  const embedSweeps = (scope: UserId | null, embedderChanged = scope === null): readonly EmbedSweep[] => {
-    if (!embedderChanged && deps.getEffectiveConfig().corpusAutoindex !== true) {
-      return [];
-    }
-    const at = String(now());
-    const mode = scope === null ? "bulk" : "singular";
-    // A rebuild's databank and memory runs carry the flag too, so each holds its own slot beside a plain run.
-    const rebuild = embedderChanged ? { embedderChanged } : {};
-    const sweep = (workloadKind: string, start: () => Promise<unknown>): EmbedSweep => ({
-      requestId: `embed-reindex:${workloadKind}:${scope ?? "all"}:${at}`,
-      attrs: { workloadKind },
-      start,
-    });
-    return [
-      sweep("index", () =>
-        workloads.start({
-          input: { kind: "index", params: embedderChanged ? { source: "all", force: true, embedderChanged } : { source: "all" } },
-          caller: null,
-          mode,
-          ownerId: scope,
-          adoptActive: true,
-        }),
-      ),
-      sweep("databank-reindex", () =>
-        workloads.start({
-          input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed", ...rebuild } },
-          caller: null,
-          mode,
-          ownerId: scope,
-          adoptActive: true,
-        }),
-      ),
-      sweep("memory-backfill", () =>
-        scope === null
-          ? workloads.start({ input: { kind: "memory-backfill", params: rebuild }, caller: null, mode, ownerId: null, adoptActive: true })
-          : enqueueOwnerMemory(scope, rebuild),
-      ),
-    ];
-  };
-
-  const enqueueEmbedReindex = async (scope: UserId | null): Promise<void> => {
-    await Promise.all(embedSweeps(scope).map((s) => superviseSettled(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start)));
-  };
-  // @orb-waive compose-wiring-only(detachEmbedReindex): baselined when the gate landed; burn-down item 964.
-  const detachEmbedReindex = (scope: UserId | null): void => {
-    for (const s of embedSweeps(scope)) {
-      superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
-    }
-  };
-  // An owner's target moved (`onTargetGenerationMoved`): their sweeps, forced. Their generations are theirs alone,
-  // so nobody else's index is touched, and the jobs are theirs to read under Jobs.
-  // @orb-waive compose-wiring-only(detachRepointReindex): baselined when the gate landed; burn-down item 964.
-  const detachRepointReindex = (ownerId: UserId): void => {
-    for (const s of embedSweeps(ownerId, true)) {
-      superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
-    }
-  };
-
-  // @orb-waive compose-wiring-only(detachStaleSpaceReindex): baselined when the gate landed; burn-down item 964.
-  const detachStaleSpaceReindex = (): void => {
-    superviseDetached("embeddings.staleGeneration.reindex", EMBED_REINDEX_SPAN, { workloadKind: "index" }, async () => {
-      for (const ownerId of await embeddings.staleGenerationOwners()) {
-        await Promise.all(embedSweeps(ownerId, true).map((s) => superviseSettled(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start)));
-      }
-    });
-  };
-
-  let autoindexEnabled = deps.getEffectiveConfig().corpusAutoindex === true;
-  // @orb-waive compose-wiring-only(refreshAutoindex): baselined when the gate landed; burn-down item 964.
-  const refreshAutoindex = (): void => {
-    const enabled = deps.getEffectiveConfig().corpusAutoindex === true;
-    const starts = enabled && !autoindexEnabled;
-    autoindexEnabled = enabled;
-    if (starts) {
-      superviseDetached("embeddings.autoindex.catchup", EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
-        workloads.start({ input: { kind: "index", params: { source: "all" } }, caller: null, mode: "bulk", ownerId: null }),
-      );
-    }
-  };
+  const reindex = createEmbeddingReindexTriggers({
+    now,
+    getEffectiveConfig: deps.getEffectiveConfig,
+    startWorkload: (params) => workloads.start(params),
+    vacuousMemoryReceipt,
+    purgeMemoryVectors: (params) => embeddings.purgeMemoryVectors(params),
+    staleGenerationOwners: () => embeddings.staleGenerationOwners(),
+  });
   return {
-    refreshAutoindex,
+    refreshAutoindex: reindex.refreshAutoindex,
     embeddings,
     indexer,
     persona,
@@ -561,9 +346,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     discovery,
     notifications,
     workloads,
-    enqueueEmbedReindex,
-    detachEmbedReindex,
-    detachStaleSpaceReindex,
+    enqueueEmbedReindex: reindex.enqueueEmbedReindex,
+    detachEmbedReindex: reindex.detachEmbedReindex,
+    detachStaleSpaceReindex: reindex.detachStaleSpaceReindex,
     vacuousMemoryReceipt,
     listCorpusOwners: () => distinctCorpusOwners(db),
   };

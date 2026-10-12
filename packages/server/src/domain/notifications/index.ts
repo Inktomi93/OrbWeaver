@@ -9,3 +9,4 @@ export type { ListInboxResult, MarkAllReadResult } from "./contract/results.ts";
 export type { EmitNotification, NotificationsService } from "./contract/service.ts";
 export type { InboxView } from "./contract/views.ts";
 export { createNotificationsService } from "./service.ts";
+export { createRecordAndPublishNotification } from "./verbs/record-and-publish.ts";

@@ -117,4 +117,6 @@ export {
   computeImageHubScores,
   computeSegmentHubScores,
 } from "./verbs/compute-hub-scores.ts";
+export { createDossierNeighbors } from "./verbs/dossier-neighbors.ts";
+export { createResolveOwnedDistillates } from "./verbs/resolve-owned-distillates.ts";
 export { createDiscoveryWorkloadContributions } from "./workload-contributions.ts";

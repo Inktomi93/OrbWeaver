@@ -58,7 +58,7 @@ export interface PersonaContext {
   /** Re-point the global seed pointers after `remove` deletes `deletedId` and return them as they now stand.
    *  A deleted default moves to the last-played persona, else the newest remaining; a deleted last-played moves
    *  to the default, else the newest remaining. Fires after the row deletion commits. */
-  readonly repointSeedsAfterPersonaDelete: (ownerId: UserId, deletedId: PersonaId) => Promise<PersonaSeedRepoint>;
+  readonly repointSeedsAfterPersonaDelete: (principal: Principal, deletedId: PersonaId) => Promise<PersonaSeedRepoint>;
   /** PRE-WRITE capture of the owner's present seats holding `personaId` (the delete's FK `set null` empties
    *  them). The returned thunk re-seats exactly those seats with the persona it is handed. */
   readonly captureSeatsForDelete: (ownerId: UserId, personaId: PersonaId) => Promise<(reseatWith: PersonaId) => Promise<void>>;

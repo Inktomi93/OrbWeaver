@@ -19,10 +19,12 @@ export { findOwnedPersonaByName } from "./persistence/queries.ts";
 export { createPersonaService } from "./service.ts";
 // D259 — the other PRINCIPAL-LESS op: the sign-up joiner's persona statement, which chat's signup batch runs.
 export { createJoinerPersonaStatement } from "./verbs/joiner-persona-statement.ts";
+export { createRepointSeedsAfterPersonaDelete } from "./verbs/repoint-seeds-after-persona-delete.ts";
 // Two more principal-less room-plane ops chat consumes: a seat's display surface, and a solo founding's
 // auto-anchored persona. Compose wires both onto `ChatContext`.
 export { createResolveConnectedPersona } from "./verbs/resolve-connected-persona.ts";
 // The PRINCIPAL-LESS room-plane op (contract/ops.ts) — compose-built, injected into the chat FOREIGN-inputs
 // resolver. Deliberately NOT on `PersonaService` (which is Principal-scoped by contract).
 export { createResolvePersonasForParticipants } from "./verbs/resolve-personas-for-participants.ts";
+export { createResolvePersonaSeedPointers } from "./verbs/resolve-seed-pointers.ts";
 export { createResolveUserPublics } from "./verbs/resolve-user-publics.ts";
