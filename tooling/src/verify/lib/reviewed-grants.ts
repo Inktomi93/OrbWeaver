@@ -23,6 +23,7 @@ import { REVIEWED_GRANTS_SINGLESTREAMTRANSPORT_SOLEENVREADER } from "./reviewed-
 import { REVIEWED_GRANTS_SUPPRESSIONS_A } from "./reviewed-grants-suppressions-a.ts";
 import { REVIEWED_GRANTS_SUPPRESSIONS_B } from "./reviewed-grants-suppressions-b.ts";
 import { REVIEWED_GRANTS_TAILWIND } from "./reviewed-grants-tailwind.ts";
+import { REVIEWED_GRANTS_TEST_REACH_CLIENT } from "./reviewed-grants-test-reach-client.ts";
 import { REVIEWED_GRANTS_TEST_REACH_MODULES } from "./reviewed-grants-test-reach-modules.ts";
 import { REVIEWED_GRANTS_TEST_REACH_VERBS } from "./reviewed-grants-test-reach-verbs.ts";
 import { REVIEWED_GRANTS_TOOLING_TO_PERMISSION } from "./reviewed-grants-tooling-to-permission.ts";
@@ -49,6 +50,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       ...REVIEWED_GRANTS_SUPPRESSIONS_A,
       ...REVIEWED_GRANTS_SUPPRESSIONS_B,
       ...REVIEWED_GRANTS_TAILWIND,
+      ...REVIEWED_GRANTS_TEST_REACH_CLIENT,
       ...REVIEWED_GRANTS_TEST_REACH_MODULES,
       ...REVIEWED_GRANTS_TEST_REACH_VERBS,
       ...REVIEWED_GRANTS_TOOLING_TO_PERMISSION,

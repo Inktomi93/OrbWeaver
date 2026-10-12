@@ -3,6 +3,7 @@
 import { Project } from "ts-morph";
 import { testReach } from "../../../../tooling/src/verify/lib/test-reach.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/repo";
 const COMPONENT = "packages/client/src/features/chat/composer.tsx";
@@ -103,6 +104,90 @@ test("a namespace import reaches only through a member it reads", () => {
 
   expect(reading.has(STORE)).toBe(true);
   expect(idle.has(STORE)).toBe(false);
+});
+
+function called(files: Readonly<Record<string, string>>, asked: readonly string[]): ReadonlyMap<string, ReadonlySet<string>> {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { jsx: 4, allowImportingTsExtensions: true, noEmit: true } });
+  for (const [path, text] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, text);
+  }
+  const result = testReach({
+    files: project.getSourceFiles(),
+    relativePath: (file) => file.getFilePath().slice(ROOT.length + 1),
+    checker: project.getTypeChecker(),
+    isSubject: (path) => path === STORE,
+    calls: new Map([[STORE, new Set(asked)]]),
+  });
+  return result.calledBy.get(STORE) ?? new Map();
+}
+
+// A call is the unit a store action is driven by: an import that is only read, a commented or quoted call, a call of a
+// same-named local and a call through a mocked module are not. The renamed import, the namespace member and the barrel are.
+test("an action counts as called only when a test calls the binding it imports", { timeout: scaledBudget(15_000) }, () => {
+  const importing = (body: string): Record<string, string> => ({
+    [STORE]: STORE_SOURCE,
+    "tests/client/state/drafts.test.ts": `import { saveDraft as save, clearDraft } from "../../../packages/client/src/state/drafts.ts";\n${body}\n`,
+  });
+
+  expect([...called(importing("export const a = save();"), ["saveDraft", "clearDraft"]).keys()]).toEqual(["saveDraft"]);
+  expect(called(importing("export const a = [save, clearDraft];"), ["saveDraft", "clearDraft"]).size).toBe(0);
+  expect(called(importing('// save();\nexport const a = "clearDraft()";'), ["saveDraft", "clearDraft"]).size).toBe(0);
+  expect(called(importing("export const a = save<number>();"), ["saveDraft"]).has("saveDraft")).toBe(true);
+  expect(called(importing("export const a = ((save: () => number) => save())(() => 1);"), ["saveDraft"]).size).toBe(0);
+});
+
+test("an action is called through a namespace member or a barrel, and not through a mocked module", () => {
+  const barrel = { "packages/client/src/state/index.ts": 'export { saveDraft, clearDraft } from "./drafts.ts";\n' };
+  const namespace = called(
+    {
+      [STORE]: STORE_SOURCE,
+      "tests/client/state/drafts.test.ts":
+        'import * as drafts from "../../../packages/client/src/state/drafts.ts";\nexport const a = drafts.saveDraft();\nexport const b = drafts.clearDraft;\n',
+    },
+    ["saveDraft", "clearDraft"],
+  );
+  const viaBarrel = called(
+    {
+      [STORE]: STORE_SOURCE,
+      ...barrel,
+      "tests/client/state/drafts.test.ts": 'import { saveDraft } from "../../../packages/client/src/state/index.ts";\nexport const a = saveDraft();\n',
+    },
+    ["saveDraft"],
+  );
+  const mocked = called(
+    {
+      [STORE]: STORE_SOURCE,
+      ...barrel,
+      "tests/client/state/drafts.test.ts":
+        'import { vi } from "vitest";\nimport { saveDraft } from "../../../packages/client/src/state/index.ts";\nvi.mock("../../../packages/client/src/state/drafts.ts");\nexport const a = saveDraft();\n',
+    },
+    ["saveDraft"],
+  );
+
+  expect([...namespace.keys()]).toEqual(["saveDraft"]);
+  expect([...(viaBarrel.get("saveDraft") ?? [])]).toEqual(["unit"]);
+  expect(mocked.size).toBe(0);
+});
+
+test("a member call counts through a dynamically imported module's type, and a same-named object method does not", () => {
+  const dynamic = called(
+    {
+      [STORE]: STORE_SOURCE,
+      "tests/client/state/drafts.test.ts":
+        'export async function run(): Promise<number> {\n  const drafts = await import("../../../packages/client/src/state/drafts.ts");\n  return drafts.saveDraft();\n}\n',
+    },
+    ["saveDraft"],
+  );
+  const method = called(
+    {
+      [STORE]: `${STORE_SOURCE}export const api = { saveDraft: (): number => 3 };\n`,
+      "tests/client/state/drafts.test.ts": 'import { api } from "../../../packages/client/src/state/drafts.ts";\nexport const a = api.saveDraft();\n',
+    },
+    ["saveDraft"],
+  );
+
+  expect([...dynamic.keys()]).toEqual(["saveDraft"]);
+  expect(method.size).toBe(0);
 });
 
 test("a helper that re-exports a product export carries reach to the test that imports it", () => {

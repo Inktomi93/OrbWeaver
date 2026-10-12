@@ -108,10 +108,15 @@ A test lives in the directory that mirrors the source directory it covers, and i
 | infra/foundation files with runtime logic | a unit or integration test (security checks, adapters, dispatchers) |
 | **every `entry/**` + `transport/**` file with runtime logic** — a boot step, a composition seam, an HTTP registrar, a job driver, a bus, a ladder primitive | a unit or integration test |
 | every `@orb/inference` module with an emitted export | a unit, integration or contract test |
+| every direct child of the client `data/`, `forms/`, `forms/editor/` and `state/` homes with a callable export | a unit or component test |
+| every non-primitive `@orb/ui` logic module (`charts/`, `markdown/`, `stream/`, `content/`, `code-editor/`, `diff/`, `fuzzy-search/`) with a callable export | a unit or component test |
+| every action a client `state/` file exports when it mints a store (a `use*` read-hook is not an action) | a unit or component test that calls it |
 
 The surfaces are demand-by-default: every slot the template grows is demanded the day it appears. There is no enumerated slot list. A suite kind reaches a module exactly as a module test does.
 
-Modules that no test reached when presence became reach are reviewed-grant rows in `tooling/src/verify/lib/reviewed-grants-test-reach-verbs.ts` and `tooling/src/verify/lib/reviewed-grants-test-reach-modules.ts`. A row reds stale once a test reaches its module; delete it then. A new module gets a test or an `@subject` header, never a row. The waiver ratchet in `docs/law/gate-runtime-standardization.md` §5 holds the table's size.
+A test kind reaches only the source extensions its definition holds (`tooling/src/floor/testing/test-kinds.ts`): a `.test.ts` does not reach a `.tsx` module. A store action is reached by a call in a test, or in a story or helper the test imports. An import that is never called does not reach it.
+
+Modules that no test reached when presence became reach are reviewed-grant rows in `tooling/src/verify/lib/reviewed-grants-test-reach-verbs.ts`, `tooling/src/verify/lib/reviewed-grants-test-reach-modules.ts` and `tooling/src/verify/lib/reviewed-grants-test-reach-client.ts`. A row reds stale once a test reaches its module; delete it then. A new module gets a test or an `@subject` header, never a row. The waiver ratchet in `docs/law/gate-runtime-standardization.md` §5 holds the table's size.
 
 A pure spread-forwarding DI bridge is exempt by SHAPE — the same shape the `entry/`/`transport/` exemption
 below covers — because the behavior belongs to its target and is demanded there, and the only test
@@ -136,19 +141,16 @@ callable's body reducing to ONE expression that is a delegating call, a DI-bundl
 parameters, or a factory returning one of those. A second statement, a branch (including a ternary), or a computed
 argument is behavior and stays demanded.
 
-Browser lanes are not reach-gated. `test-presence-client` still proves the client `data/`, `forms/` and `state/`
-primitives and the non-primitive `@orb/ui` logic groups by mirror name; converting it to reach is not yet built. Its
-deliberate cross-cutting floor is the standing `worst-legal-art-contrast.suite.ct.tsx`, required because deleting
-it restores a known blind class across every theme polarity at once.
+`test-presence-client` holds the one named-file floor: the standing `worst-legal-art-contrast.suite.ct.tsx`
+must exist, because deleting it restores a known blind class across every theme polarity at once.
 
-Missing, empty, or unreadable source/test corpora refuse evaluation rather than returning a clean zero, and so does a
-test tree that resolves no reference into the demanded modules.
+Missing, empty, or unreadable source/test corpora refuse evaluation rather than returning a clean zero. So does a
+test tree that resolves no reference into the demanded modules, and so does a real tree that scans no inference,
+client or ui module.
 
-**Presence is not coverage:** `test-presence-client` confirms a store's mirror test EXISTS and names each action — NOT
-that new actions are ASSERTED. Adding an action to an existing store passes presence WITHOUT covering it.
-Every NEW `#state` action / projection / non-trivial behavior gets an assertion in the mirror (drive it,
-assert the resulting store state — a dual-write writes BOTH channels). Old tests passing ≠ new behavior
-tested.
+**Presence is not coverage:** `test-reach` confirms a test calls each store action — NOT that the call is ASSERTED.
+Every NEW `#state` action / projection / non-trivial behavior gets an assertion in the test that drives it (assert
+the resulting store state — a dual-write writes BOTH channels). Old tests passing ≠ new behavior tested.
 
 **Coverage: REPORT-ONLY.** v8 provider, `pnpm test:coverage`, NEVER inside `pnpm check`; no `thresholds` block until a real baseline exists — then pin GLOBAL thresholds and ratchet UP as a backslide floor. For "do these tests catch bugs?" use mutation testing (§9), not a coverage number.
 

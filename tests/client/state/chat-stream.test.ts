@@ -337,11 +337,9 @@ describe("chatStream rAF-batched token accumulation (task #20 — frame-cadence 
   });
 });
 
-// `isLiveTurnPhase` is the render side's half of the slot machine, and it shipped referenced by ZERO test in
-// this mirror until #619 repaired clause C of `test-presence-client` (the clause resolved `.ct.tsx` only, so
-// this `.test.ts`-mirrored store was never judged). The partition is written as a TOTAL Record rather than a
-// list of cases on purpose: a new `TurnSlot` phase then fails tsc here until someone decides which side of
-// the live/not-live line it falls on — which is the decision the ghost row depends on.
+// `isLiveTurnPhase` is the render side's half of the slot machine. The partition is written as a TOTAL Record
+// rather than a list of cases on purpose: a new `TurnSlot` phase then fails tsc here until someone decides
+// which side of the live/not-live line it falls on — which is the decision the ghost row depends on.
 const LIVE_BY_PHASE: Record<TurnSlot["phase"], boolean> = {
   idle: false,
   pending: true,
