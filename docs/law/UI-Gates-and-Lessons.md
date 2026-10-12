@@ -94,7 +94,7 @@ The UI enforcement families:
   interactive-role escape hatch), `surface-a11y-focus`, the registry keystones (the
   `modal-/section-/chrome-registry-completeness` trio — the rail derives modal affordances from the
   registry, so the bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
-  client-foundation checks (`no-array-literal-querykey`, `no-inline-invalidate-outside-seam`,
+  client-foundation checks (the `queryKey` selector of `no-restricted-syntax`, `no-inline-invalidate-outside-seam`,
   `bus-on-data-no-store-write`, `no-form-reset-in-autosave`, `persist-partialize-and-total-migrate`).
 - **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
   trio (UI-Theming-and-Content.md §12.6).
@@ -159,7 +159,7 @@ three seams. The three standing rulings (also D43 (1)/(2)/(3)):
 ### 11.1 KEEP-BY-CONSTRUCTION (neo got these right — lock as physics, don't let them re-rot)
 
 - **queryKeys are 100% tRPC-codegen-derived.** All sites are `trpc.X.Y.queryKey()`; zero ad-hoc
-  `queryKey:[...]` arrays. The tRPC proxy IS the key factory. *Gate `no-array-literal-querykey`.*
+  `queryKey:[...]` arrays. The tRPC proxy IS the key factory. *Lint: the `queryKey` selector of `no-restricted-syntax` in `eslint.config.js`.*
 - **The stream/turn lifecycle is the reference — carry it almost verbatim.**
   `applyChatBusEvent(event,deps)` is a pure, extracted, exhaustive switch over a server-authoritative
   discriminated union, node-testable against a real QueryClient with no SSE; the hook is a thin
@@ -301,8 +301,8 @@ Also pinned: `remark-gfm { singleTilde:false }` (else `10~20°C` renders struck-
 (per-message trust selection + `MessageMedia`/`SandboxFrame` dispatch) is in place: `message-row.tsx`
 resolves `render` via `resolveRowRenderPolicy`; `message-content.tsx` dispatches markdown/media/html-card
 per block. The `html-card` and `asset`-media paths are pre-wired, awaiting their producers (card grammar
-needs `cardTrust`; asset needs a resolver and composer attach). *Gates `no-untrusted-html-in-main-dom`,
-`no-external-media-without-gate` (UI-Theming-and-Content.md §12.6).*
+needs `cardTrust`; asset needs a resolver and composer attach). *Gate `no-untrusted-html-in-main-dom`;
+Biome `noRestrictedElements` in `biome.json` for raw media (UI-Theming-and-Content.md §12.6).*
 
 ### 11.7 Sequencing (born-compliant — the non-negotiable)
 

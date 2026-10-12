@@ -87,7 +87,7 @@ The compiler flag catches most of these; **decorators it does NOT catch** — th
 | constructor **parameter properties** (`constructor(public x)`) | generates field assignments | declare the field + assign in the body |
 | `import x = require()` / `export =` | CommonJS, not ESM (also fights `verbatimModuleSyntax`) | `import`/`export` (+ `import type`) |
 | `<T>expr` angle-bracket assertion | not erasable; illegal in `.tsx` anyway | `expr as T` |
-| **decorators — legacy AND Stage-3** ⚙️ | not erasable; node's type-stripping has no decorator runtime → **runtime error**. The `erasableSyntaxOnly` flag does NOT flag them | function composition / zod validation; **NO `reflect-metadata` DI**. Gated by `tooling/src/verify/gates/no-decorators.ts` (the compiler is silent here). |
+| **decorators — legacy AND Stage-3** ⚙️ | not erasable; node's type-stripping has no decorator runtime → **runtime error**. The `erasableSyntaxOnly` flag does NOT flag them | function composition / zod validation; **NO `reflect-metadata` DI**. Gated by the `Decorator` selector of `no-restricted-syntax` in `eslint.config.js` (the compiler is silent here). |
 
 ## 6. Classes vs factory services
 

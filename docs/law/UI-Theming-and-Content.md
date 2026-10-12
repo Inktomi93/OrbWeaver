@@ -130,7 +130,7 @@ The **provider-send model** — what is transmitted *to the model as input* — 
 ### 12.6 Enforcement gates
 
 - **`no-untrusted-html-in-main-dom`** (`tooling/src/verify/gates/`) — a raw/untrusted HTML string may reach ONLY `@orb/ui/sandbox-frame`; never `dangerouslySetInnerHTML` or main-DOM injection.
-- **`no-external-media-without-gate`** (`tooling/src/verify/gates/`) — any raw `<img>`/`<audio>`/`<video>` in a feature must route through `MessageMedia`.
+- **Biome `noRestrictedElements`** (the `packages/client/src/features/**` override in `biome.json`) — any raw `<img>`/`<audio>`/`<video>`/`<source>` in a feature must route through `MessageMedia`.
 - **`theme-override-only-via-scope`** (`tooling/src/verify/gates/`) — a `--color-*` override applies only via `<ThemeScope>` (values clamped at the boundary), never spread as a raw `style` prop.
 - **`over-art-plate-arm`** (`tooling/src/verify/gates/`) — enforces the §12.1 OVER-ART PLATE LAW: a translucent `html[data-blur-*]` surface mixed with `transparent` must have a `[data-has-bg-image]` companion whose `light-dark()` LIGHT branch mixes the SAME tint over `--color-reading-plate` (D144(b)); the plate never applies outside that light branch (D144(d)). The gate is a `defineGate` resource policy: it declares the authored CSS corpus rather than reading stylesheets itself, and an unreadable translucent shape REFUSES rather than passing. An unpaired surface is RED, ordinary authority; only an exact `@orb-waive` at the selector subject waives it, never a gate-owned baseline.
 - **`persistence-boundary`** — synced prefs go in the `user_settings` blob, not raw browser storage (§12.1 PERSISTENCE).

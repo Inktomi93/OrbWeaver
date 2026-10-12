@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(368 registered gates)
+(365 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -185,7 +185,6 @@ in its own module header, never restated here.
 | `modal-registry-completeness` | registry-definitions | ordinary/error | @client | a modal is dishonest: a… |
 | `motion-token-purity` | — | ordinary/error | none | raw motion value in CSS… |
 | `no-arbitrary-tw-values` | tailwind-class-token | ordinary/error | @client,@ui | arbitrary Tailwind value on a… |
-| `no-array-literal-querykey` | — | ordinary/error | @client | inline array-literal queryKey —… |
 | `no-await-db-in-loop` | — | ordinary/error | @authored\* | an awaited Drizzle query runs inside… |
 | `no-banned-tw-utility` | tailwind-class-token | reviewed-grant/error | @client,@ui | a Tailwind utility the house has… |
 | `no-blanket-suppression` | — | hard/error | @authored\* | a FILE-WIDE lint/type suppression —… |
@@ -194,13 +193,10 @@ in its own module header, never restated here.
 | `no-color-literals` | — | ordinary/error | @client,@ui | a hardcoded color class — all three… |
 | `no-context-provider` | react-origin | ordinary/error | @authored | React 19 deprecates \<Context.Provider>… |
 | `no-context-returntype` | — | ordinary/error | @authored\* | ReturnType<> in context.ts — the DI… |
-| `no-decorators` | — | ordinary/error | @authored | decorators are not erasable —… |
-| `no-default-props` | — | ordinary/error | @client,@ui,@server | defaultProps is deprecated in modern… |
 | `no-direct-reports-write` | — | ordinary/error | @tests | a .screenshot({ path }) call in… |
 | `no-direct-useform` | — | reviewed-grant/error | @authored | TanStack Form's raw mint is called… |
 | `no-direct-users-read` | — | reviewed-grant/error | @server\* | the users table is read/written ONLY… |
 | `no-effect-on-shared-selection` | react-origin | reviewed-grant/error | @client\* | an effect keyed on a shared-selection… |
-| `no-external-media-without-gate` | — | ordinary/error | @client\* | raw \<img>/\<video>/\<audio> in a… |
 | `no-fake-disabled-id` | id-brand-flow | ordinary/error | @client | empty-string branded id creates a… |
 | `no-floorless-control-in-wrap` | floorless-control | ordinary/error | @client,@ui | a floorless-size Button… |
 | `no-form-reset-in-autosave` | editor-form-factory | ordinary/error | @client | reset() survives on an autosave form… |
@@ -219,7 +215,7 @@ in its own module header, never restated here.
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests\* | exported type/zod-schema outside a… |
 | `no-inline-union-alias` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
-| `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data interface outside… |
+| `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
 | `no-interactive-role-in-features` | — | ordinary/error | @client\* | hand-rolled interactive ARIA role in… |
 | `no-layout-context-props` | — | ordinary/error | @client,@ui | layout-context prop (compact/inDrawer/… |
 | `no-legacy-react-api` | react-origin | ordinary/error | @authored | a legacy React API: cloneElement,… |

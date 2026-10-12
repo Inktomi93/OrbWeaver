@@ -35,7 +35,7 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
 
 ## 10. The data/ tier — the whole surface, not just the factories
 
-- **`trpc.ts`** — the typed client + `useTRPC`; queryKeys are 100% proxy-derived (`no-array-literal-querykey`, LIVE).
+- **`trpc.ts`** — the typed client + `useTRPC`; queryKeys are 100% proxy-derived (the `queryKey` selector of `no-restricted-syntax` in `eslint.config.js`).
 - **`query-client.ts`** — the §6.1 QueryClient pins have ONE home here (verified header): `staleTime: Infinity` (the bus drives freshness — never `'static'`), `refetchOnReconnect: true` (SSE-gap catch-up), `refetchOnWindowFocus: false`, mutations `retry: 0`, global error toasts via `QueryCache`/`MutationCache` `onError` reading `meta.errorToast`. Do not re-tune these per-surface.
 - **The HTTP-route fetch-fn pattern:** endpoints that are Hono routes, not tRPC (multipart/binary), get ONE `data/` fetch fn each — `upload-asset.ts` (the one client seam for persisting a picked file), `import-tree.ts` (folder import → `202 {workloadId}`), `import-bundle.ts`, `import-characters.ts`, sharing `http-error.ts` (`throwHttpError`) + the `CSRF_HEADER`. Rule: tRPC for everything except multipart/binary/streaming-HTTP; an HTTP route consumed anywhere gets a `data/` fetch fn — a feature never hand-writes `fetch()` (R5).
 - **One canonical "who am I" composer** owns identity: it composes the already-cached `sessions.me` + settings + persona-list reads so every caller dedupes on the shared cache. A scattered `trpc.sessions.me` read for identity is the wrong move (the settings host's plain role read is the sanctioned exception class: a non-suspense probe that must never block its shell).
@@ -94,7 +94,7 @@ question that selects it.
 | # | Channel | Home | Enforced by | When it is the choice |
 | - | - | - | - | - |
 | 1 | state commons — narrow hooks + intent-named module actions | `state/*` | `state-files`, both selector guards, `no-effect-on-shared-selection`, `client-state-below-data` | client-ephemeral cross-cutting state: selection, panel modes, drafts, filters |
-| 2 | tRPC query cache, cache-first | `trpc.*` queryOptions; `staleTime: Infinity` + bus freshness | `no-array-literal-querykey`, `no-static-staletime`, G9 seals | another feature's server-persisted entity — the router IS the cross-feature contract (D43(3)) |
+| 2 | tRPC query cache, cache-first | `trpc.*` queryOptions; `staleTime: Infinity` + bus freshness | the `queryKey` selector of `no-restricted-syntax`, `no-static-staletime`, G9 seals | another feature's server-persisted entity — the router IS the cross-feature contract (D43(3)) |
 | 2b | `peekQueryData` — hookless sync cache peek | `data/peek-query.ts` | its own header law + `client-cache-surgery-only-in-data` | hookless cache checks for resolution, action decisions or warming; reactive reads and freshness remain query-owned |
 | 2c | door-injected `trpcProxy` into a contributor factory | `main.tsx` `createTrpcProxy(trpcClient, queryClient)` | convention + the door's comments | a contributor whose `when`/resolve logic needs the cache outside render |
 | 3 | total registries (closed vocabulary, tsc-total) | sections · modals · config-groups | G1/G2/G4/G8/G13 + the `Record<Id, Def>` assembly | a member of a closed shell vocabulary |
@@ -212,7 +212,7 @@ state why machine-checking fails and carry the exact checklist.
 | G16 | compose, never paint | ESLint keystone | `className`/`style` on a raw intrinsic in `packages/client/src` (3 exact exemptions, §4). |
 | G17 | token/value discipline | ts-morph | `no-color-literals` family · `no-arbitrary-tw-values` · `no-off-token-radius-shadow` · `no-off-token-inline-style` · `motion-token-purity`. |
 | G18 | state discipline | ts-morph + eslint | `state-files` · `persist-partialize-and-total-migrate` · `no-raw-zustand-persist` · selector-stability pair · `no-effect-on-shared-selection` · static-`setState` ban · `persistence-boundary`. |
-| G19 | data/query discipline | ts-morph | `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `bus-on-data-no-store-write` · `no-fake-disabled-id` · `no-static-staletime` · `no-multiplexed-mutation-error`. |
+| G19 | data/query discipline | ts-morph + eslint | the `queryKey` selector of `no-restricted-syntax` · `no-inline-invalidate-outside-seam` · `bus-on-data-no-store-write` · `no-fake-disabled-id` · `no-static-staletime` · `no-multiplexed-mutation-error`. |
 | G20 | forms discipline | ts-morph | `form-factory-for-multifield` · `no-direct-useform` · `no-form-reset-in-autosave` · `no-form-state-in-useeffect`. |
 | G21 | bus producer coverage | ts-morph | `bus-producer-coverage` — one policy quantified over every guarded bus union. |
 | G22 | structure/size/a11y | ts-morph | `client-structure` · `component-size` · `surface-a11y-focus` · `surface-in-a-container` · `no-raw-interactive-intrinsics` · `empty-state-has-action` · `no-interactive-role-in-features` · `test-presence-client`. |
