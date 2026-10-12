@@ -22,6 +22,8 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import process from "node:process";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
+import type { DebugErrorsResponse, RpgTracesResponse, WireCapturesResponse } from "@orb/contracts/debug";
+import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { BugReportRecord } from "@orb/kit/bug-report";
@@ -246,7 +248,7 @@ export interface AdminAuthChecker {
  *  recorder without importing it (the `AssetInspector` precedent). Returns `object[]` so no rpg type crosses the
  *  boundary; the records serialize straight to JSON. Host-only via the debug gate; read-only (D75). */
 export interface RpgTraceInspector {
-  recent: (filter: { chatId?: ChatId; turnId?: string; limit?: number }) => readonly object[];
+  recent: (filter: { chatId?: ChatId; turnId?: string; limit?: number }) => readonly RpgTraceRecord[];
 }
 
 /** The MEMORY-RECALL flight-recorder read port (#250) — the `RpgTraceInspector` shape, one domain over: the
@@ -444,7 +446,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     });
   }
 
-  app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) }));
+  app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) } satisfies DebugErrorsResponse));
 
   // The WIRE-CAPTURE read (TASK-24): the final provider request body each chat backend sent, filterable by
   // `chatId` (the harness's correlation key) or `backend`. Host-only (this debug gate); read-only, no table.
@@ -470,7 +472,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     };
     const captures = recentWireCaptures(filter);
-    return c.json({ enabled: wireCaptureEnabled(), count: captures.length, captures });
+    return c.json({ enabled: wireCaptureEnabled(), count: captures.length, captures } satisfies WireCapturesResponse);
   });
 
   // The RESPONSE half of the same picture: what each turn actually returned (finish/stop reason, token counts,
@@ -624,7 +626,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
         ...(turnId !== undefined ? { turnId } : {}),
         limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
-      return c.json({ count: events.length, events });
+      return c.json({ count: events.length, events } satisfies RpgTracesResponse);
     });
   }
   if (memoryRecall !== undefined) {

@@ -722,9 +722,9 @@ module.exports = {
     {
       name: "providers-public-surface-only",
       comment:
-        'Code outside @orb/inference may import ONLY its public surface — the package front door (packages/inference/src/index.ts). Reaching INTO a sealed family (backends/<x>), the funnel, the registry or the contract internals is RED: the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/**`, a tree the extraction deleted; the seal that used to need a per-subdir enumeration is now the whole package, because `packages/inference/package.json` exports exactly `".": "./src/index.ts"` — so this stanza is the deep-relative-escape backstop over resolver physics, exactly like `ui-cake`. tests/support is exempt (mock runners instantiate family shapes); tooling is governed by its own narrower half, `tooling-no-provider-families`. (Tier-3b-Providers.md invariants #1/#4, whose body still describes the pre-extraction tree.)',
+        'Code outside @orb/inference may import ONLY its public surface — the package front door (packages/inference/src/index.ts). Reaching INTO a sealed family (backends/<x>), the funnel, the registry or the contract internals is RED: the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/**`, a tree the extraction deleted; the seal that used to need a per-subdir enumeration is now the whole package, because `packages/inference/package.json` exports exactly `".": "./src/index.ts"` — so this stanza is the deep-relative-escape backstop over resolver physics, exactly like `ui-cake`. tooling is governed by its own narrower half, `tooling-no-provider-families`. (Tier-3b-Providers.md invariants #1/#4, whose body still describes the pre-extraction tree.)',
       severity: "error",
-      from: { pathNot: [INFERENCE, "^tests/support/", "^tooling/"] },
+      from: { pathNot: [INFERENCE, "^tooling/"] },
       to: {
         path: INFERENCE,
         pathNot: `${INFERENCE}index\\.ts$`,
