@@ -8,11 +8,13 @@
 // node subtrees (`getDescendantsOfKind` on a function body / statement / expression, never a `SourceFile`) —
 // exactly the shape `verify/lib` exists for; the static `gate:contract` census globs only `gates/*.ts` and
 // cannot see past the receiver to tell a bounded node walk from a repository one.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { TableTarget } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier, readMemberAccess } from "./symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier } from "./symbol-reference.ts";
 
 const OWNER_COL = "ownerId";
 const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
@@ -75,7 +77,7 @@ function tracedTable(identifier: Node, tableIdents: ReadonlySet<string>, seen: S
  *  is the declared export, which is the same string the schema-derived ident sets carry, so no alias trace is
  *  owed here — a namespace member cannot be re-bound the way a local const can. */
 function namespacedTableName(node: Node): string | undefined {
-  const read = readMemberAccess(node);
+  const read = staticMemberAccess(node);
   return read !== undefined && namespaceImportSpecifier(read.receiver) !== undefined ? read.name : undefined;
 }
 
@@ -109,7 +111,7 @@ export function tableTargetOf(node: Node | undefined, classTableIdents: Readonly
  *  is indistinguishable from a `Map.delete` and stays out of the unresolvable arm. */
 export function isDrizzleWriteStatement(anchor: Node): boolean {
   return chainCalls(anchor).some((call) => {
-    const callee = readMemberAccess(call.getExpression());
+    const callee = staticMemberAccess(call.getExpression());
     return callee !== undefined && DRIZZLE_WRITE_CHAIN.has(callee.name);
   });
 }
@@ -120,7 +122,7 @@ export function predicatesTableColumn(predicate: Node, tableIdent: string, colum
   const descendants = MEMBER_ACCESS_KINDS.flatMap((kind) => predicate.getDescendantsOfKind(kind));
   const candidates = MEMBER_ACCESS_KINDS.some((kind) => predicate.isKind(kind)) ? [predicate, ...descendants] : descendants;
   return candidates.some((candidate) => {
-    const read = readMemberAccess(candidate);
+    const read = staticMemberAccess(candidate);
     // The RECEIVER is compared by TEXT rather than required to be an Identifier (#2199): the write target is
     // whatever `tableTargetOf` named it, which for a namespace-spelled table is `schema.characters`. Requiring
     // an identifier receiver here would have ACQUITTED nothing and ACCUSED everything on the namespace side —
@@ -153,7 +155,7 @@ function chainCalls(start: Node): CallExpression[] {
  *  which means a LIST read on the read side and an UNBOUNDED write on the write side; the two halves judge
  *  that differently, so this reader only reports the absence). */
 export function whereArgOf(anchor: Node): Node | undefined {
-  const whereCall = chainCalls(anchor).find((call) => readMemberAccess(call.getExpression())?.name === "where");
+  const whereCall = chainCalls(anchor).find((call) => staticMemberAccess(call.getExpression())?.name === "where");
   return whereCall?.getArguments()[0];
 }
 
@@ -162,7 +164,7 @@ export function whereArgOf(anchor: Node): Node | undefined {
  *  This is the upsert's answer to `whereArgOf`: an upsert's collision is decided by the conflict TARGET (a
  *  unique index) and the optional `targetWhere`/`setWhere`, never by a `.where` on the statement. */
 export function upsertConfigOf(anchor: Node): Node | undefined {
-  const upsertCall = chainCalls(anchor).find((call) => readMemberAccess(call.getExpression())?.name === "onConflictDoUpdate");
+  const upsertCall = chainCalls(anchor).find((call) => staticMemberAccess(call.getExpression())?.name === "onConflictDoUpdate");
   return upsertCall?.getArguments()[0];
 }
 

@@ -10,7 +10,7 @@
 // no-off-token-inline-style(<position>): <reason>` at the exact offending property, not a re-grown file
 // table. FAMILY: singleton — this policy's own logic is intent (which token-backed property, which
 // carrier), and it consumes three already-shared `lib/` readers for identity (`unwrapExpression`,
-// `readMemberAccess`, `readNumericConstant`, `readStringConstant` — `lib/ast-read.ts` +
+// `staticMemberAccess`, `readNumericConstant`, `readStringConstant` — `lib/ast-read.ts` +
 // `lib/symbol-reference.ts`), which is exactly the shared-reader boundary the final contract asks for;
 // it has no sibling gate reusing those SAME readers for a related off-token-style intent, so it is not
 // merged with anything.
@@ -30,11 +30,13 @@
 // admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { readMemberAccess, readNumericConstant, readStringConstant } from "../lib/symbol-reference.ts";
+import { readNumericConstant, readStringConstant } from "../lib/symbol-reference.ts";
 
 const MESSAGE =
   "off-token raw-literal inline style (tokens: packages/ui/src/tokens/tokens.json) — a token-backed CSS property " +
@@ -146,13 +148,13 @@ function styleObjectLiterals(attr: Node): Node[] {
 
 /** Is `expr` a `<something>.style` member access (`el.style`, `ref.current.style`, `el["style"]`)? */
 function isStyleAccess(expr: Node): boolean {
-  return readMemberAccess(expr)?.name === "style";
+  return staticMemberAccess(expr)?.name === "style";
 }
 
 /** Is `lhs` a `<expr>.style.<token-prop>` member access (the assignment-target shape), in either member
  *  spelling — `el.style.margin` and `el.style["margin"]` set the same declaration (#1506). */
 function isStyleTokenTarget(lhs: Node): boolean {
-  const read = readMemberAccess(lhs);
+  const read = staticMemberAccess(lhs);
   return read !== undefined && isStyleAccess(read.receiver) && TOKEN_BACKED_PROPS.has(read.name);
 }
 
@@ -180,7 +182,7 @@ function isSetPropertyOffender(call: Node): boolean {
   if (!call.isKind(SyntaxKind.CallExpression)) {
     return false;
   }
-  const callee = readMemberAccess(call.getExpression());
+  const callee = staticMemberAccess(call.getExpression());
   if (callee === undefined || callee.name !== "setProperty" || !isStyleAccess(callee.receiver)) {
     return false;
   }

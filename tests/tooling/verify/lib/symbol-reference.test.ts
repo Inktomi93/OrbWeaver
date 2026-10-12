@@ -13,7 +13,6 @@ import {
   moduleMemberReference,
   namedImportLocalNames,
   namespaceImportSpecifier,
-  readMemberAccess,
   readNumericConstant,
   readStringConstant,
   readsMemberNamed,
@@ -35,24 +34,6 @@ function accessesIn(code: string): readonly Node[] {
 function elementsIn(code: string): readonly Node[] {
   return sourceOf(code).getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)[0]?.getElements() ?? [];
 }
-
-test("readMemberAccess reads the SAME member name off every spelling", () => {
-  const reads = accessesIn('export const a = [db.insert, db?.insert, db["insert"], db?.["insert"]];\n').map((n) => readMemberAccess(n)?.name);
-  // THE DEFECT: a `PropertyAccessExpression.getName()` reader answers ["insert","insert",undefined,undefined].
-  expect(reads).toEqual(["insert", "insert", "insert", "insert"]);
-});
-
-test("readMemberAccess resolves a bracket key written as a same-file const, and names the receiver either way", () => {
-  const constKeyed = accessesIn('const KEY = "chatDigests";\nexport const a = schema[KEY];\n').map((n) => readMemberAccess(n));
-  expect(constKeyed.map((r) => r?.name)).toEqual(["chatDigests"]);
-  expect(constKeyed.map((r) => r?.receiver.getText())).toEqual(["schema"]);
-  const bothSpellings = accessesIn('export const a = [schema.chatDigests, schema["chatDigests"]];\n').map((n) => readMemberAccess(n));
-  expect(bothSpellings.map((r) => r?.receiver.getText())).toEqual(["schema", "schema"]);
-});
-
-test("a genuinely DYNAMIC key names no one member — the declared limit is a value, never a silent name", () => {
-  expect(accessesIn("export const a = (k: string) => db[k];\n").map((n) => readMemberAccess(n))).toEqual([undefined]);
-});
 
 test("readsMemberNamed answers a fixed vocabulary across spellings, and refuses a member outside it", () => {
   const writeVerbs = new Set(["insert", "update"]);

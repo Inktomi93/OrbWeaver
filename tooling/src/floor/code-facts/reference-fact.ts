@@ -391,6 +391,18 @@ export function readMemberAccess(node: MorphNode): ReferenceFact<MemberReference
   return readMemberAccessWith(node, { unwrapExpression, readComputedName: (member) => computedName(member, state()) });
 }
 
+/** The member `node` itself reads off a receiver in any of the three spellings (`x.foo`, `x?.foo`,
+ *  `x["foo"]`), or undefined when it names no ONE static member (not a member access, or a dynamic key). A
+ *  name-keyed gate has nothing to judge in that case; callers that need the refusal reason, or want a wrapped
+ *  or qualified-name access read through, call `readMemberAccess`. */
+export function staticMemberAccess(node: MorphNode): MemberReference | undefined {
+  if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
+    return;
+  }
+  const fact = readMemberAccess(node);
+  return fact.kind === "resolved" ? fact.value : undefined;
+}
+
 function declarationOf(identifier: Identifier): ReferenceFact<MorphNode> {
   return uniqueDeclaration(identifier, state());
 }

@@ -4,10 +4,12 @@
 // detector) and `external-id-single-writer-health.ts` (whole-population carve-out proof) both read this module
 // instead of each carrying its own copy — a family means a shared `lib/` reader, never a shared theme
 // (docs/law/gate-runtime-standardization.md).
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
-import { readMemberAccess, readStringConstant, referencesModuleExport } from "./symbol-reference.ts";
+import { readStringConstant, referencesModuleExport } from "./symbol-reference.ts";
 
 const EXTERNAL_ID_KEYS: ReadonlySet<string> = new Set(["externalId", "external_id"]);
 /** The users-row write verbs: the two sessions persistence wrappers + the raw drizzle write surface. An
@@ -104,7 +106,7 @@ export function isExternalIdAssignment(node: Node): boolean {
   if (!node.isKind(SyntaxKind.BinaryExpression) || node.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
     return false;
   }
-  const read = readMemberAccess(node.getLeft());
+  const read = staticMemberAccess(node.getLeft());
   return read !== undefined && EXTERNAL_ID_KEYS.has(read.name) && !isNullish(node.getRight());
 }
 
@@ -136,7 +138,7 @@ export function subjectWriterReference(node: Node, rel: string): { readonly writ
   if (!node.isKind(SyntaxKind.ElementAccessExpression)) {
     return;
   }
-  const read = readMemberAccess(node);
+  const read = staticMemberAccess(node);
   return read !== undefined && SUBJECT_WRITERS.has(read.name) ? { writer: read.name, node: read.nameNode, token: read.nameNode.getText() } : undefined;
 }
 
@@ -146,14 +148,14 @@ export function calledSubjectWriter(node: Node): string | undefined {
     return;
   }
   const callee = unwrapExpression(node.getExpression());
-  const name = callee.isKind(SyntaxKind.Identifier) ? callee.getText() : readMemberAccess(callee)?.name;
+  const name = callee.isKind(SyntaxKind.Identifier) ? callee.getText() : staticMemberAccess(callee)?.name;
   return name !== undefined && SUBJECT_WRITERS.has(name) ? name : undefined;
 }
 
 // Is `node` a `<db>.<verb>(users)` call, with `users` the `@orb/db` table by named, aliased or namespace import?
 function isUsersTableCall(node: Node, verb: string): boolean {
   const call = unwrapExpression(node);
-  if (!call.isKind(SyntaxKind.CallExpression) || readMemberAccess(call.getExpression())?.name !== verb) {
+  if (!call.isKind(SyntaxKind.CallExpression) || staticMemberAccess(call.getExpression())?.name !== verb) {
     return false;
   }
   const table = call.getArguments()[0];
@@ -165,7 +167,7 @@ function usersChainCall(node: Node, method: string, verb: string): { readonly na
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
-  const read = readMemberAccess(node.getExpression());
+  const read = staticMemberAccess(node.getExpression());
   if (read?.name !== method || !isUsersTableCall(read.receiver, verb)) {
     return;
   }
@@ -191,7 +193,7 @@ function persistenceVerbData(call: Node): WriteData {
     return;
   }
   const callee = unwrapExpression(call.getExpression());
-  const read = callee.isKind(SyntaxKind.Identifier) ? { name: callee.getText(), nameNode: callee } : readMemberAccess(callee);
+  const read = callee.isKind(SyntaxKind.Identifier) ? { name: callee.getText(), nameNode: callee } : staticMemberAccess(callee);
   const index = read === undefined ? undefined : USERS_VERB_DATA_ARGUMENT.get(read.name);
   return read === undefined || index === undefined ? undefined : { name: read.nameNode, data: call.getArguments()[index] };
 }
@@ -201,7 +203,7 @@ function upsertSetData(call: Node): WriteData {
   if (!call.isKind(SyntaxKind.CallExpression)) {
     return;
   }
-  const read = readMemberAccess(call.getExpression());
+  const read = staticMemberAccess(call.getExpression());
   if (read?.name !== "onConflictDoUpdate" || usersChainCall(unwrapExpression(read.receiver), "values", "insert") === undefined) {
     return;
   }
@@ -272,7 +274,7 @@ function sqlTagName(node: Node): Node | undefined {
   if (inner.isKind(SyntaxKind.Identifier)) {
     return inner.getText() === SQL_TAG ? inner : undefined;
   }
-  const read = readMemberAccess(inner);
+  const read = staticMemberAccess(inner);
   return read?.name === SQL_TAG ? read.nameNode : undefined;
 }
 
@@ -290,7 +292,7 @@ export function rawUsersWrite(node: Node, rel: string): { readonly node: Node; r
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
-  const read = readMemberAccess(node.getExpression());
+  const read = staticMemberAccess(node.getExpression());
   const tag = read?.name === SQL_RAW ? sqlTagName(read.receiver) : undefined;
   const text = node.getArguments()[0];
   if (tag === undefined || text === undefined) {
@@ -332,7 +334,7 @@ export function externalIdWriteAnchor(node: Node): { readonly node: Node; readon
     const nameNode = node.getNameNode();
     return { node: nameNode, token: nameNode.getText() };
   }
-  const read = readMemberAccess(node.asKindOrThrow(SyntaxKind.BinaryExpression).getLeft());
+  const read = staticMemberAccess(node.asKindOrThrow(SyntaxKind.BinaryExpression).getLeft());
   if (read === undefined) {
     throw new Error("externalIdWriteAnchor: an assignment isExternalIdAssignment accepted has no member read");
   }

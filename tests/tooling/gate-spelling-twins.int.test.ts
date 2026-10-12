@@ -74,16 +74,16 @@
 //     `MEMBER_ACCESS_KINDS` and is narrowed to reads naming the export. Pinned by that policy's own new
 //     namespace `mustFlag` row, and the same door is what closed `no-manual-memo`.
 //   • `query-freshness-coverage` ["bracket"] → GONE — `lib/query-freshness-fact.ts` reads every hop of the
-//     `trpc.<router>.<proc>.<terminal>` chain through `readMemberAccess` on BOTH sides (the consumed read
+//     `trpc.<router>.<proc>.<terminal>` chain through `staticMemberAccess` on BOTH sides (the consumed read
 //     and the seam's coverage filter), and `query-freshness-coverage`'s anchor stopped assuming the authored
 //     text contains the dotted key. Pinned by that policy's new bracket `mustFlag` row AND by its new
 //     bracket-seam `mustPass` row, which is the acquitting half.
 // Both gates keep their BRACKET arm: the chain readers (`chainCalls`, `isDrizzleWriteStatement`) are still
 // property-access-keyed, which is committed, measured blindness rather than growth.
 //
-// The remedy for a red is never a ledger row: it is `tooling/src/verify/lib/symbol-reference.ts`
-// (`readMemberAccess` / `moduleMemberReference` / `readStringConstant`), which resolves a reference however
-// it is spelled.
+// The remedy for a red is never a ledger row: it is `tooling/src/floor/code-facts/reference-fact.ts#staticMemberAccess`
+// or `tooling/src/verify/lib/symbol-reference.ts` (`moduleMemberReference` / `readStringConstant`), which resolve
+// a reference however it is spelled.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";

@@ -22,7 +22,7 @@
 // rather than by summing two halves.
 //
 // THE REMEDY FOR A RED IS NEVER A LEDGER ROW: it is the shared reference reader
-// (`lib/symbol-reference.ts` — `readMemberAccess` / `moduleMemberReference` / `readStringConstant`), which
+// (`floor/code-facts/reference-fact.ts#staticMemberAccess`, `lib/symbol-reference.ts` — `moduleMemberReference` / `readStringConstant`), which
 // resolves a reference however it is spelled.
 //
 // THE ONE DECLARED LIMIT, stated as a SKIP rather than as silence: a `mode: "resource"` proof runs against a

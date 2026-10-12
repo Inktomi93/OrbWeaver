@@ -7,6 +7,8 @@
 // FAMILY: `tooling-os-neutral` — this source policy and `test-executable-mode` share the canonical case/message
 // vocabulary in `lib/os-neutral.ts`. POPULATION: new;
 // `docker/*.sh` runs only in the Linux container and `.claude/hooks` is not TypeScript. RETIRED MARKERS: none.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { OsNeutralCase } from "../contract/os-neutral.ts";
@@ -28,7 +30,7 @@ import {
   pairKey,
 } from "../lib/os-neutral.ts";
 import { classifyProjectHomeOrigin, locateProjectHome, readPackageExportOrigin } from "../lib/project-home-origin.ts";
-import { readMemberAccess, readStringConstant } from "../lib/symbol-reference.ts";
+import { readStringConstant } from "../lib/symbol-reference.ts";
 
 /** The platform module: the spawns and openers, and the leaf that holds the `/proc` and `/sys` reads. */
 const PLATFORM_HOME: ReadonlySet<string> = new Set(["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts"]);
@@ -157,7 +159,7 @@ export const gate = defineGate({
       if (!call.isKind(SyntaxKind.CallExpression)) {
         return;
       }
-      const member = readMemberAccess(call.getExpression());
+      const member = staticMemberAccess(call.getExpression());
       const [separator] = call.getArguments();
       if (member?.name === SPLIT && separator !== undefined && isNewlineSeparator(separator)) {
         report(separator, "newline-split");

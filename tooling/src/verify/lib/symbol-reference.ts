@@ -12,9 +12,12 @@
 //   • AN IDENTIFIER STANDING FOR A LITERAL — `role={ROLE}` / `margin: -8` are not StringLiteral /
 //     NumericLiteral nodes, so a literal-kind check reads them as "not my subject".
 // Every reader here only ever WIDENS what a gate detects; none can turn a live finding into a pass.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { MemberReference } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
-import type { MemberRead, ModuleMemberReference } from "../contract/symbol-reference.ts";
+import type { ModuleMemberReference } from "../contract/symbol-reference.ts";
 import { declarationsNamed, readStringValue, unwrapExpression } from "./ast-read.ts";
 
 /** The node kinds a gate MUST subscribe to so that no spelling of a member read escapes it. Subscribing to
@@ -80,29 +83,10 @@ export function readNumericConstant(node: Node, hopsLeft: number = IDENTIFIER_HO
   return initializer === undefined ? undefined : readNumericConstant(initializer, hopsLeft - 1);
 }
 
-/** The member `node` reads off a receiver, whatever the spelling — `x.foo`, `x?.foo`, `x["foo"]`,
- *  `x?.["foo"]`, `x[KEY]` with a same-file `const KEY = "foo"`. `undefined` when the node is not a member
- *  access, or when the bracket argument is a genuinely dynamic value (a computed key names no ONE member,
- *  so there is nothing for a name-keyed gate to judge — the DECLARED LIMIT of this reader). */
-export function readMemberAccess(node: Node): MemberRead | undefined {
-  if (TsNode.isPropertyAccessExpression(node)) {
-    return { name: node.getName(), receiver: node.getExpression(), nameNode: node.getNameNode(), access: node };
-  }
-  if (!TsNode.isElementAccessExpression(node)) {
-    return;
-  }
-  const argument = node.getArgumentExpression();
-  if (argument === undefined) {
-    return;
-  }
-  const name = readStringConstant(argument);
-  return name === undefined ? undefined : { name, receiver: node.getExpression(), nameNode: argument, access: node };
-}
-
 /** Does the member read at `node` name one of `names`, however spelled? The one-line door for a gate whose
  *  subject is a fixed member vocabulary (`.insert`/`.update`/`.delete`, `.state`, `.printResult`). */
-export function readsMemberNamed(node: Node, names: ReadonlySet<string>): MemberRead | undefined {
-  const read = readMemberAccess(node);
+export function readsMemberNamed(node: Node, names: ReadonlySet<string>): MemberReference | undefined {
+  const read = staticMemberAccess(node);
   return read !== undefined && names.has(read.name) ? read : undefined;
 }
 
@@ -195,7 +179,7 @@ export function moduleMemberReference(node: Node, matchesSpecifier: (specifier: 
     const specifier = declaration?.getModuleSpecifierValue();
     return specifier !== undefined && matchesSpecifier(specifier) ? { kind: "named-import", name: node.getName(), specifier, node } : undefined;
   }
-  const read = readMemberAccess(node);
+  const read = staticMemberAccess(node);
   if (read === undefined) {
     return;
   }

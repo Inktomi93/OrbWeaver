@@ -3,10 +3,10 @@
 // AST-safe. Local implementations pass; unreadable signatures fail closed. Dynamic reflection is not covered.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import { resolveGlobalMemberOrigin, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyPackageMemberOrigin, readsAmbientGlobalPath, uncastPropertyDeclaredByPackage } from "../lib/project-home-origin.ts";
-import { readMemberAccess, readStringConstant } from "../lib/symbol-reference.ts";
+import { readStringConstant } from "../lib/symbol-reference.ts";
 import { resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
 
 const MUTATORS: ReadonlySet<string> = new Set(["pushState", "replaceState"]);
@@ -18,7 +18,7 @@ const UNREADABLE = `this history mutation capture cannot be established as brows
 
 function capturedMutation(node: MorphNode): string | undefined {
   if (!Node.isBindingElement(node)) {
-    return readMemberAccess(node)?.name;
+    return staticMemberAccess(node)?.name;
   }
   const key = node.getPropertyNameNode() ?? node.getNameNode();
   if (Node.isIdentifier(key)) {

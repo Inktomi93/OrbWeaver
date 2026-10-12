@@ -12,6 +12,7 @@ import {
   resolveLexicalValueDeclaration,
   resolveModuleMemberOrigin,
   resolveStableExpression,
+  staticMemberAccess,
 } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
@@ -508,4 +509,31 @@ test("member syntax admits writes while the value-read door still refuses them",
     expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "bar" }) }),
   ]);
   expect(accesses.map((access) => readMemberReference(access))).toEqual(accesses.map(() => expect.objectContaining({ kind: "unresolved", reason: "write" })));
+});
+
+function memberAccessesIn(code: string): readonly Node[] {
+  return sourceOf(code)
+    .getDescendants()
+    .filter((node) => node.isKind(SyntaxKind.PropertyAccessExpression) || node.isKind(SyntaxKind.ElementAccessExpression));
+}
+
+test("staticMemberAccess names the same member off every spelling, with its receiver", () => {
+  const reads = memberAccessesIn('export const a = [db.insert, db?.insert, db["insert"], db?.["insert"]];\n').map((node) => staticMemberAccess(node));
+  expect(reads.map((read) => read?.name)).toEqual(["insert", "insert", "insert", "insert"]);
+  expect(reads.map((read) => read?.receiver.getText())).toEqual(["db", "db", "db", "db"]);
+});
+
+test("staticMemberAccess reads the node's own access, never a wrapper or a type qualified name", () => {
+  const sf = sourceOf("export const a = (test.only);\nexport type T = Ns.Member;\n");
+  const wrapper = sf.getDescendantsOfKind(SyntaxKind.ParenthesizedExpression)[0];
+  const qualified = sf.getDescendantsOfKind(SyntaxKind.QualifiedName)[0];
+  expect([wrapper, qualified].map((node) => (node === undefined ? "missing" : staticMemberAccess(node)))).toEqual([undefined, undefined]);
+  expect(wrapper === undefined ? "missing" : readMemberAccess(wrapper)).toMatchObject({ kind: "resolved" });
+});
+
+test("staticMemberAccess resolves a const-named bracket key and refuses a dynamic one", () => {
+  expect(memberAccessesIn('const KEY = "chatDigests";\nexport const a = schema[KEY];\n').map((node) => staticMemberAccess(node)?.name)).toEqual([
+    "chatDigests",
+  ]);
+  expect(memberAccessesIn("export const a = (k: string) => db[k];\n").map((node) => staticMemberAccess(node))).toEqual([undefined]);
 });
