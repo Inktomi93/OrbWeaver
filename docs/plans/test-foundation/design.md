@@ -92,9 +92,9 @@ The fact store is built once per world program, updated from file changes and pe
 
 Retrofits inside legacy test files (vanity aliases, casts, waiver bookkeeping, file splits) leave with those files.
 
-### Not yet decided
+### Tests mirror directories, not files
 
-- Whether presence by reach (test-reach, test-layout) stays in the core once tests are rebuilt on real seams. Default: keep it, run it in CI.
+By owner ruling (item 899), tests live in the directory that mirrors their feature and are named for the behaviour they prove; there is no one-to-one file mirror. A module has a test when a test reaches it through the import graph or names it in an `@subject` header; a mock or a type-only import is not reach. `test-layout` checks the directory and `test-reach` checks presence, and both stay in the core. Rebuilt tests drive the product through public entries, so `test-reach` credits the module a test drives through that entry, never every module the composed graph happens to import.
 
 ## Rejected
 
