@@ -157,8 +157,67 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "#generationOrThrow`" },
       why: "EXPORTED THROUGH THE EXPORT LIST: the production function carries no `export` keyword and leaves under another name. The module's export table is the evidence, not the declaration's modifier",
     },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]: `export function requireGeneration(capability: Capability): Generation {\n${GENERATION_BODY("capability", "generation", "input")}}\n`,
+        "tests/inference/capability/synthesize.test.ts": `export function generationOf(cap?: Capability): Generation {\n${GENERATION_BODY("cap", "gen", "entry")
+          .replace("cap.kind !==", "(cap as Capability).kind !==")
+          .replace("gen.inputs", "gen!.inputs")
+          .replace("return gen;", "return gen satisfies Generation;")}}\n`,
+      },
+      expect: { count: 1, messageIncludes: "#requireGeneration`" },
+      why: "TYPE-LEVEL SYNTAX IS NOT A DIFFERENCE: the copy adds `as`, `!`, `satisfies` and an optional parameter, none of which changes what runs",
+    },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]: "export const pick = (row: Row): number => (row.ok ? compute(row.a) : fallback(row.b));\n",
+        "tests/inference/capability/synthesize.test.ts": "export function choose(r: Row): number {\n  return r.ok ? compute(r.a) : fallback(r.b);\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "#pick`" },
+      why: "A BLOCK THAT ONLY RETURNS is the expression body it returns: switching between the two spellings is no copy-proofing",
+    },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]: "export const depth = (node: Tree): number => (node.parent === undefined ? 0 : depth(node.parent) + 1);\n",
+        "tests/inference/capability/synthesize.test.ts": "export const levelOf = (n: Tree): number => (n.parent === undefined ? 0 : levelOf(n.parent) + 1);\n",
+      },
+      expect: { count: 1, messageIncludes: "#depth`" },
+      why: "A RENAMED RECURSIVE ARROW calls itself under its own new name; the name a function calls itself by is its own binding, not a free name",
+    },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]: `export function requireGeneration(capability: Capability): Generation {\n${GENERATION_BODY("capability", "generation", "input")}}\n`,
+        "tests/inference/capability/synthesize.test.ts": `export function generationOf(cap: Capability): Generation {\n${GENERATION_BODY("cap", "gen", "entry").replace("cap.kind !==", 'cap["kind"] !==')}}\n`,
+      },
+      expect: { count: 1, messageIncludes: "#requireGeneration`" },
+      why: 'THE BRACKET SPELLING: `cap["kind"]` reads the same member as `cap.kind`, so a copy that respells the access is the same copy',
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]:
+          "export function totals(rows: readonly number[]): object {\n  const id = rows.length;\n  const total = sum(rows);\n  return { id, total };\n}\n",
+        "tests/inference/capability/synthesize.test.ts":
+          "export function totalsOf(rows: readonly number[]): object {\n  const name = rows.length;\n  const total = sum(rows);\n  return { name, total };\n}\n",
+      },
+      why: "A SHORTHAND KEY IS A PROPERTY NAME: `{ id, total }` and `{ name, total }` build different objects, so the key stays a free name while its value is a slot",
+    },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]:
+          "export const ids = (rows: readonly Row[]): readonly string[] => rows.map((row) => row.id);\nexport const aad = (owner: string, provider: string): string => `${owner}|${provider}|${owner.length}`;\n",
+        "tests/inference/capability/synthesize.test.ts":
+          "export const idsOf = (list: readonly Row[]): readonly string[] => list.map((item) => item.id);\nexport const claimKey = (user: string, source: string): string => `${user}|${source}|${user.length}`;\n",
+      },
+      why: "BELOW THE SUBSTANCE FLOOR: one projection or one template is an idiom two authors write alike; a copied rule calls, branches or throws more than once",
+    },
     {
       mode: "types",
       files: {

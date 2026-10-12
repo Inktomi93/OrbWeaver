@@ -48,6 +48,7 @@
 // ignored-path, blindness, and real-tree controls.
 import { extname } from "node:path";
 import type { SourceFile } from "ts-morph";
+import { blankSpan } from "../../floor/code-facts/blank-span.ts";
 import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
@@ -237,7 +238,7 @@ function judgeText(text: string, lineComments: boolean): readonly Blanket[] {
     if (directive !== null) {
       sites.unshift({ line: lineAt(text, span.pos), token: directive.token, rule: directive.rule, block: !span.text.startsWith("//") });
     }
-    blanked = blanked.slice(0, span.pos) + span.text.replace(/[^\n]/gu, " ") + blanked.slice(span.end);
+    blanked = blankSpan(blanked, span.pos, span.end);
   }
   const codeLines = blanked.split(/\r?\n/u).flatMap((l, i) => (l.trim() === "" ? [] : [i + 1]));
   const first = codeLines[0];

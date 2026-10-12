@@ -1,18 +1,18 @@
 // Policy: test-hand-shape (docs/law/Spine-Testing.md §10, "Derive types") — e2e code and test support modules may not
-// hand-declare an object shape production owns: an interface or type-literal alias named as a type a production module
-// exports, or whose fields copy one exported shape (`lib/contract-structural-copy.ts`). Derived aliases pass.
-// FAMILY `contract-derives-not-respells`: the structural arm is that family's reader, over the test tree.
-// Existing hand shapes are reviewed-grant rows in `lib/reviewed-grants-test-hand-shape.ts`.
+// hand-declare an object shape production owns: an interface or type-literal alias whose fields copy one exported
+// shape, or that kept most of an exported shape's field names after drifting (`lib/contract-structural-copy.ts`).
+// Judged by fields, never by name; derived aliases pass. FAMILY `contract-derives-not-respells` (both matchers are its
+// reader). Existing hand shapes are reviewed-grant rows in `lib/reviewed-grants-test-hand-shape.ts`.
 import type { InterfaceDeclaration, SourceFile, TypeAliasDeclaration } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ContractFieldShape } from "../lib/contract-structural-copy.ts";
-import { bestCopyMatch, candidateFields, contractFields, indexByField } from "../lib/contract-structural-copy.ts";
+import type { ContractFieldShape, StructuralCopyMatch } from "../lib/contract-structural-copy.ts";
+import { bestCopyMatch, bestOverlapMatch, candidateFields, contractFields, indexByField } from "../lib/contract-structural-copy.ts";
 
 const TESTS = "tests/";
 const E2E = "tests/e2e/";
-const NAME_OPERATION = "respells";
+const OVERLAP_OPERATION = "overlaps";
 const COPY_OPERATION = "copies";
 const LAW = "(docs/law/Spine-Testing.md §10)";
 const MESSAGE = `a test support or e2e module hand-declares a shape production owns, so a renamed or retyped field still compiles here and drifts silently ${LAW}.`;
@@ -22,6 +22,8 @@ const FIX =
 const WIRE_CAPTURE_HOME = "packages/server/src/foundation/observability/debug/wire-capture.ts";
 const MESSAGES_HOME = "packages/contracts/src/chat/message-pages.ts";
 const E2E_HELPER = "tests/e2e/support/trpc.ts";
+const WIRE_CAPTURE = (provider: string, extra: string): string =>
+  `export interface WireCapture {\n  readonly chatId: string;\n  readonly api: string;\n  readonly ${provider}: string;\n  readonly model: string;\n  readonly body: string;\n  ${extra}}\n`;
 const MESSAGES_PAGE = (name: string): string =>
   `export interface ${name} {\n  readonly chatId: string;\n  readonly items: readonly string[];\n  readonly nextCursor: string | null;\n  readonly total: number;\n}\n`;
 
@@ -47,6 +49,28 @@ function exportedShapes(sourceFile: SourceFile): readonly (readonly [string, Han
   );
 }
 
+interface HandShapeVerdict {
+  readonly match: StructuralCopyMatch;
+  readonly relation: string;
+  readonly operation: string;
+}
+
+/** A whole-field copy first; failing that, a drifted copy that kept most of an export's field names. */
+function handShapeVerdict(node: HandShape, index: ReadonlyMap<string, readonly ContractFieldShape[]>): HandShapeVerdict | undefined {
+  const own = candidateFields(N.isInterfaceDeclaration(node) ? node : node.getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeLiteral));
+  if (own === undefined) {
+    return;
+  }
+  const copy = bestCopyMatch(own, index);
+  if (copy !== undefined) {
+    return { match: copy, relation: `declares ${String(copy.shared)} of the fields of`, operation: COPY_OPERATION };
+  }
+  const overlap = bestOverlapMatch(own, index);
+  return overlap === undefined
+    ? undefined
+    : { match: overlap, relation: `shares ${String(overlap.shared)} of its ${String(own.size)} field names with`, operation: OVERLAP_OPERATION };
+}
+
 export const gate = defineGate({
   id: "test-hand-shape",
   family: "contract-derives-not-respells",
@@ -61,8 +85,6 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    // Every production file exporting a type under one name; the first, in corpus order, keys the grant.
-    const byName = new Map<string, string[]>();
     const fields: ContractFieldShape[] = [];
     const candidates: { readonly node: HandShape; readonly file: string }[] = [];
     return {
@@ -72,7 +94,6 @@ export const gate = defineGate({
           return;
         }
         for (const [name, declaration] of exportedShapes(sourceFile)) {
-          byName.set(name, [...(byName.get(name) ?? []), file]);
           const shape = contractFields(declaration);
           if (shape !== undefined) {
             fields.push({ name, file, fields: shape });
@@ -91,30 +112,18 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
-        ctx.receipt({ kind: "population", source: "production-exported-shapes", members: byName.size });
+        ctx.receipt({ kind: "population", source: "production-exported-shapes", members: fields.length });
         const index = indexByField(fields);
         for (const { node, file } of candidates) {
-          const name = node.getName();
-          const anchor = { token: name, offset: 0 } as const;
-          const [owner, ...others] = byName.get(name) ?? [];
-          if (owner !== undefined) {
+          const verdict = handShapeVerdict(node, index);
+          if (verdict !== undefined) {
+            const name = node.getName();
             ctx.report.node(node.getNameNode(), {
-              ...anchor,
-              message: `\`${name}\` is the name of a type ${[owner, ...others].join(", ")} exports. ${MESSAGE}`,
+              token: name,
+              offset: 0,
+              message: `\`${name}\` ${verdict.relation} \`${verdict.match.contract.name}\` (${verdict.match.contract.file}). ${MESSAGE}`,
               subject: file,
-              operation: `${NAME_OPERATION}:${name}=${owner}`,
-            });
-            continue;
-          }
-          const own = N.isInterfaceDeclaration(node) ? node : node.getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeLiteral);
-          const ownFields = candidateFields(own);
-          const match = ownFields === undefined ? undefined : bestCopyMatch(ownFields, index);
-          if (match !== undefined) {
-            ctx.report.node(node.getNameNode(), {
-              ...anchor,
-              message: `\`${name}\` declares ${String(match.shared)} of the fields of \`${match.contract.name}\` (${match.contract.file}). ${MESSAGE}`,
-              subject: file,
-              operation: `${COPY_OPERATION}:${name}=${match.contract.file}#${match.contract.name}`,
+              operation: `${verdict.operation}:${name}=${verdict.match.contract.file}#${verdict.match.contract.name}`,
             });
           }
         }
@@ -125,12 +134,12 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [WIRE_CAPTURE_HOME]: "export interface WireCapture {\n  readonly providerId: string;\n  readonly url: string;\n}\n",
-        [E2E_HELPER]: "export interface WireCapture {\n  readonly backend: string;\n  readonly url: string;\n}\n",
+        [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", "readonly at: number;\n"),
+        [E2E_HELPER]: WIRE_CAPTURE("backend", ""),
       },
-      expect: { count: 1, token: "WireCapture", messageIncludes: "is the name of a type" },
-      grant: { subject: E2E_HELPER, operation: `respells:WireCapture=${WIRE_CAPTURE_HOME}` },
-      why: "THE FOUNDING DRIFT: the e2e mirror of the server's capture says `backend` where the server sends `providerId`, so no field-set comparison sees it. The declared name owned by a production export is the evidence",
+      expect: { count: 1, token: "WireCapture", messageIncludes: "shares 4 of its 5 field names with `WireCapture`" },
+      grant: { subject: E2E_HELPER, operation: `overlaps:WireCapture=${WIRE_CAPTURE_HOME}#WireCapture` },
+      why: "THE FOUNDING DRIFT: the e2e mirror of the server's capture says `backend` where the server sends `providerId`, so the subset match misses it. Four of its five field names are the export's, and that overlap, not the shared name, is the evidence",
     },
     {
       mode: "types",
@@ -139,24 +148,24 @@ export const gate = defineGate({
         "tests/client/features/chat/_ct-stories.tsx": MESSAGES_PAGE("PageRows"),
       },
       expect: { count: 1, token: "PageRows", messageIncludes: "of the fields of `MessagesPage`" },
-      why: "THE RENAMED COPY: a story module declares a contract's fields under a name production never exports, which only the structural arm sees",
+      why: "THE RENAMED COPY: a story module declares a contract's fields under a name production never exports",
     },
     {
       mode: "types",
       files: {
-        [WIRE_CAPTURE_HOME]: "export interface WireCapture {\n  readonly providerId: string;\n}\n",
+        [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", ""),
         "tests/e2e/rpg-lite-loop.spec.ts":
-          "type WireCapture = { readonly backend: string };\nexport const read = (capture: WireCapture): string => capture.backend;\n",
+          "type Capture = { readonly chatId: string; readonly api: string; readonly backend: string; readonly model: string; readonly body: string };\nexport const read = (capture: Capture): string => capture.backend;\n",
       },
-      expect: { count: 1, token: "WireCapture", messageIncludes: "is the name of a type" },
-      why: "a local type-literal alias inside an e2e spec is the same hand shape as an interface in its helper",
+      expect: { count: 1, token: "Capture", messageIncludes: "shares 4 of its 5 field names" },
+      why: "a local type-literal alias inside an e2e spec is the same hand shape as an interface in its helper, whatever it is called",
     },
   ],
   mustPass: [
     {
       mode: "types",
       files: {
-        [WIRE_CAPTURE_HOME]: "export interface WireCapture {\n  readonly providerId: string;\n}\n",
+        [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", ""),
         [E2E_HELPER]: `import type { WireCapture as ServerCapture } from "../../../${WIRE_CAPTURE_HOME}";\nexport type WireCapture = Pick<ServerCapture, "providerId">;\nexport interface Capture extends ServerCapture {\n  readonly seen: boolean;\n}\n`,
       },
       why: "DERIVED SHAPES PASS: an alias over the production type and an interface extending it follow every production change",
@@ -164,20 +173,19 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [WIRE_CAPTURE_HOME]: "export interface WireCapture {\n  readonly providerId: string;\n}\n",
-        "tests/client/features/chat/capture.ct.tsx":
-          "interface WireCapture {\n  readonly backend: string;\n}\nexport const read = (capture: WireCapture): string => capture.backend;\n",
+        [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", ""),
+        [E2E_HELPER]:
+          "export interface WireCapture {\n  readonly id: string;\n  readonly title: string;\n  readonly accent: string;\n  readonly custom: boolean;\n}\n",
       },
-      why: "POPULATION: a test file outside e2e is not a support module; this policy judges the shared helpers many tests import",
+      why: "A NAME IS NOT A SHAPE: the helper reuses a production type's name for an unrelated row, and no field ties it to the export",
     },
     {
       mode: "types",
       files: {
-        [WIRE_CAPTURE_HOME]:
-          "interface WireCapture {\n  readonly providerId: string;\n}\nexport interface CaptureUrl {\n  readonly url: string;\n}\nexport const capture = (row: WireCapture): string => row.providerId;\n",
-        [E2E_HELPER]: "export interface WireCapture {\n  readonly backend: string;\n}\n",
+        [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", ""),
+        "tests/client/features/chat/capture.ct.tsx": `${WIRE_CAPTURE("backend", "")}export const read = (capture: WireCapture): string => capture.backend;\n`,
       },
-      why: "a production type the module never exports owns no name a test could import",
+      why: "POPULATION: a test file outside e2e is not a support module; this policy judges the shared helpers many tests import",
     },
   ],
 });

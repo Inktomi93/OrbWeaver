@@ -2,6 +2,7 @@
 // syntax facts preserve the legacy direct-export, literal-color and JSX-tag observation boundaries.
 import type { ExportDeclaration, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { blankSpan } from "../../floor/code-facts/blank-span.ts";
 import { defineFact } from "../contract/fact.ts";
 import { blankTsComments } from "./comment-spans.ts";
 import { testNarrationSpans } from "./test-narration.ts";
@@ -63,7 +64,7 @@ export const uiPrimitiveFact = defineFact({
           const code = blankTsComments(row.source);
           let colorText = code;
           for (const span of row.spans.sort((a, b) => b.pos - a.pos)) {
-            colorText = colorText.slice(0, span.pos) + colorText.slice(span.pos, span.end).replace(/[^\n]/gu, " ") + colorText.slice(span.end);
+            colorText = blankSpan(colorText, span.pos, span.end);
           }
           // These are direct source declarations, not descendant walks. This deliberately matches the
           // legacy variants-file grammar, including its literal tv callee rather than inferred aliases.

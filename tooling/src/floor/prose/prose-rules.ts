@@ -7,6 +7,7 @@
 // and an owner-voice section. Frontmatter is data (its `updated:` is the one sanctioned date), code and
 // path literals quote the codebase exactly, a link target is a path, and the owner's own words are exempt
 // from the plain style. They are blanked to spaces (newlines kept) so a finding still reports its real line.
+import { blankText } from "../code-facts/blank-span.ts";
 
 const FENCE_PATTERN = /^\s*(```|~~~)/u;
 const FRONTMATTER_FENCE = "---";
@@ -34,10 +35,6 @@ const COUNT_RULE = { label: "an inventory count", pattern: /\b\d[\d,]* (?:files|
  *  allowed, so the glossary, not this list, decides what counts as house vocabulary. */
 export const BANNED_INSTRUCTION_WORDS: readonly string[] = ["load-bearing", "belt", "fence", "arm", "lens", "receipt", "rung"];
 
-function blank(text: string): string {
-  return text.replace(/[^\n]/gu, " ");
-}
-
 /** The file with every non-prose region blanked in place. Line numbers survive. */
 export function proseOnly(source: string): string {
   const out: string[] = [];
@@ -47,7 +44,7 @@ export function proseOnly(source: string): string {
   for (const [index, line] of source.split(/\r?\n/u).entries()) {
     if (inFrontmatter) {
       inFrontmatter = index === 0 || line !== FRONTMATTER_FENCE;
-      out.push(blank(line));
+      out.push(blankText(line));
       continue;
     }
     if (line.includes(OWNER_VOICE_OPEN)) {
@@ -57,15 +54,15 @@ export function proseOnly(source: string): string {
       if (line.includes(OWNER_VOICE_CLOSE)) {
         inOwnerVoice = false;
       }
-      out.push(blank(line));
+      out.push(blankText(line));
       continue;
     }
     if (FENCE_PATTERN.test(line)) {
       inFence = !inFence;
-      out.push(blank(line));
+      out.push(blankText(line));
       continue;
     }
-    out.push(inFence ? blank(line) : line.replace(INLINE_CODE_PATTERN, (match) => blank(match)));
+    out.push(inFence ? blankText(line) : line.replace(INLINE_CODE_PATTERN, (match) => blankText(match)));
   }
   return out.join("\n");
 }
@@ -106,7 +103,7 @@ export function proseFindings(relPath: string, source: string, allowed: Readonly
   proseOnly(source)
     .split(/\r?\n/u)
     .forEach((raw, index) => {
-      const line = raw.replace(LINK_TARGET_PATTERN, (match) => `](${blank(match.slice(2, -1))})`);
+      const line = raw.replace(LINK_TARGET_PATTERN, (match) => `](${blankText(match.slice(2, -1))})`);
       for (const rule of rules) {
         const match = rule.pattern.exec(line);
         if (match !== null) {
