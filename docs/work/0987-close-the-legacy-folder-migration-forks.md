@@ -23,10 +23,10 @@ Each fork has a recorded ruling and matching enforcement or a scoped follow-up. 
 
 ## Evidence
 
-Pending integration, the lane removes legacy reach credit and CPD contamination, updates qualification to `product-v4`, and fixes singleton matrix group identity. Legacy CI jobs and regression files remain unchanged. Focused checker/production-CLI and affected native compiler checks pass. Combined review exposed alias, dynamic-import and republished-binding bypasses; the final binding-specific correction remains under review. Do not treat a completed intermediate commit as landing approval.
+Landed at `c9d9b81bd0`: strict reach excludes legacy evidence, CPD excludes legacy, and qualification uses `product-v4` with correct singleton group identity. Legacy CI jobs and regression files remain unchanged. Focused checker tests and affected native compiler checks pass. Independent named, dynamic-import and republished-binding controls confirm the corrected provenance reader, including strict positive and noncall controls. Filename enforcement and probe ownership remain open.
 
 Exact shrinking filenames remain unresolved: current resources expose current membership, not historical membership. Keep the ceiling until a lawful monotonic Git-boundary check is designed; do not add a private gate baseline.
 
 Script consumers are `reranker-live`, `ollama-window`, `gemini-capabilities`, `caching` and `smart-picker-live`. Their imported inference rigs contain copied rules and fabricated values. Replace them through real probe composition or a genuinely shared transport helper, not by moving fake harnesses into testkit. Record source-specific follow-ups before closure.
 
-At integration, narrow Spine-Testing section 2 so legacy reach is not strict proof. Its other presence and test-id policies are separate subjects. This partial leg does not close the item.
+Spine-Testing section 2 distinguishes strict reach from other presence and test-id populations. The active lane owns the Git-boundary admission design and its isolated controls. This partial leg does not close the item.
