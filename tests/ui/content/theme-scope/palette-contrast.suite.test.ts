@@ -3,8 +3,8 @@
 //   1. a STATIC seed token (tokens.json → theme.css) whose body-text pairing drops below AA 4.5:1;
 //   2. a DERIVATION retune (kit theme-derivation THEME_DERIVATION) that pushes a derived foreground below AA on a
 //      realistic light OR dark base.
-// It recomputes every pairing in HOUSE oklch→sRGB math (no dependency) and reuses the WCAG contrast
-// helpers the design-audit probe already owns. Translucent tokens (the --color-input field fill, 0.12α)
+// It converts every pairing with the kit's `oklchToSrgb`, pinned to published OKLab vectors by the first
+// test below, and measures with the shared WCAG engine. Translucent tokens (the --color-input field fill, 0.12α)
 // are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from @orb/kit/theme-derivation, so both are drift-free single sources.
@@ -31,9 +31,10 @@ import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "#ui/content/theme-scope/clamp.ts";
 import { compositedBase } from "#ui/content/theme-scope/color-parse.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "../../../support/oklab-reference.ts";
 
-// ── House oklch → sRGB (0–255). Standard OKLab matrices; channels clamped to gamut (neutral/low-chroma
-// derived tones never clip, so this matches the browser's resolution of the emitted relative-color). ──
+// ── Token literals → sRGB (0–255) through the kit's gamut-clamped `oklchToSrgb`. Neutral and low-chroma
+// derived tones never clip, so this matches the browser's resolution of the emitted relative-color. ──
 const OKLCH_RE = /oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)/u;
 interface Oklch {
   readonly l: number;
@@ -123,6 +124,15 @@ const REALISTIC_BASES = [...DARK_BASES, ...LIGHT_BASES];
 // Real-world accents a user might pick (saturated, mid-high L — never a pivot-adjacent mid-gray): the
 // three seed accents + a cool/warm spread. primary-foreground must stay legible on every one.
 const ACCENTS = ["oklch(0.72 0.175 52)", "oklch(0.7 0.14 250)", "oklch(0.55 0.16 50)", "oklch(0.5 0.2 25)", "oklch(0.9 0.15 100)"];
+
+// The ruler every measurement below converts with. If the kit's OKLCH decode drifts off the published
+// answers, this fails first and says so, instead of every contrast verdict quietly moving with it.
+test.each(OKLAB_VECTORS.map((vector) => [vector.name, vector] as const))("the suite's oklchToSrgb reproduces the published sRGB of %s", (_name, vector) => {
+  const got = oklchToSrgb(vector.oklch);
+  for (const channel of ["r", "g", "b"] as const) {
+    expect(Math.abs(got[channel] - vector.srgb[channel]), `${channel} of ${vector.name} (${vector.source})`).toBeLessThanOrEqual(SRGB_CHANNEL_TOLERANCE);
+  }
+});
 
 test.each(PALETTES.map((palette) => [palette.name, palette] as const))("static %s seed neutral pairs carry the framebuffer render margin", (_name, palette) => {
   // Body/surface/secondary pairings must carry the solver's above-AA render target.

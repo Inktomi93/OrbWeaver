@@ -7,6 +7,7 @@
 // the test agree with the code by construction and prove nothing.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
@@ -111,7 +112,7 @@ for (const style of ["Flat", "Hush"] as const) {
     await label.scrollIntoViewIfNeeded();
     const receipt = await pixelContrast(page, label);
     await testInfo.attach("light-inherited-ink", { body: await cell.screenshot(), contentType: "image/png" });
-    expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(4.5);
+    expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   });
 }
 

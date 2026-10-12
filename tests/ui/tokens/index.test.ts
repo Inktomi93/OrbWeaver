@@ -194,10 +194,9 @@ test("the load-bearing token names exist (backdrop · reading plate · chart ram
   }
 });
 
-// The colour math shared by the token-VALUE invariants below (browser-independent — it reads only TOKENS
-// and the generated seed value-sets, so it lives with the other token invariants):
-// oklch → linear sRGB (Björn Ottosson's OKLab matrix) → relative luminance → the WCAG contrast ratio.
-// Its main consumer is the avatar fallback-hue AA matrix at the foot of this file.
+// The token-VALUE invariants below are browser-independent: they read only TOKENS and the generated seed
+// value-sets. Colours convert through the kit's `oklchToSrgb` and are graded by the shared WCAG engine;
+// `parseOklch` only reads a literal. The avatar fallback-hue AA matrix at the foot is the main consumer.
 const OKLCH_RE = /oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/u;
 
 function parseOklch(value: string): readonly [number, number, number] {

@@ -22,7 +22,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, relativeLuminance, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // The design-audit exemption's own selector, run against the real carriers rather than re-spelled here —
@@ -364,6 +364,6 @@ for (const theme of ["hearth", "light"] as const) {
     expect(
       contrastRatio(rail, bare),
       `the rail (${String(rail.r)},${String(rail.g)},${String(rail.b)}) against a bare door (${measured})`,
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
   });
 }

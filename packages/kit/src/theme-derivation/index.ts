@@ -177,8 +177,7 @@ function gammaEncode(linear: number): number {
   return (c <= GAMMA_LINEAR_THRESHOLD ? GAMMA_LINEAR_SLOPE * c : GAMMA_SCALE * c ** (1 / GAMMA_EXPONENT) - GAMMA_OFFSET) * SRGB_MAX;
 }
 
-/** OKLCH → sRGB (0–255), gamut-clamped. The inverse of the importer's sRGB→OKLCH, and the same house math
- *  `palette-contrast.suite.test.ts` uses to measure a derived tone. */
+/** OKLCH → sRGB (0–255), gamut-clamped. The inverse of the importer's sRGB→OKLCH. */
 export function oklchToSrgb({ l, c, h }: Oklch): Rgb {
   const radians = h / DEGREES_PER_RADIAN;
   const a = c * Math.cos(radians);
