@@ -14,7 +14,7 @@ import type {
   VariableDeclaration,
 } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { definitionField, definitionStringField } from "../lib/registry-definition-field.ts";
@@ -360,7 +360,7 @@ const NON_LIST_KINDS: ReadonlySet<SyntaxKind> = new Set([
 ]);
 
 /** The factory takes `(name, members)` and the exception `(name, isolates, members)`: only a two- or three-argument
- *  call through a name or a member read whose last argument could be a list can be one, so the checker resolves
+ *  call through a name or a member read in any spelling whose last argument could be a list can be one, so the checker resolves
  *  those and no other call. */
 function couldBeRegistryCall(call: CallExpression): boolean {
   const callee = call.getExpression();
@@ -370,7 +370,7 @@ function couldBeRegistryCall(call: CallExpression): boolean {
     REGISTRY_ARITIES.has(args.length) &&
     last !== undefined &&
     !NON_LIST_KINDS.has(last.getKind()) &&
-    (Node.isIdentifier(callee) || Node.isPropertyAccessExpression(callee))
+    (Node.isIdentifier(callee) || staticMemberAccess(callee) !== undefined)
   );
 }
 
@@ -684,6 +684,14 @@ export const gate = defineGate({
       ),
       expect: { count: 1, messageIncludes: "is minted by hand" },
       why: "a namespace member call reaches the same factory without an import specifier to subscribe to",
+    },
+    {
+      mode: "types",
+      files: storyFiles(
+        `import * as lib from "${FROM_PROBE}packages/client/src/lib/registry.ts";\nimport type { TileContribution } from "${FROM_PROBE}packages/client/src/lib/contribution-types.ts";\nexport const slot = lib["createContributorRegistry"]<TileContribution>("x", []);\n`,
+      ),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "the bracket spelling of a namespace member call reaches the same factory: an element-access callee is a member read too",
     },
     {
       mode: "types",

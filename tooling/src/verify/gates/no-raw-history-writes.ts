@@ -194,6 +194,11 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: { "packages/client/src/data/x.ts": 'let key = "replaceState"; globalThis.history?.[key](null, "", "/");' },
+      why: "declared limit: a mutable `let` key names no ONE member, so the shared reader refuses it where an immutable `const` key resolves",
+    },
+    {
+      mode: "types",
       files: {
         "packages/client/src/data/x.ts":
           'const local = { replaceState() {} }; local.replaceState(); local["replaceState"](); const { replaceState: replace } = local; replace();',
