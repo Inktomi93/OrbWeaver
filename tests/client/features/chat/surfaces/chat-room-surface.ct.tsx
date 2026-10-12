@@ -23,9 +23,12 @@ import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_FORK_NAME } from "#client/features/c
 import { testId } from "#client/lib/test-ids.ts";
 import { waitFrames } from "../../../../support/browser/weave-drive.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
+import { CHAT_AND_INBOX_READS_EMPTY } from "../../../../support/node/chat-and-inbox-reads-empty.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
+import { PluginPhoneShellStory } from "../../plugin/_ct-stories.tsx";
 import { ChatRoomEntryStory, ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory, ChatsSectionRoomStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
@@ -352,6 +355,122 @@ test("a fake thread-flank contribution appears beside the thread (the flank colu
   await expect(component.getByText("fake thread-flank")).toBeVisible();
   const flankRow = page.locator('[data-slot="chat-room-flank-row"]');
   await expect(flankRow).toHaveCSS("flex-direction", "row");
+});
+
+// The flank's FLIP counter (shell.css `--flank-centre-flip-from`): a centred transcript row owes half the change
+// of its containing block that the reading cap did not eat. The room is mounted in the real shell with the real
+// plugin `chat-flank` contribution; the cap is the reader's own chat-width dial at its minimum (so it binds below
+// the thread without the column), and the column is collapsed and re-opened through its real edge control, which
+// round-trips the user's `flankCollapsed` setting. Only the network edge is stubbed. Under reduced motion the
+// toggle stamps the settle attribute for two frames; a MutationObserver reads the computed translate in the same
+// task as the stamp, because polling cannot catch a two-frame window. The attribute is the product's; only the
+// sampling is the test's.
+test("the flank's centring counter is half the capped width change, signed by the toggle direction", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const pluginId = mintTypeId(ID_PREFIX.plugin);
+  let profile: { readonly flankCollapsed: boolean } = { flankCollapsed: false };
+  const settingsView = (): ReturnType<typeof userSettingsView> => userSettingsView({ appearance: { chatWidthPct: 30 }, profile });
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...PREVIEW_FIT_STUB,
+    ...ROSTER_STUB,
+    ...CHAT_AND_INBOX_READS_EMPTY,
+    // The shell's own reads, all empty: this test's subject is the room's geometry, not the rail or the library.
+    "rosterPreset.count": 0,
+    "character.list": { items: [], nextCursor: null, totalCount: 0 },
+    "persona.list": [],
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, staleExtraction: 0, total: 0 },
+    // The user's settings, kept the way the server keeps them: a section write is what the next read answers.
+    "settings.getUserSettings": () => settingsView(),
+    "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">): ReturnType<typeof settingsView> => {
+      profile = { ...profile, ...input.patch };
+      return settingsView();
+    },
+    "plugin.list": (): TrpcWireOutput<"plugin.list"> => [
+      {
+        id: pluginId,
+        slug: "flank-plugin",
+        name: "Flank Plugin",
+        version: "1.0.0",
+        status: "enabled",
+        origin: "upload",
+        sourceUrl: null,
+        sourceCommit: null,
+        updateSource: null,
+        declaredCapabilities: ["ui.surface"],
+        grantedCapabilities: ["ui.surface"],
+        netHosts: null,
+        reconsentPending: false,
+        widenedNetHosts: [],
+        builtAgainst: null,
+        description: "A fixture plugin.",
+        lastError: null,
+        installedAt: 0,
+        updatedAt: 0,
+      },
+    ],
+    "plugin.listSurfaces": (): TrpcWireOutput<"plugin.listSurfaces"> => [
+      { pluginId, id: "flank_panel", anchor: "chat-flank", title: "Panel", tier: "static", spec: { kind: "text", value: "flank panel body" } },
+    ],
+    "plugin.getSurfaceState": () => null,
+    "chat.listMessages": () =>
+      makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_flank"), role: "assistant", content: "A line in the room." })]),
+  });
+  await mount(<PluginPhoneShellStory />);
+
+  const flankRow = page.locator('[data-slot="chat-room-flank-row"]');
+  await expect(flankRow).toBeVisible();
+  const samples = await flankRow.evaluateHandle((row) => {
+    const taken: { direction: string; actual: number; expected: number }[] = [];
+    new MutationObserver(() => {
+      const direction = row.getAttribute("data-flank-settle");
+      // The transcript rows are re-minted as the room settles, so the track is looked up at the moment of the stamp.
+      const track = row.querySelector<HTMLElement>(".orb-chat-track");
+      const host = track?.parentElement;
+      if (direction === null || track === null || host === null || host === undefined) {
+        return;
+      }
+      // Widths are resolved by the browser from the product's own tokens, never re-spelled here.
+      const lengthOf = (css: string): number => {
+        const probe = document.createElement("div");
+        probe.style.cssText = `position:absolute;visibility:hidden;width:${css}`;
+        host.append(probe);
+        const width = probe.getBoundingClientRect().width;
+        probe.remove();
+        return width;
+      };
+      const delta = lengthOf("var(--width-sidebar-sm)") + lengthOf("var(--spacing-block)") - lengthOf("var(--spacing-control-lg)");
+      const thread = lengthOf("100cqi");
+      const cap = lengthOf("var(--width-shell-content)");
+      const before = thread + (direction === "in" ? delta : -delta);
+      taken.push({
+        direction,
+        actual: Number.parseFloat(getComputedStyle(track).translate),
+        expected: (Math.max(0, before - cap) - Math.max(0, thread - cap)) / 2,
+      });
+    }).observe(row, { attributes: true, attributeFilter: ["data-flank-settle"] });
+    return taken;
+  });
+
+  await page.getByRole("button", { name: "Hide plugin panels" }).click();
+  await expect.poll(() => samples.evaluate((taken) => taken.length)).toBe(1);
+  await page.getByRole("button", { name: "Show plugin panels" }).click();
+  await expect.poll(() => samples.evaluate((taken) => taken.length)).toBe(2);
+
+  // Differences are rounded to a tenth of a pixel; `+ 0` folds -0 into 0. The signs pin that the cap really binds
+  // and that the column leaving mirrors it joining.
+  await expect
+    .poll(() =>
+      samples.evaluate((taken) =>
+        taken.map((s) => ({ direction: s.direction, diff: Math.round((s.actual - s.expected) * 10) / 10 + 0, sign: Math.sign(s.expected) })),
+      ),
+    )
+    .toEqual([
+      { direction: "out", diff: 0, sign: -1 },
+      { direction: "in", diff: 0, sign: 1 },
+    ]);
 });
 
 test("a fake thread-flank contribution with `when:false` paints NO flank column (today's layout, unchanged)", async ({ mount, page }) => {
