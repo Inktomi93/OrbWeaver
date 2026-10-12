@@ -4,7 +4,6 @@
 // zero-tile empty state, and the duplicate-id THROW at construction.
 
 // @orb-waive-file no-test-fabrication({ state?: { boxes?: Record<string, number> } }): baselined when the gate widened to value casts; burn-down item 906.
-import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -17,6 +16,7 @@ import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
+import { isolationRegistry } from "../../../../support/browser/ct-isolation.ts";
 import { pixelExtremaContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
@@ -1247,7 +1247,12 @@ test("#455 the fold's trigger is a CONTROL, not a kicker — it clears the 24×2
 
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {
   const dup: HomeTileContribution = { id: "same", title: "T", icon: Clock, body: () => null };
-  expect(() => createContributorRegistry<HomeTileContribution>("home-tiles", [dup, { ...dup, title: "Other" }])).toThrow(DUPLICATE_ID_RE);
+  expect(() =>
+    isolationRegistry<HomeTileContribution>("home-tiles", "builds a roster holding one tile id twice so the factory refusing a shadowed tile is the subject", [
+      dup,
+      { ...dup, title: "Other" },
+    ]),
+  ).toThrow(DUPLICATE_ID_RE);
 });
 
 // ── #1128 · THE FOLD FADE PAINTED OVER LIVE CONTROLS (side-eye HOME 2026-09-02 H1) ──────────────────

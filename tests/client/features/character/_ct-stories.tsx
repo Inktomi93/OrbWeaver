@@ -40,7 +40,6 @@ import {
   CharacterTrustTab,
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
 import {
   clearCharacterSelection,
   selectCharacter,
@@ -71,11 +70,9 @@ import {
   CtDataProviders,
   CtRealSectionRegistry,
 } from "../../../support/browser/ct-data-providers.tsx";
+import { characterDetailContributors } from "../../../support/browser/ct-door.ts";
+import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
-
-// The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring
-// main.tsx's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).
-const NO_DETAIL_CONTRIBUTORS = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
 // ── Pure-render story (no data layer) ───────────────────────────────────────────────────────────
 
@@ -183,7 +180,7 @@ export function CharacterEditorSurfaceStory({ width = 720 }: CharacterEditorSurf
   return (
     <CtDataProviders>
       <div style={{ height: 640, width }}>
-        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
       </div>
     </CtDataProviders>
   );
@@ -198,7 +195,7 @@ export function CharacterEditorSuggestToastStory(): ReactElement {
     <CtAppDataProviders>
       <CtToastSurface>
         <div style={{ height: 640, width: 720 }}>
-          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
         </div>
       </CtToastSurface>
     </CtAppDataProviders>
@@ -240,7 +237,11 @@ export function CharacterDetailContributorStory({ visible }: CharacterDetailCont
     when: () => visible,
     body: (): ReactElement => <div data-testid="ct-fake-detail-section">fake review card</div>,
   };
-  const detailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", [fakeSection]);
+  const detailContributors = isolationRegistry<CharacterDetailContribution>(
+    "character-detail",
+    "replaces the door's empty roster with one fake contribution so the seam is proven to render and gate it",
+    [fakeSection],
+  );
   return (
     <CtDataProviders>
       <CtCharacterContributorSectionRegistry detailContributors={detailContributors}>
@@ -763,7 +764,7 @@ function SuggestWarmLabelsPanels(): ReactElement {
         {labels ? (
           <LabelsLibrarySurface />
         ) : (
-          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
         )}
       </QueryBoundary>
     </>

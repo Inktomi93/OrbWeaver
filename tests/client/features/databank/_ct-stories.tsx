@@ -21,7 +21,6 @@ import { databankDocumentsTile } from "#client/features/databank/lib/home-docume
 import { DatabankDetailSurface } from "#client/features/databank/surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "#client/features/databank/surfaces/databank-library-surface.tsx";
 import { HomeSurface } from "#client/features/home/index.ts";
-import { createContributorRegistry } from "#client/lib/index.ts";
 import type { HomeTileContribution } from "#client/state/index.ts";
 import {
   closeModal,
@@ -37,6 +36,7 @@ import {
 } from "#client/state/index.ts";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { homeTiles } from "../../../support/browser/ct-door.ts";
+import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
@@ -244,7 +244,13 @@ function DatabankHomeProbe(): ReactElement {
 function DatabankHomeTile({ width, withJumpGrid = false }: { readonly width: number; readonly withJumpGrid?: boolean }): ReactElement {
   // The jump arm mounts the door's own tile registry, so the claim the databank tile makes (`sectionId`) is
   // resolved against the real siblings exactly as production resolves it.
-  const tiles = withJumpGrid ? homeTiles : createContributorRegistry<HomeTileContribution>("home-tiles", [databankDocumentsTile]);
+  const tiles = withJumpGrid
+    ? homeTiles
+    : isolationRegistry<HomeTileContribution>(
+        "home-tiles",
+        "keeps the Documents tile alone in the home frame so its health chips and doors are what is measured",
+        [databankDocumentsTile],
+      );
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
@@ -275,7 +281,14 @@ export function DatabankHomeTileAndLibraryStory(): ReactElement {
     <CtDataProviders>
       <DatabankHomeProbe />
       <div style={{ width: 720 }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [databankDocumentsTile])} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "keeps the Documents tile alone in the home frame so its health chips and doors are what is measured",
+            [databankDocumentsTile],
+          )}
+        />
       </div>
       {/* NAMED so a test can tell the pane's rows from the tile's — both render the same documents, which
           is the whole point of the seam under test. */}

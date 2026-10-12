@@ -71,7 +71,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment } from "react";
 import { placeholderConfigGroups, realConfigGroups } from "./ct-config-groups.ts";
-import { chatSettingsSections, chatSurfaceContributors, chromeWidgets, configSections, corpusContextTabs, homeTiles, toolRenderers } from "./ct-door.ts";
+import {
+  characterDetailContributors,
+  chatSettingsSections,
+  chatSurfaceContributors,
+  chromeWidgets,
+  configSections,
+  corpusContextTabs,
+  homeTiles,
+  toolRenderers,
+} from "./ct-door.ts";
 
 // The door binds the ⌘K Settings palette source to its group registry once; the CT door does the same, so the
 // door's palette sources render the rows production renders.
@@ -148,7 +157,6 @@ export function CtAppDataProviders({ children }: { readonly children: ReactNode 
 
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
 const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", []);
-const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 /** The REAL config-section registry alone — for a story that mounts the config host's LIST/CONTENT panes
  *  directly (they read the section registry from context; the group registry rides in by prop). */
 export function CtRealConfigSectionRegistry({ children }: { readonly children: ReactNode }): ReactElement {

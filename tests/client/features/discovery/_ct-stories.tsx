@@ -30,7 +30,7 @@ import {
   useCorpusListHeader,
 } from "@orb/client/features/discovery";
 import type { CommandPaletteSource, CorpusDestination } from "@orb/client/lib";
-import { corpusDestinationIdentity, createContributorRegistry } from "@orb/client/lib";
+import { corpusDestinationIdentity } from "@orb/client/lib";
 import {
   CommandPaletteSourceRegistryProvider,
   readCorpusResultScroll,
@@ -55,6 +55,7 @@ import { CorpusSearchResults } from "#client/features/discovery/components/corpu
 import { CorpusThemeSection } from "#client/features/discovery/components/corpus-theme-section.tsx";
 import { CorpusArtifactSurface } from "#client/features/discovery/surfaces/corpus-artifact-surface.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 
 // The theme rows the overview hands the section, spelled at the REAL prop type so a field added to
 // `discovery.home`'s theme projection breaks this module at compile time rather than surviving as a hole.
@@ -615,7 +616,11 @@ function SelectedArtifactStoryBody(): ReactElement | null {
 
 /** The ⌘K palette with the Corpus mode source, as the door assembles it (D271). */
 export function CorpusModePaletteStory(): ReactElement {
-  const registry = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [corpusModePaletteSource]);
+  const registry = isolationRegistry<CommandPaletteSource>(
+    "command-palette-sources",
+    "keeps the Corpus mode source apart from the other sources so the palette lists only Corpus modes",
+    [corpusModePaletteSource],
+  );
   return (
     <CtDataProviders>
       <CommandPaletteSourceRegistryProvider value={registry}>

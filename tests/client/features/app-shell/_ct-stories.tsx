@@ -59,8 +59,8 @@
 import { useTRPC } from "@orb/client/data";
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import { chatContextTabs } from "@orb/client/features/chat";
-import type { ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
-import { createContributorRegistry, defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
+import type { ChatSurfaceContribution, ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
+import { defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, ModalDefinition, SectionDefinition, SectionId } from "@orb/client/state";
 import {
   assembleChrome,
@@ -76,6 +76,7 @@ import {
   setOpenOverlayPanel,
   useSectionListIsScreen,
 } from "@orb/client/state";
+import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
@@ -108,8 +109,9 @@ import { useMessageAppearance } from "#client/features/chat/hooks/use-message-ap
 // marker this const carries, so a story that re-spelled the class would prove the spelling, not the rule.
 import { CHAT_TRACK } from "#client/features/chat/lib/chat-track.ts";
 import type { ModalSlotId } from "#client/state/modal-slot-ids.ts";
-import { openModal, setActiveSection, useActiveSection, useContextTab } from "#client/state/shell-store.ts";
+import { openModal, setActiveSection, setPanelMode, useActiveSection, useContextTab } from "#client/state/shell-store.ts";
 import {
+  CtChatContributorSectionRegistry,
   CtDataProviders,
   CtFakeModalRegistry,
   CtFakeSectionRegistry,
@@ -117,6 +119,7 @@ import {
   CtStandInChromeRegistry,
 } from "../../../support/browser/ct-data-providers.tsx";
 import { chatSettingsSections } from "../../../support/browser/ct-door.ts";
+import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CT_META_RAIL_CROWNED_IDS } from "./_crowned-tabs.ts";
 
@@ -734,26 +737,30 @@ export function YouSheetSwapStory(): ReactElement {
  *  signal has to appear; a phone otherwise shows nothing anywhere. The entry is a stand-in so the pin is on
  *  the SEAM (a curated widget's badge reaches the tab), never on the notifications feature. */
 export function RailSheetBadgeStory(): ReactElement {
-  const chrome = createContributorRegistry<ChromeEntry>("chrome", [
-    {
-      id: "fake-trail-overflow",
-      label: "Fake trail widget",
-      zone: "topbar.trail",
-      mobile: "sheet",
-      useBadge: (): number => 3,
-      behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="trail-sheet-lens">trail:{presentation}</div> },
-    },
-    {
-      id: "fake-hidden-overflow",
-      label: "Fake hidden widget",
-      zone: "topbar.trail",
-      mobile: "sheet",
-      // A gated entry may not badge: `useVisible` is the same door its affordance obeys everywhere else.
-      useVisible: (): boolean => false,
-      useBadge: (): number => 9,
-      behavior: { kind: "widget", body: (): ReactElement => <div data-testid="hidden-sheet-lens">hidden</div> },
-    },
-  ]);
+  const chrome = isolationRegistry<ChromeEntry>(
+    "chrome",
+    "replaces the shipped chrome with two fake sheet widgets so a curated widget's badge reaching the tab is the subject",
+    [
+      {
+        id: "fake-trail-overflow",
+        label: "Fake trail widget",
+        zone: "topbar.trail",
+        mobile: "sheet",
+        useBadge: (): number => 3,
+        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="trail-sheet-lens">trail:{presentation}</div> },
+      },
+      {
+        id: "fake-hidden-overflow",
+        label: "Fake hidden widget",
+        zone: "topbar.trail",
+        mobile: "sheet",
+        // A gated entry may not badge: `useVisible` is the same door its affordance obeys everywhere else.
+        useVisible: (): boolean => false,
+        useBadge: (): number => 9,
+        behavior: { kind: "widget", body: (): ReactElement => <div data-testid="hidden-sheet-lens">hidden</div> },
+      },
+    ],
+  );
   return (
     <CtFakeSectionRegistry>
       <ChromeRegistryProvider value={chrome}>
@@ -880,46 +887,83 @@ export function AppShellOnSectionStory({ section }: { readonly section: SectionI
   );
 }
 
+/** THE REAL SHELL OVER A REAL ROOM, the one home for that composition. `CtFakeSectionRegistry` stories (the rest
+ *  of this module) replace a section's panes to measure the shell's frame, and their sections cannot route a
+ *  transcript; this one mounts the production chats section, so the chat room, its flank and its topbar are
+ *  the shipped ones. `surfaceContributors` defaults to the door's production surface list; a story that must
+ *  isolate one contribution passes an `isolationRegistry` subset and names what it keeps apart. The other
+ *  sections stay real, as in the app. */
+export function AppShellRealRoomStory({
+  chatId,
+  surfaceContributors,
+  listDocked = false,
+}: {
+  readonly chatId: ChatId;
+  readonly surfaceContributors?: ContributorRegistry<ChatSurfaceContribution>;
+  readonly listDocked?: boolean;
+}): ReactElement {
+  useEffect(() => {
+    setActiveSection("chats");
+    selectChat(chatId);
+    if (listDocked) {
+      setPanelMode("list", "docked");
+    }
+  }, [chatId, listDocked]);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtChatContributorSectionRegistry {...(surfaceContributors === undefined ? {} : { surfaceContributors })}>
+          <AppShell />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
 /** The YouSheet projection in isolation (§E-5): a custom chrome registry with a fake `rail.end` widget
  *  whose `body("sheet")` renders a marker + a `mobile:"sheet"` overflow section — proof the sheet is a
  *  BLIND PROJECTION over the resolved chrome list (a widget's sheet lens + an overflow section both appear),
  *  not a second hand-maintained derivation. */
 export function YouSheetProjectionStory(): ReactElement {
-  const chrome = createContributorRegistry<ChromeEntry>("chrome", [
-    {
-      id: "fake-identity",
-      label: "Fake identity",
-      zone: "rail.end",
-      mobile: "sheet",
-      behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="sheet-lens">lens:{presentation}</div> },
-    },
-    {
-      // A TOPBAR MODAL curated off the phone row — the ⌘K palette's shape (#1789). The sheet's projection
-      // rule is by BEHAVIOR KIND, not by id: a row-shaped entry (modal/section) joins the row group, a
-      // widget renders its own lens in the block below it.
-      id: "command",
-      label: "Jump to…",
-      zone: "topbar.trail",
-      mobile: "sheet",
-      behavior: { kind: "modal", modalId: "command", icon: Command },
-    },
-    {
-      // A TOPBAR widget curated off the phone row — the notifications inbox's shape (side-eye leg-4 P2).
-      id: "fake-trail-overflow",
-      label: "Fake trail widget",
-      zone: "topbar.trail",
-      mobile: "sheet",
-      behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="trail-sheet-lens">trail:{presentation}</div> },
-    },
-    {
-      id: "fake-overflow",
-      label: "Fake overflow section",
-      zone: "rail.nav",
-      mobile: "sheet",
-      order: 0,
-      behavior: { kind: "section", sectionId: "refinery", icon: Command },
-    },
-  ]);
+  const chrome = isolationRegistry<ChromeEntry>(
+    "chrome",
+    "replaces the shipped chrome with four fake entries so the sheet's blind projection over the resolved list is the subject",
+    [
+      {
+        id: "fake-identity",
+        label: "Fake identity",
+        zone: "rail.end",
+        mobile: "sheet",
+        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="sheet-lens">lens:{presentation}</div> },
+      },
+      {
+        // A TOPBAR MODAL curated off the phone row — the ⌘K palette's shape (#1789). The sheet's projection
+        // rule is by BEHAVIOR KIND, not by id: a row-shaped entry (modal/section) joins the row group, a
+        // widget renders its own lens in the block below it.
+        id: "command",
+        label: "Jump to…",
+        zone: "topbar.trail",
+        mobile: "sheet",
+        behavior: { kind: "modal", modalId: "command", icon: Command },
+      },
+      {
+        // A TOPBAR widget curated off the phone row — the notifications inbox's shape (side-eye leg-4 P2).
+        id: "fake-trail-overflow",
+        label: "Fake trail widget",
+        zone: "topbar.trail",
+        mobile: "sheet",
+        behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="trail-sheet-lens">trail:{presentation}</div> },
+      },
+      {
+        id: "fake-overflow",
+        label: "Fake overflow section",
+        zone: "rail.nav",
+        mobile: "sheet",
+        order: 0,
+        behavior: { kind: "section", sectionId: "refinery", icon: Command },
+      },
+    ],
+  );
   return (
     // The section registry wrapper supplies the real modal registry (ModalHost's own read); the story's
     // CHROME registry is nested INSIDE it so it wins, and it is the ONLY source of the sheet's rows —
@@ -979,8 +1023,9 @@ export function AppShellTrailProjectionStory({
   readonly includeCommand?: boolean;
   readonly widgetOrder?: number;
 }): ReactElement {
-  const chrome = createContributorRegistry<ChromeEntry>(
+  const chrome = isolationRegistry<ChromeEntry>(
     "chrome",
+    "assembles chrome from one fake widget and at most the command modal so the topbar trail's contents and order come from the registry alone",
     assembleChrome({ sections: [], modals: includeCommand ? [TRAIL_MODAL] : [], widgets: [trailWidget(widgetOrder)] }),
   );
   return (
@@ -1406,12 +1451,16 @@ function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): Se
 }
 
 // Minted at MODULE scope (like every production section) so `useResolved` has a stable identity.
-const CLAIMING_REGIONS = createContributorRegistry<ContextRegionDef<void>>("ct-regions-claiming", [
-  defineContextRegion<void>({ id: "fake.hud", claims: () => true, band: () => <p data-testid="fake-band">Fake waystone</p> }),
-]);
-const IDLE_REGIONS = createContributorRegistry<ContextRegionDef<void>>("ct-regions-idle", [
-  defineContextRegion<void>({ id: "fake.hud", claims: () => false, band: () => <p data-testid="fake-band">Fake waystone</p> }),
-]);
+const CLAIMING_REGIONS = isolationRegistry<ContextRegionDef<void>>(
+  "ct-regions-claiming",
+  "replaces the shipped region claimants with one fake that always claims, so the head-band replacement is the subject",
+  [defineContextRegion<void>({ id: "fake.hud", claims: () => true, band: () => <p data-testid="fake-band">Fake waystone</p> })],
+);
+const IDLE_REGIONS = isolationRegistry<ContextRegionDef<void>>(
+  "ct-regions-idle",
+  "replaces the shipped region claimants with one fake that never claims, so the section keeping its own band is the subject",
+  [defineContextRegion<void>({ id: "fake.hud", claims: () => false, band: () => <p data-testid="fake-band">Fake waystone</p> })],
+);
 const CLAIMED_SECTION = regionSection(CLAIMING_REGIONS);
 const UNCLAIMED_SECTION = regionSection(IDLE_REGIONS);
 

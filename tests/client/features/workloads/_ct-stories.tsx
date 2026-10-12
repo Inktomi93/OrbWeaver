@@ -6,9 +6,6 @@
 // @orb-waive-file testid-typed-only-stories("import-outcome"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("tracker-tally"): baselined when the gate widened; burn-down item 906.
 import { useOrbSocket } from "@orb/client/data";
-import { backupExportSection, backupImportSection } from "@orb/client/features/workloads";
-import { createContributorRegistry } from "@orb/client/lib";
-import type { ConfigSectionContribution } from "@orb/client/state";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement, ReactNode } from "react";
@@ -20,13 +17,8 @@ import { WorkloadsTuningSection } from "#client/features/workloads/components/wo
 import type { LibraryImport } from "#client/features/workloads/hooks/use-library-import.ts";
 import { useLibraryImport } from "#client/features/workloads/hooks/use-library-import.ts";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { configSections } from "../../../support/browser/ct-door.ts";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
-
-/** The Backup group's two contributed sections, assembled as at the door. */
-const backupSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
-  "config-sections",
-  [backupExportSection, backupImportSection],
-);
 
 /** The app-root shape: ONE socket, above every room hook. Since SSE-1 S5 an active workload row has no
  *  subscription of its own — it JOINS a `workloads` ROOM on the tab's one socket, so the socket has to be
@@ -97,7 +89,7 @@ export function BackupSettingsStory(): ReactElement {
     <CtDataProviders>
       <SocketHost>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <CtConfigGroupBody anchor="backup" sections={backupSections} />
+          <CtConfigGroupBody anchor="backup" sections={configSections} />
         </div>
       </SocketHost>
     </CtDataProviders>

@@ -24,7 +24,6 @@ import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import { bindConfigPaletteGroups, configPaletteSource } from "@orb/client/features/config";
 import type { CommandPaletteSource } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
 import {
   __resetConfigGroupOpen,
@@ -48,6 +47,7 @@ import { ConfigContentSurface } from "#client/features/config/surfaces/config-co
 import { ConfigListSurface } from "#client/features/config/surfaces/config-list-surface.tsx";
 import { placeholderConfigGroups, realConfigGroups } from "../../../support/browser/ct-config-groups.ts";
 import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { createManualTimer } from "../../../support/clock.ts";
 
 /** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
@@ -379,7 +379,11 @@ export function ConfigWorkspaceStory(): ReactElement {
  *  bind is the door's own delivery, performed here exactly as `compose/authed-app.tsx` performs it. */
 export function ConfigPaletteStory(): ReactElement {
   bindConfigPaletteGroups(realConfigGroups);
-  const registry = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [configPaletteSource]);
+  const registry = isolationRegistry<CommandPaletteSource>(
+    "command-palette-sources",
+    "keeps the settings palette source apart from the other sources so the palette lists only settings rows",
+    [configPaletteSource],
+  );
   return (
     <CtDataProviders>
       <CtRealConfigSectionRegistry>

@@ -12,7 +12,7 @@ import type { ConfigSectionContribution } from "@orb/client/state";
 import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { describe } from "vitest";
-import { configSections } from "#client/compose/config-sections.ts";
+import { configSections } from "../../support/browser/ct-door.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** A section contribution stub — `body` returns a marker string so the resolve output is inspectable. */

@@ -13,11 +13,11 @@ import { ConnectionsListSection } from "#client/features/credentials/components/
 // (`CtConfigGroupBody`) — the production render path, not a surface.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
-import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
+import { connectionsListSection } from "@orb/client/features/credentials";
 import { pluginsInstalledSection } from "@orb/client/features/plugin";
 import { SaveStatusHostContext } from "@orb/client/forms";
-import type { NotifyInput } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
+import type { ContributorRegistry, NotifyInput } from "@orb/client/lib";
+import { bindNotify, toNotice } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { requestConnectionEditor, useActiveConfigGroup, useAggregateSaveStatus } from "@orb/client/state";
 import type { CredRevokedReason } from "@orb/contracts/credentials";
@@ -30,17 +30,20 @@ import { useEffect, useState } from "react";
 import { ConnectionEditor } from "#client/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "#client/features/credentials/components/credential-key-row.tsx";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { configSections } from "../../../support/browser/ct-door.ts";
+import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 
-/** The Connections group's three contributed sections, assembled as at the door. */
-const connectionsSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
+// The plugin lifecycle story watches one plugins row beside one connections row; the door's other sections at those anchors stay out of it.
+const providerLifecycleConnectionSections: ContributorRegistry<ConfigSectionContribution> = isolationRegistry<ConfigSectionContribution>(
   "config-sections",
-  [connectionsListSection, connectionsRolesSection, connectionsKeysSection],
+  "keeps the Connections list apart from the Roles and Keys sections so the plugin lifecycle invalidation is observable on one row",
+  [connectionsListSection],
 );
-
-const providerLifecycleConnectionSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> =
-  createContributorRegistry<ConfigSectionContribution>("config-sections", [connectionsListSection]);
-const providerLifecyclePluginSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> =
-  createContributorRegistry<ConfigSectionContribution>("config-sections", [pluginsInstalledSection]);
+const providerLifecyclePluginSections: ContributorRegistry<ConfigSectionContribution> = isolationRegistry<ConfigSectionContribution>(
+  "config-sections",
+  "keeps the installed-plugins section apart from the install and distribute sections that share its anchor",
+  [pluginsInstalledSection],
+);
 
 /** `<CredentialKeyRow>` under the data layer (`trpc`/`invalidation` read inside the provider tree — the
  *  row's own wiring); its mutations are stubbed per-test via routeTrpc. */
@@ -224,7 +227,7 @@ function ConnectionsPaneInner(): ReactElement {
   const queryClient = useQueryClient();
   return (
     <div>
-      <CtConfigGroupBody anchor="connections" sections={connectionsSections} />
+      <CtConfigGroupBody anchor="connections" sections={configSections} />
       <button type="button" onClick={(): void => void queryClient.invalidateQueries()}>
         refetch settings
       </button>
@@ -352,7 +355,7 @@ export function ConnectionsAuthoringStory({ width }: { readonly width: number })
   return (
     <CtDataProviders>
       <div style={{ overflow: "visible", width }}>
-        <CtConfigGroupBody anchor="connections" sections={connectionsSections} />
+        <CtConfigGroupBody anchor="connections" sections={configSections} />
         <SecretProbe />
       </div>
     </CtDataProviders>
