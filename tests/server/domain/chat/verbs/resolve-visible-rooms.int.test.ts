@@ -67,6 +67,24 @@ describe("chat/resolve-visible-rooms — the shared reverse-roster filter", () =
     expect(rooms).toEqual([{ id: room, title: "   ", participantNames: ["Sabine Veyra", "aveline"], at: NOW }]);
   });
 
+  test("a seat's active persona names it only when the seat's own user owns that persona", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const friend = await seedUser(db, { handle: castId<Handle>("friend") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const borrowed = castId<PersonaId>("persona_stranger");
+    await db.insert(personas).values({ id: borrowed, ownerId: stranger, name: "Borrowed Face", description: "" });
+
+    const room = await seedChat(db, "room", { title: null, updatedAt: NOW });
+    await seedParticipant(db, { chatId: room, key: "me", userId: owner, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "friend", userId: friend, role: "member", activePersonaId: borrowed });
+
+    const rooms = await createResolveVisibleRooms({ db }, (userIds) => selectHandlesByIds(db, userIds))(principal(owner), [room]);
+
+    // The pointer names a persona the friend does not own, so the seat falls back to the friend's own handle.
+    expect(rooms[0]?.participantNames).toEqual(["friend"]);
+  });
+
   test("the SOLO floor keeps a room named, and rooms come back newest-first", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

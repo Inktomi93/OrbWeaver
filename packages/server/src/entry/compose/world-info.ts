@@ -22,12 +22,13 @@ import { createBulkImportChats, createReadInheritedChatBooks, requireHost, requi
 import type { BulkImportPersonas } from "#domain/persona";
 import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
+import { createResolveUserEnabled } from "#domain/sessions";
 import { bumpStatsCanonVersion } from "#domain/stats";
 import type { WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
 import { publishUserEvent } from "#transport/trpc";
-import { createHostPrincipalResolver, createResolveUserEnabled } from "../auth/index.ts";
+import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture } from "./room-reach.ts";

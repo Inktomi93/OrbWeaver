@@ -86,7 +86,7 @@ import type { ImportCardScripts } from "#domain/regex";
 import type { RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
-import { createSessionsService } from "#domain/sessions";
+import { createResolveUserEnabled, createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
 import { createJoinerSettingsStatement, createSettingsContext, createSettingsService, listSeededItemKeys, recordSeededItemKeys } from "#domain/settings";
 import type { CertificateController, RelayController } from "#domain/share";
@@ -124,7 +124,7 @@ import { publishPrivateEndpointAllowlist, resolvedEndpointAdmission } from "#inf
 import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
 import type { PresenceRegistry, Services, SocketRegistry } from "#transport/trpc";
 import { createPresenceRegistry, createSocketRegistry, publishChatEvent, publishUserEvent, silenceRoomEntityFan } from "#transport/trpc";
-import { createHostPrincipalResolver, createResolveUserEnabled } from "../auth/index.ts";
+import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder, UserContentSeeder } from "../boot/index.ts";
 import { createDistributedPluginApplier, createExamplePluginSeeder, createLocalLightUserSeed, createUserContentSeeder } from "../boot/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";

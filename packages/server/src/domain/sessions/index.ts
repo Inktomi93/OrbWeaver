@@ -22,3 +22,5 @@ export { createSessionsService } from "./service.ts";
 // password hashing, through this one predicate.
 export { groupRoleGovernanceActive, isReservedSignupHandle, ownerHandles } from "./substrate/role-policy.ts";
 export { createTokenHasher } from "./tokens/tokens.ts";
+// The disabled-account containment read compose wires into every non-request consumer (fail-closed on a missing row).
+export { createResolveUserEnabled } from "./verbs/resolve-user-enabled.ts";

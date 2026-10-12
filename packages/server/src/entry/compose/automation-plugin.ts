@@ -81,6 +81,7 @@ import {
 } from "#domain/plugin";
 import type { SearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
+import { createResolveUserEnabled } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
@@ -88,7 +89,6 @@ import { superviseDetached } from "#foundation/observability";
 import { fetchPluginBundle, pluginGitSource } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
 import { publishAutomationEvent, publishNotification, publishUserEvent } from "#transport/trpc";
-import { createResolveUserEnabled } from "../auth/index.ts";
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";

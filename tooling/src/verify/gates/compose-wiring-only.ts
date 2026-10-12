@@ -1,19 +1,25 @@
-// Gate: compose-wiring-only — `entry/compose` wires and owns no business logic (Tier-5-Entry.md invariant 1), so a compose
-// module runs no Drizzle query and no function value it hands out decides on runtime data. ARMS: a call whose method drizzle-orm
-// declares, anywhere in compose (shared `readDrizzleClientCall`, fail-closed on an unbound query-verb spelling, table named by
-// `resolveDrizzleTableRefs`); a decision (branch, loop, catch, `?:`, `&&`/`||`/`??`, comparison, `?.`) that runs per call: inside
-// a function value compose hands out, or a named helper reachable from one. A decision in a factory body at construction is wiring.
-// FAMILY: singleton — the execution-time classification is this subject's own; no sibling policy shares it. POPULATION: new.
+// Gate: compose-wiring-only — `entry/compose` wires and owns no business logic (Tier-5-Entry.md invariant 1), so compose runs no
+// Drizzle query and no function value it hands out decides on runtime data. SUBJECT: compose, plus any `entry/**` function compose
+// reaches by reference (an `entry/auth` factory it calls is judged as compose). ARMS: a drizzle-declared call (`readDrizzleClientCall`,
+// fail-closed on an unbound query verb, table via `resolveDrizzleTableRefs`); a per-call decision (branch, loop, catch, `?:`, `&&`/`||`/
+// `??`, comparison, `?.`, `Math.max`/`min`, a call dispatched by a computed key) inside a handed-out function or a helper it reaches.
+// A decision in a factory body at construction is wiring. FAMILY: singleton — the timing classification is this subject's own.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { DrizzleTableRef } from "../../floor/code-facts/drizzle-table-ref.ts";
 import { resolveDrizzleTableRefs } from "../../floor/code-facts/drizzle-table-ref.ts";
 import { readCalledMember } from "../../floor/code-facts/drizzle-write-chain.ts";
+import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 
-const COMPOSE_POPULATION = { in: ["@server"], under: ["packages/server/src/entry/compose/**"] } as const;
+const ENTRY_POPULATION = { in: ["@server"], under: ["packages/server/src/entry/**"] } as const;
+const COMPOSE_PREFIX = "packages/server/src/entry/compose/";
+
+/** The ambient `Math` members that pick between runtime values. */
+const CLAMP_MEMBERS = new Set(["max", "min"]);
+const MATH_GLOBAL = "Math";
 
 /** Spellings the fail-closed arm reports when the checker cannot bind the called member at all. */
 const QUERY_VERBS = new Set(["query", "select", "insert", "update", "delete", "run", "execute", "executeMultiple", "batch", "transaction"]);
@@ -155,7 +161,30 @@ function decisionAnchor(node: MorphNode): MorphNode | undefined {
     const forwardTest = Node.isConditionalExpression(parent) && parent.getCondition() === node && optionalForward(parent);
     return forwardTest ? undefined : node;
   }
-  return OPTIONAL_CHAIN_KINDS.has(node.getKind()) && node.getFirstChildByKind(SyntaxKind.QuestionDotToken) !== undefined ? node : undefined;
+  if (OPTIONAL_CHAIN_KINDS.has(node.getKind()) && node.getFirstChildByKind(SyntaxKind.QuestionDotToken) !== undefined) {
+    return node;
+  }
+  return Node.isCallExpression(node) && (computedDispatch(node) || ambientClamp(node)) ? node : undefined;
+}
+
+/** `ARMS[kind](x)`: a call whose callee is picked by a key that is not a literal decides which code runs. */
+function computedDispatch(call: CallExpression): boolean {
+  const callee = unwrapParens(call.getExpression());
+  if (!Node.isElementAccessExpression(callee)) {
+    return false;
+  }
+  const key = callee.getArgumentExpression();
+  return !(Node.isStringLiteral(key) || Node.isNumericLiteral(key) || Node.isNoSubstitutionTemplateLiteral(key));
+}
+
+/** `Math.max(a, b)` / `Math.min(a, b)` on the ambient global: a clamp picks between values. */
+function ambientClamp(call: CallExpression): boolean {
+  const callee = unwrapParens(call.getExpression());
+  if (!(Node.isPropertyAccessExpression(callee) && CLAMP_MEMBERS.has(callee.getName()))) {
+    return false;
+  }
+  const origin = resolveGlobalMemberOrigin(callee);
+  return origin.kind === "resolved" && origin.value.globalName === MATH_GLOBAL && origin.value.memberPath.length === 1;
 }
 
 /** A function the code names and calls by that name: a function declaration, or a binding initialized with an arrow/function expression. */
@@ -298,10 +327,29 @@ interface Reference {
   readonly called: boolean;
 }
 
-/** When each function runs. Named callables run per call when a reference hands them on as a value or calls them from per-call
- *  code, settled to a fixed point; every other function value runs per call unless the code around it invokes it eagerly. */
-function phaseClassifier(named: ReadonlySet<object>, references: readonly Reference[]): (fn: MorphNode) => boolean {
+/** When each function runs, and which functions the gate judges. Compose's own code is judged; an `entry/**` named callable joins when
+ *  a judged site references it, and a function nested in a judged one is judged. Named callables run per call when a judged
+ *  reference hands them on as a value or calls them from per-call code; every other function value runs per call unless the code
+ *  around it invokes it eagerly. Both sets settle together to a fixed point. */
+interface Classifier {
+  readonly perCall: (fn: MorphNode) => boolean;
+  readonly judged: (node: MorphNode) => boolean;
+}
+
+function classify(named: ReadonlySet<object>, references: readonly Reference[], inCompose: (node: MorphNode) => boolean): Classifier {
   const perCallNamed = new Set<object>();
+  const judgedNamed = new Set<object>();
+  const judged = (node: MorphNode): boolean => {
+    if (inCompose(node)) {
+      return true;
+    }
+    for (let fn: MorphNode | undefined = Node.isFunctionLikeDeclaration(node) ? node : enclosingFunction(node); fn !== undefined; fn = enclosingFunction(fn)) {
+      if (judgedNamed.has(fn.compilerNode)) {
+        return true;
+      }
+    }
+    return false;
+  };
   const perCall = (fn: MorphNode): boolean => {
     if (named.has(fn.compilerNode)) {
       return perCallNamed.has(fn.compilerNode);
@@ -315,6 +363,13 @@ function phaseClassifier(named: ReadonlySet<object>, references: readonly Refere
   const settle = (): boolean => {
     let changed = false;
     for (const { target, at, called } of references) {
+      if (!judged(at)) {
+        continue;
+      }
+      if (!judgedNamed.has(target.compilerNode)) {
+        judgedNamed.add(target.compilerNode);
+        changed = true;
+      }
       const atFn = enclosingFunction(at);
       if (!perCallNamed.has(target.compilerNode) && (!called || (atFn !== undefined && perCall(atFn)))) {
         perCallNamed.add(target.compilerNode);
@@ -324,9 +379,15 @@ function phaseClassifier(named: ReadonlySet<object>, references: readonly Refere
     return changed;
   };
   while (settle()) {
-    // Each pass can only add, and the named set is finite, so the loop ends.
+    // Each pass can only add, and both sets are finite, so the loop ends.
   }
-  return perCall;
+  return { perCall, judged };
+}
+
+/** A judged decision whose enclosing function runs per call. */
+function decidesPerCall(decision: MorphNode, classifier: Classifier): boolean {
+  const fn = enclosingFunction(decision);
+  return fn !== undefined && classifier.perCall(fn) && classifier.judged(decision);
 }
 
 interface Subject {
@@ -375,7 +436,7 @@ export const gate = defineGate({
   family: "compose-wiring-only",
   authority: "ordinary",
   severity: "error",
-  population: COMPOSE_POPULATION,
+  population: ENTRY_POPULATION,
   analysis: "types",
   execution: "entire-population",
   facts: [],
@@ -445,15 +506,15 @@ export const gate = defineGate({
       ],
       evaluate: () => {
         const named = new Set<object>([...callables.values()].flat().map((fn) => fn.compilerNode));
-        const perCall = phaseClassifier(named, references(named));
+        const inCompose = (node: MorphNode): boolean => ctx.relativePath(node.getSourceFile()).startsWith(COMPOSE_PREFIX);
+        const { perCall, judged } = classify(named, references(named), inCompose);
         for (const decision of decisions) {
-          const fn = enclosingFunction(decision);
-          if (fn !== undefined && perCall(fn)) {
+          if (decidesPerCall(decision, { perCall, judged })) {
             subjectOf(decision, perCall).decision ??= decision;
           }
         }
         for (const call of calls) {
-          const query = queryHead(call);
+          const query = judged(call) ? queryHead(call) : undefined;
           if (query !== undefined) {
             subjectOf(call, perCall).query ??= query;
           }
@@ -535,8 +596,51 @@ export const gate = defineGate({
       expect: { count: 1, token: "keep", messageIncludes: "x > 1" },
       why: "an eager array callback runs in its caller's phase: inside a handed-out op its predicate is that op's rule, reported once at the op",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/auth/x.ts":
+          "export function createResolveEnabled(load: (id: string) => Promise<{ readonly enabled: boolean } | null>) {\n  return async (id: string) => (await load(id))?.enabled === true;\n}\n",
+        [COMPOSE_FILE]:
+          'import { createResolveEnabled } from "../auth/x.ts";\nexport function build(load: (id: string) => Promise<{ readonly enabled: boolean } | null>) {\n  return { enabled: createResolveEnabled(load) };\n}\n',
+      },
+      expect: { count: 1, token: "async", messageIncludes: "=== true" },
+      why: "REACH ACROSS entry/: a factory compose calls from another entry module hands out a per-call decision, so it is judged as compose; cutting the cross-file reach reds this row",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          'const ARMS = { a: (n: number) => n, b: (n: number) => -n } as const;\nexport function build() {\n  return { run: (kind: "a" | "b", n: number) => ARMS[kind](n) };\n}\n',
+      },
+      expect: { count: 1, token: "run", messageIncludes: "ARMS[kind](n)" },
+      why: "RECORD DISPATCH: a call through a computed key picks which code runs per call, so it is a decision",
+    },
+    {
+      mode: "types",
+      files: { [COMPOSE_FILE]: "export function build() {\n  return { cap: (n: number) => Math.min(n, 10) };\n}\n" },
+      expect: { count: 1, token: "cap", messageIncludes: "Math.min" },
+      why: "CLAMP: the ambient Math.min picks between runtime values inside a handed-out op",
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          'const ARMS = { a: (n: number) => n } as const;\nexport function build() {\n  const cap = Math.max(1, 2);\n  return { run: (n: number) => ARMS["a"](n) + cap };\n}\n',
+      },
+      why: "a literal-key element call names one callee, and a clamp in the factory body runs once at construction; neither is a per-call decision",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/http/x.ts":
+          "export function register(app: { get: (h: (id: string) => boolean) => void }) {\n  app.get((id) => id.length > 0);\n}\n",
+        [COMPOSE_FILE]: "export function build(op: () => void) {\n  return { op };\n}\n",
+      },
+      why: "POPULATION FENCE: an entry/ module compose never references keeps its own rules out of this subject; judging every entry/ function reds this row",
+    },
     {
       mode: "types",
       files: {
