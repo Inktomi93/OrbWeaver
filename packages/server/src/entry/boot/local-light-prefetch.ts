@@ -20,6 +20,7 @@ const TASK_SLOTS: readonly { readonly slot: LocalLightModelSlot; readonly tasks:
   { slot: "embed", tasks: ["embed", "imageEmbed"] },
 ];
 
+// @orb-waive no-inline-package-interface(LocalLightPrefetchPlanDeps): baselined when the gate landed; burn-down item 952.
 export interface LocalLightPrefetchPlanDeps {
   /** The runtime's resolve — the SAME fold a search uses, so the plan cannot disagree with the first request. */
   readonly resolve: InferenceRuntime["resolve"];

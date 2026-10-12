@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-12
 priority: P2
 area: tests
-lane: wt/agent-a10b87c404dc69c69
 plan: test-mirror
 ---
 
@@ -23,5 +22,7 @@ Each grant is a module the law says must be reached by a test; the ratchet only 
 The test-reach grant files are empty and the test-reach budget row is zero.
 
 ## Evidence
+
+The verb grant file is gone (6ebb26ec7f). The client, module and row grant files remain, so the test-reach budget row is not zero.
 
 Filled at landing: what ran and where its output is.

@@ -7,24 +7,6 @@
 // component that executes post-mount in the real browser context, never at the `.ct.tsx` call site —
 // the same "build the branded shape inside the story" precedent `MessageRowStory` sets for `Map`s).
 
-// @orb-waive-file testid-typed-only-stories("active-section"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("archived-id"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("bulk-id"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("bulk-panel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("chatted-id"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("content-region"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("context-region"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-fake-detail-section"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("deep-link"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("deleted-id"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("duplicated-id"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("gallery-target"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("list-band"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("refinery-session"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("replace-selection-clear"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("selected-id"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("starred-id"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("started-chat"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import { useTRPC } from "@orb/client/data";
 import {
@@ -56,6 +38,7 @@ import { castId } from "@orb/kit/ids";
 import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { characterDetailContributors } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 // The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
@@ -150,13 +133,13 @@ export function CharacterCardTileStory({
         onToggleStar={(id): void => setStarredId(id)}
         selected={selected}
       />
-      <p data-testid="chatted-id">{chattedId ?? ""}</p>
-      <p data-testid="bulk-id">{bulkId ?? ""}</p>
-      <p data-testid="starred-id">{starredId ?? ""}</p>
-      <p data-testid="selected-id">{selectedId ?? ""}</p>
-      <p data-testid="archived-id">{archivedId ?? ""}</p>
-      <p data-testid="duplicated-id">{duplicatedId ?? ""}</p>
-      <p data-testid="deleted-id">{deletedId ?? ""}</p>
+      <p data-testid={storyTestId("chattedId")}>{chattedId ?? ""}</p>
+      <p data-testid={storyTestId("bulkId")}>{bulkId ?? ""}</p>
+      <p data-testid={storyTestId("starredId")}>{starredId ?? ""}</p>
+      <p data-testid={storyTestId("selectedId")}>{selectedId ?? ""}</p>
+      <p data-testid={storyTestId("archivedId")}>{archivedId ?? ""}</p>
+      <p data-testid={storyTestId("duplicatedId")}>{duplicatedId ?? ""}</p>
+      <p data-testid={storyTestId("deletedId")}>{deletedId ?? ""}</p>
     </div>
   );
 }
@@ -230,7 +213,7 @@ export function CharacterDetailContributorStory({ visible }: CharacterDetailCont
     id: CT_DETAIL_SECTION_ID,
     anchor: "editor-sections",
     when: () => visible,
-    body: (): ReactElement => <div data-testid="ct-fake-detail-section">fake review card</div>,
+    body: (): ReactElement => <div data-testid={storyTestId("ctFakeDetailSection")}>fake review card</div>,
   };
   const detailContributors = isolationRegistry<CharacterDetailContribution>(
     "character-detail",
@@ -353,7 +336,7 @@ export function CharacterLibrarySurfaceStory({ width, showSelection = false }: C
 /** The characters section's own `useListHeader` closure, rendered where the shell's PanelChrome renders it. */
 function CharactersListBand(): ReactElement {
   const registry = useSectionRegistry();
-  return <div data-testid="list-band">{<ListPaneHeaderHost useView={registry.get("characters").useListHeader} />}</div>;
+  return <div data-testid={storyTestId("listBand")}>{<ListPaneHeaderHost useView={registry.get("characters").useListHeader} />}</div>;
 }
 
 /** The same band UNWRAPPED — the registry's `useListHeader` fragment as the DIRECT children of the shell's
@@ -425,7 +408,7 @@ function BulkBarInner(): ReactElement {
     <>
       <output aria-label="Bulk selection count">{selectedIds.length}</output>
       <output aria-label="Bulk selected IDs">{selectedIds.join(",") || "none"}</output>
-      <button data-testid="replace-selection-clear" type="button" onClick={(): void => setSelectedIds([])}>
+      <button data-testid={storyTestId("replaceSelectionClear")} type="button" onClick={(): void => setSelectedIds([])}>
         Clear selection
       </button>
       <button type="button" onClick={(): void => setSelectedIds(["char_d"])}>
@@ -448,7 +431,7 @@ function BulkBarInner(): ReactElement {
 export function CharacterBulkBarStory({ width = 337 }: { readonly width?: number } = {}): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="bulk-panel" style={{ width }}>
+      <div data-testid={storyTestId("bulkPanel")} style={{ width }}>
         <BulkBarInner />
       </div>
     </CtDataProviders>
@@ -477,11 +460,11 @@ function CharactersListHarness(): ReactElement {
   const activeChatId = useActiveChatId();
   return (
     <div style={{ height: 560, width: 320 }}>
-      <div data-testid="list-band">{<ListPaneHeaderHost useView={definition.useListHeader} />}</div>
+      <div data-testid={storyTestId("listBand")}>{<ListPaneHeaderHost useView={definition.useListHeader} />}</div>
       {list()}
       {/* Probes for the cross-section WRITES the pane fires (assert the store action, not a UI echo). */}
-      <p data-testid="active-section">{activeSection}</p>
-      <p data-testid="started-chat">{activeChatId ?? ""}</p>
+      <p data-testid={storyTestId("activeSection")}>{activeSection}</p>
+      <p data-testid={storyTestId("startedChat")}>{activeChatId ?? ""}</p>
     </div>
   );
 }
@@ -519,8 +502,8 @@ function CharactersContextHarness({ paneWidth }: { readonly paneWidth: number })
   return (
     <div style={{ height: 640, width: paneWidth }}>
       <SectionContextHost definition={registry.get("characters")} />
-      <p data-testid="active-section">{activeSection}</p>
-      <p data-testid="started-chat">{activeChatId ?? ""}</p>
+      <p data-testid={storyTestId("activeSection")}>{activeSection}</p>
+      <p data-testid={storyTestId("startedChat")}>{activeChatId ?? ""}</p>
     </div>
   );
 }
@@ -566,13 +549,13 @@ function CharactersScreenHarness(): ReactElement {
   return (
     <div style={{ display: "flex", height: 560 }}>
       <div style={{ width: 320 }}>
-        <div data-testid="list-band">{<ListPaneHeaderHost useView={definition.useListHeader} />}</div>
+        <div data-testid={storyTestId("listBand")}>{<ListPaneHeaderHost useView={definition.useListHeader} />}</div>
         {list()}
       </div>
-      <div data-testid="content-region" style={{ flex: 1, minWidth: 0 }}>
+      <div data-testid={storyTestId("contentRegion")} style={{ flex: 1, minWidth: 0 }}>
         {content()}
       </div>
-      <div data-testid="context-region" style={{ width: 384 }}>
+      <div data-testid={storyTestId("contextRegion")} style={{ width: 384 }}>
         <SectionContextHost definition={definition} />
       </div>
     </div>
@@ -613,10 +596,10 @@ function RefineryJumpReadout(): ReactElement {
   const gallery = useCharacterGalleryTarget();
   return (
     <div>
-      <p data-testid="active-section">{`section=${section}`}</p>
-      <p data-testid="refinery-session">{`session=${sessionId ?? "none"}`}</p>
+      <p data-testid={storyTestId("activeSection")}>{`section=${section}`}</p>
+      <p data-testid={storyTestId("refinerySession")}>{`session=${sessionId ?? "none"}`}</p>
       {/* The gallery the "Open gallery" door asked the app root's host to show (`none` = no room scope). */}
-      <p data-testid="gallery-target">
+      <p data-testid={storyTestId("galleryTarget")}>
         {gallery === undefined ? "gallery=closed" : `gallery=${gallery.characterId}|${gallery.characterName}|${gallery.chatId ?? "none"}`}
       </p>
     </div>
@@ -635,7 +618,7 @@ export function CharactersScreenStory({ deepLinkCharacterId }: CharactersScreenS
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <button data-testid="deep-link" onClick={(): void => selectCharacter(castId<CharacterId>(deepLinkCharacterId))} type="button">
+        <button data-testid={storyTestId("deepLink")} onClick={(): void => selectCharacter(castId<CharacterId>(deepLinkCharacterId))} type="button">
           Open via deep link
         </button>
         <CharactersScreenHarness />

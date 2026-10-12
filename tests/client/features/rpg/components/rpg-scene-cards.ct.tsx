@@ -4,8 +4,10 @@
 // image here either. Asserted on the rendered srcdoc CSP (the sandbox IS the boundary — sandbox-frame.ct.tsx
 // pins the directive grammar; this pins that the archive threads the verdict at all, rather than defaulting).
 
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { makeMessagesPage } from "../../chat/fixtures.ts";
 import { RpgCardLightboxStory, RpgSceneCardsStory } from "../_ct-stories.tsx";
 
 const FRAME = '[data-slot="sandbox-frame"]';
@@ -36,8 +38,8 @@ test("a media-trusted row's archived card keeps its external media in the lightb
 test("a FAILED transcript read never says 'No cards yet', and its Retry re-reads (#1500)", async ({ mount, page }) => {
   let attempts = 0;
   const trpc = await routeTrpc(page, {
-    "chat.listMessages": () => (attempts++ === 0 ? trpcError({ message: "transcript read failed" }) : { messages: [] }),
-    "chat.getChat": () => ({ id: "chat_ct_rpg000000000000001" }),
+    "chat.listMessages": () => (attempts++ === 0 ? trpcError({ message: "transcript read failed" }) : makeMessagesPage([])),
+    "chat.getChat": () => makeChatDetail({ id: "chat_ct_rpg000000000000001" }),
   });
   const section = await mount(<RpgSceneCardsStory />);
 

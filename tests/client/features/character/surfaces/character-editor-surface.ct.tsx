@@ -12,14 +12,16 @@
 // `character.get`/`chat.listChats`/`character.update` are stubbed at the NETWORK (routeTrpc).
 
 import { removeActionName } from "@orb/client/lib";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "@orb/testkit/browser/autosave-status-transcript.ts";
 import { expectCircle } from "@orb/testkit/browser/expect-circle.ts";
 import { readPhantomScrollers } from "@orb/testkit/browser/scroll-containing-block.ts";
 import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
-import type { TrpcFixtureOutput, TrpcInput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -459,8 +461,8 @@ const TOKEN_SENT_EVERY_TURN_RE = /always sent/;
 const INSPECT_HINT_RE = /to inspect it here/;
 
 /** Twelve pending suggestions on this character (`TagSuggestionView` = a TagView + its characterId). */
-function suggestionFixtures(): TrpcFixtureOutput<"tag.listPendingSuggestions"> {
-  return SUGGESTION_NAMES.map((name, index) => ({ ...makeTagFixture({ id: `tag_sug_${index}`, name }), characterId: "char_ct_1" }));
+function suggestionFixtures(): TrpcWireOutput<"tag.listPendingSuggestions"> {
+  return SUGGESTION_NAMES.map((name, index) => ({ ...makeTagFixture({ id: `tag_sug_${index}`, name }), characterId: "char_ct_1", characterName: "Aria" }));
 }
 
 /** The same card, carrying ONE accepted tag — the accepted chip is the fill this strip must stay under. */
@@ -710,9 +712,13 @@ test("MACU-2: a card facet completes against the ACTIVE PRESET's user macros", a
     // The SUBJECT here — the seeded default preset. After the spread, so this partial wins over the
     // ambient full-defaults settings row.
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: "preset_ct_active" } }),
-    "preset.get": () => ({
-      config: { userMacros: [{ name: "sceneTone", description: MACRO_USER_GLOSS, args: [], body: "hushed", inputs: [], strict: false }] },
-    }),
+    "preset.get": () =>
+      makePresetDetail({
+        config: {
+          ...DEFAULT_PROMPT_CONFIG,
+          userMacros: [{ name: "sceneTone", description: MACRO_USER_GLOSS, args: [], body: "hushed", inputs: [], strict: false }],
+        },
+      }),
   });
   const component = await mount(<CharacterEditorSurfaceStory />);
 
@@ -1031,7 +1037,7 @@ test("#843 a suggestion pill's own label clears the 11px functional floor", asyn
     "character.get": () => CARD,
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
-    "tag.listPendingSuggestions": () => [makeTagFixture({ id: "tag_banter", name: "banter" })],
+    "tag.listPendingSuggestions": () => [{ ...makeTagFixture({ id: "tag_banter", name: "banter" }), characterId: "char_ct_1", characterName: "Aria" }],
   });
   const component = await mount(<CharacterEditorSurfaceStory />);
 

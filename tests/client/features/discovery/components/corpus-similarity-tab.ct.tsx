@@ -18,6 +18,14 @@
 // reads are suspense reads behind one QueryBoundary, and the edge list is a separate non-suspending query,
 // so "Nearest pairs" being visible is the settle for the section order and the pair list needs its own.
 
+import {
+  makeBrowseCharacter,
+  makeBrowseCharactersPage,
+  makeCharacterComparison,
+  makeSimilarityGraph,
+  makeSimilarityGraphEdge,
+  makeSimilarityGraphNode,
+} from "@orb/testkit/node/factories/discovery-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -38,12 +46,14 @@ const SUB_IDENTICAL_PAIR = /Remy ↔ Yuuna/;
 
 /** More edges than any cap, ranked so the head is predictable. Proportional to the audited 1,782. */
 const EDGE_COUNT = 120;
-const NODES = Array.from({ length: EDGE_COUNT + 1 }, (_, index) => ({ characterId: `character_${index}`, name: `Node ${index}` }));
-const EDGES = Array.from({ length: EDGE_COUNT }, (_, index) => ({
-  source: "character_0",
-  target: `character_${index + 1}`,
-  similarity: 0.99 - index * 0.001,
-}));
+const NODES = Array.from({ length: EDGE_COUNT + 1 }, (_, index) => makeSimilarityGraphNode({ characterId: `character_${index}`, name: `Node ${index}` }));
+const EDGES = Array.from({ length: EDGE_COUNT }, (_, index) =>
+  makeSimilarityGraphEdge({
+    source: "character_0",
+    target: `character_${index + 1}`,
+    similarity: 0.99 - index * 0.001,
+  }),
+);
 
 const DUP_CHARACTERS = [
   {
@@ -85,26 +95,22 @@ const POPULATED: TrpcRoutes<
   "discovery.duplicateCharacters": DUP_CHARACTERS,
   "discovery.duplicateChats": DUP_CHATS,
   "discovery.imageDuplicates": DUP_ART,
-  "discovery.similarityGraph": { nodes: NODES, edges: EDGES },
+  "discovery.similarityGraph": makeSimilarityGraph(NODES, EDGES),
   // The Compare tab's own picker read (only the two-tab story mounts it).
-  "discovery.browseCharacters": {
-    items: [
-      { characterId: "character_freya", name: "Freya", avatarHash: null, genre: null, tone: null, elevatorPitch: null },
-      { characterId: "character_frida", name: "Frida", avatarHash: null, genre: null, tone: null, elevatorPitch: null },
-    ],
-    nextCursor: null,
-    totalCount: 2,
-  },
-  "discovery.compareCharacters": {
-    a: { characterId: "character_freya", name: "Freya" },
-    b: { characterId: "character_frida", name: "Frida" },
+  "discovery.browseCharacters": makeBrowseCharactersPage([
+    makeBrowseCharacter({ characterId: "character_freya", name: "Freya" }),
+    makeBrowseCharacter({ characterId: "character_frida", name: "Frida" }),
+  ]),
+  "discovery.compareCharacters": makeCharacterComparison({
+    a: { characterId: "character_freya", name: "Freya", genre: null, tone: null, pitch: null },
+    b: { characterId: "character_frida", name: "Frida", genre: null, tone: null, pitch: null },
     sameGenre: true,
     sameTone: false,
     redundancy: 0.42,
     sharedTags: ["elf"],
     onlyA: ["knight"],
     onlyB: ["mage"],
-  },
+  }),
 };
 
 /** The tab's settle: the raw list's own heading, which renders only once the three suspense reads land. */
@@ -186,11 +192,7 @@ test("#563: pair Content retains names outside the warm catalog page", async ({ 
   // A warm catalog page omits the pair; CONTENT must name its retained snapshot independently of that page.
   await routeTrpc(page, {
     ...POPULATED,
-    "discovery.browseCharacters": {
-      items: [{ characterId: "character_someone_else", name: "Someone Else", avatarHash: null, genre: null, tone: null, elevatorPitch: null }],
-      nextCursor: null,
-      totalCount: 1,
-    },
+    "discovery.browseCharacters": makeBrowseCharactersPage([makeBrowseCharacter({ characterId: "character_someone_else", name: "Someone Else" })]),
   });
   const component = await mount(<CorpusSimilarityToContentStory />);
   await settled(page);

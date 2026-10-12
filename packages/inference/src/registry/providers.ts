@@ -15,6 +15,7 @@ import { ProviderError } from "../contract/errors.ts";
 import type { ProviderOrigin, ProviderSnapshot } from "../contract/runtime.ts";
 import type { ProviderStore } from "../deps.ts";
 
+// @orb-waive no-inline-package-interface(ProviderRegistry): baselined when the gate landed; burn-down item 952.
 export interface ProviderRegistry {
   /** The row `viewer` may use: a built-in or admin row, or `viewer`'s own plugin row their enabled install serves. */
   readonly get: (id: string, viewer: UserId) => ProviderDef | undefined;

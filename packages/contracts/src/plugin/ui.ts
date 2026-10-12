@@ -1433,7 +1433,7 @@ export type PluginSurfaceRegistrationMeta = z.infer<typeof pluginSurfaceRegistra
 // membrane uses for its own inbound args / outbound results (`HOST_FN_ARGS_MAX_BYTES` /
 // `HOST_FN_RESULT_CAP_BYTES`); they are re-declared here rather than imported because `infra` is above
 // `contracts` in the cake and a client cannot reach it — the numbers are pinned equal by
-// `tests/contracts/plugin/ui.contract.test.ts`, not by hope.
+// `tests/contracts/plugin/ui-proxy-subset.contract.test.ts`, not by hope.
 
 /** Max serialized bytes of ONE `plugin.uiHostCall` argument payload (the client→server direction). */
 export const PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES = 1_048_576;

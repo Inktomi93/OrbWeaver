@@ -9,6 +9,7 @@ import { z } from "zod";
 import type { AgentSdkSessionId, AgentSdkSessionTotals, AgentSeedBlock, AgentSeedTurn } from "#contract";
 import { AGENT_PROMPT_TAIL_JOINER, agentSdkSessionIdSchema } from "#contract";
 
+// @orb-waive no-inline-package-interface(SeedTurn): baselined when the gate landed; burn-down item 952.
 /** The contract's seed turn plus the assistant model this frame should claim — EXTENDED, never re-spelled, so
  *  the two cannot drift into different content vocabularies. */
 export interface SeedTurn extends AgentSeedTurn {

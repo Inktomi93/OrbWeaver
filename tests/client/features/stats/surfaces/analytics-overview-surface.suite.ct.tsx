@@ -1,3 +1,4 @@
+import { makeOwnerStats, makeWrappedSummary } from "@orb/testkit/node/factories/stats-view.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
@@ -25,7 +26,7 @@ for (const theme of ["hearth", "light"] as const) {
     test(`imported activity keeps real replies and readable accounting limits at ${width} in ${theme}`, async ({ mount, page }) => {
       await routeTrpc(page, {
         "stats.freshness": { computedAt: 1, stale: false, hasData: true },
-        "stats.overview": {
+        "stats.overview": makeOwnerStats({
           variantMessages: 0,
           assistantTurns: 3,
           swipes: 0,
@@ -43,8 +44,8 @@ for (const theme of ["hearth", "light"] as const) {
           throughputTps: 0,
           cacheHitRate: null,
           reasoningRate: 0,
-        },
-        "stats.wrapped": {
+        }),
+        "stats.wrapped": makeWrappedSummary({
           characters: 1,
           chats: 1,
           words: 120,
@@ -57,7 +58,7 @@ for (const theme of ["hearth", "light"] as const) {
           firstChatAt: 1,
           avgSwipeDepth: 0,
           swipeRate: 0,
-        },
+        }),
         "stats.timeseries": [],
         "stats.momentum": [],
       });

@@ -20,6 +20,7 @@ type Logger = pino.Logger;
 const LOG_RING_CAPACITY = 2000;
 const REQUEST_RING_CAPACITY = 500;
 
+// @orb-waive no-inline-package-interface(RequestRecord): baselined when the gate landed; burn-down item 952.
 /** One entry in the request ring; consumed by `recordRequest`/`recentRequests` + the debug surface. */
 export interface RequestRecord {
   id: string;

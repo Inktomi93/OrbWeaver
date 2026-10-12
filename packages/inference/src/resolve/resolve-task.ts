@@ -56,6 +56,7 @@ import { resolveApi } from "./coherence.ts";
 import { normalizeModelId } from "./heal.ts";
 import { foldBindings } from "./precedence.ts";
 
+// @orb-waive no-inline-package-interface(ResolveArgs): baselined when the gate landed; burn-down item 952.
 export interface ResolveArgs {
   readonly task: Task;
   readonly principal: Principal;
@@ -68,6 +69,7 @@ export interface ResolveArgs {
   readonly cachedFacts?: boolean | undefined;
 }
 
+// @orb-waive no-inline-package-interface(ResolverContext): baselined when the gate landed; burn-down item 952.
 /** Everything the resolver reads that is not a dep: the registry + the catalog mirrors + the warms. */
 export interface ResolverContext {
   readonly deps: InferenceDeps;
@@ -251,6 +253,7 @@ async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: 
   await ctx.warmEndpoint(connection, provider, credential.secret);
 }
 
+// @orb-waive no-inline-package-interface(ResolveOutcome): baselined when the gate landed; burn-down item 952.
 export interface ResolveOutcome {
   readonly resolved: Resolved;
   readonly warnings: readonly ResolvedWarning[];

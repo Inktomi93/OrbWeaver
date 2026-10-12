@@ -386,7 +386,7 @@ test("#1100 reopening Looks holds its box: the heading stays, the boundary reser
   mount,
   page,
 }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"settings.listThemes">();
   let reads = 0;
   // First open answers; the SECOND read is parked, which is the pending arm a user sees on the way back in.
   const trpc = await stub(page, { "settings.listThemes": () => (reads++ === 0 ? THEMES : hold) });

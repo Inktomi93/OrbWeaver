@@ -47,8 +47,9 @@ const APPLICATION = Object.freeze({
   "no-floorless-control-in-wrap": 2,
   "no-hardcoded-model-prose": 17,
   "no-inline-invalidate-outside-seam": 1,
+  "no-inline-package-interface": 345,
   "no-inline-types": 13,
-  "no-inline-wire-interface": 86,
+  "no-inline-wire-interface": 31,
   "no-legacy-react-api": 2,
   "no-loose-id-cast": 133,
   "no-manual-memo": 3,
@@ -89,10 +90,9 @@ const APPLICATION = Object.freeze({
   suppressions: 57,
   "surface-a11y-focus": 5,
   "test-determinism": 80,
-  "test-file-size": 73,
+  "test-file-size": 52,
   "test-hand-shape": 13,
   "test-reach": 112,
-  "testid-typed-only-stories": 336,
   "tests-raw-package-reach": 2486,
   "tooling-argv-front-door": 1,
   "tooling-artifact-path-home": 1,
@@ -123,9 +123,8 @@ const IMPLEMENTATION = Object.freeze({
   "platform-spellings": 29,
   suppressions: 7,
   "test-determinism": 32,
-  "test-file-size": 14,
+  "test-file-size": 11,
   "test-mock-doctrine": 7,
-  "testid-typed-only-stories": 100,
   "tests-raw-package-reach": 4,
   "tooling-argv-front-door": 2,
   "tooling-child-process-door": 1,
@@ -134,3 +133,7 @@ const IMPLEMENTATION = Object.freeze({
 });
 
 export const WAIVER_BUDGET: WaiverBudget = Object.freeze({ application: APPLICATION, implementation: IMPLEMENTATION });
+
+/** Names the budget a spawned structure run judges against, as JSON in this environment variable. Unset means
+ *  `WAIVER_BUDGET`; the corpus suite sets it so a planted tree is judged against what it plants. */
+export const WAIVER_BUDGET_ENV = "ORB_WAIVER_BUDGET";

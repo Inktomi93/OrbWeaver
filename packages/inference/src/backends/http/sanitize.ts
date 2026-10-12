@@ -85,6 +85,7 @@ const NO_SECRET_LITERALS: readonly string[] = Object.freeze([]);
  */
 export const NO_PROVIDER_SECRETS: ProviderScrubSet = NO_SECRET_LITERALS as ProviderScrubSet;
 
+// @orb-waive no-inline-package-interface(ScrubSource): baselined when the gate landed; burn-down item 952.
 /** The credential-bearing half of a resolved connection the scrub reads — the shape `Resolved` carries and
  *  the "Test endpoint" inspector holds before a row is even saved. */
 export interface ScrubSource {

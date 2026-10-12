@@ -15,16 +15,12 @@
 // `useEchoingSectionUpdate` records), so the page is shaped by hand against the two contract pieces that
 // ARE exported (`ChatListCursor`; `items` is `[]`, so its row type is moot). `notifications.list`'s
 // `InboxView` row type IS exported, so that half is pinned exactly.
-import type { ChatListCursor } from "@orb/contracts/chat";
-import type { InboxView } from "@orb/contracts/notifications";
 
-/** The honest "no chats yet" page (`ChatListPage`'s empty arm) — the same default the home masthead /
- *  library resume-strip readers compose over (character-library-surface.tsx, home-masthead-body.tsx). */
-interface EmptyChatListPage {
-  readonly items: readonly [];
-  readonly nextCursor: ChatListCursor | null;
-  readonly totalCount: number;
-}
+// THE SAME PRECEDENT AS `regex-reads-empty.ts`: fed with the QUIETEST TRUE STATE. The chat page is the full
+// `chat.listChats` output from its factory (the home masthead / library resume-strip readers compose over it);
+// `notifications.list`'s `InboxView` row type is exported, so that half is pinned exactly.
+import type { InboxView } from "@orb/contracts/notifications";
+import { makeChatListPage } from "./factories/chat-view.ts";
 
 /** The honest "nothing in the inbox" page — the bell's real empty-inbox lens rather than its error arm. */
 interface EmptyInboxPage {
@@ -32,13 +28,12 @@ interface EmptyInboxPage {
   readonly nextCursor: number | null;
 }
 
-const EMPTY_CHAT_LIST: EmptyChatListPage = { items: [], nextCursor: null, totalCount: 0 };
 const EMPTY_INBOX: EmptyInboxPage = { items: [], nextCursor: null };
 
 /** Spread into a `routeTrpc` map by any CT that mounts chat-aware chrome (the rail, the shell, a
  *  composition story) for a reason of its own. */
 export const CHAT_AND_INBOX_READS_EMPTY = {
-  "chat.listChats": (): EmptyChatListPage => EMPTY_CHAT_LIST,
+  "chat.listChats": () => makeChatListPage(),
   // The rail's chat-library census is its own read, separate from the enriched page above.
   "chat.countChats": (): number => 0,
   "notifications.list": (): EmptyInboxPage => EMPTY_INBOX,

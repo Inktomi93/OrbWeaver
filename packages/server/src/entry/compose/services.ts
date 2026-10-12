@@ -185,6 +185,7 @@ const QUIET_COALESCABLE = {
  *  a real listening inference engine on the box and asserted against its real answer. */
 type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "captureWire" | "sdkFetch">>;
 
+// @orb-waive no-inline-package-interface(ServicesDeps): baselined when the gate landed; burn-down item 952.
 /**
  * What boot supplies to stand up the whole service graph. The env→config→runtime facts (the private-endpoint
  * allowlist, the agent-sdk fan-out cap, the local-light cache dir) are read from the resolved effective
@@ -225,6 +226,7 @@ export interface ServicesDeps {
   readonly share: ShareComposeDeps;
 }
 
+// @orb-waive no-inline-package-interface(ShareComposeDeps): baselined when the gate landed; burn-down item 952.
 /** The lifecycle-owned half of the share service: the one relay controller, the one IP certificate controller, this
  *  machine's setup address, and the app listener's port and reach. */
 export interface ShareComposeDeps {
@@ -269,7 +271,7 @@ export const UNSUPERVISED_RESTART: ServerRestartPort = {
   },
 };
 
-// @orb-waive no-inline-wire-interface(ServicesResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(ServicesResult): baselined when the gate landed; burn-down item 952.
 /** What the composition root hands back: the transport `Services` bundle + the boot handles the lifecycle
  *  supervises/probes/wires. */
 export interface ServicesResult {

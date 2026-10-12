@@ -22,6 +22,7 @@ import { toImageUrl } from "../wire/image-normalize.ts";
 const DIMENSIONS_REJECTED_RE = /dimensions/iu;
 const EMBEDDINGS_PATH = "/embeddings";
 
+// @orb-waive no-inline-package-interface(ImageEmbedDeps): baselined when the gate landed; burn-down item 952.
 export interface ImageEmbedDeps {
   readonly fetch: typeof fetch;
   readonly normalize: NormalizeImageBytes;

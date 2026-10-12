@@ -1,5 +1,6 @@
 import { rpgConfigViewSchema } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -11,18 +12,18 @@ import { RpgFirstSessionStory } from "../_first-session-stories.tsx";
 import { FIRST_SESSION_USER, firstSessionConfig, firstSessionTracker } from "../first-session-fixtures.ts";
 import { makeRpgGameView } from "../fixtures.ts";
 
-async function routeFirstSession(page: Page, roll?: ReturnType<typeof trpcHold>, initial = firstSessionConfig()): Promise<void> {
+async function routeFirstSession(page: Page, roll?: ReturnType<typeof trpcHold<"rpg.rollDice">>, initial = firstSessionConfig()): Promise<void> {
   let config = initial;
   const attributes: Record<string, number> = {};
   await routeTrpc(page, {
     "settings.getUserSettings": { userId: FIRST_SESSION_USER, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null },
-    "chat.getChat": {
+    "chat.getChat": makeChatDetail({
       participants: [],
       viewerUserId: FIRST_SESSION_USER,
       viewerIsHost: true,
       viewerActivePersonaId: null,
       rpg: { gameId: "rpg_game_ct_first_session", engaged: true },
-    },
+    }),
     "rpg.getGame": () => {
       const game = makeRpgGameView(CHAT_ID, { ruleset: config.ruleset });
       return { ...game, publicConfig: { ...game.publicConfig, statProfile: config.statProfile } };
@@ -124,7 +125,7 @@ test("ability stamps stay in the same paragraph and preserve spanning formatting
 });
 
 test("a pending generation describes disabled controls and a failed roll leaves saved scores intact", async ({ mount, page }) => {
-  const roll = trpcHold();
+  const roll = trpcHold<"rpg.rollDice">();
   await routeFirstSession(page, roll);
   const component = await mount(
     <CtToastSurface>

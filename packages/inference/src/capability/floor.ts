@@ -20,6 +20,7 @@ export function clampToTrainedWindow(capability: Capability, trained: number | u
   return { kind: "generation", generation: { ...capability.generation, context: { ...capability.generation.context, window: trained } } };
 }
 
+// @orb-waive no-inline-package-interface(ServedWindow): baselined when the gate landed; burn-down item 952.
 /** The window a server runs where the request cannot set one, and whether that figure is only its floor. */
 export interface ServedWindow {
   readonly window: number;
@@ -51,6 +52,7 @@ export function markSettableWindow(capability: Capability, sendsWindow: boolean,
   return { kind: "generation", generation: { ...capability.generation, context: { ...context, ...settable } } };
 }
 
+// @orb-waive no-inline-package-interface(ServerToolChoice): baselined when the gate landed; burn-down item 952.
 /** What the server does with each tool-choice form and the parallel switch, as its catalog reader states it. */
 export interface ServerToolChoice {
   readonly required: boolean;

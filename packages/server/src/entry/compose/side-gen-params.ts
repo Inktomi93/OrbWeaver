@@ -18,6 +18,7 @@ import type { SettingsService } from "#domain/settings";
  *  A stale, unowned or missing named preset degrades to task defaults. */
 type ResolveUtilityPresetParams = (userId: UserId) => Promise<SideGenSampling | undefined>;
 
+// @orb-waive no-inline-package-interface(SideGenParamsDeps): baselined when the gate landed; burn-down item 952.
 export interface SideGenParamsDeps {
   readonly preset: Pick<PresetService, "get">;
   readonly settings: Pick<SettingsService, "loadUserSettings">;

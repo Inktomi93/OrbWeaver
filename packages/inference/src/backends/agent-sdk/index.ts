@@ -41,6 +41,7 @@ export type { SessionEntryWriter } from "./session/index.ts";
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 const CLAUDE_TOOL = "claude";
 
+// @orb-waive no-inline-package-interface(AgentSdkBackendDeps): baselined when the gate landed; burn-down item 952.
 export interface AgentSdkBackendDeps {
   readonly now: () => number;
   readonly log: InferenceDeps["log"];
@@ -76,6 +77,7 @@ export function agentSdkCatalogEntry(row: AgentSdkModel): ModelCatalogEntry {
   return bareCatalogEntry({ id: row.alias, name: row.displayName });
 }
 
+// @orb-waive no-inline-package-interface(AgentSdkBackend): baselined when the gate landed; burn-down item 952.
 export interface AgentSdkBackend {
   readonly backend: ProviderBackend;
   /** The daemon catalog under a USER's token — the resolver's `warmAgentSdk` arm (no host credential exists to
@@ -142,13 +144,14 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
 
 // ── The SDK-free tool-server seam (agent mode) ─────────────────────────────────────────────────────────
 
-// @orb-waive no-inline-wire-interface(AgentToolResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(AgentToolResult): baselined when the gate landed; burn-down item 952.
 /** A tool's result — a thin, SDK-free shape mapped to the MCP `CallToolResult` at the boundary. */
 export interface AgentToolResult {
   readonly content: ReadonlyArray<{ readonly type: "text"; readonly text: string }>;
   readonly isError?: boolean;
 }
 
+// @orb-waive no-inline-package-interface(AgentToolSpec): baselined when the gate landed; burn-down item 952.
 export interface AgentToolSpec {
   readonly name: string;
   readonly description: string;

@@ -7,6 +7,7 @@ import { peerIp } from "#infra/network";
 
 const SERVICE_UNAVAILABLE = 503;
 
+// @orb-waive no-inline-package-interface(HealthzDeps): baselined when the gate landed; burn-down item 952.
 export interface HealthzDeps {
   readonly isShuttingDown: () => boolean;
   /** The boot decrypt-probe result: did SecretBox successfully decrypt the canary at boot? `false` means

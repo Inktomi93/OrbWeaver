@@ -12,6 +12,8 @@ paths:
 
 Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
 
+The test layers and the rebuild plan are in `.claude/rules/node-tests.md`.
+
 ## Running CT
 
 Run `pnpm test:ct <paths>`. Never invoke `playwright test` directly and never run the whole tree from a

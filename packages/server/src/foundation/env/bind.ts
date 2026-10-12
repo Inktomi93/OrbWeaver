@@ -69,7 +69,7 @@ const LOOPBACK_ALIASES: ReadonlySet<string> = new Set(["localhost", "::1", "[::1
 /** The IPv4 loopback /8 — `127.0.0.0/8` routes to the local host, every octet of it. */
 const LOOPBACK_V4_RE = /^127(\.\d{1,3}){3}$/;
 
-// @orb-waive no-inline-wire-interface(BindPostureInput): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(BindPostureInput): baselined when the gate landed; burn-down item 952.
 /** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
 export interface BindPostureInput {
   readonly nodeEnv: NodeEnvironment;
@@ -84,6 +84,7 @@ export interface BindPostureInput {
   readonly inContainer: boolean;
 }
 
+// @orb-waive no-inline-package-interface(BindPosture): baselined when the gate landed; burn-down item 952.
 /** The composed posture. Every field is a fact about this boot, safe to print in a boot log. */
 export interface BindPosture {
   /** The host to hand `serve({ hostname })`. `undefined` ⇒ omit the option ⇒ every interface (node default). */

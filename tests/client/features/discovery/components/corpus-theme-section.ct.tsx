@@ -13,7 +13,7 @@
 // which says "this device MEASURED it" rather than "the mount declared a constant" — an assertion reading
 // only `data-tile-reserved` would keep passing for the wrong reason if the measurement were ever lost.
 
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CorpusThemeSectionStory } from "../_ct-stories.tsx";
@@ -35,7 +35,7 @@ const DETAIL_A = {
     { characterId: "character_ct_theme_2", name: "Starla", count: 4 },
     { characterId: "character_ct_theme_3", name: "Nova", count: 3 },
   ],
-} satisfies TrpcFixtureOutput<"discovery.themeDetail">;
+} satisfies TrpcWireOutput<"discovery.themeDetail">;
 
 const DETAIL_B = {
   ...DETAIL_A,
@@ -43,10 +43,10 @@ const DETAIL_B = {
   clusterIdx: 1,
   name: "The map changes hands",
   size: 7,
-} satisfies TrpcFixtureOutput<"discovery.themeDetail">;
+} satisfies TrpcWireOutput<"discovery.themeDetail">;
 
 test("#1098: picking a SECOND story theme holds the detail card's measured box — the column below does not jump", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"discovery.themeDetail">();
   let reads = 0;
   const trpc = await routeTrpc(page, {
     // The first pick answers; the SECOND is parked, which is the pending arm the reservation exists for.

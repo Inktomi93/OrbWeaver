@@ -17,6 +17,7 @@ import { ANY_HOST, EgressBlockedError, ImageRejectedError, isAllowedImageBuffer,
 const OK_STATUS_MIN = 200;
 const OK_STATUS_MAX = 300;
 
+// @orb-waive no-inline-package-interface(MaterializeBackgroundDeps): baselined when the gate landed; burn-down item 952.
 /** Injected so the compose root binds the real `assets.store` (kind `background`, enforceMagic) and the
  *  effective per-image byte cap, and a unit test binds a fake fetch + a fake store. */
 export interface MaterializeBackgroundDeps {

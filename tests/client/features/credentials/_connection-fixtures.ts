@@ -16,6 +16,7 @@ import { expect } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Deep relative, pure `.ts`: the step titles are read from their one home, never re-typed here.
 import { ADD_DIALOG_COPY } from "#client/features/credentials/lib/add-connection-form-model.ts";
+import { appSettingsView, effectiveAppSettings } from "../user-admin/app-settings-fixtures.ts";
 
 export type ConnectionRow = TrpcWireOutput<"connection.list">[number];
 export type CredentialRow = TrpcWireOutput<"credentials.list">[number];
@@ -230,13 +231,10 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
         return binding;
       }),
     "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
-    "settings.getAppSettingsWithOverrides": () => ({
-      resolved: { privateEndpointAllowlist: [...allowlist] },
-      overrides: { privateEndpointAllowlist: null },
-    }),
+    "settings.getAppSettingsWithOverrides": () => appSettingsView({ privateEndpointAllowlist: [...allowlist] }, { privateEndpointAllowlist: null }),
     "settings.updateAppSettings": ({ partial }) => {
       allowlist = partial.privateEndpointAllowlist ?? allowlist;
-      return { privateEndpointAllowlist: [...allowlist] };
+      return effectiveAppSettings({ privateEndpointAllowlist: [...allowlist] });
     },
   });
 }

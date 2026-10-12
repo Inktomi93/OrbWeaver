@@ -94,23 +94,27 @@ export class ZipRejectedError extends Error {
   }
 }
 
+// @orb-waive no-inline-package-interface(ZipEntry): baselined when the gate landed; burn-down item 952.
 export interface ZipEntry {
   readonly path: string;
   readonly bytes: Uint8Array;
 }
 
+// @orb-waive no-inline-package-interface(StagedEntry): baselined when the gate landed; burn-down item 952.
 /** One entry recovered from an untrusted archive after the belt battery passed and it was staged to disk. */
 export interface StagedEntry {
   readonly path: string;
   readonly read: () => Promise<Uint8Array>;
 }
 
+// @orb-waive no-inline-package-interface(StagedArchive): baselined when the gate landed; burn-down item 952.
 /** Result of a successful {@link extractZip}. Caller MUST `dispose()` in a try/finally to remove the staging dir. */
 export interface StagedArchive {
   readonly entries: readonly StagedEntry[];
   readonly dispose: () => Promise<void>;
 }
 
+// @orb-waive no-inline-package-interface(ExtractOptions): baselined when the gate landed; burn-down item 952.
 export interface ExtractOptions {
   readonly maxTotalBytes?: number;
   readonly maxEntryBytes?: number;

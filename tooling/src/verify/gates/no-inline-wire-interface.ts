@@ -1,17 +1,17 @@
-// Policy: no-inline-wire-interface (Spine-TypeScript-and-Patterns.md §7.4) — an exported interface whose NAME
-// says it is a wire shape (`WIRE_SHAPE_SUFFIXES`) declared outside a type home in server, inference or client
-// code. A cross-boundary wire shape lives in `@orb/contracts` (zod + inferred); a hand-declared twin compiles on
-// both sides and drifts silently. The wire vocabulary is the subject: a deps bundle, a structural port or a
-// component's props (`*Deps`, `*Port`, `*Props`) is not a wire shape and never matches a suffix.
+// Policy: no-inline-wire-interface (Spine-TypeScript-and-Patterns.md §7.4) — an exported interface in client code,
+// outside a type home, that crosses a boundary: its name is in the wire vocabulary (`WIRE_SHAPE_SUFFIXES`) AND its
+// type is plain data (`inline-shape-declaration.ts#isPlainDataShape`, no call or construct signature in it or
+// anything it nests). A hand-declared twin of a response compiles on both sides and drifts silently. A hook result,
+// a deps bundle or a component's props carries behaviour, so it never crosses a wire and is not judged here.
 //
-// FAMILY `no-inline-types` (split by POPULATION, like `no-inline-domain-interface`): every member asks
-// `lib/inline-shape-declaration.ts#inlineShapeNames` which declarations are exported shapes. Server domains
-// are subtracted because `no-inline-domain-interface` already judges every exported interface there.
-// POPULATION: new policy. The type homes are the `no-inline-types` homes minus the client `data/` tier, which
-// is where hand-spelled HTTP response shapes live. Each clause has a mustPass row that dies without it.
-import { SyntaxKind } from "ts-morph";
+// FAMILY `no-inline-types` (split by POPULATION): every member asks `lib/inline-shape-declaration.ts#inlineShapeNames`
+// which declarations are exported shapes. Server and inference code is subtracted because
+// `no-inline-domain-interface` and `no-inline-package-interface` already judge every exported interface there.
+// POPULATION: the client minus its type homes (forms, state, lib, `contract/`); the `data/` tier is judged, since
+// hand-spelled HTTP response shapes live there. Each clause has a mustPass row that dies without it.
+import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { inlineShapeNames } from "../lib/inline-shape-declaration.ts";
+import { inlineShapeNames, isPlainDataShape } from "../lib/inline-shape-declaration.ts";
 
 /** The name suffixes that mark a shape as crossing a boundary. */
 const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input", "Request", "Response", "Wire"] as const;
@@ -19,13 +19,13 @@ const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input", "Reque
 const isWireShapeName = (name: string): boolean => WIRE_SHAPE_SUFFIXES.some((suffix) => name.endsWith(suffix) && name.length > suffix.length);
 
 const MESSAGE =
-  "exported wire-named interface outside a type home — a cross-boundary wire shape lives in @orb/contracts " +
-  "(zod + inferred type), a package-internal one in that package's contract/. Import or derive it " +
-  "(`z.infer`, `z.input`, `Pick<…>`) instead of declaring a second spelling. See Spine-TypeScript-and-Patterns.md §7.4.";
+  "exported wire-named plain-data interface outside a type home — a cross-boundary wire shape lives in @orb/contracts " +
+  "(zod + inferred type). Import or derive it (`z.infer`, `z.input`, `Pick<…>`) instead of declaring a second " +
+  "spelling. See Spine-TypeScript-and-Patterns.md §7.4.";
 const FIX =
-  "move the shape to @orb/contracts (or the package's contract/) and import it, or derive it from the owner. A " +
-  "baselined site is waived with `@orb-waive no-inline-wire-interface(<position>): <reason naming its burn-down " +
-  "item>` on the line above, where <position> is the interface's own declared name.";
+  "move the shape to @orb/contracts and import it, or derive it from the owner. A baselined site is waived with " +
+  "`@orb-waive no-inline-wire-interface(<position>): <reason naming its burn-down item>` on the line above, where " +
+  "<position> is the interface's own declared name.";
 
 export const gate = defineGate({
   id: "no-inline-wire-interface",
@@ -33,18 +33,11 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   population: {
-    in: ["@server", "@inference", "@client"],
-    notUnder: [
-      "packages/server/src/domain/**",
-      "packages/server/src/primitives/**",
-      "packages/client/src/forms/**",
-      "packages/client/src/state/**",
-      "packages/client/src/lib/**",
-      "**/contract/**",
-    ],
+    in: ["@client"],
+    notUnder: ["packages/client/src/forms/**", "packages/client/src/state/**", "packages/client/src/lib/**", "**/contract/**"],
     notNamed: ["contract.ts"],
   },
-  analysis: "syntax",
+  analysis: "types",
   execution: "selected-files",
   facts: [],
   resources: [],
@@ -55,6 +48,9 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.InterfaceDeclaration],
         visit: (node): void => {
+          if (!(Node.isInterfaceDeclaration(node) && isPlainDataShape(node))) {
+            return;
+          }
           for (const name of inlineShapeNames(node)) {
             const text = name.getText();
             if (isWireShapeName(text)) {
@@ -67,39 +63,40 @@ export const gate = defineGate({
   }),
   mustFlag: [
     {
-      mode: "source",
-      files: { "packages/server/src/entry/http/import-chat.ts": "export interface ChatImportResult {\n  readonly chatId: string;\n}\n" },
-      expect: { count: 1, token: "ChatImportResult" },
-      why: "the founding shape: a server route's response shape declared beside the route, with a hand twin on the client",
-    },
-    {
-      mode: "source",
+      mode: "types",
       files: { "packages/client/src/data/import-chats.ts": "export interface ChatImportResult {\n  readonly chatId: string;\n}\n" },
       expect: { count: 1, token: "ChatImportResult" },
-      why: "the client `data/` tier is NOT a home for wire shapes: it is where the hand-spelled response twins live",
+      why: "the founding shape: the client `data/` tier is NOT a home for wire shapes, it is where the hand-spelled response twins live",
     },
     {
-      mode: "source",
-      files: {
-        "packages/inference/src/backends/probe.ts":
-          "export interface ProbeRequest {\n  readonly a: string;\n}\nexport interface ProbeResponse {\n  readonly b: string;\n}\nexport interface ProbeWire {\n  readonly c: string;\n}\n",
-      },
-      expect: { count: 3 },
-      why: "inference is in the population, and three suffixes of the vocabulary each flag on their own declaration",
-    },
-    {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/x/view.tsx":
-          "export interface PluginCommandView {\n  readonly id: string;\n}\nexport interface PageSummary {\n  readonly n: number;\n}\nexport interface ListRow {\n  readonly n: number;\n}\nexport interface EditInput {\n  readonly n: number;\n}\n",
+          "export interface PluginCommandView {\n  readonly id: string;\n  readonly tags: readonly { readonly name: string }[];\n}\nexport interface PageSummary {\n  readonly n: number;\n}\nexport interface ListRow {\n  readonly n: number;\n}\nexport interface EditInput {\n  readonly n: number;\n}\nexport interface ProbeRequest {\n  readonly a: string;\n}\nexport interface ProbeResponse {\n  readonly b: string;\n}\nexport interface ProbeWire {\n  readonly c: string;\n}\n",
       },
-      expect: { count: 4 },
-      why: "client features, and the View, Summary, Row and Input suffixes",
+      expect: { count: 7 },
+      why: "client features, and every suffix of the vocabulary flags on its own declaration; a nested plain-data array stays data",
     },
   ],
   mustPass: [
     {
-      mode: "source",
+      mode: "types",
+      files: {
+        "packages/client/src/data/use-start-chat.ts":
+          "export interface UseStartChatResult {\n  readonly start: (id: string) => void;\n  readonly isPending: boolean;\n}\n",
+      },
+      why: "a client hook result carries a callable member: it is behaviour, never a wire shape",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/view.tsx":
+          "interface Ops {\n  readonly run: () => void;\n}\nexport interface NestedResult {\n  readonly ops: Ops;\n}\nexport interface ListedResult {\n  readonly items: readonly Ops[];\n}\nexport interface MapRow {\n  readonly byKey: Record<string, Ops>;\n}\n",
+      },
+      why: "behaviour nested in an object, an array or an index signature still keeps the shape off the wire",
+    },
+    {
+      mode: "types",
       files: {
         "packages/client/src/features/x/view.tsx":
           "export interface PanelProps {\n  readonly a: string;\n}\nexport interface LoaderDeps {\n  readonly b: string;\n}\nexport interface BlobAssetsPort {\n  readonly c: string;\n}\nexport interface ResultDeps {\n  readonly d: string;\n}\n",
@@ -107,40 +104,41 @@ export const gate = defineGate({
       why: "props, deps bundles and structural ports are not wire shapes; a wire word inside the name (`ResultDeps`) is not the suffix",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
-        "packages/server/src/entry/http/x.ts":
+        "packages/client/src/features/x/view.tsx":
           "interface LocalResult {\n  readonly a: string;\n}\nexport const use = (value: LocalResult): string => value.a;\n",
       },
       why: "an unexported interface is file-local and is the structural-copy policy's question, not this one",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
-        "packages/server/src/entry/anchor.ts": "export const anchor = 1;\n",
-        "packages/server/src/domain/x/verb.ts": "export interface FooView {\n  readonly a: string;\n}\n",
-        "packages/server/src/primitives/x.ts": "export interface BarView {\n  readonly a: string;\n}\n",
+        "packages/client/src/features/x/anchor.ts": "export const anchor = 1;\n",
         "packages/client/src/forms/x.ts": "export interface FormView {\n  readonly a: string;\n}\n",
         "packages/client/src/state/x.ts": "export interface StateView {\n  readonly a: string;\n}\n",
         "packages/client/src/lib/x.ts": "export interface LibView {\n  readonly a: string;\n}\n",
-        "packages/inference/src/contract/x.ts": "export interface HomeView {\n  readonly a: string;\n}\n",
-        "packages/server/src/infra/contract.ts": "export interface FlatView {\n  readonly a: string;\n}\n",
+        "packages/client/src/features/y/contract/x.ts": "export interface HomeView {\n  readonly a: string;\n}\n",
+        "packages/client/src/features/y/contract.ts": "export interface FlatView {\n  readonly a: string;\n}\n",
       },
-      why: "every subtracted home in one row: server domains (judged whole by `no-inline-domain-interface`), server primitives, the client forms/state/lib tiers, `contract/` directories and the flat `contract.ts`. Dropping any one clause reds this row",
+      why: "every subtracted client home in one row: the forms, state and lib tiers, `contract/` directories and the flat `contract.ts`. Dropping any one clause reds this row",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
-        "packages/server/src/entry/anchor.ts": "export const anchor = 1;\n",
+        "packages/client/src/features/x/anchor.ts": "export const anchor = 1;\n",
+        "packages/server/src/entry/compose/chat.ts": "export interface ChatComposeResult {\n  readonly a: string;\n}\n",
+        "packages/server/src/entry/http/import-chat.ts": "export interface ChatImportResult {\n  readonly chatId: string;\n}\n",
+        "packages/inference/src/backends/probe.ts": "export interface ProbeRequest {\n  readonly a: string;\n}\n",
         "packages/ui/src/x.ts": "export interface UiView {\n  readonly a: string;\n}\n",
         "packages/kit/src/x.ts": "export interface KitRow {\n  readonly a: string;\n}\n",
       },
-      why: "the root list: ui and kit sit below contracts and are not in the population",
+      why: "the root list: server and inference are judged whole by the interface siblings of the family, and ui and kit sit below contracts. Adding a root to `in` reds this row",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
-        "packages/server/src/entry/http/import-chat.ts":
+        "packages/client/src/data/import-chats.ts":
           "// @orb-waive no-inline-wire-interface(ChatImportResult): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
           "export interface ChatImportResult {\n  readonly chatId: string;\n}\n",
       },

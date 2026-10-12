@@ -63,7 +63,7 @@ test("Approve fires admin.setEnabled({enabled:true}) for that row", async ({ mou
 });
 
 test("a same-task repeat admits one approval, owns only its account row, and rejection releases retry", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"admin.setEnabled">();
   const trpc = await stub(page, USERS, { "admin.setEnabled": held });
   const component = await mount(<AdminApprovalsSectionStory />);
 

@@ -43,7 +43,7 @@ rule are in `Core-0-Architecture-and-Structure.md` §6. Look up which word names
 
 Root `AGENTS.md` owns the verification tiers, the harness artifacts and the escape-hatch ban. Lane commit,
 probe and floor rules are in the `lane` skill (`.claude/skills/lane/SKILL.md`). The orchestrator runs the
-whole-tree check after each merge train.
+whole-tree check once on main before the owner pushes; CI is the verdict (D317).
 
 ## 5. Cross-cutting threads
 

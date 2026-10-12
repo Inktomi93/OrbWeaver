@@ -1,0 +1,24 @@
+---
+kind: work
+status: open
+updated: 2026-10-12
+priority: P3
+---
+
+# Decide the auth config requiresLogin wire field
+
+## What
+
+The auth config response carries requiresLogin, but no client code reads it (packages/client/src/data/auth-config.ts declares it only). Either the client should use it or the field leaves the contract.
+
+## Why
+
+A dead wire field invites fixtures and tests that assert nothing.
+
+## Done when
+
+The field is read by the client or removed from the contract and server.
+
+## Evidence
+
+Filled at landing: what ran and where its output is.

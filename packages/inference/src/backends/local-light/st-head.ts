@@ -15,6 +15,7 @@ interface DenseLayer {
   readonly activation: (x: number) => number;
 }
 
+// @orb-waive no-inline-package-interface(StHead): baselined when the gate landed; burn-down item 952.
 export interface StHead {
   /** The hidden size the head reads: the encoder's `hidden_size` must equal it. */
   readonly inputDim: number;

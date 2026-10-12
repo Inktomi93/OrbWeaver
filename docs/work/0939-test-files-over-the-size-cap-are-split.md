@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-12
 priority: P3
 area: tests
-lane: wt/agent-a17af7753ef5674e8
+blocked: on 961
 plan: test-mirror
 ---
 
@@ -23,5 +23,7 @@ Monolith test files hide which behaviour broke and resist the directory mirror.
 The test-file-size grant list is empty.
 
 ## Evidence
+
+The branch wt/agent-a17af7753ef5674e8 split a first batch with equal case counts. The remaining files leave through the test-foundation legacy ledger (item 961) rather than being split, because the rebuild replaces them.
 
 Filled at landing: what ran and where its output is.

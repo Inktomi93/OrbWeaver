@@ -4,20 +4,15 @@
 // fires updateUserSettingsSection("workloads") with the full section patch. Proves the previously-unbound
 // knobs now have a real write path (B:workloads pruned).
 
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { WorkloadsTuningSectionStory } from "../_ct-stories.tsx";
 
-const SETTINGS_VIEW = {
-  userId: "user_ct_workloads",
-  schemaVersion: 1,
-  config: DEFAULT_USER_SETTINGS,
-  updatedAt: 0,
-};
+const SETTINGS_VIEW = userSettingsView();
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {

@@ -19,6 +19,7 @@ interface VariantKey {
   readonly quality: number;
 }
 
+// @orb-waive no-inline-package-interface(VariantCache): baselined when the gate landed; burn-down item 952.
 export interface VariantCache {
   read: (ownerId: UserId, hash: string, variant: VariantKey) => Promise<Uint8Array | undefined>;
   put: (ownerId: UserId, hash: string, variant: VariantKey, bytes: Uint8Array) => Promise<void>;

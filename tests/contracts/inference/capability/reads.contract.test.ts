@@ -8,7 +8,9 @@ import {
   completeSamplerOrder,
   GENERATION_FLOOR,
   isStricterRoleHandling,
+  KIND_DEFS,
   ROLE_HANDLING,
+  requireGenerationCapability,
   roleHandlingFloorOf,
   SETTABLE_WINDOW_FLOOR,
   USER_ROLE_HANDLING,
@@ -109,5 +111,16 @@ describe("windowForPreset — a route whose window the request sets runs the pre
   test("a route the request cannot set keeps the server's window: the preset only lowers the fit", () => {
     const served = { ...GENERATION_FLOOR, context: { window: 4096, windowEstimated: true } };
     expect(windowForPreset(served, 16_384)).toBe(served);
+  });
+});
+
+describe("requireGenerationCapability — a chat-shaped read over a non-generation row is a program error", () => {
+  test("a generation capability yields its generation half", () => {
+    expect(requireGenerationCapability(KIND_DEFS.generation.floor)).toBe(KIND_DEFS.generation.floor.generation);
+  });
+
+  test("an embedding or rerank capability is refused, naming its kind", () => {
+    expect(() => requireGenerationCapability(KIND_DEFS.embedding.floor)).toThrow(/embedding/u);
+    expect(() => requireGenerationCapability(KIND_DEFS.rerank.floor)).toThrow(/rerank/u);
   });
 });

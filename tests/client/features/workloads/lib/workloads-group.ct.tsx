@@ -8,11 +8,11 @@
 // pane's per-user (NOT admin-gated) visibility. Plus (at the bottom) the POPULATED fixture: the pane's
 // hard-to-reach states on one screen, because an empty stub is what a visual review kept landing on.
 
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "@orb/testkit/browser/settings-geometry.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { PAID_RUN_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -54,7 +54,7 @@ function stub(page: Page): Promise<TrpcRecorder> {
     ...STREAM_MUTATION_ROUTES,
     // The jobs section owns the paid-run confirm, which reads the Utility role on mount.
     ...PAID_RUN_ROUTES,
-    "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => userSettingsView(),
     "settings.listThemes": [],
     "sessions.me": () => USER_VIEWER,
     "workloads.list": () => [],
@@ -282,7 +282,7 @@ test("POPULATED: both lanes, a job in flight, a poison row, a finished stats reb
     "rosterPreset.count": 0,
     ...STREAM_MUTATION_ROUTES,
     ...PAID_RUN_ROUTES,
-    "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.getUserSettings": () => userSettingsView(),
     "sessions.me": () => USER_VIEWER,
     "workloads.list": () =>
       workloadList(

@@ -23,6 +23,7 @@ const BACKCHANNEL_EVENT = "http://schemas.openid.net/event/backchannel-logout";
 // key/alg-class confusion; pinning stops a future JWKS quirk widening what we accept (no RS256→HS256 downgrade).
 const PINNED_ALGS = ["RS256", "ES256"] as const;
 
+// @orb-waive no-inline-package-interface(LogoutTokenSubject): baselined when the gate landed; burn-down item 952.
 /** The subject a validated `logout_token` names — `sub` (the stable external id we key sessions on) and/or
  *  `sid`. At least one is non-null (§2.4). We revoke by `sub`; `sid` alone is validated but unactionable
  *  (we do not store a per-session IdP sid). */
@@ -31,6 +32,7 @@ export interface LogoutTokenSubject {
   readonly sid: string | null;
 }
 
+// @orb-waive no-inline-package-interface(BackchannelVerifyArgs): baselined when the gate landed; burn-down item 952.
 export interface BackchannelVerifyArgs {
   readonly logoutToken: string;
   /** The issuer JWKS — a URL (https, fetched + cached by {@link jwksFor}) at runtime, or a JWKS JSON literal
@@ -40,6 +42,7 @@ export interface BackchannelVerifyArgs {
   readonly audience: string;
 }
 
+// @orb-waive no-inline-package-interface(BackchannelLogoutVerifier): baselined when the gate landed; burn-down item 952.
 export interface BackchannelLogoutVerifier {
   readonly verify: (args: BackchannelVerifyArgs) => Promise<LogoutTokenSubject | null>;
 }

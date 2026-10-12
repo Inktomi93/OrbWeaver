@@ -14,6 +14,7 @@ import type { ResolvedMediaRef } from "#domain/chat";
 import type { ImageAdapter } from "#infra/image";
 import type { prepareVideo } from "#infra/media";
 
+// @orb-waive no-inline-package-interface(ImageRefAssets): baselined when the gate landed; burn-down item 952.
 export interface ImageRefAssets {
   readonly frameCount: ImageAdapter["frameCount"];
   readonly prepareVideo: typeof prepareVideo;

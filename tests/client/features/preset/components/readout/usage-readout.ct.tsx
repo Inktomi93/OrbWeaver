@@ -15,8 +15,9 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeCachePolicy } from "@orb/testkit/node/factories/resolved-connection.ts";
-import type { TrpcFixtureOutput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PresetReadoutUsageStory } from "./_readout-stories.tsx";
@@ -51,20 +52,12 @@ const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEF
 
 /** The OPEN room the readout binds to — the `ChatDetail` fields `use-readout-binding` and its title chain
  *  reach for, at the same shape the sibling readout suites feed (`actions-readout.ct.tsx`'s CHAT_DETAIL). */
-const BOUND_CHAT_DETAIL = {
-  id: "chat_ct_readoutbound",
-  title: "Aveline & the Court",
-  starred: false,
-  archived: false,
-  temporary: false,
-  parentChatId: null,
-  participants: [],
-};
+const BOUND_CHAT_DETAIL = makeChatDetail({ id: "chat_ct_readoutbound", title: "Aveline & the Court" });
 
 /** The usage wire as the verb shapes it: the active-pick FLAG (a setting, not a room list) + the rooms whose
  *  rpg GM voice redirects here, already filtered to what this caller may open. */
 function usageRoutes(
-  usage: TrpcFixtureOutput<"preset.listUsage">,
+  usage: TrpcWireOutput<"preset.listUsage">,
 ): TrpcRoutes<
   | "preset.get"
   | "preset.list"

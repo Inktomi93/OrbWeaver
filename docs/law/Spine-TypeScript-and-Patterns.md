@@ -29,7 +29,8 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | - | - |
 | `no-inline-types` | exported type aliases and exported zod object/enum/discriminatedUnion consts in client, server, inference, tooling and tests, outside the homes: the client `data`/`forms`/`state`/`lib` tiers, `server/src/primitives`, `tooling/src/floor`, `contract/`, and the test home (`tests/support/**` and fixture or `_support` modules) |
 | `no-inline-domain-interface` | every exported interface in a server domain outside `contract/` |
-| `no-inline-wire-interface` | an exported interface named as a wire shape (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) in server, inference or client outside a home, the client `data` tier included |
+| `no-inline-package-interface` | every exported interface in server entry, transport, infra and foundation and in inference outside `contract/` |
+| `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
 | `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
 | `contract-derives-not-respells` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
 | `types-in-contract` | each feature's `contract/service.ts` declares its exported service interface; no exported `ReturnType<typeof fn>` in `context.ts` |

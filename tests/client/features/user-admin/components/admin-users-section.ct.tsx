@@ -164,7 +164,7 @@ test("as the owner, changing a member's role fires setRole", async ({ mount, pag
 });
 
 test("role writes lock only their target row while a sibling remains actionable", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"admin.setRole">();
   const trpc = await stub(page, OWNER_VIEWER, {
     "admin.setRole": (input) => (input.userId === "user_kes" ? held : applyToUser(input, { role: input.role })),
   });

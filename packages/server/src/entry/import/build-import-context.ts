@@ -11,6 +11,7 @@ import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids
 import type { ImportContext } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
 
+// @orb-waive no-inline-package-interface(ImportCharacterPort): baselined when the gate landed; burn-down item 952.
 /** The `character` front-door slice the driver wires the import create/dedup ops to. */
 export interface ImportCharacterPort {
   readonly create: (params: {
@@ -35,6 +36,7 @@ export interface ImportCharacterPort {
   }) => Promise<readonly { readonly characterId: CharacterId }[]>;
 }
 
+// @orb-waive no-inline-package-interface(ImportAssetPort): baselined when the gate landed; burn-down item 952.
 /** The `assets` front-door slice the driver wires the import avatar-store op to. `maxBytes` is the
  *  non-HTTP caller's zip-bomb belt — the store seam rejects an over-cap blob before the CAS write. */
 export interface ImportAssetPort {
@@ -49,6 +51,7 @@ export interface ImportAssetPort {
   }) => Promise<{ readonly assetId: AssetId }>;
 }
 
+// @orb-waive no-inline-package-interface(ImportTagPort): baselined when the gate landed; burn-down item 952.
 /** The `tag` front-door slice for author-shipped tags, applied under the importing principal. */
 export interface ImportTagPort {
   readonly attachCardTagByName: (params: {
@@ -61,6 +64,7 @@ export interface ImportTagPort {
   }) => Promise<boolean>;
 }
 
+// @orb-waive no-inline-package-interface(ImportWorldInfoPort): baselined when the gate landed; burn-down item 952.
 /** The `world-info` front-door slice the driver wires the embedded-lorebook import + the attached-book
  *  re-link to. Optional: a card-only composition may omit them (embedded books / references are then skipped). */
 export interface ImportWorldInfoPort {
@@ -80,6 +84,7 @@ export interface ImportWorldInfoPort {
   }) => Promise<{ readonly linked: number; readonly skipped: number }>;
 }
 
+// @orb-waive no-inline-package-interface(ImportContextWiring): baselined when the gate landed; burn-down item 952.
 /** The ports + acting principal the shared `ImportContext` wiring closes over. `importLorebook`/`profile`
  *  are optional — the card-only slice omits both; the delivery composition supplies them. */
 export interface ImportContextWiring {

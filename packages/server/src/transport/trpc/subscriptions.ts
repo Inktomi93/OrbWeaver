@@ -21,6 +21,7 @@ import { classifyDomainError, providerFaultOf } from "./error-mapping.ts";
 // Never a durable cursor, so a reconnect's lastEventId never resumes "from the error".
 const SUBSCRIPTION_ERROR_ID = "__error__";
 
+// @orb-waive no-inline-package-interface(SubscriptionErrorFrame): baselined when the gate landed; burn-down item 952.
 /** The typed terminal frame a subscription yields when its source throws a `DomainError`. The client
  *  discriminates on `__subscriptionError` and surfaces code/message rather than tearing the stream down
  *  with an opaque 500. */

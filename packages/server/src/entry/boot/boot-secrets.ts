@@ -12,6 +12,7 @@ const LIMIT_ONE = 1;
 // The one invite state whose token can still be redeemed, so whose peppered hash still has to match.
 const LIVE_INVITE_STATUS = "pending";
 
+// @orb-waive no-inline-package-interface(BootSecretsDeps): baselined when the gate landed; burn-down item 952.
 export interface BootSecretsDeps {
   readonly db: Db;
   readonly now: () => number;
@@ -19,6 +20,7 @@ export interface BootSecretsDeps {
   readonly sessionSecret: BootSecretResolution<string>;
 }
 
+// @orb-waive no-inline-package-interface(BootSecrets): baselined when the gate landed; burn-down item 952.
 /** The settled secrets, in the shapes compose takes. `null` keeps the pre-db meaning: an unusable value. */
 export interface BootSecrets {
   readonly secretBoxKey: Buffer | null;

@@ -8,6 +8,7 @@
 // @orb-waive-file no-test-fabrication(Partial<EffectiveAppSettings>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ state?: { handle?: { id?: string } } } | null): baselined when the gate widened to value casts; burn-down item 906.
 import type { AuthMode, IpCertificateSetting, IpCertificateStatus, ShareStatus } from "@orb/contracts/identity";
+import { makeChatListPage, makeChatSummaryView } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { copyActionName } from "@orb/ui/lib";
@@ -108,7 +109,7 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
     "sessions.me": () => stub.viewer ?? OWNER,
     "admin.listUsers": () => stub.users ?? [user("user_owner", "owner")],
     "admin.revokeUserSessions": () => ({ revoked: 1 }),
-    "chat.listChats": () => ({ items: [{ id: ROOM_ID, title: "Tavern night", participantNames: [] }], nextCursor: null, totalCount: 1 }),
+    "chat.listChats": () => makeChatListPage([makeChatSummaryView({ id: ROOM_ID, title: "Tavern night" })]),
     "share.status": () => current,
     // The sign-in panel above the card reads the same boot-fixed mode.
     "share.signInMode": () => signInModeView(stub.mode),

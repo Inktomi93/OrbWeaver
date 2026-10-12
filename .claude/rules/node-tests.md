@@ -13,6 +13,20 @@ Read a suite's result from its own output file. `AGENTS.md` owns the piping rule
 
 Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
 
+## Test layers and the rebuild
+
+`docs/plans/test-foundation/design.md` owns the layer split and the rebuild order. Each layer answers its own question:
+
+| Layer | Question |
+| - | - |
+| e2e | user flows and every wire |
+| CT | component behaviour and states |
+| server integration | domain logic and permissions on the composition root |
+| unit | pure logic in `@orb/kit` and `@orb/contracts` |
+
+- Retrofit work on a fake-heavy server harness stops. Those rows move to the rebuild.
+- Not yet built: the server test composition root, the builders, the corpus and the legacy ledger. The ledger will keep un-rebuilt test files out of commit hooks and lane floors.
+
 ## Fixtures and timeouts
 
 - A `test.extend` fixture's first parameter must be object-destructured. A bare `(ctx)` parameter throws

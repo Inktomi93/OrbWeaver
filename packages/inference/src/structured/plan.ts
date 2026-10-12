@@ -18,6 +18,7 @@ import { structuredTargetOf } from "./target.ts";
  *  the act, and a tool with no description is a measurably worse prompt on every family. */
 const STRUCTURED_TOOL_DESCRIPTION = "Record the result. Call this tool exactly once, with the complete result object.";
 
+// @orb-waive no-inline-package-interface(StructuredAsk): baselined when the gate landed; burn-down item 952.
 /** What a caller needs. A plan with `formats` produces one structured payload; `tools` alone is a tool turn. */
 export interface StructuredAsk {
   /** Candidate schemas in preference order. The plan names the index it picked. */
@@ -34,6 +35,7 @@ export interface StructuredAsk {
   readonly reasoningOff?: boolean | undefined;
 }
 
+// @orb-waive no-inline-package-interface(PlannedResponseFormat): baselined when the gate landed; burn-down item 952.
 /** The structured payload as planned: the scrubbed schema, how it rides, and the paths the reply drops a null at. */
 export interface PlannedResponseFormat {
   readonly name: string;
@@ -47,11 +49,13 @@ export interface PlannedResponseFormat {
   readonly reshapedPaths: readonly string[];
 }
 
+// @orb-waive no-inline-package-interface(PlannedTool): baselined when the gate landed; burn-down item 952.
 /** A tool as it goes out: parameters scrubbed for its mode, strictness resolved against the endpoint. */
 export interface PlannedTool extends WireTool {
   readonly strict: boolean | undefined;
 }
 
+// @orb-waive no-inline-package-interface(StructuredPlan): baselined when the gate landed; burn-down item 952.
 export interface StructuredPlan {
   readonly ok: true;
   /** The endpoint's grammar vocabulary the plan was built for. */
@@ -66,6 +70,7 @@ export interface StructuredPlan {
   readonly downgrades: readonly ResolvedWarning[];
 }
 
+// @orb-waive no-inline-package-interface(StructuredRefusal): baselined when the gate landed; burn-down item 952.
 export interface StructuredRefusal {
   readonly ok: false;
   readonly violations: readonly WireSchemaViolation[];

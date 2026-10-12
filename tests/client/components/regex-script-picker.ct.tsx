@@ -6,7 +6,7 @@
 // The pins are the two things a picker must get right: it shows the WHOLE library with attachment state,
 // and toggling writes the JUNCTION rather than mutating the carrier.
 
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -34,7 +34,7 @@ const AUTHORED_IN_SETTINGS = /Settings → Regex/;
 const ATTACH_PROC = "regex.attachToCharacter";
 const DETACH_PROC = "regex.detachFromCharacter";
 
-function stub(page: Page, library: TrpcFixtureOutput<"regex.listScripts">, attached: TrpcFixtureOutput<"regex.listForCharacter">): Promise<TrpcRecorder> {
+function stub(page: Page, library: TrpcWireOutput<"regex.listScripts">, attached: TrpcWireOutput<"regex.listForCharacter">): Promise<TrpcRecorder> {
   const listScripts: TrpcResponder<"regex.listScripts"> = () => library;
   const listAttached: TrpcResponder<"regex.listForCharacter"> = () => attached;
   return routeTrpc(page, {

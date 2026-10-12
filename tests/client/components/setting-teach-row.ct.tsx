@@ -18,9 +18,11 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { beforeHitBox, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { characterListResponder } from "../features/character/fixtures.ts";
 import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
 import { SettingRowDevMenuStory, SettingRowResetStory } from "./setting-row-actions.fixtures.tsx";
 
@@ -40,13 +42,7 @@ const QUOTED_HINT = "Affects quoted dialogue in every message.";
 /** Real defaults EXCEPT `appearance.colorQuotedSpeech`, flipped — the one planted difference. */
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "settings.getUserSettings": () => ({
-      userId: "user_ct_rowchrome",
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech: !DEFAULT_QUOTED } },
-      updatedAt: 0,
-      configUnreadable: null,
-    }),
+    "settings.getUserSettings": () => userSettingsView({ appearance: { colorQuotedSpeech: !DEFAULT_QUOTED } }),
     "settings.listThemes": () => [],
     "rosterPreset.list": [],
     "rosterPreset.count": 0,
@@ -58,14 +54,8 @@ function stub(page: Page): Promise<TrpcRecorder> {
     "regex.listScripts": () => [],
     "regex.countScripts": 0,
     "persona.list": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
-    [SAVE_PROC]: () => ({
-      userId: "user_ct_rowchrome",
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech: !DEFAULT_QUOTED } },
-      updatedAt: 0,
-      configUnreadable: null,
-    }),
+    "character.list": characterListResponder([]),
+    [SAVE_PROC]: () => userSettingsView({ appearance: { colorQuotedSpeech: !DEFAULT_QUOTED } }),
   });
 }
 
@@ -196,13 +186,7 @@ test("every row in a section starts its control at ONE shared track — the trav
 // was fixed). The stub below turns it on, which is the state that produced three rows sharing one address.
 test("auto-swipe is ONE row, not three — its dependents ride inside it", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "settings.getUserSettings": () => ({
-      userId: "user_ct_rowchrome",
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, chat: { ...DEFAULT_USER_SETTINGS.chat, autoSwipe: { ...DEFAULT_USER_SETTINGS.chat.autoSwipe, enabled: true } } },
-      updatedAt: 0,
-      configUnreadable: null,
-    }),
+    "settings.getUserSettings": () => userSettingsView({ chat: { autoSwipe: { ...DEFAULT_USER_SETTINGS.chat.autoSwipe, enabled: true } } }),
     "sessions.me": { userId: "user_ct_rowchrome", handle: "ct_rowchrome", globalRole: "user" as const },
     // The chat-behavior pane's Memory section reads the Utility role.
     ...UTILITY_RUNNING_ROUTES,
@@ -215,14 +199,8 @@ test("auto-swipe is ONE row, not three — its dependents ride inside it", async
     "regex.listScripts": () => [],
     "regex.countScripts": 0,
     "persona.list": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
-    [SAVE_PROC]: () => ({
-      userId: "user_ct_rowchrome",
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, chat: { ...DEFAULT_USER_SETTINGS.chat, autoSwipe: { ...DEFAULT_USER_SETTINGS.chat.autoSwipe, enabled: true } } },
-      updatedAt: 0,
-      configUnreadable: null,
-    }),
+    "character.list": characterListResponder([]),
+    [SAVE_PROC]: () => userSettingsView({ chat: { autoSwipe: { ...DEFAULT_USER_SETTINGS.chat.autoSwipe, enabled: true } } }),
   });
   await mount(<ConfigHostStory target="chat-behavior" />);
   const row = page.locator('[data-setting="auto-swipe"]');

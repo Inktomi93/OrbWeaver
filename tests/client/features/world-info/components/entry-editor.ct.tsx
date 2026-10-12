@@ -9,6 +9,7 @@
 // `page` locators address it by accessible name.
 
 import { removeActionName } from "@orb/client/lib";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -16,7 +17,7 @@ import { EntryEditorInertStory, EntryEditorStory, EntryEditorSwitchStory } from 
 
 test("renders every field, commits a keyword chip, and autosaves the full input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "worldInfo.updateEntry": (input) => {
+    "worldInfo.updateEntry": (input): TrpcWireOutput<"worldInfo.updateEntry"> => {
       const { entryId } = input;
       return {
         id: entryId,
@@ -89,7 +90,7 @@ test("delete: the icon trigger opens an uncontrolled confirm with no description
 // untouched content ("B-content"), never A's frozen "A-content" (which a leaked A instance would re-save).
 test("SWITCH pin — switching entries autosaves the new entry, never the previous entry's frozen fields", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "worldInfo.updateEntry": (input) => {
+    "worldInfo.updateEntry": (input): TrpcWireOutput<"worldInfo.updateEntry"> => {
       const { entryId } = input;
       return {
         id: entryId,
