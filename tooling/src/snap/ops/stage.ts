@@ -250,7 +250,7 @@ function bootOntoBand(input: {
     print(`[snap-stage] pnpm install (shared store) in ${paths.dir}`);
     pnpmInstall(paths.dir);
   }
-  const dbProvenance = auth === "local" ? null : seedStageData(root, paths, stageDb);
+  const dbProvenance = seedStageData(root, paths, stageDb, auth);
 
   print(`[snap-stage] booting isolated stack on band ${band} — server:${ports.server} vite:${ports.vite} · auth ${auth}`);
   try {

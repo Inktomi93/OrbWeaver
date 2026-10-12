@@ -154,7 +154,8 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   },
   "--stage-db": {
     group: "Where",
-    summary: "clone a database file (and its -wal/-shm) into a rebuilt stage instead of the dev db; implies --isolated and --fresh",
+    summary:
+      "clone a database file (and its -wal/-shm and the assets/ beside its db/) into a rebuilt stage instead of the dev db; implies --isolated and --fresh",
   },
   "--stage-owner": { group: "Where", summary: "names the checkout for a checkout-wide or cross-checkout --stage-down" },
   "--stage-keeper": { group: "Where", summary: "the band idle timer's own entry — spawned by snap, never typed by an operator" },

@@ -72,7 +72,7 @@ export interface StageDbProvenance {
 }
 
 /** How a stage signs its users in (`--stage-auth`). `single-user` serves a copy of the dev db as its one
- *  owner; `local` boots an empty data root with local sign-in and the fixture's two seeded humans, so
+ *  owner; `local` boots an empty data root (or the `--stage-db` clone) with local sign-in and the fixture's two seeded humans, so
  *  `--contexts`/`--as` can drive multi-human flows against the staged tree. */
 export const STAGE_AUTH_MODES = ["single-user", "local"] as const;
 export type StageAuthMode = (typeof STAGE_AUTH_MODES)[number];
@@ -398,8 +398,9 @@ export interface StageArgs {
   /** `--stage-auth`: how the stage signs users in. `local` boots an empty data root with the fixture's
    *  seeded humans, and `--contexts`/`--as` then log in against the stage. Implies --isolated. */
   stageAuth: StageAuthMode;
-  /** `--stage-db <path>`: clone this db (and its -wal/-shm) into the stage instead of the dev db. Implies
-   *  --isolated and --fresh, and does not combine with `--stage-auth local`. */
+  /** `--stage-db <path>`: clone this db (and its -wal/-shm, and the assets/ beside its db/) into the stage
+   *  instead of the dev db. Implies --isolated and --fresh; with `--stage-auth local` the fixture humans are
+   *  seeded into the clone. */
   stageDb: string | null;
   /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
   stageDown: boolean;

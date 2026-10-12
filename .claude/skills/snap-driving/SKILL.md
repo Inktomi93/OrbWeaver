@@ -248,8 +248,26 @@ http://localhost:<port>`.
 
 The multi-user fixture (`--contexts N` / `--as <handle>`) is a sidecar on its own pair (server `:8790`
 / vite `:5175`, roster `owner`, `member`). snap never boots it; `pnpm fixture up` is an operator call.
-To drive the same roster against your own tree, add `--stage-auth local`: the stage boots with an empty data
-dir, local sign-in and the seeded `owner` and `member`, and `--contexts`/`--as` log in against the stage.
+To drive the same roster against your own tree, add `--stage-auth local`: the stage boots with local sign-in
+and the seeded `owner` and `member`, and `--contexts`/`--as` log in against the stage. Alone it starts from an
+empty data dir; with `--stage-db` the same two humans are seeded into the cloned data.
+
+**Default stage data: a clone of the owner's container.** A review runs on the owner's real cards, chats and art,
+never on the thin dev db. Copy the db with its `-wal` and `-shm`, and the assets, out of the container into the
+gitignored `reports/` tree, then clone it into your stage. The clone holds personal data: never commit it,
+never upload it, and never write to the container.
+
+```bash
+mkdir -p reports/container-clone
+docker cp orbweaver:/app/data/db/. reports/container-clone/db
+docker cp orbweaver:/app/data/assets/. reports/container-clone/assets
+pnpm snap / --stage-db reports/container-clone/db/orbweaver.db --stage-auth local --contexts 2 --text
+```
+
+Keep `db/` and `assets/` side by side: the stage copies the assets from beside the db, so avatars and art render.
+Drop `--stage-auth local` to sign in as the container's owner alone. Saved provider keys, sessions and password
+hashes are dropped from the clone, so a model call fails there by design. Only an explicit brief for a thin-db
+control run uses the dev-db copy.
 
 ## §9 Refusals are answers; shared-stack manners
 

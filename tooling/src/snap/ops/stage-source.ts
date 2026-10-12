@@ -5,17 +5,17 @@
 //
 // VERSION TRIPWIRE: a ref whose vite.config lacks VITE_API_TARGET would proxy /api to the DEV server —
 // rejected up front via `git show`, before any worktree/install/boot work, so a bad ref costs nothing.
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { constants, cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { localPath } from "@orb/db";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
-import { DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
+import { DATA_LAYOUT_DIRS, DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { execGit, runGit } from "../../floor/git/git.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
-import type { StageDbProvenance, StagePaths, StageRow } from "../contract/stage.ts";
+import type { StageAuthMode, StageDbProvenance, StagePaths, StageRow } from "../contract/stage.ts";
 import { DIRTY_STAGE_KEY, ISOLATION_TRIPWIRE, shortSha } from "../lib/stage-plan.ts";
 import { addWorktree, removeWorktree, worktreeExists } from "./stage-git.ts";
 
@@ -93,7 +93,8 @@ function devDataLayout(root: string): DataLayout {
  *  or serves 503 forever), and assets (symlink to the content-addressed dev blob dir; a visual pass only
  *  reads). Idempotent: skips whatever already exists so a plain reboot keeps the stage's state.
  *
- *  With `stageDb` (`--stage-db`) the stage gets a clone of that db instead (`cloneStageDb`).
+ *  With `stageDb` (`--stage-db`) the stage gets a clone of that db instead (`cloneStageDb`), whatever the auth
+ *  mode: a local stage's own data root is otherwise empty, and the fixture humans are seeded after its boot.
  *
  *  A dev data dir still in the LEGACY flat shape (the db at its root) is copied from NOT AT ALL and said so:
  *  the dev stack's next boot moves it, and a stage built before that would boot empty and say nothing.
@@ -102,9 +103,12 @@ function devDataLayout(root: string): DataLayout {
  *  band table then answers "is this stage's data older than the dev db it came from?" from the row instead
  *  of a second probe, which is the question behind every "why does the stage show stale rows" round trip
  *  (memory `isolated-stage-db-is-a-fresh-dev-copy`). */
-export function seedStageData(root: string, paths: StagePaths, stageDb?: string): StageDbProvenance | null {
+export function seedStageData(root: string, paths: StagePaths, stageDb?: string, auth: StageAuthMode = "single-user"): StageDbProvenance | null {
   if (stageDb !== undefined) {
     return cloneStageDb(stageDb, paths);
+  }
+  if (auth === "local") {
+    return null;
   }
   mkdirSync(paths.dir, { recursive: true });
   const dev = devDataLayout(root);
@@ -163,7 +167,25 @@ export function cloneStageDb(sourceDb: string, paths: StagePaths): StageDbProven
   } finally {
     clone.close();
   }
+  cloneStageAssets(source, paths.assetsDir);
   return { copiedFrom: source, cloned: true, copiedAt: new Date().toISOString(), devDbMtimeAtCopy: statSync(source).mtime.toISOString() };
+}
+
+/** The owner's art lives beside the db in the server's own layout (`<root>/db/<db>` and `<root>/assets`), so a
+ *  db copied out of a container with its siblings brings it along. A COPY, reflinked where the filesystem
+ *  allows: the stage server writes uploads into its assets dir, and that must never reach the source. A db
+ *  with no assets beside it clones without art and says so, since every avatar then answers 404. */
+function cloneStageAssets(sourceDb: string, stageAssets: string): void {
+  const sourceRoot = dirname(dirname(sourceDb));
+  const sourceAssets = resolveDataLayout({ ["DATA_DIR"]: sourceRoot }).assets;
+  if (dirname(sourceDb) !== join(sourceRoot, DATA_LAYOUT_DIRS.db) || !existsSync(sourceAssets)) {
+    print(
+      `[snap-stage] --stage-db: no ${DATA_LAYOUT_DIRS.assets}/ beside ${sourceDb} — the clone serves no avatars or art; copy ${DATA_LAYOUT_DIRS.assets}/ next to ${DATA_LAYOUT_DIRS.db}/`,
+    );
+    return;
+  }
+  mkdirSync(dirname(stageAssets), { recursive: true });
+  cpSync(sourceAssets, stageAssets, { recursive: true, mode: constants.COPYFILE_FICLONE });
 }
 
 /** The loud line for a reused stage whose db is a `--stage-db` clone, or null for any other stage. A plain
