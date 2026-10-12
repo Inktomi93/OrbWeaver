@@ -15,6 +15,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { createCopyHandoffBooks } from "#server/domain/world-info/index.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -23,7 +24,7 @@ const AT = 1_700_000_000_000;
 
 async function seedCard(db: Db, ownerId: UserId, key: string): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values({ id, ownerId, handle: castId<CharacterHandle>(key), name: key, contentHash: key, tokenSize: 0, createdAt: AT });
+  await db.insert(characters).values(makeCharacter({ id, ownerId, handle: castId<CharacterHandle>(key), name: key, tokenSize: 0, createdAt: AT }));
   return id;
 }
 

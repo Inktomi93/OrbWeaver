@@ -18,6 +18,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { findGameByChat, insertGame } from "#server/domain/rpg/persistence/games.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import type { RpgHarness } from "../_support.ts";
 import { expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedUser, test } from "../_support.ts";
 
@@ -63,7 +64,7 @@ async function seedSheetFor(db: Db, gameId: RpgGameId, ownerId: UserId, key: str
   const characterId = castId<CharacterId>(`character_${key}`);
   await db
     .insert(characters)
-    .values({ id: characterId, ownerId, handle: castId<CharacterHandle>(key), name: key, contentHash: key, tokenSize: 0, createdAt: FROZEN_AT });
+    .values(makeCharacter({ id: characterId, ownerId, handle: castId<CharacterHandle>(key), name: key, tokenSize: 0, createdAt: FROZEN_AT }));
   await db.insert(rpgSheets).values({
     id: castId<RpgSheetId>(`rpg_sheet_${key}`),
     gameId,
@@ -195,15 +196,16 @@ test("the copied cast's SHEETS re-key onto the copies in the swap batch (the roo
   const source = await seedSheetFor(db, gameId, oldHost, "mira_src");
   // The copy card already exists in the nominee's library (chat minted it before the swap batch).
   const copy = castId<CharacterId>("character_mira_copy");
-  await db.insert(characters).values({
-    id: copy,
-    ownerId: NEW_HOST,
-    handle: castId<CharacterHandle>("mira_copy"),
-    name: "Mira",
-    contentHash: "c",
-    tokenSize: 0,
-    createdAt: FROZEN_AT,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id: copy,
+      ownerId: NEW_HOST,
+      handle: castId<CharacterHandle>("mira_copy"),
+      name: "Mira",
+      tokenSize: 0,
+      createdAt: FROZEN_AT,
+    }),
+  );
   const h = makeRpgService(db);
 
   const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId, { cardCopies: [{ sourceCharacterId: source, characterId: copy }] }));

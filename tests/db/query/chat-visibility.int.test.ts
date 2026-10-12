@@ -15,14 +15,15 @@
 //   · the recency clock is the newest MESSAGE, falling back to the row stamp, never `updated_at` alone.
 
 import type { Db } from "@orb/db";
-import { characters, chatParticipants, chats, messages, messageVariants, users } from "@orb/db";
+import { chatParticipants, chats, messages, messageVariants, users } from "@orb/db";
 import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
-import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, count, eq, exists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_owner");
@@ -86,13 +87,7 @@ async function seedCast(db: Db, ids: readonly CharacterId[]): Promise<void> {
   await db.insert(users).values({ id: OWNER, handle: castId<Handle>("owner"), role: "user", handleKey: handleKey(castId<Handle>("owner")) });
   await db.insert(users).values({ id: STRANGER, handle: castId<Handle>("stranger"), role: "user", handleKey: handleKey(castId<Handle>("stranger")) });
   for (const id of ids) {
-    await db.insert(characters).values({
-      id,
-      ownerId: OWNER,
-      handle: castId<CharacterHandle>(id),
-      name: id,
-      contentHash: `hash_${id}`,
-    });
+    await seedCharacter(db, { id, ownerId: OWNER, name: id });
   }
 }
 

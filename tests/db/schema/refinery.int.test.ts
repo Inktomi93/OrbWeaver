@@ -12,10 +12,11 @@ import { DEFAULT_REFINERY_STAGE_CONFIG, REFINERY_SESSION_STATUSES, REFINERY_STAG
 import type { Db } from "@orb/db";
 import { characters, refineryRuns, refinerySessions, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
-import type { CharacterHandle, CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
@@ -59,18 +60,6 @@ const SCORE_PAYLOAD: RefineryScorePayload = {
   summary: "solid",
 };
 
-async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
-  const characterId = castId<CharacterId>(id);
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>(`card-${id}`),
-    ownerId,
-    contentHash: "hash-refinery",
-    name: "Refined",
-  });
-  return characterId;
-}
-
 async function seedSession(db: Db, characterId: CharacterId, id: string): Promise<RefinerySessionId> {
   const sessionId = castId<RefinerySessionId>(id);
   await db.insert(refinerySessions).values({
@@ -86,7 +75,7 @@ async function seedSession(db: Db, characterId: CharacterId, id: string): Promis
 test("refinery_sessions insert→select round-trips (status default, the three JSON columns)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_a", handle: castId<Handle>("ref-owner-a") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_roundtrip");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_roundtrip"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_roundtrip");
 
   const rows = await db.select().from(refinerySessions).where(eq(refinerySessions.id, sessionId));
@@ -107,7 +96,7 @@ test("refinery_sessions insert→select round-trips (status default, the three J
 test("refinery_runs insert→select round-trips (typed payload + provenance config; usage nullable)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_b", handle: castId<Handle>("ref-owner-b") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_runs");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_runs"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_runs");
 
   const runId = castId<RefineryRunId>("refinery_run_score_1");
@@ -139,7 +128,7 @@ test("refinery_runs insert→select round-trips (typed payload + provenance conf
 test("duration_ms is NOT NULL at the DDL — a run row can never exist without its wall time", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_dur", handle: castId<Handle>("ref-owner-dur") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_dur");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_dur"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_dur");
   // The column carries no default and cannot be backfilled honestly, so the DDL is the enforcer — not a
   // convention the next producer has to remember (the planted control for the NOT NULL itself).
@@ -154,7 +143,7 @@ test("duration_ms is NOT NULL at the DDL — a run row can never exist without i
 test("source_run_id records the DAG parent and survives the round-trip (nullable self-FK, set null)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_src", handle: castId<Handle>("ref-owner-src") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_src");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_src"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_src");
   const parentId = castId<RefineryRunId>("refinery_run_src_parent");
   const childId = castId<RefineryRunId>("refinery_run_src_child");
@@ -178,7 +167,7 @@ test("source_run_id records the DAG parent and survives the round-trip (nullable
 test("source_run_id against a phantom run is a foreign-key rejection (self-FK, FK PRAGMA is ON)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_src_fk", handle: castId<Handle>("ref-owner-src-fk") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_src_fk");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_src_fk"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_src_fk");
 
   let caught: unknown;
@@ -203,7 +192,7 @@ test("source_run_id against a phantom run is a foreign-key rejection (self-FK, F
 test("deleting the parent run SETS NULL on the child's source_run_id (not cascade — the child survives)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_src_null", handle: castId<Handle>("ref-owner-src-null") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_src_null");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_src_null"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_src_null");
   const parentId = castId<RefineryRunId>("refinery_run_src_null_parent");
   const childId = castId<RefineryRunId>("refinery_run_src_null_child");
@@ -232,7 +221,7 @@ test("deleting the parent run SETS NULL on the child's source_run_id (not cascad
 test("deleting a character CASCADEs sessions AND runs (the D23 derived-ownership chain, two levels)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_c", handle: castId<Handle>("ref-owner-c") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_cascade");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_cascade"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_cascade");
   await db.insert(refineryRuns).values({
     id: castId<RefineryRunId>("refinery_run_cascade_1"),
@@ -257,7 +246,7 @@ test("deleting a character CASCADEs sessions AND runs (the D23 derived-ownership
 test("deleting the USER cascades the whole chain (user → character → session → run)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_d", handle: castId<Handle>("ref-owner-d") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_user_cascade");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_user_cascade"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_user_cascade");
   await db.insert(refineryRuns).values({
     id: castId<RefineryRunId>("refinery_run_user_cascade"),
@@ -291,7 +280,7 @@ test("deleting the USER cascades the whole chain (user → character → session
 test("the stage CHECK constraint rejects a foreign stage member", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_e", handle: castId<Handle>("ref-owner-e") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_check");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_check"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_check");
 
   let caught: unknown;
@@ -316,7 +305,7 @@ test("the stage CHECK constraint rejects a foreign stage member", async () => {
 test("the session status CHECK constraint rejects a foreign status member", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_g", handle: castId<Handle>("ref-owner-g") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_status_check");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_status_check"), ownerId });
 
   let caught: unknown;
   try {
@@ -360,7 +349,7 @@ test("a run against a phantom session is a foreign-key rejection (FK PRAGMA is O
 test("latest-run-per-(session, stage): the append-only log's hot read returns the newest of THAT stage", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_f", handle: castId<Handle>("ref-owner-f") });
-  const characterId = await seedCharacter(db, ownerId, "character_ref_latest");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ref_latest"), ownerId });
   const sessionId = await seedSession(db, characterId, "refinery_session_latest");
   await db.insert(refineryRuns).values([
     {

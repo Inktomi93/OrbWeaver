@@ -10,10 +10,11 @@ import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, chats, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
-import type { CharacterHandle, CharacterId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
@@ -51,7 +52,7 @@ test("owner CASCADE on regex_scripts wipes every attached junction row", async (
   const ownerId = await seedUser(db, { id: "user_regex_b" });
   const scriptId = await seedScript(db, ownerId, "regex_script_b");
   const characterId = castId<CharacterId>("character_regex_b");
-  await db.insert(characters).values({ id: characterId, handle: castId<CharacterHandle>("card-regex-b"), ownerId, contentHash: "h", name: "C" });
+  await seedCharacter(db, { id: characterId, ownerId });
   const chatId = await seedChat(db, { id: "chat_regex_b" });
   const presetId = castId<PresetId>("preset_regex_b");
   await db.insert(presets).values({ id: presetId, ownerId, name: "P", kind: "roleplay", config: DEFAULT_PROMPT_CONFIG });
@@ -87,7 +88,7 @@ test("characterRegexScripts: composite PK + dupe attach collides; scope (charact
   const ownerId = await seedUser(db, { id: "user_regex_d" });
   const scriptId = await seedScript(db, ownerId, "regex_script_d");
   const characterId = castId<CharacterId>("character_regex_d");
-  await db.insert(characters).values({ id: characterId, handle: castId<CharacterHandle>("card-regex-d"), ownerId, contentHash: "h", name: "C" });
+  await seedCharacter(db, { id: characterId, ownerId });
 
   await db.insert(characterRegexScripts).values({ characterId, regexScriptId: scriptId, position: 2 });
   await expect(db.insert(characterRegexScripts).values({ characterId, regexScriptId: scriptId })).rejects.toSatisfy(isConstraintErr);

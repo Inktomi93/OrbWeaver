@@ -40,6 +40,7 @@ import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts
 import { createImageIndexer } from "#server/domain/embeddings/indexer/image.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -417,13 +418,14 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
 /** Insert a `characters` row (the producer FK for character_embeddings). Returns its branded id. */
 export async function seedCharacter(db: Db, ownerId: UserId, overrides: { readonly id?: string; readonly name?: string } = {}): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_test");
-  await db.insert(characters).values({
-    id,
-    handle: castId<CharacterHandle>(overrides.name ?? "test-card"),
-    ownerId,
-    contentHash: "seed-content-hash",
-    name: overrides.name ?? "Test Card",
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: castId<CharacterHandle>(overrides.name ?? "test-card"),
+      ownerId,
+      name: overrides.name ?? "Test Card",
+    }),
+  );
   return id;
 }
 
