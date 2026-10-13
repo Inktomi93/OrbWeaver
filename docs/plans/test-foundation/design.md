@@ -67,7 +67,7 @@ Then the rebuild, cheapest proof first: the e2e smoke matrix on the corpus, whic
 - Repair product, security and checker defects. Preserve useful legacy cases for replacement; stop fixture polish, copied-harness repair and waiver bookkeeping as independent deliverables.
 - Rejudge waivers and grants against their actual subjects. Their existence does not establish authority or justify weakening enforcement.
 - Recover unfinished production branches by coherent current-tree changes, not wholesale stale merges. The work items for contract derivation and stored-value parsing own their security blockers.
-- Not yet built: the engine, the composition root, and the builders and corpus.
+- The complete engine, server composition root and builders/corpus remain unqualified; source integration alone is not completion.
 - A rebuilt test calls production through a public entry, builds data through a builder, and carries no fake that stands in for domain logic.
 - A ported suite keeps every case of the file it replaces; the verifier checks the case list.
 - Retrofit work on fake-heavy server harnesses stops; those rows move to the rebuild.
@@ -137,7 +137,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 | Consumer home | Planned shared-store migration |
 | - | - |
 | `tooling/src/ast/lib/scope.ts`, `tooling/src/ast/lib/keys.ts` | Own exports and exposed origin sets |
-| `tooling/src/ast/lib/resolve.ts` | Native dynamic-import targets; keep relative-target policy |
+| `tooling/src/floor/code-facts/module-target.ts` | Native dynamic-import and relative module targets; preserve consumer-specific admission |
 | `tooling/src/ast/lib/liveness.ts`, `tooling/src/ast/lib/edges.ts` | Import targets, export origins and binding identity; keep existing consumption judgments |
 | `tooling/src/ast/ops/apisurface.ts` | Package consumption facts; keep classification |
 | `tooling/src/ast/ops/swallowed.ts` | Namespace binding identity; keep member consumption and refusal behavior |
