@@ -6,7 +6,8 @@ import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-progr
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { DocumentSpan, LanguageService, Node, Project, SourceFile, SyntaxKind } from "ts-morph";
+import type { ts } from "ts-morph";
+import { DocumentSpan, LanguageService, Node, Program, Project, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import { vi } from "vitest";
 
 function span(node: Node): InventorySpan {
@@ -22,7 +23,7 @@ function fixtureValue<T>(value: T | undefined): T {
 
 function extractWithoutReferenceWrappers(
   request: InventoryBuildRequest,
-  beforeQuery?: () => void,
+  beforeQuery?: (service: ts.LanguageService) => void,
 ): { partition: ReturnType<typeof extractInventoryPartition>; queries: string[] } {
   const queries: string[] = [];
   const restoreQueries: (() => void)[] = [];
@@ -34,7 +35,7 @@ function extractWithoutReferenceWrappers(
       observed.add(service);
       const nativeFind = service.compilerObject.findReferences;
       const query = vi.spyOn(service.compilerObject, "findReferences").mockImplementation((file, position) => {
-        beforeQuery?.();
+        beforeQuery?.(service.compilerObject);
         queries.push(JSON.stringify([file, position]));
         return nativeFind.call(service.compilerObject, file, position);
       });
@@ -65,6 +66,131 @@ function extractWithoutReferenceWrappers(
   }
 }
 
+test("inventory facts share the reference checker while both native Programs retain their roots and sources", ({ scratch }) => {
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({ files: ["consumer.ts"], compilerOptions: { lib: ["es2022"], types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+  );
+  writeFileSync(join(scratch, "base.ts"), "export const value=1; export interface Shape {value:number}\n");
+  writeFileSync(
+    join(scratch, "consumer.ts"),
+    "import {value as alias,type Shape} from './base'; export const use:Shape={value:alias}; export const witness='value' satisfies keyof typeof import('./base'); export const later=import('./base').then(m=>m.value);\n",
+  );
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  let host: Project | undefined;
+  let hostProgram: ts.Program | undefined;
+  let hostRoots: readonly string[] | undefined;
+  let referenceProgram: ts.Program | undefined;
+  let referenceRoots: readonly string[] | undefined;
+  const hostSources = new Map<string, ts.SourceFile>();
+  const sourceReadOrder: string[] = [];
+  const readCheckers = new Set<ts.TypeChecker>();
+  const resolveDependencies = Project.prototype.resolveSourceFileDependencies;
+  const resolution = vi.spyOn(Project.prototype, "resolveSourceFileDependencies").mockImplementation(function (this: Project) {
+    const result = resolveDependencies.call(this);
+    host = this;
+    hostProgram = this.getProgram().compilerObject;
+    hostRoots = [...hostProgram.getRootFileNames()];
+    for (const source of hostProgram.getSourceFiles()) {
+      hostSources.set(source.fileName, source);
+    }
+    return result;
+  });
+  const getExports = TypeChecker.prototype.getExportsOfModule;
+  const exports = vi.spyOn(TypeChecker.prototype, "getExportsOfModule").mockImplementation(function (this: TypeChecker, symbol) {
+    readCheckers.add(this.compilerObject);
+    return getExports.call(this, symbol);
+  });
+  const getType = TypeChecker.prototype.getTypeAtLocation;
+  const types = vi.spyOn(TypeChecker.prototype, "getTypeAtLocation").mockImplementation(function (this: TypeChecker, node) {
+    readCheckers.add(this.compilerObject);
+    return getType.call(this, node);
+  });
+  const readExports = SourceFile.prototype.getExportedDeclarations;
+  const sourceReads = vi.spyOn(SourceFile.prototype, "getExportedDeclarations").mockImplementation(function (this: SourceFile) {
+    const program = fixtureValue(fixtureValue(host).getLanguageService().compilerObject.getProgram());
+    referenceProgram ??= program;
+    referenceRoots ??= [...program.getRootFileNames()];
+    expect(this.compilerNode).toBe(program.getSourceFile(this.getFilePath()));
+    expect(this.compilerNode).toBe(hostSources.get(this.getFilePath()));
+    sourceReadOrder.push(this.getFilePath());
+    return readExports.call(this);
+  });
+  const bootstrapChecker = vi.spyOn(Program.prototype, "getTypeChecker").mockImplementation(() => {
+    throw new Error("inventory facts hydrated the bootstrap Program checker");
+  });
+  try {
+    const { partition } = extractWithoutReferenceWrappers({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") }, (service) => {
+      const program = fixtureValue(service.getProgram());
+      expect(program).toBe(referenceProgram);
+      expect(program.getRootFileNames()).toEqual(referenceRoots);
+      expect([...readCheckers]).toEqual([program.getTypeChecker()]);
+      expect(program.getCompilerOptions()).toEqual(descriptor.commandLine.options);
+      expect(fixtureValue(hostProgram).getRootFileNames()).toEqual(hostRoots);
+      for (const [file, source] of hostSources) {
+        expect(program.getSourceFile(file)).toBe(source);
+        expect(fixtureValue(hostProgram).getSourceFile(file)).toBe(source);
+      }
+    });
+    expect(bootstrapChecker).not.toHaveBeenCalled();
+    expect(exports).toHaveBeenCalled();
+    expect(types).toHaveBeenCalled();
+    expect(partition.nativeRoots).toEqual(hostRoots);
+    expect(partition.sources.map((source) => source.path)).toEqual([...hostSources.keys()]);
+    expect(sourceReadOrder).toEqual([...hostSources.keys()]);
+    expect(partition.compilerOptionsJson).toBe(JSON.stringify(descriptor.commandLine.options));
+    expect(partition.witnesses).toHaveLength(1);
+    expect(partition.witnesses[0]?.declarations).toEqual(
+      partition.exports.find((entry) => entry.file === join(scratch, "base.ts") && entry.name === "value")?.declarations,
+    );
+    expect(partition.references.some((entry) => entry.reference.file === join(scratch, "consumer.ts"))).toBe(true);
+  } finally {
+    bootstrapChecker.mockRestore();
+    sourceReads.mockRestore();
+    types.mockRestore();
+    exports.mockRestore();
+    resolution.mockRestore();
+  }
+});
+
+test("standalone source wrappers release when native fact extraction throws", ({ scratch }) => {
+  writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["base.ts"], compilerOptions: { noLib: true, types: [] } }));
+  writeFileSync(join(scratch, "base.ts"), "export const value=1;\n");
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const wrappers = new Set<Node>();
+  const sources = new Map<SourceFile, ts.SourceFile>();
+  const resolveDependencies = Project.prototype.resolveSourceFileDependencies;
+  const resolution = vi.spyOn(Project.prototype, "resolveSourceFileDependencies").mockImplementation(function (this: Project) {
+    const result = resolveDependencies.call(this);
+    for (const source of this.getSourceFiles()) {
+      sources.set(source, source.compilerNode);
+    }
+    return result;
+  });
+  const failure = new Error("native fact read failed");
+  const exports = vi.spyOn(SourceFile.prototype, "getExportedDeclarations").mockImplementation(function (this: SourceFile) {
+    wrappers.add(this);
+    for (const statement of this.getStatements()) {
+      wrappers.add(statement);
+    }
+    throw failure;
+  });
+  try {
+    expect(() => extractInventoryPartition({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") })).toThrow(failure);
+    expect(wrappers.size).toBeGreaterThan(1);
+    expect([...wrappers].every((node) => node.wasForgotten())).toBe(true);
+    for (const [source, native] of sources) {
+      expect(source.wasForgotten()).toBe(false);
+      expect(source.compilerNode).toBe(native);
+    }
+  } finally {
+    exports.mockRestore();
+    resolution.mockRestore();
+  }
+});
+
 test("source and bootstrap wrappers release before native reference queries without losing cross-source declarations", ({ scratch }) => {
   writeFileSync(
     join(scratch, "tsconfig.json"),
@@ -77,6 +203,7 @@ test("source and bootstrap wrappers release before native reference queries with
   const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
   const wrappers = new Set<Node>();
   const sources = new Set<SourceFile>();
+  const hostSources = new Map<SourceFile, ts.SourceFile>();
   const declarationWrappers = new Map<string, Set<Node>>();
   let crossSourceDeclarations = 0;
   let bootstrap: Node | undefined;
@@ -85,6 +212,9 @@ test("source and bootstrap wrappers release before native reference queries with
   const resolveDependencies = Project.prototype.resolveSourceFileDependencies;
   const resolution = vi.spyOn(Project.prototype, "resolveSourceFileDependencies").mockImplementation(function (this: Project) {
     const result = resolveDependencies.call(this);
+    for (const source of this.getSourceFiles()) {
+      hostSources.set(source, source.compilerNode);
+    }
     const declaration = this.getSourceFileOrThrow(join(scratch, "base.ts")).getVariableDeclarationOrThrow("value");
     bootstrap = declaration;
     wrappers.add(declaration);
@@ -136,7 +266,11 @@ test("source and bootstrap wrappers release before native reference queries with
       expect(crossSourceDeclarations).toBeGreaterThan(0);
       expect([...declarationWrappers.values()].some((nodes) => nodes.size > 1)).toBe(true);
       expect([...wrappers].every((node) => node.wasForgotten())).toBe(true);
-      expect([...sources].every((source) => !source.wasForgotten())).toBe(true);
+      expect([...sources].every((source) => source.wasForgotten())).toBe(true);
+      for (const [source, native] of hostSources) {
+        expect(source.wasForgotten()).toBe(false);
+        expect(source.compilerNode).toBe(native);
+      }
     });
     expect(queries).toBeGreaterThan(0);
     const origin = fixtureValue(partition.exports.find((entry) => entry.file === join(scratch, "base.ts") && entry.name === "value")?.declarations[0]);

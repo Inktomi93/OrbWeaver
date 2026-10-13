@@ -15,7 +15,7 @@ import { existsSync, globSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import type { FileSystemHost, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
-import { Project, Node as TsNode, ts } from "ts-morph";
+import { createWrappedNode, Project, Node as TsNode, ts } from "ts-morph";
 import { createSemanticInventory } from "../code-facts/semantic-inventory.ts";
 import { semanticInventoryOf } from "../code-facts/semantic-inventory-reader.ts";
 
@@ -413,13 +413,18 @@ function wrapDoor(sf: SourceFile): (compilerNode: ts.Node) => Node {
   return (sf as unknown as { _getNodeFromCompilerNode: (compilerNode: ts.Node) => Node })._getNodeFromCompilerNode.bind(sf);
 }
 
-/** The native closure includes dependencies ts-morph does not mark as authored project members. */
-export function nativeCompilerSourceFiles(project: Project): readonly SourceFile[] {
-  const anchor = project.getSourceFiles()[0] ?? project.resolveSourceFileDependencies()[0];
-  const compilerFiles = project.getProgram().compilerObject.getSourceFiles();
-  if (compilerFiles.length === 0) {
+/** Include the complete native closure; a native Program receives one standalone context backed by its own checker. */
+export function nativeCompilerSourceFiles(owner: Project | ts.Program): readonly SourceFile[] {
+  const projectAnchor = owner instanceof Project ? (owner.getSourceFiles()[0] ?? owner.resolveSourceFileDependencies()[0]) : undefined;
+  const compilerFiles = (owner instanceof Project ? owner.getProgram().compilerObject : owner).getSourceFiles();
+  const first = compilerFiles[0];
+  if (first === undefined) {
     return [];
   }
+  const anchor =
+    owner instanceof Project
+      ? projectAnchor
+      : createWrappedNode(first, { compilerOptions: owner.getCompilerOptions(), sourceFile: first, typeChecker: owner.getTypeChecker() });
   if (anchor === undefined) {
     throw new Error("native compiler closure has no source wrapper anchor");
   }
