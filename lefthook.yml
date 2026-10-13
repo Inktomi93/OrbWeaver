@@ -8,21 +8,12 @@
 # (lefthook resolves it per-worktree), so a fresh worktree just needs `pnpm install` (or `pnpm run
 # worktree:bootstrap`) and the gates work.
 #
-# GREEN-TO-COMMIT is enforced here, not by discipline: the stages that narrow to what the commit records
-# run over it, so a type/lint/boundary-red change cannot be committed.
-#
-# Commit hooks run the index-scoped static floor. CI owns whole-tree verification before release.
-#   • pre-commit → `pnpm verify --static --changed staged`: scoped to the index vs HEAD. Lefthook hides
-#     unstaged hunks while the hook runs. Whole-command stages, including branch-wide instrument
-#     recertification, defer with a notice. A scoped run takes no host-wide whole-run slot.
-#   • pre-push → the GitHub sync guard only. Whole static and behavioral push-tier checks run in
-#     `.github/workflows/ci.yml` for main and PRs. `pnpm release` requires green CI for the exact revision.
-#   • Nightly full verification includes exhaustive tooling proof. Manual product qualification excludes
-#     instrument proofs and mutation; event-qualified affected tooling remains owed before release.
-#   • The live-model spec (`@live`) is excluded from every gate.
-# The only sanctioned bypass is `LEFTHOOK_EXCLUDE=check`, used when the owner or orchestrator authorizes
-# it (`.claude/skills/orchestrator/SKILL.md` "Hooks and pushes"); lanes and the orchestrator never use
-# `--no-verify`.
+# D317: commit hooks run only staged Biome and affected native-program typecheck.
+# Lefthook hides unstaged hunks while the hook runs; untracked files stay out of the selection.
+# The orchestrator runs the application check once on main before an owner-authorized push.
+# CI owns application qualification; nightly full and weekly checker proof keep their schedules.
+# The sanctioned bypass is `LEFTHOOK_EXCLUDE=check`, authorized by the owner or orchestrator.
+# It retains commit-msg; never use `--no-verify`.
 #
 # OUTPUT is tuned for agent/CI consumption: `colors:false` drops lefthook's own ANSI, which otherwise
 # blows the commit output to an ANSI wall that truncates to a useless preview; `output` keeps only the

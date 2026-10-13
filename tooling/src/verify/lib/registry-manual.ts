@@ -14,7 +14,7 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "test:ratchets"],
     classify: asViolations,
     manualReason:
-      "the ORCHESTRATOR's train-gate command (#667): the sub-minute vitest-tier ratchet aggregate `pnpm check`/`check:structure` structurally cannot see. Run by hand after each merge train, not an automatic tier. Credit broader evidence only when its actual population includes the current member suites; product Node tests do not cover tooling ratchets.",
+      "the ORCHESTRATOR's train-gate command (#667): the sub-minute vitest-tier ratchet aggregate `pnpm check`/`check:structure` structurally cannot see. Run applicable cases before the owner pushes, not after each merge train or as an automatic tier. Credit broader evidence only when its actual population includes the current member suites; product Node tests do not cover tooling ratchets.",
   },
   {
     // THE EXPLICIT PRODUCT-TEST COMPOSITE. `pnpm test` still runs the vitest projects AND the CT suite in
@@ -192,7 +192,7 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "check:structure-delta"],
     classify: asViolations,
     manualReason:
-      "per-policy diff of two published structure slots (#2110) — needs a PRIOR slot from the same checkout, so it has no argument-free form on a clean tree; run it after a merge train's structure run, when `check:structure`'s own exit code is red by construction and cannot show a NEW per-policy red",
+      "per-policy diff of two published structure slots (#2110) — needs a PRIOR slot from the same checkout, so it has no argument-free form on a clean tree; run it after a structure run, when `check:structure`'s own exit code is red by construction and cannot show a NEW per-policy red",
   },
   {
     name: "tests:coverage",

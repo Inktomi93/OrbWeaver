@@ -455,7 +455,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 `lefthook.yml` defines local integrity checks. CI owns whole-tree verification before release.
 `pnpm verify --product` is explicit operator qualification, not an automatic local push hook.
 
-- **pre-commit and pre-merge-commit → `pnpm verify --static --changed staged`.** A type, lint, boundary or file-local structure red in the staged change ⇒ cannot commit (§4.3).
+- **pre-commit and pre-merge-commit → `pnpm verify --static --changed staged`.** Only Biome and affected native-program typecheck run (§4.3). Commit-msg enforces the message contract.
 - **pre-push → the GitHub sync guard only.** Whole-tree static and behavioral checks run in CI, not again during local push.
 - **CI → application qualification** (`.github/workflows/ci.yml`) on every push to main and every PR: `pnpm check --application`, the
   push tier's whole-only checks, `test:node` and the CT suite sharded across runners, and `e2e:smoke`. The legacy test folder
@@ -464,19 +464,19 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   `ci-ok` job is the required check, and `pnpm release` refuses a commit whose run is not green. Nightly,
   `pnpm verify --full` runs on main when main changed since its last successful full qualification.
 
-### 4.3 Scoped static at commit
+### 4.3 Biome and typecheck at commit
 
-Pre-commit runs the stages that narrow to the staged change, not the whole tree: `--changed staged`
-selects the index against `HEAD`, so an unstaged or untracked file stays out of the commit's scope. `--changed`
-beside an explicit tier is only the selector, so the related tests of the `changed` tier stay out of the
-commit gate. A scoped run takes no host-wide whole-run slot, so a commit never waits behind another
-checkout's run.
+Pre-commit and pre-merge-commit run only Biome and affected native-program typecheck (D317).
+`pnpm verify --static --changed staged` selects the index against `HEAD`; unstaged and untracked files stay outside that selection.
+Lefthook hides unstaged hunks while the checks run, so they read the staged bytes.
+The staged scheduler includes only `lint:biome` and `types:native`, not deferred rows from the static tier.
+Ordinary static working-change verification keeps its full stage selection.
+A scoped run takes no host-wide whole-run slot.
 
-- The type check runs every native program whose import closure contains a changed file, except the legacy test programs.
-- The selection drops paths under the legacy test folder, and the related-test lane excludes it; CI's legacy jobs run it.
-- The structure walk runs the file-local policies. It defers and prints the cross-file policies.
-- A whole-only stage defers when its path trigger matches and skips when it does not
-  (`tooling/src/verify/lib/registry-triggers.ts`). Other scoped selections run a triggered whole command.
+- Typecheck runs every native program whose import closure contains a staged file, except the legacy test programs.
+- A deleted file selects every non-legacy native program.
+- The selection excludes legacy test paths; CI's legacy jobs run them.
+- ESLint, dependency-cruiser and structure checks do not run at commit.
 
 CI runs complete application static verification before a revision can promote to release. World, import, schema and membership enforcement remain required.
 Local scoped green does not establish whole-tree green. Applicable local completion checks follow the `lane` skill and `AGENTS.md`.

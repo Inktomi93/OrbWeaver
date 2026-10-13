@@ -228,7 +228,7 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       "     Prove actual behavior and family sharing:",
       "",
       "       pnpm test:scoped <the importing family test>",
-      "     Coordinate whole-corpus `pnpm check:policy-conformance` at the integration barrier.",
+      "     Coordinate whole-corpus `pnpm check:policy-conformance` with weekly checker proof (D307).",
       "",
       `  2. ${FAMILY_TESTS}/<family>.test.ts`,
       "     the committed receipt — import this module and assert `verifyPolicyProofs([gate])` equals `[]`.",

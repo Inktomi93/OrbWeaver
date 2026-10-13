@@ -5,7 +5,7 @@
 //      IDOR sweep (`tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts`) — red on main for hours.
 //   2. #640's merge left `add-chat-book-dialog` with no coverage decision in `chat-component-presence.test.ts`
 //      — red on main until a sibling lane's floor tripped it.
-// This is the ONE cheap command a merge train runs to catch exactly that class, in sub-minute time.
+// The orchestrator runs applicable cases before the owner pushes, not after each merge train (D317).
 //
 // THE CONVENTION (glob-first, not a hand list — so enumeration does not rot):
 //   • every `tests/tooling/**/*.test.ts` / `*.int.test.ts` whose BASENAME contains "ratchet", "presence",
