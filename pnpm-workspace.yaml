@@ -42,22 +42,22 @@ catalog:
   # our own Windows escaping.
   cross-spawn: 7.0.6
   "@types/cross-spawn": ^6.0.6
-  knip: ^6.37.0
+  knip: ^6.38.0
   unbash: 4.0.11
   yaml: 2.9.1
   "@typescript/native": npm:typescript@7.0.2
   ts7: npm:typescript@7.0.2
   typescript: ^6.0.3
   "@biomejs/biome": 2.5.15
-  lefthook: ^2.1.14
+  lefthook: ^2.1.15
   dependency-cruiser: ^18.4.0
   ts-morph: ^28.0.0
   # @types/node tracks the RUNTIME (Node 26).
-  "@types/node": ^26.6.2
+  "@types/node": ^26.6.3
   # --- test ---
   # Typecheck integration is experimental; validate upgrades explicitly and keep coverage in lockstep.
-  vitest: 5.0.0
-  "@vitest/coverage-v8": 5.0.0
+  vitest: 5.0.2
+  "@vitest/coverage-v8": 5.0.2
   # Pin both packages together: the install CLI and test runners must use the same Chromium revision.
   "@playwright/test": 1.61.1
   "@playwright/experimental-ct-react": 1.61.1
@@ -78,7 +78,7 @@ catalog:
   # in the tree as lighthouse's own dependency; PINNED EXACT TO LIGHTHOUSE'S RESOLUTION so the two share
   # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
   # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).
-  "puppeteer-core": 25.11.0
+  "puppeteer-core": 25.12.0
   # chrome-devtools-mcp: PARSER ENGINE ONLY for Snap's heap arm (#1300). Snap never imports or starts
   # the MCP server, transport, Puppeteer page, or browser launcher. One adapter deep-imports the bundled
   # browser-free HeapSnapshotManager so retained sizes, dominators, native-context attribution and
@@ -93,7 +93,7 @@ catalog:
   # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
   "@total-typescript/ts-reset": ^0.6.1
   # jscpd: copy-paste detection (CI gate, threshold 5%) — config jscpd.json.
-  jscpd: ^5.3.1
+  jscpd: ^5.3.3
   # stryker: mutation testing (run via `pnpm test:mutation` / `pnpm test:mutation:gate` = a plain
   # `stryker run <config>` from the repo root — no wrapper, no --inPlace: Stryker copies into .stryker-tmp/,
   # the working tree is never touched, reports land in reports/ natively). PINNED EXACT to 10.0.0 (no caret) —
@@ -136,7 +136,7 @@ catalog:
   # our own ignore-plugin (scripts/mutation/arid-ignorer.ts); core/runner/checker pull it transitively.
   # the babel parser Stryker instruments with — declared so the arid ignorer's REAL-AST pin can
   # parse exactly what the mutator sees, instead of asserting against hand-built nodes.
-  "@babel/parser": 8.0.4
+  "@babel/parser": 8.0.6
   "@stryker-mutator/api": 10.0.0
   # SECOND PATCH, same version-keying hazard as the sandbox one:
   # patches/@stryker-mutator__typescript-checker@10.0.0.patch is a ONE-LINE fix to the TypeScript 7 native
@@ -156,7 +156,7 @@ catalog:
   zod: ^4.6.5
   typeid-js: ^1.2.0
   luxon: ^3.7.2
-  "@types/luxon": ^3.7.5
+  "@types/luxon": ^3.7.6
   # @marcbachmann/cel-js: the CEL expression evaluator (isomorphic, pure — no node:*) behind the
   # @orb/kit/cel seam; automation predicates + {{expr}}. Bundled types.
   "@marcbachmann/cel-js": ^8.0.0
@@ -166,7 +166,7 @@ catalog:
   "@libsql/client": ^0.18.0
   # --- server ---
   hono: ^4.13.13
-  "@hono/node-server": ^2.0.6
+  "@hono/node-server": ^2.1.3
   openid-client: ^6.8.8
   isomorphic-git: 1.42.2
   # cloudflared: the quick-tunnel process wrapper only (`Tunnel.quick`, `use`, its output and exit events). Exact pin:
@@ -216,11 +216,11 @@ catalog:
   # mode). Its env firewall is the load-bearing credential seam (Tier-3b-Providers.md Esoteric §1).
   # `^0.3.280` floor — owner-approved force past the age gate (see minimumReleaseAgeExclude): its bundled
   # CLI 2.1.280 is the first that serves claude-opus-5-5 and claude-fable-5-1.
-  "@anthropic-ai/claude-agent-sdk": ^0.3.280
+  "@anthropic-ai/claude-agent-sdk": ^0.3.285
   # @anthropic-ai/sdk: the anth-direct backend (D67) — the direct Anthropic-Messages wire over the
   # egress-firewalled global fetch. ALREADY in the tree as a transitive dep of the agent-sdk; promoted
   # to a direct dep to name the existing surface (installs nothing new).
-  "@anthropic-ai/sdk": ^0.128.0
+  "@anthropic-ai/sdk": ^0.129.0
   # --- @orb/inference — the Vercel AI SDK provider layer (inference program §8.0; F9 settled 2026-09-19) ---
   # EXACT PINS, deliberately: the two hosted wires are built against provider spec V4
   # (`LanguageModelV4.doStream` / `EmbeddingModelV4.doEmbed` / `ImageModelV4.doGenerate`) and the
@@ -267,7 +267,7 @@ catalog:
   ajv: 8.20.0
   ajv-formats: 3.0.1
   # lucide-react: ^1.22 (not .23 — published <24h ago, blocked by minimumReleaseAge; bump when mature)
-  lucide-react: ^1.47.0
+  lucide-react: ^1.49.0
   # TanStack Virtual ≥3.14.3: the directDomUpdates React-Compiler fix + core 3.16 chat APIs (D54).
   "@tanstack/react-virtual": ^3.14.13
   # Streamdown ≥2.5 — the D43 §6.3.1 version-floor build gate.
@@ -327,7 +327,7 @@ catalog:
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
   style-dictionary: ^5.5.5
   # Standards CSS Color 4 parsing/gamut mapping for the isomorphic ThemeScope derivation boundary.
-  colorjs.io: 0.5.2
+  colorjs.io: 0.7.0
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
   tailwindcss: ^4.3.3
   "@tailwindcss/oxide": ^4.3.3
@@ -344,16 +344,16 @@ catalog:
   eslint: ^10.11.0
   # typescript-eslint: latest major-8 (there is NO v9); peer `typescript >=4.8.4 <6.1.0` → our 6.0.3 in range.
   # Used as PARSER only (+ the type-aware no-deprecated gate); its recommended RULE set stays OFF (biome+tsc own that).
-  typescript-eslint: ^8.70.1
+  typescript-eslint: ^8.71.0
   # react-hooks v7 ships the React Compiler diagnostics (the rules-of-react correctness set) alongside rules-of-hooks.
   eslint-plugin-react-hooks: ^7.1.1
-  "@tanstack/eslint-plugin-query": ^5.103.2
+  "@tanstack/eslint-plugin-query": ^5.104.0
   "@tanstack/eslint-plugin-router": ^1.162.0
   # better-tailwindcss: validates class strings against the classes the v4 engine ACTUALLY registers
   # for our @theme (entryPoint = @orb/ui globals.css). Correctness rules only (biome owns class style/order).
   eslint-plugin-better-tailwindcss: ^4.7.0
   # tsdoc/syntax — validates TSDoc comment syntax (the doc-comment gate, .claude/rules/comments.md). No eslint peer dep.
-  eslint-plugin-tsdoc: ^0.5.3
+  eslint-plugin-tsdoc: ^0.5.4
   # jsx-a11y — EXACT, not a caret, and that is the point (#1331). eslint.config.js spreads its `strict`
   # bundle, `lint:eslint` runs with `--max-warnings 0`, so any rule a 6.x MINOR adds to that bundle would
   # land as a hard `pnpm check` gate with no config change and no review. The spread is sanctioned ONLY
@@ -361,10 +361,10 @@ catalog:
   eslint-plugin-jsx-a11y: 6.10.2
   # eslint-react's leak family: unremoved listeners/timers/observers/fetch inside components — nothing
   # else in the stack (biome, react-hooks, tsc) can see a subscription that outlives its component.
-  eslint-plugin-react-web-api: ^5.20.5
+  eslint-plugin-react-web-api: ^5.23.1
   # eslint-react's core family: the React-19 migration and legacy-API rules. EXACT, not a caret — the config
   # lists each rule by name, but a minor must not add or retune a rule without review.
-  eslint-plugin-react-x: 5.20.5
+  eslint-plugin-react-x: 5.23.1
   # semantic unnecessary-effect analysis (the "you might not need an effect" family). 6 of 9 rules
   # enabled, 3 rejected with receipts — the reasoning lives in eslint.config.js beside the block.
   eslint-plugin-react-you-might-not-need-an-effect: ^1.0.2
@@ -378,7 +378,7 @@ catalog:
   eslint-plugin-drizzle: 0.2.3
   # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
   # caret auto-adopts 8.1.3 once it clears the 24h window. (Matches the lucide pin-reason style.)
-  vite: ^8.3.0
+  vite: ^8.3.1
   # CT's CommonJS declarations erase Vite's types; this type-only alias reaches its pinned ESM API.
   vite-ct: npm:vite@6.4.3
   vite-plugin-checker: ^0.14.5
@@ -388,7 +388,7 @@ catalog:
   "@rolldown/plugin-babel": ^0.2.4
   # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
   #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
-  "@tanstack/react-query": ^5.103.2
+  "@tanstack/react-query": ^5.104.0
   "@tanstack/react-form": ^1.33.5
   zustand: ^5.0.15
   # @trpc/client + the tanstack-react-query bridge track @trpc/server's major (^11.18.0) — the
@@ -402,7 +402,7 @@ catalog:
   # DELIBERATELY DROPPED (UI-Arch §6.1): hand-written code-based
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
   # NOT wire tanstackRouter().
-  "@tanstack/react-router": ^1.170.38
+  "@tanstack/react-router": ^1.170.40
 # There is deliberately NO `esbuild@^0.25.0` override here any more (dropped 2026-08-07). It existed to
 # force "vite/vitest's bundled esbuild" up to 0.28.1 so the es2025 target would not be rejected — and the
 # vite 8 / vitest 4 bump killed BOTH halves of that premise. Re-derived from source, not from the comment:
@@ -434,7 +434,7 @@ overrides:
   # floor moves past 10.3.1.
   ip-address: ^10.3.1
   # @modelcontextprotocol/sdk declares its OWN `@hono/node-server: ^1.19.9` (a separate major line from
-  # our own catalog `@hono/node-server: ^2.0.6` dep, so pnpm cannot dedupe the two) — same "no manifest
+  # our own catalog `@hono/node-server: ^2.1.3` dep, so pnpm cannot dedupe the two) — same "no manifest
   # names the 1.x line by itself" reason `pnpm update` can't reach it. Pin to a version already inside
   # that declared range to clear GHSA-frvp-7c67-39w9 (Windows encoded-backslash path traversal in
   # serve-static, patched by 1.19.15). Falls away once @modelcontextprotocol/sdk's declared floor moves
