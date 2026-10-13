@@ -298,7 +298,7 @@ them:
 3. **The definition, its factory, and the feature front-door export** — co-located `features/<owner>/lib/<id>-section.tsx`, and the `main.tsx` door row.
 4. **Per-section selection stores** — the pointer is a `createDrillSelectionStore` mint in `state/`, centrally homed so a sibling can read it (§9).
 5. **`agent-nav/`'s vocabulary validation** — `__orb.nav` validates against `SECTION_IDS`.
-6. **`tests/support/browser/ct-data-providers.tsx`** — the real section registry and the `fakeSection` fold, a hand-maintained door mirror.
+6. **`tests/support/browser/ct-door.ts`** — forwards production composition; isolated variants derive from its registries without a second table.
 7. **Mobile fate** — `rail.mobile` (`MobileCuration`) is an explicit per-section decision, `"tab"` or `"sheet"`; there is no default.
 8. **Chrome derivation** — `assembleChrome` reads `sections.list()`; an entry you had to hand-add is a G2 parallel map forming.
 9. **Placeholder copy** — `placeholder-copy-registry` requires a distinct (title, description) per section.
@@ -388,14 +388,14 @@ singletons (QueryClient → tRPC client → toast manager, minted once in `compo
 `agent-bridge.ts` observer only through the literal
 `import.meta.env.DEV` dynamic `agent-handles/index.ts` door, stacks providers (`QueryClientProvider` →
 `TRPCProvider` → `ToastProvider` → `AppErrorBoundary` → `RouterProvider`), and raises the `BootVeil`;
-nothing imports `main.tsx` (`client-nothing-imports-main`). `compose/authed-app.tsx` is the composition
-half: the one place feature definitions and contributors are imported and assembled
-(`createRegistry`/`createContributorRegistry` call sites live in `main.tsx` or a `compose/` module — G8),
-plus the registry-provider stack it wraps around the `/` route's `AppRoot`. This is critical for
+nothing imports `main.tsx` (`client-nothing-imports-main`). `compose/authed-app.tsx` mounts the lazy authenticated route.
+`compose/authed-composition.tsx` owns its injected factory: feature definitions and contributors are imported and assembled
+(`createRegistry`/`createContributorRegistry` call sites live in `main.tsx` or a `compose/` module — G8).
+`compose/authed-providers.tsx` delivers the assembled registries to the `/` route's `AppRoot` and isolated component mounts. This is critical for
 one-directional flow: a contributor "registers" by being imported at the door, never by importing its
 host feature.
 
-**The door is two modules because assembling means importing every feature front door — the whole app,**
+**Boot and authenticated composition stay separate because assembly imports the feature graph,**
 which would parse the whole feature graph before the login form paints for a client that has not
 authenticated yet. `routes/router.tsx` mounts the `/` component via `lazyRouteComponent`, so the
 assemblies and the feature graph under them are a separate chunk fetched during the route's load phase,
@@ -473,7 +473,7 @@ time.
 
 Add a settings group by exporting a `ConfigGroupDefinition` (a skimmer, nothing else) from the owning
 feature's `lib/`, exporting one `ConfigSectionContribution` per anchored section, and registering both at
-the door (`compose/authed-app.tsx`'s group registry, total over `CONFIG_GROUP_IDS`). Never add a surface
+the door (`compose/authed-composition.tsx`'s group registry, total over `CONFIG_GROUP_IDS`). Never add a surface
 outside its owning feature's `lib/` or hand-stamp anchors outside the contribution seam — that is the
 god-feature growth vector G4 exists to kill.
 

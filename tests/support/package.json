@@ -20,6 +20,7 @@
     "./browser/ct-data-providers.tsx": "./browser/ct-data-providers.tsx",
     "./browser/ct-door.ts": "./browser/ct-door.ts",
     "./browser/ct-isolation.ts": "./browser/ct-isolation.ts",
+    "./browser/ct-isolated-subject.tsx": "./browser/ct-isolated-subject.tsx",
     "./browser/ct-providers.tsx": "./browser/ct-providers.tsx",
     "./browser/disclosure-ready.ts": "./browser/disclosure-ready.ts",
     "./browser/drop-files.ts": "./browser/drop-files.ts",

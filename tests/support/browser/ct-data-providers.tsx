@@ -1,38 +1,10 @@
-// CtDataProviders — the CLIENT data-layer provider stack (Query + tRPC) for client `.ct.tsx`
-// lanes; composed by `_ct-stories.tsx` modules around their story root. Deliberately NOT stacked
-// in ct-providers.tsx / beforeMount: packages/ui/tsconfig.json owns ct-providers.tsx + playwright/**
-// in its DOM-only program, and ANY import path from there to @orb/client drags @orb/server types
-// upward through the cake (typecheck explosion). Story modules belong to the CLIENT program, so
-// the seam lives here — one home, client-side (UI-Primitives §13.7 provider doctrine, client half).
-//
-// Fresh QueryClient PER MOUNT (this component re-runs per `mount()`) → an isolated cache per test.
-// `retry: false` so a scripted failure surfaces immediately (the production retry:2 would triple
-// every fail-then-succeed script). The tRPC client is the REAL production wiring (createTrpcClient:
-// splitLink → httpBatchLink + CSRF header) — routeTrpc stubs the NETWORK under it, so CT exercises
-// the real links / query keys / serialization.
-//
-// NO store-reset / localStorage.clear here: Playwright CT gives every test a FRESH browser context,
-// so module state, zustand stores, and localStorage all start clean. If a future lane ever reuses a
-// page across tests, the per-mount reset belongs HERE.
+// Isolated client mounts reuse production runtime, assembly and providers; variants name their isolated subject.
 
-// @orb-waive-file no-test-fabrication(Record<ModalSlotId, ModalDefinition>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<SectionId, SectionDefinition>): baselined when the gate widened to value casts; burn-down item 906.
-import { createAppQueryClient, createTrpcClient, TRPCProvider, useSettingsViewerView } from "@orb/client/data";
-import { contextToggleChrome, youModal } from "@orb/client/features/app-shell";
-import { reauthModal } from "@orb/client/features/auth";
+import { useSettingsViewerView } from "@orb/client/data";
+import { AppToaster, contextToggleChrome } from "@orb/client/features/app-shell";
 import { makeCharactersSection } from "@orb/client/features/character";
-import { ChatsWithCharacterPane, commandModal, makeChatsSection, newChatModal } from "@orb/client/features/chat";
-import { bindConfigPaletteGroups, makeConfigSection } from "@orb/client/features/config";
-import { addDocumentModal, databankSection } from "@orb/client/features/databank";
-import { makeCorpusSection } from "@orb/client/features/discovery";
-import { makeHomeSection } from "@orb/client/features/home";
-import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
-import { extensionsSection, pluginCommandArgsModal, pluginDialogModal } from "@orb/client/features/plugin";
-import { presetsSection } from "@orb/client/features/preset";
-import { refinerySection } from "@orb/client/features/refinery";
-import { savedRostersModal } from "@orb/client/features/roster-preset";
-import { insightsCorpusMode } from "@orb/client/features/stats";
-import { labelsCorpusMode } from "@orb/client/features/tag";
+import { ChatsWithCharacterPane, makeChatsSection } from "@orb/client/features/chat";
+import { makeConfigSection } from "@orb/client/features/config";
 import type {
   CharacterDetailContribution,
   ChatContextState,
@@ -42,179 +14,111 @@ import type {
   ContributorRegistry,
   ListPaneHeaderView,
 } from "@orb/client/lib";
-import { bindSessionDocumentHost, createContributorRegistry, createRegistry, defineContextTabs } from "@orb/client/lib";
-import type {
-  ChromeEntry,
-  ChromeRegistry,
-  ConfigGroupId,
-  ConfigSectionContribution,
-  ModalDefinition,
-  ModalRegistry,
-  ModalSlotId,
-  SectionDefinition,
-  SectionId,
-  SectionRegistry,
-  SectionSelection,
-} from "@orb/client/state";
-import {
-  assembleChrome,
-  ChromeRegistryProvider,
-  ConfigSectionRegistryProvider,
-  MODAL_SLOT_IDS,
-  ModalRegistryProvider,
-  resolveConfigSections,
-  SECTION_IDS,
-  SectionRegistryProvider,
-} from "@orb/client/state";
+import { createToastNotify, defineContextTabs, leaseNotify } from "@orb/client/lib";
+import type { ChromeEntry, ConfigGroupId, ConfigSectionContribution, ModalSlotId, SectionDefinition, SectionId, SectionSelection } from "@orb/client/state";
+import { assembleChrome, ConfigSectionRegistryProvider, resolveConfigSections } from "@orb/client/state";
 import { Container, Stack } from "@orb/ui/layout";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment } from "react";
-import { placeholderConfigGroups, realConfigGroups } from "./ct-config-groups.ts";
+import { createContext, Fragment, use, useLayoutEffect, useState } from "react";
+import { placeholderConfigGroups } from "./ct-config-groups.ts";
 import {
-  characterDetailContributors,
+  AppDataProviders,
+  AuthedProviders,
   chatSettingsSections,
   chatSurfaceContributors,
-  chromeWidgets,
   configSections,
-  corpusContextTabs,
-  homeTiles,
+  createAuthedComposition,
   toolRenderers,
 } from "./ct-door.ts";
+import { isolationRegistry } from "./ct-isolation.ts";
+import type { CtRuntimeOptions } from "./ct-runtime.ts";
+import { CtRuntimeContext, useCtRuntime } from "./ct-runtime.ts";
 
-// The door binds the ⌘K Settings palette source to its group registry once; the CT door does the same, so the
-// door's palette sources render the rows production renders.
-bindConfigPaletteGroups(realConfigGroups);
+const CtCompositionContext = createContext<ReturnType<typeof createAuthedComposition> | null>(null);
 
-// Client CTs run outside main.tsx, so this support composition root supplies the same browser document
-// capabilities before any story can mount data/session consumers.
-bindSessionDocumentHost({
-  currentPathname: (): string => globalThis.location.pathname,
-  assign: (path): void => globalThis.location.assign(path),
-  isVisible: (): boolean => globalThis.document.visibilityState === "visible",
-  subscribeVisibility: (listener): (() => void) => {
-    globalThis.document.addEventListener("visibilitychange", listener);
-    return (): void => globalThis.document.removeEventListener("visibilitychange", listener);
-  },
-});
+/** Query timing overrides stay at the external mount boundary; production caches, error handling and transport remain real. */
+export function CtDataProviders({ children, refetchOnWindowFocus = true, ...options }: CtRuntimeOptions & { readonly children: ReactNode }): ReactElement {
+  const runtime = useCtRuntime({ ...options, refetchOnWindowFocus });
+  return (
+    <CtRuntimeContext value={runtime}>
+      <AppDataProviders runtime={runtime}>{children}</AppDataProviders>
+    </CtRuntimeContext>
+  );
+}
 
-export function CtDataProviders({
+/** Mount the unmodified production data defaults for error recovery and notification subjects. */
+export function CtAppDataProviders({ children, ...options }: CtRuntimeOptions & { readonly children: ReactNode }): ReactElement {
+  const runtime = useCtRuntime(options);
+  return (
+    <CtRuntimeContext value={runtime}>
+      <AppDataProviders runtime={runtime}>{children}</AppDataProviders>
+    </CtRuntimeContext>
+  );
+}
+
+function useCtComposition(): { readonly runtime: ReturnType<typeof useCtRuntime>; readonly composition: ReturnType<typeof createAuthedComposition> } {
+  const runtime = useCtRuntime();
+  const inherited = use(CtCompositionContext);
+  const [composition] = useState(() => inherited ?? createAuthedComposition(runtime));
+  return { runtime, composition };
+}
+
+function CompositionProviders({
+  runtime,
+  composition,
   children,
-  refetchOnWindowFocus = true,
-  configureQueryClient,
 }: {
+  readonly runtime: ReturnType<typeof useCtComposition>["runtime"];
+  readonly composition: ReturnType<typeof createAuthedComposition>;
   readonly children: ReactNode;
-  /** Instrument the freshly constructed client before any provider consumer mounts. */
-  readonly configureQueryClient?: (queryClient: QueryClient) => void;
-  /** Opt OUT of react-query's `refetchOnWindowFocus` (v5 default: `true`).
-   *
-   *  Needed by any story whose pin is "THIS interaction issued the re-read": an errored query is stale, so a
-   *  focus event landing between the failure barrier and the assertion re-reads on its own and HEALS the
-   *  panel — a false pass that never touches the affordance under test (graduation verifier, 2026-08-08).
-   *  Defaulted to today's behaviour so this is purely additive: no existing story changes, and a story that
-   *  wants determinism asks for it. */
-  readonly refetchOnWindowFocus?: boolean;
 }): ReactElement {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY, refetchOnWindowFocus },
-      mutations: { retry: false },
-    },
-  });
-  configureQueryClient?.(queryClient);
-  const trpcClient = createTrpcClient();
   return (
-    <QueryClientProvider client={queryClient}>
-      <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
-        {children}
-      </TRPCProvider>
-    </QueryClientProvider>
+    <CtRuntimeContext value={runtime}>
+      <AppDataProviders runtime={runtime}>
+        <CtCompositionContext value={composition}>
+          <AuthedProviders composition={composition}>{children}</AuthedProviders>
+        </CtCompositionContext>
+      </AppDataProviders>
+    </CtRuntimeContext>
   );
 }
 
-/** {@link CtDataProviders}, but on the REAL app QueryClient (`createAppQueryClient`) — the one whose
- *  MutationCache/QueryCache `onError` IS the `meta.errorToast` → `notify` channel. The plain client above
- *  has no such channel, so a CT whose observable is a mutation's ERROR TOAST must mount this one and pair it
- *  with `CtToastSurface` (which owns the single `bindNotify`). Everything else — the real tRPC client over
- *  the routeTrpc-stubbed network, one client per mount — is identical. */
-export function CtAppDataProviders({ children }: { readonly children: ReactNode }): ReactElement {
-  const queryClient = createAppQueryClient();
-  const trpcClient = createTrpcClient();
+/** Deliver every authenticated registry through the same provider stack the lazy production route uses. */
+export function CtRealSectionRegistry({ children }: { readonly children: ReactNode }): ReactElement {
+  const { runtime, composition } = useCtComposition();
   return (
-    <QueryClientProvider client={queryClient}>
-      <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
-        {children}
-      </TRPCProvider>
-    </QueryClientProvider>
+    <CompositionProviders runtime={runtime} composition={composition}>
+      {children}
+    </CompositionProviders>
   );
 }
 
-// ── Section-registry CT providers ─────────────────────────────────────────────────────────────────
-// The shell (AppShell / Rail / YouSheet / useShellLayout / AppRoot) reads the section registry as a
-// runtime context, so a CT mounting any of them must provide one (mirrors main.tsx's door). Homed HERE
-// (the one client-owned CT support file — selection.ts CT_CLIENT_OWNED) so importing the client feature
-// front doors stays in the client program.
+function NoticeBinding({ children }: { readonly children: ReactNode }): ReactElement {
+  const [manager] = useState(() => createToastManager());
+  const [notice] = useState(() => createToastNotify(manager));
+  useLayoutEffect(() => leaseNotify(notice)[Symbol.dispose], [notice]);
+  return <ToastProvider toastManager={manager}>{children}</ToastProvider>;
+}
 
-const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
-const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", []);
-/** The REAL config-section registry alone — for a story that mounts the config host's LIST/CONTENT panes
- *  directly (they read the section registry from context; the group registry rides in by prop). */
+/** The maintained client mount door retains production defaults and registries, with only external wires controlled by the caller. */
+export function CtClientProviders({ children, ...options }: CtRuntimeOptions & { readonly children: ReactNode }): ReactElement {
+  return (
+    <CtAppDataProviders {...options}>
+      <NoticeBinding>
+        <CtRealSectionRegistry>{children}</CtRealSectionRegistry>
+        <AppToaster />
+      </NoticeBinding>
+    </CtAppDataProviders>
+  );
+}
+
+/** Isolate the configuration host's section context without replacing its contributed production roster. */
 export function CtRealConfigSectionRegistry({ children }: { readonly children: ReactNode }): ReactElement {
   return <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>;
 }
 
-const REAL: Record<SectionId, SectionDefinition> = {
-  home: makeHomeSection(homeTiles),
-  chats: makeChatsSection({
-    contextTabs: chatContextContributors,
-    contextRegions: chatContextRegions,
-    surfaces: chatSurfaceContributors,
-    toolRenderers,
-    settingsSections: chatSettingsSections,
-  }),
-  characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
-  corpus: makeCorpusSection({ insights: insightsCorpusMode, labels: labelsCorpusMode, contextTabs: corpusContextTabs }),
-  config: makeConfigSection(realConfigGroups),
-  // U5 (#679): the REAL Extensions section, so a shell CT landing anywhere sees the true rail roster and a CT
-  // ON this section exercises the production switcher/page panes rather than a stand-in.
-  extensions: extensionsSection,
-  databank: databankSection,
-  presets: presetsSection,
-  refinery: refinerySection,
-};
-
-const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, REAL);
-
-// ── Modal-registry CT provider ────────────────────────────────────────────────────────────────────
-// AppShell / Rail / YouSheet / ModalHost read the modal registry as a runtime context (mirrors main.tsx).
-// The section-registry providers below nest it, so every shell CT gets both registries transparently.
-
-const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
-  command: commandModal,
-  newChat: newChatModal,
-  addDocument: addDocumentModal,
-  you: youModal,
-  reauth: reauthModal,
-  imagine: imagineModal,
-  imageDetail: imageDetailModal,
-  imageEdit: imageEditModal,
-  pluginDialog: pluginDialogModal,
-  pluginCommandArgs: pluginCommandArgsModal,
-  savedRosters: savedRostersModal,
-};
-
-const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);
-
-// ── Config-section-registry CT provider ───────────────────────────────────────────────────────────
-// The door's ONE config-section registry (`compose/config-sections.ts`, re-exported by `ct-door.ts`): every
-// non-collection group is a skimmer over it, so a shell CT renders the contributed sections in the order
-// production does.
-
-/** A group's body EXACTLY as the config host renders it (config-content-surface.tsx `GroupBody`): the
- *  contributions at `anchor`, `when`-filtered by the ONE viewer projection, in registry order, in the host's
- *  Stack. For a CT that mounts ONE group's sections outside the shell — the production render path for a
- *  skimmer, not a hand-mounted surface. Must sit under `CtDataProviders`
- *  (the viewer projection reads `sessions.me`). */
+/** Isolate a group's contributed section bodies; the complete configuration host owns its fold and navigation. */
 export function CtConfigGroupBody({
   anchor,
   sections,
@@ -244,23 +148,6 @@ export function CtConfigGroupBody({
   );
 }
 
-// ── Chrome-registry CT provider ───────────────────────────────────────────────────────────────────
-// AppShell reads the chrome registry (its topbar.trail render) as a runtime context (mirrors main.tsx's
-// door). The section-registry providers below nest it, so every shell CT gets all four registries.
-
-const realChromeRegistry: ChromeRegistry = createContributorRegistry(
-  "chrome",
-  assembleChrome({
-    sections: realRegistry.list(),
-    modals: realModalRegistry.list(),
-    widgets: chromeWidgets,
-  }),
-);
-
-// The rail's `rail.end` persona identity widget (`personaChrome.body("bar")`) is a data-backed suspense
-// surface; the BARE RailStory (a11y/keyboard, no data layer) stands a named button in its place — the
-// old `railFoot` stand-in philosophy, now expressed as a chrome widget — so the footer-slot a11y baseline
-// stays covered without pulling the persona feature (and its queries) into a dataless mount.
 const railStandInPersona: ChromeEntry = {
   id: "persona-identity",
   label: "Account",
@@ -269,12 +156,6 @@ const railStandInPersona: ChromeEntry = {
   mobile: "sheet",
   behavior: { kind: "widget", body: (): ReactElement => <button type="button">Account</button> },
 };
-// …and the same stand-in philosophy now reaches the NOTIFICATIONS widget. The rail used to render only
-// `rail.nav`/`rail.end`, so a `topbar.trail` entry's hooks were never called in this mount; the mobile You
-// tab badges the sheet-hosted widgets' `useBadge` counts (#214 residue), so the rail evaluates
-// `useVisible`/`useBadge` for them too — and `notificationsChrome`'s gate reads `useAuthConfig()`, which
-// mount-throws the whole rail in a dataless story. The stand-in keeps the SEAM (a curated `topbar.trail`
-// widget the You tab can badge) with none of the data layer; `RailSheetBadgeStory` owns the badge itself.
 const railStandInNotifications: ChromeEntry = {
   id: "notifications-bell",
   label: "Notifications",
@@ -283,58 +164,42 @@ const railStandInNotifications: ChromeEntry = {
   useBadge: (): number => 0,
   behavior: { kind: "widget", body: (): ReactElement => <button type="button">Notifications</button> },
 };
-const standInChromeRegistry: ChromeRegistry = createContributorRegistry(
-  "chrome",
-  assembleChrome({
-    sections: realRegistry.list(),
-    modals: realModalRegistry.list(),
-    widgets: [railStandInNotifications, contextToggleChrome, railStandInPersona],
-  }),
-);
 
-/** Overrides the chrome registry with the stand-in (a bare "Account" rail.end widget) — for the bare
- *  RailStory, which mounts the rail without a data layer. */
+/** Isolate rail anatomy from data-backed chrome widgets while retaining real section and modal identity. */
 export function CtStandInChromeRegistry({ children }: { readonly children: ReactNode }): ReactElement {
-  return <ChromeRegistryProvider value={standInChromeRegistry}>{children}</ChromeRegistryProvider>;
-}
-
-/** The real 10-section + 13-modal + 13-config-group + chrome registries — for CTs that drive real
- *  content (the route CT). */
-export function CtRealSectionRegistry({ children }: { readonly children: ReactNode }): ReactElement {
+  const { runtime, composition: base } = useCtComposition();
+  const chrome = isolationRegistry(
+    "chrome",
+    "isolates rail geometry from data backed widgets",
+    assembleChrome({
+      sections: base.sections.list(),
+      modals: base.modals.list(),
+      widgets: [railStandInNotifications, contextToggleChrome, railStandInPersona],
+    }),
+  );
   return (
-    <SectionRegistryProvider value={realRegistry}>
-      <ModalRegistryProvider value={realModalRegistry}>
-        <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
-        </ChromeRegistryProvider>
-      </ModalRegistryProvider>
-    </SectionRegistryProvider>
+    <CompositionProviders runtime={runtime} composition={{ ...base, chrome }}>
+      {children}
+    </CompositionProviders>
   );
 }
 
-/** The real registries but with the `config` section built over {@link placeholderConfigGroups}
- *  (connections → a `{ placeholder: true }` body) — the #696 live subject for the host's placeholder branch.
- *  Everything else is the production wiring, so the LIST, the search and the CONTENT behave exactly as they
- *  do for a real deferred group. The group registry rides the SECTION (by factory, as at the door), so the
- *  swap is a second section registry, not a second provider. */
-const placeholderSectionRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
-  ...REAL,
-  config: makeConfigSection(placeholderConfigGroups),
-});
+/** Isolate the configuration host's declared placeholder branch over canonical group identity. */
 export function CtPlaceholderGroupRegistry({ children }: { readonly children: ReactNode }): ReactElement {
+  const { runtime, composition: base } = useCtComposition();
+  const sections = isolationRegistry(
+    "sections",
+    "isolates the config host placeholder branch",
+    base.sections.list().map((section) => (section.id === "config" ? makeConfigSection(placeholderConfigGroups) : section)),
+  );
   return (
-    <SectionRegistryProvider value={placeholderSectionRegistry}>
-      <ModalRegistryProvider value={realModalRegistry}>
-        <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
-        </ChromeRegistryProvider>
-      </ModalRegistryProvider>
-    </SectionRegistryProvider>
+    <CompositionProviders runtime={runtime} composition={{ ...base, sections }}>
+      {children}
+    </CompositionProviders>
   );
 }
 
-/** The config-SECTION registry alone, for a CT that mounts a section body outside the shell and needs the
- *  registry in context (a body that reads sibling contributions). */
+/** A named section-context isolation consumes the caller's registry rather than assembling another roster. */
 export function CtConfigSectionRegistry({
   sections,
   children,
@@ -345,10 +210,7 @@ export function CtConfigSectionRegistry({
   return <ConfigSectionRegistryProvider value={sections}>{children}</ConfigSectionRegistryProvider>;
 }
 
-/** The REAL `chats` section, rebuilt with a CALLER-supplied `chat-context`/`chat-surface` contributor
- *  registry in place of main.tsx's empty ones (the M8 deliverable — proves a fake contributor renders +
- *  `when`-gates through the REAL section/factory/mint path, not a bespoke test double). Every other
- *  section stays the real registry (`REAL`), so a chat CT mounting the shell still sees real siblings. */
+/** Isolate contributed chat bodies through the real chat section factory, retaining every other production section. */
 export function CtChatContributorSectionRegistry({
   contextContributors,
   contextRegions,
@@ -356,36 +218,31 @@ export function CtChatContributorSectionRegistry({
   children,
 }: {
   readonly contextContributors?: ContributorRegistry<ContextTabDef<ChatContextState>>;
-  /** The whole-pane REGION-CLAIM arm (HUD-1 §3.2) — a fake claimant proves the seam without rpg. */
   readonly contextRegions?: ContributorRegistry<ContextRegionDef<ChatContextState>>;
   readonly surfaceContributors?: ContributorRegistry<ChatSurfaceContribution>;
   readonly children: ReactNode;
 }): ReactElement {
-  const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
-    ...REAL,
-    chats: makeChatsSection({
-      contextTabs: contextContributors ?? chatContextContributors,
-      contextRegions: contextRegions ?? chatContextRegions,
-      surfaces: surfaceContributors ?? chatSurfaceContributors,
-      toolRenderers,
-      settingsSections: chatSettingsSections,
-    }),
+  const { runtime, composition: base } = useCtComposition();
+  const chats = makeChatsSection({
+    contextTabs: contextContributors ?? base.chatContextContributors,
+    contextRegions: contextRegions ?? base.chatContextRegions,
+    surfaces: surfaceContributors ?? chatSurfaceContributors,
+    toolRenderers,
+    settingsSections: chatSettingsSections,
   });
+  const sections = isolationRegistry(
+    "sections",
+    "isolates the chat contributor integration subject",
+    base.sections.list().map((section) => (section.id === "chats" ? chats : section)),
+  );
   return (
-    <SectionRegistryProvider value={registry}>
-      <ModalRegistryProvider value={realModalRegistry}>
-        <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
-        </ChromeRegistryProvider>
-      </ModalRegistryProvider>
-    </SectionRegistryProvider>
+    <CompositionProviders runtime={runtime} composition={{ ...base, sections }}>
+      {children}
+    </CompositionProviders>
   );
 }
 
-/** The REAL `characters` section, rebuilt with a CALLER-supplied `character-detail` contributor registry
- *  in place of main.tsx's empty one (the seam deliverable — proves a fake detail contribution renders +
- *  `when`-gates through the REAL section/factory/content path, not a bespoke test double). Every other
- *  section stays the real registry (`REAL`), so a character CT mounting the shell still sees real siblings. */
+/** Isolate character contributors through the real feature factory without copying the section table. */
 export function CtCharacterContributorSectionRegistry({
   detailContributors,
   children,
@@ -393,35 +250,35 @@ export function CtCharacterContributorSectionRegistry({
   readonly detailContributors: ContributorRegistry<CharacterDetailContribution>;
   readonly children: ReactNode;
 }): ReactElement {
-  const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
-    ...REAL,
-    characters: makeCharactersSection(detailContributors, (view) => <ChatsWithCharacterPane {...view} />),
-  });
+  const { runtime, composition: base } = useCtComposition();
+  const characters = makeCharactersSection(detailContributors, (view) => <ChatsWithCharacterPane {...view} />);
+  const sections = isolationRegistry(
+    "sections",
+    "isolates the character detail contribution subject",
+    base.sections.list().map((section) => (section.id === "characters" ? characters : section)),
+  );
   return (
-    <SectionRegistryProvider value={registry}>
-      <ModalRegistryProvider value={realModalRegistry}>
-        <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
-        </ChromeRegistryProvider>
-      </ModalRegistryProvider>
-    </SectionRegistryProvider>
+    <CompositionProviders runtime={runtime} composition={{ ...base, sections }}>
+      {children}
+    </CompositionProviders>
   );
 }
 
-/** A modal registry with a story-injected body per id (real trigger/title/presentation preserved) — the
- *  test-seam analog of CtFakeSectionRegistry, for CTs isolating ModalHost behavior (the scroll invariant). */
+/** Isolate modal body geometry while preserving the real modal triggers and presentation. */
 export function CtFakeModalRegistry({ body, children }: { readonly body: (id: ModalSlotId) => ReactElement; readonly children: ReactNode }): ReactElement {
-  const registry = createRegistry<ModalSlotId, ModalDefinition>(
+  const { runtime, composition: base } = useCtComposition();
+  const modals = isolationRegistry(
     "modals",
-    MODAL_SLOT_IDS,
-    Object.fromEntries(MODAL_SLOT_IDS.map((id) => [id, { ...REAL_MODALS[id], body: (): ReactElement => body(id) }])) as Record<ModalSlotId, ModalDefinition>,
+    "isolates modal body geometry from feature data",
+    base.modals.list().map((modal) => ({ ...modal, body: (): ReactElement => body(modal.id) })),
   );
-  return <ModalRegistryProvider value={registry}>{children}</ModalRegistryProvider>;
+  return (
+    <CompositionProviders runtime={runtime} composition={{ ...base, modals }}>
+      {children}
+    </CompositionProviders>
+  );
 }
 
-/** Per-section fake injection: `list`/`content`/`context` slots the story wants to render. A `context`
- *  slot is delivered through the real `single` ContextDefinition arm so `SectionContextHost` renders it
- *  live. Non-injected panes retain real capability with empty content, so shell toggles stay testable. */
 export interface CtFakeSection {
   readonly withoutList?: boolean;
   readonly list?: ReactNode;
@@ -462,8 +319,8 @@ const CT_CONTENT_LANDING: SectionSelection = {
   phoneLanding: () => "content",
 };
 
-function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDefinition {
-  const real = REAL[id];
+function fakeSection(real: SectionDefinition, slot: CtFakeSection | undefined): SectionDefinition {
+  const id = real.id;
   const fallbackContext =
     real.context.kind === "none" ? real.context : defineContextTabs<void>({ useContextState: () => null, tabs: [], header: () => real.rail.label });
   const base = {
@@ -474,8 +331,7 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
     panelDefaults: real.panelDefaults,
     contentInset: real.contentInset,
     placeholder: real.placeholder,
-    // A non-injected section renders its real placeholder (the planned arm) — the old "unwired ⇒ fallback".
-    content: slot?.content !== undefined ? (): ReactNode => slot.content : { planned: "ct" },
+    content: (): ReactNode => slot?.content ?? null,
     context:
       slot?.context !== undefined
         ? { kind: "single" as const, body: (): ReactNode => slot.context, header: (): ReactNode => real.rail.label }
@@ -501,26 +357,23 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
   };
 }
 
-/** The shell-isolation registry — real rail/placeholder, story-injected list/content per section. */
+/** Isolate shell pane anatomy while deriving all section identities and capabilities from production. */
 export function CtFakeSectionRegistry({
-  sections,
+  sections: slots,
   children,
 }: {
   readonly sections?: Partial<Record<SectionId, CtFakeSection>>;
   readonly children: ReactNode;
 }): ReactElement {
-  const registry = createRegistry<SectionId, SectionDefinition>(
+  const { runtime, composition: base } = useCtComposition();
+  const sections = isolationRegistry(
     "sections",
-    SECTION_IDS,
-    Object.fromEntries(SECTION_IDS.map((id) => [id, fakeSection(id, sections?.[id])])) as Record<SectionId, SectionDefinition>,
+    "isolates shell pane anatomy from feature content",
+    base.sections.list().map((section) => fakeSection(section, slots?.[section.id])),
   );
   return (
-    <SectionRegistryProvider value={registry}>
-      <ModalRegistryProvider value={realModalRegistry}>
-        <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
-        </ChromeRegistryProvider>
-      </ModalRegistryProvider>
-    </SectionRegistryProvider>
+    <CompositionProviders runtime={runtime} composition={{ ...base, sections }}>
+      {children}
+    </CompositionProviders>
   );
 }
