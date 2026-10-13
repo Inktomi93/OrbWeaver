@@ -227,7 +227,6 @@ async function stubDeployment(page: Page, opts: { readonly externalMediaBlocked:
       contentType: "application/json",
       body: JSON.stringify({
         mode: "single-user",
-        requiresLogin: false,
         localEnabled: false,
         oidcEnabled: false,
         discreetLogin: false,

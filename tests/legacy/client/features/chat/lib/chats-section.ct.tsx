@@ -85,7 +85,6 @@ async function stubMultiHumanCapable(page: Page, capable: boolean): Promise<void
       contentType: "application/json",
       body: JSON.stringify({
         mode: "single",
-        requiresLogin: false,
         localEnabled: false,
         oidcEnabled: false,
         discreetLogin: false,
@@ -442,7 +441,6 @@ async function holdAuthConfig(page: Page): Promise<(capable: boolean) => void> {
       contentType: "application/json",
       body: JSON.stringify({
         mode: "single",
-        requiresLogin: false,
         localEnabled: false,
         oidcEnabled: false,
         discreetLogin: false,

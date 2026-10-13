@@ -29,7 +29,6 @@ async function stubLocalAuth(page: Page): Promise<() => number> {
       contentType: "application/json",
       body: JSON.stringify({
         mode: "local",
-        requiresLogin: true,
         localEnabled: true,
         oidcEnabled: false,
         discreetLogin: false,

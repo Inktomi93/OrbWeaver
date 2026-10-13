@@ -3,8 +3,9 @@
 // These stay raw Hono, pre-tRPC, and must never move behind auth. `/me` reads the principal app.ts's auth
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
+import type { AuthConfig } from "@orb/contracts/auth-config";
 import type { AuthConfigShare, AuthMe, AuthMode, RelayStatus } from "@orb/contracts/identity";
-import { authConfigShareSchema, isCookieAuthMode } from "@orb/contracts/identity";
+import { authConfigShareSchema } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
 import { requestClientScope, requestTransport } from "#infra/auth";
@@ -67,9 +68,8 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
     // B4 — the peer-scoped first-run flag (local mode only; false everywhere else). Resolved per request
     // because it depends on both the owner-password state AND the request's peer and relay tells.
     const localFirstRun = deps.localFirstRun !== undefined && (await deps.localFirstRun(peerIp(c), c.req.raw.headers));
-    return c.json({
+    const config = {
       mode: deps.mode,
-      requiresLogin: isCookieAuthMode(deps.mode),
       localEnabled: deps.mode === "local",
       oidcEnabled: deps.mode === "oidc",
       oidcProviderName: deps.oidcProviderName,
@@ -86,7 +86,8 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       // http, in red when the client is on the public internet (`infra/auth/transport.ts`).
       transport: requestTransport(c),
       clientScope: requestClientScope(c),
-    });
+    } satisfies AuthConfig;
+    return c.json(config);
   });
 
   app.get("/api/auth/me", (c) => {

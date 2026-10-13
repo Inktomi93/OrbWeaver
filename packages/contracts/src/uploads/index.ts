@@ -13,6 +13,8 @@
 // The security floors (the zip-bomb decompressed belts — the import bundle's and the databank extractor's)
 // live here WITH their rationale and are NOT served — they are internal ceilings, not a client affordance.
 
+import { z } from "zod";
+
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 
@@ -74,22 +76,25 @@ export const IMPORT_TREE_MAX_FILES = 50_000;
  *  derive from (a deployment fact, served on `/api/auth/config`). The image cap is the EFFECTIVE ceiling for
  *  an image upload = `min(assetUpload, maxImageBytes)` resolved server-side, so the client hint matches what
  *  the route will actually accept. */
-export interface UploadCaps {
-  /** The single-asset route cap for a NON-image kind (documents/plugin bundles POSTed as an asset). */
-  readonly assetUpload: number;
-  /** The EFFECTIVE image cap = `min(assetUpload, effectiveConfig.maxImageBytes)` — what an image upload
-   *  will actually be capped at (the admin-tunable `maxImageBytes` clamps the route cap when tighter). */
-  readonly image: number;
-  /** A single databank source document. */
-  readonly databankUpload: number;
-  /** The per-request import bundle / bare-card cap. */
-  readonly importTotal: number;
-  /** The folder-import caps: one upload's total bytes, one file's bytes, and one upload's file count. The
-   *  folder picker plans its uploads against these before any request. */
-  readonly importTreeTotal: number;
-  readonly importTreeFile: number;
-  readonly importTreeFiles: number;
-}
+export const uploadCapsSchema = z
+  .strictObject({
+    /** The single-asset route cap for a NON-image kind (documents/plugin bundles POSTed as an asset). */
+    assetUpload: z.number(),
+    /** The EFFECTIVE image cap = `min(assetUpload, effectiveConfig.maxImageBytes)` — what an image upload
+     *  will actually be capped at (the admin-tunable `maxImageBytes` clamps the route cap when tighter). */
+    image: z.number(),
+    /** A single databank source document. */
+    databankUpload: z.number(),
+    /** The per-request import bundle / bare-card cap. */
+    importTotal: z.number(),
+    /** The folder-import caps: one upload's total bytes, one file's bytes, and one upload's file count. The
+     *  folder picker plans its uploads against these before any request. */
+    importTreeTotal: z.number(),
+    importTreeFile: z.number(),
+    importTreeFiles: z.number(),
+  })
+  .readonly();
+export type UploadCaps = z.infer<typeof uploadCapsSchema>;
 
 /** The client fallback when `/api/auth/config` hasn't landed yet — byte-identical to the server defaults.
  *  `image` falls back to the route cap (the admin override only ever makes it TIGHTER, so this is a safe,

@@ -10,6 +10,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./assets": "./src/assets/index.ts",
+    "./auth-config": "./src/auth-config/index.ts",
     "./automation": "./src/automation/index.ts",
     "./character": "./src/character/index.ts",
     "./chat": "./src/chat/index.ts",

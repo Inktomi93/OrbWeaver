@@ -1673,7 +1673,7 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ mode: "local", requiresLogin: true, localEnabled: true, oidcEnabled: false, discreetLogin: false, defaultHandle: "owner" }),
+      body: JSON.stringify({ mode: "local", localEnabled: true, oidcEnabled: false, discreetLogin: false, defaultHandle: "owner" }),
     }),
   );
   await stubAuthMe(page, SIGNED_IN_OWNER_ME);
@@ -2149,7 +2149,6 @@ async function seatNotificationBell(page: Page): Promise<void> {
       contentType: "application/json",
       body: JSON.stringify({
         mode: "single",
-        requiresLogin: false,
         localEnabled: false,
         oidcEnabled: false,
         discreetLogin: false,

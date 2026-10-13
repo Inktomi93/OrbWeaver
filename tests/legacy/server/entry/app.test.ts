@@ -492,7 +492,6 @@ describe("createApp", () => {
     expect(res.status).toBe(OK);
     expect(await res.json()).toEqual({
       mode: "single-user",
-      requiresLogin: false,
       localEnabled: false,
       oidcEnabled: false,
       // A8 — the human-facing IdP name (env default here; single-user never shows a login button, but the

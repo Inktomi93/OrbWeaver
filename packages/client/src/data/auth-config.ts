@@ -4,9 +4,10 @@
 // (e.g. chat's context port) reads it without a cross-feature reach into auth (client-features-no-cross);
 // features/auth re-exports this for its own login/account surfaces.
 
+import type { AuthConfig } from "@orb/contracts/auth-config";
+import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
-import type { AuthConfigShare, AuthMode, ClientScope, RequestTransport } from "@orb/contracts/identity";
-import { authConfigShareSchema } from "@orb/contracts/identity";
+import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -15,57 +16,7 @@ import { useEffect } from "react";
 import { DEPLOYMENT_FLOOR } from "#lib";
 import { rememberMultiHumanCapable, useMultiHumanCapableHint } from "#state";
 
-/** The `/api/auth/config` wire shape (mirrors `entry/http/auth-meta.ts` — mode-derived flags). */
-export interface AuthConfig {
-  readonly mode: AuthMode;
-  /** TRUE only for the cookie modes (local/oidc) — the modes where /login is a real fix. Single-user can
-   *  never be unauthenticated (redirecting would loop); forward-header's fix is proxy config. */
-  readonly requiresLogin: boolean;
-  readonly localEnabled: boolean;
-  readonly oidcEnabled: boolean;
-  /** A8 — the human-facing IdP name for the login surface's "Continue with …" button (default "your identity provider"). */
-  readonly oidcProviderName: string;
-  /** B4 — TRUE ⇒ a fresh local box awaiting its in-app owner-password setup, AND this request is on a
-   *  local/trusted origin (the server scopes it, so the setup screen appears only where the endpoint works).
-   *  The login surface renders the first-run setup form instead of the credential form. */
-  readonly localFirstRun: boolean;
-  /** ST `enableDiscreetLogin` parity — TRUE ⇒ blank form (`defaultHandle` is withheld as null). */
-  readonly discreetLogin: boolean;
-  readonly defaultHandle: string | null;
-  /** Can this deployment seat ≥2 humans? The HONEST capability signal the multi-human
-   *  client surfaces (invite affordances · notifications bell · /join landing) gate on — never a
-   *  probe-and-catch of a `multiHumanProcedure` NOT_FOUND. Derived server-side per request from the
-   *  same `MULTI_HUMAN_CAPABLE` map the transport belt runs. */
-  readonly multiHumanCapable: boolean;
-  /** The deployment "Block external media" ceiling — the value the document CSP was built from. TRUE ⇒
-   *  external media is blocked for EVERY character, and a lower-tier "Allow" is inert (the render policy
-   *  resolver is tighten-only). Surfaces that offer the per-character opt-in read this so they can disable
-   *  it honestly instead of shipping a dead switch. */
-  readonly forbidExternalMedia: boolean;
-  /** The deployment HTML-trust DEFAULT — the other axis of the render-policy floor. NOT a ceiling: a card's
-   *  own `trustHtml` override wins in either direction (`resolveRenderPolicy`, docs/law/UI-Theming-and-Content.md §12.2). A surface that
-   *  previews card content combines this with the card's override instead of reading the override alone. */
-  readonly trustHtml: boolean;
-  /** The deployment INTERACTIVE-CARD ceiling, floor TRUE, and the rung an "Inherit default" character
-   *  resolves to while it is up. FALSE ⇒ the per-character "Interactive" rung is inert deployment-wide: the
-   *  mint builds every card through the static posture and card scripts stay CSP-refused. Read by the surface
-   *  that offers the rung, for the same
-   *  don't-ship-a-dead-switch reason as {@link forbidExternalMedia}. Never a capability the client grants —
-   *  the frame policy is built server-side from the server's own read of this. */
-  readonly allowInteractiveCards: boolean;
-  /** The served deployment upload byte caps — the ONE source the client's dropzone hints + pre-checks
-   *  derive from (resolved server-side, incl. the admin-tunable `maxImageBytes` clamp on the image cap).
-   *  The `useUploadCaps` hook falls back to `DEFAULT_UPLOAD_CAPS` until this config has landed. */
-  readonly uploads: UploadCaps;
-  /** How THIS page load reached the server: `https` only when a trusted proxy said so. Over `http` the login
-   *  password and the session cookie travel in clear, and the login surface says so. */
-  readonly transport: RequestTransport;
-  /** Whether THIS request's client address is private or on the public internet (the red notice case). */
-  readonly clientScope: ClientScope;
-  /** The share relay's state, and its public link while it is up; the link is null for a signed-out caller. It changes
-   *  while the server runs, unlike the rest of this config, so a surface that shows it reads a fresh config. */
-  readonly share: AuthConfigShare;
-}
+export type { AuthConfig } from "@orb/contracts/auth-config";
 
 export const AUTH_CONFIG_KEY = ["auth", "config"] as const;
 
@@ -74,12 +25,11 @@ export const AUTH_CONFIG_KEY = ["auth", "config"] as const;
 let configPromise: Promise<AuthConfig> | null = null;
 export function fetchAuthConfig(): Promise<AuthConfig> {
   configPromise ??= fetch("/api/auth/config", { credentials: "same-origin" })
-    .then((res) => {
+    .then(async (res) => {
       if (!res.ok) {
         throw new Error(`/api/auth/config: HTTP ${res.status}`);
       }
-      // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
-      return res.json() as Promise<AuthConfig>;
+      return authConfigSchema.parse(await res.json());
     })
     .catch((err: unknown) => {
       configPromise = null;
@@ -103,7 +53,7 @@ export async function fetchLiveShare(): Promise<AuthConfigShare> {
   if (!res.ok) {
     throw new Error(`/api/auth/config: HTTP ${res.status}`);
   }
-  return authConfigShareSchema.parse(((await res.json()) as { readonly share?: unknown }).share);
+  return authConfigSchema.parse(await res.json()).share;
 }
 
 const liveShareOptions = queryOptions({ queryKey: LIVE_SHARE_KEY, queryFn: fetchLiveShare, staleTime: 0 });

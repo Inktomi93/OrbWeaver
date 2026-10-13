@@ -3,7 +3,7 @@
 // refusals Start sharing and the IP certificate answer with, all taken from the server's own decisions.
 
 import type { AuthMode, AuthModeSource, InstallKind, IpCertificateSetting, SignInModeView } from "@orb/contracts/identity";
-import { isCookieAuthMode, SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
+import { SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Page } from "@playwright/test";
 import type { AuthConfig } from "#client/data/auth-config.ts";
@@ -13,7 +13,6 @@ import { certificateRefusal, modeShareRefusal } from "#server/domain/share/index
 function authConfigFor(mode: AuthMode): AuthConfig {
   return {
     mode,
-    requiresLogin: isCookieAuthMode(mode),
     localEnabled: mode === "local",
     oidcEnabled: mode === "oidc",
     oidcProviderName: "Test IdP",
