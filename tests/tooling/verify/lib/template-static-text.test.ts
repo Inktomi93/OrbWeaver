@@ -5,7 +5,7 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import { readStaticTextOf, readTemplateSkeleton } from "../../../../tooling/src/verify/lib/template-static-text.ts";
+import { readStaticTextOf, readTemplateSkeleton } from "../../../../tooling/src/floor/code-facts/template-static-text.ts";
 
 const ROOT = "/repo";
 

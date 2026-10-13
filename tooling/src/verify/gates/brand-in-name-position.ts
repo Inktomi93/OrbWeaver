@@ -70,8 +70,8 @@
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { Node as MorphNode, TypeChecker, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { canonicalIdBrand, ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { defineGate } from "../contract/policy.ts";
-import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 /** #2047, §5b.2: this text used to end *"wrong-id values therefore type-check AT THIS BOUNDARY."* That clause

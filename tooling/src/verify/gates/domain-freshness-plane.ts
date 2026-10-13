@@ -78,12 +78,12 @@ import type { RoomEntityKind } from "@orb/contracts/chat";
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumnIdentity, SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
 
 /** Where a domain's writes become visible to a client. `none` is the cited no-announcement verdict; every
  *  other value names the plane and, for a plane whose PRODUCER lives in another domain, says whose. */

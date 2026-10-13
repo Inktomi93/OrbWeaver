@@ -2,31 +2,20 @@
 // size cap, docs/law/Core-Tooling-Law.md §4.3). Collects the four reader shapes the 2026-08-18 audit
 // found — `json_extract`/`json_each` SQL paths, `blob["k"]`, `blob.k`, and the one-hop `f(blob, "k")`
 // helper — as `ReaderHit`s against an already-resolved open column, leaving verdict assembly to the caller.
+
 import type { CallExpression, ElementAccessExpression, PropertyAccessExpression, TaggedTemplateExpression, Node as TsNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import { blobTargets, tailName } from "./open-json-row-origin.ts";
-import type { SqlAliasBindings } from "./open-json-sql-bindings.ts";
-import { SQL_VIRTUAL_TABLE, sqlAliasBindings } from "./open-json-sql-bindings.ts";
+import { Node } from "ts-morph";
+import { readIndexedCallParameters } from "../../floor/code-facts/drizzle-column-reads.ts";
+import { sqlTemplateText } from "../../floor/code-facts/drizzle-sql.ts";
+import type { SqlAliasBindings } from "../../floor/code-facts/sql-alias-bindings.ts";
+import { SQL_VIRTUAL_TABLE, sqlAliasBindings } from "../../floor/code-facts/sql-alias-bindings.ts";
+import { blobTargets } from "./open-json-row-origin.ts";
 import type { OpenJsonColumn, Schema, Vocab } from "./open-json-vocabulary.ts";
-import { addWrite, unwrap } from "./open-json-vocabulary.ts";
+import { addWrite } from "./open-json-vocabulary.ts";
 
 // ── SQL text (readers AND json_set writers live in the same templates) ──────────────────────────────────
 const SQL_READ_RE = /json_(?:extract|each)\(\s*([^,()]+?)\s*,\s*['"]\$\.([\w.]+)['"]/giu;
 const SQL_WRITE_RE = /json_set\(\s*([^,()]+?)\s*,\s*['"]\$\.([\w.]+)['"]/giu;
-/** A `sql` template's text with every `${expr}` rendered as «expr» — so a drizzle column interpolation is
- *  resolvable and an interpolated PATH is visibly not a literal. */
-function sqlText(tt: TaggedTemplateExpression): string {
-  const tpl = tt.getTemplate();
-  if (Node.isNoSubstitutionTemplateLiteral(tpl)) {
-    return tpl.getLiteralText();
-  }
-  let out = tpl.getHead().getLiteralText();
-  for (const span of tpl.getTemplateSpans()) {
-    out += `«${span.getExpression().getText()}»${span.getLiteral().getLiteralText()}`;
-  }
-  return out;
-}
-
 /** The columns a SQL column reference names: a drizzle `«table.prop»` interpolation, an `alias.snake` the
  *  template's own FROM/JOIN declares, or a bare `snake` name. */
 function resolveSqlRef(ref: string, aliases: SqlAliasBindings, offset: number, schema: Schema): readonly OpenJsonColumn[] {
@@ -87,37 +76,6 @@ export function collectAccessReads(
   }
 }
 
-/** Does the callee INDEX its blob parameter with its key parameter (`m[key]`)? That proof is what makes a
- *  string argument a KEY rather than a kind/label: without it `onRuleError(rc, "action_error", res.detail)`
- *  reads as a caption-class violation (it did — the one false positive this arm produced before the proof). */
-function indexesBlobParam(callee: TsNode, blobPos: number, keyPos: number): boolean {
-  const fn = Node.isFunctionDeclaration(callee) || Node.isArrowFunction(callee) || Node.isFunctionExpression(callee) ? callee : undefined;
-  const params = fn?.getParameters() ?? [];
-  const blobName = params[blobPos]?.getName();
-  const keyName = params[keyPos]?.getName();
-  if (fn === undefined || blobName === undefined || keyName === undefined) {
-    return false;
-  }
-  return fn
-    .getDescendantsOfKind(SyntaxKind.ElementAccessExpression)
-    .some((ea) => tailName(ea.getExpression()) === blobName && unwrap(ea.getArgumentExpression() ?? ea).getText() === keyName);
-}
-
-/** The declaration bodies an identifier callee resolves to (a `function f()` or a `const f = (…) => …`). */
-function calleeBodies(call: CallExpression): TsNode[] {
-  const callee = unwrap(call.getExpression());
-  if (!Node.isIdentifier(callee)) {
-    return [];
-  }
-  return callee.getDefinitionNodes().flatMap((def) => {
-    if (Node.isFunctionDeclaration(def)) {
-      return [def as TsNode];
-    }
-    const init = Node.isVariableDeclaration(def) ? def.getInitializer() : undefined;
-    return init === undefined ? [] : [unwrap(init)];
-  });
-}
-
 /** The one-hop helper shape `f(blob, "k")` — the live `metaStr(r.captionMeta, "rating")` spelling, admitted
  *  only when the helper PROVES the string is a key by indexing the blob with it. */
 export function collectHelperReads(calls: readonly CallExpression[], byProp: ReadonlyMap<string, readonly OpenJsonColumn[]>, out: ReaderHit[]): void {
@@ -129,9 +87,9 @@ export function collectHelperReads(calls: readonly CallExpression[], byProp: Rea
       continue;
     }
     const targets = blobTargets(blobArg, byProp);
-    const bodies = calleeBodies(call);
+    const indexed = readIndexedCallParameters(call);
     args.forEach((a, i) => {
-      if (i !== blobPos && Node.isStringLiteral(a) && bodies.some((b) => indexesBlobParam(b, blobPos, i))) {
+      if (i !== blobPos && Node.isStringLiteral(a) && indexed.some((read) => read.receiverIndex === blobPos && read.keyIndex === i)) {
         out.push({ node: call, offset: offsetOf(call, a.getLiteralText()), key: a.getLiteralText(), targets });
       }
     });
@@ -160,7 +118,7 @@ export function collectSqlReads(templates: readonly TaggedTemplateExpression[], 
     if (tt.getTag().getText() !== "sql") {
       continue;
     }
-    const text = sqlText(tt);
+    const text = sqlTemplateText(tt);
     const aliases = sqlAliasBindings(text);
     for (const m of text.matchAll(SQL_READ_RE)) {
       const hit = sqlMatch(m, aliases, schema);

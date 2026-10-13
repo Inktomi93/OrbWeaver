@@ -5,6 +5,7 @@
 // finish stay here.
 import type { CallExpression, Node as MorphNode, SourceFile, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
 import type { BusFact, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
@@ -26,7 +27,6 @@ import {
   NAMED_BUS_UNIONS,
   typeDiscriminators,
 } from "./bus-fact-read.ts";
-import { readStaticAuthoredScalar } from "./static-authored-value.ts";
 
 interface QueryState {
   readonly aliases: TypeAliasDeclaration[];

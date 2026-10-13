@@ -5,12 +5,12 @@ import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, Source
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
+import { resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
 import { BROWSER_PACKAGES, worldOf } from "../../floor/compiler/project-worlds.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { ctMountArguments, MIN_ISOLATION_REASON_WORDS, readCtMountAdmission, readCtProductionDoor } from "../lib/ct-mount-admission.ts";
 import { definitionField, definitionStringField } from "../lib/registry-definition-field.ts";
-import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
 
 const COMPOSE = "packages/client/src/compose";
 const DOOR_SECTIONS = `${COMPOSE}/config-sections.ts`;

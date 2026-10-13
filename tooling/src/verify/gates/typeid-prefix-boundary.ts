@@ -3,8 +3,9 @@
 // vocabulary from `TypeIdOf<"…">` aliases in kit, so renamed imports, barrels and new entity aliases do not
 // create a spelling-based blind spot. Prefixless `Branded<"…">` ids stay valid.
 import { Node, SyntaxKind } from "ts-morph";
+import { canonicalTypeIdPrefix, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { defineGate } from "../contract/policy.ts";
-import { canonicalTypeIdPrefix, createKitIdCallMatcher, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../lib/id-brand.ts";
+import { createKitIdCallMatcher } from "../lib/id-brand.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE =

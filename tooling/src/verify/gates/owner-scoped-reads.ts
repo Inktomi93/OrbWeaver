@@ -50,23 +50,21 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { RELATIONAL_WHERE, relationalWhereCallback } from "../../floor/code-facts/drizzle-operators.ts";
+import { innerReadAnchorsOf, readAnchorOf } from "../../floor/code-facts/drizzle-query.ts";
+import { readDrizzleProjectedColumn } from "../../floor/code-facts/drizzle-select.ts";
+import { readStatementOf } from "../../floor/code-facts/drizzle-statement.ts";
+import { enclosingFn } from "../../floor/code-facts/function-context.ts";
+import type { SchemaModel } from "../../floor/code-facts/schema-model-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex, ValueReceiver } from "../contract/tenancy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { chainTermsOf, conjunctLeaves, innerReadAnchorsOf, ownerTermValue, predicateHolds, readAnchorOf, selectsByValue } from "../lib/tenancy-join.ts";
+import { chainTermsOf, conjunctLeaves, ownerTermValue, predicateHolds, selectsByValue } from "../lib/tenancy-join.ts";
 import { isPlainValue, membershipPinColumns, parentReceiverOf, valuePinTerm, valueSourcesOf } from "../lib/tenancy-pin.ts";
-import {
-  declaredTableOf,
-  enclosingFn,
-  hasPostFetchFilter,
-  predicatesOwnId,
-  RELATIONAL_WHERE,
-  relationalWhereCallback,
-  tableRefsOf,
-} from "../lib/tenancy-read.ts";
+import { declaredTableOf, hasPostFetchFilter, predicatesOwnId, tableRefsOf } from "../lib/tenancy-read.ts";
 import {
   foreignKeyEdges,
   foreignKeysBetween,
@@ -76,7 +74,6 @@ import {
   schemaTableIndex,
   scopeParentsOfDerivedTables,
 } from "../lib/tenancy-scope.ts";
-import { readStatementOf } from "../lib/tenancy-statement.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const ID_COL = "id";
@@ -134,6 +131,7 @@ const UNRESOLVABLE_MESSAGE =
 
 /** The schema answers `evaluate` needs, derived once per run. */
 interface ReadScope {
+  readonly schema: SchemaModel;
   readonly ownerTables: ReadonlySet<string>;
   readonly membershipTables: ReadonlySet<string>;
   readonly index: SchemaTableIndex;
@@ -200,7 +198,7 @@ function judgedOf(anchor: ReadAnchor): Judged {
 
 /** Does `test` accept a conjunct that filters every row the statement returns: one in the anchor's own ON or an
  *  inner join's ON, or one in every `.where` it may apply? Several WHEREs are alternatives, never a conjunction. */
-function bindsRows(judged: Judged, test: (conjunct: Node) => boolean): boolean {
+function bindsRows(judged: Judged, test: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean): boolean {
   const { on, statement } = judged;
   return predicateHolds([on, ...statement.innerOns], test) || (statement.wheres.length > 0 && statement.wheres.every((where) => predicateHolds([where], test)));
 }
@@ -222,8 +220,8 @@ function membershipPinned(receiver: string, table: string, judged: Judged, scope
 function sourcePinned(source: ValueReceiver, judged: Judged, scope: ReadScope): boolean {
   const { receiver, table } = source;
   if (table !== undefined && scope.ownerTables.has(table)) {
-    return bindsRows(judged, (conjunct) => {
-      const value = ownerTermValue(conjunct, receiver);
+    return bindsRows(judged, (conjunct, bindings) => {
+      const value = ownerTermValue(conjunct, receiver, bindings);
       return value !== undefined && isPlainValue(value, scope.index);
     });
   }
@@ -243,6 +241,9 @@ function subselectPinned(select: Node, scope: ReadScope): boolean {
  *  reads is itself pinned by its class's rule one hop away (Spine-Identity-and-Auth §2b). */
 function ownerValuePinned(value: Node, judged: Judged, scope: ReadScope): boolean {
   const sources = valueSourcesOf(value, scope.index);
+  if (sources.unresolved) {
+    return false;
+  }
   if (sources.receivers.length === 0 && sources.subselects.length === 0) {
     return isPlainValue(value, scope.index);
   }
@@ -251,8 +252,8 @@ function ownerValuePinned(value: Node, judged: Judged, scope: ReadScope): boolea
 
 /** Arm 1: an `eq`/`inArray` owner term on the table written `ident` whose value is pinned. */
 function ownerScoped(ident: string, judged: Judged, scope: ReadScope): boolean {
-  return bindsRows(judged, (conjunct) => {
-    const value = ownerTermValue(conjunct, ident);
+  return bindsRows(judged, (conjunct, bindings) => {
+    const value = ownerTermValue(conjunct, ident, bindings);
     return value !== undefined && ownerValuePinned(value, judged, scope);
   });
 }
@@ -280,12 +281,36 @@ function isSatelliteOf(term: ChainTerm, joined: string, judged: Judged, scope: R
   return parents?.has(joined) === true && ![...parents].some((parent) => parent !== joined && parentPinned(term, parent, judged, scope));
 }
 
+// An outer owner label scopes only the inner table whose real owner column it projects.
+function projectionCarriesOwner(table: Node, scope: ReadScope): boolean {
+  return tableRefsOf(table, scope.index).every((ref) => {
+    if (ref.kind !== "subquery") {
+      return false;
+    }
+    const projected = readDrizzleProjectedColumn(ref.select, "ownerId", scope.schema);
+    return innerReadAnchorsOf(ref.select).every((anchor) => {
+      if (anchor.kind === "relational") {
+        return false;
+      }
+      const declared = declaredTableOf(anchor.table, scope.index);
+      if (declared === undefined) {
+        return false;
+      }
+      return (
+        !scope.ownerTables.has(declared) ||
+        ownerScoped(anchor.table.getText(), judgedOf(anchor), scope) ||
+        (projected.kind === "resolved" && projected.value?.name === "ownerId" && declaredTableOf(projected.value.receiver, scope.index) === declared)
+      );
+    });
+  });
+}
+
 /** The finding message for one owner-scoped table this read binds (written `ident`, declared `declared`), or
  *  undefined when a safe arm holds. */
 function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string | undefined, scope: ReadScope): string | undefined {
   const judged = judgedOf(anchor);
   const { on, statement } = judged;
-  if (!statement.escapes && ownerScoped(ident, judged, scope)) {
+  if (!statement.escapes && ownerScoped(ident, judged, scope) && (declared !== undefined || projectionCarriesOwner(anchor.table, scope))) {
     return; // arm 1 — a pinned `eq`/`inArray` owner term on this exact table
   }
   const predicates = [on, ...statement.innerOns, ...statement.wheres];
@@ -435,6 +460,7 @@ export const gate = defineGate({
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const scope: ReadScope = {
+          schema: schemaFact.value,
           ownerTables: ownerScopedTableIdents(schemaFact.value),
           index: schemaTableIndex(schemaFact.value),
           fkEdges: foreignKeyEdges(schemaFact.value),
@@ -453,6 +479,82 @@ export const gate = defineGate({
   },
 
   mustFlag: [
+    {
+      mode: "types",
+      files: personaBody(
+        "  const filters = { byId: (id: string) => eq(personas.id, id) };\n  return db.select().from(personas).where(filters.byId(personaId)).limit(1);\n",
+      ),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "an object-contained predicate helper still selects the caller-named persona; member-call spelling cannot erase its returned by-id term",
+    },
+    {
+      mode: "types",
+      files: personaRead(
+        ".from(chats).innerJoin(personas, eq(personas.id, chats.anchorPersonaId)).where(or(eq(chats.anchorPersonaId, personaId), eq(chats.id, chatId)))",
+      ),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "a bound FK selected by id in one WHERE disjunct can return a foreign persona even though the ON clause is an actual declared FK",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).innerJoin(personas, eq(personas.id, chats.anchorPersonaId)).where(sql`${chats.anchorPersonaId} = ${personaId}`)"),
+      expect: { count: 1, messageIncludes: "unproven" },
+      why: "an opaque SQL leaf can select the bound FK by caller id; a readable FK join does not turn an unreadable WHERE into a safe list read",
+    },
+    {
+      mode: "types",
+      files: personaBody("  const table = personas;\n  return db.select().from(table).where(eq(table.id, personaId)).limit(1);\n"),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "a const read-table alias retains the schema table identity and the alias's by-id predicate",
+    },
+    {
+      mode: "types",
+      files: pinBody("  const rows = db.query.personas;\n  return rows.findFirst({ where: eq(personas.id, personaId) });\n"),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "a const relational receiver is the same Drizzle table read as the direct db.query chain",
+    },
+    {
+      mode: "types",
+      files: personaBody("  const q = db.select().from(personas);\n  return applyFilter(q, personaId);\n"),
+      expect: { count: 1, messageIncludes: "unproven" },
+      why: "a non-dynamic builder handed to a helper can acquire a by-id WHERE outside the visible statement; escape is not limited to $dynamic",
+    },
+    {
+      mode: "types",
+      files: personaBody("  function build() { return db.select().from(personas); }\n  return build().where(eq(personas.id, personaId));\n"),
+      expect: { count: 1, messageIncludes: "unproven" },
+      why: "a non-async factory returns an unfiltered builder rather than executing its query, so an unseen caller can select any owner's row",
+    },
+    {
+      mode: "types",
+      files: personaBody(
+        `  const q0 = db.select().from(personas);\n${Array.from({ length: 64 }, (_, index) => `  const q${String(index + 1)} = q${String(index)};\n`).join("")}  return q64.where(eq(personas.id, personaId));\n`,
+      ),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "a finite split-builder alias chain beyond any fixed hop cap still carries the final by-id WHERE back to its table anchor",
+    },
+    {
+      mode: "types",
+      files: personaBody("  const a = b;\n  const b = a;\n  return db.select().from(a).where(eq(a.id, personaId));\n"),
+      expect: { count: 1, messageIncludes: "unresolvable" },
+      why: "a cyclic table binding terminates with an unresolved anchor, never a clean absence or an unbounded traversal",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const sq = db.select({ id: personas.id, ownerId: characters.ownerId }).from(personas).innerJoin(characters, eq(characters.ownerId, ownerId)).as("sq");\n  return db.select().from(sq).where(and(eq(sq.id, personaId), eq(sq.ownerId, ownerId)));\n',
+      ),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "a subquery cannot relabel another table's ownerId as the unscoped persona's ownerId and authorize the outer by-id read",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const cte = db.$with("cte").as(db.select({ id: personas.id, ownerId: characters.ownerId }).from(personas).innerJoin(characters, eq(characters.ownerId, ownerId)));\n  return db.with(cte).select().from(cte).where(and(eq(cte.id, personaId), eq(cte.ownerId, ownerId)));\n',
+      ),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "a CTE projection's authored label does not transfer characters' owner scope to the persona row",
+    },
     {
       mode: "types",
       files: {
@@ -946,6 +1048,74 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: pinBody(
+        '  const sq = db.select().from(personas).as("sq");\n  return db.select().from(sq).where(and(eq(sq.id, personaId), eq(sq.ownerId, ownerId)));\n',
+      ),
+      why: "a single-table full-row subquery carries the actual persona id and ownerId into its outer owner WHERE without an explicit field map",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const cte = db.$with("cte").as(db.select().from(personas));\n  return db.with(cte).select().from(cte).where(and(eq(cte.id, personaId), eq(cte.ownerId, ownerId)));\n',
+      ),
+      why: "a single-table full-row CTE carries the actual persona owner column; omitted select fields are not missing lineage",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const sq = db.select({ id: personas.id, ownerId: personas.ownerId }).from(personas).as("sq");\n  return db.select().from(sq).where(and(eq(sq.id, personaId), eq(sq.ownerId, ownerId)));\n',
+      ),
+      why: "an outer owner WHERE authorizes an otherwise unscoped inner persona only when the selected ownerId actually originates from that persona table",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const cte = db.$with("cte").as(db.select({ id: personas.id, ownerId: personas.ownerId }).from(personas));\n  return db.with(cte).select().from(cte).where(and(eq(cte.id, personaId), eq(cte.ownerId, ownerId)));\n',
+      ),
+      why: "a CTE with canonical persona owner lineage accepts its outer owner WHERE; rejecting every outer projection would be a false-positive repair",
+    },
+    {
+      mode: "types",
+      files: personaBody(
+        "  const filters = { owned: (id: string, owner: string) => and(eq(personas.id, id), eq(personas.ownerId, owner)) };\n  return db.select().from(personas).where(filters.owned(personaId, ownerId));\n",
+      ),
+      why: "an object-contained helper whose actual returned predicate scopes both id and owner remains a valid owner read",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  const rows = db.query.personas;\n  return rows.findFirst({ where: and(eq(personas.id, personaId), eq(personas.ownerId, ownerId)) });\n",
+      ),
+      why: "an immutable relational receiver retains a real owner predicate rather than being rejected merely for its alias spelling",
+    },
+    {
+      mode: "types",
+      files: personaBody(
+        `  const q0 = db.select().from(personas);\n${Array.from({ length: 64 }, (_, index) => `  const q${String(index + 1)} = q${String(index)};\n`).join("")}  return q64.where(and(eq(personas.id, personaId), eq(personas.ownerId, ownerId)));\n`,
+      ),
+      why: "a finite split-builder alias chain keeps its final owner predicate; cycle safety is not a fixed-depth refusal",
+    },
+    {
+      mode: "types",
+      files: personaBody("  async function execute() { return db.select().from(personas); }\n  return execute();\n"),
+      why: "returning a thenable query from an async function executes it; it is not a returned builder escape and remains a list read",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const sq = db.select({ id: personas.id, ownerId: personas.ownerId }).from(personas).where(eq(personas.ownerId, ownerId)).as("sq");\n  return db.select().from(sq).where(and(eq(sq.id, personaId), eq(sq.ownerId, ownerId)));\n',
+      ),
+      why: "an actually owner-scoped inner read with canonical owner projection remains safe through a subquery",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const cte = db.$with("cte").as(db.select({ id: personas.id, ownerId: personas.ownerId }).from(personas).where(eq(personas.ownerId, ownerId)));\n  return db.with(cte).select().from(cte).where(and(eq(cte.id, personaId), eq(cte.ownerId, ownerId)));\n',
+      ),
+      why: "an actually owner-scoped inner read with canonical owner projection remains safe through a CTE",
+    },
     {
       mode: "types",
       files: {

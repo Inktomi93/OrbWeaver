@@ -105,6 +105,25 @@ test("a COMPUTED key resolves when it is a string literal, and refuses when it i
   );
 });
 
+test("structural keys preserve wrapped string literals, templates, and plain numeric names", () => {
+  expect(
+    columnsOf({
+      [TABLE_FILE]:
+        'export const t = sqliteTable("t", { [("owner_id" as const) satisfies string]: text("owner_id"), [`label`]: text("label"), 7: text("seven") });',
+    }),
+  ).toEqual([["owner_id", "label", "7"]]);
+});
+
+for (const source of [
+  'const key = "owner_id"; export const t = sqliteTable("t", { [key]: text("owner_id") });',
+  'export const t = sqliteTable("t", { [7]: text("seven") });',
+  'const key = 7; export const t = sqliteTable("t", { [key]: text("seven") });',
+]) {
+  test(`structural keys refuse nonliteral computed names: ${source}`, () => {
+    expect(() => columnsOf({ [TABLE_FILE]: source })).toThrow(/computed column key .* is not a string literal/su);
+  });
+}
+
 test("any OTHER member kind refuses — a method/accessor member is not a droppable column", () => {
   expect(() => columnsOf({ [TABLE_FILE]: 'export const t = sqliteTable("t", { id: text("id"), extras() { return 1; } });' })).toThrow(
     /unsupported columns member kind MethodDeclaration/u,

@@ -5,7 +5,7 @@ import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact 
 import { invokedMemberThroughAliases, unprovenReferenceUse } from "@orb/tooling/floor/code-facts/reference-fact-writes";
 import type { Identifier, Node as MorphNode, SpreadElement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { StaticAuthoredObjectValue, StaticAuthoredProperty, StaticAuthoredScalar, StaticAuthoredValue } from "../contract/static-authored-value.ts";
+import type { StaticAuthoredObjectValue, StaticAuthoredProperty, StaticAuthoredScalar, StaticAuthoredValue } from "./static-authored-value-contract.ts";
 
 interface ReadState {
   readonly active: Set<object>;
@@ -370,6 +370,17 @@ export function resolveAuthoredComposite(node: MorphNode): ReferenceFact<MorphNo
   }
   const detail = refusal.reason === "write" ? "is mutated after declaration" : "has an invoked member whose effect is not statically known";
   return unresolved(refusal.reason, refusal.node, target, `authored composite ${terminal.getText()} ${detail}`);
+}
+
+/** Composite effect provenance when a reader already resolved the object and retained its binding trace. */
+export function readAuthoredCompositeEffects(terminal: MorphNode, declarations: readonly MorphNode[]): ReferenceFact<MorphNode> {
+  const target = state();
+  appendDeclarations(target, declarations);
+  const refusal = explicitCompositeRefusal(terminal, declarations, target);
+  if (refusal === undefined) {
+    return { kind: "resolved", value: terminal, trace: { origin: terminal, declarations } };
+  }
+  return unresolved(refusal.reason, refusal.node, target, "the authored composite is mutated or has an invoked member whose effect is not statically known");
 }
 
 /** Read one literal scalar through immutable aliases; unsupported syntax is always a loud fact. */

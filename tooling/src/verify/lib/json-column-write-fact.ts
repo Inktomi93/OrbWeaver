@@ -5,8 +5,11 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Block, CallExpression, SourceFile, Statement, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-write-chain.ts";
 import { defineFact } from "../contract/fact.ts";
+import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts";
 import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
+import { createJsonColumnOriginContext } from "./json-column-origin-context.ts";
 import type { JsonColumnWriter } from "./json-column-writers.ts";
 import { collectJsonWritersByColumn, collectWriters, DOMAIN_DIR, jsonWriterColumn, updatedTable } from "./json-column-writers.ts";
 
@@ -188,7 +191,7 @@ function guardTargetsOf(
   setArg: TsNode | undefined,
   target: { readonly cols: ReadonlySet<string>; readonly table: SchemaTable },
   root: string,
-  schema: SchemaModel,
+  context: JsonColumnOriginContext,
 ): JsonGuardTarget[] {
   const { cols, table } = target;
   const arg = unwrapArg(setArg);
@@ -202,7 +205,7 @@ function guardTargetsOf(
     return [{ node: arg, token: arg.getText().slice(0, OPAQUE_TOKEN_CHARS), key, dominated: dominates(arg), opaque: true }];
   }
   const found: JsonColumnWriter[] = [];
-  collectWriters(arg, { cols, out: found, table }, { schema, bindings: new Map(), active: new Set(), mergeActive: new Set() }, 0);
+  collectWriters(arg, { cols, out: found, table }, context, 0);
   return found
     .filter((w) => (w.wholeReplace || w.historicalHeal) && cols.has(jsonWriterColumn(w)))
     .map((w) => ({ node: w.node, token: jsonWriterColumn(w), key, dominated: dominates(w.node), opaque: false }));
@@ -217,7 +220,7 @@ function conflictSetObject(call: CallExpression): TsNode | undefined {
 }
 
 /** The write verb → the fluent chain verb that names its table. */
-const WRITE_VERBS: ReadonlyMap<string, string> = new Map([
+const WRITE_VERBS: ReadonlyMap<string, DrizzleWriteRootVerb> = new Map([
   ["set", "update"],
   [CONFLICT_UPDATE, "insert"],
 ]);
@@ -246,8 +249,9 @@ function collectJsonGuardTargets(
   calls: readonly CallExpression[],
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
   root: string,
-  schema: SchemaModel,
+  context: JsonColumnOriginContext,
 ): JsonGuardTarget[] {
+  const schema = context.schema;
   const out: JsonGuardTarget[] = [];
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
@@ -257,7 +261,7 @@ function collectJsonGuardTargets(
         if (table === undefined) {
           throw new Error(`json-column-writes: versioned table disappeared: ${target.table}`);
         }
-        out.push(...guardTargetsOf(target.arg, { cols: target.cols, table }, root, schema));
+        out.push(...guardTargetsOf(target.arg, { cols: target.cols, table }, root, context));
       }
     }
   }
@@ -314,8 +318,9 @@ export const jsonColumnWriteFact = defineFact({
           analyze: (schema: SchemaModel): JsonColumnWriteAnalysis => {
             const versioned = deriveVersionedTypes(calls);
             const columns = deriveJsonColumns(schema, versioned.types);
-            const writers = collectJsonWritersByColumn(calls, columns.all, schema);
-            const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root, schema);
+            const context = createJsonColumnOriginContext(schema, calls);
+            const writers = collectJsonWritersByColumn(calls, columns.all, context);
+            const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root, context);
             return Object.freeze({ files: ctx.files, versioned, columns, writers, guardTargets });
           },
         });

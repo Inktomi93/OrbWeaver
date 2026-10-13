@@ -11,9 +11,10 @@
 // the law itself and not a convenience: the fake-disabled sentinel is a QUERY-KEY defect — the shape exists
 // to make `enabled:` unnecessary — so the server has no version of it.
 import { Node, SyntaxKind } from "ts-morph";
+import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
+import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
-import { createKitIdCallMatcher, ID_BRAND_HOME } from "../lib/id-brand.ts";
-import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
+import { createKitIdCallMatcher } from "../lib/id-brand.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE =

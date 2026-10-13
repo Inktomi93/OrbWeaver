@@ -7,8 +7,8 @@
 // becomes the exact role attribute name. The empty burn-down table was already retired.
 import type { JsxAttribute } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 
 const WIDGET_ROLES: ReadonlySet<string> = new Set([
   "button",

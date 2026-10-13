@@ -31,7 +31,7 @@ function functionLike(declaration: MorphNode, trace: Trace): ReferenceFact<Morph
     note(trace, declaration);
     return { kind: "resolved", value: declaration, trace: { declarations: [...trace.declarations], origin: declaration } };
   }
-  if (!Node.isVariableDeclaration(declaration)) {
+  if (!(Node.isVariableDeclaration(declaration) || Node.isPropertyAssignment(declaration))) {
     return unresolved("unsupported", declaration, trace, `${declaration.getKindName()} is not a callable declaration`);
   }
   const initializer = declaration.getInitializer();
@@ -47,12 +47,15 @@ function functionLike(declaration: MorphNode, trace: Trace): ReferenceFact<Morph
  *  module-origin reader deliberately does not model (it answers "which module export", and a non-exported
  *  local is not one); a shadowed or overloaded name resolves to more than one declaration and refuses. */
 function localDeclaration(callee: MorphNode, trace: Trace, refusal: UnresolvedReferenceFact): ReferenceFact<MorphNode> {
-  if (!Node.isIdentifier(callee)) {
+  if (!(Node.isIdentifier(callee) || Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
     return refusal;
   }
-  const declarations = lexicalReferenceSymbol(callee)?.getDeclarations() ?? [];
+  const declarations = (Node.isIdentifier(callee) ? lexicalReferenceSymbol(callee) : callee.getSymbol())?.getDeclarations() ?? [];
   if (declarations.length === 0) {
     return refusal;
+  }
+  for (const declaration of declarations) {
+    note(trace, declaration);
   }
   if (declarations.length !== 1) {
     return unresolved("ambiguous", callee, trace, `${callee.getText()} binds ${declarations.length} declarations`);
@@ -94,6 +97,27 @@ function returnedExpressions(fn: MorphNode): readonly MorphNode[] {
     .filter((expression) => expression !== undefined);
 }
 
+/** Return expressions only when every syntactically visible exit supplies one; an implicit return is unresolved. */
+export function readFunctionReturnPaths(fn: MorphNode): ReferenceFact<readonly MorphNode[]> {
+  const trace: Trace = { declarations: [fn] };
+  const body =
+    Node.isFunctionDeclaration(fn) || Node.isArrowFunction(fn) || Node.isFunctionExpression(fn) || Node.isMethodDeclaration(fn) ? fn.getBody() : undefined;
+  if (body === undefined) {
+    return unresolved("missing", fn, trace, "the callable has no authored body");
+  }
+  if (Node.isBlock(body)) {
+    const last = body.getStatements().at(-1);
+    const ownReturns = body.getDescendantsOfKind(SyntaxKind.ReturnStatement).filter((statement) => statement.getFirstAncestor(isFunctionish) === fn);
+    if (!(Node.isReturnStatement(last) || Node.isThrowStatement(last)) || ownReturns.some((statement) => statement.getExpression() === undefined)) {
+      return unresolved("unsupported", fn, trace, "the callable has an implicit or expressionless return path");
+    }
+  }
+  const values = returnedExpressions(fn);
+  return values.length === 0
+    ? unresolved("missing", fn, trace, "the callable returns no expression")
+    : { kind: "resolved", value: values, trace: { declarations: [fn], origin: fn } };
+}
+
 /** The expressions the function THIS CALL targets returns. A one-literal factory reader would refuse any function
  *  with more than one `return`; a union reader must see them all, so this is its own door. */
 export function readCallReturns(call: CallExpression): ReferenceFact<readonly MorphNode[]> {
@@ -106,4 +130,44 @@ export function readCallReturns(call: CallExpression): ReferenceFact<readonly Mo
   return returns.length === 0
     ? unresolved("missing", fn.value, trace, `${call.getExpression().getText()} returns no expression this reader can enter`)
     : { kind: "resolved", value: returns, trace: { declarations: [...trace.declarations], origin: fn.value } };
+}
+
+/** The actual authored callable body; imported, object-contained and lexical calls use the same resolution. */
+export function readCallTarget(call: CallExpression): ReferenceFact<MorphNode> {
+  return calleeFunction(call, { declarations: [] });
+}
+
+/** The supplied arguments of one actual callable body, preserving declaration identity rather than parameter names. */
+export function readCallBindings(call: CallExpression, owner: MorphNode, previous: ReadonlyMap<MorphNode, MorphNode>): ReadonlyMap<MorphNode, MorphNode> {
+  const bindings = new Map(previous);
+  if (Node.isFunctionDeclaration(owner) || Node.isArrowFunction(owner) || Node.isFunctionExpression(owner) || Node.isMethodDeclaration(owner)) {
+    for (const [index, parameter] of owner.getParameters().entries()) {
+      const argument = call.getArguments()[index];
+      if (argument !== undefined) {
+        bindings.set(parameter, argument);
+      }
+    }
+  }
+  return bindings;
+}
+
+/** Native call/body candidates reachable from the supplied roots, without a second Project or source population. */
+export function readCallClosure(roots: readonly CallExpression[]): readonly CallExpression[] {
+  const calls: CallExpression[] = [];
+  const seenCalls = new Set<object>();
+  const seenBodies = new Set<object>();
+  const pending = [...roots];
+  for (const call of pending) {
+    if (seenCalls.has(call.compilerNode)) {
+      continue;
+    }
+    seenCalls.add(call.compilerNode);
+    calls.push(call);
+    const target = readCallTarget(call);
+    if (target.kind === "resolved" && !seenBodies.has(target.value.compilerNode)) {
+      seenBodies.add(target.value.compilerNode);
+      pending.push(...target.value.getDescendantsOfKind(SyntaxKind.CallExpression));
+    }
+  }
+  return calls;
 }

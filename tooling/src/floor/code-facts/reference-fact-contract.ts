@@ -1,5 +1,9 @@
 // The closed vocabulary returned by the final spelling-independent binding/reference reader.
 import type { Identifier, Symbol as MorphSymbol, Node, SourceFile } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
+
+/** Every syntax kind carrying a member reference, including optional and literal-bracket spellings. */
+export const MEMBER_ACCESS_KINDS = [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const;
 
 const REFERENCE_UNRESOLVED_REASONS = ["unsupported", "dynamic", "write", "cycle", "ambiguous", "missing"] as const;
 

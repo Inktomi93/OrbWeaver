@@ -30,12 +30,11 @@ const TABLE_META = "_";
 const TABLE_BRAND = "brand";
 const TABLE_BRAND_VALUE = "Table";
 const TABLE_NAME = "name";
-const MAX_DEPTH = 8;
 
 type IsTable = (declaration: VariableDeclaration) => boolean;
 
 /** The exported member a callee names off a drizzle-orm import (`alias`, `drizzle.aliasedTable`), by its import. */
-function drizzleExportOf(callee: MorphNode): string | undefined {
+export function drizzleExportOf(callee: MorphNode): string | undefined {
   if (Node.isIdentifier(callee)) {
     const specifier = callee
       .getSymbol()
@@ -101,12 +100,12 @@ function typeRefs(node: MorphNode): readonly DrizzleTableRef[] {
   return names.flatMap((sqlName) => (sqlName === undefined ? [] : [{ kind: "sql-name", sqlName }]));
 }
 
-function callRefs(call: CallExpression, isTable: IsTable, depth: number): readonly DrizzleTableRef[] {
+function callRefs(call: CallExpression, isTable: IsTable, active: ReadonlySet<object>): readonly DrizzleTableRef[] {
   const callee = unwrapTarget(call.getExpression());
   const exported = drizzleExportOf(callee);
   const [first] = call.getArguments();
   if (exported !== undefined && ALIAS_EXPORTS.has(exported)) {
-    return first === undefined ? [unresolved(call)] : walk(first, isTable, depth + 1);
+    return first === undefined ? [unresolved(call)] : walk(first, isTable, active);
   }
   if (Node.isPropertyAccessExpression(callee) && callee.getName() === SUBQUERY_VERB) {
     const receiver = unwrapTarget(callee.getExpression());
@@ -173,7 +172,7 @@ function destructuredValue(element: MorphNode): MorphNode | undefined {
 }
 
 /** The refs an identifier's declarations reach, or undefined when they reach none (the caller then reads the type). */
-function bindingRefs(name: Identifier, isTable: IsTable, depth: number): readonly DrizzleTableRef[] | undefined {
+function bindingRefs(name: Identifier, isTable: IsTable, active: ReadonlySet<object>): readonly DrizzleTableRef[] | undefined {
   const definitions = name.getDefinitionNodes();
   for (const definition of definitions) {
     // An import from a module the program cannot resolve defines itself; its imported name is all there is.
@@ -182,7 +181,7 @@ function bindingRefs(name: Identifier, isTable: IsTable, depth: number): readonl
     }
     const destructured = destructuredValue(definition);
     if (destructured !== undefined) {
-      return walk(destructured, isTable, depth + 1);
+      return walk(destructured, isTable, active);
     }
     if (!Node.isVariableDeclaration(definition)) {
       continue;
@@ -192,7 +191,7 @@ function bindingRefs(name: Identifier, isTable: IsTable, depth: number): readonl
     }
     const initializer = definition.getInitializer();
     if (initializer !== undefined) {
-      return walk(initializer, isTable, depth + 1);
+      return walk(initializer, isTable, active);
     }
   }
   if (definitions.length > 0) {
@@ -216,41 +215,42 @@ function rawSqlRef(value: MorphNode): DrizzleTableRef | undefined {
 }
 
 /** A namespace member's refs: its declaration, else its drizzle type, else the imported member name. */
-function namespaceRefs(value: MorphNode, isTable: IsTable, depth: number): readonly DrizzleTableRef[] | undefined {
+function namespaceRefs(value: MorphNode, isTable: IsTable, active: ReadonlySet<object>): readonly DrizzleTableRef[] | undefined {
   const namespaced = namespaceMemberOf(value);
   if (namespaced === undefined) {
     return;
   }
-  const viaDeclaration = Node.isPropertyAccessExpression(value) ? bindingRefs(value.getNameNode(), isTable, depth) : undefined;
+  const viaDeclaration = Node.isPropertyAccessExpression(value) ? bindingRefs(value.getNameNode(), isTable, active) : undefined;
   const typed = viaDeclaration ?? typeRefs(value);
   return typed.every((ref) => ref.kind !== "unresolved") ? typed : [{ kind: "imported", name: namespaced }];
 }
 
-function walk(node: MorphNode, isTable: IsTable, depth: number): readonly DrizzleTableRef[] {
+function walk(node: MorphNode, isTable: IsTable, active: ReadonlySet<object>): readonly DrizzleTableRef[] {
   const value = unwrapTarget(node);
-  if (depth > MAX_DEPTH) {
+  if (active.has(value.compilerNode)) {
     return [unresolved(value)];
   }
+  const next = new Set(active).add(value.compilerNode);
   if (Node.isConditionalExpression(value)) {
-    return [...walk(value.getWhenTrue(), isTable, depth + 1), ...walk(value.getWhenFalse(), isTable, depth + 1)];
+    return [...walk(value.getWhenTrue(), isTable, next), ...walk(value.getWhenFalse(), isTable, next)];
   }
   if (Node.isCallExpression(value)) {
-    return callRefs(value, isTable, depth);
+    return callRefs(value, isTable, next);
   }
   const raw = rawSqlRef(value);
   if (raw !== undefined) {
     return [raw];
   }
-  const namespaced = namespaceRefs(value, isTable, depth);
+  const namespaced = namespaceRefs(value, isTable, next);
   if (namespaced !== undefined) {
     return namespaced;
   }
   const name = Node.isPropertyAccessExpression(value) ? value.getNameNode() : value;
-  const refs = Node.isIdentifier(name) ? bindingRefs(name, isTable, depth) : undefined;
+  const refs = Node.isIdentifier(name) ? bindingRefs(name, isTable, next) : undefined;
   return refs ?? typeRefs(value);
 }
 
 /** Every table the expression can name. `isTable` says which declarations are schema tables; the walk stops there. */
 export function resolveDrizzleTableRefs(expression: MorphNode, isTable: IsTable): readonly DrizzleTableRef[] {
-  return walk(expression, isTable, 0);
+  return walk(expression, isTable, new Set());
 }

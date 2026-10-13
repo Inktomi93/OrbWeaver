@@ -11,19 +11,18 @@
 import type { DrizzleTableRef } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
 import { resolveDrizzleTableRefs } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { CallExpression, Identifier, VariableDeclaration } from "ts-morph";
+import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
+import { readReturnOccurrences, resultReferenceDepths } from "../../floor/code-facts/drizzle-row-flow.ts";
+import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statement.ts";
+import { enclosingFn, readFunctionBodyNodes } from "../../floor/code-facts/function-context.ts";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaTableIndex, TableRef, TableTarget } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { MEMBER_ACCESS_KINDS, readsMemberNamed, referencesModuleExport } from "./symbol-reference.ts";
 
 const OWNER_COL = "ownerId";
-const DRIZZLE_MODULE_PREFIX = "drizzle-orm";
 const SCHEMA_DIR = "/packages/db/src/schema/";
-/** The relational-API config key that carries the read's filter. */
-export const RELATIONAL_WHERE = "where";
-/** The drizzle relational-API verbs (`db.query.<t>.findFirst|findMany`). */
-export const RELATIONAL_VERBS: ReadonlySet<string> = new Set(["findFirst", "findMany"]);
 const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
 
 /** The chained calls only a drizzle statement can carry. The DISCRIMINATOR for the unresolvable arm: an
@@ -31,47 +30,6 @@ const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id
  *  `cache.delete(key)` / `hash.update(bytes)` are the SAME AST shape, and 72 of them live in
  *  `packages/server/src` (measured 2026-08-27), every one of them chain-free. */
 const DRIZZLE_WRITE_CHAIN = new Set(["set", "values", "returning", "where", "onConflictDoUpdate", "onConflictDoNothing"]);
-
-/** Is this call's callee the drizzle-orm export `name`, by its import (named or namespace), never its spelling,
- *  or the same operator a relational-API `where` callback destructures from drizzle's operator argument? */
-export function callsDrizzleOperator(call: CallExpression, name: string): boolean {
-  const callee = call.getExpression();
-  return referencesModuleExport(callee, name, (specifier) => specifier.startsWith(DRIZZLE_MODULE_PREFIX)) || relationalOperatorName(callee) === name;
-}
-
-/** The relational-API config object a `where` callback is the value of: `db.query.<t>.findFirst({ where })`. */
-export function relationalWhereCallback(fn: Node): boolean {
-  const property = fn.getParent();
-  const config = property?.getParent();
-  const call = config?.getParent();
-  return (
-    property?.isKind(SyntaxKind.PropertyAssignment) === true &&
-    property.getName() === RELATIONAL_WHERE &&
-    call?.isKind(SyntaxKind.CallExpression) === true &&
-    call.getArguments()[0] === config &&
-    readsMemberNamed(call.getExpression(), RELATIONAL_VERBS) !== undefined
-  );
-}
-
-/** The drizzle operator `callee` names when a relational `where` callback destructures it from its second
- *  parameter (`where: (t, { eq }) => eq(t.ownerId, ownerId)`), or undefined. drizzle passes those operators in,
- *  so they carry no import. */
-export function relationalOperatorName(callee: Node): string | undefined {
-  if (!callee.isKind(SyntaxKind.Identifier)) {
-    return;
-  }
-  const element = callee.getDefinitionNodes().find((definition) => definition.isKind(SyntaxKind.BindingElement));
-  if (element === undefined || !element.isKind(SyntaxKind.BindingElement)) {
-    return;
-  }
-  const parameter = element.getParent().getParent();
-  if (!parameter.isKind(SyntaxKind.Parameter)) {
-    return;
-  }
-  const fn = parameter.getParent();
-  const isOperatorParameter = (fn.isKind(SyntaxKind.ArrowFunction) || fn.isKind(SyntaxKind.FunctionExpression)) && fn.getParameters()[1] === parameter;
-  return isOperatorParameter && relationalWhereCallback(fn) ? (element.getPropertyNameNode()?.getText() ?? element.getName()) : undefined;
-}
 
 /** Does raw SQL text name any schema table by its SQL name? Only a constant that names none reads none. */
 function namesSchemaTable(text: string, index: SchemaTableIndex): boolean {
@@ -136,7 +94,7 @@ export function declaredTableOf(node: Node, index: SchemaTableIndex): string | u
  *  the pure-AST harness does not build. DECLARED LIMIT: a CHAIN-FREE statement (`db.delete(T);` unbounded)
  *  is indistinguishable from a `Map.delete` and stays out of the unresolvable arm. */
 export function isDrizzleWriteStatement(anchor: Node): boolean {
-  return chainCalls(anchor).some((call) => {
+  return readFollowingBuilderChain(anchor).calls.some((call) => {
     const callee = staticMemberAccess(call.getExpression());
     return callee !== undefined && DRIZZLE_WRITE_CHAIN.has(callee.name);
   });
@@ -158,30 +116,11 @@ export function predicatesTableColumn(predicate: Node, tableIdent: string, colum
   });
 }
 
-/** Walk a drizzle method chain UP from its table anchor (`.from(T)` for a read, `db.update(T)`/`db.delete(T)`
- *  for a write), collecting the calls that follow it. */
-function chainCalls(start: Node): CallExpression[] {
-  const out: CallExpression[] = [];
-  let cur: Node = start;
-  for (;;) {
-    const parent = cur.getParent();
-    if (parent === undefined) {
-      return out;
-    }
-    if (parent.isKind(SyntaxKind.CallExpression)) {
-      out.push(parent);
-    } else if (!(MEMBER_ACCESS_KINDS.some((kind) => parent.isKind(kind)) || parent.isKind(SyntaxKind.AwaitExpression))) {
-      return out;
-    }
-    cur = parent;
-  }
-}
-
 /** The `.where(…)` argument of the statement this table anchor starts, or undefined (NO where clause at all —
  *  which means a LIST read on the read side and an UNBOUNDED write on the write side; the two halves judge
  *  that differently, so this reader only reports the absence). */
 export function whereArgOf(anchor: Node): Node | undefined {
-  const whereCall = chainCalls(anchor).find((call) => staticMemberAccess(call.getExpression())?.name === "where");
+  const whereCall = readFollowingBuilderChain(anchor).calls.find((call) => staticMemberAccess(call.getExpression())?.name === "where");
   return whereCall?.getArguments()[0];
 }
 
@@ -190,7 +129,7 @@ export function whereArgOf(anchor: Node): Node | undefined {
  *  This is the upsert's answer to `whereArgOf`: an upsert's collision is decided by the conflict TARGET (a
  *  unique index) and the optional `targetWhere`/`setWhere`, never by a `.where` on the statement. */
 export function upsertConfigOf(anchor: Node): Node | undefined {
-  const upsertCall = chainCalls(anchor).find((call) => staticMemberAccess(call.getExpression())?.name === "onConflictDoUpdate");
+  const upsertCall = readFollowingBuilderChain(anchor).calls.find((call) => staticMemberAccess(call.getExpression())?.name === "onConflictDoUpdate");
   return upsertCall?.getArguments()[0];
 }
 
@@ -203,63 +142,17 @@ export function predicatesOwnId(whereText: string, tableIdent: string): boolean 
   return new RegExp(String.raw`\b${tableIdent.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)}\.id\b`, "u").test(whereText);
 }
 
-function isFnish(n: Node): boolean {
-  return (
-    n.isKind(SyntaxKind.FunctionDeclaration) ||
-    n.isKind(SyntaxKind.MethodDeclaration) ||
-    n.isKind(SyntaxKind.ArrowFunction) ||
-    n.isKind(SyntaxKind.FunctionExpression)
+/** Owner-member attribution is a consumer judgment over real member/lineage observations. */
+function resultOwnerReads(side: Node, resultDecl: Node): readonly Node[] {
+  return readMemberUses(side).flatMap((fact) =>
+    fact.kind === "resolved" && fact.value.name === OWNER_COL && resultReferenceDepths(fact.value.receiver, resultDecl).some((depth) => depth <= 1)
+      ? [fact.value.access]
+      : [],
   );
 }
 
-/** The innermost enclosing function — the unit a post-fetch owner filter is resolved in. */
-export function enclosingFn(node: Node): Node | undefined {
-  return node.getFirstAncestor(isFnish);
-}
-
-/** True when `id` is the read result binding itself or a one-hop local alias initialized from it. */
-function derivesFromReadResult(id: Identifier, resultDecl: Node): boolean {
-  for (const def of id.getDefinitionNodes()) {
-    if (def === resultDecl) {
-      return true;
-    }
-    if (!def.isKind(SyntaxKind.VariableDeclaration)) {
-      continue;
-    }
-    const init = def.getInitializer();
-    if (init === undefined) {
-      continue;
-    }
-    const sources = init.isKind(SyntaxKind.Identifier) ? [init] : init.getDescendantsOfKind(SyntaxKind.Identifier);
-    if (sources.some((source) => source.getDefinitionNodes().includes(resultDecl))) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** The `.ownerId` reads on this side that derive from the exact query-result declaration. */
-function resultOwnerReads(side: Node, resultDecl: Node): Node[] {
-  const descendants = side.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
-  const accesses = side.isKind(SyntaxKind.PropertyAccessExpression) ? [side, ...descendants] : descendants;
-  return accesses.filter((candidate) => {
-    if (candidate.getName() !== OWNER_COL) {
-      return false;
-    }
-    const receiver = candidate.getExpression();
-    if (receiver.isKind(SyntaxKind.Identifier) && derivesFromReadResult(receiver, resultDecl)) {
-      return true;
-    }
-    return receiver.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => derivesFromReadResult(id, resultDecl));
-  });
-}
-
 function expressionDerivesFromReadResult(expression: Node, resultDecl: Node): boolean {
-  const value = unwrapExpression(expression);
-  if (value.isKind(SyntaxKind.Identifier) && derivesFromReadResult(value, resultDecl)) {
-    return true;
-  }
-  return value.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => derivesFromReadResult(id, resultDecl));
+  return resultReferenceDepths(unwrapExpression(expression), resultDecl).some((depth) => depth <= 1);
 }
 
 /** Does this expression name the caller-side owner identity rather than another fetched/ambient row? The
@@ -296,7 +189,7 @@ function rejectsFetchedResult(statement: Node, resultDecl: Node): boolean {
     return false;
   }
   const outerFn = enclosingFn(statement);
-  const leaksOnAnyBranch = statement.getDescendantsOfKind(SyntaxKind.ReturnStatement).some((ret) => {
+  const leaksOnAnyBranch = readReturnOccurrences(statement).some((ret) => {
     if (enclosingFn(ret) !== outerFn) {
       return false;
     }
@@ -353,22 +246,24 @@ export function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
   if (resultDecl === undefined) {
     return false;
   }
-  return fn.getDescendantsOfKind(SyntaxKind.BinaryExpression).some((b) => {
-    const op = b.getOperatorToken().getKind();
-    if (op !== SyntaxKind.ExclamationEqualsEqualsToken && op !== SyntaxKind.EqualsEqualsEqualsToken) {
-      return false;
-    }
-    const left = b.getLeft();
-    const right = b.getRight();
-    const leftIsResultOwner = resultOwnerReads(left, resultDecl).length > 0;
-    const rightIsResultOwner = resultOwnerReads(right, resultDecl).length > 0;
-    if (leftIsResultOwner === rightIsResultOwner) {
-      return false;
-    }
-    const callerOwner = leftIsResultOwner ? right : left;
-    if (!isCallerOwnerBinding(callerOwner, resultDecl)) {
-      return false;
-    }
-    return op === SyntaxKind.EqualsEqualsEqualsToken ? returnsOwnerVerdict(b) : rejectingGuardOf(b, resultDecl);
-  });
+  return readFunctionBodyNodes(fn)
+    .filter(Node.isBinaryExpression)
+    .some((b) => {
+      const op = b.getOperatorToken().getKind();
+      if (op !== SyntaxKind.ExclamationEqualsEqualsToken && op !== SyntaxKind.EqualsEqualsEqualsToken) {
+        return false;
+      }
+      const left = b.getLeft();
+      const right = b.getRight();
+      const leftIsResultOwner = resultOwnerReads(left, resultDecl).length > 0;
+      const rightIsResultOwner = resultOwnerReads(right, resultDecl).length > 0;
+      if (leftIsResultOwner === rightIsResultOwner) {
+        return false;
+      }
+      const callerOwner = leftIsResultOwner ? right : left;
+      if (!isCallerOwnerBinding(callerOwner, resultDecl)) {
+        return false;
+      }
+      return op === SyntaxKind.EqualsEqualsEqualsToken ? returnsOwnerVerdict(b) : rejectingGuardOf(b, resultDecl);
+    });
 }

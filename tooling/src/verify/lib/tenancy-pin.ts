@@ -3,55 +3,34 @@
 // and a column value scopes an owner term only when its own table is pinned by its class's rule one hop away.
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node, Type } from "ts-morph";
-import { SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
+import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.ts";
+import { readDrizzleValueSources } from "../../floor/code-facts/drizzle-query.ts";
 import type { ForeignKeyColumns, SchemaTableIndex, ValueReceiver, ValueSources } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { MEMBER_ACCESS_KINDS } from "./symbol-reference.ts";
-import { innerReadAnchorsOf, readsTable } from "./tenancy-join.ts";
-import { callsDrizzleOperator, declaredTableOf, tableRefsOf } from "./tenancy-read.ts";
+import { readsTable } from "./tenancy-join.ts";
+import { declaredTableOf, tableRefsOf } from "./tenancy-read.ts";
 import { foreignKeysBetween } from "./tenancy-scope.ts";
 
 const EQ_OPERATOR = "eq";
 const IN_ARRAY_OPERATOR = "inArray";
 const ID_COL = "id";
 const CHATS_SQL_NAME = "chats";
-const MAX_CONST_HOPS = 3;
-
-/** The `const` initializer an identifier names, or undefined for a parameter, a `let` or anything else. */
-function constValueOf(node: Node): Node | undefined {
-  if (!node.isKind(SyntaxKind.Identifier)) {
-    return;
+/** Project canonical native source facts onto the tenancy classification index. */
+export function valueSourcesOf(value: Node, index: SchemaTableIndex): ValueSources {
+  const fact = readDrizzleValueSources(value);
+  if (fact.kind === "unresolved") {
+    return { receivers: [], subselects: [], unresolved: true };
   }
-  const declaration = node.getDefinitionNodes().find((definition) => definition.isKind(SyntaxKind.VariableDeclaration));
-  const isConst =
-    declaration?.isKind(SyntaxKind.VariableDeclaration) === true &&
-    declaration.getFirstAncestorByKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() === VariableDeclarationKind.Const;
-  return isConst ? declaration.getInitializer() : undefined;
-}
-
-/** The row sources whose columns a value reads, and the subselects it runs, read through `const` bindings
- *  (`const seatUser = chatParticipants.userId`, a hoisted `const seatOwners = db.select(…)`). A subselect is one
- *  source; its own anchors are judged inside it. */
-export function valueSourcesOf(value: Node, index: SchemaTableIndex, hops = 0): ValueSources {
-  const unwrapped = unwrapExpression(value);
-  const bound = hops < MAX_CONST_HOPS ? constValueOf(unwrapped) : undefined;
-  if (bound !== undefined) {
-    return valueSourcesOf(bound, index, hops + 1);
-  }
-  if (innerReadAnchorsOf(unwrapped).length > 0) {
-    return { receivers: [], subselects: [unwrapped] };
-  }
-  const reads = [unwrapped, ...MEMBER_ACCESS_KINDS.flatMap((kind) => unwrapped.getDescendantsOfKind(kind))];
   const receivers = new Map<string, ValueReceiver>();
-  for (const read of reads) {
-    const member = staticMemberAccess(read);
-    const refs = member === undefined ? [] : tableRefsOf(member.receiver, index);
-    if (member !== undefined && refs.some((ref) => ref.kind === "table" || ref.kind === "subquery")) {
+  for (const member of fact.value.members) {
+    const refs = tableRefsOf(member.receiver, index);
+    if (refs.some((ref) => ref.kind === "table" || ref.kind === "subquery")) {
       const receiver = member.receiver.getText();
       receivers.set(receiver, { receiver, table: declaredTableOf(member.receiver, index) });
     }
   }
-  return { receivers: [...receivers.values()], subselects: [] };
+  return { receivers: [...receivers.values()], subselects: fact.value.subselects, unresolved: false };
 }
 
 function isStringLike(type: Type): boolean {
@@ -68,7 +47,7 @@ function isStringLike(type: Type): boolean {
  *  a builder, an untyped parameter and a nullable id are not. */
 export function isPlainValue(value: Node, index: SchemaTableIndex): boolean {
   const sources = valueSourcesOf(value, index);
-  if (sources.receivers.length > 0 || sources.subselects.length > 0) {
+  if (sources.unresolved || sources.receivers.length > 0 || sources.subselects.length > 0) {
     return false;
   }
   const type = value.getType();

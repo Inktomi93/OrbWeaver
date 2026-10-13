@@ -25,9 +25,9 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { inspectReferenceWrites, readMemberReference, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { readStaticTextOf } from "../../floor/code-facts/template-static-text.ts";
 import { defineGate } from "../contract/policy.ts";
 import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
-import { readStaticTextOf } from "../lib/template-static-text.ts";
 
 const SCREENSHOT = "screenshot";
 const PATH_KEY = "path";
@@ -71,7 +71,7 @@ function needlePathKeys(options: MorphNode): readonly MorphNode[] {
     }
     const initializer = property.getInitializer();
     const text = initializer === undefined ? null : readStaticTextOf(initializer);
-    if (text !== null && text.includes(NEEDLE)) {
+    if (text?.includes(NEEDLE) === true) {
       keys.push(property.getNameNode());
     }
   }

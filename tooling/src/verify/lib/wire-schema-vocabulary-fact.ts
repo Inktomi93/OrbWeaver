@@ -1,8 +1,8 @@
 // Visitor-fed JSON-Schema vocabulary owned by the canonical wire-subset engine.
 import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 import { defineFact } from "../contract/fact.ts";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
 
 export const WIRE_SCHEMA_ENGINE = "packages/contracts/src/inference/wire-subset.ts";
 export const WIRE_SCHEMA_VOCABULARY_NAMES = ["BOUND_KEYWORDS", "META_KEYWORDS", "ANNOTATION_KEYWORDS"] as const;

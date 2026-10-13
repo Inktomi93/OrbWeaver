@@ -32,6 +32,7 @@
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
+import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
 import { DEFINITION_SLOTS } from "../contract/registry-definition-home.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
@@ -40,7 +41,6 @@ import { definitionAnchor, definitionName } from "../lib/registry-definition-anc
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { isDefinitionHome } from "../lib/registry-definition-home.ts";
 import { registryDefinitionFacts } from "../lib/registry-fact.ts";
-import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 
 const OPENER = "openModal";
 const ROUTES = "packages/client/src/routes/";

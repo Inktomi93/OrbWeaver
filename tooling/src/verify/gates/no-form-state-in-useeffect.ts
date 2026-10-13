@@ -4,9 +4,9 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import { defineGate } from "../contract/policy.ts";
-import { MEMBER_ACCESS_KINDS } from "../lib/symbol-reference.ts";
 
 function memberChain(node: Node): readonly string[] {
   const chain: string[] = [];

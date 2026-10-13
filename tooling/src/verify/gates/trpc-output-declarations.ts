@@ -9,12 +9,12 @@ import type { Node as MorphNode, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference, resolveExportedDeclarations, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
+import { terminalCall } from "../../floor/code-facts/schema-value.ts";
+import { symbolDeclarations } from "../../floor/code-facts/type-member-origin-core.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { terminalCall } from "../lib/schema-fact-value.ts";
 import { declaredByPackage, resolveTypeIdentityOrigin, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
-import { symbolDeclarations } from "../lib/type-member-origin-core.ts";
 import { trpcOutputProof } from "./_proof/trpc-output.ts";
 
 const ROOT_PATH = "packages/server/src/transport/trpc/router.ts";

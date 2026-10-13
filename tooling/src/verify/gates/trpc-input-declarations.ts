@@ -7,8 +7,9 @@
 import type { CallExpression, Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { MEMBER_ACCESS_KINDS, readsMemberNamed } from "../lib/symbol-reference.ts";
+import { readsMemberNamed } from "../lib/symbol-reference.ts";
 
 const TERMINALS: ReadonlySet<string> = new Set(["query", "mutation", "subscription"]);
 const INPUT_MEMBER: ReadonlySet<string> = new Set(["input"]);

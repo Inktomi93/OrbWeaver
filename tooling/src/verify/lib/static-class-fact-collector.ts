@@ -1,7 +1,8 @@
 // Invocation-local adapter from the mature evaluator to final traversal-free class/JSX facts.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import type { StaticAuthoredObjectValue, StaticAuthoredValue } from "../contract/static-authored-value.ts";
+import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
+import type { StaticAuthoredObjectValue, StaticAuthoredValue } from "../../floor/code-facts/static-authored-value-contract.ts";
 import type {
   StaticClassCarrierFact,
   StaticClassFactResult,
@@ -10,7 +11,6 @@ import type {
   StaticJsxStylePropertyFact,
   StaticValue,
 } from "../contract/static-class-expression.ts";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
 import { StaticClassCollector } from "./static-class-expression.ts";
 
 export interface StaticClassFactReader {

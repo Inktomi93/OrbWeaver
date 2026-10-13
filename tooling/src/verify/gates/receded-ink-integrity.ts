@@ -34,8 +34,9 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier } from "../lib/symbol-reference.ts";
+import { namespaceImportSpecifier } from "../lib/symbol-reference.ts";
 import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const RECEDED_INK = "RECEDED_INK";

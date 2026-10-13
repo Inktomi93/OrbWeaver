@@ -9,21 +9,13 @@
 // FAMILY `open-json-column-key-parity`: the open-json-column family, reading the shared `drizzleSchemaFact`.
 import type { Node, Type } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { columnReadAt, columnValueType, readsSelectRow, rowModels } from "../../floor/code-facts/drizzle-row.ts";
+import type { ColumnRead } from "../../floor/code-facts/drizzle-row-contract.ts";
 import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import type { ColumnRead } from "../lib/json-column-read.ts";
-import {
-  bindingUsesJudged,
-  columnReadAt,
-  columnValueType,
-  isParsedValue,
-  isPresenceTest,
-  isWriteSink,
-  readsSelectRow,
-  rowModels,
-} from "../lib/json-column-read.ts";
+import { bindingUsesJudged, isParsedValue, isPresenceTest, isWriteSink } from "../lib/json-column-read.ts";
 import { isBoundary } from "../lib/ordinary-waiver-carrier.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 

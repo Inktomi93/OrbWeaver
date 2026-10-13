@@ -63,11 +63,11 @@
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { readStaticAuthoredScalar, readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 import type { GateFactContext } from "../contract/fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
 import { declarationHome } from "../lib/declaration-home.ts";
-import { readStaticAuthoredScalar, readStaticAuthoredValue } from "../lib/static-authored-value.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 import { resolveArrayElementTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 

@@ -28,12 +28,12 @@
 // admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
 import { readJsxTagFact, registryDefinitionFacts } from "../lib/registry-fact.ts";
-import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
 
 const PLACEHOLDER = "SectionPlaceholder";
 

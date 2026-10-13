@@ -13,8 +13,8 @@
 import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { defineFact } from "../contract/fact.ts";
-import { MEMBER_ACCESS_KINDS } from "./symbol-reference.ts";
 
 const SEAM_FACTORY = "createInvalidation";
 const SEAM_ANCHOR = "Invalidation";

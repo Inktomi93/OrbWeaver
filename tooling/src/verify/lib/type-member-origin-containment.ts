@@ -6,8 +6,8 @@
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, Symbol as MorphSymbol, Type, TypeNode } from "ts-morph";
 import { Node, TypeFlags } from "ts-morph";
+import { annotationReferenceOrigin, resolveTypePropertyOrigin, unprovenTypeIdentity } from "../../floor/code-facts/type-member-origin-core.ts";
 import type { Containment, GenericDeclaration, TypeIdentityOrigin } from "../contract/type-member-origin.ts";
-import { annotationReferenceOrigin, resolveTypePropertyOrigin, unprovenTypeIdentity } from "./type-member-origin-core.ts";
 
 export function opaqueType(type: Type): boolean {
   return type.isAny() || type.isUnknown() || type.isTypeParameter();

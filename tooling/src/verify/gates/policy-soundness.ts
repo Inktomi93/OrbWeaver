@@ -79,6 +79,7 @@ import type { MemberReference } from "@orb/tooling/floor/code-facts/reference-fa
 import type { CallExpression, ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { FinalRegistration } from "../contract/policy-descriptor-read.ts";
@@ -95,7 +96,6 @@ import {
   stableTerminal,
 } from "../lib/policy-descriptor-read.ts";
 import { staticSegments, staticText } from "../lib/policy-static-text.ts";
-import { MEMBER_ACCESS_KINDS } from "../lib/symbol-reference.ts";
 import {
   familyFixture,
   finalProbeModule,

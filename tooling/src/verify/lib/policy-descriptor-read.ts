@@ -42,13 +42,13 @@
 import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, PropertyAssignment, ShorthandPropertyAssignment, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readAuthoredArrayPresence } from "../../floor/code-facts/static-authored-value.ts";
 import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { FinalRegistration, ProofRows, ReportSiteMessage } from "../contract/policy-descriptor-read.ts";
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
 import type { ProductionEdges } from "./policy-production-reach.ts";
 import { reachableDeclarations } from "./policy-production-reach.ts";
 import { messageAlternatives, unwrapExpression } from "./policy-static-text.ts";
-import { readAuthoredArrayPresence } from "./static-authored-value.ts";
 
 const REPORT_SINK = "report";
 const REPORT_METHODS: ReadonlySet<string> = new Set(["node", "file"]);

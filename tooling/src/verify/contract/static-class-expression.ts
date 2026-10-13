@@ -93,7 +93,7 @@ export interface StaticJsxStylePropertyFact {
   readonly attribute: Node;
   readonly name: string;
   readonly nameNode: Node;
-  readonly value: import("./static-authored-value.ts").StaticAuthoredValue;
+  readonly value: import("../../floor/code-facts/static-authored-value-contract.ts").StaticAuthoredValue;
 }
 
 /** Invocation-local facts produced only from nodes delivered by the shared policy walk. */

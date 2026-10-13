@@ -4,8 +4,8 @@ import { readStaticString, resolveModuleMemberOrigin, staticMemberAccess } from 
 import { resolveCallableDeclaration } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { CallExpression, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
 import { declaredByPackage } from "./type-member-origin.ts";
 import { declaredByZod } from "./zod-origin.ts";
 

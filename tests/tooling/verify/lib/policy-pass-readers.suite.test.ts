@@ -1,10 +1,10 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import { Node, Project, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredValue } from "../../../../tooling/src/floor/code-facts/static-authored-value.ts";
 import type { GatePolicy, GatePolicyContext } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { readStaticAuthoredValue } from "../../../../tooling/src/verify/lib/static-authored-value.ts";
 
 const ROOT = "/reader-policy";
 const SUBJECT_PATH = "packages/client/src/subject.ts";

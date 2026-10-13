@@ -15,7 +15,7 @@ import {
 } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
+import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 
 type Value =
   | { readonly kind: "scalar"; readonly value: string | number | boolean | null }

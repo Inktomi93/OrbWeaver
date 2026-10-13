@@ -42,10 +42,10 @@
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { objectEntries, SchemaRefusal, terminalCall } from "../../floor/code-facts/schema-value.ts";
 import type { ContractBannedShape } from "../contract/ledger-banned-shapes.ts";
 import { defineGate } from "../contract/policy.ts";
 import { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome } from "../lib/ledger-banned-shapes.ts";
-import { objectEntries, SchemaRefusal, terminalCall } from "../lib/schema-fact-value.ts";
 
 const MESSAGE =
   "a ledger-REJECTED contract shape has been reintroduced — the ledger killed this field by name; drop it or contest the D-cite in its docs/adr/ decision (every row and its cite: tooling/src/verify/lib/ledger-banned-shapes.ts).";

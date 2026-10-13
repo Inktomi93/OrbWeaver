@@ -6,6 +6,7 @@
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Type, TypeNode } from "ts-morph";
 import { Node, TypeFlags } from "ts-morph";
+import { annotationReferenceOrigin, resolved, symbolDeclarations, unprovenTypeIdentity, unresolved } from "../../floor/code-facts/type-member-origin-core.ts";
 import type { Containment, TypeIdentityOrigin } from "../contract/type-member-origin.ts";
 import type { ConstructorSummary, TransportContext } from "./type-member-origin-containment.ts";
 import {
@@ -18,7 +19,6 @@ import {
   typeExpressionContains,
   valueTypeEdges,
 } from "./type-member-origin-containment.ts";
-import { annotationReferenceOrigin, resolved, symbolDeclarations, unprovenTypeIdentity, unresolved } from "./type-member-origin-core.ts";
 import { constructorSummaries, recurrenceSignature } from "./type-member-origin-recurrence.ts";
 
 interface RecurrenceFrame {

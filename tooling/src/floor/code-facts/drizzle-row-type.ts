@@ -3,15 +3,7 @@
 import type { SourceFile, Node as TsNode, Type, TypeReferenceNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 
-/** Keep every contributing source type and origin until TypeScript narrows the actual read. */
-export interface RowOrigin {
-  readonly sourceType: Type;
-  readonly kind: "schema" | "plain" | "unresolved";
-  readonly table?: TsNode | undefined;
-  readonly partitionType?: Type | undefined;
-  /** A `Pick`/`Omit` projection: members of the row are absent, so a sibling arm may re-supply one. */
-  readonly dropsMembers?: boolean | undefined;
-}
+import type { RowOrigin } from "./drizzle-row-contract.ts";
 
 export function origin(kind: RowOrigin["kind"], sourceType: Type, table?: TsNode, dropsMembers = false): RowOrigin {
   return { sourceType, kind, table, dropsMembers };
@@ -33,7 +25,7 @@ export function schemaTableIn(origins: readonly RowOrigin[]): TsNode | undefined
 }
 
 // TypeScript's own projections of an object type keep every kept field's type, so a projected row is still a row.
-const ROW_PROJECTIONS: ReadonlySet<string> = new Set(["Pick", "Omit", "Readonly", "Partial", "Required", "NonNullable"]);
+export const ROW_PROJECTIONS: ReadonlySet<string> = new Set(["Pick", "Omit", "Readonly", "Partial", "Required", "NonNullable"]);
 const MEMBER_DROPPING_PROJECTIONS: ReadonlySet<string> = new Set(["Pick", "Omit"]);
 
 /** `Pick<Row, K>` and its kin, declared by the program's default library files: the projection of a schema row keeps that row's

@@ -1,9 +1,5 @@
-// The STATIC half of an authored template literal, plus its interpolation holes, as one reader.
-// `readStaticString` deliberately refuses a `TemplateExpression` — its value depends on runtime — but two
-// policies need the text a template CANNOT vary (the quasis) and the expressions it CAN (the holes): a
-// `reports/`-carrying path prefix is authored in a quasi even when the filename is interpolated, and a
-// SQL `length(col) <= ${CAP}` cap is a quasi skeleton with the cap in a hole. Reading the two apart is what
-// keeps a needle inside an interpolated expression from counting as authored text.
+// Static template quasis and interpolation expressions are separate facts.
+// A reports path or SQL cap in a hole is runtime data, never authored static evidence.
 
 import { readStaticString, referenceResolutionServices } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";

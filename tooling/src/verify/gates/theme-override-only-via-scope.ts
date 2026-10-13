@@ -33,10 +33,10 @@
 // style props.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { readStaticAuthoredValue } from "../lib/static-authored-value.ts";
 
 const ATTRIBUTE = "style";
 const TOKEN_PREFIX = "--color-";

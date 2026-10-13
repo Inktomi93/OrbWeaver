@@ -5,11 +5,13 @@ import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling
 import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { jsonColumnGuardMatchesProvided, jsonStoredColumnReference, traceJsonColumnValue } from "../../floor/code-facts/drizzle-value-origin.ts";
+import { propertyValue as jsonColumnPropertyValue } from "../../floor/code-facts/value-carrier.ts";
 import type { JsonColumnMergeProof, JsonColumnOrigin, JsonColumnOriginContext, JsonColumnTarget } from "../contract/json-column-origin.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { jsonColumnArrayFieldProof } from "./json-column-array-field-proof.ts";
-import { jsonColumnNormalizer, jsonColumnPropertyValue } from "./json-column-normalizer.ts";
-import { jsonColumnCallContext, jsonColumnGuardMatchesProvided, jsonStoredColumnReference, traceJsonColumnValue } from "./json-column-value-origin.ts";
+import { jsonColumnNormalizer } from "./json-column-normalizer.ts";
+import { jsonColumnCallContext } from "./json-column-origin-context.ts";
 
 const WHOLE: JsonColumnMergeProof = { keywise: false, historicalHeal: false };
 

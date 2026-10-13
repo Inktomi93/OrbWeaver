@@ -5,6 +5,7 @@ import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-f
 import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, Type, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
+import { readStaticAuthoredScalar, readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 import type {
   BusAnchor,
   BusDeclarationIdentity,
@@ -17,7 +18,6 @@ import type {
 import type { GateFactContext } from "../contract/fact.ts";
 import { declarationHome } from "./declaration-home.ts";
 import { resolveCallableMember } from "./gate-contract-origin.ts";
-import { readStaticAuthoredScalar, readStaticAuthoredValue } from "./static-authored-value.ts";
 import { resolveTypePropertyOrigin } from "./type-member-origin.ts";
 
 export const BUS_UNION_SUFFIX = "BusEvent";

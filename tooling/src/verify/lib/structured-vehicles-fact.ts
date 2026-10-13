@@ -1,8 +1,8 @@
 // The structured planner's vehicle vocabulary, read off the wire-subset engine's authored tuple.
 import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 import { defineFact } from "../contract/fact.ts";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
 import { WIRE_SCHEMA_ENGINE } from "./wire-schema-vocabulary-fact.ts";
 
 export const STRUCTURED_VEHICLES_NAME = "STRUCTURED_VEHICLES";

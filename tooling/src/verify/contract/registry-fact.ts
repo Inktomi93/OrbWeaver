@@ -1,7 +1,7 @@
 // Canonical registry-definition and JSX-tag facts for final Orb policies.
 import type { InterfaceDeclaration, Node, ObjectLiteralExpression, TypeAliasDeclaration } from "ts-morph";
 import type { ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
-import type { StaticAuthoredValue } from "./static-authored-value.ts";
+import type { StaticAuthoredValue } from "../../floor/code-facts/static-authored-value-contract.ts";
 
 export const REGISTRY_DEFINITION_KINDS = ["section", "modal", "home-tile", "config-group", "collection", "config-section", "chrome"] as const;
 export type RegistryDefinitionKind = (typeof REGISTRY_DEFINITION_KINDS)[number];

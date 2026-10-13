@@ -1,9 +1,9 @@
 // Visitor-fed tuple facts built on the final static authored-value reader.
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 import { defineFact } from "../contract/fact.ts";
 import type { TupleVocabularies, TupleVocabularyEntry, TupleVocabularyFact, TupleVocabularyReceipt } from "../contract/tuple-vocabulary-fact.ts";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
 
 export const TUPLE_VOCABULARY_VISITOR_KINDS = [SyntaxKind.VariableDeclaration] as const;
 

@@ -5,14 +5,14 @@ import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference
 import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import type { StaticAuthoredValue } from "../../../../tooling/src/verify/contract/static-authored-value.ts";
 import {
   readAuthoredArrayElements,
   readAuthoredArrayPresence,
   readStaticAuthoredScalar,
   readStaticAuthoredValue,
   resolveAuthoredComposite,
-} from "../../../../tooling/src/verify/lib/static-authored-value.ts";
+} from "../../../../tooling/src/floor/code-facts/static-authored-value.ts";
+import type { StaticAuthoredValue } from "../../../../tooling/src/floor/code-facts/static-authored-value-contract.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

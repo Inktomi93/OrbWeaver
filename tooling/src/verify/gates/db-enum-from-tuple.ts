@@ -34,12 +34,12 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { effectiveObjectProperty, SchemaRefusal, unwrapSchemaExpression } from "../../floor/code-facts/schema-value.ts";
+import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumn } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { effectiveObjectProperty, SchemaRefusal, unwrapSchemaExpression } from "../lib/schema-fact-value.ts";
-import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 
 const ENUM_KEY = "enum";
 const MESSAGE =

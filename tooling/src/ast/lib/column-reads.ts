@@ -1,9 +1,12 @@
 // The column READ arms: raw-sql mentions, checker-resolved query reads, inferred-row reads,
 // classification + candidate collection.
+
 import type { SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind, ts } from "ts-morph";
+import { readColumnReferences, readRowShapeMembers } from "../../floor/code-facts/drizzle-column-reads.ts";
 import { shapeFitsColumns } from "../../floor/code-facts/drizzle-columns.ts";
-import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { readDrizzleSelection } from "../../floor/code-facts/drizzle-select.ts";
+import { rawSqlTextIn } from "../../floor/code-facts/drizzle-sql.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { canonicalCompilerPath } from "../../floor/compiler/ts-workspace.ts";
 import type { ColumnAudit, ColumnCandidate, ColumnClass, ColumnDef, ProducerlessTableCandidate, TableDef } from "../contract/types.ts";
@@ -12,30 +15,11 @@ import { columnKey, isColumnConsumer, resolveTableDef, scanColumnWrites } from "
 import { KEY_SEP, REPO_ROOT } from "./root.ts";
 
 export function rawSqlBlob(project: SourceCorpus): string {
-  const parts: string[] = [];
-  for (const sf of project.getSourceFiles()) {
-    if (!isColumnConsumer(sf.getFilePath())) {
-      continue;
-    }
-    for (const tagged of sf.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression)) {
-      const tag = tagged.getTag();
-      if (Node.isIdentifier(tag) && tag.getText() === "sql") {
-        parts.push(tagged.getTemplate().getText());
-      }
-    }
-    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const expr = call.getExpression();
-      if (Node.isPropertyAccessExpression(expr) && expr.getName() === "raw" && expr.getExpression().getText() === "sql") {
-        parts.push(
-          call
-            .getArguments()
-            .map((a) => a.getText())
-            .join(" "),
-        );
-      }
-    }
-  }
-  return parts.join("\n");
+  return project
+    .getSourceFiles()
+    .filter((source) => isColumnConsumer(source.getFilePath()))
+    .flatMap(rawSqlTextIn)
+    .join("\n");
 }
 
 /** Word-boundary presence of a SQL column name in the raw-SQL blob. Escaped because a SQL name is
@@ -167,16 +151,8 @@ function fullTableSelectTarget(call: Node): Node | undefined {
   if (!Node.isCallExpression(call)) {
     return;
   }
-  const from = call.getExpression();
-  if (!Node.isPropertyAccessExpression(from) || from.getName() !== "from") {
-    return;
-  }
-  const selectCall = from.getExpression();
-  if (!Node.isCallExpression(selectCall)) {
-    return;
-  }
-  const select = selectCall.getExpression();
-  return Node.isPropertyAccessExpression(select) && select.getName() === "select" ? call.getArguments()[0] : undefined;
+  const selection = readDrizzleSelection(call);
+  return selection?.calls[0] === call && selection.calls.length === 2 ? selection.source : undefined;
 }
 
 /** READ arm 1 — every reference to a column property from a consumer file, keyed like the write scan. This is
@@ -225,50 +201,10 @@ function declarationSite(node: ts.Node): string {
 }
 
 function scanFileQueryReads(sf: SourceFile, ctx: QueryReadCtx): void {
-  const checker = sf.getProject().getTypeChecker().compilerObject;
-  const file = sf.compilerNode;
   const rel = relPath(sf.getFilePath());
-  const visit = (node: ts.Node): void => {
-    if (isColumnNameCandidate(node, ctx.columnNames)) {
-      const site = `${rel}:${String(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1)}`;
-      for (const symbol of referenceSymbols(node, checker)) {
-        recordQueryRead(symbol, checker, site, ctx);
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  ts.forEachChild(file, visit);
-}
-
-/** A name that could reference a column: an identifier, or the string key of `x["col"]`. */
-function isColumnNameCandidate(node: ts.Node, columnNames: ReadonlySet<string>): node is ts.Identifier | ts.StringLiteral {
-  if (ts.isIdentifier(node)) {
-    return columnNames.has(node.text);
-  }
-  return ts.isStringLiteral(node) && ts.isElementAccessExpression(node.parent) && node.parent.argumentExpression === node && columnNames.has(node.text);
-}
-
-/** The symbols a name refers to, plus the property symbols `findReferences` relates it to: the contextual
- *  type's member for an object-literal or JSX key, and the source type's member for a `{ col }` destructure. */
-function referenceSymbols(name: ts.Identifier | ts.StringLiteral, checker: ts.TypeChecker): readonly ts.Symbol[] {
-  const own = checker.getSymbolAtLocation(name);
-  const parent = name.parent;
-  let carrier: ts.Type | undefined;
-  if ((ts.isPropertyAssignment(parent) || ts.isShorthandPropertyAssignment(parent) || ts.isMethodDeclaration(parent)) && parent.name === name) {
-    carrier = ts.isObjectLiteralExpression(parent.parent) ? checker.getContextualType(parent.parent) : undefined;
-  } else if (ts.isJsxAttribute(parent) && parent.name === name) {
-    carrier = checker.getContextualType(parent.parent);
-  } else if (ts.isBindingElement(parent) && parent.name === name && parent.propertyName === undefined && ts.isObjectBindingPattern(parent.parent)) {
-    carrier = checker.getTypeAtLocation(parent.parent);
-  }
-  const members = carrier === undefined ? [] : (carrier.isUnion() ? carrier.types : [carrier]).map((type) => type.getProperty(name.text));
-  return [own, ...members].filter((symbol): symbol is ts.Symbol => symbol !== undefined);
-}
-
-/** Credit every column the symbol or its roots (a mapped or synthesized member's origin) declares. */
-function recordQueryRead(symbol: ts.Symbol, checker: ts.TypeChecker, site: string, ctx: QueryReadCtx): void {
-  for (const candidate of [symbol, ...checker.getRootSymbols(symbol)]) {
-    for (const declaration of candidate.declarations ?? []) {
+  for (const fact of readColumnReferences(sf, ctx.columnNames)) {
+    const site = `${rel}:${String(sf.compilerNode.getLineAndCharacterOfPosition(fact.node.getStart()).line + 1)}`;
+    for (const declaration of fact.declarations) {
       const column = ts.isPropertyAssignment(declaration) ? ctx.byDeclaration.get(declarationSite(declaration)) : undefined;
       if (column !== undefined) {
         const key = columnKey(column.tableKey, column.jsProp);
@@ -325,46 +261,11 @@ interface RowReadCtx {
   readonly add: (table: TableDef, name: string, node: Node) => void;
 }
 
-/** ONE file's row-shaped reads: member accesses (`<x>.<col>` / `<x>["<col>"]`) and destructures. */
+/** Attribute canonical native row-member facts under this lens's over-inclusive shape rule. */
 function scanFileRowReads(sf: SourceFile, scan: RowReadCtx): void {
-  for (const kind of [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const) {
-    for (const node of sf.getDescendantsOfKind(kind)) {
-      recordAccessRead(node, scan);
-    }
-  }
-  for (const pattern of sf.getDescendantsOfKind(SyntaxKind.ObjectBindingPattern)) {
-    recordDestructuredReads(pattern, scan);
-  }
-}
-
-/** ONE member access as a row read, if its name is a column and its object's shape is a row of some table.
- *  Reads through `staticMemberAccess` — the ONE spelling of "what member does this node read" (`.col`,
- *  `?.col`, `["col"]`); two copies is how one arm learns a shape and the other silently does not. */
-function recordAccessRead(node: Node, scan: RowReadCtx): void {
-  const access = staticMemberAccess(node);
-  if (access === undefined || !scan.columnNames.has(access.name)) {
-    return;
-  }
-  for (const table of rowTablesOf(access.receiver.getType(), scan.tables, scan.cache)) {
-    scan.add(table, access.name, node);
-  }
-}
-
-/** `const { <col> } = row` / `({ <col> }: Row) => …` — a destructure is a read of every name it binds. The
- *  pattern's own type IS the row type (ts-morph resolves a binding pattern to its declaration's type). */
-function recordDestructuredReads(pattern: Node, scan: RowReadCtx): void {
-  if (!Node.isObjectBindingPattern(pattern)) {
-    return;
-  }
-  const bound = pattern.getElements().map((e) => (e.getPropertyNameNode() ?? e.getNameNode()).getText());
-  if (!bound.some((n) => scan.columnNames.has(n))) {
-    return;
-  }
-  for (const table of rowTablesOf(pattern.getType(), scan.tables, scan.cache)) {
-    for (const name of bound.filter((n) => scan.columnNames.has(n))) {
-      scan.add(table, name, pattern);
+  for (const read of readRowShapeMembers(sf, scan.columnNames)) {
+    for (const table of rowTablesOf(read.receiver.getType(), scan.tables, scan.cache)) {
+      scan.add(table, read.name, read.node);
     }
   }
 }
-
-/** The four classes in report order — worst rot first, the healthy state last (and never printed as a hit). */

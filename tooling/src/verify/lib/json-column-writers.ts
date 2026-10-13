@@ -3,16 +3,20 @@
 // bounded omission/spread/known-normalizer grammar (one set-helper hop and the accumulator spelling). Split out of
 // `json-column-write-fact.ts` at the size cap (2026-09-18); ARM B (guard dominance) and the fact stay there
 // and reuse `collectWriters`. One-way: this module imports nothing from it.
-import { readCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
+
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { CallExpression, FunctionDeclaration, ObjectLiteralExpression, Node as TsNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import type { CallExpression, Node as TsNode } from "ts-morph";
+import { Node } from "ts-morph";
+import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-write-chain.ts";
+import { readDrizzleWriteRoots } from "../../floor/code-facts/drizzle-write-chain.ts";
+import { readDrizzleWriterSource } from "../../floor/code-facts/drizzle-writer-source.ts";
+import type { DrizzleWriterMember, DrizzleWriterSource } from "../../floor/code-facts/drizzle-writer-source-contract.ts";
+import { tableFromReference } from "../../floor/code-facts/schema-resolve.ts";
+import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
 import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts";
 import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import { proveJsonColumnMerge } from "./json-column-merge-proof.ts";
-import { jsonColumnCallContext } from "./json-column-value-origin.ts";
-import { tableFromReference } from "./schema-fact-resolve.ts";
-import { schemaDeclarationKey } from "./schema-fact-value.ts";
+import { jsonColumnCallContext } from "./json-column-origin-context.ts";
 
 /** The producer scope both arms judge: a write outside the domain tier is wiring, never a writer. */
 export const DOMAIN_DIR = "/packages/server/src/domain/";
@@ -24,21 +28,19 @@ export interface JsonColumnWriter {
 }
 
 /** The bound schema table a fluent write targets; a namespace or alias retains declaration identity. */
-export function updatedTable(setCallee: TsNode, schema: SchemaModel, chainVerb = "update"): string | undefined {
-  let cur: TsNode = setCallee;
+export function updatedTable(setCallee: TsNode, schema: SchemaModel, chainVerb: DrizzleWriteRootVerb = "update"): string | undefined {
+  const targets = readDrizzleWriteRoots(setCallee, chainVerb);
+  if (targets.kind === "unresolved") {
+    throw new Error(`json-column-writes: cannot establish write target: ${targets.detail}`);
+  }
+  const tables = new Map(schema.tables.map((candidate) => [schemaDeclarationKey(candidate.declaration), candidate]));
   let table: string | undefined;
-  while (table === undefined) {
-    const call = Node.isCallExpression(cur) ? cur : undefined;
-    const member = staticMemberAccess(call?.getExpression() ?? cur);
-    if (member === undefined) {
+  for (const target of targets.value) {
+    const bound = tableFromReference(target.table, tables);
+    if (bound.kind === "resolved") {
+      table = bound.value.identity.declarationName;
       break;
     }
-    const argument = member.name === chainVerb ? call?.getArguments()[0] : undefined;
-    if (argument !== undefined) {
-      const bound = tableFromReference(argument, new Map(schema.tables.map((candidate) => [schemaDeclarationKey(candidate.declaration), candidate])));
-      table = bound.kind === "resolved" ? bound.value.identity.declarationName : undefined;
-    }
-    cur = member.receiver;
   }
   return table;
 }
@@ -60,60 +62,37 @@ function appendWriter(node: TsNode, rhs: TsNode | undefined, sink: Sink, context
   sink.out.push({ node, wholeReplace: !proof.keywise, historicalHeal: proof.historicalHeal });
 }
 
-function collectFromObject(obj: ObjectLiteralExpression, sink: Sink, context: JsonColumnOriginContext, hop: number): void {
-  for (const prop of obj.getProperties()) {
-    if (Node.isSpreadAssignment(prop)) {
-      collectWriters(prop.getExpression(), sink, context, hop);
-    } else if (Node.isPropertyAssignment(prop) && sink.cols.has(prop.getName())) {
-      appendWriter(prop, prop.getInitializer(), sink, context);
-    } else if (Node.isShorthandPropertyAssignment(prop) && sink.cols.has(prop.getName())) {
-      appendWriter(prop, prop.getNameNode(), sink, context);
+function judgeWriterMembers(members: readonly DrizzleWriterMember[], sink: Sink, context: JsonColumnOriginContext, hop: number): void {
+  for (const member of members) {
+    if (member.kind === "spread") {
+      judgeWriterSource(member.source, sink, context, hop);
+    } else if (sink.cols.has(member.name)) {
+      appendWriter(member.node, member.value, sink, context);
     }
   }
 }
 
-/** Actual helper parameters inherit their call-site expression, not boolean 'any local' taint. */
+function judgeWriterSource(source: DrizzleWriterSource, sink: Sink, context: JsonColumnOriginContext, hop: number): void {
+  if (source.kind === "object") {
+    judgeWriterMembers(source.members, sink, context, hop);
+  } else if (source.kind === "choice") {
+    for (const value of source.values) {
+      judgeWriterSource(value, sink, context, hop);
+    }
+  } else if (source.kind === "call" && hop < 1) {
+    const next = jsonColumnCallContext(source.node, source.owner, context);
+    judgeWriterMembers(source.assignments, sink, next, hop);
+    for (const value of source.returns) {
+      judgeWriterSource(value, sink, next, hop + 1);
+    }
+  } else if (source.kind === "unresolved" && hop < 1) {
+    throw new Error(`json-column-writes: cannot prove set helper body: ${source.detail}`);
+  }
+}
+
+/** The consumer retains its one-helper precision while all source/binding extraction has one floor home. */
 export function collectWriters(arg: TsNode | undefined, sink: Sink, context: JsonColumnOriginContext, hop: number): void {
-  if (arg === undefined) {
-    return;
-  }
-  if (Node.isParenthesizedExpression(arg)) {
-    collectWriters(arg.getExpression(), sink, context, hop);
-  } else if (Node.isConditionalExpression(arg)) {
-    collectWriters(arg.getWhenTrue(), sink, context, hop);
-    collectWriters(arg.getWhenFalse(), sink, context, hop);
-  } else if (Node.isObjectLiteralExpression(arg)) {
-    collectFromObject(arg, sink, context, hop);
-  } else if (Node.isCallExpression(arg) && hop < 1) {
-    descendHelper(arg, sink, context, hop);
-  }
-}
-
-/** The helper's accumulator shape (`const set: Partial<…> = {}; set.selection = …; return set;`) — the live
- *  `parsePatch` spelling. */
-function collectFromAccumulator(def: FunctionDeclaration, sink: Sink, context: JsonColumnOriginContext): void {
-  for (const bin of def.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
-    const lhs = bin.getLeft();
-    if (bin.getOperatorToken().getText() === "=" && Node.isPropertyAccessExpression(lhs) && sink.cols.has(lhs.getName())) {
-      appendWriter(bin, bin.getRight(), sink, context);
-    }
-  }
-}
-
-/** One set-helper hop, preserving exact lexical parameter bindings and the helper's own returns. */
-function descendHelper(call: CallExpression, sink: Sink, context: JsonColumnOriginContext, hop: number): void {
-  const returned = readCallReturns(call);
-  if (returned.kind === "unresolved") {
-    throw new Error(`json-column-writes: cannot prove set helper body: ${returned.detail}`);
-  }
-  const owner = returned.trace.origin;
-  const next = jsonColumnCallContext(call, owner, context);
-  if (Node.isFunctionDeclaration(owner)) {
-    collectFromAccumulator(owner, sink, next);
-  }
-  for (const value of returned.value) {
-    collectWriters(value, sink, next, hop + 1);
-  }
+  judgeWriterSource(readDrizzleWriterSource(arg), sink, context, hop);
 }
 
 /** The column a collected writer assigns — a `metadata: …` property, or a `set.metadata = …` accumulator
@@ -149,8 +128,9 @@ function jsonTableOf(
 export function collectJsonWritersByColumn(
   calls: readonly CallExpression[],
   jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
-  schema: SchemaModel,
+  context: JsonColumnOriginContext,
 ): Map<string, JsonColumnWriter[]> {
+  const schema = context.schema;
   const byColumn = new Map<string, JsonColumnWriter[]>();
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
@@ -163,7 +143,6 @@ export function collectJsonWritersByColumn(
       if (table === undefined) {
         throw new Error(`json-column-writes: writer table disappeared: ${target.table}`);
       }
-      const context: JsonColumnOriginContext = { schema, bindings: new Map(), active: new Set(), mergeActive: new Set() };
       collectWriters(call.getArguments()[0], { cols: target.cols, out: found, table }, context, 0);
       for (const w of found) {
         const key = `${target.table}.${jsonWriterColumn(w)}`;

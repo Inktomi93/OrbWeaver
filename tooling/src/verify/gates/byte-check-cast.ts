@@ -26,13 +26,14 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readSqlTemplateCarrier } from "../../floor/code-facts/drizzle-sql.ts";
 import { readMemberReference, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import { readTemplateSkeleton } from "../../floor/code-facts/template-static-text.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
-import { readTemplateSkeleton } from "../lib/template-static-text.ts";
 
 const DRIZZLE_SQLITE = "drizzle-orm/sqlite-core";
 const DRIZZLE_ORM = "drizzle-orm";
@@ -78,21 +79,22 @@ function isDrizzleExport(callee: MorphNode, moduleSpecifier: string, exportedNam
 /** The SQL template a `check(name, …)` call carries: `sql.raw(…)`, a `sql` tagged template, or a bare
  *  template argument. Anything else (a precomputed string, a call result) carries no authored SQL. */
 function checkSqlTemplate(call: CallExpression): MorphNode | null {
-  const sqlArgument = call.getArguments()[1];
-  if (sqlArgument === undefined) {
+  const argument = call.getArguments()[1];
+  const carrier = argument === undefined ? undefined : readSqlTemplateCarrier(argument);
+  if (carrier === undefined) {
     return null;
   }
-  if (Node.isTaggedTemplateExpression(sqlArgument)) {
-    return isDrizzleExport(sqlArgument.getTag(), DRIZZLE_ORM, SQL_EXPORT) ? sqlArgument.getTemplate() : null;
+  if (carrier.kind === "bare") {
+    return carrier.template;
   }
-  if (Node.isCallExpression(sqlArgument)) {
-    const member = readMemberReference(sqlArgument.getExpression());
-    if (member.kind !== "resolved" || member.value.name !== RAW_MEMBER || !isDrizzleExport(sqlArgument.getExpression(), DRIZZLE_ORM, RAW_MEMBER)) {
-      return null;
-    }
-    return sqlArgument.getArguments()[0] ?? null;
+  const origin = carrier.origin;
+  if (origin.kind !== "resolved" || originModuleSpecifier(origin.value) !== DRIZZLE_ORM) {
+    return null;
   }
-  return Node.isNoSubstitutionTemplateLiteral(sqlArgument) || Node.isTemplateExpression(sqlArgument) ? sqlArgument : null;
+  const name = origin.value.memberPath.at(-1) ?? origin.value.exportedName;
+  const matches =
+    carrier.kind === "tagged" ? name === SQL_EXPORT : name === RAW_MEMBER && carrier.member.kind === "resolved" && carrier.member.value.name === RAW_MEMBER;
+  return matches ? carrier.template : null;
 }
 
 /** The authored NAME a cap hole carries: a bare identifier, or the member a dotted/bracket read names. A cap

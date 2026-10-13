@@ -45,8 +45,8 @@
 // after): population 3,315 → 3,427 (+112, `packages/inference/src/`), findings 0 → 0. A SEAL over a clean
 // tree, not a debt discovery — worth what it costs the day a laundering cast is written in that package.
 import { Node, SyntaxKind } from "ts-morph";
+import { canonicalIdBrand, ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { defineGate } from "../contract/policy.ts";
-import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 

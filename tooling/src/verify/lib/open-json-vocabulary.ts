@@ -4,11 +4,14 @@
 // those keys accumulate into (`Vocab`, `addWrite`), and the two TypeScript-side writer collections. Split
 // out of `open-json-parity-fact.ts` at the size cap (2026-09-18); the SQL-side `json_set` writers stay with
 // the SQL reader there because they share its templates. One-way: this module imports nothing from it.
+
 import type { DrizzleWrite } from "@orb/tooling/floor/code-facts/drizzle-columns";
 import { readDrizzleWrite } from "@orb/tooling/floor/code-facts/drizzle-columns";
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { BinaryExpression, CallExpression, PropertyAssignment, Node as TsNode, Type } from "ts-morph";
+import type { BinaryExpression, PropertyAssignment, Node as TsNode, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStoredValueShape } from "../../floor/code-facts/stored-value-shape.ts";
+import type { StoredValueMember, StoredValueShape } from "../../floor/code-facts/stored-value-shape-contract.ts";
 import type { SchemaModel } from "../contract/schema-fact.ts";
 
 export interface OpenJsonColumn {
@@ -129,93 +132,41 @@ const MAX_HOP = 2;
 /** The KEY SET a value expression stores, or undefined when it is unknowable. AST first (a literal shape is
  *  exact), TYPE second (a named type is exact too — and an open-bag type is precisely what "unknowable"
  *  means here, which is the UNPROVABLE arm's whole signal). */
-function valueKeys(expr: TsNode | undefined, hop: number): ReadonlySet<string> | undefined {
-  if (expr === undefined) {
+function memberShapeKeys(member: StoredValueMember, hop: number): ReadonlySet<string> | undefined {
+  if (member.kind === "spread") {
+    return shapeKeys(member.value, hop + 1);
+  }
+  if (member.kind === "computed") {
+    return;
+  }
+  return new Set(member.kind === "named" ? [member.name] : []);
+}
+
+function shapeKeys(fact: StoredValueShape, hop: number): ReadonlySet<string> | undefined {
+  if (fact.kind === "sql" || fact.kind === "unresolved") {
+    return;
+  }
+  if (fact.kind === "empty") {
     return new Set();
   }
-  const node = unwrap(expr);
-  if (Node.isTaggedTemplateExpression(node)) {
-    return; // a `sql`-tagged raw fragment (json_set/json_patch) — an UNKNOWABLE key set, never the SQL prototype
+  if (fact.kind === "object") {
+    return fact.members.map((member) => memberShapeKeys(member, hop)).reduce(unionKeys, new Set<string>());
   }
-  if (node.getKind() === SyntaxKind.NullKeyword || node.getText() === "undefined") {
-    return new Set(); // a CLEAR writes no keys
+  if (fact.kind === "choice") {
+    return fact.values.map((value) => shapeKeys(value, hop)).reduce(unionKeys);
   }
-  if (Node.isObjectLiteralExpression(node)) {
-    return objectLiteralKeys(node, hop);
+  if ((fact.kind === "call" || fact.kind === "binding") && hop < MAX_HOP) {
+    return fact.values.map((value) => shapeKeys(value, hop + 1)).reduce(unionKeys);
   }
-  if (Node.isConditionalExpression(node)) {
-    return unionKeys(valueKeys(node.getWhenTrue(), hop), valueKeys(node.getWhenFalse(), hop));
-  }
-  if (hop < MAX_HOP && Node.isIdentifier(node)) {
-    const via = identifierValue(node);
-    if (via !== undefined) {
-      return valueKeys(via, hop + 1);
-    }
-  }
-  if (hop < MAX_HOP && Node.isCallExpression(node)) {
-    const returned = returnedValues(node);
-    if (returned.length > 0) {
-      return returned.map((r) => valueKeys(r, hop + 1)).reduce(unionKeys);
-    }
-  }
-  return typeKeys(node.getType());
+  return typeKeys(fact.type);
+}
+
+function valueKeys(expr: TsNode | undefined): ReadonlySet<string> | undefined {
+  return expr === undefined ? new Set() : shapeKeys(readStoredValueShape(expr), 0);
 }
 
 function unionKeys(a: ReadonlySet<string> | undefined, b: ReadonlySet<string> | undefined): ReadonlySet<string> | undefined {
   return a === undefined || b === undefined ? undefined : new Set([...a, ...b]);
-}
-
-/** One object-literal member's key contribution: a spread RECURSES (an open-bag spread makes the whole
- *  literal unknowable), a computed key names nothing statically, a plain/shorthand key is itself. */
-function memberKeys(prop: TsNode, hop: number): ReadonlySet<string> | undefined {
-  if (Node.isSpreadAssignment(prop)) {
-    return valueKeys(prop.getExpression(), hop + 1);
-  }
-  if (Node.isPropertyAssignment(prop)) {
-    return Node.isComputedPropertyName(prop.getNameNode()) ? undefined : new Set([prop.getName()]);
-  }
-  return Node.isShorthandPropertyAssignment(prop) ? new Set([prop.getName()]) : new Set();
-}
-
-function objectLiteralKeys(obj: TsNode, hop: number): ReadonlySet<string> | undefined {
-  return obj
-    .asKindOrThrow(SyntaxKind.ObjectLiteralExpression)
-    .getProperties()
-    .map((prop) => memberKeys(prop, hop))
-    .reduce(unionKeys, new Set<string>());
-}
-
-/** The initializer a same-file `const`/`let` binds, one hop. */
-function identifierValue(id: TsNode): TsNode | undefined {
-  return id
-    .asKindOrThrow(SyntaxKind.Identifier)
-    .getDefinitionNodes()
-    .flatMap((def) => {
-      const init = def.asKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-      return init === undefined ? [] : [init];
-    })
-    .at(0);
-}
-
-/** Every expression a locally-declared callee RETURNS, one hop. */
-function returnedValues(call: CallExpression): TsNode[] {
-  const callee = unwrap(call.getExpression());
-  if (!Node.isIdentifier(callee)) {
-    return [];
-  }
-  const out: TsNode[] = [];
-  for (const def of callee.getDefinitionNodes()) {
-    if (!(Node.isFunctionDeclaration(def) || Node.isVariableDeclaration(def))) {
-      continue;
-    }
-    for (const ret of def.getDescendantsOfKind(SyntaxKind.ReturnStatement)) {
-      const e = ret.getExpression();
-      if (e !== undefined) {
-        out.push(e);
-      }
-    }
-  }
-  return out;
 }
 
 // ── writer collection ───────────────────────────────────────────────────────────────────────────────────
@@ -279,7 +230,7 @@ export function collectPropertyWrites(
     }
     const table = write.kind === "resolved" ? write.value?.target.getText() : undefined;
     const attributed = table === undefined ? [] : cols.filter((c) => c.table === table);
-    addWrite(vocabs, attributed.length > 0 ? attributed : cols, valueKeys(pa.getInitializer(), 0));
+    addWrite(vocabs, attributed.length > 0 ? attributed : cols, valueKeys(pa.getInitializer()));
   }
 }
 
@@ -294,7 +245,7 @@ export function collectAccumulatorWrites(
     const lhs = bin.getLeft().asKind(SyntaxKind.PropertyAccessExpression);
     const cols = lhs === undefined || bin.getOperatorToken().getText() !== "=" ? undefined : byProp.get(lhs.getName());
     if (cols !== undefined) {
-      addWrite(vocabs, cols, valueKeys(bin.getRight(), 0));
+      addWrite(vocabs, cols, valueKeys(bin.getRight()));
     }
   }
 }

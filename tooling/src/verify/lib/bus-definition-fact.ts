@@ -10,6 +10,7 @@
 // are a contracts/server question, definitions reach the client too.
 import type { CallExpression, Node as MorphNode, SourceFile, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
 import type { BusBeltShape, BusDefinitionFact, BusUnionDefinition } from "../contract/bus-definition-fact.ts";
 import type { BusDeclarationIdentity, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
@@ -27,7 +28,6 @@ import {
   NAMED_BUS_UNIONS,
   typeDiscriminators,
 } from "./bus-fact-read.ts";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
 
 const DISCRIMINATOR = "type";
 

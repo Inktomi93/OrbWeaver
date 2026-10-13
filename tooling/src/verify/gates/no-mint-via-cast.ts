@@ -68,10 +68,11 @@
 // a SEAL on a `hard` ban, which is the arm where a silent narrowing costs the most.
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
 import type { ModuleMemberOrigin, ReferenceOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { createKitIdCallMatcher, ID_BRAND_HOME } from "../lib/id-brand.ts";
+import { createKitIdCallMatcher } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 

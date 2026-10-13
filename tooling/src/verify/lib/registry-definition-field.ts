@@ -8,7 +8,7 @@
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node } from "ts-morph";
-import { readStaticAuthoredScalar, resolveAuthoredComposite } from "./static-authored-value.ts";
+import { readStaticAuthoredScalar, resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
 
 /** The authored initializer of one named property, or undefined when the literal declares none. */
 export function definitionField(object: ObjectLiteralExpression, name: string): MorphNode | undefined {

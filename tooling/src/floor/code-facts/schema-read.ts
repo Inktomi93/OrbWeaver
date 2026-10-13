@@ -28,8 +28,12 @@
 // non-literal computed key, and a binding that resolves to ZERO columns REFUSE. The columns are also
 // declared as a #946 POPULATION, so an empty or shrinking set is loud at the entrypoint even if some future
 // shape slips the refusals.
-import type { CallExpression, Node, ObjectLiteralExpression, Project, PropertyAssignment, SourceFile, VariableDeclaration } from "ts-morph";
+import type { CallExpression, Node, ObjectLiteralExpression, Project, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
+import { resolveStableExpression } from "./reference-fact.ts";
+import type { UnresolvedReferenceFact } from "./reference-fact-contract.ts";
+import { readSchemaObjectMembers } from "./schema-object.ts";
+import type { SchemaObjectEntry } from "./schema-object-contract.ts";
 
 const SQLITE_TABLE = "sqliteTable";
 const SQLITE_CORE_MODULE = "drizzle-orm/sqlite-core";
@@ -39,8 +43,7 @@ const SCHEMA_FILE_RE = /^packages\/db\/src\/schema\/(?<name>[^/]+)\.ts$/u;
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const SCHEMA_SRC_DIR = "/packages/db/src/schema/";
 const SCHEMA_BARREL_SUFFIX = "/schema/index.ts";
-/** How many characters of an unsupported columns expression the refusal quotes. */
-const DIAGNOSTIC_PREVIEW_CHARS = 120;
+const COMPUTED_KEY_PREVIEW_LENGTH = 120;
 
 /** One RESOLVED column of a `sqliteTable(...)` columns object — the reader's member record, whatever
  *  authoring shape declared it (an inline property, a shorthand pointing at a const, a computed literal
@@ -105,143 +108,75 @@ export function isSchemaFile(repoRelPath: string): boolean {
   return SCHEMA_FILE_RE.test(repoRelPath) && repoRelPath !== SCHEMA_BARREL;
 }
 
-/** Strip `as X` / `satisfies X` / parentheses so an authored object/identifier is reachable. Mirrors
- *  `verify/lib/ast-read.ts` `unwrapExpression`; `floor` sits BELOW `verify` and cannot import from it. */
-function unwrap(node: Node): Node {
-  let current = node;
-  while (TsNode.isAsExpression(current) || TsNode.isSatisfiesExpression(current) || TsNode.isParenthesizedExpression(current)) {
-    current = current.getExpression();
+function columnsRefusal(fact: UnresolvedReferenceFact): never {
+  const source = fact.node.getSourceFile().getFilePath();
+  const kind = fact.node.getKindName();
+  if (TsNode.isMethodDeclaration(fact.node) || TsNode.isGetAccessorDeclaration(fact.node) || TsNode.isSetAccessorDeclaration(fact.node)) {
+    throw new Error(`schema-read: unsupported columns member kind ${kind} in ${source}`);
   }
-  return current;
+  if (fact.detail.startsWith("computed schema member:") || TsNode.isComputedPropertyName(fact.node) || TsNode.isComputedPropertyName(fact.node.getParent())) {
+    throw new Error(`schema-read: computed column key in ${source} is not a string literal: ${fact.detail}`);
+  }
+  if (fact.reason === "cycle") {
+    throw new Error(`schema-read: columns binding cycle at ${source}: ${fact.detail}`);
+  }
+  if (fact.reason === "missing") {
+    throw new Error(`schema-read: columns binding in ${source} resolves to no local declaration or named import: ${fact.detail}`);
+  }
+  throw new Error(`schema-read: unsupported columns expression in ${source}: ${fact.detail}`);
 }
 
-/** The declaration an identifier names: the same file's own const, or the one a named import points at.
- *  Undefined when nothing in reach binds it — the caller turns that into a loud refusal. */
-function bindingFor(owner: SourceFile, localName: string): VariableDeclaration | undefined {
-  const local = owner.getVariableDeclaration(localName);
-  if (local !== undefined) {
-    return local;
+/** An absent argument is a consumer-owned malformed call; unreadable objects are never empty. */
+export function resolveColumnsObject(columnsArg: Node | undefined): ObjectLiteralExpression | undefined {
+  if (columnsArg === undefined) {
+    return;
   }
-  const imported = owner
-    .getImportDeclarations()
-    .flatMap((declaration) => declaration.getNamedImports().map((specifier) => ({ declaration, specifier })))
-    .find(({ specifier }) => (specifier.getAliasNode()?.getText() ?? specifier.getName()) === localName);
-  return imported === undefined ? undefined : imported.declaration.getModuleSpecifierSourceFile()?.getVariableDeclaration(imported.specifier.getName());
+  const members = readSchemaObjectMembers(columnsArg);
+  if (members.kind === "unresolved") {
+    return columnsRefusal(members);
+  }
+  const boundEmpty = members.value.emptySources.find((source) => source.bound);
+  if (boundEmpty !== undefined) {
+    throw new Error(`schema-read: columns binding ${boundEmpty.node.getText()} resolves to an EMPTY object — the table's column set cannot be established`);
+  }
+  return members.value.object;
 }
 
-/** The object literal an expression denotes, following identifier/alias hops into local and imported
- *  declarations. Throws on any other shape (a call, a function, a spread of one), on an unresolvable
- *  binding, and on an alias cycle — a columns set this reader cannot establish must never read as EMPTY. */
-function objectLiteralFor(expression: Node, seen: ReadonlySet<string>): ObjectLiteralExpression {
-  const node = unwrap(expression);
-  if (TsNode.isObjectLiteralExpression(node)) {
-    return node;
-  }
-  if (!TsNode.isIdentifier(node)) {
+function columnOfEntry(entry: SchemaObjectEntry): SchemaColumn {
+  if (TsNode.isComputedPropertyName(entry.nameNode) && !entry.literalString) {
     throw new Error(
-      `schema-read: unsupported columns expression in ${node.getSourceFile().getFilePath()}: ${node.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
+      `schema-read: computed column key in ${entry.nameNode.getSourceFile().getFilePath()} is not a string literal: ${entry.nameNode.getText().slice(0, COMPUTED_KEY_PREVIEW_LENGTH)}`,
     );
   }
-  const name = node.getText();
-  const declaration = bindingFor(node.getSourceFile(), name);
-  if (declaration === undefined) {
-    throw new Error(`schema-read: columns binding "${name}" in ${node.getSourceFile().getFilePath()} resolves to no local declaration or named import`);
+  if (!TsNode.isShorthandPropertyAssignment(entry.node)) {
+    return { name: entry.name, node: entry.node, text: entry.value.getText(), initializer: entry.value };
   }
-  const key = `${declaration.getSourceFile().getFilePath()}#${declaration.getName()}`;
-  if (seen.has(key)) {
-    throw new Error(`schema-read: columns binding cycle at ${key}`);
+  const value = resolveStableExpression(entry.value);
+  const declaration = value.trace.declarations.findLast(TsNode.isVariableDeclaration);
+  const initializer = declaration?.getInitializer();
+  if (declaration === undefined || initializer === undefined) {
+    throw new Error(
+      `schema-read: shorthand column "${entry.name}" in ${entry.node.getSourceFile().getFilePath()} resolves to no local declaration or named import`,
+    );
   }
-  const initializer = declaration.getInitializer();
-  if (initializer === undefined) {
-    throw new Error(`schema-read: columns binding ${key} has no initializer`);
-  }
-  const resolved = objectLiteralFor(initializer, new Set([...seen, key]));
-  // A binding hop that lands on an EMPTY object is the silent-shrink shape wearing a resolution: the table
-  // would read as owing nothing at all. An INLINE `sqliteTable("x", {})` is a different claim (an authored
-  // empty table, which the table gates already fail closed on) and stays readable (#1035).
-  if (resolved.getProperties().length === 0) {
-    throw new Error(`schema-read: columns binding ${key} resolves to an EMPTY object — the table's column set cannot be established`);
-  }
-  return resolved;
+  return { name: entry.name, node: declaration, text: initializer.getText(), initializer };
 }
 
-/** The `sqliteTable(…)` columns argument as an object literal, resolved through local/imported bindings.
- *  Undefined ONLY when the argument is absent (a malformed call); every unresolvable shape throws. */
-export function resolveColumnsObject(columnsArg: Node | undefined): ObjectLiteralExpression | undefined {
-  return columnsArg === undefined ? undefined : objectLiteralFor(columnsArg, new Set());
-}
-
-/** A property's KEY: its written name, or — for a COMPUTED key — the string literal it evaluates to. A
- *  computed key whose expression is not a literal cannot be named, and naming it `[k]` (what `getName()`
- *  returns) would hand every consumer a column that matches nothing: refuse instead. */
-function propertyKey(prop: PropertyAssignment): string {
-  const nameNode = prop.getNameNode();
-  if (!TsNode.isComputedPropertyName(nameNode)) {
-    return prop.getName();
-  }
-  const expression = unwrap(nameNode.getExpression());
-  if (TsNode.isStringLiteral(expression) || TsNode.isNoSubstitutionTemplateLiteral(expression)) {
-    return expression.getLiteralText();
-  }
-  throw new Error(
-    `schema-read: computed column key in ${prop.getSourceFile().getFilePath()} is not a string literal: ${nameNode.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
-  );
-}
-
-/** A SHORTHAND member (`{ id, ownerId }`) is the same column one hop away: resolve the binding it names —
- *  local or imported, the same hop an identifier columns object takes — and report at THAT declaration. An
- *  unresolvable shorthand refuses; before #1035 it was dropped, and the column's whole obligation with it. */
-function shorthandColumn(prop: Node): SchemaColumn {
-  const name = prop.asKindOrThrow(SyntaxKind.ShorthandPropertyAssignment).getName();
-  const declaration = bindingFor(prop.getSourceFile(), name);
-  if (declaration === undefined) {
-    throw new Error(`schema-read: shorthand column "${name}" in ${prop.getSourceFile().getFilePath()} resolves to no local declaration or named import`);
-  }
-  const initializer = declaration.getInitializer();
-  if (initializer === undefined) {
-    throw new Error(`schema-read: shorthand column "${name}" resolves to ${declaration.getSourceFile().getFilePath()}#${name}, which has no initializer`);
-  }
-  return { name, node: declaration, text: initializer.getText(), initializer };
-}
-
-/** Every RESOLVED column of a columns object, flattening object spreads (`{...base, x}`) into one list.
- *  ANSWERS every member kind: an inline property, a computed literal key, a shorthand (through its
- *  binding), a spread (recursively) — and REFUSES on anything else, because a member this reader cannot
- *  establish must never leave the set quietly (#1035). */
+/** Structural columns projected from the same native authored members as the semantic schema query. */
 export function columnProperties(columnsArg: Node | undefined): readonly SchemaColumn[] {
-  const object = resolveColumnsObject(columnsArg);
-  if (object === undefined) {
+  if (columnsArg === undefined) {
     return [];
   }
-  const columns: SchemaColumn[] = [];
-  for (const prop of object.getProperties()) {
-    if (prop.isKind(SyntaxKind.PropertyAssignment)) {
-      const initializer = prop.getInitializer();
-      columns.push({ name: propertyKey(prop), node: prop, text: initializer?.getText() ?? "", initializer });
-      continue;
-    }
-    if (prop.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
-      columns.push(shorthandColumn(prop));
-      continue;
-    }
-    if (prop.isKind(SyntaxKind.SpreadAssignment)) {
-      const spread = columnProperties(prop.getExpression());
-      if (spread.length === 0) {
-        throw new Error(
-          `schema-read: columns spread "${prop.getExpression().getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}" in ${prop.getSourceFile().getFilePath()} resolved to zero columns`,
-        );
-      }
-      columns.push(...spread);
-      continue;
-    }
-    throw new Error(
-      `schema-read: unsupported columns member kind ${prop.getKindName()} in ${prop.getSourceFile().getFilePath()}: ${prop.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
-    );
+  const members = readSchemaObjectMembers(columnsArg);
+  if (members.kind === "unresolved") {
+    return columnsRefusal(members);
   }
-  if (columns.length === 0 && object.getProperties().length > 0) {
-    throw new Error(`schema-read: columns object in ${object.getSourceFile().getFilePath()} has members but resolved to ZERO columns`);
+  const empty = members.value.emptySources.find((source) => source.bound || source.spread);
+  if (empty !== undefined) {
+    const reason = empty.bound ? "resolves to an EMPTY object" : "resolved to zero columns";
+    throw new Error(`schema-read: columns ${empty.node.getText()} ${reason}`);
   }
-  return columns;
+  return members.value.entries.map(columnOfEntry);
 }
 
 /** The columns object literal's members, read into `SchemaColumn`s. */

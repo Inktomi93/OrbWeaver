@@ -21,7 +21,6 @@ import type { ModuleMemberReference } from "../contract/symbol-reference.ts";
 
 /** The node kinds a gate MUST subscribe to so that no spelling of a member read escapes it. Subscribing to
  *  `PropertyAccessExpression` alone is the #1506 hole; this tuple is the whole family. */
-export const MEMBER_ACCESS_KINDS = [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const;
 
 /** Does the member read at `node` name one of `names`, however spelled? The one-line door for a gate whose
  *  subject is a fixed member vocabulary (`.insert`/`.update`/`.delete`, `.state`, `.printResult`). */

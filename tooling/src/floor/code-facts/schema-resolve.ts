@@ -1,8 +1,5 @@
-// RESOLUTION inside the loaded schema population: a node to the `SchemaTable`/`SchemaColumn` it denotes
-// (module origin first, then the stable-binding trace), a column's `.references(…)` target to a population
-// column or an external one, and a table's extras callback to its indexes. Every refusal is a
-// `SchemaRefusal` the fact converts into a structured `unresolved` status. Split out of `schema-fact.ts` at
-// the size cap (2026-09-18); one-way — this module imports nothing from it.
+// Canonical table/column, FK and index resolution inside one supplied native schema population.
+// Unknown provenance is a SchemaRefusal; the owner projects it as structured unresolved evidence.
 import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
@@ -15,8 +12,8 @@ import type {
   SchemaTable,
   SchemaTableForeignKey,
   SchemaTableIdentity,
-} from "../contract/schema-fact.ts";
-import type { ColumnDraft, TableDraft } from "./schema-fact-value.ts";
+} from "./schema-model-contract.ts";
+import type { ColumnDraft, TableDraft } from "./schema-value.ts";
 import {
   effectiveObjectProperty,
   exactDrizzleExport,
@@ -28,7 +25,7 @@ import {
   schemaIndexKind,
   staticString,
   unresolved,
-} from "./schema-fact-value.ts";
+} from "./schema-value.ts";
 
 function returnedExpression(node: MorphNode, subject: string): MorphNode {
   const stable = resolveStableExpression(node);

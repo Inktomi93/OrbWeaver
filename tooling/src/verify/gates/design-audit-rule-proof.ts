@@ -59,9 +59,9 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredScalar, resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
-import { readStaticAuthoredScalar, resolveAuthoredComposite } from "../lib/static-authored-value.ts";
 
 const REGISTRY = "tooling/src/ui-audit/contract/rules.ts";
 const TEST_PREFIX = "tests/tooling/ui-audit/";

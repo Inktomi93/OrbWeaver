@@ -30,8 +30,9 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { MEMBER_ACCESS_KINDS, readsMemberNamed } from "../lib/symbol-reference.ts";
+import { readsMemberNamed } from "../lib/symbol-reference.ts";
 
 const TRANSFORM = "transform";
 const STYLE = "style";

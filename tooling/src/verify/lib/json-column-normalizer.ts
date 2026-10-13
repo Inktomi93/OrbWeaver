@@ -1,21 +1,34 @@
 // Bounded valid-row normalization proof for JSON write provenance. Schema output parity alone is not
 // identity: transforms/custom parses refuse, and catch explicitly retains a historical-heal arm.
+
 import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readFunctionBodyNodes } from "../../floor/code-facts/function-context.ts";
+import type { ReferenceFact, UnresolvedReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
+import { readStaticAuthoredValue, resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
+import { resolved, unresolved } from "../../floor/code-facts/type-member-origin-core.ts";
+import { propertyValue } from "../../floor/code-facts/value-carrier.ts";
 import type { JsonNormalizerProof } from "../contract/json-column-origin.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { jsonColumnSchemaFactoryProof } from "./json-column-schema-factory-proof.ts";
-import { readStaticAuthoredValue, resolveAuthoredComposite } from "./static-authored-value.ts";
 
-type SchemaBodyProof = Pick<JsonNormalizerProof, "historicalHeal">;
+type SchemaBodyProof = ReferenceFact<boolean>;
 
-export function jsonColumnPropertyValue(property: MorphNode | undefined): MorphNode | undefined {
-  if (Node.isPropertyAssignment(property)) {
-    return property.getInitializer();
-  }
-  return Node.isShorthandPropertyAssignment(property) ? property.getNameNode() : undefined;
+function ready(historicalHeal: boolean, node: MorphNode): SchemaBodyProof {
+  return resolved(historicalHeal, node, []);
+}
+
+function combine(proofs: readonly SchemaBodyProof[], node: MorphNode): SchemaBodyProof {
+  const failure = proofs.find((proof) => proof.kind === "unresolved");
+  return (
+    failure ??
+    ready(
+      proofs.some((proof) => proof.kind === "resolved" && proof.value),
+      node,
+    )
+  );
 }
 
 const ZOD_PACKAGE = "/node_modules/zod/";
@@ -123,7 +136,7 @@ function pureIssueRefinement(callback: MorphNode): boolean {
   if (ctx === undefined || body === undefined || fn.getParameters().some((parameter) => !Node.isIdentifier(parameter.getNameNode()))) {
     return false;
   }
-  return body.getDescendants().every((node) => {
+  return readFunctionBodyNodes(fn).every((node) => {
     if (Node.isBinaryExpression(node)) {
       return !MUTATING_OPERATORS.has(node.getOperatorToken().getKind());
     }
@@ -147,8 +160,12 @@ function pureIssueRefinement(callback: MorphNode): boolean {
   });
 }
 
-function refusal(node: MorphNode, detail: string): never {
-  throw new Error(`json-column-writes: cannot prove normalizer at ${node.getSourceFile().getFilePath()}:${node.getStartLineNumber()}: ${detail}`);
+function refusal(node: MorphNode, detail: string): UnresolvedReferenceFact {
+  return unresolved(
+    "unsupported",
+    node,
+    `json-column-writes: cannot prove normalizer at ${node.getSourceFile().getFilePath()}:${node.getStartLineNumber()}: ${detail}`,
+  );
 }
 
 function collectionConstructorProof(call: import("ts-morph").CallExpression, name: string, seen: ReadonlySet<object>): SchemaBodyProof {
@@ -158,7 +175,7 @@ function collectionConstructorProof(call: import("ts-morph").CallExpression, nam
       return refusal(call, "record needs both authored key and value schemas");
     }
     const proofs = arguments_.map((item) => schemaProof(item, seen));
-    return { historicalHeal: proofs.some((proof) => proof.historicalHeal) };
+    return combine(proofs, call);
   }
   const argument = arguments_[0];
   const members = argument === undefined ? undefined : resolveAuthoredComposite(argument);
@@ -166,7 +183,7 @@ function collectionConstructorProof(call: import("ts-morph").CallExpression, nam
     return refusal(call, "union members are not a nonempty immutable authored array");
   }
   const proofs = members.value.getElements().map((member) => schemaProof(member, seen));
-  return { historicalHeal: proofs.some((proof) => proof.historicalHeal) };
+  return combine(proofs, call);
 }
 
 function objectConstructorProof(call: import("ts-morph").CallExpression, seen: ReadonlySet<object>): SchemaBodyProof {
@@ -176,10 +193,10 @@ function objectConstructorProof(call: import("ts-morph").CallExpression, seen: R
     return refusal(call, "object shape is not an immutable authored literal");
   }
   const proofs = shape.value.getProperties().map((property) => {
-    const value = jsonColumnPropertyValue(property);
+    const value = propertyValue(property);
     return value === undefined ? refusal(property, "computed/spread/method schema member is unsupported") : schemaProof(value, seen);
   });
-  return { historicalHeal: proofs.some((proof) => proof.historicalHeal) };
+  return combine(proofs, call);
 }
 
 function constructorProof(call: import("ts-morph").CallExpression, seen: ReadonlySet<object>): SchemaBodyProof | undefined {
@@ -201,31 +218,45 @@ function constructorProof(call: import("ts-morph").CallExpression, seen: Readonl
   if (name === "object" || name === "strictObject" || name === "looseObject") {
     return objectConstructorProof(call, seen);
   }
-  return { historicalHeal: false };
+  return ready(false, call);
 }
 
-function healProof(argument: MorphNode): void {
+function healProof(argument: MorphNode): ReferenceFact<null> {
   const value = unwrapExpression(argument);
   if (Node.isObjectLiteralExpression(value)) {
     if (readStaticAuthoredValue(value).kind !== "resolved") {
-      refusal(value, "historical-heal object contains runtime data");
+      return refusal(value, "historical-heal object contains runtime data");
     }
-    return;
+    return resolved(null, value, []);
   }
   const authored = readStaticAuthoredValue(value);
   if (authored.kind === "resolved" && authored.value.kind === "object") {
-    return;
+    return resolved(null, value, []);
   }
   if (!(Node.isArrowFunction(value) || Node.isFunctionExpression(value)) || value.getParameters().length > 0) {
-    refusal(value, "catch fallback cannot read or mutate the input");
+    return refusal(value, "catch fallback cannot read or mutate the input");
   }
   const body = value.getBody();
-  const returns = Node.isBlock(body) ? body.getDescendantsOfKind(SyntaxKind.ReturnStatement).map((statement) => statement.getExpression()) : [body];
+  const returns = Node.isBlock(body)
+    ? readFunctionBodyNodes(value)
+        .filter(Node.isReturnStatement)
+        .map((statement) => statement.getExpression())
+    : [body];
   const fallback = returns[0] === undefined ? undefined : unwrapExpression(returns[0]);
-  const resolved = fallback === undefined ? undefined : readStaticAuthoredValue(fallback);
-  if (returns.length !== 1 || resolved?.kind !== "resolved" || resolved.value.kind !== "object") {
-    refusal(value, "catch fallback is not an explicit static historical-heal object");
+  const fallbackFact = fallback === undefined ? undefined : readStaticAuthoredValue(fallback);
+  if (returns.length !== 1 || fallbackFact?.kind !== "resolved" || fallbackFact.value.kind !== "object") {
+    return refusal(value, "catch fallback is not an explicit static historical-heal object");
   }
+  return resolved(null, value, []);
+}
+
+function catchProof(call: import("ts-morph").CallExpression): SchemaBodyProof {
+  const argument = call.getArguments()[0];
+  if (argument === undefined) {
+    return refusal(call, "catch has no authored fallback");
+  }
+  const heal = healProof(argument);
+  return heal.kind === "unresolved" ? heal : ready(true, call);
 }
 
 function schemaCallProof(call: import("ts-morph").CallExpression, seen: ReadonlySet<object>): SchemaBodyProof {
@@ -234,13 +265,16 @@ function schemaCallProof(call: import("ts-morph").CallExpression, seen: Readonly
     return constructed;
   }
   if (jsonColumnSchemaFactoryProof(call)) {
-    return { historicalHeal: false };
+    return ready(false, call);
   }
   const member = staticMemberAccess(call.getExpression());
   if (member === undefined || !zodMethod(call.getExpression(), member.name)) {
     return refusal(call, "schema operation is not the installed Zod method");
   }
   const base = schemaProof(member.receiver, seen);
+  if (base.kind === "unresolved") {
+    return base;
+  }
   if (VALIDATORS.some((name) => name === member.name)) {
     return base;
   }
@@ -251,12 +285,7 @@ function schemaCallProof(call: import("ts-morph").CallExpression, seen: Readonly
     return base;
   }
   if (member.name === "catch") {
-    const argument = call.getArguments()[0];
-    if (argument === undefined) {
-      return refusal(call, "catch has no authored fallback");
-    }
-    healProof(argument);
-    return { historicalHeal: true };
+    return catchProof(call);
   }
   return refusal(call, `unsupported ${member.name}: output type is not proof of valid-row preservation`);
 }
@@ -291,14 +320,21 @@ function schemaProof(node: MorphNode, seen: ReadonlySet<object>): SchemaBodyProo
   return refusal(current, "schema constructor/body is opaque");
 }
 
-/** Prove the actual schema/body before treating parse as a valid-row normalizer, never as universal identity. */
-export function jsonColumnNormalizer(call: import("ts-morph").CallExpression): JsonNormalizerProof | undefined {
+/** Normalizer judgment as data: unrelated candidates retain their failure without prematurely refusing a consumer. */
+export function readJsonColumnNormalizer(call: import("ts-morph").CallExpression): ReferenceFact<JsonNormalizerProof | undefined> {
   const member = staticMemberAccess(call.getExpression());
-  if (member?.name !== "parse") {
-    return;
+  if (member?.name !== "parse" || !zodMethod(call.getExpression(), member.name)) {
+    return resolved(undefined, call, []);
   }
-  if (!zodMethod(call.getExpression(), member.name)) {
-    return;
+  const proof = schemaProof(member.receiver, new Set());
+  return proof.kind === "unresolved" ? proof : resolved({ historicalHeal: proof.value, schema: member.receiver }, call, proof.trace.declarations);
+}
+
+/** Preserve the existing consumer refusal at the call that actually needs valid-row normalization. */
+export function jsonColumnNormalizer(call: import("ts-morph").CallExpression): JsonNormalizerProof | undefined {
+  const fact = readJsonColumnNormalizer(call);
+  if (fact.kind === "unresolved") {
+    throw new Error(fact.detail);
   }
-  return { ...schemaProof(member.receiver, new Set()), schema: member.receiver };
+  return fact.value;
 }

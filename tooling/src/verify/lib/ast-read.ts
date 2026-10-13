@@ -8,6 +8,7 @@
 // any of those honest-authoring shapes is still seen. Hardening only ever WIDENS what a gate detects.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { literalString } from "../../floor/code-facts/reference-fact-static.ts";
 
 /** Strip `as X` / `satisfies X` / parentheses wrappers so the underlying literal/object/call is reachable.
  *  Mirrors the local `unwrap` in diagnostic-legibility.ts. */
@@ -24,8 +25,7 @@ export function unwrapExpression(node: Node): Node {
  *  template WITH `${}` substitutions). Use this wherever a gate compares an authored string value —
  *  ids/zones/placements/keys/kinds — so a wrapped literal can't slip the check. */
 export function readStringValue(node: Node): string | undefined {
-  const n = unwrapExpression(node);
-  return Node.isStringLiteral(n) || Node.isNoSubstitutionTemplateLiteral(n) ? n.getLiteralText() : undefined;
+  return literalString(node);
 }
 
 /** Per-file `bound name -> declarations`, document-ordered, built once per SourceFile.

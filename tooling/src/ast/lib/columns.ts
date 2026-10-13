@@ -4,14 +4,13 @@ import { drizzleWriteOf, writeKeysOf } from "@orb/tooling/floor/code-facts/drizz
 import { resolveDrizzleTableRefs } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
 import type { SchemaTable } from "@orb/tooling/floor/code-facts/schema-read";
 import { schemaTables } from "@orb/tooling/floor/code-facts/schema-read";
-import type { Expression } from "ts-morph";
-import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { readExecutedSqlInserts } from "../../floor/code-facts/drizzle-sql.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { TableDef, WriteScan } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";
 import { declKey } from "./keys.ts";
 import { isPackageSourcePath, isTestPath, KEY_SEP } from "./root.ts";
-import { rawInsertHeaders } from "./sql-insert-header.ts";
 
 // ── columns: drizzle columns classified by CONSUMPTION (READ+WRITE / WRITE-only / READ-only / NEITHER) ─
 // The owner-named RV-11 class: "the model writes a column nobody renders". Every liveness lens above keys on
@@ -215,84 +214,10 @@ function recordRawHeader(header: { table: string; columns: readonly string[] }, 
   }
 }
 
-/** Resolve a const-bound expression through symbol identity. An unresolved/dynamic value returns no nodes,
- *  which is the honest result for a producer audit: text construction alone is never execution evidence. */
-function resolvedInitializers(node: Node, seen: Set<Node>): readonly Expression[] {
-  if (!Node.isIdentifier(node) || seen.has(node)) {
-    return [];
-  }
-  seen.add(node);
-  return node
-    .getDefinitionNodes()
-    .filter(Node.isVariableDeclaration)
-    .filter((declaration) => declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() === VariableDeclarationKind.Const)
-    .map((declaration) => declaration.getInitializer())
-    .filter((initializer): initializer is Expression => initializer !== undefined);
-}
-
-/** Static raw SQL constructors reachable from one executed statement expression. */
-function rawSqlNodes(node: Node, seen: Set<Node>): readonly { node: Node; text: string }[] {
-  if (Node.isTaggedTemplateExpression(node)) {
-    const tag = node.getTag();
-    return Node.isIdentifier(tag) && tag.getText() === "sql" ? [{ node, text: node.getTemplate().getText() }] : [];
-  }
-  if (Node.isCallExpression(node)) {
-    const expression = node.getExpression();
-    const argument = node.getArguments()[0];
-    return Node.isPropertyAccessExpression(expression) &&
-      expression.getExpression().getText() === "sql" &&
-      expression.getName() === "raw" &&
-      (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument))
-      ? [{ node, text: argument.getLiteralText() }]
-      : [];
-  }
-  return resolvedInitializers(node, seen).flatMap((initializer) => rawSqlNodes(initializer, seen));
-}
-
-/** Statements passed to an executed batch, following the house `batchMany([…])` wrapper and const aliases. */
-function batchStatements(node: Node, seen: Set<Node>): readonly Node[] {
-  if (Node.isArrayLiteralExpression(node)) {
-    return node.getElements();
-  }
-  if (Node.isCallExpression(node) && Node.isIdentifier(node.getExpression()) && node.getExpression().getText() === "batchMany") {
-    const argument = node.getArguments()[0];
-    return argument === undefined ? [] : batchStatements(argument, seen);
-  }
-  const initializers = resolvedInitializers(node, seen);
-  return initializers.length === 0 ? [] : initializers.flatMap((initializer) => batchStatements(initializer, seen));
-}
-
-function isDatabaseReceiver(node: Node): boolean {
-  return (Node.isIdentifier(node) && node.getText() === "db") || (Node.isPropertyAccessExpression(node) && node.getName() === "db");
-}
-
-/** Attribute raw INSERTs only when their statement reaches an executing db.run/db.execute/db.batch sink. */
 function recordRawSqlWrites(call: Node, tables: readonly TableDef[], writes: WriteScan): void {
-  if (!Node.isCallExpression(call)) {
-    return;
-  }
-  const expression = call.getExpression();
-  if (!(Node.isPropertyAccessExpression(expression) && isDatabaseReceiver(expression.getExpression()))) {
-    return;
-  }
-  const argument = call.getArguments()[0];
-  if (argument === undefined) {
-    return;
-  }
-  const method = expression.getName();
-  let statements: readonly Node[] = [];
-  if (method === "batch") {
-    statements = batchStatements(argument, new Set<Node>());
-  } else if (method === "run" || method === "execute") {
-    statements = [argument];
-  }
-  for (const statement of statements) {
-    for (const raw of rawSqlNodes(statement, new Set<Node>())) {
-      const site = `${relPath(raw.node.getSourceFile().getFilePath())}:${raw.node.getStartLineNumber()}`;
-      for (const header of rawInsertHeaders(raw.text)) {
-        recordRawHeader(header, tables, site, writes);
-      }
-    }
+  for (const header of readExecutedSqlInserts(call)) {
+    const site = `${relPath(header.node.getSourceFile().getFilePath())}:${header.node.getStartLineNumber()}`;
+    recordRawHeader(header, tables, site, writes);
   }
 }
 

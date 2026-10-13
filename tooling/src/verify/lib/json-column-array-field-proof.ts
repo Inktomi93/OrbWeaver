@@ -5,10 +5,10 @@ import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-
 import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { Node as MorphNode, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { traceJsonColumnValue } from "../../floor/code-facts/drizzle-value-origin.ts";
 import type { JsonColumnMergeProof, JsonColumnOriginContext, JsonColumnTarget } from "../contract/json-column-origin.ts";
 import type { SchemaColumnTypeOverride } from "../contract/schema-fact.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { traceJsonColumnValue } from "./json-column-value-origin.ts";
 
 const PURE_OPERATORS = new Set([
   SyntaxKind.EqualsEqualsEqualsToken,

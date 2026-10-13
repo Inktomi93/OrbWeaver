@@ -22,7 +22,8 @@ import {
   runCodemod,
   SyntaxKind,
 } from "@orb/tooling/codemod";
-import { canonicalIdBrand, createKitIdCallMatcher, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../../tooling/src/verify/lib/id-brand.ts";
+import { canonicalIdBrand, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "@orb/tooling/floor/code-facts/id-brand";
+import { createKitIdCallMatcher } from "../../tooling/src/verify/lib/id-brand.ts";
 
 const KIT_IDS_MODULE = "@orb/kit/ids";
 const MAX_REFUSAL_DETAILS = 20;

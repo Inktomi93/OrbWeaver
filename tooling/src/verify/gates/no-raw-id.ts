@@ -58,10 +58,10 @@
 // showcase and default-content are now judged with the rest of the shipped source tree.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
 import type { ModuleMemberOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 

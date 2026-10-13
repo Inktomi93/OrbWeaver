@@ -1,6 +1,6 @@
 // Drizzle table/column authored-value extraction for the invocation-scoped schema query.
 
-import { inspectReferenceWrites, readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type {
   ModuleMemberOrigin,
@@ -9,12 +9,13 @@ import type {
   ResolvedReferenceFact,
   UnresolvedReferenceFact,
 } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import { invokedMemberThroughAliases } from "@orb/tooling/floor/code-facts/reference-fact-writes";
 import type { CallExpression, Node as MorphNode, Type, VariableDeclaration } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import type { SchemaColumn, SchemaColumnIdentity, SchemaJsonShape, SchemaQueryOptions, SchemaTable, SchemaTableIdentity } from "../contract/schema-fact.ts";
+import { Node } from "ts-morph";
 import { canonicalIdBrand } from "./id-brand.ts";
-import { readStaticAuthoredScalar } from "./static-authored-value.ts";
+import type { SchemaColumn, SchemaColumnIdentity, SchemaJsonShape, SchemaQueryOptions, SchemaTable, SchemaTableIdentity } from "./schema-model-contract.ts";
+import { readSchemaObjectMembers } from "./schema-object.ts";
+import type { SchemaObjectEntry } from "./schema-object-contract.ts";
+import { readAuthoredCompositeEffects, readStaticAuthoredScalar } from "./static-authored-value.ts";
 
 export const DRIZZLE_SQLITE = "drizzle-orm/sqlite-core";
 export const SQLITE_TABLE = "sqliteTable";
@@ -158,100 +159,24 @@ export function staticString(node: MorphNode, subject: string): string {
     : refuse(unresolved("unsupported", fact.trace.origin, `${subject}: authored scalar is not a string`, fact.trace.declarations));
 }
 
-function importedObjectLiteral(node: MorphNode, subject: string): import("ts-morph").ObjectLiteralExpression | null {
-  const origin = resolveModuleMemberOrigin(node);
-  const declaration = origin.kind === "resolved" && origin.value.canonical.kind === "project" ? origin.value.canonical.declaration : undefined;
-  const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
-  return initializer === undefined ? null : objectLiteral(initializer, subject);
-}
-
-function bindingIdentifier(declaration: MorphNode): import("ts-morph").Identifier | null {
-  let name: MorphNode | undefined;
-  if (Node.isVariableDeclaration(declaration) || Node.isBindingElement(declaration) || Node.isNamespaceImport(declaration)) {
-    name = declaration.getNameNode();
-  } else if (Node.isImportSpecifier(declaration)) {
-    name = declaration.getAliasNode() ?? declaration.getNameNode();
-  } else if (Node.isImportClause(declaration)) {
-    name = declaration.getDefaultImport();
-  }
-  return name !== undefined && Node.isIdentifier(name) ? name : null;
-}
-
 export function guardCompositeBindings(composite: MorphNode, declarations: readonly MorphNode[], subject: string): void {
-  const owner = composite.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-  const bindings = [...declarations, ...(owner === undefined ? [] : [owner])].map(bindingIdentifier).filter((identifier) => identifier !== null);
-  const invoked = new Map<object, ReadonlyMap<object, MorphNode>>();
-  for (const binding of bindings) {
-    const writes = inspectReferenceWrites(binding);
-    if (writes.kind === "unresolved" && writes.reason === "write") {
-      refuse({ ...writes, detail: `${subject}: ${writes.detail}` });
-    }
-    const call = invokedMemberThroughAliases(binding, invoked);
-    if (call !== undefined) {
-      refuse(unresolved("dynamic", call, `${subject}: an invoked member can change the authored composite`));
-    }
+  const effects = readAuthoredCompositeEffects(composite, declarations);
+  if (effects.kind === "unresolved") {
+    refuse({ ...effects, detail: `${subject}: ${effects.detail}` });
   }
 }
 
-function objectLiteral(node: MorphNode, subject: string): import("ts-morph").ObjectLiteralExpression {
-  const terminal = resolveStableExpression(node);
-  if (terminal.kind === "resolved" && Node.isObjectLiteralExpression(terminal.value)) {
-    guardCompositeBindings(terminal.value, terminal.trace.declarations, subject);
-    return terminal.value;
+export function objectEntries(node: MorphNode, subject: string): readonly SchemaObjectEntry[] {
+  const members = readSchemaObjectMembers(node);
+  if (members.kind === "unresolved") {
+    return refuse({ ...members, detail: `${subject}: ${members.detail}` });
   }
-  const imported = importedObjectLiteral(node, subject);
-  if (imported !== null) {
-    return imported;
-  }
-  if (terminal.kind === "unresolved") {
-    return refuse({ ...terminal, detail: `${subject}: ${terminal.detail}` });
-  }
-  return refuse(unresolved("unsupported", terminal.value, `${subject} is not an authored object`, terminal.trace.declarations));
-}
-
-function propertyName(node: MorphNode): string {
-  if (Node.isIdentifier(node) || Node.isPrivateIdentifier(node)) {
-    return node.getText();
-  }
-  if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
-    return node.getLiteralText();
-  }
-  if (Node.isNumericLiteral(node)) {
-    return String(node.getLiteralValue());
-  }
-  return Node.isComputedPropertyName(node)
-    ? staticString(node.getExpression(), "computed schema member")
-    : refuse(unresolved("unsupported", node, `${node.getKindName()} is not a static schema member name`));
-}
-
-export function objectEntries(
-  node: MorphNode,
-  subject: string,
-  active = new Set<object>(),
-): readonly { readonly name: string; readonly node: MorphNode; readonly value: MorphNode }[] {
-  const object = objectLiteral(node, subject);
-  if (active.has(object.compilerNode)) {
-    return refuse(unresolved("cycle", object, `${subject} contains an object-spread cycle`));
-  }
-  active.add(object.compilerNode);
-  const entries: { name: string; node: MorphNode; value: MorphNode }[] = [];
-  for (const property of object.getProperties()) {
-    if (Node.isSpreadAssignment(property)) {
-      entries.push(...objectEntries(property.getExpression(), subject, active));
-    } else if (Node.isPropertyAssignment(property)) {
-      const value = property.getInitializer();
-      if (value === undefined) {
-        return refuse(unresolved("missing", property, `${subject} property has no initializer`));
-      }
-      entries.push({ name: propertyName(property.getNameNode()), node: property, value });
-    } else if (Node.isShorthandPropertyAssignment(property)) {
-      entries.push({ name: property.getName(), node: property, value: property.getNameNode() });
-    } else {
-      return refuse(unresolved("unsupported", property, `${subject} contains unsupported ${property.getKindName()}`));
+  for (const entry of members.value.entries) {
+    if (Node.isComputedPropertyName(entry.nameNode) && typeof entry.key.value !== "string") {
+      return refuse(unresolved("unsupported", entry.key.trace.origin, "computed schema member: authored scalar is not a string", entry.key.trace.declarations));
     }
   }
-  active.delete(object.compilerNode);
-  return entries;
+  return members.value.entries;
 }
 
 export function effectiveObjectProperty(node: MorphNode, key: string, subject: string): MorphNode | null {
@@ -398,7 +323,7 @@ export function canonicalPathResolver(options: SchemaQueryOptions): (sourceFile:
   };
 }
 
-export function schemaIndexKind(exportedName: string): import("../contract/schema-fact.ts").SchemaIndex["kind"] | null {
+export function schemaIndexKind(exportedName: string): import("./schema-model-contract.ts").SchemaIndex["kind"] | null {
   if (exportedName === "index") {
     return "index";
   }

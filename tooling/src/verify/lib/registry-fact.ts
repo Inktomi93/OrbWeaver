@@ -4,6 +4,8 @@ import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/referen
 import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { ArrowFunction, FunctionDeclaration, FunctionExpression, Node as MorphNode, ReturnStatement, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticAuthoredValue, resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
+import type { StaticAuthoredValue } from "../../floor/code-facts/static-authored-value-contract.ts";
 import type { GateFact } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import type {
@@ -16,8 +18,6 @@ import type {
   RegistryTypeTargetFact,
 } from "../contract/registry-fact.ts";
 import { REGISTRY_DEFINITION_KINDS } from "../contract/registry-fact.ts";
-import type { StaticAuthoredValue } from "../contract/static-authored-value.ts";
-import { readStaticAuthoredValue, resolveAuthoredComposite } from "./static-authored-value.ts";
 
 const TYPE_NAMES = {
   section: "SectionDefinition",
