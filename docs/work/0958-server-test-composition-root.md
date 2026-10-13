@@ -41,6 +41,6 @@ Keep unresolved notification persistence cases in legacy until intent and replac
 
 Scoped controls prove resolved CIDR admission can widen a restricted hostname port. The correction rejects that path before dialing and preserves declared-port, unrelated-host and public-address admission. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.
 
-Response ownership must await physical cancellation even when a pending read observes EOF first. Immutable clone-header behavior remains an unresolved adapter boundary; native metadata alone does not establish equivalent Response semantics.
+Bounded response controls prove physical cancellation joins, native clone/header behavior and consumption semantics. Same-ID graph and coalescing isolation controls pass. These do not qualify the complete HTTP root.
 
-Preliminary kit, contracts and inference configs pass. Server/root compilation exposes optional forwarding, native Response, spawn and SDK helper type mismatches. Fix those concrete couplings before the bounded runtime floor. Preserve old assertions while making parked plugin reads settle on actual cancellation.
+Production and strict-root configs pass; obsolete legacy assemblies remain red. Preliminary runtime fails HTTP/auth admission, tokenizer/head file reach and a DNS fixture coupling. The real-watchdog positive times out without a lifecycle verdict. Repair those exact cases after integrating current-owned-read and executor dependencies; preserve parked-read cancellation assertions.
