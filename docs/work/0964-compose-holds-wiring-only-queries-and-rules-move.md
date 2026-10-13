@@ -25,7 +25,7 @@ The gate holds with planted controls; no compose module runs a query or carries 
 
 Chat and search/discovery moves landed at `980a8e07bd` after review and the authenticated-Principal correction. Automation/plugin landed at `292d99464e`, including canonical contracts and domain-cycle corrections. Focused behavior, affected native programs and the server import graph pass. The budget file owns the remaining compose count; this item stays open.
 
-`codex/compose-chat-964` owns services/runtime/embedding wiring on current main. Other adapters, imports and boot remain open. Do not build the server harness before this boundary is clean.
+`codex/compose-chat-964` owns services/runtime/embedding wiring and the coupled import builder. The administrative policy item owns the independent admin, update, refinery and recorder batch on `codex/compose-policy-995`. Services wiring stays with its current lane; the primary agent integrates required changes. Other adapters and boot remain open. Do not build the server harness before this boundary is clean.
 
 The native server import graph confirms the lower-contract and injected-resolver corrections without rule relaxation. Preserve canonical lower-package shapes, consumer-owned narrow ports and sibling front doors in the remaining legs.
 

@@ -39,7 +39,7 @@ Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/c
 
 Knip baseline typing and CLI spawn types are corrected. Focused Knip controls and root compilation pass, not a fresh production liveness verdict.
 
-Testkit citation lookup resolves its world homes and rejects wrong-world basenames. Red-first proofs, scoped lint and native compilation pass. The grant-budget alarm remains unresolved; no whole-policy verdict is claimed.
+Testkit citation lookup resolves world homes and rejects wrong-world basenames; red-first controls and native compilation pass. Selected reference run `main-770351-2026-10-13T00-00-13-682Z` completes, but reviewed citation grants exceed budget. Document and path policies pass. No grant is added.
 
 The caught-failure census relocates domain sites and retains unproven reindex/auth sites. Compose and Principal budgets shrink. Only the removed chat catch reduces its application budget; remaining census differences need population-specific adjudication.
 
