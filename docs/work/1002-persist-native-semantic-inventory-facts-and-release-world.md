@@ -29,3 +29,5 @@ Independent review reproduced stale native resolution after a configuration chan
 The reviewed correction preserves current caller-selected native subsets and real codemod overlays. Its bounded regression proves configuration mutation, stale-request refusal and current workspace resolution.
 
 Main owns the cold frozen replay on the reviewed lane source. It runs the complete existing collector sequence with unchanged managed heap settings. Preserve historical Knip input provenance and unresolved outcomes. Read the completed output and process measurements before claiming replay qualification. Parent high-water measurements do not establish aggregate process-tree memory or hosted-runner qualification.
+
+The replay stopped during native extraction after source review confirmed duplicate declaration and name reference queries. It supplies no complete inventory verdict. Reuse each native result for both physical keys, preserving every demanded fact. Prove query reuse and output parity before scheduling the corrected frozen replay.
