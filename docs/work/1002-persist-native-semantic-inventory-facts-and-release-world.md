@@ -28,12 +28,12 @@ Independent review reproduced stale native resolution after a configuration chan
 
 The reviewed correction preserves current caller-selected native subsets and real codemod overlays. Its bounded regression proves configuration mutation, stale-request refusal and current workspace resolution.
 
-Main owns the cold frozen replay on the reviewed lane source. It runs the complete existing collector sequence with unchanged managed heap settings. Preserve historical Knip input provenance and unresolved outcomes. Read the completed output and process measurements before claiming replay qualification. Parent high-water measurements do not establish aggregate process-tree memory or hosted-runner qualification.
+Main owns complete cold replay with unchanged managed heap settings. Preserve Knip input provenance and unresolved outcomes. Read completed output and measurements; parent high water does not establish aggregate or hosted-runner qualification.
 
-The replay stopped during native extraction after source review confirmed duplicate declaration and name reference queries. It supplies no complete inventory verdict. Reuse each native result for both physical keys, preserving every demanded fact. Prove query reuse and output parity before scheduling the corrected frozen replay.
-
-The reviewed query correction preserves native results and both physical keys while executing each query once. Its controls and affected checks pass; the reviewed store is integrated without closure. The corrected frozen cold replay fails during client native extraction with a fatal heap OOM at the unchanged managed limit. It produces no complete inventory verdict. Historical input does not qualify current main usage.
+The reviewed query correction shares one native result across declaration/name keys; parity controls and affected checks pass. The corrected frozen replay fails in client extraction with heap OOM at the unchanged limit. No complete inventory or current main usage verdict exists.
 
 Native reference wrappers retain source-event subscriptions until source modification; this worker never modifies sources. The repair must preserve native reference ordering, alias filtering and physical spans without those wrappers. Bounded parity controls precede another native qualification. Checker and fact-array costs remain separate questions; no heap increase, population shrink or implicit replay retry is authorized.
 
 The reviewed wrapper-free repair is integrated. Its native ancestor-selection regression fails before correction and passes with the affected extraction and inventory cases. Exact-file lint and tooling/root typechecks pass. Token-tree, checker and complete fact-array costs remain unqualified; the frozen replay still supplies no complete inventory verdict. Schedule the next native memory qualification through main without increasing the heap or shrinking demanded worlds.
+
+The bounded real client-worker diagnostic stops at its external deadline without heap OOM or a completed partition. Recorded worker high water is about 11.3 GiB; it is not aggregate process-tree or complete-run qualification. Native export, symbol and reference work remains active at the bound. Preserve the measurements; source investigation must identify the remaining retention or query cost before another run.
