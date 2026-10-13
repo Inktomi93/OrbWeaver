@@ -1,47 +1,35 @@
-// `resolveImageUrl` op impl, extracted from the chat composition root so its gate is unit-testable in
-// isolation. The asset resolves only when its owner is the turn host or a present participant of the
-// referencing chat — never a bare hash→any-owner lookup across any shared chat.
-//
-// Quality processing happens only after authorization and never modifies the stored asset.
-
-import type { AttachmentQuality } from "@orb/contracts/inference";
+// Stored media authorization precedes byte reads and deferred quality conversion.
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
-import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import type { ResolvedMediaRef } from "#domain/chat";
-import type { ImageAdapter } from "#infra/image";
-import type { prepareVideo } from "#infra/media";
-
-// @orb-waive no-inline-package-interface(ImageRefAssets): baselined when the gate landed; burn-down item 952.
-export interface ImageRefAssets {
-  readonly frameCount: ImageAdapter["frameCount"];
-  readonly prepareVideo: typeof prepareVideo;
-  readonly assetCasRefById: (id: AssetId) => Promise<{ readonly ownerId: UserId; readonly mime: string } | undefined>;
-  readonly loadAssetBytes: (id: AssetId) => Promise<Uint8Array | null>;
-}
+import type { ImageRefAssets, ResolveMediaRef, ResolveMediaRefDeps } from "../contract/media-ref.ts";
+import type { ResolvedMediaRef } from "../contract/results.ts";
+import { isPresentParticipant } from "../persistence/participants-read.ts";
 
 const VIDEO_MIME_PREFIX = "video/";
 const GIF_MIME = "image/gif";
+
+export function createResolveMediaRef(deps: ResolveMediaRefDeps): ResolveMediaRef {
+  return (params) =>
+    resolveImageRefToUrl(
+      { ...deps.assets, ...deps.mediaProcessing },
+      (userId, chatId) => isPresentParticipant(deps.db, chatId, userId),
+      deps.forbidExternalMedia(),
+      params,
+    );
+}
 
 /** Resolve a parsed media ref to its kind and ready/deferred URL, or `null` when
  *  blocked/gone. An `external` ref is blocked when `forbidExternalMedia` is set (the load itself is a
  *  tracking-pixel/exfil vector) and classifies as `image` (the attachment machinery never mints external
  *  refs, so the arm is defensive). `isPresentParticipant(userId, chatId)` checks whether the asset's owner
  *  is a present member of the referencing chat. */
-// @orb-waive compose-wiring-only(resolveImageRefToUrl): baselined when the gate landed; burn-down item 964.
 export async function resolveImageRefToUrl(
   assets: ImageRefAssets,
-  isPresentParticipant: (userId: UserId, chatId: ChatId) => Promise<boolean>,
+  ownerIsPresent: (userId: UserId, chatId: ChatId) => Promise<boolean>,
   forbidExternalMedia: boolean,
-  params: {
-    readonly ownerId: UserId;
-    readonly chatId: ChatId;
-    readonly ref: ContentImageRef;
-    readonly quality?: AttachmentQuality | undefined;
-    readonly signal?: AbortSignal | undefined;
-  },
+  params: Parameters<ResolveMediaRef>[0],
 ): Promise<ResolvedMediaRef | null> {
   const { ownerId: hostId, chatId, ref } = params;
   if (ref.kind === "external") {
@@ -52,7 +40,7 @@ export async function resolveImageRefToUrl(
   if (!meta) {
     return null;
   }
-  const authorized = meta.ownerId === hostId || (await isPresentParticipant(meta.ownerId, chatId));
+  const authorized = meta.ownerId === hostId || (await ownerIsPresent(meta.ownerId, chatId));
   if (!authorized) {
     return null;
   }
@@ -76,7 +64,6 @@ export async function resolveImageRefToUrl(
   return { url: `data:${meta.mime};base64,${Buffer.from(bytes).toString("base64")}`, media: "image" };
 }
 
-// @orb-waive compose-wiring-only(isMotion): baselined when the gate landed; burn-down item 964.
 async function isMotion(assets: ImageRefAssets, mime: string, bytes: Uint8Array): Promise<boolean> {
   if (mime.startsWith(VIDEO_MIME_PREFIX)) {
     return true;

@@ -4,6 +4,7 @@
 
 export type { ImageryContext } from "./context.ts";
 export { GenerationFailedError, ImageEditUnsupportedError, ImageryNotConfiguredError, PromptExtractionFailedError } from "./contract/errors.ts";
+export type { CaptionImageDeps, ImageProviderDeps, ImageProviderOps, ImageryInstructionDeps, ImageryInstructionOps } from "./contract/generation-ops.ts";
 export type { EditImageParams, EditImageSource, ExtractPromptParams, GeneratePictureParams, ReadProvenanceParams, ReusePolicy } from "./contract/params.ts";
 export type { ImageryPortabilityContext, ImageryPortabilityService } from "./contract/portability.ts";
 export type {
@@ -26,3 +27,6 @@ export { createImageryPortability, createImageryService } from "./service.ts";
 // machinery, never a fork).
 export { identityHashFor } from "./substrate/identity-hash.ts";
 export { imageryToolDefinitions } from "./tool/index.ts";
+export { createCaptionImage } from "./verbs/caption-image.ts";
+export { createImageProviderOps } from "./verbs/image-provider-ops.ts";
+export { createImageryInstructions } from "./verbs/imagery-instructions.ts";

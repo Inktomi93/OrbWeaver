@@ -9,7 +9,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createMaterializeBackground } from "@orb/server/entry/compose";
+import { createMaterializeBackground } from "@orb/server/domain/assets";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { SafeFetchResult } from "#server/infra/network/index.ts";

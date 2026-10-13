@@ -3,9 +3,8 @@
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ResolvedMediaRef } from "@orb/server/domain/chat";
-import type { ImageRefAssets } from "@orb/server/entry/compose";
-import { resolveImageRefToUrl } from "@orb/server/entry/compose";
+import type { ImageRefAssets, ResolvedMediaRef } from "@orb/server/domain/chat";
+import { resolveImageRefToUrl } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 

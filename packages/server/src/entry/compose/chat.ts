@@ -34,6 +34,7 @@ import type {
   estimateMemoryBackfillCalls,
   GetMembership,
   GetPendingUserText,
+  ImageRefAssets,
   MemoryRecallRecorder,
   PostNarratorMessage,
   PresenceReadOp,
@@ -63,6 +64,7 @@ import {
   createPromptTransformRegistry,
   createReactAsCharacter,
   createResolveCanonWindow,
+  createResolveMediaRef,
   createResolveRpgCardCorpus,
   createResolveRpgParticipants,
   createSetRpgPointer,
@@ -76,7 +78,6 @@ import {
   voicePersonaFor as domainVoicePersonaFor,
   getGroupConfig,
   getRoomOverrides,
-  isPresentParticipant,
   loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
@@ -111,7 +112,6 @@ import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryL
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
 import { publishChatChanged, publishNotification } from "#transport/trpc";
 import { createReactToolDefinition } from "./chat-tools.ts";
-import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 
 export const createSignupMinterCheck = createAdminSignupMinterCheck;
 export const activePersonaIdFor = domainActivePersonaIdFor;
@@ -136,7 +136,7 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
 export interface ChatComposeInput {
   /** A user's Utility-role preset params (`side-gen-params.ts`), for the arbiter and the memory build. */
   readonly resolveUtilityPresetParams: ChatContext["resolveUtilityPresetParams"];
-  readonly mediaProcessing: Pick<Parameters<typeof resolveImageRefToUrl>[0], "frameCount" | "prepareVideo">;
+  readonly mediaProcessing: Pick<ImageRefAssets, "frameCount" | "prepareVideo">;
   /** Optional — absent wires `ChatContext.tools` to null (byte-identical no-op). */
   readonly toolUse?: ToolUseService | undefined;
   readonly db: Db;
@@ -466,15 +466,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       { db },
       { loadUserHandle: (userId) => selectHandleById(db, userId), loadUserSettings: (userId) => input.settings.loadUserSettings(userId) },
     ),
-    // The gate reader answers "is this asset's owner a present member of the referencing chat?" — a
-    // scoped chat_participants read.
-    resolveImageUrl: (params) =>
-      resolveImageRefToUrl(
-        { ...input.assets, ...input.mediaProcessing },
-        (userId, forChatId) => isPresentParticipant(db, forChatId, userId),
-        input.settings.getEffectiveConfig().forbidExternalMedia,
-        params,
-      ),
+    resolveImageUrl: createResolveMediaRef({
+      db,
+      assets: input.assets,
+      mediaProcessing: input.mediaProcessing,
+      forbidExternalMedia: () => input.settings.getEffectiveConfig().forbidExternalMedia,
+    }),
     // A hash is not a secret; the owner-gate lives on the blob route's byte read, not here.
     resolveAssetHash: assetOps.resolveAssetHash,
     filterOwnedAssetIds: assetOps.filterOwnedAssetIds,

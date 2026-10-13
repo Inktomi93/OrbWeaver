@@ -12,6 +12,7 @@
     "./domain/character": "./src/domain/character/index.ts",
     "./domain/chat": "./src/domain/chat/index.ts",
     "./domain/embeddings": "./src/domain/embeddings/index.ts",
+    "./domain/imagery": "./src/domain/imagery/index.ts",
     "./domain/import": "./src/domain/import/index.ts",
     "./domain/persona": "./src/domain/persona/index.ts",
     "./domain/preset": "./src/domain/preset/index.ts",

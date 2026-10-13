@@ -1,0 +1,253 @@
+// @subject packages/server/src/entry/compose/imagery.ts
+import "@orb/testkit/node/composed-real.ts";
+import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
+import { chatParticipants } from "@orb/db";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { ImageryRoomAccessDeps, ResolveMediaRefDeps } from "@orb/server/domain/chat";
+import {
+  createImageryRoomAccess,
+  createResolveMediaRef,
+  createResolveViewerVisibility,
+  createVisibleExtractQuiet,
+  isCharacterSeated,
+  loadPresentHostUserId,
+} from "@orb/server/domain/chat";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedChat } from "@orb/testkit/node/factories/chat.ts";
+import { seedMessage } from "@orb/testkit/node/factories/message.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { and, eq } from "drizzle-orm";
+import { vi } from "vitest";
+
+test("composed imagery card reads carry the row-derived host role rather than a synthetic user role", async ({ db, services, ids, clock }) => {
+  const room = await seedChat(db);
+  const host = await seedUser(db, { role: "admin" });
+  const member = await seedUser(db);
+  const subject = await seedCharacter(db, { ownerId: host.id });
+  await db.insert(chatParticipants).values([
+    {
+      id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+      chatId: room.id,
+      kind: "human",
+      userId: host.id,
+      role: "host",
+      joinedAt: clock.now(),
+      joinSeq: 0,
+    },
+    {
+      id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+      chatId: room.id,
+      kind: "human",
+      userId: member.id,
+      role: "member",
+      joinedAt: clock.now(),
+      joinSeq: 0,
+    },
+    {
+      id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+      chatId: room.id,
+      kind: "character",
+      characterId: subject.id,
+      role: "member",
+      joinedAt: clock.now(),
+      joinSeq: 0,
+    },
+  ]);
+  const getCard = vi.spyOn(services.character, "getCard");
+  await expect(
+    services.imagery.extractPrompt({ caller: principal(member.id), chatId: room.id, mode: "character", subjectCharacterId: subject.id }),
+  ).rejects.toThrow();
+  expect(getCard).toHaveBeenCalledExactlyOnceWith({
+    principal: expect.objectContaining({ userId: host.id, role: host.role, handle: host.handle }),
+    characterId: subject.id,
+  });
+});
+
+test("room admission and subject seating run before host principal, card or Utility spend", async ({ db, ids, clock }) => {
+  const room = await seedChat(db);
+  const hostRow = await seedUser(db);
+  await db.insert(chatParticipants).values({
+    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+    chatId: room.id,
+    kind: "human",
+    userId: hostRow.id,
+    role: "host",
+    joinedAt: clock.now(),
+    joinSeq: 0,
+  });
+  const hostId = hostRow.id;
+  const host = principal(hostId, { role: "admin" });
+  const member = principal((await seedUser(db)).id);
+  const outsider = principal((await seedUser(db, { role: "admin" })).id, { role: "admin" });
+  const subject = await seedCharacter(db, { ownerId: hostId });
+  const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
+  const resolveChatHostUserId = vi.fn<ImageryRoomAccessDeps["resolveChatHostUserId"]>((chatId) => loadPresentHostUserId(db, chatId));
+  const access = createImageryRoomAccess({
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    resolveChatHostUserId,
+    isCharacterSeated: (chatId, characterId) => isCharacterSeated(db, chatId, characterId),
+    resolveHostPrincipal,
+  });
+  await db.insert(chatParticipants).values({
+    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+    chatId: room.id,
+    kind: "human",
+    userId: member.userId,
+    role: "member",
+    joinedAt: clock.now(),
+    joinSeq: 0,
+  });
+  await expect(access.resolveRoomRunAs(outsider, room.id, subject.id)).rejects.toMatchObject({ name: "DomainNotFoundError" });
+  expect(resolveChatHostUserId).not.toHaveBeenCalled();
+  await expect(access.resolveRoomRunAs(member, room.id, subject.id)).rejects.toMatchObject({ name: "DomainNotFoundError" });
+  expect(resolveHostPrincipal).not.toHaveBeenCalled();
+  expect(await access.resolveRoomRunAs(host, room.id, subject.id)).toBe(host);
+  await db.insert(chatParticipants).values({
+    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+    chatId: room.id,
+    kind: "character",
+    characterId: subject.id,
+    role: "member",
+    joinedAt: clock.now(),
+    joinSeq: 0,
+  });
+  expect(await access.resolveRoomRunAs(member, room.id, subject.id)).toBe(host);
+  expect(await access.callerInChat(member, room.id)).toBe(true);
+  expect(await access.callerInChat(outsider, room.id)).toBe(false);
+});
+
+test("quiet extraction preserves the caller floor and summary strip while the actual supplied host Principal reads the card", async ({ db, ids, clock }) => {
+  const room = await seedChat(db);
+  const hostRow = await seedUser(db);
+  await db.insert(chatParticipants).values({
+    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+    chatId: room.id,
+    kind: "human",
+    userId: hostRow.id,
+    role: "host",
+    joinedAt: clock.now(),
+    joinSeq: 0,
+  });
+  const hostId = hostRow.id;
+  const host = principal(hostId, { role: "admin" });
+  const member = principal((await seedUser(db)).id);
+  const subject = await seedCharacter(db, { ownerId: hostId });
+  await db.insert(chatParticipants).values({
+    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+    chatId: room.id,
+    kind: "human",
+    userId: member.userId,
+    role: "member",
+    joinedAt: clock.now(),
+    joinSeq: 2,
+    joinHistoryVisibility: "from-join",
+  });
+  await seedMessage(db, { chatId: room.id, seq: 1, content: "prejoin-secret" });
+  await seedMessage(db, { chatId: room.id, seq: 2, content: 'visible-scene <lie truth="hidden-scene"/>' });
+  const summarize = vi.fn(makeFakeRoleClients().summarize);
+  const roleClientsFor = vi.fn(() => Promise.resolve({ summarize }));
+  const getCard = vi.fn(() => Promise.resolve(null));
+  const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
+  const extract = createVisibleExtractQuiet({
+    db,
+    now: clock.now,
+    roleClientsFor,
+    getCard,
+    resolveHostPrincipal,
+    resolveUtilityPresetParams: () => Promise.resolve(undefined),
+    resolveUserMacroDefs: () => Promise.resolve({ preset: [], game: [] }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+  });
+  await extract({ caller: member, funderUserId: hostId, chatId: room.id, instruction: "scene", subjectCharacterId: subject.id });
+  expect(getCard).toHaveBeenCalledWith({ principal: host, characterId: subject.id });
+  expect(roleClientsFor).toHaveBeenCalledWith(hostId);
+  expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).toContain("visible-scene");
+  expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).not.toContain("prejoin-secret");
+  expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).not.toContain("hidden-scene");
+  await expect(extract({ caller: principal((await seedUser(db)).id), funderUserId: hostId, chatId: room.id, instruction: "scene" })).rejects.toMatchObject({
+    name: "DomainNotFoundError",
+  });
+  expect(getCard).toHaveBeenCalledTimes(1);
+  expect(roleClientsFor).toHaveBeenCalledTimes(1);
+});
+
+test("only host or PRESENT owner assets reach byte processing; conversion remains deferred with caller quality and signal", async ({
+  db,
+  services,
+  ids,
+  clock,
+}) => {
+  const room = await seedChat(db);
+  const hostRow = await seedUser(db);
+  await db.insert(chatParticipants).values({
+    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+    chatId: room.id,
+    kind: "human",
+    userId: hostRow.id,
+    role: "host",
+    joinedAt: clock.now(),
+    joinSeq: 0,
+  });
+  const hostId = hostRow.id;
+  const member = await seedUser(db);
+  await db.insert(chatParticipants).values({
+    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+    chatId: room.id,
+    kind: "human",
+    userId: member.id,
+    role: "member",
+    joinedAt: clock.now(),
+    joinSeq: 0,
+  });
+  const bytes = new Uint8Array([9, 8, 7]);
+  const asset = await services.assets.store({ principal: principal(member.id), bytes, kind: "attachment", mime: "video/webm" });
+  const prepareVideo = vi.fn<ResolveMediaRefDeps["mediaProcessing"]["prepareVideo"]>(() => Promise.resolve(bytes));
+  const read = vi.spyOn(services.assets, "loadAssetBytes");
+  let forbidden = false;
+  const resolve = createResolveMediaRef({
+    db,
+    assets: services.assets,
+    mediaProcessing: { frameCount: () => Promise.resolve(1), prepareVideo },
+    forbidExternalMedia: () => forbidden,
+  });
+  const signal = new AbortController().signal;
+  const resolved = await resolve({
+    ownerId: hostId,
+    chatId: room.id,
+    ref: { kind: "asset", assetId: asset.assetId },
+    quality: { ...DEFAULT_ATTACHMENT_QUALITY, videoMaxResolution: "original" },
+    signal,
+  });
+  expect(resolved?.media).toBe("video");
+  expect(prepareVideo).not.toHaveBeenCalled();
+  if (resolved === null || typeof resolved.url !== "function") {
+    throw new Error("expected deferred conversion");
+  }
+  expect(await resolved.url()).toBe(`data:video/webm;base64,${Buffer.from(bytes).toString("base64")}`);
+  expect(prepareVideo).toHaveBeenCalledWith(expect.any(Uint8Array), "video/webm", "original", { signal });
+  expect(Array.from(prepareVideo.mock.calls[0]?.[0] ?? [])).toEqual(Array.from(bytes));
+  await db
+    .update(chatParticipants)
+    .set({ leftSeq: 3 })
+    .where(and(eq(chatParticipants.chatId, room.id), eq(chatParticipants.userId, member.id)));
+  read.mockClear();
+  const refused = await resolve({ ownerId: hostId, chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } });
+  let emitted: string | null = null;
+  if (refused !== null) {
+    emitted = typeof refused.url === "function" ? await refused.url() : refused.url;
+  }
+  expect(emitted).toBeNull();
+  expect(prepareVideo).toHaveBeenCalledTimes(1);
+  expect(read).not.toHaveBeenCalled();
+  expect(await resolve({ ownerId: member.id, chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } })).not.toBeNull();
+  forbidden = true;
+  expect(await resolve({ ownerId: hostId, chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toBeNull();
+  forbidden = false;
+  expect(await resolve({ ownerId: hostId, chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toEqual({
+    media: "image",
+    url: "https://cdn.example/image",
+  });
+});

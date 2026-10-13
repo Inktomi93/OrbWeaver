@@ -7,8 +7,8 @@ import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts
 import type { ContentImageRef } from "@orb/kit/content";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImageRefAssets } from "@orb/server/entry/compose";
-import { resolveImageRefToUrl } from "@orb/server/entry/compose";
+import type { ImageRefAssets } from "@orb/server/domain/chat";
+import { resolveImageRefToUrl } from "@orb/server/domain/chat";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

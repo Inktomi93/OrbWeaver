@@ -56,7 +56,7 @@ import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins"
 import type { ServerRestartPort } from "#domain/admin";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
-import { createImportAvatarStore, createImportOwnedAsset, createStoreGeneratedImage } from "#domain/assets";
+import { createImportAvatarStore, createImportOwnedAsset, createStoreGeneratedImage, createStoreInlineReplyImage } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions, createRuleOwnedBy } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
@@ -151,7 +151,6 @@ import { createEffectiveConfigWiring } from "./effective-config.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery } from "./imagery.ts";
-import { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 import { minter } from "./minter.ts";
 import type { PortabilityRunnerComposeResult } from "./portability-runner.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
