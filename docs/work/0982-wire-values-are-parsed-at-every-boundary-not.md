@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-12
+updated: 2026-10-13
 priority: P1
 ---
 
@@ -21,4 +21,8 @@ Every server and inference wire read parses through a schema; the check covers e
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The auth configuration bootstrap also lacks a complete canonical wire schema. `packages/server/src/entry/http/auth-meta.ts` constructs its response directly. `packages/client/src/data/auth-config.ts` declares `AuthConfig` and casts the JSON response instead of parsing it.
+
+Move the complete wire shape into its contract owner and parse the consumer response. Preserve request-specific transport, client scope, first-run admission and signed-in share projection. Apply the [unused-field ruling](0979-decide-the-auth-config-requireslogin-wire-field.md) without retaining `requiresLogin` in the new schema.
+
+This production boundary blocks the complete typed auth-configuration builder in the [corpus assignment](0959-one-builder-per-shape-and-one-golden-corpus.md). Capture responses through the real HTTP application; do not declare a replacement shape in testkit. Other builder and harness work can continue.
