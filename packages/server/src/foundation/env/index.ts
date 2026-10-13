@@ -790,6 +790,11 @@ export function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };
 }
 
+/** The agent child-env baseline excludes absent variables; each call reads the current process snapshot. */
+export function hostEnvAllowlist(): Readonly<Record<string, string>> {
+  return Object.fromEntries(Object.entries(processEnvSnapshot()).flatMap(([key, value]) => (value === undefined ? [] : [[key, value] as const])));
+}
+
 /** The raw inputs the BIND posture resolver reads (the deploy-mode invariant). Same seam shape as
  *  `diagnosticsPostureInput`: this file stays the pure `process.env` reader, the
  *  rule lives in `bind.ts`, and `entry/lifecycle` composes + logs. The env parse above has ALREADY refused

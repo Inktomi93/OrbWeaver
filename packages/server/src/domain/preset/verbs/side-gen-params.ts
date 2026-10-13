@@ -1,4 +1,4 @@
-// Which preset a Utility-role background task reads (D299), for the user who funds it. It returns generation
+// Which preset a Utility-role background task reads (D304), for the user who funds it. It returns generation
 // params, projected through `ROLE_PRESET_FIELDS`, and the preset's inline reasoning tag pair: never other prompt
 // structure (templates, macros, message handling, regex, guided actions) and never chat-only intent.
 
@@ -9,45 +9,25 @@ import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import type { SideGenSampling } from "@orb/inference";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PresetService } from "#domain/preset";
-import { PresetNotFoundError } from "#domain/preset";
-import type { SettingsService } from "#domain/settings";
-
-/** A user's Utility-role preset params from `seeds.summarizePreset`: absent is task defaults (`undefined`, the
- *  task posture alone); `same-as-chat` follows the active preset (the built-in when unset); `preset` names one.
- *  A stale, unowned or missing named preset degrades to task defaults. */
-type ResolveUtilityPresetParams = (userId: UserId) => Promise<SideGenSampling | undefined>;
-
-// @orb-waive no-inline-package-interface(SideGenParamsDeps): baselined when the gate landed; burn-down item 952.
-export interface SideGenParamsDeps {
-  readonly preset: Pick<PresetService, "get">;
-  readonly settings: Pick<SettingsService, "loadUserSettings">;
-}
+import type { ResolveUtilityPresetParams, SideGenParams, SideGenParamsDeps } from "../contract/side-gen-params.ts";
+import { createLoadOptionalPreset } from "../substrate/optional-read.ts";
 
 /** A preset's role params, with its `reasoningParse` pair where auto-parse is on: an off pair is inert in chat, so a
  *  background task keeps the house pair. */
-// @orb-waive compose-wiring-only(rolePresetOf): baselined when the gate landed; burn-down item 964.
 function rolePresetOf(config: PromptConfig): SideGenSampling {
   const pair = config.reasoningParse?.autoParse === true ? config.reasoningParse : undefined;
   return rolePresetParamsOf({ ...config.params, ...(pair !== undefined ? { reasoningTags: { prefix: pair.prefix, suffix: pair.suffix } } : {}) });
 }
 
-export function buildSideGenParams(deps: SideGenParamsDeps): { readonly resolveUtilityPresetParams: ResolveUtilityPresetParams } {
+export function buildSideGenParams(deps: SideGenParamsDeps): SideGenParams {
   // `null` from a stale/unowned/missing id. A database/I/O/program failure must surface, not silently replace the
   // caller's configured sampling (#759).
-  // @orb-waive compose-wiring-only(presetParams): baselined when the gate landed; burn-down item 964.
+  const loadOptional = createLoadOptionalPreset((args) => deps.preset.get(args));
   const presetParams = async (userId: UserId, presetId: PresetId): Promise<SideGenSampling | null> => {
-    try {
-      return rolePresetOf((await deps.preset.get({ userId, id: presetId })).config);
-    } catch (err) {
-      if (err instanceof PresetNotFoundError) {
-        return null;
-      }
-      throw err;
-    }
+    const detail = await loadOptional(userId, presetId);
+    return detail === null ? null : rolePresetOf(detail.config);
   };
 
-  // @orb-waive compose-wiring-only(fromChoice): baselined when the gate landed; burn-down item 964.
   const fromChoice = async (userId: UserId, choice: RolePresetChoice, activePresetId: string | null): Promise<SideGenSampling | undefined> => {
     if (choice.kind === ROLE_PRESET_CHOICE_KINDS.preset) {
       return (await presetParams(userId, castId<PresetId>(choice.presetId))) ?? undefined;
@@ -57,9 +37,8 @@ export function buildSideGenParams(deps: SideGenParamsDeps): { readonly resolveU
     return active ?? rolePresetOf(DEFAULT_PROMPT_CONFIG);
   };
 
-  // @orb-waive compose-wiring-only(resolveUtilityPresetParams): baselined when the gate landed; burn-down item 964.
   const resolveUtilityPresetParams: ResolveUtilityPresetParams = async (userId) => {
-    const { seeds } = await deps.settings.loadUserSettings(userId);
+    const { seeds } = await deps.loadUserSettings(userId);
     return seeds.summarizePreset === null ? undefined : fromChoice(userId, seeds.summarizePreset, seeds.defaultPresetId);
   };
 

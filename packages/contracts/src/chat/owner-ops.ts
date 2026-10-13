@@ -1,12 +1,13 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
-import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { ParticipantRole } from "#identity";
 import type { BindingActor } from "#inference";
+import type { BlockKey } from "#search";
 import type { TagView } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
-import type { TurnInitiator } from "./bus.ts";
+import type { ChatBusEvent, LiveOnlyChatBusEvent, TurnInitiator } from "./bus.ts";
 import type { GuidedSteer } from "./metadata.ts";
 import type { HistoryFloorSeq, RenderPolicy } from "./roster.ts";
 import type { TurnOutcome } from "./views.ts";
@@ -117,3 +118,47 @@ export interface RequestTurnParams {
   readonly timeZone: IanaTimeZone;
 }
 export type RequestTurnOp = (params: RequestTurnParams) => Promise<TurnOutcome>;
+
+/** memory's digest write payload → `embeddings.store`. `contentHash` is the staleness/collapse key;
+ *  `key.scopedCharacterId` is always a real CharacterId (the synthetic group-as-character bucket, or a seated
+ *  character, never a sentinel/null).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export interface MemoryDigestInput {
+  readonly lens: "digest";
+  readonly ownerId: UserId;
+  readonly model: string;
+  readonly key: BlockKey;
+  readonly text: string;
+  readonly contentHash: string;
+  readonly topicAnchor: string;
+  readonly keywords: readonly string[];
+  readonly isGroup: boolean;
+  readonly speakerCharacterIds: readonly CharacterId[];
+}
+/** memory's verbatim-segment CHUNK write payload → `embeddings.storeSegments`. `(chatId, blockIdx, chunkIdx)`
+ *  is the upsert key; segments are shared per chat, not scope-keyed. One chunk covers the whole block in the
+ *  overwhelming majority of cases — a block too big for the embed model's window becomes N chunks rather than
+ *  one truncated row (#172), each carrying the honest span of the messages its text contains. */
+export interface StoreSegmentParams {
+  readonly lens: "segment";
+  readonly ownerId: UserId;
+  readonly model: string;
+  readonly generationId: EmbedGenerationId;
+  readonly generationEpoch: number;
+  readonly chatId: ChatId;
+  readonly blockIdx: number;
+  readonly chunkIdx: number;
+  readonly seqStart: number;
+  readonly seqEnd: number;
+  readonly text: string;
+  readonly contentHash: string;
+}
+
+/** A live-only event has no durable cursor; publishers must preserve that distinction. */
+export type ChatLivePublish = { readonly seq: number; readonly event: ChatBusEvent } | { readonly seq: null; readonly event: LiveOnlyChatBusEvent };
+
+export interface TurnRetrievalEvents {
+  readonly onRerankUnavailable: () => void;
+  readonly onIndexUnavailable: () => void;
+}

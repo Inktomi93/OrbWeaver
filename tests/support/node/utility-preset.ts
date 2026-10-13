@@ -7,7 +7,7 @@ import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contra
 import { DEFAULT_USER_SETTINGS, ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PresetDetail } from "@orb/server/domain/preset";
-import { buildSideGenParams } from "@orb/server/entry/compose";
+import { buildSideGenParams } from "@orb/server/domain/preset";
 
 export const CUSTOM_SYSTEM_TEMPLATE = "CUSTOM PRESET SYSTEM TEMPLATE — never a background prompt";
 
@@ -46,12 +46,10 @@ export function utilityPresetResolver(params: UserIntent): ReturnType<typeof bui
   const id = detail.id;
   return buildSideGenParams({
     preset: { get: () => Promise.resolve(detail) },
-    settings: {
-      loadUserSettings: () =>
-        Promise.resolve({
-          ...DEFAULT_USER_SETTINGS,
-          seeds: { ...DEFAULT_USER_SETTINGS.seeds, summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: id } },
-        }),
-    },
+    loadUserSettings: () =>
+      Promise.resolve({
+        ...DEFAULT_USER_SETTINGS,
+        seeds: { ...DEFAULT_USER_SETTINGS.seeds, summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: id } },
+      }),
   }).resolveUtilityPresetParams;
 }

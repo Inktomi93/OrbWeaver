@@ -43,29 +43,30 @@
 
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
-import { pluginGrantTasks } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { automationRules, plugins, userCredentials } from "@orb/db";
-import { fetchOwned } from "@orb/db/query";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type { BindingActor, InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
-import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, PluginId, PresetId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
+import { availableClaudeExecutable, createInferenceRuntime } from "@orb/inference";
+import { createBinding } from "@orb/kit/binding";
+import type { ChatId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
 import type { ServerRestartPort } from "#domain/admin";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
+import { createImportAvatarStore, createImportOwnedAsset, createStoreGeneratedImage } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
-import { createAutomationTeachingContributions } from "#domain/automation";
+import { createAutomationTeachingContributions, createRuleOwnedBy } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
-import type { ChatContext, ChatUserMacroDefs, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
+import { createCharacterImportOps, createFindSeedCharacter } from "#domain/character";
+import type { ChatContext, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
 import {
   createChatBus,
+  createChatPublication,
   createMemoryRecallRecorder,
+  createResolveChatUserMacroDefs,
   createResolveViewerVisibility,
   isCharacterSeated,
   loadPresentHostUserId,
@@ -73,34 +74,46 @@ import {
 } from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
-import { createCredentialsService } from "#domain/credentials";
+import { createCredentialOwned, createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
+import { createGatherDatabankForTurn } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
-import { createRecordUsage } from "#domain/embeddings";
+import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepOps } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
-import { createImportService } from "#domain/import";
-import { createPluginMacroRegistry } from "#domain/plugin";
-import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
+import { buildImportContext, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
+import { createSeedPersonaWithCompletion } from "#domain/persona";
+import { createPluginGrantTasksOf, createPluginMacroRegistry, createPluginSeedOps, createShowcaseVersionReader } from "#domain/plugin";
+import { buildSideGenParams, createCopyPresetToUser, createLoadOptionalPreset, createPresetReadable } from "#domain/preset";
 import { createResolveStructuredBinding } from "#domain/refinery";
 import type { ImportCardScripts } from "#domain/regex";
+import { createSeedRosterPreset } from "#domain/roster-preset";
 import type { RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
+import { withRetrievalDegrade } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled, createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
-import { createJoinerSettingsStatement, createSettingsContext, createSettingsService, listSeededItemKeys, recordSeededItemKeys } from "#domain/settings";
+import {
+  createJoinerSettingsStatement,
+  createReadSeededKeys,
+  createSettingsComposedOps,
+  createSettingsContext,
+  createSettingsService,
+  recordSeededItemKeys,
+} from "#domain/settings";
 import type { CertificateController, RelayController } from "#domain/share";
 import { createShareService } from "#domain/share";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
 import type { TagContext } from "#domain/tag";
-import { createTagService } from "#domain/tag";
+import { createImportedCardTag, createReadAttachedEntity, createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions } from "#domain/workloads";
+import type { ImportWorldInfoPort } from "#domain/world-info";
 import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
 import { APP_NAME, APP_URL } from "#foundation/config";
-import { allowedHostsInput, authModeSource, env, installKind, processEnvSnapshot, publicAddresses } from "#foundation/env";
+import { allowedHostsInput, authModeSource, env, hostEnvAllowlist, installKind, publicAddresses } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import {
   addSpanEvent,
@@ -128,17 +141,14 @@ import { createPresenceRegistry, createSocketRegistry, publishChatEvent, publish
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder, UserContentSeeder } from "../boot/index.ts";
 import { createDistributedPluginApplier, createExamplePluginSeeder, createLocalLightUserSeed, createUserContentSeeder } from "../boot/index.ts";
-import type { ImportWorldInfoPort } from "../import/index.ts";
-import { buildImportContext } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
 import { buildAutomationPlugin } from "./automation-plugin.ts";
-import type { ChatComposeInput, ChatComposeResult } from "./chat.ts";
+import type { ChatComposeResult } from "./chat.ts";
 import { buildChatService, createSignupMinterCheck } from "./chat.ts";
 import { buildDatabank } from "./databank.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
 import { createEffectiveConfigWiring } from "./effective-config.ts";
-import { createResolveEmbeddingConnection } from "./embedding-connection.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery } from "./imagery.ts";
@@ -148,34 +158,15 @@ import type { PortabilityRunnerComposeResult } from "./portability-runner.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
 import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
-import { withRetrievalDegrade } from "./retrieval-degrade.ts";
 import { buildRosterPreset } from "./roster-preset.ts";
 import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
 import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { createEnableShareSeating } from "./share-seating.ts";
-import { buildSideGenParams } from "./side-gen-params.ts";
 import { createUpstreamProbes } from "./update-check.ts";
-import { createVectorSweepOps } from "./vector-sweep-ops.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
-
-/** Which LIVE-ONLY chat-bus members bulk quiet mode may coalesce (design §5 / fork F-B). Read on every
- *  live-only fan, and TOTAL over the lane by `satisfies` — a third live-only member fails `tsc` here until
- *  someone decides which it is, instead of silently inheriting "not coalescable".
- *    • `roomEntityChanged` = CHURN. A bulk import touching N seated entities fans N×rooms of it, and each
- *      tick cancels+restarts every open member's in-flight refetch — the exact storm W8 was built for.
- *    • `chatDeleted` = a TERMINAL, one per room ever. There is no storm to contain, and silencing even its
- *      first tick would leave an open device pointed at a room that is gone until the bulk scope exits.
- *    • `memoryRecall` = a bounded PHASE PAIR (#313), at most one recalling→recalled per scoped speaker per
- *      turn. Its recalling→recalled transition IS the header brain-icon's signal — coalescing would drop the
- *      "recalling…" tell (the hang indicator) — and a turn is never a bulk fan, so there is no storm to contain. */
-const QUIET_COALESCABLE = {
-  roomEntityChanged: true,
-  chatDeleted: false,
-  memoryRecall: false,
-} as const satisfies Record<LiveOnlyChatEventType, boolean>;
 
 /** The runtime seams a composition root MAY override — the SDK `query` test seam, the D8 session store, a
  *  prebuilt local-light model cache, a wire-capture sink, and the provider TRANSPORT. Everything else the
@@ -441,15 +432,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   };
   // The workload contribution registry is assembled LAST (it spans every owning domain, chat included) but
   // the workloads SERVICE is built mid-graph and needs it as its params validator — so the service holds this
-  // late-bound thunk, derefed per verb call, exactly like portability's `getPortabilityRegistry`.
-  let workloadContributions: WorkloadContributions | null = null;
-  // @orb-waive compose-wiring-only(getWorkloadContributions): baselined when the gate landed; burn-down item 964.
-  const getWorkloadContributions = (): WorkloadContributions => {
-    if (workloadContributions === null) {
-      throw new Error("compose: workload contributions derefed before the registry was assembled");
-    }
-    return workloadContributions;
-  };
+  // late-bound thunk, dereferenced per verb call after the registry has been assembled.
+  const workloadBinding = createBinding<WorkloadContributions>("compose: workload contributions derefed before the registry was assembled");
+  const getWorkloadContributions = workloadBinding.read;
   const settings = createSettingsService(settingsDeps);
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
 
@@ -484,14 +469,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // derive-task auth failure back to it (#1800). `findProvider` is bound to the runtime's registry through a
   // late-bound holder because the registry exists only once the runtime does — a genuine construction cycle,
   // closed one line after `createInferenceRuntime` returns.
-  let runtimeHolder: InferenceRuntime | null = null;
-  // @orb-waive compose-wiring-only(runtimeRef): baselined when the gate landed; burn-down item 964.
-  const runtimeRef = (): InferenceRuntime => {
-    if (runtimeHolder === null) {
-      throw new Error("compose: inference runtime derefed before it was built");
-    }
-    return runtimeHolder;
-  };
+  const runtimeBinding = createBinding<InferenceRuntime>("compose: inference runtime derefed before it was built");
+  const runtimeRef = runtimeBinding.read;
   const credentials = createCredentialsService({
     db,
     now,
@@ -518,13 +497,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     addSpanEvent,
     securityEvent: (kind, fields) => securityEvent(kind, { ...fields }),
     env: {
-      // @orb-waive compose-wiring-only(claudeExecutable): baselined when the gate landed; burn-down item 964.
       get claudeExecutable(): string | undefined {
-        return resolveClaudeExecutable() ?? undefined;
+        return availableClaudeExecutable();
       },
-      // @orb-waive compose-wiring-only(hostEnvAllowlist): baselined when the gate landed; burn-down item 964.
-      hostEnvAllowlist: (): Readonly<Record<string, string>> =>
-        Object.fromEntries(Object.entries(processEnvSnapshot()).flatMap(([k, v]) => (v === undefined ? [] : [[k, v] as const]))),
+      hostEnvAllowlist,
     },
     app: { name: APP_NAME, url: APP_URL },
     snapshotStore: ports.snapshotStore,
@@ -568,7 +544,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       ...(deps.providerSeams?.localLight ?? {}),
     },
   });
-  runtimeHolder = runtime;
+  runtimeBinding.bind(runtime);
   const executor = runtime.executor;
 
   // The funder's REAL principal by userId (D135 clause G — READ off `users.role` through the one row→Principal
@@ -590,16 +566,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newBindingId: minter(ID_PREFIX.connectionBinding),
     runtime,
     audit,
-    // @orb-waive compose-wiring-only(credentialOwned): baselined when the gate landed; burn-down item 964.
-    credentialOwned: async (ownerId, credentialId) => (await fetchOwned(db, userCredentials, credentialId, ownerId)) !== undefined,
+    credentialOwned: createCredentialOwned(db),
     relabelCredential: credentials.relabel,
-    // @orb-waive compose-wiring-only(ruleOwnedBy): baselined when the gate landed; burn-down item 964.
-    ruleOwnedBy: async (ruleId, userId) => (await fetchOwned(db, automationRules, ruleId, userId)) !== undefined,
-    // @orb-waive compose-wiring-only(pluginGrantTasksOf): baselined when the gate landed; burn-down item 964.
-    pluginGrantTasksOf: async (pluginId, userId) => {
-      const row = await fetchOwned(db, plugins, pluginId, userId);
-      return row === undefined ? null : pluginGrantTasks(row.manifest.capabilities);
-    },
+    ruleOwnedBy: createRuleOwnedBy(db),
+    pluginGrantTasksOf: createPluginGrantTasksOf(db),
     endpointAdmission: resolvedEndpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.
@@ -614,25 +584,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const tagCtx: TagContext = {
     db,
     newTagId: minter(ID_PREFIX.tag),
-    // @orb-waive compose-wiring-only(readAttachedEntity): baselined when the gate landed; burn-down item 964.
-    readAttachedEntity: async (caller, target) => {
-      // biome-ignore-start lint/suspicious/noUnnecessaryConditions: Biome loses imported branded target unions; the compiler checks this exhaustive dispatch.
-      switch (target.targetType) {
-        case "character":
-          return { ...target, name: (await character.get({ principal: caller, characterId: target.targetId })).name };
-        case "chat":
-          return { ...target, name: (await chat.getChat({ principal: caller, chatId: target.targetId })).title ?? "Untitled chat" };
-        case "worldBook":
-          return { ...target, name: (await worldInfo.getBook({ principal: caller, bookId: target.targetId })).name };
-        case "persona":
-          return { ...target, name: (await persona.get({ principal: caller, personaId: target.targetId })).name };
-        case "preset":
-          return { ...target, name: (await preset.get({ userId: caller.userId, id: target.targetId })).name };
-        default:
-          return target satisfies never;
-      }
-      // biome-ignore-end lint/suspicious/noUnnecessaryConditions: Imported target-union dispatch ends here.
-    },
+    readAttachedEntity: createReadAttachedEntity({
+      characterName: (caller, id) => character.get({ principal: caller, characterId: id }),
+      chatTitle: (caller, id) => chat.getChat({ principal: caller, chatId: id }),
+      worldBookName: (caller, id) => worldInfo.getBook({ principal: caller, bookId: id }),
+      personaName: (caller, id) => persona.get({ principal: caller, personaId: id }),
+      presetName: (userId, id) => preset.get({ userId, id }),
+    }),
     requireParticipant: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
     // Tag is clockless (rows born-stamp via SQL default), so the audit timestamp is pre-bound here.
     audit: (entry): Promise<void> => audit(entry, now()),
@@ -644,55 +602,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // assembly, a genuine cycle) and threaded into persona's write and
   // buildChatService.
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
-  // @orb-waive compose-wiring-only(emitChatEventChecked): baselined when the gate landed; burn-down item 964.
-  const emitChatEventChecked: ChatComposeInput["emitChatEventChecked"] = async (event, claimStatement) => {
-    const logged = claimStatement === undefined ? await chatBus.emit(event) : await chatBus.emitAfterClaim(event, claimStatement);
-    // `false` ⇒ another retry owned the claim: converged success with nothing to fan. `null` ⇒ the durable
-    // append was dropped + reported (bus.ts FLAG[emit-is-total], e.g. the chat was
-    // deleted mid-turn). Durable-first means an un-logged event is never fanned — it has no replay cursor.
-    // The fan carries `logged.event`, not the caller's — the bus stamped the §3.6 member projection onto it,
-    // and the live path must deliver byte-for-byte what the durable replay will.
-    if (logged === false) {
-      return true;
-    }
-    if (logged !== null) {
-      publishChatEvent(logged);
-      return true;
-    }
-    return false;
-  };
-  const emitChatEvent = async (event: DurableChatBusEvent): Promise<void> => {
-    await emitChatEventChecked(event);
-  };
-  const prepareChatCreationEvent: ChatComposeInput["prepareChatCreationEvent"] = (event) => {
-    const prepared = chatBus.prepareCreation(event);
-    return {
-      statement: prepared.statement,
-      publishCommitted: (): void => publishChatEvent(prepared.publishCommitted()),
-    };
-  };
-  // THE LIVE-ONLY FAN (entity→room member-freshness bridge, design §3.4) — the durable-append-free twin of
-  // `emitChatEvent`. No `chat_events` INSERT, no ring entry, no seq: the member carries no canon, so there is
-  // nothing to replay and a durable row would only cost an INSERT per seated room per edit. The pump yields it
-  // at the CURRENT cursor (`stream/sources/chat.ts`, the attach-synthetic non-advancement rule) and the client
-  // admits it by TYPE. Restricted to `LiveOnlyChatBusEvent` — a durable member cannot take this door, and a
-  // live-only member cannot take the durable one (both `chatBus.emit` and `emitChatEvent` narrow the other way).
-  // Not async and never rejecting: a no-listener publish is a free `EventEmitter.emit`, so there is no failure
-  // mode to classify (contrast the durable path's FLAG[emit-is-total] append classification).
-  //
-  // BULK QUIET MODE applies to exactly ONE of the lane's two members (`transport/trpc/quiet-fanout.ts`,
-  // design §5 / fork F-B), and {@link QUIET_COALESCABLE} above is the belt that keeps that a DECISION rather
-  // than an accident.
-  // @orb-waive compose-wiring-only(emitChatEventLive): baselined when the gate landed; burn-down item 964.
-  const emitChatEventLive = (event: LiveOnlyChatBusEvent): void => {
-    const publish = (): void => {
-      publishChatEvent({ seq: null, event });
-    };
-    if (QUIET_COALESCABLE[event.type] && event.type === "roomEntityChanged" && silenceRoomEntityFan(event.chatId, event.entity, publish)) {
-      return;
-    }
-    publish();
-  };
+  const {
+    emitChecked: emitChatEventChecked,
+    emit: emitChatEvent,
+    prepareCreationEvent: prepareChatCreationEvent,
+    emitLive: emitChatEventLive,
+  } = createChatPublication({
+    bus: chatBus,
+    publish: publishChatEvent,
+    silenceRoomEntityFan,
+  });
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority a room picture runs as.
   const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
@@ -701,7 +620,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // precedent — derefed only when a side-gen call fires, never at boot).
   const { resolveUtilityPresetParams } = buildSideGenParams({
     preset: { get: (args) => preset.get(args) },
-    settings,
+    loadUserSettings: (userId) => settings.loadUserSettings(userId),
   });
 
   // ── assets + character + the two seeders (the assets-character seam). Threads the late-bound
@@ -866,14 +785,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // (chat's `rpgChatOps` is rpg's dep). The delegate below forwards to a late-bound holder bound SYNCHRONOUSLY
   // once rpg composes, a few lines down (the agents-delegate precedent) — no request can run before then, so the
   // holder is always live at call time (a null read would be a compose-order bug, hence the throw).
-  let rpgOpsHolder: NonNullable<ChatContext["rpg"]> | null = null;
-  // @orb-waive compose-wiring-only(rpgOps): baselined when the gate landed; burn-down item 964.
-  const rpgOps = (): NonNullable<ChatContext["rpg"]> => {
-    if (rpgOpsHolder === null) {
-      throw new Error("rpg ops accessed before the rpg seam composed (compose-order bug)");
-    }
-    return rpgOpsHolder;
-  };
+  const rpgBinding = createBinding<NonNullable<ChatContext["rpg"]>>("rpg ops accessed before the rpg seam composed (compose-order bug)");
+  const rpgOps = rpgBinding.read;
   const rpgOpsDelegate: NonNullable<ChatContext["rpg"]> = {
     planGameBirth: (chatId, params) => rpgOps().planGameBirth(chatId, params),
     gameBirthCommitted: (chatId) => rpgOps().gameBirthCommitted(chatId),
@@ -938,15 +851,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // per-image byte cap is a boot dep, and it is the exact `materializeBackground` shape one line up — the
     // same egress + magic belts over a response-controlled URL, only the asset `kind` differs.
     storeInlineReplyImage: createStoreInlineReplyImage({
-      storeGenerated: async (ownerId, bytes, mime) =>
-        assets.store({
-          principal: await resolveHostPrincipal(ownerId),
-          bytes,
-          kind: "generated",
-          mime,
-          enforceMagic: true,
-          maxBytes: effectiveConfig.getEffectiveConfig().maxImageBytes,
-        }),
+      storeGenerated: createStoreGeneratedImage({
+        store: (args) => assets.store(args),
+        resolvePrincipal: resolveHostPrincipal,
+        maxBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
+      }),
       maxBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     }),
     embeddings,
@@ -970,9 +879,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // turns: `search.documents` runs once per turn whether or not the room has documents, so an owner whose
     // vector space was mid-move could not send a message at all. `null` is databank's own ruled empty — the
     // byte-identical no-op an absent op produces — so a degraded gather assembles exactly like a bankless one.
-    // @orb-waive compose-wiring-only(gatherDatabank): baselined when the gate landed; burn-down item 964.
-    gatherDatabank: (args, events) =>
-      withRetrievalDegrade(async () => await databank.gatherRetrieval(args), { empty: null, onIndexUnavailable: events?.onIndexUnavailable }),
+    gatherDatabank: createGatherDatabankForTurn((args) => databank.gatherRetrieval(args), withRetrievalDegrade),
     rpg: rpgOpsDelegate,
     resolveRegexSources: regexCompose.resolveRegexSources,
     // The FOREIGN S2 teaching contributions (D145's registry). tool-use's contribution attaches the turn
@@ -997,18 +904,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // import): it returns the preset for an owned row OR the shared system default, and throws `PresetNotFoundError`
   // for a preset the user can't read — the exact "foreign preset" the strip drops. Any OTHER error is a genuine
   // fault and RETHROWS (never swallowed into a false "not owned").
-  // @orb-waive compose-wiring-only(resolvePresetOwned): baselined when the gate landed; burn-down item 964.
-  const resolvePresetOwned = async (presetId: PresetId, userId: UserId): Promise<boolean> => {
-    try {
-      await preset.get({ userId, id: presetId });
-      return true;
-    } catch (err) {
-      if (err instanceof PresetNotFoundError) {
-        return false;
-      }
-      throw err;
-    }
-  };
+  const resolvePresetOwned = createPresetReadable(createLoadOptionalPreset((args) => preset.get(args)));
 
   // ── rpg (the rpg seam) — the LITE vertical. Built AFTER chat (its `rpgChatOps` are rpg's cross-feature deps);
   // its `ChatRpgOps` are bound back onto the forward-ref holder above so chat's turn hooks reach the live rpg
@@ -1049,16 +945,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     chat: chatCompose.service,
     toolUse,
   });
-  rpgOpsHolder = rpgCompose.chatOps;
+  rpgBinding.bind(rpgCompose.chatOps);
   const rpg = rpgCompose.service;
   // IMGMAC — the chat's authored user-macro DEFS from BOTH homes, for imagery's mode-template extraction (the
   // late-bound thunk threaded into `buildImagery` above). Pure wiring: it reads the two existing front doors
   // (chat's active-preset macro declaration + rpg's game macros) and hands them over UNMERGED, because the
   // preset↔game shadow is chat's ruled policy and has exactly one home (`shadowPresetUserMacros`).
-  const resolveChatUserMacroDefs = async (chatId: ChatId): Promise<ChatUserMacroDefs> => {
-    const [presetDefs, gameDefs] = await Promise.all([chatCompose.rpgChatOps.resolvePromptUserMacros(chatId), rpgOpsDelegate.resolveUserMacros(chatId)]);
-    return { preset: presetDefs, game: gameDefs };
-  };
+  const resolveChatUserMacroDefs = createResolveChatUserMacroDefs(
+    (chatId) => chatCompose.rpgChatOps.resolvePromptUserMacros(chatId),
+    (chatId) => rpgOpsDelegate.resolveUserMacros(chatId),
+  );
 
   // ── world-info + the import ports + the bulk importers + the OWNER-principal resolver (the world-info seam).
   const worldInfoCompose = buildWorldInfo({
@@ -1086,28 +982,20 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // which mints `importedFrom` from the plugin's OWN verified identity + the card's content hash — never from
   // guest-authored card content, which is unspoofable-or-bust the whole reason it lives at contracts
   // (`pluginImportedFrom`, `@orb/contracts/character`).
-  // @orb-waive compose-wiring-only(runInstallerCharacterImport): baselined when the gate landed; burn-down item 964.
-  const runInstallerCharacterImport = async (
-    installerUserId: UserId,
-    bytes: Uint8Array,
-    pluginId: PluginId | null,
-  ): Promise<{ characterId: CharacterId; created: boolean }> => {
-    const principal = await resolveOwnerPrincipal(installerUserId);
-    const importCtx = buildImportContext({
-      principal,
-      character,
-      storeAvatar: assets.store,
-      attachCardTag: tag.attachCardTagByName,
-      importLorebook: importWorldInfo.importLorebook,
-      hasPrimaryBook: importWorldInfo.hasPrimaryBook,
-      linkCarriedBooks: importWorldInfo.linkCarriedBooks,
-      importCardScripts: regexCompose.importCardScripts,
-    });
-    const { characterId, created } = await createImportService(importCtx).importCharacter({
-      card: { bytes, ...(pluginId === null ? {} : { pluginId }) },
-    });
-    return { characterId, created };
-  };
+  const runInstallerCharacterImport = createInstallerCharacterImport({
+    resolvePrincipal: resolveOwnerPrincipal,
+    contextFor: (principal) =>
+      buildImportContext({
+        principal,
+        characterOps: createCharacterImportOps(principal, character),
+        storeAsset: createImportAvatarStore(principal, (args) => assets.store(args)),
+        attachCardTag: createImportedCardTag(principal.userId, (args) => tag.attachCardTagByName(args)),
+        importLorebook: (args) => importWorldInfo.importLorebook(args),
+        hasPrimaryBook: (args) => importWorldInfo.hasPrimaryBook(args),
+        linkCarriedBooks: (args) => importWorldInfo.linkCarriedBooks(args),
+        importCardScripts: (args) => regexCompose.importCardScripts(args),
+      }),
+  });
 
   // ── automation + plugin (the automation-plugin seam) — built LAST of the domain services (both close over
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
@@ -1139,18 +1027,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // own createFromText content-addresses + dedups + enqueues the ingest workload (the indexer).
     databankCreateFromText: databank.createFromText,
     // #679 U8 seam 17 — the guest JSON card serialized to bytes (no embedded avatar) through the shared funnel.
-    ingestCharacterCard: ({ installerUserId, card, pluginId }) =>
-      runInstallerCharacterImport(installerUserId, new TextEncoder().encode(JSON.stringify(card)), pluginId),
+    ingestCharacterCard: ({ installerUserId, card, pluginId }) => runInstallerCharacterImport(installerUserId, serializeImportCard(card), pluginId),
     // #798 — the remote-image "summon with art" arm. Read the PNG from the installer's OWN CAS through the
     // OWNER-GATED `readOwnedAssetBytes` (a foreign/absent id throws leak-free — `AssetNotFoundError` collapses
     // "not yours" and "absent", no existence oracle), then run the SAME funnel: a PNG carries its embedded
     // avatar, so the summoned character arrives WITH its art. Owner-scoped by construction (the read AND the
     // import both run under the installer's own resolved Principal).
-    ingestCharacterAsset: async ({ installerUserId, assetId, pluginId }) => {
-      const principal = await resolveOwnerPrincipal(installerUserId);
-      const owned = await assets.readOwnedAssetBytes(principal, castId<AssetId>(assetId));
-      return runInstallerCharacterImport(installerUserId, owned.bytes, pluginId);
-    },
+    ingestCharacterAsset: createImportOwnedAsset({
+      resolvePrincipal: resolveOwnerPrincipal,
+      readOwnedAssetBytes: (principal, assetId) => assets.readOwnedAssetBytes(principal, assetId),
+      importBytes: runInstallerCharacterImport,
+    }),
   });
 
   // ── roster-preset (saved parties, D61 B6) — built AFTER chat AND after automation (moved below the
@@ -1213,7 +1100,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
 
   // Assemble the contribution registry + close the late-bound holder the workloads verbs deref.
-  workloadContributions = buildWorkloadContributions({
+  const workloadContributions = buildWorkloadContributions({
     db,
     now,
     cas,
@@ -1248,6 +1135,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     listCorpusOwners: searchDiscovery.listCorpusOwners,
   });
 
+  workloadBinding.bind(workloadContributions);
+
+  const settingsComposedOps = createSettingsComposedOps(settings);
+
   const services: Services = {
     admin,
     assets,
@@ -1273,10 +1164,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     share: createShareService({
       relay: deps.share.relay,
       certificate: deps.share.certificate,
-      certificateSetting: () => settings.getEffectiveConfig().ipCertificate,
-      saveCertificateSetting: async (principal, setting) => {
-        await settings.updateAppSettings({ principal, partial: { ipCertificate: setting } });
-      },
+      certificateSetting: settingsComposedOps.certificateSetting,
+      saveCertificateSetting: settingsComposedOps.saveCertificateSetting,
       publicBind: deps.share.publicBind,
       appPort: deps.share.appPort,
       enableSeating: createEnableShareSeating({
@@ -1306,84 +1195,50 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // The ONE user seed (D263) boot + the app first-request hook share: the manifest's items, gated by the
   // account's seed ledger. Built here, after the roster presets it creates and the two seeders it drives.
+  const seedContentEnabled = env.SEED_CONTENT === "on";
   const contentSeeder = createUserContentSeeder({
-    // @orb-waive compose-wiring-only(enabled): baselined when the gate landed; burn-down item 964.
-    enabled: (): boolean => env.SEED_CONTENT === "on",
+    enabled: () => seedContentEnabled,
     manifest: SEED_MANIFEST,
     now,
-    seededKeys: async (userId) => new Set(await listSeededItemKeys(db, userId)),
+    seededKeys: createReadSeededKeys(db),
     recordSeeded: (userId, keys, at) => recordSeededItemKeys(db, userId, keys, at),
-    legacyLatches: async (principal) => {
-      const onboarding = (await settings.getUserSettings({ principal })).config.onboarding;
-      return { characters: onboarding.defaultCharactersSeeded, persona: onboarding.defaultPersonaSeeded };
-    },
+    legacyLatches: settingsComposedOps.legacyLatches,
     seedCharacter: (principal, handle) => characterSeeder.seedCard(principal, handle),
-    seedPersona: async (principal): Promise<boolean> => {
-      await personaSeeder.ensureSeeded(principal);
-      return (await settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded;
-    },
-    // @orb-waive compose-wiring-only(findCharacter): baselined when the gate landed; burn-down item 964.
-    findCharacter: async (principal, handle) => (await character.findByHandle({ ownerId: principal.userId, handle }))?.characterId ?? null,
-    createRosterPreset: async (principal, roster): Promise<void> => {
-      await rosterPreset.create({
-        principal,
-        input: {
-          name: roster.name,
-          description: roster.description,
-          game: roster.game,
-          members: roster.characterIds.map((characterId, position) => ({ kind: "character" as const, characterId, position })),
-        },
-      });
-    },
+    seedPersona: createSeedPersonaWithCompletion({
+      ensureSeeded: (principal) => personaSeeder.ensureSeeded(principal),
+      isSeeded: settingsComposedOps.personaSeeded,
+    }),
+    findCharacter: createFindSeedCharacter((args) => character.findByHandle(args)),
+    createRosterPreset: createSeedRosterPreset((args) => rosterPreset.create(args)),
   });
 
   // The ONE example-plugin seeder instance boot + the app first-request hook share. It drives the REAL plugin
   // verbs under the RECEIVING USER's own Principal — never a synthetic installer and never a second install
   // path: the bundle meets the same unzip hardening, manifest validation and CAS store a hand upload meets,
   // and `install`'s own `(owner, slug)` collision refusal is the seeder's layer-2 idempotency.
+  const pluginSeedOps = createPluginSeedOps({
+    install: (args) => services.plugin.install(args),
+    setGrant: (args) => services.plugin.setGrant(args),
+    upgrade: (args) => services.plugin.upgrade(args),
+    list: (args) => services.plugin.list(args),
+    applyDistributedPlugins: (args) => services.plugin.applyDistributedPlugins(args),
+  });
   const examplePluginSeeder = createExamplePluginSeeder({
     packBundle: packShowcaseBundle,
-    // An EMPTY grant, deliberately (the seeder's header): the row lands able to do nothing at all.
-    install: async ({ caller, bundle }) => await services.plugin.install({ caller, bundle, grant: [] }),
-    // …and the empty RE-GRANT right after it, which is what raises `pending_reconsent` — the standing "this
-    // plugin is asking for capabilities you have not allowed" state the client's consent affordance is gated
-    // on. `acknowledgedNetHosts` is `[]` because the echo gate only runs when the grant includes `net.fetch`.
-    requestConsent: async ({ caller, pluginId }) => {
-      await services.plugin.setGrant({ caller, pluginId, grant: [], acknowledgedNetHosts: [] });
-    },
-    // #803's auto-upgrade rides the REAL upgrade verb — the same one a hand upload and the one-click url
-    // update drive — so the consent wall (widened reach ⇒ disabled + standing re-consent, grant = prior ∩
-    // declared) is the seeder's too, and there is no second install path.
-    upgrade: async ({ caller, pluginId, bundle }) => {
-      await services.plugin.upgrade({ caller, pluginId, bundle });
-    },
-    // The version the SHIPPED bundle declares, straight off its own manifest — never re-spelled here.
-    // @orb-waive compose-wiring-only(bundledVersion): baselined when the gate landed; burn-down item 964.
-    bundledVersion: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
-    // ONE read per pass: it is both the install half's collision check and the upgrade half's subject list.
-    // The seeder filters it down to the showcase slugs itself (a user's OWN plugins are none of its business).
-    listHeld: async (caller) => (await services.plugin.list({ caller })).map((row) => ({ slug: row.slug, pluginId: row.id, version: row.version })),
-    isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.examplePluginsSeeded,
-    markSeeded: async (principal): Promise<void> => {
-      await settings.updateUserSettingsSection({ principal, input: { section: "onboarding", patch: { examplePluginsSeeded: true } } });
-    },
-    readSeededVersions: async (principal): Promise<Readonly<Record<string, string>>> =>
-      (await settings.getUserSettings({ principal })).config.onboarding.seededPluginVersions,
-    writeSeededVersions: async (principal, versions): Promise<void> => {
-      await settings.updateUserSettingsSection({ principal, input: { section: "onboarding", patch: { seededPluginVersions: { ...versions } } } });
-    },
+    install: pluginSeedOps.install,
+    requestConsent: pluginSeedOps.requestConsent,
+    upgrade: pluginSeedOps.upgrade,
+    bundledVersion: createShowcaseVersionReader(readShowcaseManifest),
+    listHeld: pluginSeedOps.listHeld,
+    isSeeded: settingsComposedOps.isExamplePluginSeeded,
+    markSeeded: settingsComposedOps.markExamplePluginSeeded,
+    readSeededVersions: settingsComposedOps.readSeededPluginVersions,
+    writeSeededVersions: settingsComposedOps.writeSeededPluginVersions,
   });
-
-  // The ONE distributed-plugin applier the app's first-request hook drives (D147 clause (d)). It owns nothing
-  // but the once-per-user latch: the plugin logic — which slugs are published, what a distributed copy lands
-  // as, the already-held skip — lives in the self-scoped verb, which this drives under the ARRIVING user's own
-  // Principal. The latch is a settings fact, which is why it is wired here and not in the domain.
   const distributedPluginApplier = createDistributedPluginApplier({
-    apply: async (principal) => await services.plugin.applyDistributedPlugins({ caller: principal }),
-    isApplied: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.distributedPluginsApplied,
-    markApplied: async (principal): Promise<void> => {
-      await settings.updateUserSettingsSection({ principal, input: { section: "onboarding", patch: { distributedPluginsApplied: true } } });
-    },
+    apply: pluginSeedOps.apply,
+    isApplied: settingsComposedOps.isDistributedPluginApplied,
+    markApplied: settingsComposedOps.markDistributedPluginApplied,
   });
 
   return {

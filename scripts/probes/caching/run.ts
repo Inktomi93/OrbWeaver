@@ -23,7 +23,6 @@ import { responseCacheOf } from "../../../packages/inference/src/backends/http/r
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../../../packages/inference/src/backends/http/sanitize.ts";
 import { redactSecretsFromText } from "../../../packages/inference/src/backends/wire/openai-body.ts";
 import type { ProviderScrubSet } from "../../../packages/inference/src/contract/errors.ts";
-import { anthropicTextStream, openAiTextStream, scriptedSseFetch } from "../../../tests/legacy/inference/backends/_hosted-support.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import { appendEvidence } from "./evidence.ts";
 import type { Scenario } from "./scenario.ts";
@@ -264,7 +263,54 @@ function scriptedResponse(url: URL, init: RequestInit | undefined, capture: Capt
           "x-openrouter-cache-ttl": "300",
         }
       : {};
-  return scriptedSseFetch([url.pathname.endsWith("/messages") ? anthropicTextStream(text) : openAiTextStream(text)], [], headers)(url.href, init);
+  const events = url.pathname.endsWith("/messages")
+    ? [
+        {
+          event: "message_start",
+          data: {
+            type: "message_start",
+            message: {
+              id: "msg_leg2",
+              type: "message",
+              role: "assistant",
+              model: "m",
+              content: [],
+              stop_reason: null,
+              usage: { input_tokens: 10, output_tokens: 1 },
+            },
+          },
+        },
+        { event: "content_block_start", data: { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } } },
+        { event: "content_block_delta", data: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text } } },
+        { event: "content_block_stop", data: { type: "content_block_stop", index: 0 } },
+        { event: "message_delta", data: { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 20 } } },
+        { event: "message_stop", data: { type: "message_stop" } },
+      ]
+    : [
+        {
+          event: "",
+          data: {
+            id: "gen-leg2",
+            object: "chat.completion.chunk",
+            created: 1,
+            model: "m",
+            choices: [{ index: 0, delta: { role: "assistant", content: text }, finish_reason: null }],
+          },
+        },
+        {
+          event: "",
+          data: {
+            id: "gen-leg2",
+            object: "chat.completion.chunk",
+            created: 1,
+            model: "m",
+            choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+            usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+          },
+        },
+      ];
+  const body = events.map(({ event, data }) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join("");
+  return Promise.resolve(new Response(body, { headers: { "content-type": "text/event-stream", ...headers } }));
 }
 
 function networkResponse(input: Parameters<typeof fetch>[0], init: RequestInit | undefined, capture: Capture): Promise<Response> {

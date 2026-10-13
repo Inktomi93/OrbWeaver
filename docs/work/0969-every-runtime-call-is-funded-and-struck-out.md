@@ -10,7 +10,7 @@ plan: inference-flow
 
 ## What
 
-The pinned embedding snapshot (entry/compose/embedding-connection.ts) and the imagery and rpg executor calls reach the executor without the funding verdict and without the auth-failure strike-out, which live only in the role clients. Put both checks where no call path can skip them, and test each path. Correct the compose comment about user-supplied URLs and sdkFetch to the real guard (global dispatcher plus write-time admission), with a security review.
+The pinned embedding snapshot (packages/server/src/domain/embeddings/verbs/runtime-connection.ts) and the imagery and rpg executor calls reach the executor without the funding verdict and without the auth-failure strike-out, which live only in the role clients. Put both checks where no call path can skip them, and test each path. Correct the compose comment about user-supplied URLs and sdkFetch to the real guard (global dispatcher plus write-time admission), with a security review.
 
 ## Why
 

@@ -147,6 +147,7 @@ export type {
   PluginSurfaceStateStore,
   PluginUiOutbox,
 } from "./contract/service.ts";
+export { createPluginGrantTasksOf } from "./persistence/grant-tasks.ts";
 export { recordPluginFetchedAsset } from "./persistence/plugin-assets.ts";
 // `listEnabledAcrossOwners` is the BOOT reactivation step's read (#1865) — the one deliberately
 // un-owner-scoped query in the persistence file, projected to (pluginId, ownerId) so its consumer can only
@@ -183,6 +184,7 @@ export {
   PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "./substrate/rate-floor.ts";
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
+export { createShowcaseVersionReader } from "./substrate/showcase-version.ts";
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";
 export { createPluginSurfaceStateStore, createSurfaceStatePublisher, PLUGIN_SURFACE_STATE_MAX_KEYS } from "./substrate/surface-state.ts";
@@ -192,4 +194,6 @@ export { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused } from "./s
 export { buildPluginQuietLlm } from "./verbs/quiet-llm.ts";
 export { createPluginRegistrarOps } from "./verbs/registrar-ops.ts";
 export { createPluginRuntimeOps, createPluginSuggestionExecutor } from "./verbs/runtime-ports.ts";
+
+export { createPluginSeedOps } from "./verbs/seed-ops.ts";
 export { PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS } from "./verbs/transform-for-display.ts";

@@ -4,5 +4,6 @@
 // stack). The scripts PERSIST as `regex_scripts` rows and RUN through the @orb/kit/regex engine in the chat
 // pipeline — neither settings nor chat makes them its reader.
 
-export { regexCollection } from "./lib/regex-collection.tsx";
+export {} from "./lib/regex-collection.tsx";
+
 export { regexGroup } from "./lib/regex-group.tsx";

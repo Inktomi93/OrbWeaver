@@ -7,8 +7,9 @@
 export { AppToaster } from "./components/app-toaster.tsx";
 export { BootVeil } from "./components/boot-veil.tsx";
 export { YouSheet } from "./components/you-sheet.tsx";
-export type { ShellLayout } from "./hooks/use-shell-layout.ts";
-export { useShellLayout } from "./hooks/use-shell-layout.ts";
+
+export {} from "./hooks/use-shell-layout.ts";
+
 // The four app-shell-owned appearance SECTIONS (SET-SEAMS stage 1): app-shell reads these knobs (the shell
 // scope tokens, the content-width clamp, `data-elevation`/`data-reduced-motion`, the reading scope, the
 // glass/texture effects, the painted background), and §6's rule is that a section is owned by its reader.

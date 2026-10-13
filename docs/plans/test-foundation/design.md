@@ -22,7 +22,7 @@ This plan owns execution order. The [test-mirror inventory](../test-mirror/desig
 
 | Phase | Work | Exit condition |
 | - | - | - |
-| Current foundation | Finish compose cleanup (964) and legacy-boundary follow-ups (987). | Rules and queries have domain homes; legacy remains a CI regression population, not strict test evidence. |
+| Current foundation | Finish compose cleanup (964). Keep harness-dependent probe rebuilds with their recorded case lists. | Rules and queries have domain homes; legacy remains a CI regression population, not strict test evidence. |
 | Shared readers | Start Drizzle facts (953), then shape identity, references, import reach and codemods (954 to 957). | Consumers share the floor reader and preserve findings or record proven corrections. |
 | Real harness | Build the server composition root (958) after 964; continue readers in independent files. | Every external edge is injectable and a complete domain case set proves the real graph. |
 | Test inputs and mounting | Finish builders/corpus (959) and the client compose door (960). | Test data derives from production and CT wiring derives from client composition. |
@@ -32,7 +32,7 @@ Production funding (969), identity (972), every-owner tokens (984), type homes (
 
 ### Foundation boundaries
 
-The legacy folder, maintained lint migration, explicit package exports and native integer migration are implemented. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. The [legacy-boundary item](../../work/0987-close-the-legacy-folder-migration-forks.md) owns monotonic-folder enforcement and probe dependencies.
+The legacy folder, maintained lint migration, explicit package exports and native integer migration are implemented. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probe rebuilds have source-specific harness dependencies and preserved case lists in their work items.
 
 Testkit exists as a world-split package. The complete server composition root, shared fact store, builders/corpus and client door remain work, not assumptions. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
@@ -118,13 +118,43 @@ Gate families fold onto the shared readers:
 
 The fact store is built once per world program, updated from file changes and persisted. A `pnpm ast` verb that loads its own program is a defect: one such run held most of the box's memory. Item 965 measures the static tier on a standard hosted runner; the fix is the shared store, never a time or memory cap.
 
+### Shared semantic inventory store
+
+Construction remains held pending the memory work item's diagnosis. Put the persisted semantic store in `tooling/src/floor/code-facts/` and its native worker lifecycle in `tooling/src/floor/compiler/`. Existing collectors keep their judgments and query the store for compiler facts. This is the proposed migration contract, not implemented export-cleanup infrastructure.
+
+Each partition belongs to a native compiler program from `compiler-programs.ts`. Preserve its options, roots, resolved closure and unresolved outcomes. Key declarations by canonical file and source span, with the program identity beside the fact. Store export origins, module targets, binding declarations and physical references. Preserve aliases, type/value distinctions, static dynamic-import members and namespace consumption. Keep native interpretations world-specific, including ambiguous and unresolved results. Physical reference spans may deduplicate body locations, but never select a typed meaning. Resolve imported export origins in the importing world, not the target file's primary world. Record product, tooling and test consumers separately.
+
+Use the native SQLite platform for committed facts. A writer compares input versions under the publication lock before starting a worker. Reuse unchanged partitions without loading a compiler program. Build affected partitions through native programs, not through combined compiler options. The worker writes its partition and exits before publication, releasing its program. Recheck source, config, package-resolution and dependency versions after worker exit, immediately before publication. Discard a partition whose inputs changed during extraction. Publish complete partitions atomically; concurrent readers see a committed generation, never a partial build. Competing writers recheck the committed version before starting work.
+
+Track source, config, package-resolution and dependency inputs with content versions. Changed inputs invalidate their affected native partitions. Added files and failed module lookups also participate in invalidation. Reconcile removed declarations and references when publishing an update. Cross-world reference and export unions demand one input snapshot for every participating world. Publish their generation together only after every demanded partition passes the final input check. Readers pin that generation; they never combine independently published old and new partitions. A failed worker leaves the previous generation intact and supplies no current verdict.
+
+Keep transaction overlays separate from committed facts. Derive their roots from the compiler overlay and their content from the transaction filesystem. Changed overlay content selects new facts; it never changes the repository generation. Discard overlay partitions when their transaction ends.
+
+The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
+
+| Consumer home | Planned shared-store migration |
+| - | - |
+| `tooling/src/ast/lib/scope.ts`, `tooling/src/ast/lib/keys.ts` | Own exports and exposed origin sets |
+| `tooling/src/ast/lib/resolve.ts` | Native dynamic-import targets; keep relative-target policy |
+| `tooling/src/ast/lib/liveness.ts`, `tooling/src/ast/lib/edges.ts` | Import targets, export origins and binding identity; keep existing consumption judgments |
+| `tooling/src/ast/ops/apisurface.ts` | Package consumption facts; keep classification |
+| `tooling/src/ast/ops/swallowed.ts` | Namespace binding identity; keep member consumption and refusal behavior |
+| `tooling/src/ast/lib/tooling-entries.ts` | Checked witness origins and references; keep detached-witness refusal |
+| `tooling/src/floor/compiler/ts-workspace.ts` | Stored physical-reference queries; keep explicit native views |
+| `tooling/src/floor/code-facts/reference-fact.ts` | Stored export origins through the existing public reader |
+| `tooling/src/ast/index.ts`, `tooling/src/ast/lib/emit.ts`, `tooling/src/ast/cli.ts` | Explicit store-backed inventory routing; unported typed verbs keep native views |
+
+`dead` and `typeonly` keep their existing judgments and read references through the floor. Codemod overlays use the same store contract without publishing transaction facts. Other typed readers remain native until their family moves.
+
+Prove native world differences, alias and dynamic-import identity, complete population and separated consumer classes through bounded controls. Prove change invalidation, atomic publication, worker release and reuse by concurrent readers. Change inputs during extraction and prove publication refuses them. Read during a cross-world update and prove readers never receive a mixed generation. Compare existing collector output on the same controls. Replay the frozen inventory only after these controls and the consumer migration pass review. Record peak memory during that replay; a heap limit is not a measurement.
+
 ### Gates move to the tool that already does the job
 
 A rule about names, imports, globals, JSX elements or syntax lives in Biome, ESLint or dependency-cruiser config, not in a custom gate. Tailwind's generated `@theme` resets its default scales, so an off-token class is an unknown class and `no-unknown-classes` rejects it. A custom gate stays only where a judgement needs types or code facts, or protects users with a computed value (contrast, density, theming). World purity stays native: per-world tsconfigs written by the type-config generator, checked by `tsc`, plus `noNodejsModules` and the dependency-cruiser world rules; both stay by owner ruling. The config-liveness parsers, their health twins, `verify-registry-parity` and the ESLint selector model are cut: the tools report their own unused suppressions, and one generic dead-path check covers the config paths that remain. The gates about gates are examined last, one by one.
 
 Tooling tests follow one rule: test verdict logic and lifecycle or concurrency rules (caps, races, reaping, ownership, slots, bands) fast against the decision code; an instrument's plumbing is proven by use; a test that reruns a gate over the real tree is deleted, because CI's structure stage already does it.
 
-The [CT live-read checker decision](../../work/0990-decide-the-maintained-ct-live-read-assertion-checker.md) requires a semantic comparison with maintained Playwright lint before replacement. Population shrink does not establish equivalent enforcement.
+Keep the semantic CT live-read assertion checker alongside maintained Playwright lint. Native rules do not follow imported snapshots, recursive aliases and the typed live-read cases. Their direct syntax coverage does not replace that invariant; population shrink does not establish equivalence.
 
 ### Public doors and production usage
 
@@ -137,6 +167,25 @@ The [production export work item](../../work/0989-adjudicate-unused-production-e
 The [memory work item](../../work/0965-static-checks-and-pnpm-ast-run-within-a.md) owns correct-invocation and memory diagnosis. Failed custom runs do not establish a shipped-tool defect. Bulk export application waits for complete typed evidence; native Knip and codemod preparation do not establish that evidence. Confirm the actual failure mechanism before implementation; preserve the plan's shared-engine requirement without escalating heaps or dropping populations.
 
 Use existing alias-aware `pnpm ast apisurface`, `rot` and `dead` evidence with native Knip's production work set. Apply adjudicated mechanical removals through one batched codemod, not a lane per barrel. Preserve reader limitations and distinguish tool consumers from application production callers. The shared-reader migration owns detector consolidation; this cleanup adds no replacement liveness gate.
+
+### Named macro API vocabulary
+
+Keep the native macro API's named input and result types importable. Callers use this vocabulary instead of declaring copies of nested shapes. D285 preserves the grammar, validation, registration and input-resolution semantics these types describe. This contract does not claim that current application callers import every name.
+
+| Public operation | Named vocabulary | Source home |
+| - | - | - |
+| `swapIdentityMacros` | `IdentityMapping` | `packages/kit/src/macro/content.ts` |
+| `trimContent` | `TrimContentOptions` | `packages/kit/src/macro/content.ts` |
+| `parseMacros`, `evaluateMacros` | `MacroNode`, `TextNode`, `MacroCallNode`, `MacroFlags`, `MacroFlagKey` | `packages/kit/src/macro/types.ts` |
+| `checkMacroArgs` | `CheckMacroArgsOptions`, `MacroArgViolation`, `MacroArgViolationKind` | `packages/kit/src/macro/metadata.ts`, `packages/kit/src/macro/types.ts` |
+| `validateMacroArgs` | `MacroSpan` | `packages/kit/src/macro/types.ts` |
+| `queryMacros`, `checkMacroArgs`, `registerUserMacros` | `MacroCategory`, `MacroArgDef`, `MacroListSpec` | `packages/kit/src/macro/types.ts` |
+| `MacroRegistry.register` | `MacroHandler`, `MacroAnalysisOptions` | `packages/kit/src/macro/types.ts` |
+| `MacroContext.resolve` | `MacroResolveOptions` | `packages/kit/src/macro/types.ts` |
+| `registerUserMacros` | `RegisterUserMacrosOptions` | `packages/kit/src/macro/user-macros.ts` |
+| `resolveUserMacroInputs` | `UserMacroInputOption`, `UserMacroInputValueBag`, `ResolveUserMacroInputsOptions`, `ResolvedUserMacroInputs` | `packages/kit/src/macro/user-macros.ts` |
+
+Registry implementation helpers and bookkeeping types remain outside this named API contract. Their declaration exports can still serve relative imports inside the engine.
 
 ### Execution and verification
 

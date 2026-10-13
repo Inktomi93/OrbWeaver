@@ -36,11 +36,10 @@ import { bumpStatsCanonVersion, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import { WORKLOAD_NOT_ADMISSIBLE } from "#domain/workloads";
-import type { AttachOwnedBooksByName, ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
+import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
 import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "#transport/trpc";
 import { writeImportReport } from "../import/import-report.ts";
-import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
   bundleImportMemoryChatIds,
   bundleImportNotes,

@@ -1,15 +1,9 @@
 // The databank and memory sweeps' completion ops: which owners a sweep covered, and the per-owner receipt each
 // records. Kept apart from the keystone so the completion suites run these exact ops instead of copies.
 
+import type { DocumentVectorSweepReceipt } from "@orb/contracts/embeddings";
 import type { UserId } from "@orb/kit/ids";
-import type { ChatWorkloadDeps, MemoryEmbedSpace } from "#domain/chat";
-import type { DatabankWorkloadDeps } from "#domain/databank";
-import type { EmbeddingsService, GenerationReceipt } from "#domain/embeddings";
-
-import { createVacuousMemoryReceipt as createMemoryOffReceipt } from "#domain/embeddings";
-
-/** The existing entry door retains the domain factory's identity. */
-export const createVacuousMemoryReceipt = createMemoryOffReceipt;
+import type { VectorSweepDeps, VectorSweepOps } from "../contract/vector-sweep-ops.ts";
 
 /**
  * THE COVERED SET of a vector sweep comes from its ENUMERATION SCOPE: `null` is the bulk arm, whose covered set is
@@ -18,19 +12,13 @@ export const createVacuousMemoryReceipt = createMemoryOffReceipt;
  * without ever reaching a neighbour's live space. Completion and the old-space reclaim are PER OWNER (vector tasks
  * are owner-scoped, §7.5).
  */
-export function createVectorSweepOps(deps: {
-  readonly embeddings: Pick<EmbeddingsService, "resolveGeneration" | "purgeDocumentVectors" | "purgeMemoryVectors">;
-  readonly listCorpusOwners: () => Promise<readonly UserId[]>;
-  readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<MemoryEmbedSpace | null>;
-}): Pick<DatabankWorkloadDeps, "beginDocumentVectorSweep" | "purgeDocumentVectors"> & Pick<ChatWorkloadDeps, "purgeMemoryVectors"> {
+export function createVectorSweepOps(deps: VectorSweepDeps): VectorSweepOps {
   const { embeddings } = deps;
-  // @orb-waive compose-wiring-only(sweptOwners): baselined when the gate landed; burn-down item 964.
   const sweptOwners = async (enumerationScope: UserId | null): Promise<readonly UserId[]> =>
     enumerationScope === null ? await deps.listCorpusOwners() : [enumerationScope];
   return {
-    // @orb-waive compose-wiring-only(beginDocumentVectorSweep): baselined when the gate landed; burn-down item 964.
-    beginDocumentVectorSweep: async (enumerationScope): Promise<readonly { ownerId: UserId; generation: GenerationReceipt }[]> => {
-      const receipts: { ownerId: UserId; generation: GenerationReceipt }[] = [];
+    beginDocumentVectorSweep: async (enumerationScope): Promise<readonly DocumentVectorSweepReceipt[]> => {
+      const receipts: DocumentVectorSweepReceipt[] = [];
       for (const ownerId of await sweptOwners(enumerationScope)) {
         const generation = await embeddings.resolveGeneration(ownerId, "embed");
         if (generation !== null) {
@@ -39,14 +27,12 @@ export function createVectorSweepOps(deps: {
       }
       return receipts;
     },
-    // @orb-waive compose-wiring-only(purgeDocumentVectors): baselined when the gate landed; burn-down item 964.
     purgeDocumentVectors: async (receipts): Promise<void> => {
       for (const receipt of receipts) {
         await embeddings.purgeDocumentVectors(receipt);
       }
     },
     // A swept owner the memory sweep built no space for falls back to the vacuous receipt.
-    // @orb-waive compose-wiring-only(purgeMemoryVectors): baselined when the gate landed; burn-down item 964.
     purgeMemoryVectors: async (spaces, enumerationScope): Promise<void> => {
       const completed = new Map(spaces.map((space) => [space.ownerId, space]));
       for (const ownerId of await sweptOwners(enumerationScope)) {

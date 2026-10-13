@@ -3,6 +3,7 @@
 
 export type { AssetsContext } from "./context.ts";
 export { AssetContentRejectedError } from "./contract/errors.ts";
+export type { ImportAssetPort } from "./contract/import-store.ts";
 export type {
   AssetMetadata,
   GalleryImportOutcome,
@@ -21,7 +22,10 @@ export { createChatAssetOps } from "./verbs/chat-asset-ops.ts";
 // Not on AssetsService — a bundle descriptor, not the core path.
 export { createExportAssets } from "./verbs/export-assets.ts";
 export { createExportGallery } from "./verbs/export-gallery.ts";
+export { createStoreGeneratedImage } from "./verbs/generated-store.ts";
 export { createImportAsset } from "./verbs/import-asset.ts";
 export { createImportGallery } from "./verbs/import-gallery.ts";
+export { createImportOwnedAsset } from "./verbs/import-owned.ts";
+export { createImportAvatarStore } from "./verbs/import-store.ts";
 export { createPluginAssetReads } from "./verbs/plugin-reads.ts";
 export { createAssetsWorkloadContributions } from "./workload-contributions.ts";

@@ -117,3 +117,10 @@ export type AttachOwnedBooksByName = (args: {
   /** The books this import's worlds wave landed, keyed by the name the profile calls each one. */
   readonly landed: ReadonlyMap<string, WorldBookId>;
 }) => Promise<{ readonly linked: number; readonly missing: readonly string[] }>;
+
+/** A composition able to replace an embedded book also receives its edited-primary refusal oracle. */
+export interface ImportWorldInfoPort {
+  readonly importLorebook: BulkImportLorebook;
+  readonly hasPrimaryBook: HasPrimaryBook;
+  readonly linkCarriedBooks: LinkCarriedBooks;
+}

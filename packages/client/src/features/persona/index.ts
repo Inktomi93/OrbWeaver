@@ -9,7 +9,6 @@
 // `PersonaPanelRow` is front-door-exported so its CT (the side-eye item-13 stretched-overlay rework)
 // drives it directly from a non-test story — the CharacterCardTile precedent.
 export { FirstRunPersonaDialog } from "./anchors/first-run-persona-dialog.tsx";
-export type { PersonaPanelRowProps } from "./components/persona-panel-row.tsx";
 export { PersonaPanelRow } from "./components/persona-panel-row.tsx";
 // The state the first-run gate stands down in; the /join landing waits for it (app-root).
 export { useViewerCanSpeak } from "./hooks/use-viewer-can-speak.ts";

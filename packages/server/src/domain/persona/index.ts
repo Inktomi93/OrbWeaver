@@ -28,3 +28,5 @@ export { createResolveConnectedPersona } from "./verbs/resolve-connected-persona
 export { createResolvePersonasForParticipants } from "./verbs/resolve-personas-for-participants.ts";
 export { createResolvePersonaSeedPointers } from "./verbs/resolve-seed-pointers.ts";
 export { createResolveUserPublics } from "./verbs/resolve-user-publics.ts";
+
+export { createSeedPersonaWithCompletion } from "./verbs/seed-completion.ts";

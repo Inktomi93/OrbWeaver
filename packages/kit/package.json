@@ -11,6 +11,7 @@
     ".": "./src/index.ts",
     "./allowed-hosts": "./src/allowed-hosts/index.ts",
     "./assets": "./src/assets/index.ts",
+    "./binding": "./src/binding/index.ts",
     "./bounded-ring": "./src/bounded-ring/index.ts",
     "./bug-report": "./src/bug-report/index.ts",
     "./card-frame": "./src/card-frame/index.ts",

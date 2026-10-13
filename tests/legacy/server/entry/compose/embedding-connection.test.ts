@@ -5,7 +5,7 @@
 import { NoConnectionError } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { TEST_CONNECTION_ID, TEST_OWNER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";

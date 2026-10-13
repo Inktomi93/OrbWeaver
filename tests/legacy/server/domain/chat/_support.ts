@@ -5,6 +5,7 @@
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
 // @orb-waive-file no-loose-id-cast(overrides.metadata ?? null): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
+
 import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView, TurnInitiator } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Capability } from "@orb/contracts/inference";
@@ -54,7 +55,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
-import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
+import { createMemoryEmbeddingOps } from "@orb/server/domain/embeddings";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";

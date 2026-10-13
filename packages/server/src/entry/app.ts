@@ -13,7 +13,6 @@ import { DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
-
 import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { ResponseMeta } from "@trpc/server/http";
@@ -21,9 +20,12 @@ import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { timing } from "hono/timing";
+import type { ImportAssetPort } from "#domain/assets";
+import type { ImportCharacterPort } from "#domain/character";
 import type { ExportService } from "#domain/export";
 import type { SettleImportMemory } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
+import type { ImportWorldInfoPort } from "#domain/world-info";
 import { allowedHostsInput, env, resolveAllowedHosts } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
@@ -68,7 +70,6 @@ import {
   serializeSessionCookie,
 } from "./http/index.ts";
 import { isApiPath } from "./http/spa.ts";
-import type { ImportAssetPort, ImportCharacterPort, ImportWorldInfoPort } from "./import/index.ts";
 
 const TRPC_ENDPOINT = "/api/trpc";
 const TRPC_MOUNT = "/api/trpc/*";

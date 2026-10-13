@@ -37,6 +37,10 @@ import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOT
 import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
+import type { ImportAssetPort } from "#domain/assets";
+import { createImportAvatarStore } from "#domain/assets";
+import type { ImportCharacterPort } from "#domain/character";
+import { createCharacterImportOps } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
 import type {
   CollectedBackground,
@@ -62,14 +66,14 @@ import type {
   ImportUnresolvedPinnedPersona,
   ImportWorldNote,
 } from "#domain/import";
-import { collectBundlesFromDir, createImportService, findImportedCharacter, ProfileImportLimitError } from "#domain/import";
+import { buildImportContext, collectBundlesFromDir, createImportService, findImportedCharacter, ProfileImportLimitError } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportPreset } from "#domain/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "#domain/regex";
 import type { ImportedAppearance, ImportedAppearanceOutcome, SettingsImportOutcome } from "#domain/settings";
-import type { AttachOwnedBooksByName, ImportStandaloneLorebook } from "#domain/world-info";
-import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
-import { buildImportContext } from "./build-import-context.ts";
+import type { ImportTagPort } from "#domain/tag";
+import { createImportedCardTag } from "#domain/tag";
+import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "#domain/world-info";
 
 /** The settings-owned theme-import op (`createImportTheme`) as the driver consumes it. */
 type ImportTheme = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
@@ -1029,9 +1033,9 @@ async function importCollectedBundles(
 function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"]): ReturnType<typeof buildImportContext> {
   return buildImportContext({
     principal: deps.principal,
-    character: deps.character,
-    storeAvatar: store,
-    attachCardTag: deps.attachCardTag,
+    characterOps: createCharacterImportOps(deps.principal, deps.character),
+    storeAsset: createImportAvatarStore(deps.principal, store),
+    attachCardTag: createImportedCardTag(deps.principal.userId, (args) => deps.attachCardTag(args)),
     ...(deps.importLorebook !== undefined ? { importLorebook: deps.importLorebook } : {}),
     ...(deps.hasPrimaryBook !== undefined ? { hasPrimaryBook: deps.hasPrimaryBook } : {}),
     ...(deps.linkCarriedBooks !== undefined ? { linkCarriedBooks: deps.linkCarriedBooks } : {}),

@@ -21,12 +21,16 @@ import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
+import type { ImportAssetPort } from "#domain/assets";
 import { AssetContentRejectedError } from "#domain/assets";
+import type { ImportCharacterPort } from "#domain/character";
 import type { DatabankService } from "#domain/databank";
 import type { ImportCardScripts } from "#domain/regex";
+import type { ImportTagPort } from "#domain/tag";
+import type { ImportWorldInfoPort } from "#domain/world-info";
 import { hasCsrfHeader } from "#infra/auth";
 import { classifyDomainError } from "#transport/trpc";
-import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort } from "../import/index.ts";
+import type { ImportFile } from "../import/index.ts";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
 import type { PrincipalEnv } from "./blob.ts";
 

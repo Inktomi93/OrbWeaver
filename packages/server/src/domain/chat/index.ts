@@ -155,6 +155,7 @@ export { createChatService } from "./service.ts";
 export { isBelowHistoryFloor } from "./substrate/auth/index.ts";
 export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill.ts";
 export { estimateMemoryBackfillCalls } from "./substrate/backfill-estimate.ts";
+export { createResolveChatUserMacroDefs } from "./substrate/macro-readers.ts";
 // The §3.6 member-strip verdict — exported for the SAME reason `isBelowHistoryFloor` is: the LIVE SSE
 // fan-out (transport) must apply the identical per-subscriber strip the durable replay applies, off the
 // `viewerIsHost` flag `chatEventBounds` resolves; the verdict is chat's ONE implementation everywhere.
@@ -169,6 +170,7 @@ export { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/parti
 // host (a later chunk). Zero registrants ⇒ byte-identical no-op. (`PromptTransformRegistry` type is homed in
 // contract/context, re-exported above.)
 export { createPromptTransformRegistry, PROMPT_TRANSFORM_DEADLINE_MS } from "./substrate/prompt-transforms.ts";
+export { createChatPublication } from "./substrate/publication.ts";
 // The standalone (out-of-turn) variable write — the injected `applyVariableOps`
 // op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
 export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";

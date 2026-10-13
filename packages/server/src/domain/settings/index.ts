@@ -2,6 +2,7 @@
 // and every settings zod schema/parser live in @orb/contracts/settings — callers import those directly.
 
 export { createSettingsContext } from "./context.ts";
+export type { LegacySeedLatches } from "./contract/composed-ops.ts";
 export type { JoinerSettingsStatementOp } from "./contract/ops.ts";
 export type {
   CreateThemeParams,
@@ -30,13 +31,14 @@ export type { CachedUpstreamDeps } from "./contract/upstream.ts";
 export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views.ts";
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";
 export { migrateSeededBackgroundPicks } from "./persistence/migrate-seeded-background-picks.ts";
-export { listSeededItemKeys, recordSeededItemKeys } from "./persistence/seed-ledger.ts";
+export { createReadSeededKeys, listSeededItemKeys, recordSeededItemKeys } from "./persistence/seed-ledger.ts";
 export { ensureSeedThemes } from "./seed-themes.ts";
 export { createDefaultBackgroundSeeder } from "./seeder/backgrounds.ts";
 export { createSettingsService } from "./service.ts";
 /** @public exported for the client suite that models the echo of a save through the server's own section-patch merge. */
 export { deepMergePlain } from "./substrate/merge.ts";
 export { createApplyImportedAppearance } from "./verbs/apply-imported-appearance.ts";
+export { createSettingsComposedOps } from "./verbs/composed-ops.ts";
 export { createExportTheme } from "./verbs/export-theme.ts";
 export { createExportUserSettings } from "./verbs/export-user-settings.ts";
 export { createImportTheme } from "./verbs/import-theme.ts";

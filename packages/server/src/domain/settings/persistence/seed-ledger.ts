@@ -5,6 +5,7 @@ import type { Db } from "@orb/db";
 import { userSeedLedger } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
+import type { ReadSeededKeys } from "../contract/composed-ops.ts";
 
 /** The manifest keys this account has already been given. */
 export async function listSeededItemKeys(db: Db, userId: UserId): Promise<readonly string[]> {
@@ -21,4 +22,9 @@ export async function recordSeededItemKeys(db: Db, userId: UserId, itemKeys: rea
     .insert(userSeedLedger)
     .values(itemKeys.map((itemKey) => ({ userId, itemKey, seededAt: at })))
     .onConflictDoNothing();
+}
+
+/** The seeder needs set membership, not row order; the owner read remains in the ledger producer. */
+export function createReadSeededKeys(db: Db): ReadSeededKeys {
+  return async (userId): Promise<ReadonlySet<string>> => new Set(await listSeededItemKeys(db, userId));
 }

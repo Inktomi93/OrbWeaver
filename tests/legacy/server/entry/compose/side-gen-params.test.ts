@@ -9,12 +9,11 @@ import { DEFAULT_USER_SETTINGS, ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PresetService } from "@orb/server/domain/preset";
-import { PresetNotFoundError } from "@orb/server/domain/preset";
+import { buildSideGenParams, PresetNotFoundError } from "@orb/server/domain/preset";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { presetDetail, presetWithPromptStructure, utilityPresetResolver } from "@orb/testkit/node/utility-preset.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import { buildSideGenParams } from "#server/entry/compose/side-gen-params.ts";
 
 const USER_ID = castId<UserId>("user_sidegen");
 const ACTIVE_PRESET_ID = "preset_sidegen_active";
@@ -28,12 +27,10 @@ type PresetGet = PresetService["get"];
 function resolverFor(choice: RolePresetChoice | null, get: Mock<PresetGet>): ReturnType<typeof buildSideGenParams>["resolveUtilityPresetParams"] {
   return buildSideGenParams({
     preset: { get },
-    settings: {
-      loadUserSettings: vi.fn().mockResolvedValue({
-        ...DEFAULT_USER_SETTINGS,
-        seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID, summarizePreset: choice },
-      }),
-    },
+    loadUserSettings: vi.fn().mockResolvedValue({
+      ...DEFAULT_USER_SETTINGS,
+      seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID, summarizePreset: choice },
+    }),
   }).resolveUtilityPresetParams;
 }
 
@@ -55,12 +52,10 @@ describe("resolveUtilityPresetParams — the Utility role's preset choice", () =
   test("same as chat with no active preset follows the built-in, exactly as a chat turn does", async () => {
     const resolve = buildSideGenParams({
       preset: { get: vi.fn<PresetGet>() },
-      settings: {
-        loadUserSettings: vi.fn().mockResolvedValue({
-          ...DEFAULT_USER_SETTINGS,
-          seeds: { ...DEFAULT_USER_SETTINGS.seeds, summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat } },
-        }),
-      },
+      loadUserSettings: vi.fn().mockResolvedValue({
+        ...DEFAULT_USER_SETTINGS,
+        seeds: { ...DEFAULT_USER_SETTINGS.seeds, summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat } },
+      }),
     }).resolveUtilityPresetParams;
     await expect(resolve(USER_ID)).resolves.toEqual(rolePresetParamsOf(DEFAULT_PROMPT_CONFIG.params));
   });

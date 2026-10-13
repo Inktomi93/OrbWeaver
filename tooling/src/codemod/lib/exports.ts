@@ -1,8 +1,9 @@
 // Export operations: named / barrel / dedupe / type-only flip.
 // ── §10 ─ Export operations ──────────────────────────────────────────────────
 
-import type { ExportDeclaration } from "ts-morph";
-import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
+import type { ExportDeclaration, ExportSpecifier, SourceFile } from "ts-morph";
+import { Node } from "ts-morph";
+import type { CodemodContext, OperationOptions, Plan, ReExportSelection, RemoveReExportOptions, RemoveReExportTarget } from "../contract/types.ts";
 import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
@@ -65,15 +66,14 @@ export function addReExport(
  * Remove specific re-exports from a barrel. Mirror of `removeNamedImport`.
  * If the declaration loses all its names it's removed. Pass
  * `removeWholeDeclaration: true` to drop the whole `export ... from`
- * statement regardless.
+ * statement regardless. Exact `exports` selectors match source name, public alias and effective type arm
+ * across declarations, preserving emitted module evaluation by default. They never select star exports.
  */
-export function removeReExport(
-  ctx: CodemodContext,
-  filePath: string,
-  target: { readonly moduleSpecifier: string; readonly names: readonly string[] },
-  opts: OperationOptions & { removeWholeDeclaration?: boolean } = {},
-): Plan {
-  const { moduleSpecifier, names } = target;
+export function removeReExport(ctx: CodemodContext, filePath: string, target: RemoveReExportTarget, opts: RemoveReExportOptions = {}): Plan {
+  const { moduleSpecifier } = target;
+  const names =
+    target.exports === undefined ? target.names : target.exports.map((entry) => `${entry.isTypeOnly ? "type " : ""}${entry.name} as ${entry.exportedName}`);
+  assert(!(target.exports !== undefined && opts.removeWholeDeclaration === true), "removeReExport: exact selectors cannot remove a whole declaration");
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
   assert(sf !== undefined, `removeReExport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
@@ -82,6 +82,10 @@ export function removeReExport(
     description: `Remove re-export { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(): void {
+      if (target.exports !== undefined) {
+        removeExactReExports(sf, target, opts);
+        return;
+      }
       // Same type-only vs value ambiguity as removeNamedImport — match the value declaration only.
       const decl = sf.getExportDeclaration((d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly());
       if (!decl) {
@@ -91,7 +95,7 @@ export function removeReExport(
         decl.remove();
         return;
       }
-      const namesSet = new Set(names);
+      const namesSet = new Set(target.names);
       for (const spec of decl.getNamedExports()) {
         if (namesSet.has(spec.getName())) {
           spec.remove();
@@ -102,6 +106,56 @@ export function removeReExport(
       }
     },
   };
+}
+
+function matchesReExport(spec: ExportSpecifier, declaration: ExportDeclaration, selection: ReExportSelection): boolean {
+  const publicName = spec.getAliasNode() ?? spec.getNameNode();
+  const exportedName = Node.isStringLiteral(publicName) ? publicName.getLiteralValue() : publicName.getText();
+  return (
+    spec.getName() === selection.name && exportedName === selection.exportedName && (declaration.isTypeOnly() || spec.isTypeOnly()) === selection.isTypeOnly
+  );
+}
+
+function removeExactReExports(
+  sourceFile: SourceFile,
+  target: Extract<RemoveReExportTarget, { readonly exports: readonly ReExportSelection[] }>,
+  opts: RemoveReExportOptions,
+): void {
+  for (const declaration of sourceFile.getExportDeclarations()) {
+    if (declaration.getModuleSpecifierValue() !== target.moduleSpecifier) {
+      continue;
+    }
+    const selected = declaration.getNamedExports().filter((spec) => target.exports.some((selection) => matchesReExport(spec, declaration, selection)));
+    if (selected.length === 0) {
+      continue;
+    }
+    const requestedBefore = exportRequestsModule(declaration, opts.verbatimModuleSyntax === true);
+    for (const spec of selected) {
+      spec.remove();
+    }
+    preserveExportRequest(declaration, target.moduleSpecifier, requestedBefore, opts);
+  }
+}
+
+function exportRequestsModule(declaration: ExportDeclaration, verbatimModuleSyntax: boolean): boolean {
+  return !declaration.isTypeOnly() && (verbatimModuleSyntax || declaration.getNamedExports().some((specifier) => !specifier.isTypeOnly()));
+}
+
+function preserveExportRequest(declaration: ExportDeclaration, moduleSpecifier: string, requestedBefore: boolean, opts: RemoveReExportOptions): void {
+  const hasSurvivors = declaration.getNamedExports().length > 0;
+  if (!hasSurvivors && (!requestedBefore || opts.preserveModuleEvaluation === false)) {
+    declaration.remove();
+    return;
+  }
+  if (!requestedBefore || opts.preserveModuleEvaluation === false || exportRequestsModule(declaration, opts.verbatimModuleSyntax === true)) {
+    return;
+  }
+  const request = `import ${JSON.stringify(moduleSpecifier)};`;
+  if (hasSurvivors) {
+    declaration.getSourceFile().insertStatements(declaration.getChildIndex(), request);
+  } else {
+    declaration.replaceWithText(request);
+  }
 }
 
 /**

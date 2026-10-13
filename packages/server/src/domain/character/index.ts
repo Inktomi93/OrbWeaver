@@ -11,6 +11,7 @@ export {
 } from "./contract/errors.ts";
 export type { CharacterHandoffCopyContext, CopyAssetToOwner, CopyHandoffCards, HandoffCardCopy } from "./contract/handoff-copy.ts";
 export { handoffProvenance } from "./contract/handoff-copy.ts";
+export type { ImportCharacterPort } from "./contract/import-ops.ts";
 export type {
   AttachImportedArtParams,
   BulkAddCardTagParams,
@@ -81,4 +82,6 @@ export { buildCardEmbedText } from "./substrate/embed-text.ts";
 // rpg promotion recovers from a handle-uniqueness refusal through this, injected at the composition root.
 export { isCharacterHandleConflict } from "./substrate/handle-conflict.ts";
 export { createEmbeddableCardText } from "./verbs/embeddable-card-text.ts";
+export { createCharacterImportOps } from "./verbs/import-ops.ts";
 export { createCharacterRoomProjections } from "./verbs/room-projections.ts";
+export { createFindSeedCharacter } from "./verbs/seed-reader.ts";
