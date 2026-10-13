@@ -7,6 +7,7 @@ import type {
   HistoryFloorSeq,
   InvitePreview,
   LiveOnlyChatBusEvent,
+  MemoryDigestInput,
   NextTurnConnectionView,
   ParticipantView,
   PromptTransform,
@@ -16,10 +17,13 @@ import type {
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   RoomOverrides,
+  StoreSegmentParams,
   ToolCallRecord,
   TurnAbortReason,
   TurnInitiator,
+  TurnRetrievalEvents,
 } from "@orb/contracts/chat";
+import type { PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
 import type { Can, ChatMembership, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { AttachmentQuality, SendAvailability } from "@orb/contracts/inference";
@@ -64,7 +68,6 @@ import type {
   ChatStreamGenerationId,
   ChatTurnId,
   CompactionSpendId,
-  EmbedGenerationId,
   Handle,
   MessageAssetId,
   MessageId,
@@ -92,7 +95,7 @@ import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from ".
 import type { SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 
 export type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
-export type { ResolveCharacterTagsOp, ResolveSeatDecoOp, ResolveViewerVisibility, SeatDeco, ViewerVisibility } from "@orb/contracts/chat";
+export type { ResolveCharacterTagsOp, ResolveSeatDecoOp, ResolveViewerVisibility, SeatDeco, StoreSegmentParams, ViewerVisibility } from "@orb/contracts/chat";
 export type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
 
 // The explicit ChatContext DI bundle + every injected cross-feature op type. Homed under contract/ because
@@ -1020,45 +1023,6 @@ type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly Charact
  *  only to a persona the acting user owns. */
 type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly personaId: PersonaId }) => Promise<boolean>;
 
-/** memory's digest write payload → `embeddings.store`. `contentHash` is the staleness/collapse key;
- *  `key.scopedCharacterId` is always a real CharacterId (the synthetic group-as-character bucket, or a seated
- *  character, never a sentinel/null).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export interface StoreDigestParams {
-  readonly lens: "digest";
-  readonly ownerId: UserId;
-  readonly model: string;
-  readonly key: BlockKey;
-  readonly text: string;
-  readonly contentHash: string;
-  readonly topicAnchor: string;
-  readonly keywords: readonly string[];
-  readonly isGroup: boolean;
-  readonly speakerCharacterIds: readonly CharacterId[];
-  /** The pass's abort: the embed stops waiting on the model when it fires, before any row is written. */
-  readonly signal?: AbortSignal | undefined;
-}
-
-/** memory's verbatim-segment CHUNK write payload → `embeddings.storeSegments`. `(chatId, blockIdx, chunkIdx)`
- *  is the upsert key; segments are shared per chat, not scope-keyed. One chunk covers the whole block in the
- *  overwhelming majority of cases — a block too big for the embed model's window becomes N chunks rather than
- *  one truncated row (#172), each carrying the honest span of the messages its text contains. */
-export interface StoreSegmentParams {
-  readonly lens: "segment";
-  readonly ownerId: UserId;
-  readonly model: string;
-  readonly generationId: EmbedGenerationId;
-  readonly generationEpoch: number;
-  readonly chatId: ChatId;
-  readonly blockIdx: number;
-  readonly chunkIdx: number;
-  readonly seqStart: number;
-  readonly seqEnd: number;
-  readonly text: string;
-  readonly contentHash: string;
-}
-
 /** The space the embeddings boundary actually stamped — the RETURN half of the write ops below, distinct from
  *  the {@link MemoryEmbedSpace} a pass PLANNED against (`generate/digests.ts assertStoreSpace` compares them).
  *  It stays HERE and not in `memory.ts`: it is the return type of two `ChatContext` ops, and the composition
@@ -1086,54 +1050,7 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemorySto
  */
 export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryStoreReceipt[]>;
 
-/** memory's digest SHRINK reclaim — the blocks-that-no-longer-exist half of the build. `keepPerTier[k]` is
- *  the surviving block COUNT at tier k; every stored row with `blockIdx >= keepPerTier[tier]` is beyond canon
- *  and is deleted (its `chat_digest_speakers` rows cascade). */
-interface PruneDigestBlocksParams {
-  readonly lens: "digest";
-  readonly chatId: ChatId;
-  readonly scopedCharacterId: CharacterId;
-  readonly keepPerTier: readonly number[];
-}
-
-/** The segment twin: chat-wide and single-tier, so ONE block ceiling and no scope bucket — plus the per-block
- *  CHUNK ceiling (#172), since a block is a row set now. `chunkCounts` lists only the blocks whose count is
- *  not 1 (a block that shrank from 5 chunks to 2 would otherwise strand 3 rows still claiming spans; a block
- *  past the pathological ceiling rides with `chunkCount: 0`). */
-interface PruneSegmentBlocksParams {
-  readonly lens: "segment";
-  readonly chatId: ChatId;
-  readonly keepBlockCount: number;
-  readonly chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[];
-}
-
-/**
- * memory's block-SHRINK reclaim → `embeddings.pruneMemoryBlocks`. The counterpart to
- * {@link EmbeddingsStoreOp}, and it exists because the build's self-heal structurally cannot cover a shrink:
- * blocks are sliced by POSITION and stored keyed `(tier, blockIdx)`, while the heal is CONTENT-HASH keyed —
- * so it only ever re-summarizes a block that still EXISTS. When the ingest set shrinks (a host hides a
- * trailing span, rows are deleted), the trailing block stops being produced, no surviving block's hash
- * changes, and nothing re-summarizes anything — so the digest built FROM the removed rows would stay in the
- * recall pool forever. The build STORES, then prunes. An ordinary pass prunes nothing.
- */
-/** memory's STALENESS invalidation (#1395) — the third reason a stored digest is wrong, and the one neither
- *  the self-heal nor the shrink covers. A hash mismatch has already PROVEN the stored row stale; when the
- *  re-summarize that mismatch queued comes back empty (a provider failure, a blank result, a bodyless arc)
- *  the build correctly declines to store a blank — but the pre-existing row is still live and
- *  `loadDigestsForScope` has no currency filter, so recall keeps serving memory the build knows is out of
- *  date until some later pass succeeds. `keys` is exactly the set this pass attempted and abandoned; the
- *  block simply drops out of recall until a pass lands a real digest (memory says less, never something
- *  stale). */
-interface PruneStaleDigestsParams {
-  readonly lens: "digest-stale";
-  readonly chatId: ChatId;
-  readonly scopedCharacterId: CharacterId;
-  /** Each key carries the content hash it PROVED stale — the delete matches on it, so a concurrent pass that
-   *  healed the block between this pass's failed summarize and this call keeps its fresh row. */
-  readonly keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[];
-}
-
-type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBlocksParams | PruneStaleDigestsParams) => Promise<void>;
+type EmbeddingsPruneBlocksOp = (params: PruneMemoryBlocksParams) => Promise<void>;
 
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
  *  identities back to digest text and reports the numbers in its recall trace (#250 — a bare key list left
@@ -1149,10 +1066,6 @@ type SearchDigestsOp = (query: Omit<MemoryQueryOptions, "ownerId">, events?: Tur
  *  resolve empty rather than throw. The owner's vector space being mid-move or unbound is an ordinary state,
  *  and a turn's retrieval is an ENHANCEMENT to the turn — so that one class degrades here while every other
  *  search failure still propagates and still faults the turn (a `strikeOutOnTurnFault` premise, `engine.ts`). */
-interface TurnRetrievalEvents {
-  readonly onRerankUnavailable: () => void;
-  readonly onIndexUnavailable: () => void;
-}
 
 /** The cross-chat corpus/digest+segment scan; host-only scope is enforced by the caller. */
 type SearchCorpusOp = (query: Omit<MemoryQueryOptions, "ownerId">) => Promise<readonly BlockKey[]>;
@@ -1525,4 +1438,9 @@ export interface ChatServiceDeps {
   readonly lockTtlMs: number;
   /** D259 — the foreign halves of the signup-invite ops (sessions account statement, minter check, audit). */
   readonly signup: SignupInviteDeps;
+}
+
+/** Cancellation belongs to the runtime operation, not the shared memory payload. */
+export interface StoreDigestParams extends MemoryDigestInput {
+  readonly signal?: AbortSignal | undefined;
 }

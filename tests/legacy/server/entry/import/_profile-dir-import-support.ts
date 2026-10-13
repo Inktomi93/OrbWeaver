@@ -7,8 +7,11 @@ import type { BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, PresetId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
+import type { ImportAssetPort } from "@orb/server/domain/assets";
+import type { ImportCharacterPort } from "@orb/server/domain/character";
 import type { ImportFsPort } from "#server/domain/import/index.ts";
-import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ProfileDirImportDeps } from "#server/entry/import/index.ts";
+import type { ImportTagPort } from "#server/domain/tag/index.ts";
+import type { ProfileDirImportDeps } from "#server/entry/import/index.ts";
 
 export const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

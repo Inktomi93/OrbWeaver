@@ -21,11 +21,17 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { ImportAssetPort } from "@orb/server/domain/assets";
+import { createImportAvatarStore } from "@orb/server/domain/assets";
+import type { ImportCharacterPort } from "@orb/server/domain/character";
+import { createCharacterImportOps } from "@orb/server/domain/character";
+import type { ImportContextWiring } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import type { ImportAssetPort, ImportCharacterPort, ImportContextWiring, ImportTagPort } from "#server/entry/import/index.ts";
-import { buildImportContext } from "#server/entry/import/index.ts";
+import { buildImportContext } from "#server/domain/import/index.ts";
+import type { ImportTagPort } from "#server/domain/tag/index.ts";
+import { createImportedCardTag } from "#server/domain/tag/index.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 const FOREIGN = castId<UserId>("usr_victim");
@@ -62,15 +68,15 @@ function ports(): Ports {
 function wiring(p: Ports): ImportContextWiring {
   return {
     principal: PRINCIPAL,
-    character: {
+    characterOps: createCharacterImportOps(PRINCIPAL, {
       create: p.create,
       findByImportHash: p.findByImportHash,
       attachImportedArt: p.attachImportedArt,
       findByHandle: p.findByHandle,
       findByName: p.findByName,
-    },
-    storeAvatar: p.storeAvatar,
-    attachCardTag: p.attachCardTag,
+    }),
+    storeAsset: createImportAvatarStore(PRINCIPAL, p.storeAvatar),
+    attachCardTag: createImportedCardTag(PRINCIPAL.userId, p.attachCardTag),
   };
 }
 

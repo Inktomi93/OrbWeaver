@@ -2,7 +2,7 @@
 
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { characterEmbeddings, embedGenerationTargets } from "@orb/db";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect } from "@orb/testkit/node/fixtures.ts";
 import type { EmbeddingsContext } from "#server/domain/embeddings/index.ts";

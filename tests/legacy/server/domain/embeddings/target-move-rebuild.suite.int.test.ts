@@ -3,7 +3,6 @@
 // to a row whose key is revoked switches nothing, and the first write after the key is fixed does.
 
 import { setTimeout as sleep } from "node:timers/promises";
-// @orb-waive-file no-test-fabrication({ readonly input?: unknown; readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
@@ -15,7 +14,7 @@ import { ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection, createVacuousMemoryReceipt, createVectorSweepOps } from "@orb/server/domain/embeddings";
 import { logger } from "@orb/server/foundation/observability";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -33,11 +32,12 @@ import { nearestCharacters } from "#server/domain/search/persistence/nearest.ts"
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
 import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
 import { createHostPrincipalResolver } from "#server/entry/auth/index.ts";
-import { createVacuousMemoryReceipt, createVectorSweepOps } from "#server/entry/compose/vector-sweep-ops.ts";
 import { GenerationSupersededError } from "#server/primitives/embedding-generation/index.ts";
 import type { ConnectionHarness, HarnessOptions } from "../connection/_support.ts";
 import { BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import { makeStoreHarness, seedCharacter } from "./_support.ts";
+
+// @orb-waive-file no-test-fabrication({ readonly input?: unknown; readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
 
 const LOCAL_LIGHT = castId<ProviderId>("local-light");
 const ENCODER = "jinaai/jina-clip-v2";

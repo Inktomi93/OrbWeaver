@@ -11,7 +11,7 @@ import { characters, chatDigestSpeakers, chatDigests, chatSegments, embedGenerat
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
-import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
+import { createMemoryEmbeddingOps } from "@orb/server/domain/embeddings";
 import { and, eq } from "drizzle-orm";
 import type {
   ChatContext,

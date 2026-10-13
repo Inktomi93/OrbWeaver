@@ -5,14 +5,6 @@
 // this barrel's existing consumers (runner-env, the HTTP import edge, tests) keep their import path.
 export { IMPORT_MAX_DECOMPRESSED_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 export type {
-  ImportAssetPort,
-  ImportCharacterPort,
-  ImportContextWiring,
-  ImportTagPort,
-  ImportWorldInfoPort,
-} from "./build-import-context.ts";
-export { buildImportContext } from "./build-import-context.ts";
-export type {
   BundleImportDeps,
   BundleImportFileOutcome,
   BundleImportReport,

@@ -11,13 +11,13 @@
 import { characterProvenanceOf, pluginImportedFrom } from "@orb/contracts/character";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createCharacterService } from "@orb/server/domain/character";
+import { createCharacterImportOps, createCharacterService } from "@orb/server/domain/character";
+import { buildImportContext } from "@orb/server/domain/import";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createImportService } from "#server/domain/import/index.ts";
-import { buildImportContext } from "#server/entry/import/index.ts";
 import { makeHarness, seedUser } from "../../character/_support.ts";
 
 const encoder = new TextEncoder();
@@ -36,8 +36,8 @@ describe("importCharacter — plugin-funnel provenance (#1702)", () => {
     const principal = makePrincipal(owner);
     const importCtx = buildImportContext({
       principal,
-      character,
-      storeAvatar: () => Promise.reject(new Error("no avatar expected for a JSON card")),
+      characterOps: createCharacterImportOps(principal, character),
+      storeAsset: () => Promise.reject(new Error("no avatar expected for a JSON card")),
       attachCardTag: () => Promise.resolve(true),
     });
     const svc = createImportService(importCtx);
@@ -63,8 +63,8 @@ describe("importCharacter — plugin-funnel provenance (#1702)", () => {
     const principal = makePrincipal(owner);
     const importCtx = buildImportContext({
       principal,
-      character,
-      storeAvatar: () => Promise.reject(new Error("no avatar expected for a JSON card")),
+      characterOps: createCharacterImportOps(principal, character),
+      storeAsset: () => Promise.reject(new Error("no avatar expected for a JSON card")),
       attachCardTag: () => Promise.resolve(true),
     });
     const svc = createImportService(importCtx);

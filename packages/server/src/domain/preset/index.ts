@@ -47,8 +47,10 @@ export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
 export { migrateProseSlotVocab } from "./persistence/migrate-prose-slot-vocab.ts";
 export { ensureSystemDefaultPreset } from "./seed.ts";
 export { createPresetService } from "./service.ts";
+export { createLoadOptionalPreset } from "./substrate/optional-read.ts";
 export { createExport as createExportPresets } from "./verbs/export.ts";
 export { createImport as createImportPresets } from "./verbs/import.ts";
-export { createLoadOptionalPreset } from "./verbs/load-optional.ts";
+export { createPresetReadable } from "./verbs/readable.ts";
 // The backward-bindings rule `PresetContext.resolvePresetUsage` runs; compose wires its three foreign inputs.
 export { createResolvePresetUsage } from "./verbs/resolve-preset-usage.ts";
+export { buildSideGenParams } from "./verbs/side-gen-params.ts";

@@ -52,7 +52,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { consolidationHash, createResolveViewerVisibility, loadPresentHostUserId, resolveTier0Range } from "@orb/server/domain/chat";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";

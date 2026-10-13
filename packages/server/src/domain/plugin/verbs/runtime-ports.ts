@@ -7,6 +7,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { PluginNotFoundError } from "../contract/errors.ts";
 import type { PluginRuntimeDeps, PluginRuntimeOps, PluginSuggestionExecutor } from "../contract/runtime-ports.ts";
 import { recordPluginFetchedAsset } from "../persistence/plugin-assets.ts";
+import { createShowcaseVersionReader } from "../substrate/showcase-version.ts";
 
 /** Bind typed effects without changing the installer, origin or fetched-asset link ordering. */
 
@@ -72,7 +73,7 @@ export function createPluginRuntimeOps(deps: PluginRuntimeDeps): PluginRuntimeOp
       await recordPluginFetchedAsset(db, pluginId, stored.assetId, now());
       return { assetId: stored.assetId };
     },
-    showcaseVersion: async (slug): Promise<string | null> => (await deps.readShowcaseManifest(slug))?.version ?? null,
+    showcaseVersion: createShowcaseVersionReader((slug) => deps.readShowcaseManifest(slug)),
   };
 }
 /** A confirmed act cannot silently succeed before its plugin enforcement runner is connected. */

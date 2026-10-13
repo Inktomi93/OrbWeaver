@@ -30,6 +30,10 @@ export { createHandoffRestampStatements } from "./persistence/handoff-restamp.ts
 export { createEmbeddingsService } from "./service.ts";
 export { precomputedSeedEmbedding } from "./substrate/seed-embedding.ts";
 export { createEmbeddingReindexTriggers } from "./verbs/embedding-reindex-triggers.ts";
+export { createMemoryEmbeddingOps } from "./verbs/memory-ops.ts";
 export { createRecordUsage } from "./verbs/record-usage.ts";
+export { createResolveEmbeddingConnection } from "./verbs/runtime-connection.ts";
 export { createVacuousMemoryReceipt } from "./verbs/vacuous-memory-receipt.ts";
+
+export { createVectorSweepOps } from "./verbs/vector-sweep-ops.ts";
 export { createEmbeddingsWorkloadContributions } from "./workload-contributions.ts";

@@ -21,3 +21,8 @@ export function resolveClaudeExecutable(): string | null {
     return null;
   }
 }
+
+/** The runtime env port represents an unavailable executable by absence rather than null. */
+export function availableClaudeExecutable(): string | undefined {
+  return resolveClaudeExecutable() ?? undefined;
+}

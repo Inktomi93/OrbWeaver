@@ -16,6 +16,7 @@ export type {
   ImportWorldBook,
   ImportWorldBookContext,
   ImportWorldBookOutcome,
+  ImportWorldInfoPort,
   LinkCarriedBooks,
   LinkCarriedBooksResult,
   WorldInfoDuplicateCarryContext,

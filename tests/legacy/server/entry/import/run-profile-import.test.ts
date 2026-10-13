@@ -10,9 +10,11 @@ import type { Principal } from "@orb/contracts/identity";
 import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { ImportAssetPort } from "@orb/server/domain/assets";
+import type { ImportCharacterPort } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import type { ImportAssetPort, ImportCharacterPort, ImportTagPort } from "#server/entry/import/index.ts";
+import type { ImportTagPort } from "#server/domain/tag/index.ts";
 import { runProfileImport } from "#server/entry/import/index.ts";
 
 const OWNER: Principal = {
