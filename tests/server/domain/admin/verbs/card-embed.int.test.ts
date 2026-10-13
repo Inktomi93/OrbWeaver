@@ -28,7 +28,7 @@ test("foreign and textless cards never reach funding or storage; an owned card p
   }));
   const embed = createAdminCardEmbed({ getCard: services.character.getCard, loadCardText: services.character.loadCardText, store, roleClientsFor });
   const foreign = await embed.embedCharacterCard(principal(stranger.id, { role: stranger.role }), card.id);
-  expect(store.mock.calls.map(([input]) => (input.kind === "card" ? input.content : null))).toEqual([]);
+  expect(store.mock.calls.map(([input]) => input.content)).toEqual([]);
   expect(foreign).toBe(false);
   expect(await embed.embedCharacterCard(principal(owner.id, { role: owner.role }), synthetic.id)).toBe(false);
   expect(roleClientsFor).not.toHaveBeenCalled();
@@ -38,9 +38,7 @@ test("foreign and textless cards never reach funding or storage; an owned card p
   model = testModelId("embed-second");
   expect(await embed.embedCharacterCard(actor, card.id)).toBe(true);
   expect(roleClientsFor.mock.calls.map(([userId]) => userId)).toEqual([owner.id, owner.id]);
-  expect(
-    store.mock.calls.map(([input]) => ({ ownerId: input.ownerId, characterId: input.kind === "card" ? input.characterId : null, model: input.model })),
-  ).toEqual([
+  expect(store.mock.calls.map(([input]) => ({ ownerId: input.ownerId, characterId: input.characterId, model: input.model }))).toEqual([
     { ownerId: owner.id, characterId: card.id, model: testModelId("embed-first") },
     { ownerId: owner.id, characterId: card.id, model: testModelId("embed-second") },
   ]);
