@@ -2,7 +2,7 @@ import { tv } from "#lib";
 
 // The data-series line skin (mirrors the mock's `.prow`): swatch · label/detail · trailing value.
 // ONE vertical rhythm (`py-field` — instrument density): no `density` prop, because layout-context props are
-// gate-banned (`no-layout-context-props`) — the container model + the `data-density` attribute own that axis.
+// gate-banned (ESLint layout-attribute restrictions in `eslint.config.js`) — the container model + the `data-density` attribute own that axis.
 export const seriesRowVariants = tv({
   slots: {
     // `text-start` is load-bearing: the row is DESIGNED to sit inside a `<button>` trigger, and a button's

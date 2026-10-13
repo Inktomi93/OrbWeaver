@@ -15,13 +15,11 @@ import { gate as noAwaitDbInLoop } from "../../../../../tooling/src/verify/gates
 import { gate as noBlanketSuppression } from "../../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
 import { gate as noChatTrpcInSurface } from "../../../../../tooling/src/verify/gates/no-chat-trpc-in-surface.ts";
 import { gate as noContextReturntype } from "../../../../../tooling/src/verify/gates/no-context-returntype.ts";
-import { gate as noIfIsGroup } from "../../../../../tooling/src/verify/gates/no-if-is-group.ts";
 import { gate as noInlineOptimisticInSurface } from "../../../../../tooling/src/verify/gates/no-inline-optimistic-in-surface.ts";
 import { gate as noInlineUnionAlias } from "../../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as noInlineUnionRedecl } from "../../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as noTestFabrication } from "../../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
-import { gate as queryMachineSeals } from "../../../../../tooling/src/verify/gates/query-machine-seals.ts";
 import { gate as testFixtureImports } from "../../../../../tooling/src/verify/gates/test-fixture-imports.ts";
 import { gate as testMockDoctrine } from "../../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { gate as zustandSelectorStability } from "../../../../../tooling/src/verify/gates/zustand-selector-stability.ts";
@@ -90,11 +88,6 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "`ReturnType<>` in context.ts",
   },
   {
-    policy: noIfIsGroup,
-    overlays: [add(`${CHAT}/lib/liveness-group.ts`, "const isGroup = true;\nexport const livenessGroup = isGroup;\n")],
-    messageIncludes: "isGroup",
-  },
-  {
     policy: noInlineOptimisticInSurface,
     overlays: [
       add(
@@ -130,16 +123,6 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     // refusing it as unreadable.
     overlays: [add(`${CHARACTER_PERSISTENCE}/liveness-cache.ts`, "export const livenessCache = new Map<string, string>();\n")],
     messageIncludes: "in-memory state (caches, registries) belongs in a named subsystem",
-  },
-  {
-    policy: queryMachineSeals,
-    overlays: [
-      add(
-        "packages/client/src/components/liveness-mutation.tsx",
-        "import { useMutation } from '@tanstack/react-query';\nexport const livenessMutation = useMutation;\n",
-      ),
-    ],
-    messageIncludes: "useMutation",
   },
   {
     policy: testFixtureImports,

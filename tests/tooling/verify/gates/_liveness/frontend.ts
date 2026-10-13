@@ -26,14 +26,12 @@ import { gate as noBannedTwUtility } from "../../../../../tooling/src/verify/gat
 import { gate as noColorLiterals } from "../../../../../tooling/src/verify/gates/no-color-literals.ts";
 import { gate as noFloorlessControlInWrap } from "../../../../../tooling/src/verify/gates/no-floorless-control-in-wrap.ts";
 import { gate as noHoverDisplaySwap } from "../../../../../tooling/src/verify/gates/no-hover-display-swap.ts";
-import { gate as noLayoutContextProps } from "../../../../../tooling/src/verify/gates/no-layout-context-props.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
 import { gate as noOffTokenRadiusShadow } from "../../../../../tooling/src/verify/gates/no-off-token-radius-shadow.ts";
 import { gate as noRawSpacingInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-spacing-in-features.ts";
 import { gate as noRawTypographyInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-typography-in-features.ts";
 import { gate as noRawZIndex } from "../../../../../tooling/src/verify/gates/no-raw-z-index.ts";
 import { gate as noTailwindDarkVariant } from "../../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
-import { gate as noUntrustedHtmlInMainDom } from "../../../../../tooling/src/verify/gates/no-untrusted-html-in-main-dom.ts";
 import { gate as recededInkIntegrity } from "../../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
 import { gate as restTransformGrid } from "../../../../../tooling/src/verify/gates/rest-transform-grid.ts";
 import { gate as scrollContainerPositioned } from "../../../../../tooling/src/verify/gates/scroll-container-positioned.ts";
@@ -151,11 +149,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "hover-keyed DISPLAY utility",
   },
   {
-    policy: noLayoutContextProps,
-    overlays: [add(`${FEATURE}/liveness-layout-prop.tsx`, "export const G = <EntityCard compact={true} />;\n")],
-    messageIncludes: "layout-context prop",
-  },
-  {
     policy: noOffTokenInlineStyle,
     overlays: [add(`${FEATURE}/liveness-inline-style.tsx`, 'export const G = <div style={{ borderRadius: "8px" }} />;\n')],
     messageIncludes: "off-token raw-literal inline style",
@@ -184,11 +177,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noTailwindDarkVariant,
     overlays: [add("packages/ui/src/liveness-dark.tsx", 'export const G = <div className="dark:bg-card" />;\n')],
     messageIncludes: "dark: utility",
-  },
-  {
-    policy: noUntrustedHtmlInMainDom,
-    overlays: [add(`${FEATURE}/liveness-html.tsx`, "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n")],
-    messageIncludes: "dangerouslySetInnerHTML",
   },
   {
     policy: recededInkIntegrity,

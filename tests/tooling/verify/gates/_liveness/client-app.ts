@@ -36,7 +36,6 @@ import { gate as queryFreshnessCoverage } from "../../../../../tooling/src/verif
 import { gate as queryFreshnessCoverageHealth } from "../../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { gate as registryContextViaMint } from "../../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../../tooling/src/verify/gates/render-error-via-battery.ts";
-import { gate as routeImportsNoFeature } from "../../../../../tooling/src/verify/gates/route-imports-no-feature.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { gate as sectionRegistryCompleteness } from "../../../../../tooling/src/verify/gates/section-registry-completeness.ts";
 import { gate as sessionChannelBoundary } from "../../../../../tooling/src/verify/gates/session-channel-boundary.ts";
@@ -297,11 +296,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "hand-rolled `renderError`",
-  },
-  {
-    policy: routeImportsNoFeature,
-    overlays: [add("packages/client/src/routes/liveness-route.tsx", 'import { ChatListSurface } from "#features/chat";\nexport const G = ChatListSurface;\n')],
-    messageIncludes: "#features/chat",
   },
   {
     policy: sectionFactoryContributionBundle,

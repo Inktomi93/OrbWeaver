@@ -379,7 +379,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 | **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
 | **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
 
-**Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer` prop (`no-layout-context-props`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
+**Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer` prop (ESLint attribute restrictions in `eslint.config.js`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
 
 **Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `no-media-queries-in-features` keeps it there.
 

@@ -155,7 +155,7 @@ function isAmbientUnset(location: string, when: ReturnType<typeof whenParts>): b
  *  on a single line and the cues + satellites inline beside the stone instead of stacked below it. The stone
  *  drops a size step on its OWN — an unset stone has no layers to carry, so `variants.ts` derives that from
  *  `clock === null` rather than taking a flag from here. (An earlier sketch had a `compact` prop; the
- *  no-layout-context-props gate / D42-D43 bans exactly that shape, and deriving it is what that flag was
+ *  ESLint layout-attribute restrictions / D42-D43 ban exactly that shape, and deriving it is what that flag was
  *  reaching for anyway.)
  *
  *  The cues and the satellites are built ONCE and placed by the arm, so the two forms cannot drift into two

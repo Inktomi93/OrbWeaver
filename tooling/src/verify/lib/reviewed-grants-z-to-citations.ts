@@ -1,4 +1,4 @@
-// Reviewed grants: z-index-tier-permission, skin-fragment-tier-permission, pointer-capability-tier-permission, query-freshness-coverage, query-machine-seals....
+// Reviewed grants for visual tier permissions and query freshness.
 // Split from reviewed-grants.ts — see that file for the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
@@ -275,21 +275,5 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     operation: "uncovered-query-freshness",
     why: "writer-local — the host.log ring only moves when the plugin RUNS, and the two client acts that can start a run both `invalidates` it: setEnabled (activation logs, or fails and writes lastError) and upgrade (a re-activation on the new bundle) in features/plugin/lib/plugin-mutations.ts carry trpc.plugin.getLog.queryFilter({pluginId}). A run triggered by a chat event moves it with no client act, and that edge is DELIBERATELY not covered here: the log is a disclosure the owner opens on demand, so it refetches when opened rather than streaming — the frozen-tab class this gate guards needs a MOUNTED read, and this one is mounted only inside its own Collapsible.",
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
-  {
-    id: "query-machine-seals:create-entity-mutation",
-    policyId: "query-machine-seals",
-    subject: "packages/client/src/data/create-entity-mutation.ts",
-    operation: "raw-useMutation-import",
-    why: "The canonical mutation factory owns the one raw useMutation import behind every client entity mutation.",
-    endsWhen: "the factory stops importing useMutation, moves, or another raw mutation home is introduced",
-  },
-  {
-    id: "query-machine-seals:create-collection-surface",
-    policyId: "query-machine-seals",
-    subject: "packages/client/src/data/create-collection-surface.ts",
-    operation: "raw-useInfiniteQuery-import",
-    why: "The canonical collection factory owns the one raw useInfiniteQuery import behind every paginated browse surface.",
-    endsWhen: "the factory stops importing useInfiniteQuery, moves, or another raw infinite-query home is introduced",
   },
 ];

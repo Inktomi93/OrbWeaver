@@ -274,7 +274,7 @@ export const waystoneVariants = tv({
     // ambient set").
     //
     // DERIVED FROM THE DATUM, NOT PASSED IN. §7.3 sketched this as a `compact` boolean on the caller, and
-    // that spelling is RED here: `no-layout-context-props` (D42/D43) bans `compact`/`density`/`inDrawer`
+    // that spelling is RED here: ESLint layout-attribute restrictions in `eslint.config.js` (D42/D43) ban `compact`/`density`/`inDrawer`
     // props precisely because a parent telling a child how to look is the anti-pattern the container model
     // replaced. Reading it off `clock === null` is the stronger form of what that flag was for — the caller
     // spells no size and makes no size decision, and this file stays the ONE sizing home (side-eye F16).

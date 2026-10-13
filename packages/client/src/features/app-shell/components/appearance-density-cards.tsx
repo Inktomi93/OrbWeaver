@@ -24,7 +24,7 @@ import { DENSITY_ITEMS } from "#lib";
 type Density = AppearanceSettings["density"];
 
 /** Three mock rows at one density tier — the live spacing map, scoped by `data-density`. The prop is
- *  `tier`, not `density`: `density` is a banned layout-context PROP name (`no-layout-context-props` — the
+ *  `tier`, not `density`: `density` is a banned layout-context PROP name (ESLint layout-attribute restrictions in `eslint.config.js` — the
  *  container model owns that word, and the axis travels as the `data-density` ATTRIBUTE, which is exactly
  *  what this box stamps). */
 function DensityDiagram({ tier }: { readonly tier: Density }): ReactElement {

@@ -419,6 +419,103 @@ const CLIENT_SYNTAX = [...SHIPPED_SYNTAX, NO_ARRAY_LITERAL_QUERYKEY];
 const rootSources = (...refs) => refs.flatMap((ref) => POPULATION_ROOTS[ref].map((root) => `${root}**/*.{ts,tsx}`));
 const AUTHORED_SRC = POPULATION_SETS["@authored"].flatMap((ref) => rootSources(ref));
 
+// These are the native source groups configured before restriction-only inputs were admitted.
+const MAINTAINED_GLOBAL_SURFACES = [
+  { files: ["**/*.{js,cjs,mjs}", ...AUTHORED_SRC, ...TSDOC_SURFACE, "scripts/probes/st-goldens/**/*.ts"] },
+  { files: NODE_TOOL_SURFACE, ignores: ["**/*.d.{ts,mts,cts}"] },
+  { files: SCRIPTS_NESTED_SURFACE, ignores: ["scripts/probes/st-goldens/**"] },
+];
+
+const GENERATED_SOURCE = ["**/*.gen.ts", "packages/ui/src/tokens/index.ts"];
+const STRICT_SYNTAX_IGNORES = [`${LEGACY_TEST_ROOT}/**`];
+const CALLER_SRC = rootSources("@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tooling", "@tests", "@scripts");
+const CALLER_IGNORES = [...STRICT_SYNTAX_IGNORES, "tooling/src/verify/gates/**"];
+const GROUP_IGNORES = [...STRICT_SYNTAX_IGNORES, "**/tests/**", "**/tools/**", "**/scripts/**", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"];
+const NO_CALLER_USER_ID = {
+  selector: ":matches(Identifier, JSXIdentifier)[name='callerUserId']",
+  message: "D19: use triggeredBy, funderUserId or runAsUserId for turn identity; the authenticated caller is Principal.userId.",
+};
+const GROUP_NAME = "/^(isGroup|isGroupChat|isGroupMode|is_group)$/";
+const NO_GROUP_BRANCH = {
+  selector: `:matches(VariableDeclarator > Identifier.id, IfStatement > Identifier.test, ConditionalExpression > Identifier.test)[name=${GROUP_NAME}]`,
+  message: "D16: group chat is data, never a branch. Gate on the roster's character count and no-op at one.",
+};
+const NO_LAYOUT_CONTEXT_PROPS = {
+  selector: "JSXAttribute[name.name=/^(compact|inDrawer|isSheet|density)$/]",
+  message: "Query the container or use data-density instead of layout-context props (UI-Architecture-and-Layout §4).",
+};
+const NO_MAIN_DOM_HTML = {
+  selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+  message: "D294: render raw HTML through SandboxFrame, never inject it into the main document. New injection permissions require security review.",
+};
+// The all-tag selector keeps HTML policy independent of Biome's DOM tag recognition.
+const BROWSER_SYNTAX = [NO_LAYOUT_CONTEXT_PROPS, NO_MAIN_DOM_HTML];
+const memberNamed = (name, prefix = "") =>
+  `:matches([${prefix}computed=false][${prefix}property.name='${name}'], [${prefix}computed=true][${prefix}property.type='Literal'][${prefix}property.value='${name}'], [${prefix}computed=true][${prefix}property.type='TemplateLiteral'][${prefix}property.expressions.length=0][${prefix}property.quasis.0.value.cooked='${name}'])`;
+const EFFECT_CALL = `CallExpression[arguments.length=2]:matches([callee.type='Identifier'][callee.name='useEffect'], [callee.type='MemberExpression']${memberNamed("useEffect", "callee.")})`;
+const FORM_READ = `:matches(MemberExpression${memberNamed("store")}, MemberExpression${memberNamed("values")}[object.type='MemberExpression']${memberNamed("state", "object.")})`;
+const NO_FORM_DEPENDENCY = {
+  selector: `${EFFECT_CALL} > ArrayExpression.arguments:nth-child(2) ${FORM_READ}`,
+  message: "Use form listeners.onChange or form.Subscribe, not form.store/state.values in an effect dependency array.",
+};
+const FORM_SYNTAX_SRC = [
+  "*.ts",
+  "packages/*/*.ts",
+  "packages/*/bundles/**/*.ts",
+  "packages/*/src/**/*.{ts,tsx}",
+  "playwright/**/*.{ts,tsx}",
+  "tooling/src/**/*.{ts,tsx}",
+  "tests/**/*.{ts,tsx}",
+  "scripts/**/*.{ts,tsx}",
+];
+const MUTATION_HOME = "packages/client/src/data/create-entity-mutation.ts";
+const COLLECTION_HOME = "packages/client/src/data/create-collection-surface.ts";
+const QUERY_HOMES = [MUTATION_HOME, COLLECTION_HOME];
+const queryImport = (names) => ({
+  selector: `ImportDeclaration[source.value='@tanstack/react-query'] > ImportSpecifier[imported.name=/^(${names.join("|")})$/]`,
+  message: "Use createEntityMutation or createCollectionSurface; only the owning factory imports its raw query hook.",
+});
+const NO_RAW_QUERY_HOOKS = queryImport(["useMutation", "useInfiniteQuery"]);
+const ROUTES_SRC = "packages/client/src/routes/**/*.{ts,tsx}";
+const APP_ROOT = "packages/client/src/routes/app-root.tsx";
+const AUTH_ROUTES = ["packages/client/src/routes/login-page.tsx", "packages/client/src/routes/router.tsx"];
+const routeImports = (doors = []) => ({
+  selector: `ImportDeclaration[source.value=/^#features\\u002F/]${doors.map((door) => `:not([source.value='#features/${door}'])`).join("")}`,
+  message: "A route mounts the registry-assembled shell, not a feature. Only exact composition and pre-authentication doors are permitted.",
+});
+
+// Flat config replaces rule arrays. Repeat the applicable native layers in each existing override partition.
+function syntaxBlocks(files, selectors, ignores = []) {
+  const base = [...selectors, NO_FORM_DEPENDENCY];
+  const blocks = [
+    { files, ...(ignores.length === 0 ? {} : { ignores }), rules: { "no-restricted-syntax": ["error", ...selectors] } },
+    { files, ignores: [...ignores, ...STRICT_SYNTAX_IGNORES], rules: { "no-restricted-syntax": ["error", ...base] } },
+    {
+      files: files.flatMap((file) => CALLER_SRC.map((caller) => [file, caller])),
+      ignores: [...ignores, ...CALLER_IGNORES],
+      rules: { "no-restricted-syntax": ["error", ...base, NO_CALLER_USER_ID] },
+    },
+    {
+      files: files.flatMap((file) => AUTHORED_SRC.map((authored) => [file, authored])),
+      ignores: [...ignores, ...GROUP_IGNORES],
+      rules: { "no-restricted-syntax": ["error", ...base, NO_GROUP_BRANCH] },
+    },
+    {
+      files: files.flatMap((file) => CALLER_SRC.map((caller) => [file, caller])),
+      ignores: [...ignores, ...CALLER_IGNORES, ...GROUP_IGNORES],
+      rules: { "no-restricted-syntax": ["error", ...base, NO_CALLER_USER_ID, NO_GROUP_BRANCH] },
+    },
+  ];
+  return blocks.flatMap((block) => [
+    block,
+    {
+      files: block.files.flatMap((file) => AUTHORED_SRC.map((authored) => [...(Array.isArray(file) ? file : [file]), authored])),
+      ignores: [...(block.ignores ?? []), ...STRICT_SYNTAX_IGNORES, "**/*.test.{ts,tsx}", ...QUERY_HOMES],
+      rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_RAW_QUERY_HOOKS] },
+    },
+  ]);
+}
+
 // ── RESTRICTIONS: one core restriction rule per structural gate it replaced ─────────────────────────────
 // Each entry publishes ESLint's own `no-restricted-syntax` / `no-restricted-globals` under the former gate's id
 // (`orb/<id>`), so a ban carries its own scope and its own HOME list. Flat config replaces a rule's options
@@ -805,7 +902,7 @@ const REACT_X_BLOCKS = [
   },
 ];
 
-export default tseslint.config(
+const STANDARD_CONFIG = tseslint.config(
   {
     ignores: [
       "**/node_modules/**",
@@ -863,20 +960,17 @@ export default tseslint.config(
       // (`fixtures/`, `output/`, `orbweaver-output/`) hold ZERO lintable files (measured 2026-09-13), so a
       // selector naming them would be precisely the dead grant `eslint-grant-liveness` exists to refuse.
       "scripts/probes/st-goldens/sillytavern-runtime/**",
-      "**/*.gen.ts",
-      "packages/ui/src/tokens/index.ts",
       "packages/ui/src/styles/theme.css",
     ],
   },
   {
-    // A stale `eslint-disable` can never rot silently: a directive that suppresses nothing is itself an
-    // ERROR. No `files` key ⇒ this applies to every linted file. ESLint's own default here is "warn", which
-    // only bites where `--max-warnings 0` is passed (the verify `eslint` op's CHILD_FLAGS, which
-    // `pnpm lint:eslint` runs, and the verify registry's scoped argv both do; an ad-hoc `npx eslint <file>`
-    // does not) — "error" makes the verdict the same everywhere. A
-    // suppression that stops matching a real diagnostic is exactly the comment the doctrine wants deleted,
-    // and this is what turns "should be deleted" into "must be deleted".
-    linterOptions: { reportUnusedDisableDirectives: "error" },
+    // Restriction-only inputs must not acquire unrelated directive diagnostics.
+    linterOptions: { reportUnusedDisableDirectives: "off" },
+  },
+  ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({ ...surface, linterOptions: { reportUnusedDisableDirectives: "error" } })),
+  {
+    files: FORM_SYNTAX_SRC,
+    languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" } },
   },
   {
     // Type-aware parser for shipped source. `projectService` builds one TS program per package so
@@ -1388,63 +1482,61 @@ export default tseslint.config(
       parserOptions: { sourceType: "module" },
     },
   },
-  {
-    // Syntax bans over the population of the structural gate each one replaced (the layering is at
-    // NO_DECORATORS above). A decorator is legal nowhere: every authored tree runs on the type-stripping
-    // runtime. Flat config REPLACES `no-restricted-syntax` per file, so the blocks below that win for a
-    // file re-list the layer beneath them.
-    files: AUTHORED_SRC,
-    rules: { "no-restricted-syntax": ["error", ...AUTHORED_SYNTAX] },
-  },
-  {
-    files: [UI_SRC, ...rootSources("@server")],
-    rules: { "no-restricted-syntax": ["error", ...SHIPPED_SYNTAX] },
-  },
-  {
-    files: [CLIENT_SRC],
-    rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX] },
-  },
+  ...syntaxBlocks(FORM_SYNTAX_SRC, []),
+  ...syntaxBlocks(AUTHORED_SRC, AUTHORED_SYNTAX),
+  ...syntaxBlocks(rootSources("@server"), SHIPPED_SYNTAX),
+  ...syntaxBlocks([UI_SRC], [...SHIPPED_SYNTAX, ...BROWSER_SYNTAX]),
+  ...syntaxBlocks([CLIENT_SRC], [...CLIENT_SYNTAX, ...BROWSER_SYNTAX]),
   ...RESTRICTION_BLOCKS,
   ...REACT_X_BLOCKS,
-  {
-    // Zustand escape-hatch guard. Outside client state/, components/routes may not call
-    // `useFooStore.setState(...)`/`.getState()` on the store's static API — those bypass the action
-    // seam. The canonical `useFooStore((s) => s.foo)` selector usage is unaffected. LIVE, and has been
-    // since the client-foundation wave: `packages/client/src/state/` carries 88 tracked files, which is
-    // also why this block's own `ignores` names that directory — a store's file legitimately calls its
-    // internal setState/getState. The header's item 6 says LIVE; this line said "Dormant until
-    // `packages/client/src/state/` exists" until #2286, so the header↔body contradiction #2236 repaired
-    // survived here INVERTED, in the one item whose body that sweep did not reach.
-    files: [CLIENT_SRC],
-    ignores: ["packages/client/src/state/**"],
-    rules: {
-      "no-restricted-syntax": ["error", NO_STORE_STATICS, ...CLIENT_SYNTAX],
-    },
-  },
-  {
-    // COMPOSE-ONLY KEYSTONE — the "client code can't invent UI" gate, CLIENT_SRC-wide (routes/data/
-    // forms/state/lib/features — UI-Arch §2.1). Client code ASSEMBLES @orb/ui primitives + the layout
-    // kit; it never PAINTS: no className/style on a raw intrinsic element. Re-lists NO_STORE_STATICS
-    // because flat-config REPLACES no-restricted-syntax per file (no merge) and this block wins over
-    // the CLIENT_SRC zustand block above for every file it matches. The app-shell ignore (SHELL-tier
-    // layout owner + the one legal @media site, §4.1) paints the frame and keeps only the zustand guard
-    // via the CLIENT_SRC block above; state/** is exempt from THIS block's NO_STORE_STATICS re-list for
-    // the same reason the zustand block above exempts it — a store's own file legitimately calls its
-    // internal setState/getState, and without this ignore the keystone's re-listed NO_STORE_STATICS
-    // would false-fire on that legitimate internal use (W1-0a, measured 3 FPs without the ignore).
-    files: [CLIENT_SRC],
-    ignores: [
-      "packages/client/src/features/app-shell/**",
-      "packages/client/src/state/**",
-      // D62's shared app brand paints hand-authored SVG geometry. Keep the grant on this exact component.
-      "packages/client/src/components/weave-glyph.tsx",
-    ],
-    rules: {
-      "no-restricted-syntax": ["error", NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX],
-    },
-  },
+  ...syntaxBlocks([CLIENT_SRC], [NO_STORE_STATICS, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX], ["packages/client/src/state/**"]),
+  ...syntaxBlocks(
+    [CLIENT_SRC],
+    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX],
+    ["packages/client/src/features/app-shell/**", "packages/client/src/state/**", "packages/client/src/components/weave-glyph.tsx"],
+  ),
+  ...syntaxBlocks(
+    [MUTATION_HOME],
+    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX, queryImport(["useInfiniteQuery"])],
+  ),
+  ...syntaxBlocks(
+    [COLLECTION_HOME],
+    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX, queryImport(["useMutation"])],
+  ),
+  ...syntaxBlocks(
+    [ROUTES_SRC],
+    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX, routeImports()],
+    [APP_ROOT, ...AUTH_ROUTES],
+  ),
+  // The app root assembles registries before the shell exists; auth runs before any authenticated registry.
+  ...syntaxBlocks(
+    [APP_ROOT],
+    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX, routeImports(["app-shell", "chat", "persona"])],
+  ),
+  ...syntaxBlocks(AUTH_ROUTES, [
+    NO_STORE_STATICS,
+    NO_CLASSNAME_ON_INTRINSIC,
+    NO_STYLE_ON_INTRINSIC,
+    ...CLIENT_SYNTAX,
+    ...BROWSER_SYNTAX,
+    routeImports(["auth"]),
+  ]),
   ...maintainedRulePacks(),
 );
+
+// Read-only outputs retain their other-rule exclusion while the migrated restrictions still judge their source.
+export default [
+  ...STANDARD_CONFIG.map((block) => (block.rules === undefined ? block : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] })),
+  ...[...syntaxBlocks(FORM_SYNTAX_SRC, []), ...syntaxBlocks([CLIENT_SRC, UI_SRC], BROWSER_SYNTAX)].map((block) => ({
+    ...block,
+    files: block.files.flatMap((file) => GENERATED_SOURCE.map((generated) => [...(Array.isArray(file) ? file : [file]), generated])),
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true }, sourceType: "module" },
+    },
+    linterOptions: { reportUnusedDisableDirectives: "off" },
+  })),
+];
 
 // ── MAINTAINED RULE PACKS: the plugins that replace custom gates ───────────────────────────────────────
 // Six plugins, each configured on the population it judges. They are SPREAD from the plugin's own
@@ -1465,6 +1557,16 @@ function maintainedRulePacks() {
   // under tests/. Both lists derive from the test-kind registry, so a new suffix lands in one of them.
   const playwrightTests = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component" || family === "e2e").map(({ suffix }) => `tests/**/*${suffix}`);
   const vitestTests = ["tests/**/*.{ts,tsx}"];
+
+  const globalRules = {
+    ...packRules(eslintComments.configs.recommended, "@eslint-community/eslint-comments/"),
+    "@eslint-community/eslint-comments/require-description": "error",
+    ...packRules(regexp.configs["flat/recommended"], "regexp/"),
+    // These equivalent regex spellings have no defect class behind them.
+    "regexp/prefer-w": "off",
+    "regexp/use-ignore-case": "off",
+    "regexp/no-unused-capturing-group": "off",
+  };
 
   return [
     {
@@ -1573,23 +1675,13 @@ function maintainedRulePacks() {
       ],
       rules: { "drizzle/enforce-delete-with-where": "off" },
     },
-    {
-      // eslint-comments and regexp apply to every linted file. The captured DevTools frontend is vendored
-      // third-party source that the snap instrument serves; its regexes are not ours to rewrite.
-      ignores: ["tooling/src/snap/lib/devtools-frontend/**"],
+    ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({
+      ...surface,
+      // The captured DevTools frontend is vendored; its regexes are not ours to rewrite.
+      ignores: [...(surface.ignores ?? []), "tooling/src/snap/lib/devtools-frontend/**"],
       plugins: { "@eslint-community/eslint-comments": eslintComments, regexp },
-      rules: {
-        ...packRules(eslintComments.configs.recommended, "@eslint-community/eslint-comments/"),
-        // A bounded directive carries its reason on the same comment (`-- why`).
-        "@eslint-community/eslint-comments/require-description": "error",
-        ...packRules(regexp.configs["flat/recommended"], "regexp/"),
-        // Rewrites with no defect class behind them (same match, shorter spelling): `\\w` for `[A-Za-z0-9_]`,
-        // `/i` instead of both cases, and a capturing group nobody reads.
-        "regexp/prefer-w": "off",
-        "regexp/use-ignore-case": "off",
-        "regexp/no-unused-capturing-group": "off",
-      },
-    },
+      rules: globalRules,
+    })),
     {
       // The guard's operand-tail regex ends in `>\S*` and `\d*>>?&?\d*`, which overlap on `>>&1`. The two
       // alternatives accept different digit-prefixed redirects (`2>file` matches only one), so merging them
