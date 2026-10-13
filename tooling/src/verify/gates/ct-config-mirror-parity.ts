@@ -8,7 +8,7 @@ import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fac
 import { BROWSER_PACKAGES, worldOf } from "../../floor/compiler/project-worlds.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
-import { ctMountArguments, MIN_ISOLATION_REASON_WORDS, readCtMountAdmission } from "../lib/ct-mount-admission.ts";
+import { ctMountArguments, MIN_ISOLATION_REASON_WORDS, readCtMountAdmission, readCtProductionDoor } from "../lib/ct-mount-admission.ts";
 import { definitionField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
 
@@ -236,7 +236,7 @@ function ctDoor(handListed: Partial<Record<ContributorName | "configSections" | 
 
 const PROVIDERS_CLEAN =
   'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\n' +
-  "const composition = createAuthedComposition({});\nexport function CtClientProviders() { return <AuthedProviders composition={composition} />; }\n";
+  "const composition = createAuthedComposition({});\nexport function CtClientProviders({ children }: { children?: object }) { return <AuthedProviders composition={composition}>{children}</AuthedProviders>; }\n";
 const RUNTIME_CLEAN = 'import { createClientRuntime } from "./ct-door.ts";\nconst runtime = createClientRuntime();\n';
 
 const LIB_REGISTRY = "packages/client/src/lib/registry.ts";
@@ -479,7 +479,8 @@ function checkIsolations(isolations: readonly CallExpression[], doorTypes: reado
 }
 
 /** Genuine factories and providers prevent a parallel graph; maintained mounts enter through that door or named isolation. */
-function checkHarness(required: Required, facts: HarnessFacts, _doorRegistryNames: ReadonlySet<string>, report: Report): void {
+function productionWitness(required: Required, facts: HarnessFacts, report: Report): MorphNode | undefined {
+  let missingWitness = false;
   for (const [home, name] of [
     [DOOR_GROUPS, "createAuthedComposition"],
     [DOOR_RUNTIME, "createClientRuntime"],
@@ -491,6 +492,7 @@ function checkHarness(required: Required, facts: HarnessFacts, _doorRegistryName
         return resolved.kind === "resolved" && sameDeclaration(resolved.value.declaration, target);
       })
     ) {
+      missingWitness = true;
       report(required(CT_PROVIDERS), `the CT mount must call the production ${name} factory instead of assembling a parallel graph.`);
     }
   }
@@ -501,20 +503,46 @@ function checkHarness(required: Required, facts: HarnessFacts, _doorRegistryName
       return resolved.kind === "resolved" && sameDeclaration(resolved.value.declaration, provider);
     })
   ) {
+    missingWitness = true;
     report(required(CT_PROVIDERS), "the CT mount must use the actual AuthedProviders stack, not repeat its provider list.");
   }
+  if (missingWitness) {
+    return;
+  }
+  return provider;
+}
+
+function checkHarness(required: Required, facts: HarnessFacts, _doorRegistryNames: ReadonlySet<string>, report: Report): void {
+  const provider = productionWitness(required, facts, report);
+  if (provider === undefined) {
+    return;
+  }
+  const door = required(CT_PROVIDERS).getFunction("CtClientProviders");
+  const problems =
+    door === undefined
+      ? ["the returned CtClientProviders declaration is absent"]
+      : readCtProductionDoor({ door, factory: required(DOOR_GROUPS).getFunctionOrThrow("createAuthedComposition"), provider }, facts.returns, facts.children);
+  if (problems.length > 0 || door === undefined) {
+    for (const problem of problems) {
+      report(door ?? required(CT_PROVIDERS), problem);
+    }
+    return;
+  }
   for (const { call, args } of facts.mounts) {
-    const problems =
+    const mountProblems =
       args.length === 0
         ? ["an indirect or empty native mount exposes no readable subject"]
-        : args.flatMap((arg) => readCtMountAdmission(arg, facts.returns, facts.children));
-    for (const problem of problems) {
+        : args.flatMap((arg) => readCtMountAdmission(arg, facts.returns, facts.children, door));
+    for (const problem of mountProblems) {
       report(call, problem);
     }
   }
 }
 
 function gatherReturns(facts: HarnessFacts, node: MorphNode): void {
+  if (Node.isFunctionLikeDeclaration(node)) {
+    facts.returns.set(node.compilerNode, []);
+  }
   if (Node.isReturnStatement(node)) {
     const owner = node.getFirstAncestor(Node.isFunctionLikeDeclaration);
     const expression = node.getExpression();
@@ -579,6 +607,9 @@ export const gate = defineGate({
         {
           kinds: [
             SyntaxKind.CallExpression,
+            SyntaxKind.FunctionDeclaration,
+            SyntaxKind.FunctionExpression,
+            SyntaxKind.MethodDeclaration,
             SyntaxKind.ReturnStatement,
             SyntaxKind.ArrowFunction,
             SyntaxKind.JsxElement,
@@ -613,6 +644,36 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nfunction Recursive({ children }: { children?: object }) { return <Recursive>{children}</Recursive>; }\nexport function CtClientProviders({ children }: { children?: object }) { const graph = createAuthedComposition({}); return <Recursive><AuthedProviders composition={graph}>{children}</AuthedProviders></Recursive>; }\n',
+      }),
+      expect: { count: 1, messageIncludes: "returned" },
+      why: "a recursive helper cannot supply a delivered provider by repeatedly borrowing the same invocation",
+    },
+    {
+      mode: "types",
+      files: mountFiles(
+        'import { CtClientProviders } from "../../../support/browser/ct-data-providers.tsx";\ntest("probe", ({ mount }) => { mount(<CtClientProviders><FeatureSurface /></CtClientProviders>); });\n',
+        {
+          [CT_PROVIDERS]:
+            'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nexport function UnusedRealStack() { const composition = createAuthedComposition({}); return <AuthedProviders composition={composition} />; }\nexport function CtClientProviders({ children }: { children?: object }) { return <>{children}</>; }\n',
+        },
+      ),
+      expect: { count: 1, messageIncludes: "returned" },
+      why: "unused genuine factories and providers cannot admit a door that returns its children outside that stack",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nconst unused = createAuthedComposition({});\nexport function CtClientProviders() { return <AuthedProviders composition={{}} />; }\n',
+      }),
+      expect: { count: 1, messageIncludes: "composition" },
+      why: "a reachable genuine provider must receive the production factory result, not an unrelated object",
+    },
     {
       mode: "types",
       files: mountFiles('test("probe", ({ mount }) => { mount(<FeatureSurface />); });\n'),
@@ -916,6 +977,42 @@ export const gate = defineGate({
   mustPass: [
     {
       mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nfunction Frame({ children }: { children?: object }) { return <div>{children}</div>; }\nfunction Delegated({ graph, children }: { graph: object; children?: object }) { return <Frame><AuthedProviders composition={graph}>{children}</AuthedProviders></Frame>; }\nexport function CtClientProviders({ children }: { children?: object }) { const graph = createAuthedComposition({}); return <Frame><Delegated graph={graph}>{children}</Delegated></Frame>; }\n',
+      }),
+      why: "the same real wrapper at distinct nested call sites is not a recursive returned tree and must preserve the delivered provider",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        "node_modules/@ct-native/container/index.tsx": "export function NativeContainer({ children }: { children?: object }) { return <>{children}</>; }\n",
+        [CT_PROVIDERS]:
+          'import { NativeContainer } from "@ct-native/container";\nimport { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nexport function CtClientProviders({ children }: { children?: object }) { const composition = createAuthedComposition({}); return <NativeContainer><AuthedProviders composition={composition}>{children}</AuthedProviders></NativeContainer>; }\n',
+      }),
+      why: "an external native container has no policy-owned return facts but still contains the delivered production provider; that absence is not an empty authored helper",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { useState as hold, use as read, createContext } from "react";\nimport { createAuthedComposition as build, AuthedProviders as Deliver } from "./ct-door.ts";\nconst CompositionContext = createContext<object | null>(null);\nfunction useComposition() { const inherited = read(CompositionContext); const [composition] = hold(() => inherited ?? build({})); return { composition }; }\nfunction Delegated({ graph, children }: { graph: object; children?: object }) { return <CompositionContext value={graph}><Deliver composition={graph}>{children}</Deliver></CompositionContext>; }\nexport function CtClientProviders({ children }: { children?: object }) { const { composition } = useComposition(); return <Delegated graph={composition}>{children}</Delegated>; }\n',
+      }),
+      why: "a retained factory result travels through native React state, a returned hook object and delegated props without becoming an unused witness",
+    },
+    {
+      mode: "types",
+      files: mountFiles(
+        'import { CtClientProviders } from "../../../support/browser/ct-data-providers.tsx";\ntest("probe", ({ mount }) => { mount(<CtClientProviders><FeatureSurface /></CtClientProviders>); });\n',
+        {
+          [CT_PROVIDERS]:
+            'import { createAuthedComposition as build, AuthedProviders as Deliver } from "./ct-door.ts";\nfunction Delegated({ graph, children }: { graph: object; children?: object }) { return <Deliver composition={graph}>{children}</Deliver>; }\nexport function CtClientProviders({ children }: { children?: object }) { const graph = build({}); return <Delegated graph={graph}>{children}</Delegated>; }\n',
+        },
+      ),
+      why: "a returned delegated provider receives the actual production factory result through its prop",
+    },
+    {
+      mode: "types",
       files: mountFiles(
         'import { CtClientProviders as Door } from "../../../support/browser/ct-data-providers.tsx";\nfunction Story() { return <Door><FeatureSurface /></Door>; }\ntest("probe", ({ mount }) => { const mountAlias = mount; mountAlias(<Story />); });\n',
       ),
@@ -932,7 +1029,7 @@ export const gate = defineGate({
       mode: "types",
       files: proofFiles({
         [CT_PROVIDERS]:
-          'import { createAuthedComposition as build, AuthedProviders as Deliver } from "./ct-door.ts";\nconst composition = build({});\nexport function CtClientProviders() { return <Deliver composition={composition} />; }\n',
+          'import { createAuthedComposition as build, AuthedProviders as Deliver } from "./ct-door.ts";\nconst composition = build({});\nexport function CtClientProviders({ children }: { children?: object }) { return <Deliver composition={composition}>{children}</Deliver>; }\n',
       }),
       why: "factory and provider aliases still use the actual production declarations",
     },
