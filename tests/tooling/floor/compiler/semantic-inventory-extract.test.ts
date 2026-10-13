@@ -6,7 +6,7 @@ import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-progr
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { DocumentSpan, LanguageService, Node, Project, SyntaxKind } from "ts-morph";
+import { DocumentSpan, LanguageService, Node, Project, SourceFile, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 
 function span(node: Node): InventorySpan {
@@ -20,7 +20,10 @@ function fixtureValue<T>(value: T | undefined): T {
   return value;
 }
 
-function extractWithoutReferenceWrappers(request: InventoryBuildRequest): { partition: ReturnType<typeof extractInventoryPartition>; queries: string[] } {
+function extractWithoutReferenceWrappers(
+  request: InventoryBuildRequest,
+  beforeQuery?: () => void,
+): { partition: ReturnType<typeof extractInventoryPartition>; queries: string[] } {
   const queries: string[] = [];
   const restoreQueries: (() => void)[] = [];
   const observed = new Set<LanguageService>();
@@ -31,6 +34,7 @@ function extractWithoutReferenceWrappers(request: InventoryBuildRequest): { part
       observed.add(service);
       const nativeFind = service.compilerObject.findReferences;
       const query = vi.spyOn(service.compilerObject, "findReferences").mockImplementation((file, position) => {
+        beforeQuery?.();
         queries.push(JSON.stringify([file, position]));
         return nativeFind.call(service.compilerObject, file, position);
       });
@@ -60,6 +64,97 @@ function extractWithoutReferenceWrappers(request: InventoryBuildRequest): { part
     observation.mockRestore();
   }
 }
+
+test("source and bootstrap wrappers release before native reference queries without losing cross-source declarations", ({ scratch }) => {
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({ files: ["barrel.ts", "consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+  );
+  writeFileSync(join(scratch, "base.ts"), "export const value=1; export function read(){return value;}\n");
+  writeFileSync(join(scratch, "barrel.ts"), "export {value, value as renamed, read} from './base';\n");
+  writeFileSync(join(scratch, "consumer.ts"), "import {value,renamed,read} from './barrel'; export const result=value+renamed+read();\n");
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const wrappers = new Set<Node>();
+  const sources = new Set<SourceFile>();
+  const declarationWrappers = new Map<string, Set<Node>>();
+  let crossSourceDeclarations = 0;
+  let bootstrap: Node | undefined;
+  let identifiers = 0;
+  let queries = 0;
+  const resolveDependencies = Project.prototype.resolveSourceFileDependencies;
+  const resolution = vi.spyOn(Project.prototype, "resolveSourceFileDependencies").mockImplementation(function (this: Project) {
+    const result = resolveDependencies.call(this);
+    const declaration = this.getSourceFileOrThrow(join(scratch, "base.ts")).getVariableDeclarationOrThrow("value");
+    bootstrap = declaration;
+    wrappers.add(declaration);
+    wrappers.add(declaration.getNameNode());
+    return result;
+  });
+  const getSymbol = Node.prototype.getSymbol;
+  const symbols = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(function (this: Node) {
+    if (Node.isIdentifier(this)) {
+      identifiers++;
+      wrappers.add(this);
+    }
+    return getSymbol.call(this);
+  });
+  const getParent = Node.prototype.getParent;
+  const parents = vi.spyOn(Node.prototype, "getParent").mockImplementation(function (this: Node) {
+    const parent = getParent.call(this);
+    if (parent !== undefined && !Node.isSourceFile(parent)) {
+      wrappers.add(parent);
+    }
+    return parent;
+  });
+  const getExports = SourceFile.prototype.getExportedDeclarations;
+  const exports = vi.spyOn(SourceFile.prototype, "getExportedDeclarations").mockImplementation(function (this: SourceFile) {
+    sources.add(this);
+    const result = getExports.call(this);
+    for (const declarations of result.values()) {
+      for (const declaration of declarations) {
+        if (Node.isSourceFile(declaration)) {
+          continue;
+        }
+        wrappers.add(declaration);
+        const key = JSON.stringify(span(declaration));
+        const observed = declarationWrappers.get(key) ?? new Set<Node>();
+        observed.add(declaration);
+        declarationWrappers.set(key, observed);
+        if (declaration.getSourceFile() !== this) {
+          crossSourceDeclarations++;
+        }
+      }
+    }
+    return result;
+  });
+  try {
+    const { partition } = extractWithoutReferenceWrappers({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") }, () => {
+      queries++;
+      expect(fixtureValue(bootstrap).wasForgotten()).toBe(true);
+      expect(identifiers).toBeGreaterThan(0);
+      expect(crossSourceDeclarations).toBeGreaterThan(0);
+      expect([...declarationWrappers.values()].some((nodes) => nodes.size > 1)).toBe(true);
+      expect([...wrappers].every((node) => node.wasForgotten())).toBe(true);
+      expect([...sources].every((source) => !source.wasForgotten())).toBe(true);
+    });
+    expect(queries).toBeGreaterThan(0);
+    const origin = fixtureValue(partition.exports.find((entry) => entry.file === join(scratch, "base.ts") && entry.name === "value")?.declarations[0]);
+    expect(
+      partition.exports
+        .filter((entry) => entry.file === join(scratch, "barrel.ts") && ["value", "renamed"].includes(entry.name))
+        .map((entry) => entry.declarations),
+    ).toEqual([[origin], [origin]]);
+    const references = partition.references.filter((entry) => JSON.stringify(entry.declaration) === JSON.stringify(origin));
+    expect(references.length).toBeGreaterThan(0);
+    expect(references.some((entry) => entry.reference.file === join(scratch, "consumer.ts"))).toBe(true);
+  } finally {
+    exports.mockRestore();
+    parents.mockRestore();
+    symbols.mockRestore();
+    resolution.mockRestore();
+  }
+});
 
 test("native reference queries execute once without wrappers and preserve declaration and name facts", ({ scratch }) => {
   writeFileSync(join(scratch, ".gitignore"), ".cache/\n");
