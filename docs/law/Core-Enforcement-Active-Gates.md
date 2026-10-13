@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(344 registered gates)
+(337 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -114,7 +114,7 @@ in its own module header, never restated here.
 | `css-var-defined` | css-variable-resolution | ordinary/error | @frontend | a custom-property reference has no… |
 | `css-var-defined-grants` | css-variable-resolution | reviewed-grant/error | @frontend | a vendor custom property or runtime… |
 | `css-var-defined-health` | css-variable-resolution | hard/error | @frontend | the CSS-variable evidence population… |
-| `ct-config-mirror-parity` | — | hard/error | @client,@tests\* | the browser-CT door has drifted from… |
+| `ct-config-mirror-parity` | — | hard/error | @client,@tests\* | CTs must reuse production factories,… |
 | `ct-no-oneshot-live-read-assert` | — | ordinary/error | @tests\* | a non-retrying expect() reads MUTABLE… |
 | `ct-poll-schedule-and-paint` | — | hard/error | @tests | a Playwright poll idiom that loses… |
 | `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @legacy-tests\* | the founding CT for the… |
@@ -181,7 +181,6 @@ in its own module header, never restated here.
 | `no-await-db-in-loop` | — | ordinary/error | @authored\* | an awaited Drizzle query runs inside… |
 | `no-banned-tw-utility` | tailwind-class-token | reviewed-grant/error | @client,@ui | a Tailwind utility the house has… |
 | `no-blanket-suppression` | — | hard/error | @authored\* | a FILE-WIDE lint/type suppression —… |
-| `no-caller-user-id` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@inference,@tooling,@tests,@scripts\* | callerUserId is forbidden (D19): the… |
 | `no-chat-trpc-in-surface` | — | ordinary/error | @authored\* | trpc.chat.\<verb>.mutationOptions… |
 | `no-color-literals` | — | ordinary/error | @client,@ui | a hardcoded color class — all three… |
 | `no-context-returntype` | — | ordinary/error | @authored\* | ReturnType<> in context.ts — the DI… |
@@ -192,12 +191,11 @@ in its own module header, never restated here.
 | `no-floorless-control-in-wrap` | floorless-control | ordinary/error | @client,@ui | a floorless-size Button… |
 | `no-form-reset-in-autosave` | editor-form-factory | ordinary/error | @client | reset() survives on an autosave form… |
 | `no-form-reset-in-autosave-health` | editor-form-factory | hard/error | @client\* | the reset type-strip (Omit<…,… |
-| `no-form-state-in-useeffect` | — | ordinary/error | all | useEffect reading form.state.values /… |
+| `no-form-state-in-useeffect` | — | ordinary/error | all | A computed form dependency resolves… |
 | `no-handwritten-wire-json-schema` | — | ordinary/error | @server,@contracts,@kit,@inference\* | a hand-authored JSON-Schema literal… |
 | `no-hardcoded-model-prose` | — | ordinary/error | @authored | model-facing prose hardcoded at a… |
 | `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
 | `no-hover-display-swap` | tailwind-class-token | ordinary/error | @client,@ui | hover-keyed DISPLAY utility — a… |
-| `no-if-is-group` | — | ordinary/error | @authored\* | isGroup-style boolean branches on… |
 | `no-inline-domain-interface` | no-inline-types | ordinary/error | @server\* | exported interface in a server domain… |
 | `no-inline-invalidate-outside-seam` | tanstack-query-origin | reviewed-grant/error | @client | an inline invalidateQueries call… |
 | `no-inline-optimistic-in-surface` | tanstack-query-origin | ordinary/error | @authored\* | Optimistic-mutation plumbing… |
@@ -207,7 +205,6 @@ in its own module header, never restated here.
 | `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
 | `no-interactive-role-in-features` | — | ordinary/error | @client\* | hand-rolled interactive ARIA role in… |
-| `no-layout-context-props` | — | ordinary/error | @client,@ui | layout-context prop (compact/inDrawer/… |
 | `no-loose-id-cast` | id-brand-flow | ordinary/error | @product,@tests | a cast bypasses branded-id type… |
 | `no-manual-autosave-flush` | — | ordinary/error | @client\* | this features/\*\* function body calls… |
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
@@ -238,7 +235,6 @@ in its own module header, never restated here.
 | `no-tailwind-dark-variant` | — | ordinary/error | @client,@ui | Tailwind dark: utility creates a… |
 | `no-test-fabrication` | — | ordinary/error | @authored\* | X as unknown as Y double-cast in a… |
 | `no-unruled-flip-inversion` | — | reviewed-grant/error | @ui,@client | a FLIP INVERSION outside the ruled… |
-| `no-untrusted-html-in-main-dom` | — | reviewed-grant/error | @client,@ui | dangerouslySetInnerHTML in the app… |
 | `no-untyped-soft-ref` | drizzle-schema | reviewed-grant/error | @db\* | an id-shaped column (its JS key ends… |
 | `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
@@ -281,8 +277,6 @@ in its own module header, never restated here.
 | `query-boundary-reservation-health` | query-boundary-reservation | hard/error | @client | the QueryBoundary reservation seam is… |
 | `query-freshness-coverage` | — | reviewed-grant/error | @client | a client-consumed tRPC query key… |
 | `query-freshness-coverage-health` | query-freshness-coverage | hard/error | @client | the Invalidation anchor is present… |
-| `query-machine-seals` | — | reviewed-grant/error | @authored\* | useMutation or useInfiniteQuery is… |
-| `query-machine-seals-health` | query-machine-seals | hard/error | @client,@tests\* | the data public anchor exists but the… |
 | `real-corpus-liveness-manifest` | — | hard/error | @tooling,@tests\* | Every final policy owes a real-corpus… |
 | `receded-ink-integrity` | tailwind-class-token | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
 | `registry-assembly-at-door-only` | — | ordinary/error | @client\* | createRegistry()/createContributorRegi… |
@@ -290,7 +284,6 @@ in its own module header, never restated here.
 | `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError prop on… |
 | `rest-transform-grid` | static-class-expression | hard/error | @client,@ui | A REST-state transform that cannot… |
 | `root-development-dependencies` | — | hard/error | none | the private repository root declares… |
-| `route-imports-no-feature` | — | reviewed-grant/error | @client | a route imports a feature front door… |
 | `route-trpc-lifo-order` | — | ordinary/error | @tests\* | a page.route("\*\*/api/trpc...", …) is… |
 | `route-trpc-no-broad-spread` | — | hard/error | @tests\* | a routeTrpc fixture object spreads a… |
 | `runner-config-path-liveness` | — | hard/error | none | a FILE-EXACT path in a test-runner… |

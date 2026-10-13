@@ -26,4 +26,6 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 Independent review reproduced stale native resolution after a configuration change. A captured workspace supplied old compiler options while publication recorded current configuration bytes. Descriptor freshness must hold for explicit supplied programs as well as default construction.
 
-The correction must preserve current caller-selected native subsets and real codemod overlays. Its bounded regression exercises configuration mutation, stale-request refusal and current workspace resolution. Complete repository replay and peak-memory measurement remain unqualified until the correction passes review.
+The reviewed correction preserves current caller-selected native subsets and real codemod overlays. Its bounded regression proves configuration mutation, stale-request refusal and current workspace resolution.
+
+Main owns the cold frozen replay on the reviewed lane source. It runs the complete existing collector sequence with unchanged managed heap settings. Preserve historical Knip input provenance and unresolved outcomes. Read the completed output and process measurements before claiming replay qualification. Parent high-water measurements do not establish aggregate process-tree memory or hosted-runner qualification.
