@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-11
+updated: 2026-10-13
 ---
 
 # Enforcement antipattern catalog
@@ -42,6 +42,6 @@ These patterns have no gate. Each names the item that owns the detector or the c
 
 | Pattern | Example | Why it rots | Owner |
 | - | - | - | - |
-| Copied production query or rule that drifted from its source | a harness that re-implements a compose closure without its owner scope | The copy drops a guard the product keeps, so the test passes on behaviour production refuses. `test-production-clone` sees only an exact copy of an exported body | [0964](../work/0964-compose-holds-wiring-only-queries-and-rules-move.md), [0958](../work/0958-server-test-composition-root.md) |
+| Copied production query or rule that drifted from its source | a harness that re-implements a compose closure without its owner scope | The copy drops a guard the product keeps, so the test passes on behaviour production refuses. `test-production-clone` sees only an exact copy of an exported body | [0958](../work/0958-server-test-composition-root.md) |
 | Test that asserts its own literal | a contract test that builds a fixture and asserts the same fixture back | It tests nothing, so it stays green through any change | the legacy test rebuild |
 | Stale golden | a CT golden captured from a state production no longer renders | It pins an obsolete output and blocks the correct one | [0959](../work/0959-one-builder-per-shape-and-one-golden-corpus.md) |
