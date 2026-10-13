@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-13
 priority: P1
+lane: codex/compose-media-997
 plan: test-foundation
 ---
 
