@@ -242,9 +242,9 @@ function connectionNotFound(connectionId: UserConnection["id"]): ProviderError {
   return new ProviderError({ kind: "invalid", retryable: false, message: connectionNotFoundMessage(connectionId) });
 }
 
-function requireOwned(connection: UserConnection, principal: Principal): void {
-  if (connection.ownerId !== principal.userId) {
-    throw connectionNotFound(connection.id);
+function requireOwned(ownerId: UserId, connectionId: UserConnection["id"], requestedOwnerId: UserId): void {
+  if (ownerId !== requestedOwnerId) {
+    throw connectionNotFound(connectionId);
   }
 }
 
@@ -430,19 +430,27 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     detectedServer,
     warmDetect,
   };
-  const executor = createProviderExecutor({ registry: built.registry, span: deps.span, beginEmbeddingAccounting: deps.beginEmbeddingAccounting });
-  const diagnostics = createProviderDiagnostics(built.registry);
-  const roleClientsFor = createRoleClientsFor({ deps, ctx, executor });
-  const probe = built.openAiCompat.reachability.probe;
-
-  const ownedConnection = async (connectionId: UserConnection["id"], principal: Principal): Promise<UserConnection> => {
+  const ownedConnection = async (connectionId: UserConnection["id"], ownerId: UserId): Promise<UserConnection> => {
     const connection = await deps.connections.get(connectionId);
     if (connection === null) {
       throw connectionNotFound(connectionId);
     }
-    requireOwned(connection, principal);
-    return connection;
+    requireOwned(connection.ownerId, connectionId, ownerId);
+    return connection.parse();
   };
+
+  const executor = createProviderExecutor({
+    registry: built.registry,
+    span: deps.span,
+    beginEmbeddingAccounting: deps.beginEmbeddingAccounting,
+    readOwnedConnection: ownedConnection,
+    resolveCredential: deps.resolveCredential,
+    log: deps.log,
+    onAuthFailed: deps.onAuthFailed,
+  });
+  const diagnostics = createProviderDiagnostics(built.registry);
+  const roleClientsFor = createRoleClientsFor({ ctx, executor });
+  const probe = built.openAiCompat.reachability.probe;
 
   const catalogModels = createCatalogListing({
     registry,
@@ -473,7 +481,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     modelTasks: (connection, options) => modelTasks(ctx, connection, options),
     capabilities: {
       for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
-        const connection = await ownedConnection(connectionId, principal);
+        const connection = await ownedConnection(connectionId, principal.userId);
         const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
         // The same discovered kind the resolve below reads, so the task it picks is one the row serves.
         const kind = (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;

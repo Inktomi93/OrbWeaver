@@ -164,8 +164,6 @@ export interface ChatComposeInput {
    *  spends the TRIGGER's rows; the vector writes and reads use the room HOST's (vector tasks are owner-scoped). */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly connection: Pick<ConnectionService, "resolve" | "availability" | "getBoundConnection">;
-  /** The post-generation credential STRIKE-OUT (#1373) — the credentials domain's verb, wired DIRECT. */
-  readonly maybeRevokeOnAuthFailed: ChatContext["maybeRevokeOnAuthFailed"];
   readonly character: CharacterService;
   readonly persona: PersonaService;
   /** The persona domain's PRINCIPAL-LESS participants op (`domain/persona/contract/ops.ts`) — the ONE room-plane
@@ -411,15 +409,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveChatPresetParams,
     resolveChatProse,
     resolveChat: inferenceOps.resolveChat,
-    // THE POST-GENERATION CREDENTIAL STRIKE-OUT (#1373) — a DIRECT wire, deliberately not an adapter. The
-    // adapter that used to sit here was the whole defect: it re-derived the classification from the HTTP
-    // status (`401 → "unauthorized"`, `403 → "forbidden"`) against a verb that gates on `auth_failed`, so the
-    // two vocabularies could never meet, and it RE-RESOLVED the credential after the failure — which under a
-    // rotate/set-active race revokes the user's replacement key instead of the rejected one. The engine now
-    // carries the provider's own `ProviderErrorKind` plus the credentialId the generation authenticated with,
-    // which is exactly `MaybeRevokeParams`; anything else this seam could do would be re-deriving a fact it
-    // was handed. A shape drift on either side is now a `tsc` error rather than a silent no-op.
-    maybeRevokeOnAuthFailed: input.maybeRevokeOnAuthFailed,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     resolveCharacterDistillates: createResolveOwnedDistillates(db),
     // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write

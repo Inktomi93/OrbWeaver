@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-13
 priority: P1
-lane: codex/funding-core-integration-969
 plan: inference-flow
 ---
 
@@ -31,4 +30,6 @@ An in-flight failure can revoke replacement material under the same credential I
 
 Independent review confirms current admission, cancellation classification, replacement-safe revocation and diagnostic redaction. Positive cases pass across affected runs; planted admission and material-comparison cuts fail. Throwing query-factory controls prove package-boundary refusal, not native SDK execution. Native stream and compaction cases use the SDK and actual children; complete physical-exit qualification remains with the server harness. The optional callback-rejection branch remains source-only. Root typechecking fails on non-owned diagnostics.
 
-The proof batch and egress comment are frozen on the shared harness branch. Current-main integration isolates the production authority fix with canonical owner-before-parse dependencies. It preserves main's actual transport explanation until the configured-endpoint graph lands. The composed proof does not qualify this narrower checkout. Scoped integration checks and main landing remain pending.
+The production authority fix and canonical owner-before-parse dependency are integrated on main after security review. Actual database controls prove stored refusal, foreign ownership and secret-free errors. Contracts, inference and server configs and exact lint pass; root types retain non-owned diagnostics. Main preserves its actual transport explanation until the configured-endpoint graph lands.
+
+The composed proof batch and corrected egress comment remain frozen on the shared harness branch. They do not qualify the narrower main checkout. Complete call-path qualification and the dependent harness integration remain required; this item stays open.
