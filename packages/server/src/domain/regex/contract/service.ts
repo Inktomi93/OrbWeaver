@@ -78,8 +78,8 @@ export interface RegexContext {
   readonly emitRoomRegexChanged: (chatId: ChatId) => void;
   /** #1733's other half — the LIBRARY-ROW fan. A row's `enabled` (the #1742 section's row switch, which is
    *  off-EVERYWHERE by design) or its name is member-visible in every room whose own tier attaches it, and
-   *  those rooms are not knowable from the verb's arguments. Resolved at the composition root through the
-   *  entity→room reach table's `regex` arm. Error-isolated: it can never fault the write it follows. */
+   *  those rooms are not knowable from the verb's arguments. Regex persistence reads its room junction;
+   *  chat's injected refresh policy isolates failures so the lookup cannot fault the committed write. */
   readonly fanRegexScriptRooms: (scriptId: RegexScriptId) => Promise<void>;
   /** #1746 — the DELETE half of the same reach. `chat_regex_scripts` CASCADEs with the library row, so
    *  `fanRegexScriptRooms` after a delete resolves ∅ and every OTHER member of the room keeps reading a rack

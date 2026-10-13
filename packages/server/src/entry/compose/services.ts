@@ -85,6 +85,7 @@ import { buildImportContext, createInstallerCharacterImport, serializeImportCard
 import { createSeedPersonaWithCompletion } from "#domain/persona";
 import { createPluginGrantTasksOf, createPluginMacroRegistry, createPluginSeedOps, createShowcaseVersionReader } from "#domain/plugin";
 import { buildSideGenParams, createCopyPresetToUser, createLoadOptionalPreset, createPresetReadable } from "#domain/preset";
+import { createResolveStructuredBinding } from "#domain/refinery";
 import type { ImportCardScripts } from "#domain/regex";
 import { createSeedRosterPreset } from "#domain/roster-preset";
 import type { RpgTraceRecorder } from "#domain/rpg";
@@ -155,7 +156,7 @@ import { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 import { minter } from "./minter.ts";
 import type { PortabilityRunnerComposeResult } from "./portability-runner.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
-import { buildRefinery, createResolveStructuredBinding } from "./refinery.ts";
+import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
 import { buildRosterPreset } from "./roster-preset.ts";
 import type { RpgComposeResult } from "./rpg.ts";
@@ -700,7 +701,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     roleClientsFor,
-    resolveStructuredBinding: createResolveStructuredBinding(runtime, resolveFunderPrincipal),
+    resolveStructuredBinding: createResolveStructuredBinding({ resolve: (input) => runtime.resolve(input), principalOf: resolveFunderPrincipal }),
     character,
     resolveUtilityPresetParams,
     loadUserSettings: settings.loadUserSettings,

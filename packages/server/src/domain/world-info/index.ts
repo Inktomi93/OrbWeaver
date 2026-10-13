@@ -39,6 +39,7 @@ export {
   createImportStandaloneLorebook,
 } from "./persistence/import-write.ts";
 export { createLinkCarriedBooks } from "./persistence/link-carried-books.ts";
+export { createWorldInfoRoomReach } from "./persistence/room-reach.ts";
 export { createWorldInfoService } from "./service.ts";
 export { createExport as createExportWorldBook } from "./verbs/export.ts";
 export { createImport as createImportWorldBook } from "./verbs/import.ts";

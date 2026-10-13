@@ -25,15 +25,17 @@ export function createRemove(ctx: RegexContext): RegexService["removeScript"] {
     // for the reach query, and never fans.
     const fanReach = await ctx.captureRoomReachForDelete([scriptId]);
     const at = ctx.now();
-    await ctx.db.delete(regexScripts).where(and(eq(regexScripts.id, scriptId), eq(regexScripts.ownerId, ownerId)));
+    const deleted = await ctx.db
+      .delete(regexScripts)
+      .where(and(eq(regexScripts.id, scriptId), eq(regexScripts.ownerId, ownerId)))
+      .returning({ id: regexScripts.id });
     await ctx.audit(
       { actorUserId: ownerId, action: "regex.removeScript", entityType: "regex_script", entityId: scriptId, metadata: { name: record.name } },
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
-    // The ROOM plane: the owner-guarded delete above is confirmed, so the captured rooms fan for this id.
-    // Live-only and past the write — it cannot fault the delete that already committed.
-    fanReach([scriptId]);
+    // A competing remover can win after the ownership read; only a returned row authorizes the captured fan.
+    fanReach(deleted.map((row) => row.id));
     return { deleted: true };
   };
 }

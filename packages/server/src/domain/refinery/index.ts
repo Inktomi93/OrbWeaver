@@ -37,6 +37,7 @@ export type {
   UpdateSessionParams,
   UpdateSessionPatch,
 } from "./contract/params.ts";
+export type { ResolveStructuredBinding, SchemaPlanDeps, StructuredBindingDeps } from "./contract/planning.ts";
 export type {
   AppliedFieldKind,
   AppliedFieldRef,
@@ -54,6 +55,7 @@ export { applyAsCopyResultSchema, applyFieldsResultSchema, refinerySessionViewSc
 export type { RefineryService, RefineryWorkloadDeps, ScoreSweep } from "./contract/service.ts";
 export { createRefineryService } from "./service.ts";
 export { SCHEMA_NAME_TAKEN_REASON, SCHEMA_STALE_PATCH_REASON } from "./substrate/schema-library.ts";
+export { createPlanSchema, createResolveStructuredBinding } from "./verbs/schema-plan.ts";
 export { createScoreSweep } from "./verbs/score-sweep.ts";
 export { MANUAL_REWRITE_OUT_OF_SCOPE_REASON } from "./verbs/submit-manual-rewrite.ts";
 export { createRefineryWorkloadContributions } from "./workload-contributions.ts";

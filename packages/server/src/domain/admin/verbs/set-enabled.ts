@@ -17,8 +17,8 @@
 //     (`sessions/verbs/validate.ts:18` — "gating `enabled` to null here IS how disable takes effect next
 //     request"), the SSO-header arm refuses on `!provisioned.enabled` and the owner-fallback arm applies the
 //     same gate (`entry/auth/seam.ts`), so a disabled user cannot hold a live socket. On the DISABLE arm the
-//     kick tail below revokes every session and the entry wrapper evicts the live sockets with it (W7a,
-//     `entry/compose/admin.ts`); on the ENABLE arm there was no live client to announce to in the first place.
+//     kick tail below revokes every session and the injected admin session port evicts the live sockets.
+//     On the ENABLE arm there was no live client to announce to in the first place.
 //   • Nothing an identity read PROJECTS moved. `sessions.me` is userId/handle/globalRole
 //     (`transport/trpc/routers/sessions.ts`); `enabled` appears in none of them.
 // `setRole` is the arm that genuinely strands a live tab, and it emits.
