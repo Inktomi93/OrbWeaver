@@ -23,4 +23,4 @@ Two reference stacks mean a `pnpm ast` verb and a gate can disagree about who ca
 
 ## Evidence
 
-The bounded source batch is authored; its floor and native repository equivalence remain pending. Existing reference verbs already use the canonical reference reader. Keep native views until store coverage is proven: dynamic importer file lookup differs from typed module targets, and dependency-origin reference keys are not completely extracted. An absent stored key must not become a false empty-reference verdict. Preserve extensionless importer controls and unresolved outcomes rather than routing through synthetic compiler options.
+The bounded source floor passes; native repository equivalence remains pending. Independent review rejects the stored `dead` path: dependency-origin exports lack indexed references and can become false deletion candidates. The correction lane owns an explicit refusal or qualified reference result, with a dependency-barrel control. Keep native views until store coverage is proven. Preserve extensionless importer controls and unresolved outcomes rather than routing through synthetic compiler options.
