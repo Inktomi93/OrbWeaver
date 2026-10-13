@@ -14,11 +14,16 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CardImportResult, FailedCard, ImportedCard } from "@orb/contracts/import";
+import type { ImportAssetPort } from "#domain/assets";
+import { createImportAvatarStore } from "#domain/assets";
+import type { ImportCharacterPort } from "#domain/character";
+import { createCharacterImportOps } from "#domain/character";
 import type { RestoreCharacterBookResult } from "#domain/import";
-import { createImportService } from "#domain/import";
+import { buildImportContext, createImportService } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
-import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
-import { buildImportContext } from "./build-import-context.ts";
+import type { ImportTagPort } from "#domain/tag";
+import { createImportedCardTag } from "#domain/tag";
+import type { ImportWorldInfoPort } from "#domain/world-info";
 
 // @orb-waive no-inline-package-interface(ImportFile): baselined when the gate landed; burn-down item 952.
 /** One card file to import: the raw bytes + an optional source filename (provenance + name fallback). */
@@ -49,9 +54,9 @@ function cardImportService(deps: Omit<ProfileImportDeps, "files">): ReturnType<t
   return createImportService(
     buildImportContext({
       principal,
-      character,
-      storeAvatar: assets.store,
-      attachCardTag: tag.attachCardTagByName,
+      characterOps: createCharacterImportOps(principal, character),
+      storeAsset: createImportAvatarStore(principal, (args) => assets.store(args)),
+      attachCardTag: createImportedCardTag(principal.userId, (args) => tag.attachCardTagByName(args)),
       ...(worldInfo !== undefined
         ? { importLorebook: worldInfo.importLorebook, hasPrimaryBook: worldInfo.hasPrimaryBook, linkCarriedBooks: worldInfo.linkCarriedBooks }
         : {}),

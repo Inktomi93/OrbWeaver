@@ -1,5 +1,6 @@
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
-import type { EmbedGenerationId } from "@orb/kit/ids";
+
+export type { GenerationReceipt } from "@orb/contracts/embeddings";
 
 export type GenerationTask = EmbeddingTask;
 
@@ -17,11 +18,3 @@ export type EmbedMoveRefusal =
     }
   | { readonly kind: "unreachable"; readonly task: GenerationTask }
   | { readonly kind: "auth"; readonly task: GenerationTask };
-
-export interface GenerationReceipt {
-  readonly id: EmbedGenerationId;
-  readonly task: GenerationTask;
-  readonly via: GenerationTask;
-  readonly epoch: number;
-  readonly space: string;
-}

@@ -29,6 +29,7 @@ import type { Db } from "@orb/db";
 import { chatDigests, chatSegments, embedGenerations, embedSpaceState } from "@orb/db";
 import type { CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createVacuousMemoryReceipt, createVectorSweepOps } from "@orb/server/domain/embeddings";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -44,7 +45,6 @@ import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { upsertCharacterEmbedding, upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
-import { createVacuousMemoryReceipt, createVectorSweepOps } from "#server/entry/compose/vector-sweep-ops.ts";
 import type { StoreHarness } from "./_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedDocument, seedUser } from "./_support.ts";
 

@@ -10,28 +10,28 @@ import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportO
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
-import type { AssetsContext } from "#domain/assets";
-import { createExportAssets, createExportGallery, createImportAsset, createImportGallery } from "#domain/assets";
+import type { AssetsContext, ImportAssetPort } from "#domain/assets";
+import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
+import type { ImportCharacterPort } from "#domain/character";
+import { createCharacterImportOps } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportProfileDeps, ImportService } from "#domain/import";
-import { createImportService } from "#domain/import";
+import { buildImportContext, createImportService } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import type { SettingsContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
-import type { TagContext } from "#domain/tag";
-import { createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
-import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
+import type { ImportTagPort, TagContext } from "#domain/tag";
+import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
+import type { ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
 import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
-import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "../import/index.ts";
-import { buildImportContext } from "../import/index.ts";
 
 // @orb-waive no-inline-package-interface(PortabilityDeps): baselined when the gate landed; burn-down item 952.
 /** What the registry builder needs from the composition root to compose each descriptor. */
@@ -78,9 +78,9 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
   const principal = await deps.resolveOwnerPrincipal(ownerId);
   const ctx = buildImportContext({
     principal,
-    character: deps.character,
-    storeAvatar: deps.storeAvatar,
-    attachCardTag: deps.attachCardTag,
+    characterOps: createCharacterImportOps(principal, deps.character),
+    storeAsset: createImportAvatarStore(principal, (args) => deps.storeAvatar(args)),
+    attachCardTag: createImportedCardTag(principal.userId, (args) => deps.attachCardTag(args)),
     importLorebook: deps.importLorebook,
     hasPrimaryBook: deps.hasPrimaryBook,
     linkCarriedBooks: deps.linkCarriedBooks,

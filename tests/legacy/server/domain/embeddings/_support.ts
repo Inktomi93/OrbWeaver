@@ -13,6 +13,7 @@
 
 // @orb-waive-file no-test-fabrication(AssetId): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
@@ -35,7 +36,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";

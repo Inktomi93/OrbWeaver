@@ -7,17 +7,12 @@
 // under the latch is not brought back; only the items those latches never covered are seeded.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { SeedManifestItem } from "@orb/default-content";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
+import type { SeedRosterPreset } from "#domain/roster-preset";
+import type { LegacySeedLatches } from "#domain/settings";
 import { getLog } from "#foundation/observability";
-
-/** What an account was already given before the ledger existed. */
-interface LegacySeedLatches {
-  readonly characters: boolean;
-  readonly persona: boolean;
-}
 
 // @orb-waive no-inline-package-interface(UserContentSeederDeps): baselined when the gate landed; burn-down item 952.
 export interface UserContentSeederDeps {
@@ -34,15 +29,7 @@ export interface UserContentSeederDeps {
    *  seeder creates one only on an automation-started stack; a real first sign-in asks instead). */
   readonly seedPersona: (principal: Principal) => Promise<boolean>;
   readonly findCharacter: (principal: Principal, handle: CharacterHandle) => Promise<CharacterId | null>;
-  readonly createRosterPreset: (
-    principal: Principal,
-    preset: {
-      readonly name: string;
-      readonly description: string;
-      readonly characterIds: readonly CharacterId[];
-      readonly game: RpgGameTemplate | null;
-    },
-  ) => Promise<void>;
+  readonly createRosterPreset: SeedRosterPreset;
 }
 
 // @orb-waive no-inline-package-interface(UserContentSeeder): baselined when the gate landed; burn-down item 952.

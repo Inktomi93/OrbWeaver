@@ -26,7 +26,7 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import type { FakeRoleClientControls } from "@orb/testkit/node/factories/role-clients.ts";

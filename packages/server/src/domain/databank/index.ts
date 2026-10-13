@@ -19,4 +19,5 @@ export { createDatabankIngest } from "./ingest/index.ts";
 export { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "./persistence/portability-write.ts";
 export { resolveActiveDocumentIds } from "./persistence/scope.ts";
 export { createDatabankService } from "./service.ts";
+export { createGatherDatabankForTurn } from "./substrate/turn-retrieval.ts";
 export { createDatabankWorkloadContributions } from "./workload-contributions.ts";

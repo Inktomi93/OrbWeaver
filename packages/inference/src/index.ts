@@ -71,7 +71,7 @@ import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
 
-export { resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
+export { availableClaudeExecutable, resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
 export type { SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { providerErrorFromHttp } from "./backends/http/error-classify.ts";
 export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/http/response-cache.ts";

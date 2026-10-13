@@ -7,7 +7,7 @@ import { chatDigests, chatSegments } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
-import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
+import { createMemoryEmbeddingOps } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";

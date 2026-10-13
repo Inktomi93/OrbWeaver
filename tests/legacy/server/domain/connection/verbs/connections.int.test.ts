@@ -8,13 +8,14 @@
 
 // @orb-waive-file no-test-fabrication({ dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDefSchema } from "@orb/contracts/inference";
 import { characterEmbeddings, userCredentials } from "@orb/db";
 import type { PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

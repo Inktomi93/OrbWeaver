@@ -11,12 +11,13 @@
 // @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 
 // @orb-waive-file no-test-fabrication({ input: string | string[] }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets, embedSpaceState, imageAnalyses, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";

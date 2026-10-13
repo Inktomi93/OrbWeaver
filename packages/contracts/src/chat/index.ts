@@ -260,6 +260,8 @@ export {
 export type { NextTurnConnectionView } from "./next-turn-connection.ts";
 export { nextTurnConnectionViewSchema } from "./next-turn-connection.ts";
 export type {
+  ChatLivePublish,
+  MemoryDigestInput,
   RequestTurnOp,
   RequestTurnParams,
   ResolveCharacterTagsOp,
@@ -268,6 +270,8 @@ export type {
   ResolveViewerVisibility,
   SeatDeco,
   SignupMinterCheckOp,
+  StoreSegmentParams,
+  TurnRetrievalEvents,
   ViewerVisibility,
 } from "./owner-ops.ts";
 export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";

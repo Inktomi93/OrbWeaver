@@ -8,7 +8,7 @@ import type { InferenceDeps } from "@orb/inference";
 import { createInferenceRuntime, resolveEmbed } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import type { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { makeResolvedSecret, TEST_BASE_URL } from "./factories/resolved-connection.ts";
 
 type EmbeddingRuntime = Parameters<typeof createResolveEmbeddingConnection>[0];

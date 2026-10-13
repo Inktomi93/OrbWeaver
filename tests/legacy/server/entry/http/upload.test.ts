@@ -11,6 +11,7 @@
 // @orb-waive-file no-test-fabrication({ ok: boolean; characterId: CharacterId }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ ok: boolean; error: string }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ readonly outcome: string; readonly document: { readonly mime: string; readonly charCount: number } }): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { StoredAsset } from "@orb/contracts/assets";
 import { DOCUMENT_DESTINATION_FORM_FIELD } from "@orb/contracts/databank";
 import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
@@ -21,6 +22,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { AssetContentRejectedError, createAssetsService } from "@orb/server/domain/assets";
+import type { ImportCharacterPort } from "@orb/server/domain/character";
 import { requireHost } from "@orb/server/domain/chat";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -28,9 +30,10 @@ import { describe, onTestFinished } from "vitest";
 import { can } from "#server/domain/admin/index.ts";
 import { createDatabankService } from "#server/domain/databank/index.ts";
 import type { ImportCardScripts } from "#server/domain/regex/index.ts";
+import type { ImportTagPort } from "#server/domain/tag/index.ts";
+import type { ImportWorldInfoPort } from "#server/domain/world-info/index.ts";
 import type { UploadAssetsPort, UploadDeps } from "#server/entry/http/index.ts";
 import { registerUpload } from "#server/entry/http/index.ts";
-import type { ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "#server/entry/import/index.ts";
 import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
 import { matchesAccept } from "#ui/primitives/file-dropzone/accept.ts";
 import { makeHarness } from "../../domain/assets/_support.ts";

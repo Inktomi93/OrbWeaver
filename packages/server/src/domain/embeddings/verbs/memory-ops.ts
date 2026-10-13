@@ -2,16 +2,15 @@
 // with their owner-coherence guard, and the shrink reclaim. Kept apart from the chat seam so the memory suites run
 // these exact ops instead of copies.
 
+import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import { NoConnectionError } from "@orb/inference";
-import type { ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext, MemoryEmbedSpace, MemoryStoreReceipt } from "#domain/chat";
-import type { EmbeddingsService } from "#domain/embeddings";
+import type { MemoryEmbeddingDeps, MemoryEmbeddingOps } from "../contract/memory-ops.ts";
+import type { EmbeddingsService } from "../contract/service.ts";
 
 type EmbeddingSegmentRow = Parameters<EmbeddingsService["storeSegments"]>[0][number];
 
-// @orb-waive compose-wiring-only(memorySegmentReceipts): baselined when the gate landed; burn-down item 964.
-function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Awaited<ReturnType<EmbeddingsService["storeSegments"]>>): MemoryStoreReceipt[] {
-  const receipts: MemoryStoreReceipt[] = [];
+function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Awaited<ReturnType<EmbeddingsService["storeSegments"]>>): MemoryEmbedSpace[] {
+  const receipts: MemoryEmbedSpace[] = [];
   for (const [index, result] of results.entries()) {
     const row = rows[index];
     if (row === undefined) {
@@ -33,14 +32,10 @@ function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Aw
  * column, so the host is resolved per write. A store whose planned owner is no longer the room's present host
  * THROWS: the room changed hands mid-sweep, and writing on would put the old host's vectors in the new host's room.
  */
-export function createMemoryEmbeddingOps(deps: {
-  readonly embeddings: Pick<EmbeddingsService, "resolveGeneration" | "store" | "storeSegments" | "pruneMemoryBlocks">;
-  readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
-}): Pick<ChatContext, "resolveMemoryEmbedSpace" | "embeddingsStore" | "embeddingsStoreSegments" | "embeddingsPruneBlocks"> {
+export function createMemoryEmbeddingOps(deps: MemoryEmbeddingDeps): MemoryEmbeddingOps {
   const { embeddings, resolveChatHostUserId } = deps;
   return {
     // No binding is the honest `NoConnectionError`: a default would silently write into a space nobody reads.
-    // @orb-waive compose-wiring-only(resolveMemoryEmbedSpace): baselined when the gate landed; burn-down item 964.
     resolveMemoryEmbedSpace: async (hostUserId): Promise<MemoryEmbedSpace> => {
       const generation = await embeddings.resolveGeneration(hostUserId, "embed");
       if (generation === null) {
@@ -48,8 +43,7 @@ export function createMemoryEmbeddingOps(deps: {
       }
       return { ownerId: hostUserId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
     },
-    // @orb-waive compose-wiring-only(embeddingsStore): baselined when the gate landed; burn-down item 964.
-    embeddingsStore: async (params): Promise<MemoryStoreReceipt> => {
+    embeddingsStore: async (params): Promise<MemoryEmbedSpace> => {
       const hostUserId = await resolveChatHostUserId(params.key.chatId);
       if (hostUserId !== params.ownerId) {
         throw new Error(`memory digest owner changed during sweep for chat ${params.key.chatId}`);
@@ -78,8 +72,7 @@ export function createMemoryEmbeddingOps(deps: {
     },
     // A BATCH op: memory hands over every pending chunk (one chat's on the live path, the whole corpus's on the
     // sweep) and embeddings submits them to the engine as one flood.
-    // @orb-waive compose-wiring-only(embeddingsStoreSegments): baselined when the gate landed; burn-down item 964.
-    embeddingsStoreSegments: async (params, signal): Promise<MemoryStoreReceipt[]> => {
+    embeddingsStoreSegments: async (params, signal): Promise<MemoryEmbedSpace[]> => {
       const rows: EmbeddingSegmentRow[] = [];
       for (const p of params) {
         const hostUserId = await resolveChatHostUserId(p.chatId);
@@ -105,7 +98,6 @@ export function createMemoryEmbeddingOps(deps: {
     },
     // The SHRINK half: memory stores every block that exists, then reclaims the ones that stopped existing. The
     // DELETE lives in embeddings (the one vector write path, D20) and is scoped to the host's target generation.
-    // @orb-waive compose-wiring-only(embeddingsPruneBlocks): baselined when the gate landed; burn-down item 964.
     embeddingsPruneBlocks: async (params): Promise<void> => {
       if (params.lens === "digest") {
         await embeddings.pruneMemoryBlocks({

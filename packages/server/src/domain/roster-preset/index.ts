@@ -10,6 +10,7 @@ export {
   RosterPresetNotFoundError,
   RosterPresetPersonaNotFoundError,
 } from "./contract/errors.ts";
+export type { SeedRosterPreset } from "./contract/seed.ts";
 export type {
   CastRuleWrite,
   MemberWrite,
@@ -19,3 +20,4 @@ export type {
   RosterPresetService,
 } from "./contract/service.ts";
 export { createRosterPresetService } from "./service.ts";
+export { createSeedRosterPreset } from "./verbs/seed.ts";

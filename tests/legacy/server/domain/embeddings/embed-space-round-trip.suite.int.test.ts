@@ -22,6 +22,7 @@
 // assertion below is preceded by a row-count read that proves vectors EXIST for this owner.
 
 // @orb-waive-file no-test-fabrication({ readonly input?: unknown; readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
@@ -31,7 +32,7 @@ import type { Db } from "@orb/db";
 import { characterEmbeddings, documentChunks } from "@orb/db";
 import type { CharacterEmbeddingId, CharacterId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";

@@ -82,7 +82,7 @@ import {
 import type { ConnectionService } from "#domain/connection";
 import { createResolveOwnedDistillates } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
-import { createHandoffRestampStatements } from "#domain/embeddings";
+import { createHandoffRestampStatements, createMemoryEmbeddingOps } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import { createRecordAndPublishNotification } from "#domain/notifications";
@@ -111,7 +111,6 @@ import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryL
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
 import { publishChatChanged, publishNotification } from "#transport/trpc";
 import { createReactToolDefinition } from "./chat-tools.ts";
-import { createMemoryEmbeddingOps } from "./memory-embedding-ops.ts";
 import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 
 export const createSignupMinterCheck = createAdminSignupMinterCheck;
