@@ -2,12 +2,21 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { buildLiveness, collectApiSurface, collectOrphanCandidates, collectSwallowedCandidates, collectTypeOnlyCandidates, ownExports } from "@orb/tooling/ast";
+import {
+  buildLiveness,
+  collectApiSurface,
+  collectOrphanCandidates,
+  collectSwallowedCandidates,
+  collectTypeOnlyCandidates,
+  deadEvidenceFor,
+  ownExports,
+} from "@orb/tooling/ast";
 import { runCodemod } from "@orb/tooling/codemod";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { resolveExportedDeclarations } from "@orb/tooling/floor/code-facts/reference-fact";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { SemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
+import { SemanticInventoryError } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
 import { createSemanticWorkspace, semanticReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
@@ -408,4 +417,41 @@ export default function NamedDefault(): void {}
       spy.mockRestore();
     }
   }
+});
+
+test("stored dead evidence refuses unindexed dependency barrel origins instead of false unused candidates", ({ scratch }) => {
+  initialize(scratch);
+  const native = createSemanticWorkspace({ root: scratch });
+  const nativeCorpus = native.sourceCorpus();
+  const browser = fixtureValue(native.program("packages/client/tsconfig.json"));
+  const nativeBarrel = fixtureValue(browser.sourceFile("packages/kit/src/barrel.ts"));
+  const nativeOrigin = fixtureValue(nativeBarrel.getExportedDeclarations().get("native")?.[0]);
+  expect(nativeOrigin.getSourceFile().getFilePath()).toBe(join(scratch, "node_modules/fixture-platform/browser.ts"));
+  expect(
+    semanticReferenceNodes(nativeOrigin)
+      .filter((node) => node.getText() === "platformDoor")
+      .map((node) => node.getSourceFile().getFilePath()),
+  ).toEqual([join(scratch, "packages/client/src/browser.ts"), join(scratch, "packages/client/src/browser.ts")]);
+  expect(deadEvidenceFor(nativeCorpus, nativeOrigin, "native", buildLiveness(nativeCorpus))).toMatchObject({ verdict: "ALIVE" });
+
+  using stored = createSemanticInventory({ root: scratch });
+  const corpus = stored.sourceCorpus();
+  const live = buildLiveness(corpus);
+  const origins = declarationsNamed(corpus.getSourceFiles(), "native");
+  expect(origins).toHaveLength(1);
+  const origin = fixtureValue(origins[0]);
+  expect(origin.getSourceFile().getFilePath()).toBe(join(scratch, "node_modules/fixture-platform/node.ts"));
+  const diagnostic = `native semantic inventory references unsupported for non-authored origin: ${origin.getSourceFile().getFilePath()}:${String(origin.getStart())}-${String(origin.getEnd())}; dependency-origin references are not indexed; use a native semantic view`;
+  expect(() => deadEvidenceFor(corpus, origin, "native", live)).toThrow(SemanticInventoryError);
+  expect(() => deadEvidenceFor(corpus, origin, "native", live)).toThrow(diagnostic);
+  expect(() => semanticReferenceNodes(origin)).toThrow(diagnostic);
+  expect(deadEvidenceFor(corpus, source(stored, "packages/kit/src/base.ts").getVariableDeclarationOrThrow("alive"), "alive", live)).toMatchObject({
+    verdict: "ALIVE",
+  });
+  expect(deadEvidenceFor(corpus, source(stored, "packages/kit/src/base.ts").getVariableDeclarationOrThrow("unused"), "unused", live)).toMatchObject({
+    verdict: "CANDIDATE",
+    prodCount: 0,
+    toolCount: 0,
+    testCount: 0,
+  });
 });
