@@ -35,10 +35,10 @@ Remaining findings: legacy disposal and typed-lint errors; maintained classes ab
 
 Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Other findings and authority alarms remain unresolved. Repair product, security or checker defects, not waivers or disposable legacy suites. Preserve useful cases for the rebuild.
 
-Knip baseline typing and CLI spawn types are corrected. Focused Knip controls and root compilation pass, not a fresh production liveness verdict.
+Citation owners complete in `main-163399-2026-10-13T05-30-52-880Z` with no effective findings, tool errors or withheld verdicts. Existing reviewed grants exceed their budget. This is a red authority verdict, not clean citation qualification. Main owns grant adjudication; add no allowance.
 
-Testkit citation lookup resolves world homes and rejects wrong-world basenames; red-first controls and native compilation pass. Document and path policies pass in `main-1069035-2026-10-13T04-26-25-483Z`. Native-retirement citation corrections leave no effective finding in `main-1664924-2026-10-13T04-34-37-664Z`, but reviewed citation grants still exceed budget. This is a completed red authority verdict, not a tool error or clean citation qualification. Main owns grant adjudication; no grant or allowance is added.
+The UI export floor reports legacy-node errors in untouched server fixtures: seed-user-content's optional RPG input, profile-directory support's optional name and handle, and run-profile-import's optional tag source. The export batch changes neither those fixtures nor server declarations. Preserve cases for replacement; do not retrofit them to manufacture a green export floor.
 
-The caught-failure census relocates domain sites and retains unproven reindex/auth sites. Compose and Principal budgets shrink. Only the removed chat catch reduces its application budget; remaining census differences need population-specific adjudication.
+The caught-failure census relocates domain sites and retains unproven reindex/auth sites. Literal removals shrink budgets; remaining census differences need population-specific adjudication.
 
 Compose import-policy defects are corrected in `292d99464e` with native graph evidence. No whole-application import verdict is claimed.
