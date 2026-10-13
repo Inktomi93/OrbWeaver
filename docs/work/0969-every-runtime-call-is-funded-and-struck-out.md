@@ -3,7 +3,7 @@ kind: bug
 status: doing
 updated: 2026-10-13
 priority: P1
-lane: codex/runtime-funding-969
+lane: codex/funding-core-integration-969
 plan: inference-flow
 ---
 
@@ -29,4 +29,6 @@ Reuse the runtime's owned-read capability with ownership checked before private 
 
 An in-flight failure can revoke replacement material under the same credential ID. The credential owner must compare captured sealed material atomically before revocation. Carry correlated ID and opaque execution evidence, not plaintext, through the strike callback. Preserve foreign-owner refusal and audit semantics. Prove replacement survival, unchanged-material revocation and sealed-field redaction on a real driver failure; no schema version or timestamp comparison.
 
-Independent review confirms current admission, cancellation classification, replacement-safe revocation and diagnostic redaction. Positive cases pass across affected runs; planted admission and material-comparison cuts fail. Throwing query-factory controls prove package-boundary refusal, not native SDK execution. Native stream and compaction cases use the SDK and actual children; complete physical-exit qualification remains with the server harness. The optional callback-rejection branch remains source-only. Root typechecking fails on non-owned diagnostics. The egress comment correction and final integration remain pending.
+Independent review confirms current admission, cancellation classification, replacement-safe revocation and diagnostic redaction. Positive cases pass across affected runs; planted admission and material-comparison cuts fail. Throwing query-factory controls prove package-boundary refusal, not native SDK execution. Native stream and compaction cases use the SDK and actual children; complete physical-exit qualification remains with the server harness. The optional callback-rejection branch remains source-only. Root typechecking fails on non-owned diagnostics.
+
+The proof batch and egress comment are frozen on the shared harness branch. Current-main integration isolates the production authority fix with canonical owner-before-parse dependencies. It preserves main's actual transport explanation until the configured-endpoint graph lands. The composed proof does not qualify this narrower checkout. Scoped integration checks and main landing remain pending.
