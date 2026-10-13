@@ -8,7 +8,7 @@
 
 export type { StreamShimmerProps } from "./shimmer.tsx";
 export { StreamShimmer } from "./shimmer.tsx";
-export { snapToGraphemeBoundary, snapToWordBoundary } from "./snap.ts";
+export {} from "./snap.ts";
 export type { StreamStatus, StreamTextProps } from "./stream-text.tsx";
 export { StreamText } from "./stream-text.tsx";
 export type { TypingDotsProps } from "./typing-dots.tsx";

@@ -112,7 +112,6 @@ export {
   Send,
   Settings,
   ShieldHalf,
-  Shrink,
   Skull,
   SlidersHorizontal,
   // B6 — the message row's "add a reaction" door (both pointer arms).

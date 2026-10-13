@@ -19,7 +19,7 @@ import type {
   CssMergeTraceState,
 } from "./css-merge-contract.ts";
 
-export type { CssMergeConflict, CssMergeReceipt, CssMergeTraceSnapshot } from "./css-merge-contract.ts";
+export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 
 export const CSS_MERGE_TRACE_INPUT_LIMIT = 128;
 const CSS_MERGE_TRACE_RECEIPT_LIMIT = 128;
