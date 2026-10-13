@@ -1,6 +1,6 @@
 // Native Drizzle row-source and statement observations; consumers decide their scoping obligations.
 import type { CallExpression, Node } from "ts-morph";
-import type { MemberReference } from "./reference-fact-contract.ts";
+import type { MemberReference, UnresolvedReferenceFact } from "./reference-fact-contract.ts";
 
 export interface DrizzleValueSources {
   readonly members: readonly MemberReference[];
@@ -28,4 +28,5 @@ export interface ReadStatement {
   readonly wheres: readonly Node[];
   readonly innerOns: readonly Node[];
   readonly escapes: boolean;
+  readonly refusals: readonly UnresolvedReferenceFact[];
 }

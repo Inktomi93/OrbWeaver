@@ -48,13 +48,15 @@
 // admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
-import type { Node } from "ts-morph";
+import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { observeCallReturns } from "../../floor/code-facts/call-returns.ts";
 import { RELATIONAL_WHERE, relationalWhereCallback } from "../../floor/code-facts/drizzle-operators.ts";
 import { innerReadAnchorsOf, readAnchorOf } from "../../floor/code-facts/drizzle-query.ts";
 import { readDrizzleProjectedColumn } from "../../floor/code-facts/drizzle-select.ts";
 import { readStatementOf } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn } from "../../floor/code-facts/function-context.ts";
+import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaModel } from "../../floor/code-facts/schema-model-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -62,7 +64,7 @@ import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex, ValueRecei
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { chainTermsOf, conjunctLeaves, ownerTermValue, predicateHolds, selectsByValue } from "../lib/tenancy-join.ts";
+import { chainTermsOf, conjunctLeaves, ownerTermValue, predicateHolds, predicateMayReadColumn, selectsByValue } from "../lib/tenancy-join.ts";
 import { isPlainValue, membershipPinColumns, parentReceiverOf, valuePinTerm, valueSourcesOf } from "../lib/tenancy-pin.ts";
 import { declaredTableOf, hasPostFetchFilter, predicatesOwnId, tableRefsOf } from "../lib/tenancy-read.ts";
 import {
@@ -131,6 +133,7 @@ const UNRESOLVABLE_MESSAGE =
 
 /** The schema answers `evaluate` needs, derived once per run. */
 interface ReadScope {
+  readonly observations: CallReturnObservations;
   readonly schema: SchemaModel;
   readonly ownerTables: ReadonlySet<string>;
   readonly membershipTables: ReadonlySet<string>;
@@ -192,8 +195,8 @@ interface Judged {
   readonly statement: ReadStatement;
 }
 
-function judgedOf(anchor: ReadAnchor): Judged {
-  return { on: anchor.kind === "join" ? anchor.on : undefined, statement: readStatementOf(anchor.call) };
+function judgedOf(anchor: ReadAnchor, scope: ReadScope): Judged {
+  return { on: anchor.kind === "join" ? anchor.on : undefined, statement: readStatementOf(anchor.call, scope.observations) };
 }
 
 /** Does `test` accept a conjunct that filters every row the statement returns: one in the anchor's own ON or an
@@ -233,7 +236,7 @@ function subselectPinned(select: Node, scope: ReadScope): boolean {
   return innerReadAnchorsOf(select).every(
     (anchor) =>
       anchor.kind !== "relational" &&
-      sourcePinned({ receiver: anchor.table.getText(), table: declaredTableOf(anchor.table, scope.index) }, judgedOf(anchor), scope),
+      sourcePinned({ receiver: anchor.table.getText(), table: declaredTableOf(anchor.table, scope.index) }, judgedOf(anchor, scope), scope),
   );
 }
 
@@ -251,7 +254,7 @@ function ownerValuePinned(value: Node, judged: Judged, scope: ReadScope): boolea
 }
 
 /** Arm 1: an `eq`/`inArray` owner term on the table written `ident` whose value is pinned. */
-function ownerScoped(ident: string, judged: Judged, scope: ReadScope): boolean {
+function ownerScoped(ident: string | Node, judged: Judged, scope: ReadScope): boolean {
   return bindsRows(judged, (conjunct, bindings) => {
     const value = ownerTermValue(conjunct, ident, bindings);
     return value !== undefined && ownerValuePinned(value, judged, scope);
@@ -298,7 +301,7 @@ function projectionCarriesOwner(table: Node, scope: ReadScope): boolean {
       }
       return (
         !scope.ownerTables.has(declared) ||
-        ownerScoped(anchor.table.getText(), judgedOf(anchor), scope) ||
+        ownerScoped(anchor.table, judgedOf(anchor, scope), scope) ||
         (projected.kind === "resolved" && projected.value?.name === "ownerId" && declaredTableOf(projected.value.receiver, scope.index) === declared)
       );
     });
@@ -308,9 +311,9 @@ function projectionCarriesOwner(table: Node, scope: ReadScope): boolean {
 /** The finding message for one owner-scoped table this read binds (written `ident`, declared `declared`), or
  *  undefined when a safe arm holds. */
 function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string | undefined, scope: ReadScope): string | undefined {
-  const judged = judgedOf(anchor);
+  const judged = judgedOf(anchor, scope);
   const { on, statement } = judged;
-  if (!statement.escapes && ownerScoped(ident, judged, scope) && (declared !== undefined || projectionCarriesOwner(anchor.table, scope))) {
+  if (!statement.escapes && ownerScoped(anchor.table, judged, scope) && (declared !== undefined || projectionCarriesOwner(anchor.table, scope))) {
     return; // arm 1 — a pinned `eq`/`inArray` owner term on this exact table
   }
   const predicates = [on, ...statement.innerOns, ...statement.wheres];
@@ -324,11 +327,10 @@ function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string
   // BY-ID: the table's own id in a WHERE or an inner join's ON, or the chain's bound FK column selected by a value
   // (`eq(chats.anchorPersonaId, personaId)` selects the persona by id). Anything else is a list read, or a row
   // the FK chain already selected, unless some term is unreadable.
-  const wheres = conjunctLeaves(statement.wheres);
   const ons = conjunctLeaves(statement.innerOns);
   const all = conjunctLeaves(predicates);
   const byId =
-    wheres.leaves.some((leaf) => predicatesOwnId(leaf.getText(), ident)) ||
+    statement.wheres.some((where) => predicateMayReadColumn(where, anchor.table, ID_COL)) ||
     ons.leaves.some((leaf) => selectsByValue(leaf, `${ident}.${ID_COL}`, scope.index)) ||
     chain.some((term) => all.leaves.some((leaf) => selectsByValue(leaf, term.boundColumn, scope.index)));
   const unproven = all.opaque || statement.escapes;
@@ -344,7 +346,6 @@ function subqueryScoped(select: Node, scope: ReadScope, depth = 0): boolean {
     if (anchor.kind === "relational") {
       return false;
     }
-    const ident = anchor.table.getText();
     // A nested CTE is owner-relevant only when its own inner select is unscoped; the depth cap fails closed.
     const owned = tableRefsOf(anchor.table, scope.index).some(
       (ref) =>
@@ -352,8 +353,8 @@ function subqueryScoped(select: Node, scope: ReadScope, depth = 0): boolean {
         (ref.kind === "subquery" && (depth >= MAX_SUBQUERY_DEPTH || !subqueryScoped(ref.select, scope, depth + 1))) ||
         (ref.kind === "table" && scope.ownerTables.has(ref.ident)),
     );
-    const judged = judgedOf(anchor);
-    return !owned || (!judged.statement.escapes && ownerScoped(ident, judged, scope));
+    const judged = judgedOf(anchor, scope);
+    return !owned || (!judged.statement.escapes && ownerScoped(anchor.table, judged, scope));
   });
 }
 
@@ -397,7 +398,10 @@ function relationalFinding(anchor: Extract<ReadAnchor, { kind: "relational" }>, 
   if (where === undefined) {
     return UNPROVEN_MESSAGE;
   }
-  const judged: Judged = { on: undefined, statement: { wheres: where.predicate === undefined ? [] : [where.predicate], innerOns: [], escapes: false } };
+  const judged: Judged = {
+    on: undefined,
+    statement: { wheres: where.predicate === undefined ? [] : [where.predicate], innerOns: [], escapes: false, refusals: [] },
+  };
   if (ownerScoped(where.receiver, judged, scope)) {
     return;
   }
@@ -444,11 +448,18 @@ export const gate = defineGate({
   create: (ctx) => {
     // The walk records anchors without judging: the schema fact, and so the (a)-class set, is ready only in `evaluate`.
     const anchors: ReadAnchor[] = [];
+    const calls: CallExpression[] = [];
+    const references: Node[] = [];
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.CallExpression],
+          kinds: [SyntaxKind.CallExpression, SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
           visit: (node) => {
+            if (node.isKind(SyntaxKind.CallExpression)) {
+              calls.push(node);
+            } else {
+              references.push(node);
+            }
             const anchor = readAnchorOf(node);
             if (anchor !== undefined) {
               anchors.push(anchor);
@@ -460,6 +471,7 @@ export const gate = defineGate({
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const scope: ReadScope = {
+          observations: observeCallReturns(calls, references),
           schema: schemaFact.value,
           ownerTables: ownerScopedTableIdents(schemaFact.value),
           index: schemaTableIndex(schemaFact.value),
@@ -522,8 +534,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: personaBody("  function build() { return db.select().from(personas); }\n  return build().where(eq(personas.id, personaId));\n"),
-      expect: { count: 1, messageIncludes: "unproven" },
-      why: "a non-async factory returns an unfiltered builder rather than executing its query, so an unseen caller can select any owner's row",
+      expect: { count: 1, messageIncludes: "a by-id READ" },
+      why: "a synchronous factory returns an editable builder; its observed caller applies the actual unscoped by-id WHERE, so the anchor reports the founding hole rather than an unseen escape",
     },
     {
       mode: "types",
@@ -1317,9 +1329,9 @@ export const gate = defineGate({
       mode: "types",
       files: pinBody(
         "  return db.select().from(personas).limit(1);\n",
-        "export function filtered(db: Db, cond: SQL, ownerId: string) {\n  return db.select().from(personas).where(and(eq(personas.ownerId, ownerId), cond));\n}\n",
+        "export async function filtered(db: Db, cond: SQL, ownerId: string) {\n  return db.select().from(personas).where(and(eq(personas.ownerId, ownerId), cond));\n}\n",
       ),
-      why: "an unreadable conjunct beside a pinned owner term cannot widen the read: the owner term is in every row's filter",
+      why: "an unreadable AND conjunct cannot widen a settled read: the owner term is in every row's filter and async output is rows, not an editable returned builder",
     },
     {
       mode: "types",
