@@ -19,8 +19,10 @@ A CT that mounts a hand-built tree proves a product that does not ship.
 
 ## Done when
 
-Every CT mounts through the door or a named isolation; the CT door gate holds. A browser-world test module (a story, a `*.fixtures.tsx`, `tests/support/browser`) cannot value-import `@orb/server`; a dependency-cruiser rule with a planted control holds it, because one such import drags the server and its node modules into the CT bundle.
+Maintained and rebuilt CTs mount through the real production provider door or a named isolation; the door gate holds. Legacy keeps its regression cases until replacement, not a prerequisite retrofit. Browser-world stories, fixtures and support cannot value-import the server; a native dependency-cruiser rule rejects the complete population, including aliases, with type-only bridge and node-world positives.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The current test door re-exports registries but does not provide the complete production mount. Test data providers copy registry assembly and recreate query clients during rendering. Production owns the authenticated assembly, immutable palette binding and lazy auth boundary. Reuse those owners through a genuine composition/provider factory; preserve their semantics and lifetime.
+
+The compiler import population must derive browser-world roots from its canonical inventory, not only the components folder. The assigned correction includes bounded import and factory-identity controls. Preserve primitive and instrument isolation without importing the client into UI-only proofs. Keep general suite ports behind the builders and corpus foundation.
