@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-13
 priority: P2
 area: tooling
-lane: codex/suppression-audit
 plan: test-foundation
 ---
 

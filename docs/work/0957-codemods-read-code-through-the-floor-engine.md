@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-13
 priority: P2
-lane: codex/codemod-readers-957
 plan: test-foundation
 ---
 

@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-13
 priority: P1
-lane: codex/auth-wire-982
 ---
 
 # Wire values are parsed at every boundary, not only in the client
@@ -32,4 +31,4 @@ The remaining boundary batch covers Ollama responses, local-light model files, M
 
 Stored connections require owner comparison before JSON decoding or schema refusal. Project JSON columns as raw text and return an explicit owner-bearing parse envelope through the runtime port. Owned reads parse after their owner predicate. Preserve summarize compatibility through a derived input schema and validate canonical output. Corrupt owned bytes must refuse before read-derived writes or rollback, never become persisted null stand-ins. Composed boundary proof depends on genuine runtime and testkit seams, not test-only exports.
 
-The boundary branch includes current main; its source is frozen but not integrated or qualified. Integrate its owner-bearing read with the harness and executor authorization before the shared affected floor. Preserve SDK, kernel and timer additions; reuse the canonical owned-read rather than a parallel parser. Strict head/kernel, host lifecycle and scoped-query rejection proof remain required.
+The boundary source is frozen; complete integration and qualification remain pending. The current authority integration owns its canonical owner-bearing read prerequisite. Preserve the separate SDK, kernel and timer additions with the harness. Strict head/kernel, host lifecycle, scoped-query rejection and complete wire inventory proof remain required. These remaining paths await assignment; prerequisite integration does not close them.

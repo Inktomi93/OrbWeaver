@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-13
 priority: P1
-lane: codex/compose-policy-995
 plan: test-foundation
 ---
 
