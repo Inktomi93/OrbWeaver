@@ -34,7 +34,7 @@ Production funding (969), identity (972), every-owner tokens (984), type homes (
 
 The legacy folder, maintained lint migration, explicit package exports, native integer migration and domain-owned compose rules are implemented. The selected compose policy holds on its complete population without findings or exemptions. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probes keep their harness dependencies and case lists.
 
-Testkit exists as a world-split package. The complete server composition root, shared fact store, builders/corpus and client door remain work, not assumptions. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
+Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The complete server composition root, shared fact store and builders/corpus remain work. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
 ### Architecture workstreams
 
