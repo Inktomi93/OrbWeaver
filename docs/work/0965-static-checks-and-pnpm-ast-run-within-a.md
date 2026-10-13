@@ -28,4 +28,6 @@ The correctly invoked `pnpm ast apisurface --in /src/ --public --json --max 1000
 
 A bounded native fixture confirms one workspace and one materialized project per demanded descriptor. Shared and separate collector calls preserve results without duplicating those projects. The custom wrapper retains a native world population and multiple collector outputs; its exact aborting phase remains unresolved.
 
+The sequential native UI export projection completes on managed Node with a released worker per demanded world. Its timing artifact reports exit 0, elapsed 1:58.62 and maximum RSS 2,501,396 KiB without swaps. This measures the bounded UI selector work set, not the full apisurface verb or aggregate concurrent-process memory. It neither diagnoses the earlier wrapper's aborting phase nor establishes a persisted shared store.
+
 Export adjudication continues separately. Its grouped projection reuses completed world results and resumes only unfinished descriptors after checking source and config identity. Preserve the store design, but hold emergency store construction. The canonical plan still requires persisted shared facts independently of this diagnosis. Full runner measurements and the shared-store work remain unassigned here.
