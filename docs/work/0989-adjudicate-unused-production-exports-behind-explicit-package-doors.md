@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
-updated: 2026-10-12
+status: open
+updated: 2026-10-13
 priority: P2
 area: packages
-lane: codex/production-exports-989
 plan: test-foundation
 ---
 
