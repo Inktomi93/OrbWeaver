@@ -37,4 +37,5 @@ export {
   createImportRegexScript,
 } from "./persistence/portability-write.ts";
 export { createResolveRegexSources } from "./persistence/resolve-sources.ts";
+export { createRegexRoomReach } from "./persistence/room-reach.ts";
 export { createRegexService } from "./service.ts";

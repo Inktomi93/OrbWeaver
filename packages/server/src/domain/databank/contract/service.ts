@@ -133,8 +133,8 @@ export interface DatabankContext {
    * (`listActiveForChat`) is member-readable room-public prompt context, so a junction write is NOT an
    * owner-only event: every co-member sitting in a credited room is reading the set it just changed. Each op
    * below fans a live-only `roomEntityChanged{entity:"databank"}` to the rooms whose rack MOVED; the
-   * resolvers and the SQL live at `entry/compose/room-reach.ts` (a domain may not import chat, its bus, or
-   * another domain's junctions to fan — the `RegexContext` precedent).
+   * document-junction query lives in databank persistence; chat owns present-seat reach and the id-free
+   * fan/capture policy, supplied through these operations at the composition root.
    *
    * FIVE ops rather than one, because each write knows a DIFFERENT key and the rule is always "resolve
    * through a junction this write did not tear down":
@@ -150,7 +150,7 @@ export interface DatabankContext {
    *     is ∅ ALWAYS: snapshot before the DELETE, fan the returned thunk once RETURNING confirms it.
    *
    * FLAG[emit-is-total] — the same by-construction argument as `emitUserEvent`: live-only, no durable row,
-   * no FK. The async arms are error-isolated at compose (a failed reach query degrades to fanning nothing),
+   * no FK. Chat's refresh policy isolates the async arms (a failed reach query degrades to fanning nothing),
    * so no reach lookup can ever fault the write it follows.
    */
   readonly emitRoomDatabankChanged: (chatId: ChatId) => void;
