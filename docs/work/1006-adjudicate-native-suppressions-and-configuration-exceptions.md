@@ -24,4 +24,4 @@ Every observed entry has source evidence and a retain, remove, fix or unresolved
 
 ## Evidence
 
-The source audit has a frozen checkpoint and explicit unresolved proof questions. Source-proven native exception cleanup is assigned separately; the remaining entries are not cleared. Preserve runtime behavior, retain verified limitations and repair real findings before removing their directives. The review mirror drops CSS directives while retaining governed declarations; that instrument defect remains separate from suppression legitimacy.
+The source audit has a frozen checkpoint and explicit unresolved proof questions. Native dialog/option cleanup is integrated; environment-owner consolidation remains assigned. The remaining entries are not cleared. Preserve runtime behavior, retain verified limitations and repair real findings before removing directives. The reviewed CSS mirror repair preserves directive ownership; it does not validate those suppressions.
