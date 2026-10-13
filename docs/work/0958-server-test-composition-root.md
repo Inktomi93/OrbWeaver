@@ -25,7 +25,7 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 ## Evidence
 
-Production database and clock seams are partial. Provider overrides script external execution, never runtime admission, funding, accounting or persisted resolution.
+The source reuses production HTTP, service and job composition; its current-tree freeze remains unqualified. Provider overrides script external execution, never admission, funding, accounting or persisted resolution.
 
 Thread deterministic IDs through actual owner writes. Inject business randomness and timers through heartbeats, deadlines, retries and observers. Keep security-token randomness distinct and preserve database-owned timestamps.
 
@@ -42,3 +42,5 @@ Public notification verbs can replace their copied assembly independently. Keep 
 Scoped controls prove resolved CIDR admission can widen a restricted hostname port. The correction rejects that path before dialing and preserves declared-port, unrelated-host and public-address admission. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.
 
 Response ownership must await physical cancellation even when a pending read observes EOF first. Immutable clone-header behavior remains an unresolved adapter boundary; native metadata alone does not establish equivalent Response semantics.
+
+Preliminary kit, contracts and inference configs pass. Server/root compilation exposes optional forwarding, native Response, spawn and SDK helper type mismatches. Fix those concrete couplings before the bounded runtime floor. Preserve old assertions while making parked plugin reads settle on actual cancellation.
