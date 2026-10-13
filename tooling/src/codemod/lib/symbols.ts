@@ -5,6 +5,7 @@ import type { SemanticSourceView } from "@orb/tooling/floor/compiler/ts-workspac
 import { canonicalCompilerPath } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { inventoryExports } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
@@ -54,7 +55,7 @@ export function findReferencesByName(ctx: CodemodContext, filePath: string, name
 /** Find an exported declaration by name. Returns the first match across
  *  class / interface / type alias / function / variable / enum. */
 export function findExportedDeclaration(sf: SourceFile, name: string): Node | undefined {
-  const decls = sf.getExportedDeclarations().get(name);
+  const decls = inventoryExports(sf).get(name);
   return decls?.[0];
 }
 
@@ -62,7 +63,7 @@ export function findExportedDeclaration(sf: SourceFile, name: string): Node | un
  *  audit codemods. */
 export function listExports(sf: SourceFile): Array<{ name: string; declarations: Node[] }> {
   const out: Array<{ name: string; declarations: Node[] }> = [];
-  for (const [name, declarations] of sf.getExportedDeclarations()) {
+  for (const [name, declarations] of inventoryExports(sf)) {
     out.push({ name, declarations: [...declarations] });
   }
   return out;

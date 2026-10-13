@@ -24,18 +24,16 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Independent review reproduced stale native resolution after a configuration change. A captured workspace supplied old compiler options while publication recorded current configuration bytes. Descriptor freshness must hold for explicit supplied programs as well as default construction.
-
-The reviewed correction preserves current caller-selected native subsets and real codemod overlays. Its bounded regression proves configuration mutation, stale-request refusal and current workspace resolution.
+The reviewed descriptor correction proves configuration mutation, stale supplied-workspace refusal and current native resolution. It preserves caller-selected native subsets and transaction overlays.
 
 Main owns complete cold replay with unchanged managed heap settings. Preserve Knip input provenance and unresolved outcomes. Read completed output and measurements; parent high water does not establish aggregate or hosted-runner qualification.
 
 The reviewed query correction shares one native result across declaration/name keys; parity controls and affected checks pass. The corrected frozen replay fails in client extraction with heap OOM at the unchanged limit. No complete inventory or current main usage verdict exists.
 
-Native reference wrappers retain source-event subscriptions until source modification; this worker never modifies sources. The repair must preserve native reference ordering, alias filtering and physical spans without those wrappers. Bounded parity controls precede another native qualification. Checker and fact-array costs remain separate questions; no heap increase, population shrink or implicit replay retry is authorized.
-
-The reviewed wrapper-free repair is integrated. Its native ancestor-selection regression fails before correction and passes with the affected extraction and inventory cases. Exact-file lint and tooling/root typechecks pass. Token-tree, checker and complete fact-array costs remain unqualified; the frozen replay still supplies no complete inventory verdict. Schedule the next native memory qualification through main without increasing the heap or shrinking demanded worlds.
+The integrated wrapper-free reference repair preserves ordering, alias filtering and physical spans. Its native ancestor-selection regression fails before correction and passes with affected extraction and inventory cases. Scoped lint and tooling/root configs pass. Token-tree, checker and complete fact-array costs remain unqualified; no heap increase, population shrink or implicit replay retry is authorized.
 
 The bounded real client-worker diagnostic stops at its external deadline without heap OOM or a completed partition. Recorded worker high water is about 11.3 GiB; it is not aggregate process-tree or complete-run qualification. Native export, symbol and reference work remains active at the bound. Preserve the measurements; no implicit replay retry is authorized.
 
 The reviewed correction replaces retained declaration and identifier wrappers with primitive query spans. Its lifecycle control fails on unchanged source and passes with extraction and inventory parity cases. Removing final descendant cleanup exposes recreated ancestors. Scoped lint and affected configs pass. Independent source and artifact review confirms the correction; complete memory qualification remains pending. Duplicate native AST ownership is not proved.
+
+The complete cold replay is running on the frozen reviewed correction. Its native descriptor roster and root identities are recorded before extraction; historical Knip input bytes remain unchanged. This is not fresh Knip evidence or qualification of later main changes. Keep the live run and its partial output until terminal completion; do not retry or narrow it implicitly.

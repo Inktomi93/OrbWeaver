@@ -6,6 +6,7 @@ import type { ExportDeclaration, ImportDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
 import type { PackageModule } from "../../floor/code-facts/package-module.ts";
 import { packageModuleOf, SOURCE_SUBPATH_PREFIX } from "../../floor/code-facts/package-module.ts";
+import { inventoryDeclarationKey, inventoryExports } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { DeepImportPlan, DoorExport, DoorReader, PackageSource } from "../contract/deep-imports.ts";
 import type { RelocateNote } from "../contract/relocate.ts";
 
@@ -75,7 +76,8 @@ function doorExportsFor(
   reader: DoorReader,
 ): { readonly entries: readonly DoorExport[] } | { readonly reason: string } {
   const doorExports = reader.doorExports(door);
-  const targetExports = reader.targetFile(target)?.getExportedDeclarations();
+  const targetFile = reader.targetFile(target);
+  const targetExports = targetFile === undefined ? undefined : inventoryExports(targetFile);
   const fromDoor = posix.relative(posix.dirname(door), target);
   const entries: DoorExport[] = [];
   for (const { name, typeOnly } of names) {
@@ -84,7 +86,12 @@ function doorExportsFor(
     if (declared.length === 0) {
       return { reason: `${target} exports no ${name}` };
     }
-    if (existing !== undefined && existing[0] !== declared[0]) {
+    const existingOrigin = existing?.[0];
+    const declaredOrigin = declared[0];
+    if (
+      existing !== undefined &&
+      (existingOrigin === undefined || declaredOrigin === undefined || inventoryDeclarationKey(existingOrigin) !== inventoryDeclarationKey(declaredOrigin))
+    ) {
       return { reason: `${door} already exports a different ${name}` };
     }
     if (existing === undefined) {
