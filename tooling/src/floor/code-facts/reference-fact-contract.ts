@@ -1,5 +1,5 @@
 // The closed vocabulary returned by the final spelling-independent binding/reference reader.
-import type { Identifier, Symbol as MorphSymbol, Node, SourceFile } from "ts-morph";
+import type { CallExpression, Identifier, Symbol as MorphSymbol, Node, SourceFile, ts } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 
 /** Every syntax kind carrying a member reference, including optional and literal-bracket spellings. */
@@ -115,4 +115,34 @@ export interface ReferenceResolutionServices {
   readonly inspectSymbolWrites: (symbol: MorphSymbol, node: Node) => ReferenceFact<true>;
   readonly readComputedName: (node: Node) => ReferenceFact<string>;
   readonly readMemberReference: (node: Node) => ReferenceFact<MemberReference>;
+}
+
+/** Supplied native calls and their authored return paths, scoped to one policy invocation and compiler epoch. */
+export interface CallReturnObservation {
+  readonly call: CallExpression;
+  readonly target: ReferenceFact<Node>;
+  readonly returns: ReferenceFact<readonly Node[]>;
+}
+
+export interface CallReturnProgram {
+  readonly program: ts.Program;
+  readonly sources: ReadonlyMap<SourceFile, ts.SourceFile>;
+  readonly calls: readonly CallReturnObservation[];
+  readonly byCall: ReadonlyMap<ts.CallExpression, CallReturnObservation>;
+  readonly callers: ReadonlyMap<ts.Node, readonly CallReturnObservation[]>;
+  readonly referencesObserved: boolean;
+  readonly escapingReferences: ReadonlyMap<ts.Node, readonly UnresolvedReferenceFact[]>;
+}
+
+export interface CallReturnObservations {
+  readonly programs: readonly CallReturnProgram[];
+}
+
+/** One authored returned-value leaf, with the exact supplied arguments that bind its parameters. */
+export interface ReturnedValueSource {
+  /** Absence is local to this alternative; only an absent spread member falls back. */
+  readonly present: boolean;
+  readonly value: Node;
+  readonly path: readonly string[];
+  readonly bindings: ReadonlyMap<Node, Node>;
 }

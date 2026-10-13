@@ -10,10 +10,11 @@
 // cannot see past the receiver to tell a bounded node walk from a repository one.
 import type { DrizzleTableRef } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
 import { resolveDrizzleTableRefs } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
-import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
+import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate.ts";
 import { readReturnOccurrences, resultReferenceDepths } from "../../floor/code-facts/drizzle-row-flow.ts";
 import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn, readFunctionBodyNodes } from "../../floor/code-facts/function-context.ts";
@@ -97,6 +98,46 @@ export function isDrizzleWriteStatement(anchor: Node): boolean {
   return readFollowingBuilderChain(anchor).calls.some((call) => {
     const callee = staticMemberAccess(call.getExpression());
     return callee !== undefined && DRIZZLE_WRITE_CHAIN.has(callee.name);
+  });
+}
+
+/** Immutable aliases retain receiver identity; SQL aliases remain distinct call values, not their base table. */
+export function sameReadReceiver(left: Node, right: Node | string): boolean {
+  if (typeof right === "string") {
+    return left.getText() === right;
+  }
+  if (left.getProject() !== right.getProject()) {
+    return false;
+  }
+  const identity = (receiver: Node): { readonly node: Node; readonly member: string } | undefined => {
+    const origin = resolveModuleMemberOrigin(receiver);
+    if (origin.kind === "resolved" && origin.value.canonical.kind === "external-door") {
+      return { node: origin.value.canonical.declaration, member: [origin.value.exportedName, ...origin.value.memberPath].join(".") };
+    }
+    const declaration =
+      origin.kind === "resolved" && origin.value.canonical.kind === "project" && origin.value.memberPath.length === 0
+        ? origin.value.canonical.declaration
+        : undefined;
+    const name = declaration?.isKind(SyntaxKind.VariableDeclaration) === true ? declaration.getNameNode() : receiver;
+    const fact = resolveStableExpression(name);
+    if (fact.kind === "resolved") {
+      return { node: fact.value, member: "" };
+    }
+    return fact.reason === "dynamic" || (fact.reason === "missing" && fact.node.isKind(SyntaxKind.Parameter)) ? { node: fact.node, member: "" } : undefined;
+  };
+  const a = identity(left);
+  const b = identity(right);
+  return a !== undefined && b !== undefined && a.node.compilerNode === b.node.compilerNode && a.member === b.member;
+}
+
+/** Only a column on the actual receiver counts, including after an imported builder return. */
+export function predicatesReadColumn(predicate: Node, receiver: Node, column: string, bindings: ReadonlyMap<Node, Node> = new Map()): boolean {
+  return readMemberUses(predicate).some((fact) => {
+    if (fact.kind === "unresolved" || fact.value.name !== column) {
+      return false;
+    }
+    const actual = readPredicateArgument(fact.value.receiver, bindings);
+    return actual.kind === "resolved" && sameReadReceiver(actual.value, receiver);
   });
 }
 

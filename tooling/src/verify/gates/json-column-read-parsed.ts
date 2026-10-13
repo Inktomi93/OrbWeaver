@@ -2,20 +2,22 @@
 // parsed on read in `persistence/**`. The `$type` is a cast: it states what the writer meant, not what the row
 // holds after a schema change, a hand migration or an import. A read off a SELECT row (`row.col`, `row["col"]`, `row[KEY]`,
 // a flat or nested destructure; the row may reach a local helper's parameter one hop) must reach a parser zod or the
-// versioned-config codec declares, directly or one hop into a helper that parses its parameter. Reader: `lib/json-column-read.ts`.
+// versioned-config codec declares, directly or one hop into a helper that parses its parameter. Returned projections
+// are parsed only when every complete authored exit supplies actual parser output after object overrides. Reader: `lib/json-column-read.ts`.
 // TWIN: T's declaration is `z.infer`/`z.output<typeof X>` (twin X), or T's module exports `<lowerFirst(T)>Schema`.
 // DECLARED LIMITS (mustPass rows): an open column is `open-json-column-key-parity`'s subject; a value written straight
 // back under its own key (a drizzle write builder, an insert-model literal, an assignment) or only presence-tested is not consumed.
 // FAMILY `open-json-column-key-parity`: the open-json-column family, reading the shared `drizzleSchemaFact`.
-import type { Node, Type } from "ts-morph";
+import type { CallExpression, Node, Type } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { observeCallReturns } from "../../floor/code-facts/call-returns.ts";
 import { columnReadAt, columnValueType, readsSelectRow, rowModels } from "../../floor/code-facts/drizzle-row.ts";
 import type { ColumnRead } from "../../floor/code-facts/drizzle-row-contract.ts";
 import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { bindingUsesJudged, isParsedValue, isPresenceTest, isWriteSink } from "../lib/json-column-read.ts";
+import { bindingUsesJudged, isDirectParse, isParsedValue, isPresenceTest, isReturnedParsedValue, isWriteSink } from "../lib/json-column-read.ts";
 import { isBoundary } from "../lib/ordinary-waiver-carrier.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
@@ -126,8 +128,17 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const candidates: ColumnRead[] = [];
+    const calls: CallExpression[] = [];
     return {
       visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node) => {
+            if (N.isCallExpression(node)) {
+              calls.push(node);
+            }
+          },
+        },
         {
           kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression, SyntaxKind.BindingElement],
           visit: (node): void => {
@@ -145,6 +156,10 @@ export const gate = defineGate({
         const typed = typedColumns(schema.value);
         const models = rowModels(schema.value);
         ctx.receipt({ kind: "population", source: "typed-json-columns-with-twin", members: [...typed.values()].reduce((n, m) => n + m.size, 0) });
+        const observations = observeCallReturns(calls);
+        const parsers = new Set(
+          observations.programs.flatMap((program) => program.calls.filter(({ call }) => isDirectParse(call)).map(({ call }) => call.compilerNode)),
+        );
         const reads = candidates.flatMap((read) => {
           const twin = typed.get(read.column)?.get(namedType(columnValueType(read)).compilerType);
           if (twin === undefined || !readsSelectRow(read, models, query)) {
@@ -152,7 +167,10 @@ export const gate = defineGate({
           }
           const judged = N.isBindingElement(read.value.getParent())
             ? bindingUsesJudged(read, models, query)
-            : isWriteSink(read.value, read.column, models, query) || isPresenceTest(read.value) || isParsedValue(read.value);
+            : isWriteSink(read.value, read.column, models, query) ||
+              isPresenceTest(read.value) ||
+              isParsedValue(read.value) ||
+              isReturnedParsedValue(read.value, observations, parsers);
           return judged ? [] : [{ read, twin, region: waiverRegion(read.value) }];
         });
         for (const { read, twin } of outermostPerRegion(reads)) {

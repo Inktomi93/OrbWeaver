@@ -1,13 +1,16 @@
 // The STATEMENT half of the tenancy read readers: the predicates one drizzle read applies around a table anchor —
 // its own builder chain up and down, a split builder's binding in the same function, and whether an unexecuted
-// builder escapes the function's view.
+// builder escapes the function's view. Synchronous returns continue at supplied native caller observations;
+// async/awaited outputs are rows and never editable continuations.
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { readCallReturnProgram } from "./call-returns.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import type { DrizzleBuilderChain, ReadStatement } from "./drizzle-query-contract.ts";
 import { enclosingFn } from "./function-context.ts";
 import { unwrapTarget as unwrapExpression } from "./reference-fact-alias.ts";
+import type { CallReturnObservations, CallReturnProgram, UnresolvedReferenceFact } from "./reference-fact-contract.ts";
 import { MEMBER_ACCESS_KINDS } from "./reference-fact-contract.ts";
 
 const WHERE_VERB = "where";
@@ -25,6 +28,11 @@ function builderParent(cur: Node): Node | undefined {
   }
   const continuesChain =
     parent.isKind(SyntaxKind.AwaitExpression) ||
+    N.isParenthesizedExpression(parent) ||
+    N.isNonNullExpression(parent) ||
+    N.isAsExpression(parent) ||
+    N.isSatisfiesExpression(parent) ||
+    (N.isConditionalExpression(parent) && parent.getCondition() !== cur) ||
     (parent.isKind(SyntaxKind.CallExpression) && parent.getExpression() === cur) ||
     (MEMBER_ACCESS_KINDS.some((kind) => parent.isKind(kind)) && parent.getFirstChild() === cur);
   return continuesChain ? parent : undefined;
@@ -73,9 +81,26 @@ function builderUses(binding: Identifier): readonly Identifier[] {
       access.getFirstChild() === use &&
       call?.isKind(SyntaxKind.CallExpression) === true &&
       call.getExpression() === access;
+    const returned = returnedBuilder(readFollowingBuilderChain(use).top) !== undefined || access.isKind(SyntaxKind.ReturnStatement);
     const alias = access.isKind(SyntaxKind.VariableDeclaration) && access.getInitializer() === use;
-    return use !== binding && (isMethodCall || alias) && symbol !== undefined && use.getSymbol()?.compilerSymbol === symbol;
+    return use !== binding && (isMethodCall || alias || returned) && symbol !== undefined && use.getSymbol()?.compilerSymbol === symbol;
   });
+}
+
+function selfBuilderAssignment(use: Identifier): boolean {
+  const parent = use.getParent();
+  if (!N.isBinaryExpression(parent) || parent.getLeft() !== use || parent.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
+    return false;
+  }
+  let receiver = unwrapExpression(parent.getRight());
+  while (N.isCallExpression(receiver)) {
+    const member = staticMemberAccess(receiver.getExpression());
+    if (member === undefined) {
+      return false;
+    }
+    receiver = unwrapExpression(member.receiver);
+  }
+  return N.isIdentifier(receiver) && receiver.getSymbol()?.compilerSymbol === use.getSymbol()?.compilerSymbol;
 }
 
 /** Does this unawaited builder value leave the statement's view: passed as a call argument, returned, or bound
@@ -109,6 +134,8 @@ function builderEscapes(top: Node, binding: Identifier | undefined): boolean {
         symbol !== undefined &&
         use.getSymbol()?.compilerSymbol === symbol &&
         !methodUses.has(use) &&
+        !(N.isVariableDeclaration(use.getParent()) && use.getParent().getFirstChild() === use) &&
+        !selfBuilderAssignment(use) &&
         !use.getParent().isKind(SyntaxKind.AwaitExpression) &&
         !(asyncReturn && use.getParent().isKind(SyntaxKind.ReturnStatement)),
     );
@@ -117,6 +144,7 @@ function builderEscapes(top: Node, binding: Identifier | undefined): boolean {
 interface StatementCalls {
   readonly calls: readonly CallExpression[];
   readonly escapes: boolean;
+  readonly refusals: readonly UnresolvedReferenceFact[];
 }
 
 interface BuilderFilterState {
@@ -124,26 +152,83 @@ interface BuilderFilterState {
   readonly dynamic: boolean;
 }
 
-/** Every call a read statement applies after its anchor, following a split builder's binding in the same function,
- *  and whether a `$dynamic()` builder escapes on this or any later followed step. */
-function statementCalls(anchor: Node, seen: Set<Node>, before: BuilderFilterState): StatementCalls {
-  if (seen.has(anchor)) {
-    return { calls: [], escapes: false };
+function refusal(node: Node, reason: UnresolvedReferenceFact["reason"], detail: string): UnresolvedReferenceFact {
+  return { kind: "unresolved", reason, detail, node, trace: { declarations: [], origin: node } };
+}
+
+function asyncFunction(fn: Node): boolean {
+  return (N.isFunctionDeclaration(fn) || N.isMethodDeclaration(fn) || N.isFunctionExpression(fn) || N.isArrowFunction(fn)) && fn.isAsync();
+}
+
+/** A synchronous return preserves the editable builder. Async returns assimilate it into rows. */
+function returnedBuilder(top: Node): Node | undefined {
+  const parent = top.getParent();
+  const fn = enclosingFn(top);
+  return fn !== undefined &&
+    !asyncFunction(fn) &&
+    !top.isKind(SyntaxKind.AwaitExpression) &&
+    (parent?.isKind(SyntaxKind.ReturnStatement) === true || parent === fn)
+    ? fn
+    : undefined;
+}
+
+interface StatementTraversal {
+  readonly seen: Set<Node>;
+  readonly observations: CallReturnProgram | undefined;
+  readonly returning: ReadonlySet<Node>;
+}
+
+function returnedSteps(fn: Node | undefined, state: BuilderFilterState, traversal: StatementTraversal): readonly StatementCalls[] {
+  if (fn === undefined || traversal.observations === undefined) {
+    return [];
   }
-  seen.add(anchor);
+  if (traversal.returning.has(fn)) {
+    return [{ calls: [], escapes: true, refusals: [refusal(fn, "cycle", "an editable builder return revisits its callable body")] }];
+  }
+  if (!traversal.observations.referencesObserved) {
+    return [
+      { calls: [], escapes: true, refusals: [refusal(fn, "missing", "native callable-reference coverage was not supplied for the returned editable builder")] },
+    ];
+  }
+  const escaped = traversal.observations.escapingReferences.get(fn.compilerNode) ?? [];
+  const incomplete: readonly StatementCalls[] = escaped.length === 0 ? [] : [{ calls: [], escapes: true, refusals: escaped }];
+  const callers = traversal.observations.callers.get(fn.compilerNode) ?? [];
+  if (callers.length === 0 && incomplete.length === 0) {
+    return [{ calls: [], escapes: true, refusals: [refusal(fn, "missing", "the returned editable builder has no admitted native caller continuation")] }];
+  }
+  return [
+    ...incomplete,
+    ...callers.map((caller) =>
+      caller.returns.kind === "unresolved"
+        ? { calls: [], escapes: true, refusals: [caller.returns] }
+        : statementCalls(caller.call, state, { seen: new Set(), observations: traversal.observations, returning: new Set([...traversal.returning, fn]) }),
+    ),
+  ];
+}
+
+/** Returned builders continue at observed native callers; separate WHEREs remain alternatives. */
+function statementCalls(anchor: Node, before: BuilderFilterState, traversal: StatementTraversal): StatementCalls {
+  if (traversal.seen.has(anchor)) {
+    return { calls: [], escapes: false, refusals: [] };
+  }
+  traversal.seen.add(anchor);
   const chain = readFollowingBuilderChain(anchor);
   const applied = [...priorCalls(anchor), ...(N.isCallExpression(anchor) ? [anchor] : []), ...chain.calls];
   const state = {
     filtered: before.filtered || applied.some((call) => staticMemberAccess(call.getExpression())?.name === WHERE_VERB),
     dynamic: before.dynamic || applied.some((call) => staticMemberAccess(call.getExpression())?.name === DYNAMIC_VERB),
   };
+  if (applied.some((call) => SEALED_VERBS.has(staticMemberAccess(call.getExpression())?.name ?? ""))) {
+    return { calls: chain.calls, escapes: false, refusals: [] };
+  }
   const binding = builderBinding(chain.top);
-  const followed = binding === undefined ? [] : builderUses(binding);
-  const steps = followed.map((use) => statementCalls(use, seen, state));
-  // The existing policy trusts an observed non-dynamic WHERE; a local dynamic modifier ends that trust.
+  const local = (binding === undefined ? [] : builderUses(binding)).map((use) => statementCalls(use, state, traversal));
+  const returns = returnedSteps(returnedBuilder(chain.top), state, traversal);
+  const steps = [...local, ...returns];
   return {
     calls: [...chain.calls, ...steps.flatMap((step) => step.calls)],
-    escapes: ((state.dynamic || !state.filtered) && builderEscapes(chain.top, binding)) || steps.some((step) => step.escapes),
+    escapes: (returns.length === 0 && (state.dynamic || !state.filtered) && builderEscapes(chain.top, binding)) || steps.some((step) => step.escapes),
+    refusals: steps.flatMap((step) => step.refusals),
   };
 }
 
@@ -165,13 +250,17 @@ function priorCalls(anchor: Node): readonly CallExpression[] {
 
 /** The predicates a read statement carries: every `.where` the chain (or its split builder) applies, and every
  *  inner join's ON. Several `.where` calls are several candidates for the effective filter, never a conjunction. */
-export function readStatementOf(anchor: Node): ReadStatement {
-  const after = statementCalls(anchor, new Set(), { filtered: false, dynamic: false });
+export function readStatementOf(anchor: Node, observations?: CallReturnObservations): ReadStatement {
+  const program = observations === undefined ? undefined : readCallReturnProgram(anchor, observations);
+  if (program?.kind === "unresolved") {
+    return { wheres: [], innerOns: [], escapes: true, refusals: [program] };
+  }
+  const after = statementCalls(anchor, { filtered: false, dynamic: false }, { seen: new Set(), observations: program?.value, returning: new Set() });
   const calls = [...priorCalls(anchor), ...after.calls];
   const argumentsOf = (verb: string, position: number): readonly Node[] =>
     calls.flatMap((call) => {
       const argument = staticMemberAccess(call.getExpression())?.name === verb ? call.getArguments()[position] : undefined;
       return argument === undefined ? [] : [argument];
     });
-  return { wheres: argumentsOf(WHERE_VERB, 0), innerOns: argumentsOf(INNER_JOIN_VERB, 1), escapes: after.escapes };
+  return { wheres: argumentsOf(WHERE_VERB, 0), innerOns: argumentsOf(INNER_JOIN_VERB, 1), escapes: after.escapes, refusals: after.refusals };
 }

@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-13
 priority: P2
 area: server
-lane: codex/contract-boundary-salvage-904-905
+lane: codex/contract-boundary-integration-904-905
 plan: test-foundation
 ---
 

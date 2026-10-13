@@ -10,7 +10,7 @@ import { readDrizzlePredicate, readPredicateArgument } from "../../floor/code-fa
 import type { DrizzlePredicate } from "../../floor/code-facts/drizzle-predicate-contract.ts";
 import type { ChainTerm, ConjunctLeaves, SchemaTableIndex } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { declaredTableOf } from "./tenancy-read.ts";
+import { declaredTableOf, predicatesReadColumn, sameReadReceiver } from "./tenancy-read.ts";
 import { EDGE_ARROW, foreignKeyColumnKey } from "./tenancy-scope.ts";
 
 const EQ_OPERATOR = "eq";
@@ -31,8 +31,8 @@ function columnOf(node: Node, index: SchemaTableIndex): ColumnRead | undefined {
 }
 
 /** Does this node read any column of the table written `ident`? */
-export function readsTable(node: Node, ident: string): boolean {
-  return readMemberUses(node).some((fact) => fact.kind === "resolved" && fact.value.receiver.getText() === ident);
+export function readsTable(node: Node, ident: string | Node): boolean {
+  return readMemberUses(node).some((fact) => fact.kind === "resolved" && sameReadReceiver(fact.value.receiver, ident));
 }
 
 /** Owner authorization is universal across alternatives, and existential only across AND terms. */
@@ -51,6 +51,18 @@ export function predicateHolds(predicates: readonly (Node | undefined)[], holds:
   return predicates.some((predicate) => predicate !== undefined && factHolds(readDrizzlePredicate(predicate), holds));
 }
 
+function factMayReadColumn(fact: DrizzlePredicate, receiver: Node, column: string): boolean {
+  if (fact.kind === "leaf") {
+    return predicatesReadColumn(fact.node, receiver, column, fact.bindings);
+  }
+  return (fact.kind === "and" || fact.kind === "or" || fact.kind === "choice") && fact.terms.some((term) => factMayReadColumn(term, receiver, column));
+}
+
+/** By-id evidence is existential across alternatives, retaining actual helper argument bindings. */
+export function predicateMayReadColumn(predicate: Node, receiver: Node, column: string): boolean {
+  return factMayReadColumn(readDrizzlePredicate(predicate), receiver, column);
+}
+
 function factConjuncts(fact: DrizzlePredicate): readonly Node[] {
   return fact.kind === "and" ? fact.terms.flatMap(factConjuncts) : [fact.node];
 }
@@ -59,16 +71,17 @@ function conjunctsOf(predicate: Node): readonly Node[] {
   return factConjuncts(readDrizzlePredicate(predicate));
 }
 
-function isOwnerColumn(node: Node, ident: string): boolean {
+function isOwnerColumn(node: Node, ident: string | Node, bindings: ReadonlyMap<Node, Node>): boolean {
   const read = staticMemberAccess(unwrapExpression(node));
-  return read?.name === OWNER_COL && read.receiver.getText() === ident;
+  const actual = read === undefined ? undefined : readPredicateArgument(read.receiver, bindings);
+  return read?.name === OWNER_COL && actual?.kind === "resolved" && sameReadReceiver(actual.value, ident);
 }
 
 /** The value side of an owner term on the table written `ident`: `eq(T.ownerId, value)` or
  *  `inArray(T.ownerId, owners)` by its drizzle import, where the value does not read `T` itself; undefined for
  *  any other conjunct. `or`, `ne`, `isNotNull`, a `sql` template and `eq(T.ownerId, T.ownerId)` all name the
  *  column and scope nothing. Whether a column or subselect value is pinned is the caller's second question. */
-export function ownerTermValue(conjunct: Node, ident: string, bindings: ReadonlyMap<Node, Node> = new Map()): Node | undefined {
+export function ownerTermValue(conjunct: Node, ident: string | Node, bindings: ReadonlyMap<Node, Node> = new Map()): Node | undefined {
   if (!conjunct.isKind(SyntaxKind.CallExpression)) {
     return;
   }
@@ -78,17 +91,17 @@ export function ownerTermValue(conjunct: Node, ident: string, bindings: Readonly
   }
   if (callsDrizzleOperator(conjunct, IN_ARRAY_OPERATOR)) {
     const actual = readPredicateArgument(right, bindings);
-    return isOwnerColumn(left, ident) && actual.kind === "resolved" && !readsTable(actual.value, ident) ? actual.value : undefined;
+    return isOwnerColumn(left, ident, bindings) && actual.kind === "resolved" && !readsTable(actual.value, ident) ? actual.value : undefined;
   }
   if (!callsDrizzleOperator(conjunct, EQ_OPERATOR)) {
     return;
   }
-  if (isOwnerColumn(left, ident) && !readsTable(right, ident)) {
+  if (isOwnerColumn(left, ident, bindings) && !readsTable(right, ident)) {
     const actual = readPredicateArgument(right, bindings);
     return actual.kind === "resolved" && !readsTable(actual.value, ident) ? actual.value : undefined;
   }
   const actual = readPredicateArgument(left, bindings);
-  return isOwnerColumn(right, ident) && actual.kind === "resolved" && !readsTable(actual.value, ident) ? actual.value : undefined;
+  return isOwnerColumn(right, ident, bindings) && actual.kind === "resolved" && !readsTable(actual.value, ident) ? actual.value : undefined;
 }
 
 /** Does this conjunct select rows by a VALUE on the written column (`eq(chats.anchorPersonaId, personaId)`,

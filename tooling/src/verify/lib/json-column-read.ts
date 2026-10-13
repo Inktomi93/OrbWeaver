@@ -2,12 +2,13 @@
 // whether the value reaches a parse before anything consumes it. A row and a write are judged by the drizzle column facts
 // `pnpm ast columns` shares (`floor/code-facts/drizzle-columns.ts`), never by a receiver's name, and a parse by the
 // parser's declaration (zod, or the versioned-config codec that wraps a zod schema), never by a callee name.
-import type { CallExpression, Node } from "ts-morph";
+import type { CallExpression, Node, ts } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { drizzleWriteOf } from "../../floor/code-facts/drizzle-columns.ts";
 import { helperOf, isModelType } from "../../floor/code-facts/drizzle-row.ts";
 import type { ColumnRead, RowModels } from "../../floor/code-facts/drizzle-row-contract.ts";
-import { argumentIndex, carryingLiterals, referencesOf, valueSite } from "../../floor/code-facts/value-carrier.ts";
+import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
+import { argumentIndex, carryingLiterals, readReturnedValue, referencesOf, valueSite } from "../../floor/code-facts/value-carrier.ts";
 import type { SchemaQuery } from "../contract/schema-fact.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "./type-member-origin.ts";
 
@@ -27,7 +28,7 @@ export type { ColumnRead, RowModels } from "../../floor/code-facts/drizzle-row-c
 
 // `schema.parse(v)` whose method zod declares, or the codec's `parse`/`parseOutcome`. A helper merely HANDED a schema is
 // not a parse; it is judged one hop in, by what its body does with the value.
-function isDirectParse(call: CallExpression): boolean {
+export function isDirectParse(call: CallExpression): boolean {
   const callee = call.getExpression();
   if (N.isPropertyAccessExpression(callee)) {
     const method = resolveTypeMemberOrigin(callee);
@@ -105,6 +106,16 @@ function parsedThroughHelper(node: Node): boolean {
 /** Does the value reach a parse: a zod or codec parse directly, or one hop into a helper whose body parses it? */
 export function isParsedValue(node: Node): boolean {
   return parsedDirectly(node) || parsedThroughHelper(node);
+}
+
+/** A returned projection is parsed only on every complete authored exit, after actual object overrides. */
+export function isReturnedParsedValue(node: Node, observations: CallReturnObservations, parsers: ReadonlySet<ts.CallExpression>): boolean {
+  const fact = readReturnedValue(node, [], observations, parsers);
+  return (
+    fact.kind === "resolved" &&
+    fact.value.length > 0 &&
+    fact.value.every(({ value, present }) => present && N.isCallExpression(value) && parsers.has(value.compilerNode))
+  );
 }
 
 // The drizzle write whose argument is `site`, judged by the shared write detector, when its chain names a schema
