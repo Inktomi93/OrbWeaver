@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-13
 priority: P1
+lane: codex/runtime-funding-969
 plan: inference-flow
 ---
 
@@ -22,4 +23,6 @@ Every call path to the executor runs both checks (a test per path); the egress c
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The execution boundary must read current consent and credential authority, not only apply `canFund` to a captured snapshot. Pinned embedding snapshots retain stale consent and credentials after later authority changes. Preserve immutable generation/model configuration while refusing revoked, missing, foreign or stale authorization before accounting and provider I/O.
+
+Reuse the runtime's owned-read capability with ownership checked before private parsing. This depends on the stored-connection parsing work. Remove duplicate role/chat strike handling and unused context wiring without retrofitting obsolete legacy observer contracts. Preserve original provider errors, secondary failure reporting and proven settled-signal cancellation semantics. Source mapping is not runtime qualification.
