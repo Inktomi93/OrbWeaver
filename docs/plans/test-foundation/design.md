@@ -169,6 +169,8 @@ Native configuration owns tooling sibling import boundaries in `.dependency-crui
 
 Evaluate package/test reach, capability provenance, ambient aliases and shadows, imported/composed classes, suppression taxonomy, Zod identity and CT scheduling/live reads separately. These are candidate semantic remainders, not a blanket retention list. Native syntax coverage alone does not establish their judgments; the shared-reader work consolidates any remaining analysis. The token reset remains unconfigured, and generic config-path liveness remains unbuilt. CSS-file tooling proposals remain unapproved dependencies. D307 and D317 retain weekly checker cadence.
 
+Installed Zod replacements differ in call grammar, binding identity and literal-union remedies. Preserve those judgments until a native replacement proves their actual accepted population. React and query plugins do not replace application selection taint, invalidation reach or window recovery. Direct memo imports and literal reservation counts can move independently; retain their unmatched origin and constant-resolution judgments.
+
 Tooling tests follow one rule: test verdict logic and lifecycle or concurrency rules (caps, races, reaping, ownership, slots, bands) fast against the decision code; an instrument's plumbing is proven by use; a test that reruns a gate over the real tree is deleted, because CI's structure stage already does it.
 
 Keep the semantic CT live-read assertion checker alongside maintained Playwright lint. Native rules do not follow imported snapshots, recursive aliases and the typed live-read cases. Their direct syntax coverage does not replace that invariant; population shrink does not establish equivalence.
