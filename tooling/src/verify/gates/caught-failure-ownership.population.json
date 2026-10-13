@@ -1371,6 +1371,31 @@
       "reason": "`rethrowInfraFailure` escalates real infra faults; documented above — \"null on a missing/corrupt file, never a throw,\" the shared best-effort posture every side-collector below relies on."
     },
     {
+      "siteId": "packages/server/src/domain/import/loader/import-bundle.ts::importEntity::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded as an `ok: false` outcome (with message) pushed into `outcomes`, the function's own return value; one bad file never aborts the batch. Ends if `outcomes` stops being read by the caller."
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/import-card-batch.ts::importCardBatch::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into `failed` (with message), the function's own return value; one bad card never aborts the batch. Ends if `failed` stops being read by the caller."
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/profile-directory.ts::importCollectedBundles::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into `skippedCards` (with reason), part of the function's own return value; one bad card bundle never aborts the batch. Ends if `skippedCards` stops being read by the caller."
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/profile-directory.ts::importOrphanBundles::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into `orphanSkipped` (with reason), part of the function's own return value; one bad orphan directory never aborts the batch. Ends if `orphanSkipped` stops being read by the caller."
+    },
+    {
+      "siteId": "packages/server/src/domain/import/loader/profile-directory.ts::storeCollectedBackgrounds::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into `skipped` (with reason), the function's own return value; one bad background never aborts the batch. Ends if `skipped` stops being read by the caller."
+    },
+    {
       "siteId": "packages/server/src/domain/import/substrate/card.ts::fromText::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "pure `JSON.parse` over untrusted import text — no infra I/O in this try. A malformed card degrades to the consumed `null` result the caller checks. Ends if this call gains a real infra step (then the infra half must escalate separately)."
@@ -1389,6 +1414,11 @@
       "siteId": "packages/server/src/domain/import/verbs/import-presets.ts::liftPresetScripts::err::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into `skippedPresets` (with the lift's own reason), part of the verb's own returned result. Ends if `skippedPresets` stops being read by the caller."
+    },
+    {
+      "siteId": "packages/server/src/domain/import/verbs/settle-import-memory.ts::createSettleImportMemory::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the one absorbed failure is the memory-off admission refusal, a normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the import run. Ends if another refusal code is absorbed here."
     },
     {
       "siteId": "packages/server/src/domain/import/workload-contributions.ts::rmContained::lstat::1",
@@ -1601,11 +1631,6 @@
       "reason": "a refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and every other throw is logged in this catch; the `failed` count is the summary. Ends if `activate` stops logging a refusal."
     },
     {
-      "siteId": "packages/server/src/entry/compose/portability-runner.ts::createSettleImportMemory::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the one absorbed failure is the memory-off admission refusal, a normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the import run. Ends if another refusal code is absorbed here."
-    },
-    {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::admitPendingConfirm::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input."
@@ -1679,31 +1704,6 @@
       "siteId": "packages/server/src/entry/http/upload.ts::registerUpload::err::2",
       "verdict": "deliberate-absorb",
       "reason": "byte admission refusals are actionable 4xx responses; unexpected extraction/storage failures stay owned by the app error boundary."
-    },
-    {
-      "siteId": "packages/server/src/entry/import/run-bundle-import.ts::importEntity::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "bookkeeping — the failure is recorded as an `ok: false` outcome (with message) pushed into `outcomes`, the function's own return value; one bad file never aborts the batch. Ends if `outcomes` stops being read by the caller."
-    },
-    {
-      "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::importCollectedBundles::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "bookkeeping — the failure is recorded into `skippedCards` (with reason), part of the function's own return value; one bad card bundle never aborts the batch. Ends if `skippedCards` stops being read by the caller."
-    },
-    {
-      "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::importOrphanBundles::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "bookkeeping — the failure is recorded into `orphanSkipped` (with reason), part of the function's own return value; one bad orphan directory never aborts the batch. Ends if `orphanSkipped` stops being read by the caller."
-    },
-    {
-      "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::storeCollectedBackgrounds::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "bookkeeping — the failure is recorded into `skipped` (with reason), the function's own return value; one bad background never aborts the batch. Ends if `skipped` stops being read by the caller."
-    },
-    {
-      "siteId": "packages/server/src/entry/import/run-profile-import.ts::runProfileImport::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "bookkeeping — the failure is recorded into `failed` (with message), the function's own return value; one bad card never aborts the batch. Ends if `failed` stops being read by the caller."
     },
     {
       "siteId": "packages/server/src/entry/index.ts::<module>::lifecycle.boot::1",
