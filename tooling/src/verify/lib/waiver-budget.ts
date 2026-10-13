@@ -10,7 +10,7 @@ const APPLICATION = Object.freeze({
   "bound-field-via-hook": 1,
   "brand-in-name-position": 44,
   "bus-payload-allowlist": 1,
-  "caught-failure-ownership": 681,
+  "caught-failure-ownership": 680,
   "chat-stream-writes-in-bus-only": 1,
   "chat-viewer-plane-canon-reads": 3,
   "client-cache-surgery-only-in-data": 9,
@@ -103,7 +103,7 @@ const APPLICATION = Object.freeze({
 
 const IMPLEMENTATION = Object.freeze({
   "brand-in-name-position": 2,
-  "caught-failure-ownership": 23,
+  "caught-failure-ownership": 21,
   "no-inline-types": 2,
   "no-loose-id-cast": 15,
   "no-test-fabrication": 583,
