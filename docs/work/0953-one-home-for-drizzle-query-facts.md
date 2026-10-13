@@ -23,7 +23,7 @@ One drizzle reader in the floor; the old readers are deleted; `pnpm ast columns`
 
 ## Evidence
 
-Preparation confirms existing floor owners for schema declarations, table references, write chains and column shapes. The AST table resolver is already an adapter over those owners; preserve its output projection rather than replacing it with another reader.
+Reuse the floor's schema, table, write-chain and column readers. Preserve the AST table adapter's output projection.
 
 Remaining extraction includes AST query, row and raw-SQL read facts, plus statement, predicate, join and parser provenance consumed by tenancy and JSON judgments. Keep consumer-specific ownership and reporting judgments separate from shared fact extraction. A bounded walk is not automatically a duplicate or a reason to create another program.
 
@@ -32,3 +32,5 @@ Preserve native program identity, complete schema populations, unresolved outcom
 Gate-owned conformance fixtures are maintained proof, not only standalone test files. The focused tenancy inventory confirms table-parameter refusal, FK disjunction and namespace-table controls. Nearby predicate, dynamic-builder, shallow-binding and unscoped-subquery controls do not prove the exact required spellings. Preserve them and require discriminating controls for object-contained helpers, FK SQL leaves, read aliases, relational receiver aliases, non-dynamic escapes, returned read builders, deeper split bindings and relabelled owner columns. Confirm the remaining fixture population before claiming absence or adding duplicate controls. The existing traversal limit does not satisfy arbitrary-depth acceptance.
 
 Bounded consumer controls use virtual native-shaped programs. They do not establish repository-native output or finding equivalence. The existing native emit suite checks schema presence, not complete table identity; the grant suite covers broader owner populations. Keep those checks deferred and intact until main adjudicates their actual coupling and required native proof. Scoped typechecks and import graphs do not replace that verdict.
+
+The security review requires full-row subquery and CTE owner-column provenance. The correction remains unqualified. Supply the ready schema model to the canonical projection reader. Match one admitted table and declared column; preserve unresolved, ambiguous and joined-source refusal. Keep fixtures unchanged. Run the failed family and affected static checks before the bounded review follow-up.

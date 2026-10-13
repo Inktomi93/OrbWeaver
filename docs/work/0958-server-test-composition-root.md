@@ -25,7 +25,7 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 ## Evidence
 
-Preparation identifies partial production seams, not a complete harness. Database and domain clocks already enter production composition. Provider overrides script external execution; they must not replace runtime admission, funding, accounting or persisted resolution.
+Production database and clock seams are partial. Provider overrides script external execution, never runtime admission, funding, accounting or persisted resolution.
 
 Thread deterministic IDs through actual owner writes, including sessions, notifications, stats and nested RPG operations. Thread business randomness and timer controls through turn heartbeats, deadlines, retries and observers. Keep security-token randomness distinct. A top-level seeded-ID or clock field does not establish deterministic composition; preserve database-owned timestamp semantics.
 
@@ -33,8 +33,10 @@ Expose the complete plugin-host edge and its lifecycle, not only per-instance di
 
 `packages/server/src/foundation/observability/tracing.ts` resolves `superviseSettled` before the enclosing request span closes and its rejection report completes. Repair that existing completion boundary so harness teardown joins the actual supervised operation. Preserve the existing trace status and error report; prove completion and rejection through the public observability surface.
 
-Refresh the seam inventory after compose integration. Preserve the single production graph, world separation and complete domain-case acceptance above. Do not create a second domain assembly or claim the existing app fixture supplies every edge.
+Refresh the seam inventory after compose integration. Preserve one production graph and world separation; the existing fixture does not supply every edge.
 
-The notifications domain supplies the first complete replacement case set. Preserve scope, replay, standing, persistence and projection assertions through real composition. Account for unused helper cases through genuine live behavior or an explicit deletion decision; adding a fake caller does not establish production reach. Delete the corresponding legacy suite and harness only after matching replacement proof.
+Notifications supplies the replacement case set. Preserve scope, replay, standing, persistence and projection assertions through real composition. Adjudicate unused helper cases without fake callers. Delete legacy suites and their harness only after matching replacement proof.
 
 Public notification verbs can replace their copied assembly independently. Keep unresolved direct persistence cases in legacy until production intent and replacement are adjudicated. That partial port does not establish complete domain replacement. The root must also reuse production HTTP construction and request identity for corpus auth outputs.
+
+Scoped network controls expose a real endpoint-port defect: resolved CIDR admission can widen an explicitly restricted hostname port. The correction rejects that path before physical dialing and preserves declared-port, unrelated-host and public-address admission. Completed controls establish this behavior only. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.

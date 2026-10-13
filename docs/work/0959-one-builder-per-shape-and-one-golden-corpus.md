@@ -34,3 +34,5 @@ Capture HTTP auth outputs through the real application and its resolved request 
 The canonical auth-configuration schema and consumer parsing are integrated through the [boundary-parsing assignment](0982-wire-values-are-parsed-at-every-boundary-not.md). Capture its complete request-specific response through the qualified server root before claiming the builder. The schema supplies validation, not fabricated authentication or deployment defaults.
 
 Browser responders select actual captured route inputs and outputs. Preserve absent versus explicit null input, reject conflicting captures, and refuse unmatched input without a fabricated success. This lookup does not establish generated corpus adoption.
+
+The pure/default builder floor is scheduled separately from composed row qualification. Its controls require owner-schema drift to fail an executed test and character token size to follow production calculation. Derived token size is not an override. Legacy scaffolds that supply that override remain replacement debt, not a fixture-repair assignment. Producer-row runtime proof, recall and corpus adoption still require the qualified server root.
