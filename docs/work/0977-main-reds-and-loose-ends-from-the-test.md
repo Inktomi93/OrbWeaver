@@ -37,7 +37,7 @@ Remaining findings: legacy disposal and typed-lint errors; maintained classes ab
 
 Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Findings and authority alarms remain unresolved. Repair product, security or checker defects, not disposable legacy suites.
 
-Citation owners complete in `main-163399-2026-10-13T05-30-52-880Z` with no effective findings, tool errors or withheld verdicts. Existing reviewed grants exceed their budget. This is a red authority verdict, not clean citation qualification. Main owns grant adjudication; add no allowance.
+Citation owners complete in `main-4041911-2026-10-13T23-10-18-222Z` with no effective findings, tool errors or withheld verdicts. Existing reviewed grants exceed their budget. This is a red authority verdict, not clean citation qualification. Main owns grant adjudication; add no allowance.
 
 The UI export floor reports legacy-node errors in untouched server fixtures: seed-user-content's optional RPG input, profile-directory support's optional name and handle, and run-profile-import's optional tag source. The export batch changes neither those fixtures nor server declarations. Preserve cases for replacement; do not retrofit them to manufacture a green export floor.
 

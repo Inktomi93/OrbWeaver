@@ -34,4 +34,6 @@ The bounded client diagnostic reaches its external deadline during reference ext
 
 Source-fact samples identify retained canonical-path strings and checker instantiations. Early reference growth includes native token-tree construction through `findReferencedSymbols`, `getTokenAtPositionWorker` and `getChildren`. These are sampled allocation sites, not exact dominators or proof of the eventual OOM owner. Standalone wrapper release does not remove those costs.
 
+Extraction uses the compiler bundled with ts-morph, not the native TS7 typechecker. Client and root descriptors remain separate browser and Node programs. The language-service host exposes cached closure paths as roots; this does not establish combined worlds or permit changing native membership.
+
 Use the measured attribution before selecting another fix or full replay. Read counters only on the already-hydrated checker. Preserve frozen inputs and failed artifacts; no private cache clearing, heap increase or population reduction. Profiling changes execution costs and does not qualify replay memory or timing.

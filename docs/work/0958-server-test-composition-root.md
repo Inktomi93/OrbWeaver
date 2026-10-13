@@ -33,7 +33,7 @@ Notifications supplies the replacement case set. Preserve scope, replay, standin
 
 Scoped controls prove resolved CIDR admission can widen a restricted hostname port. The correction rejects that path before dialing and preserves declared-port, unrelated-host and public-address admission. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.
 
-Bounded response controls prove physical cancellation joins, native clone/header behavior and consumption semantics. Same-ID graph and coalescing isolation controls pass. These do not qualify the complete HTTP root.
+Native listener controls prove Request branding, chunked body admission, cloned body cancellation and physical close joins. Graph isolation controls pass, not complete HTTP qualification. Unexpected physical failures must remain visible when cancellation races their delivery; that correction blocks integration.
 
 Affected production configs pass. Root typechecking remains red on non-owned probes and copied helpers. Preserve their meaningful cases for replacement.
 
