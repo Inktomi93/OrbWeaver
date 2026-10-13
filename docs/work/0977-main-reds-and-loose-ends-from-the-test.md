@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-12
+updated: 2026-10-13
 priority: P2
 ---
 
@@ -39,6 +39,8 @@ Citation owners complete in `main-163399-2026-10-13T05-30-52-880Z` with no effec
 
 The UI export floor reports legacy-node errors in untouched server fixtures: seed-user-content's optional RPG input, profile-directory support's optional name and handle, and run-profile-import's optional tag source. The export batch changes neither those fixtures nor server declarations. Preserve cases for replacement; do not retrofit them to manufacture a green export floor.
 
-The caught-failure census relocates domain sites and retains unproven reindex/auth sites. Literal removals shrink budgets; remaining census differences need population-specific adjudication.
+Compose integration preserves census equality. Reindex/auth classifications remain unproven; literal removals shrink budgets.
+
+The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
 
 Compose import-policy defects are corrected in `292d99464e` with native graph evidence. No whole-application import verdict is claimed.
