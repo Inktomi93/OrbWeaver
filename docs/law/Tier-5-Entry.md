@@ -46,8 +46,7 @@ packages/server/src/entry/
 │   ├── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
 │   ├── room-reach.ts         cross-feature event-emit wiring (the entity→room reach table: a DomainEvent →
 │   │                         a live-only roomEntityChanged per reached room)
-│   ├── portability.ts        import/export composition wiring
-│   └── resolve-image-ref.ts  cross-feature image-ref resolution wiring
+│   └── portability.ts        import/export composition wiring
 ├── http/                     non-tRPC registrars (compose domain + infra + auth)
 │   ├── blob.ts               GET /blob/… (+ ?w=&f=webp variant transform via the infra/image op)
 │   ├── upload.ts             multipart asset + card-file import routes (delegates to import/run-profile-import — D3)
