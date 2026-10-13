@@ -4,9 +4,10 @@
 // text, in `floor/code-facts/assignability.ts`: two shapes that agree today by accident are the same drift risk as a
 // deliberate copy, and a field whose type comes from `z.infer` is read like a written one.
 import type { InterfaceDeclaration, Node, TypeAliasDeclaration, TypeChecker, TypeLiteralNode } from "ts-morph";
-import { Node as N, SyntaxKind } from "ts-morph";
+import { Node as N } from "ts-morph";
 import type { AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
 import { fieldTypesAgree, readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import { ownDataFieldNames, resolvedShapeProperties } from "../../floor/code-facts/shape-fields.ts";
 
 /** A candidate needs this many own data fields; three-field overlaps are mostly coincidence. */
 export const MIN_COPY_FIELDS = 4;
@@ -60,28 +61,14 @@ export function createFieldAgreement(policyId: string, checker: Pick<TypeChecker
 
 /** The data field names of one exported contract type, or undefined when it is not a plain object shape. */
 export function contractFields(decl: InterfaceDeclaration | TypeAliasDeclaration): ReadonlySet<string> | undefined {
-  const type = decl.getType();
-  if (type.isUnion() || type.isArray() || type.isTuple() || type.getCallSignatures().length > 0 || !(type.isObject() || type.isIntersection())) {
-    return;
-  }
-  const fields = new Set(type.getProperties().map((property) => property.getName()));
-  return fields.size >= MIN_COPY_FIELDS ? fields : undefined;
+  const properties = resolvedShapeProperties(decl, "copy");
+  const fields = properties === undefined ? undefined : new Set(properties.map((property) => property.getName()));
+  return fields !== undefined && fields.size >= MIN_COPY_FIELDS ? fields : undefined;
 }
 
-/** A candidate's own data fields. Callable members are behaviour, and an indexed-access member already derives
- *  from its owner, so neither counts. Undefined below the field floor. */
+/** A candidate's own data fields, excluding behavior and indexed-access derivations. */
 export function candidateFields(node: InterfaceDeclaration | TypeLiteralNode): ReadonlySet<string> | undefined {
-  const fields = new Set<string>();
-  for (const member of node.getMembers()) {
-    if (!N.isPropertySignature(member)) {
-      continue;
-    }
-    const typeNode = member.getTypeNode();
-    if (typeNode !== undefined && (typeNode.isKind(SyntaxKind.FunctionType) || typeNode.isKind(SyntaxKind.IndexedAccessType))) {
-      continue;
-    }
-    fields.add(member.getName());
-  }
+  const fields = ownDataFieldNames(node);
   return fields.size >= MIN_COPY_FIELDS ? fields : undefined;
 }
 

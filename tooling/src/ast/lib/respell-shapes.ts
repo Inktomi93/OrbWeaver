@@ -1,13 +1,15 @@
 // Shared shape discovery and exact structural analysis for the respell command.
 
-import type { Project } from "ts-morph";
-import { Node } from "ts-morph";
+import type { Node, Project } from "ts-morph";
 import type { AssignabilityChecker, AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
 import { mutuallyAssignableAcross, readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import { inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
+import { directDerivationTargetKeys, typeQueryDerivationKeys } from "../../floor/code-facts/shape-derivation.ts";
+import type { ShapeField as FieldPair } from "../../floor/code-facts/shape-fields.ts";
+import { resolvedShapeProperties } from "../../floor/code-facts/shape-fields.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
 import { hitOf } from "./emit.ts";
-import { declKey } from "./keys.ts";
 import { exitToolError } from "./ledger.ts";
 import { TEST_FILE_RE } from "./root.ts";
 import { ownExports } from "./scope.ts";
@@ -15,11 +17,7 @@ import { ownExports } from "./scope.ts";
 /** How many properties a shape needs before an exact structural match means anything. */
 export const RESPELL_PROPERTY_FLOOR = 3;
 
-/** One field's name and report-only display type; the checker decides identity. */
-export interface FieldPair {
-  readonly name: string;
-  readonly type: string;
-}
+export type { ShapeField as FieldPair } from "../../floor/code-facts/shape-fields.ts";
 
 export interface ShapeEntry {
   readonly name: string;
@@ -60,35 +58,6 @@ export function mutuallyAssignable(checker: AssignabilityChecker, a: Node, b: No
   return mutuallyAssignableAcross({ checker, refuse: refuseDeclarationComparison }, a, b, (left, right) => [left.getType(), right.getType()]);
 }
 
-/** The sorted PROPERTY-NAME signature of a declaration's type — the cheap prefilter that keeps the O(n²)
- *  assignability probe off every unrelated pair. Undefined when it is not an object shape with at least
- *  {@link RESPELL_PROPERTY_FLOOR} properties (a union/primitive/function type has no signature here). */
-function shapeFields(decl: Node): FieldPair[] | undefined {
-  const type = decl.getType();
-  if (type.isUnion() || type.isIntersection()) {
-    return;
-  }
-  if (!type.isObject() || type.isArray() || type.isTuple() || type.getCallSignatures().length > 0) {
-    return;
-  }
-  const props = Node.isClassDeclaration(decl)
-    ? [
-        ...decl.getProperties().filter((property) => !property.isStatic()),
-        ...decl
-          .getConstructors()
-          .flatMap((ctor) => ctor.getParameters())
-          .filter((parameter) => parameter.isParameterProperty()),
-      ].flatMap((member) => {
-        const symbol = member.getSymbol();
-        return symbol === undefined ? [] : [symbol];
-      })
-    : type.getProperties();
-  if (props.length < RESPELL_PROPERTY_FLOOR) {
-    return;
-  }
-  return props.map((prop) => ({ name: prop.getName(), type: prop.getTypeAtLocation(decl).getText() }));
-}
-
 /** Every exported declaration of the files under `prefix` that HAS a shape signature. */
 export function shapesUnder(project: SourceCorpus, prefix: string): ShapeEntry[] {
   const out: ShapeEntry[] = [];
@@ -98,7 +67,11 @@ export function shapesUnder(project: SourceCorpus, prefix: string): ShapeEntry[]
       continue;
     }
     for (const { name, decl } of ownExports(sf)) {
-      const fields = shapeFields(decl);
+      const discovered = resolvedShapeProperties(decl, "respell");
+      const fields =
+        discovered !== undefined && discovered.length >= RESPELL_PROPERTY_FLOOR
+          ? discovered.map((property) => ({ name: property.getName(), type: property.getTypeAtLocation(decl).getText() }))
+          : undefined;
       if (fields !== undefined) {
         const signature = fields
           .map((field) => field.name)
@@ -125,75 +98,6 @@ export function domainsWithContracts(project: SourceCorpus, arg: string): string
   return [...found].sort();
 }
 
-/** Origin declarations named by a bare alias (`type X = Y`), resolved through import/re-export hops. */
-function bareAliasTargetKeys(decl: Node): Set<string> {
-  const keys = new Set<string>();
-  if (!Node.isTypeAliasDeclaration(decl)) {
-    return keys;
-  }
-  const typeNode = decl.getTypeNode();
-  if (typeNode === undefined || !Node.isTypeReference(typeNode) || typeNode.getTypeArguments().length > 0) {
-    return keys;
-  }
-  const entity = typeNode.getTypeName();
-  const identifier = Node.isQualifiedName(entity) ? entity.getRight() : entity;
-  const symbol = identifier.getSymbol();
-  if (symbol === undefined) {
-    return keys;
-  }
-  for (const declaration of (symbol.getAliasedSymbol() ?? symbol).getDeclarations()) {
-    keys.add(declKey(declaration));
-  }
-  return keys;
-}
-
-/** Contracts declarations named directly by `extends`; inherited fields are already derived. */
-function heritageTargetKeys(decl: Node): Set<string> {
-  const keys = new Set<string>();
-  let heritage = Node.isInterfaceDeclaration(decl) ? decl.getExtends() : [];
-  if (Node.isClassDeclaration(decl)) {
-    const clause = decl.getExtends();
-    heritage = clause === undefined ? [] : [clause];
-  }
-  for (const clause of heritage) {
-    const symbol = clause.getExpression().getSymbol();
-    for (const declaration of (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []) {
-      keys.add(declKey(declaration));
-    }
-  }
-  return keys;
-}
-
-export function directDerivationTargetKeys(decl: Node): Set<string> {
-  return new Set([...bareAliasTargetKeys(decl), ...heritageTargetKeys(decl)]);
-}
-
-/** Shared `typeof value` provenance through a generic derive (`z.infer`, `ReturnType`, and equivalents). */
-function typeQueryDerivationKeys(decl: Node): Set<string> {
-  const keys = new Set<string>();
-  if (!Node.isTypeAliasDeclaration(decl)) {
-    return keys;
-  }
-  const typeNode = decl.getTypeNode();
-  if (typeNode === undefined || !Node.isTypeReference(typeNode)) {
-    return keys;
-  }
-  const [argument] = typeNode.getTypeArguments();
-  if (argument === undefined || typeNode.getTypeArguments().length !== 1 || !Node.isTypeQuery(argument)) {
-    return keys;
-  }
-  const genericSymbol = typeNode.getTypeName().getSymbol();
-  const genericKeys = ((genericSymbol?.getAliasedSymbol() ?? genericSymbol)?.getDeclarations() ?? []).map(declKey);
-  const operandSymbol = argument.getExprName().getSymbol();
-  const operandKeys = ((operandSymbol?.getAliasedSymbol() ?? operandSymbol)?.getDeclarations() ?? []).map(declKey);
-  for (const genericKey of genericKeys) {
-    for (const operandKey of operandKeys) {
-      keys.add(`${genericKey}\0${operandKey}`);
-    }
-  }
-  return keys;
-}
-
 function overlaps(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
   return [...left].some((key) => right.has(key));
 }
@@ -215,7 +119,7 @@ export function respellHitsFor(project: SourceCorpus, checker: AssignabilityChec
     const domainOrigins = typeQueryDerivationKeys(domainShape.decl);
     for (const twin of bySignature.get(domainShape.signature) ?? []) {
       if (
-        derivedFrom.has(declKey(twin.decl)) ||
+        derivedFrom.has(inventoryDeclarationKey(twin.decl)) ||
         overlaps(domainOrigins, typeQueryDerivationKeys(twin.decl)) ||
         !mutuallyAssignable(checker, domainShape.decl, twin.decl)
       ) {

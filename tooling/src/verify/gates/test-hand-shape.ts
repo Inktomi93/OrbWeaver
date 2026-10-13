@@ -3,8 +3,9 @@
 // shape, or that kept most of its field names after drifting. Judged by fields, never by name. DECLARED LIMIT: the
 // drift test (4 shared names, 80 %, one retype) is calibrated, and a row of generic field names can trip it. FAMILY
 // `contract-derives-not-respells` (`lib/contract-structural-copy.ts`). Debt: `lib/reviewed-grants-test-hand-shape.ts`.
-import type { InterfaceDeclaration, SourceFile, TypeAliasDeclaration } from "ts-morph";
+import type { InterfaceDeclaration, TypeAliasDeclaration } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { exportedShapeDeclarations, isHandWrittenShape } from "../../floor/code-facts/shape-declaration.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ContractFieldShape, StructuralCopyMatch } from "../lib/contract-structural-copy.ts";
@@ -33,21 +34,6 @@ type FieldAgreement = ReturnType<typeof createFieldAgreement>;
 /** e2e specs and helpers, and every test-tree module that is not itself a test: stories, fixtures, harnesses. */
 function isJudged(path: string): boolean {
   return path.startsWith(E2E) || (path.startsWith(TESTS) && classifyTestFilename(path) === undefined);
-}
-
-/** An interface with no `extends`, or an alias whose body is a type literal: the shape is spelled, not derived. */
-function handShape(node: HandShape): boolean {
-  return N.isInterfaceDeclaration(node) ? node.getHeritageClauses().length === 0 : node.getTypeNode()?.getKind() === SyntaxKind.TypeLiteral;
-}
-
-function exportedShapes(sourceFile: SourceFile): readonly (readonly [string, HandShape])[] {
-  return [...sourceFile.getExportedDeclarations()].flatMap(([name, declarations]) =>
-    declarations.flatMap((declaration) =>
-      (N.isInterfaceDeclaration(declaration) || N.isTypeAliasDeclaration(declaration)) && declaration.getSourceFile() === sourceFile
-        ? [[name, declaration] as const]
-        : [],
-    ),
-  );
 }
 
 interface HandShapeVerdict {
@@ -95,7 +81,7 @@ export const gate = defineGate({
         if (file.startsWith(TESTS)) {
           return;
         }
-        for (const [name, declaration] of exportedShapes(sourceFile)) {
+        for (const [name, declaration] of exportedShapeDeclarations(sourceFile)) {
           const shape = contractFields(declaration);
           if (shape !== undefined) {
             fields.push({ name, file, decl: declaration, fields: shape });
@@ -107,7 +93,7 @@ export const gate = defineGate({
           kinds: [SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration],
           visit: (node, sourceFile) => {
             const file = ctx.relativePath(sourceFile);
-            if ((N.isInterfaceDeclaration(node) || N.isTypeAliasDeclaration(node)) && isJudged(file) && handShape(node)) {
+            if ((N.isInterfaceDeclaration(node) || N.isTypeAliasDeclaration(node)) && isJudged(file) && isHandWrittenShape(node)) {
               candidates.push({ node, file });
             }
           },

@@ -4,12 +4,12 @@
 // `contract/`, `@orb/contracts`, the package's `src/contract/` or `@orb/kit`, never beside the code that uses it.
 // The client is not judged: client-only views are a home of their own (the §7.4 table).
 //
-// FAMILY `no-inline-types` (split by POPULATION): the same recognizer, `lib/inline-shape-declaration.ts#inlineShapeNames`,
-// says which declarations are exported shapes. Server domains and `primitives/` are subtracted, as in the wire
+// FAMILY `no-inline-types` (split by POPULATION): authored-name reporting lives in `lib/type-home-policy.ts`;
+// the floor recognizes exported declarations. Server domains and `primitives/` are subtracted, as in the wire
 // sibling, so the three interface policies partition the implementation roots without overlap.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { inlineShapeNames } from "../lib/inline-shape-declaration.ts";
+import { reportExportedShapes } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
   "exported interface in server entry, transport, infra, foundation or inference outside a type home — a shape " +
@@ -41,9 +41,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.InterfaceDeclaration],
         visit: (node): void => {
-          for (const name of inlineShapeNames(node)) {
-            ctx.report.node(name, { token: name.getText(), offset: 0, message: MESSAGE, fix: FIX });
-          }
+          reportExportedShapes(ctx, node, MESSAGE, FIX);
         },
       },
     ],

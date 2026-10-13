@@ -101,7 +101,7 @@ Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it
 | One home | Readers it replaces | Item |
 | - | - | - |
 | Drizzle query facts: tables, joins, columns, reads, writes | `ast/lib/columns.ts`, `column-reads.ts`; floor `drizzle-columns`, `drizzle-write-chain`; `verify/lib` `drizzle-client-call`, `tenancy-read`, `tenancy-join` and the json-column readers | 953 |
-| Shape identity: copy, respell, assignability | `ast/lib/respell-shapes.ts`; `verify/lib` `contract-structural-copy`, `contract-derives-not-respells`, `inline-shape-declaration`, `baseui-derives-not-respells`; floor `assignability` | 954, then 966 |
+| Shape identity: copy, respell, assignability | AST exact/near adapters and verify copy, type-home, Base UI and fabrication policies share floor field, declaration, factory-origin, derivation and assignability readers. Function-clone syntax retains its canonical reader. | 954, then 966 |
 | Symbol references and member reads | `ast/lib/resolve.ts`, `usage.ts`, the wiring member reader; floor `reference-fact`; `verify/lib` `symbol-reference`; the hand-written bracket readers | 955 |
 | Import doors and reach | `pnpm ast` importers, reaches and flow; `verify/lib` test-reach, test-import-door, tooling-import-door, policy-production-reach | 956 |
 | Codemods | codemod readers in `tooling/src/codemod/lib/` | 957 |

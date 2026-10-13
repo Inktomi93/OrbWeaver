@@ -52,9 +52,10 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import type { ZodCandidateCall } from "../../floor/code-facts/zod-origin.ts";
+import { zodCandidateCall } from "../../floor/code-facts/zod-origin.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ZodCandidateCall } from "../lib/zod-origin.ts";
-import { isZodCall, zodCandidateCall } from "../lib/zod-origin.ts";
+import { isZodCall } from "../lib/zod-origin.ts";
 
 const OBJECT = "object";
 const STRICT = "strict";

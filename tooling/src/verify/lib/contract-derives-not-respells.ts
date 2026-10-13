@@ -17,9 +17,11 @@
 // now the central engine's: a granted row nobody consumes raises `stale-reviewed-grant`, and an ungranted
 // hand-row is a finding. A gate receives no exemption table, so `ExemptionTable` no longer reaches here.
 import type { Node, SourceFile } from "ts-morph";
-import { Node as N, SyntaxKind } from "ts-morph";
+import { Node as N } from "ts-morph";
+import { handWrittenShapeDeclarations } from "../../floor/code-facts/shape-declaration.ts";
 
 export const DOMAIN_CONTRACT_RE = /^packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
+
 const DB_SCHEMA_DIR = "packages/db/src/schema/";
 const ROW_SUFFIX_RE = /(?<suffix>Row|Insert)$/u;
 const SQLITE_TABLE = "sqliteTable";
@@ -50,18 +52,7 @@ export function tableNames(files: readonly SourceFile[], relativePath: (sourceFi
  *  right-hand side is an object literal type. A type alias that REFERENCES another type (the derive) is
  *  deliberately absent — that is the shape the family wants. */
 export function handWrittenShapes(sf: SourceFile): ContractShape[] {
-  const out: ContractShape[] = [];
-  for (const i of sf.getInterfaces()) {
-    if (i.isExported()) {
-      out.push({ name: i.getName(), node: i });
-    }
-  }
-  for (const t of sf.getTypeAliases()) {
-    if (t.isExported() && t.getTypeNode()?.getKind() === SyntaxKind.TypeLiteral) {
-      out.push({ name: t.getName(), node: t });
-    }
-  }
-  return out;
+  return handWrittenShapeDeclarations(sf).map((node) => ({ name: node.getName(), node }));
 }
 
 /** The table this `*Row`/`*Insert` name claims, if any: `WorkloadScheduleRow` → `workloadSchedules`. */

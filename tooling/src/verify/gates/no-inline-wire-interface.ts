@@ -1,22 +1,18 @@
 // Policy: no-inline-wire-interface (Spine-TypeScript-and-Patterns.md §7.4) — an exported interface in client code,
 // outside a type home, that crosses a boundary: its name is in the wire vocabulary (`WIRE_SHAPE_SUFFIXES`) AND its
-// type is plain data (`inline-shape-declaration.ts#isPlainDataShape`, no call or construct signature in it or
+// type is plain data (`floor/code-facts/shape-declaration.ts#isPlainDataShape`, no call or construct signature in it or
 // anything it nests). A hand-declared twin of a response compiles on both sides and drifts silently. A hook result,
 // a deps bundle or a component's props carries behaviour, so it never crosses a wire and is not judged here.
 //
-// FAMILY `no-inline-types` (split by POPULATION): every member asks `lib/inline-shape-declaration.ts#inlineShapeNames`
-// which declarations are exported shapes. Server and inference code is subtracted because
+// FAMILY `no-inline-types` (split by POPULATION): shared reporting lives in `lib/type-home-policy.ts`;
+// declaration recognition lives in the floor shape reader. Server and inference code is subtracted because
 // `no-inline-domain-interface` and `no-inline-package-interface` already judge every exported interface there.
 // POPULATION: the client minus its type homes (forms, state, lib, `contract/`); the `data/` tier is judged, since
 // hand-spelled HTTP response shapes live there. Each clause has a mustPass row that dies without it.
 import { Node, SyntaxKind } from "ts-morph";
+import { isPlainDataShape } from "../../floor/code-facts/shape-declaration.ts";
 import { defineGate } from "../contract/policy.ts";
-import { inlineShapeNames, isPlainDataShape } from "../lib/inline-shape-declaration.ts";
-
-/** The name suffixes that mark a shape as crossing a boundary. */
-const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input", "Request", "Response", "Wire"] as const;
-
-const isWireShapeName = (name: string): boolean => WIRE_SHAPE_SUFFIXES.some((suffix) => name.endsWith(suffix) && name.length > suffix.length);
+import { reportExportedWireShapes } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
   "exported wire-named plain-data interface outside a type home — a cross-boundary wire shape lives in @orb/contracts " +
@@ -51,12 +47,7 @@ export const gate = defineGate({
           if (!(Node.isInterfaceDeclaration(node) && isPlainDataShape(node))) {
             return;
           }
-          for (const name of inlineShapeNames(node)) {
-            const text = name.getText();
-            if (isWireShapeName(text)) {
-              ctx.report.node(name, { token: text, offset: 0, message: MESSAGE, fix: FIX });
-            }
-          }
+          reportExportedWireShapes(ctx, node, MESSAGE, FIX);
         },
       },
     ],

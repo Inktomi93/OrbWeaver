@@ -16,8 +16,8 @@
 // verdict is local to one AsExpression and its checker types, and no finalizer or shared fact exists.
 import type { AsExpression, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { AssignabilityChecker } from "../../floor/code-facts/assignability.ts";
-import { readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import type { AgreementContext, AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
+import { readAssignabilityChecker, typeRelationAcross } from "../../floor/code-facts/assignability.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
@@ -66,17 +66,17 @@ function literalCastAnchor(node: AsExpression): TypeNode | undefined {
 
 // A value cast fabricates when the checker cannot prove the value already has the asserted type: an `any` or
 // `unknown` operand, or a type the target is not assignable from. An up-cast the checker proves is no claim.
-function valueCastAnchor(node: AsExpression, assignability: AssignabilityChecker): TypeNode | undefined {
+function valueCastAnchor(node: AsExpression, context: AgreementContext): TypeNode | undefined {
   const type = node.getTypeNode();
   // `no-loose-id-cast` owns `as never` everywhere, tests included.
   if (type === undefined || type.isKind(SyntaxKind.NeverKeyword) || NON_FABRICATING_CAST_TARGETS.has(type.getText()) || isLiteralOperand(node)) {
     return;
   }
-  const source = node.getExpression().getType();
-  if (source.isAny()) {
-    return type;
+  const relation = typeRelationAcross(context, node.getExpression(), node, (left, right) => [left.getType(), right.getType()]);
+  if (relation === undefined) {
+    throw new Error("no-test-fabrication: the value cast has no comparable native types");
   }
-  return assignability.isTypeAssignableTo(source.compilerType, node.getType().compilerType) ? undefined : type;
+  return relation.leftIsAny || !relation.leftToRight ? type : undefined;
 }
 
 function reportTyped(ctx: GatePolicyContext, node: AsExpression, type: TypeNode, message: string): void {
@@ -109,6 +109,15 @@ export const gate = defineGate({
         "no-test-fabrication: this TypeScript build exposes no `checker.isTypeAssignableTo`, so a value cast cannot be judged (tooling/src/floor/code-facts/assignability.ts)",
       );
     }
+    const refuse = (kind: AssignabilityRefusalKind): never => {
+      const reasons: Readonly<Record<AssignabilityRefusalKind, string>> = {
+        "primitive-absent": "this native program exposes no checker.isTypeAssignableTo, so a value cast cannot be judged",
+        "no-shared-program": "the value and asserted type share no native compiler program",
+        "programs-disagree": "native compiler programs disagree about value cast assignability",
+      };
+      throw new Error(`no-test-fabrication: ${reasons[kind]}`);
+    };
+    const context = { checker: assignability, refuse };
     return {
       visitors: [
         {
@@ -132,7 +141,7 @@ export const gate = defineGate({
               reportTyped(ctx, node, literal, LITERAL_CAST_MSG(literal.getText()));
               return;
             }
-            const value = valueCastAnchor(node, assignability);
+            const value = valueCastAnchor(node, context);
             if (value !== undefined) {
               reportTyped(ctx, node, value, VALUE_CAST_MSG(value.getText()));
             }

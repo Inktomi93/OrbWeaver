@@ -20,7 +20,7 @@
 // `import { z as s }` were all invisible while a same-named method on any project object would have
 // matched had the text lined up. The subject is the module export: a call whose callee resolves through
 // the shared module-origin reader to the `zod` door, terminating in one of the three factories
-// (`lib/inline-shape-declaration.ts`, over `lib/zod-origin.ts#isZodCall`).
+// (`floor/code-facts/shape-declaration.ts`, over the canonical factory package-origin reader).
 //
 // EVERY POPULATION CLAUSE AND EVERY ARM FENCE CARRIES A ROW THAT DIES WITHOUT IT (§4.1; each measured in
 // both directions 2026-09-12, the `notUnder` and `notNamed` entries cut one at a time): the `in` root list
@@ -53,11 +53,11 @@
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 //
 // FAMILY `no-inline-types` — a two-member SPLIT family with `no-inline-domain-interface`, split by POPULATION.
-// Both halves ask ONE recognizer which declarations are exported shapes, `lib/inline-shape-declaration.ts`
-// (#0038 — until then each read its own subject and the family string had no shared reader behind it).
+// Both halves share reporting in `lib/type-home-policy.ts`; recognition lives in the floor shape reader.
+
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { inlineShapeNames } from "../lib/inline-shape-declaration.ts";
+import { reportExportedShapes } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
   "exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or " +
@@ -113,9 +113,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.TypeAliasDeclaration, SyntaxKind.VariableStatement],
         visit: (node): void => {
-          for (const name of inlineShapeNames(node)) {
-            ctx.report.node(name, { token: name.getText(), offset: 0, message: MESSAGE, fix: FIX });
-          }
+          reportExportedShapes(ctx, node, MESSAGE, FIX);
         },
       },
     ],
@@ -325,7 +323,7 @@ export const gate = defineGate({
         "packages/server/src/domain/x/shapes.ts": "export const object = (shape: unknown): unknown => shape;\n",
         "packages/server/src/domain/x/schema.ts": 'import { object } from "./shapes.ts";\nexport const Foo = object({});\n',
       },
-      why: "THE DOOR TEST, the other half of the identity claim `mustFlag[1..4]` make from the flagging side: a PROJECT module exporting a function named `object`, imported and called — the prefilter accepts the name and the origin reader RESOLVES it, to `shapes.ts` rather than to the `zod` door. `mustPass[4]`'s counterfactual uses a local object literal, which the origin reader refuses outright; this one resolves and is still not zod, so it is the row that dies when the door test in `lib/zod-origin.ts#isZodCall` goes",
+      why: "THE DOOR TEST, the other half of the identity claim `mustFlag[1..4]` make from the flagging side: a PROJECT module exporting a function named `object`, imported and called — the prefilter accepts the name and the origin reader RESOLVES it, to `shapes.ts` rather than to the `zod` door. `mustPass[4]`'s counterfactual uses a local object literal, which the origin reader refuses outright; this one resolves and is still not zod, so it is the row that dies when the door test in `floor/code-facts/zod-origin.ts#isFactoryCallFromPackage` goes",
     },
   ],
 });

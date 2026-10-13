@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Shape comparison lives once: the checker comparer in `floor/code-facts/assignability.ts` that item 932 started. `pnpm ast respell`, `contract-structural-copy`, `contract-derives-not-respells`, `test-hand-shape`, `baseui-derives-not-respells`, `test-production-clone` and `no-test-fabrication` call it; `verify/lib/inline-shape-declaration.ts` and any second comparer are deleted.
+Share shape comparison, field discovery, declaration recognition and derivation through canonical floor readers. AST and verify consumers retain their own selection, thresholds and diagnostics. Function-clone syntax stays on its existing floor reader rather than changing into an assignability judgment. Delete duplicate extraction and comparison.
 
 ## Why
 
@@ -23,4 +23,6 @@ One comparer; every caller gate and `pnpm ast respell` call it; findings and `pn
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed consolidation moves shared field discovery, declaration recognition, factory origin and derivation into the floor. Consumers preserve their thresholds, selection, diagnostics and distinct policy judgments. Derivation reuses the inventory store's canonical declaration identity; no second key or compiler loader is added.
+
+Matched consumer and AST output controls, native directional refusal controls and affected static checks pass. Independent review confirms the bounded consolidation. Main integrates the source without closing this item; native repository output equivalence and complete family census remain required. The dependent hand-shape assignment still owns threshold replacement.

@@ -2,12 +2,13 @@
 
 import type { AssignabilityChecker, AssignabilityRefusalKind, FieldIdentity, RefuseAssignability } from "../../floor/code-facts/assignability.ts";
 import { fieldTypesAgree } from "../../floor/code-facts/assignability.ts";
+import { inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
+import { directDerivationTargetKeys } from "../../floor/code-facts/shape-derivation.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
-import { declKey } from "./keys.ts";
 import { exitToolError } from "./ledger.ts";
 import type { FieldPair, ShapeEntry } from "./respell-shapes.ts";
-import { directDerivationTargetKeys, mutuallyAssignable, PRIMITIVE_ABSENT, shapesUnder } from "./respell-shapes.ts";
+import { mutuallyAssignable, PRIMITIVE_ABSENT, shapesUnder } from "./respell-shapes.ts";
 
 export const RESPELL_NEAR_PROPERTY_FLOOR = 4;
 const PCT_SCALE = 100;
@@ -102,7 +103,7 @@ function nearCandidateForPair(scope: NearPairScope): NearPairCandidate | undefin
   const { checker, domain, thresholdPct, derivedFrom, domainShape, twin } = scope;
   let candidate: NearPairCandidate | undefined;
   const belowNameBound = nameOnlyJaccardPct(domainShape.fields, twin.fields) < thresholdPct;
-  if (!(derivedFrom.has(declKey(twin.decl)) || belowNameBound)) {
+  if (!(derivedFrom.has(inventoryDeclarationKey(twin.decl)) || belowNameBound)) {
     const exact = twin.signature === domainShape.signature && mutuallyAssignable(checker, domainShape.decl, twin.decl);
     if (!exact) {
       const admission = nearAdmissionOf(checker, domainShape, twin);

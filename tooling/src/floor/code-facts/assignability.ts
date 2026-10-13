@@ -1,7 +1,5 @@
-// The compiler checker's assignability primitive, shared by `pnpm ast respell` and the verify gates that judge a
-// value or a field against a type. Each caller refuses in its own voice when the primitive is absent or the native
-// programs disagree; none may answer a silent zero, because a comparison that quietly stops running reads as a
-// clean result.
+// Native type relations shared by AST lenses and policies. Missing primitives and disagreeing programs refuse;
+// no comparison constructs a compiler program or substitutes display type text for assignability.
 import type { Node, Project, Symbol as TsSymbol, Type, TypeChecker } from "ts-morph";
 import { coLocatedSemanticNodes } from "../compiler/ts-workspace.ts";
 
@@ -16,7 +14,7 @@ export function readAssignabilityChecker(checker: Pick<TypeChecker, "compilerObj
   return typeof compiler.isTypeAssignableTo === "function" ? { isTypeAssignableTo: compiler.isTypeAssignableTo.bind(compiler) } : undefined;
 }
 
-/** Why a comparison could not run. `answers` carries each native program's verdict for `programs-disagree`. */
+/** Why a comparison could not run. Native relation answers flatten their directions and any-ness for refusal evidence. */
 export const ASSIGNABILITY_REFUSAL_KINDS = ["primitive-absent", "no-shared-program", "programs-disagree"] as const;
 export type AssignabilityRefusalKind = (typeof ASSIGNABILITY_REFUSAL_KINDS)[number];
 
@@ -118,30 +116,73 @@ function checkerOfProject(project: Pick<Project, "getTypeChecker">, refuse: Refu
   return readAssignabilityChecker(project.getTypeChecker()) ?? refuse("primitive-absent", []);
 }
 
-/** MUTUALLY assignable in every native compiler program that owns both nodes, or in their one shared Project:
- *  the same type whatever the two spell it as. Assignability, not type TEXT, because a text signature is
- *  alias-sensitive (`CharacterId` and `TypeIdOf<"character">` print differently and are the same type). */
-export function mutuallyAssignableAcross(context: AgreementContext, left: Node, right: Node, read: TypePairReader): boolean {
-  const { checker, refuse, lenient = false } = context;
-  const judge = (effective: AssignabilityChecker, a: Node, b: Node): boolean => {
-    const pair = read(a, b);
-    if (pair === undefined) {
-      return false;
-    }
-    return lenient ? typesAgree(effective, { type: pair[0], at: a }, { type: pair[1], at: b }, new Map()) : mutual(effective, pair[0], pair[1]);
-  };
+type NativeJudgment<Answer extends readonly boolean[]> = (checker: AssignabilityChecker, left: Node, right: Node) => Answer | undefined;
+
+function compareAcross<Answer extends readonly boolean[]>(
+  context: AgreementContext,
+  left: Node,
+  right: Node,
+  judge: NativeJudgment<Answer>,
+): Answer | undefined {
   const colocated = coLocatedSemanticNodes(left, right);
   if (colocated.length === 0) {
     if (left.getProject() !== right.getProject()) {
-      return refuse("no-shared-program", []);
+      return context.refuse("no-shared-program", []);
     }
-    return judge(checker, left, right);
+    return judge(context.checker, left, right);
   }
-  const answers = colocated.map(({ project, left: a, right: b }) => judge(checkerOfProject(project, refuse), a, b));
-  if (new Set(answers).size !== 1) {
-    return refuse("programs-disagree", answers);
+  const answers = colocated.map(({ project, left: a, right: b }) => judge(checkerOfProject(project, context.refuse), a, b));
+  if (new Set(answers.map((answer) => (answer === undefined ? "unreadable" : answer.join("|")))).size !== 1) {
+    return context.refuse(
+      "programs-disagree",
+      answers.flatMap((answer) => answer ?? []),
+    );
   }
-  return answers[0] === true;
+  return answers[0];
+}
+
+/** Mutual agreement in every native program containing both nodes. Display type text never establishes identity. */
+export function mutuallyAssignableAcross(context: AgreementContext, left: Node, right: Node, read: TypePairReader): boolean {
+  const answer = compareAcross(context, left, right, (checker, a, b) => {
+    const pair = read(a, b);
+    return [
+      pair !== undefined &&
+        (context.lenient === true ? typesAgree(checker, { type: pair[0], at: a }, { type: pair[1], at: b }, new Map()) : mutual(checker, pair[0], pair[1])),
+    ];
+  });
+  return answer?.[0] === true;
+}
+
+/** Directional assignability, not declaration provenance: a structural fit does not prove that one copied another. */
+export interface TypeRelation {
+  readonly leftToRight: boolean;
+  readonly rightToLeft: boolean;
+  readonly leftIsAny: boolean;
+  readonly rightIsAny: boolean;
+}
+
+/** Both assignability directions, agreed by every native program owning the pair. Undefined means the reader
+ * supplied no comparable types; callers must not treat that as evidence of an unrelated type. */
+export function typeRelationAcross(
+  context: Pick<AgreementContext, "checker" | "refuse">,
+  left: Node,
+  right: Node,
+  read: TypePairReader,
+): TypeRelation | undefined {
+  const answer = compareAcross(context, left, right, (checker, a, b): readonly [boolean, boolean, boolean, boolean] | undefined => {
+    const pair = read(a, b);
+    return pair === undefined
+      ? undefined
+      : [
+          checker.isTypeAssignableTo(pair[0].compilerType, pair[1].compilerType),
+          checker.isTypeAssignableTo(pair[1].compilerType, pair[0].compilerType),
+          pair[0].isAny(),
+          pair[1].isAny(),
+        ];
+  });
+  return answer === undefined
+    ? undefined
+    : { leftToRight: answer[0] === true, rightToLeft: answer[1] === true, leftIsAny: answer[2] === true, rightIsAny: answer[3] === true };
 }
 
 /** One named field of one declaration: the declaration's resolved type supplies the field's type, so a field with

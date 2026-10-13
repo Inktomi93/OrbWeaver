@@ -36,12 +36,11 @@
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 //
-// FAMILY `no-inline-types` — a two-member SPLIT family (split by POPULATION). Both halves ask ONE recognizer which
-// declarations are exported shapes, `lib/inline-shape-declaration.ts#inlineShapeNames`; this half subscribes to
-// interface declarations only, so the recognizer's alias and zod arms never reach it (#0038).
+// FAMILY `no-inline-types` is split by population and shares authored-name reporting in `lib/type-home-policy.ts`.
+// The floor recognizes declarations; this policy delivers only interfaces, not aliases or schema constants.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { inlineShapeNames } from "../lib/inline-shape-declaration.ts";
+import { reportExportedShapes } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
   "exported interface in a server domain outside a type home — a domain-internal shape lives in that " +
@@ -76,9 +75,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.InterfaceDeclaration],
         visit: (node): void => {
-          for (const name of inlineShapeNames(node)) {
-            ctx.report.node(name, { token: name.getText(), offset: 0, message: MESSAGE, fix: FIX });
-          }
+          reportExportedShapes(ctx, node, MESSAGE, FIX);
         },
       },
     ],

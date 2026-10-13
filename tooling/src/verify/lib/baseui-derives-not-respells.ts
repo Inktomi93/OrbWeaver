@@ -15,6 +15,7 @@
 // lookalike local name merely CONTAINING the imported type's spelling is not a derive.
 import type { InterfaceDeclaration, PropertySignature, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { referencesTypeIdentifiers } from "../../floor/code-facts/shape-declaration.ts";
 import type { BaseUiBinding, ManifestPart, SurfaceManifest } from "../contract/baseui.ts";
 import { signatureArity } from "./baseui-expand.ts";
 import { baseUiBindings, renderedTagNames } from "./baseui-read.ts";
@@ -106,14 +107,8 @@ function forwardedProps(sf: SourceFile, surface: Surface): Set<string> {
   return out;
 }
 
-/** Does this member's declared type REFERENCE a Base UI props type — directly, or through one hop of a
- *  same-file type alias? (`ComboboxChangeDetails` → `Parameters<NonNullable<BaseRootProps[…]>>[1]`.) */
-function referencesIdentifier(type: TypeNode, names: ReadonlySet<string>): boolean {
-  return (Node.isIdentifier(type) && names.has(type.getText())) || type.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => names.has(id.getText()));
-}
-
 function derivesFromBase(type: TypeNode | undefined, ctx: FileContext): boolean {
-  return type !== undefined && (referencesIdentifier(type, ctx.baseTypes) || referencesIdentifier(type, ctx.derivedAliases));
+  return type !== undefined && (referencesTypeIdentifiers(type, ctx.baseTypes) || referencesTypeIdentifiers(type, ctx.derivedAliases));
 }
 
 export function fileContext(sf: SourceFile, manifest: SurfaceManifest): FileContext | undefined {
@@ -138,7 +133,7 @@ export function fileContext(sf: SourceFile, manifest: SurfaceManifest): FileCont
   const derivedAliases = new Set<string>();
   for (const alias of sf.getTypeAliases()) {
     const type = alias.getTypeNode();
-    if (type !== undefined && referencesIdentifier(type, baseTypes)) {
+    if (type !== undefined && referencesTypeIdentifiers(type, baseTypes)) {
       derivedAliases.add(alias.getName());
     }
   }

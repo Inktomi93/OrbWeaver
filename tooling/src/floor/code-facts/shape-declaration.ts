@@ -1,15 +1,7 @@
-// What counts as an EXPORTED SHAPE DECLARATION under Spine-TypeScript-and-Patterns.md §7.4 — the
-// `no-inline-types` family's shared subject. The family is split by POPULATION only: `no-inline-types` judges
-// exported type aliases and zod shape consts across the implementation roots, `no-inline-domain-interface`
-// judges exported interfaces inside server domains. Both ask this one recognizer which name nodes owe a finding,
-// so "a declared shape" cannot mean two different things in the two halves of one law.
-//
-// The zod arm is identity, never spelling: the callee must resolve through the `zod` door
-// (`lib/zod-origin.ts#isZodCall`) to one of the three factories whose result IS a declared shape. It is NOT
-// fail-closed — an unreadable factory-named call passes (the declared limit `no-inline-types` records).
-import type { InterfaceDeclaration, Node as MorphNode, Type } from "ts-morph";
-import { Node } from "ts-morph";
-import { isZodCall, zodCandidateCall } from "./zod-origin.ts";
+// Declaration and data-shape recognition over delivered nodes; population and reporting belong to consumers.
+import type { InterfaceDeclaration, Node as MorphNode, SourceFile, Type, TypeAliasDeclaration, TypeNode } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { isFactoryCallFromPackage, ZOD_PACKAGE, zodCandidateCall } from "./zod-origin.ts";
 
 /** True when the interface and every type it nests are data: no call or construct signature anywhere. A hook
  *  result, a service bundle or a deps record carries behaviour and cannot cross a wire; a wire shape cannot.
@@ -44,7 +36,7 @@ const ZOD_SHAPE_FACTORIES: ReadonlySet<string> = new Set(["object", "enum", "dis
 
 function isZodShapeCall(initializer: MorphNode): boolean {
   const name = zodCandidateCall(initializer)?.name;
-  return name !== undefined && ZOD_SHAPE_FACTORIES.has(name) && isZodCall(initializer, name);
+  return name !== undefined && ZOD_SHAPE_FACTORIES.has(name) && isFactoryCallFromPackage(initializer, name, ZOD_PACKAGE);
 }
 
 /** The name nodes one delivered declaration owes a finding on: an exported interface's or alias's own name,
@@ -63,4 +55,33 @@ export function inlineShapeNames(node: MorphNode): readonly MorphNode[] {
       .map((declaration) => declaration.getNameNode());
   }
   return [];
+}
+
+/** Types exported by this file, including export-list aliases but excluding re-exported origins. */
+export function exportedShapeDeclarations(sf: SourceFile): readonly (readonly [string, InterfaceDeclaration | TypeAliasDeclaration])[] {
+  return [...sf.getExportedDeclarations()].flatMap(([name, declarations]) =>
+    declarations.flatMap((declaration) =>
+      (Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration)) && declaration.getSourceFile() === sf
+        ? [[name, declaration] as const]
+        : [],
+    ),
+  );
+}
+
+/** An authored interface without heritage, or an alias with an object-literal body, rather than a derive. */
+export function isHandWrittenShape(node: InterfaceDeclaration | TypeAliasDeclaration): boolean {
+  return Node.isInterfaceDeclaration(node) ? node.getHeritageClauses().length === 0 : node.getTypeNode()?.getKind() === SyntaxKind.TypeLiteral;
+}
+
+/** Exported interfaces and object-literal aliases. Heritage remains admitted for name-collision policy. */
+export function handWrittenShapeDeclarations(sf: SourceFile): readonly (InterfaceDeclaration | TypeAliasDeclaration)[] {
+  return [
+    ...sf.getInterfaces().filter((declaration) => declaration.isExported()),
+    ...sf.getTypeAliases().filter((declaration) => declaration.isExported() && declaration.getTypeNode()?.getKind() === SyntaxKind.TypeLiteral),
+  ];
+}
+
+/** References to the supplied local type identifiers, not substrings of lookalike identifiers. */
+export function referencesTypeIdentifiers(type: TypeNode, names: ReadonlySet<string>): boolean {
+  return (Node.isIdentifier(type) && names.has(type.getText())) || type.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => names.has(id.getText()));
 }
