@@ -23,4 +23,6 @@ One reader; the door and reach gates and the ast verbs call it; findings and out
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The bounded unchanged-source baseline passes door, test reach, affected-import and native command controls. Production-reach controls fail canonical descriptor registration before exercising reach. The identity repair must distinguish source-file trace carriers from actual canonical declarations without weakening re-export ambiguity checks.
+
+Generic facts move to the floor. The gate-runtime family law retains genuine shared policy judgments in `verify/lib/`; both test-door siblings consume one forbidden-door classification. Preserve native dependency-cruiser ownership and do not manufacture sharing wrappers.
