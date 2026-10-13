@@ -38,6 +38,7 @@ export {
   useRpgBus,
   useUserBus,
 } from "./bus/index.ts";
+export type { ClientRuntime } from "./client-runtime-contract.ts";
 export type { CollectionSurface } from "./create-collection-surface.ts";
 export { createCollectionSurface } from "./create-collection-surface.ts";
 export { createEntityMutation } from "./create-entity-mutation.ts";

@@ -22,16 +22,32 @@ const unbound: SessionDocumentHost = {
 };
 
 let current: SessionDocumentHost = unbound;
+const mountedHosts = new Map<symbol, SessionDocumentHost>();
+
+function activeHost(): SessionDocumentHost {
+  return [...mountedHosts.values()].at(-1) ?? current;
+}
 
 /** Composition-root-only: bind the real browser document before the first render. */
 export function bindSessionDocumentHost(host: SessionDocumentHost | null): void {
   current = host ?? unbound;
 }
 
+/** Scoped composition restores the document port even when nested mounts release out of order. */
+export function leaseSessionDocumentHost(host: SessionDocumentHost): Disposable {
+  const owner = Symbol("session document mount");
+  mountedHosts.set(owner, host);
+  return {
+    [Symbol.dispose]: (): void => {
+      mountedHosts.delete(owner);
+    },
+  };
+}
+
 /** Stable facade used by data-tier session code; every call reaches the currently bound document. */
 export const sessionDocument: SessionDocumentHost = {
-  currentPathname: () => current.currentPathname(),
-  assign: (path) => current.assign(path),
-  isVisible: () => current.isVisible(),
-  subscribeVisibility: (listener) => current.subscribeVisibility(listener),
+  currentPathname: () => activeHost().currentPathname(),
+  assign: (path) => activeHost().assign(path),
+  isVisible: () => activeHost().isVisible(),
+  subscribeVisibility: (listener) => activeHost().subscribeVisibility(listener),
 };

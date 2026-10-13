@@ -66,16 +66,32 @@ const consoleNotify: Notify = {
 };
 
 let current: Notify = consoleNotify;
+const mountedNotices = new Map<symbol, Notify>();
+
+function activeNotify(): Notify {
+  return [...mountedNotices.values()].at(-1) ?? current;
+}
 
 /** Composition-root-only: bind the real toast impl (main.tsx, once the toast provider mounts). */
 export function bindNotify(impl: Notify): void {
   current = impl;
 }
 
+/** Scoped composition releases its own notification binding without reviving an already unmounted owner. */
+export function leaseNotify(impl: Notify): Disposable {
+  const owner = Symbol("notification mount");
+  mountedNotices.set(owner, impl);
+  return {
+    [Symbol.dispose]: (): void => {
+      mountedNotices.delete(owner);
+    },
+  };
+}
+
 /** The stable facade every call site imports — delegates to whatever is currently bound. */
 export const notify: Notify = {
-  info: (notice) => current.info(notice),
-  success: (notice) => current.success(notice),
-  warn: (notice) => current.warn(notice),
-  error: (notice) => current.error(notice),
+  info: (notice) => activeNotify().info(notice),
+  success: (notice) => activeNotify().success(notice),
+  warn: (notice) => activeNotify().warn(notice),
+  error: (notice) => activeNotify().error(notice),
 };

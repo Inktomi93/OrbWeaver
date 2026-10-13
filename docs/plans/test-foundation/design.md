@@ -240,6 +240,23 @@ A CT stubs every wire, so a CT can stay green while the real wire is broken; onl
 
 By owner ruling (item 899), tests live in the directory that mirrors their feature and are named for the behaviour they prove; there is no one-to-one file mirror. A module has a test when a test reaches it through the import graph or names it in an `@subject` header; a mock or a type-only import is not reach. `test-layout` checks the directory and `test-reach` checks presence, and both stay in the core. Rebuilt tests drive the product through public entries, so `test-reach` credits the module a test drives through that entry, never every module the composed graph happens to import.
 
+### Client mounting foundation
+
+`packages/client/src/compose/client-runtime.ts` owns production data construction. Boot retains its runtime through `packages/client/src/compose/app-singletons.ts`; isolated mounts retain theirs through React state.
+`packages/client/src/compose/authed-composition.tsx` owns authenticated registry construction. `packages/client/src/compose/authed-providers.tsx` delivers that graph to both the lazy route and the CT door.
+The router still gates authentication before loading the authenticated graph. Testkit never copies the section, modal or configuration tables.
+
+`tests/support/browser/ct-data-providers.tsx` exposes the maintained client mounting door. It controls document capabilities and network responses without replacing application modules.
+Cache teardown cancels outstanding queries. Scoped document and notification bindings release their own owner, including nested mounts that end out of order.
+Immutable configuration palette binding remains in production composition. Session recovery and bus subscriptions retain their production hook lifetimes.
+
+Primitive subjects use `CtIsolation` from `tests/support/browser/ct-isolated-subject.tsx`. Registry variants use the named exception in `tests/support/browser/ct-isolation.ts`.
+The mounting policy consumes native Playwright signatures and visitor-delivered JSX and returns. Unreadable trees require explicit isolation, not silent admission.
+Dependency-cruiser derives browser entries from the canonical world inventory. Browser stories, fixtures and support reject server value imports while preserving type-only and Node-world routes.
+
+The maintained client dialog cases remain primitive isolation. Component runtime and registry controls prove the production door; legacy route and shell cases remain migration evidence.
+Builders and the corpus come from item 959. Flow tests remain the e2e population rather than a second application assembled in CT.
+
 ## Rejected
 
 Moving the tests out of the repository: it drops the regression net for the whole rebuild; the in-repo legacy folder gives the same relief and keeps the net. Per-gate time or memory caps: cost is a design defect fixed by the shared fact store, not a limit. Retrofitting fake-heavy server harnesses row by row: each row needs fixture repair and a fresh review.

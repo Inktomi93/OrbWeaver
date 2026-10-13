@@ -71,7 +71,8 @@
  * @type {import('dependency-cruiser').IConfiguration}
  */
 
-const { TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
+const { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
+const { BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS } = require("./tooling/src/floor/compiler/project-worlds.ts");
 
 const KIT = "^packages/kit/src/";
 const CONTRACTS = "^packages/contracts/src/";
@@ -88,6 +89,14 @@ const TEST_FILES = `(?:${TEST_KIND_SUFFIXES.map((suffix) => suffix.replaceAll(".
 // The one test world allowed to import the compose door: the browser-CT support re-exports its registries so
 // stories mount the app that ships (Spine-Testing §10). Node and iso helpers stay behind the wall.
 const TEST_BROWSER_SUPPORT = "^tests/support/browser/";
+const BROWSER_TEST_PATHS = [
+  ...BROWSER_SURFACE_DIRS.map((root) => `^${root}/`),
+  "^(tests|scripts)/.*\\.tsx$",
+  ...BROWSER_TEST_SUFFIXES.map((suffix) => `^(tests|scripts)/.*${suffix.replaceAll(".", "\\.")}$`),
+];
+const NON_BROWSER_HELPER_PATHS = Object.entries(HELPER_WORLD_DIRS)
+  .filter(([world]) => world !== "browser")
+  .map(([, root]) => `^${root}/`);
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 
@@ -103,6 +112,14 @@ module.exports = {
   extends: "dependency-cruiser/configs/recommended-strict",
 
   forbidden: [
+    {
+      name: "browser-tests-no-server-runtime",
+      comment:
+        "Browser-world stories, fixtures and support cannot execute server modules. The AppRouter type-only bridge remains legal; Node helper worlds retain their production doors. (Spine-Testing §2 and §10.)",
+      severity: "error",
+      from: { path: BROWSER_TEST_PATHS, pathNot: NON_BROWSER_HELPER_PATHS },
+      to: { path: SRV, dependencyTypesNot: ["type-only"] },
+    },
     {
       name: "test-helper-world-direction",
       comment:

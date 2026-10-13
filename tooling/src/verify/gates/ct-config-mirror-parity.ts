@@ -1,22 +1,14 @@
-// Policy: ct-config-mirror-parity — the browser-CT door mirrors the production door, membership AND order.
-// Families: config sections, home tiles, chat settings sections, chat surfaces, tool renderers, slash commands, palette sources,
-// corpus context tabs, chrome widgets and config groups; a CT export that IS the production declaration passes, a hand
-// list must match row for row. A story module mints a door registry only through `isolationRegistry` with a reason.
-// A singleton: the mirrors are one CT composition contract and share no meaningful reader with another policy.
-import type {
-  CallExpression,
-  Node as MorphNode,
-  ObjectLiteralExpression,
-  PropertyAssignment,
-  SourceFile,
-  Symbol as TsSymbol,
-  Type,
-  VariableDeclaration,
-} from "ts-morph";
+// CT mounts use canonical production composition or named isolation; copied lists fail even when their rows match.
+// Factory and component identity use shared reference readers; native mount signatures and visitor-fed views own entry admission.
+// A singleton: registry forwarding, assembly and mounting are one CT composition contract; legacy suites remain outside strict admission.
+import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile, Symbol as TsSymbol, Type, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
+import { BROWSER_PACKAGES, worldOf } from "../../floor/compiler/project-worlds.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
+import { ctMountArguments, MIN_ISOLATION_REASON_WORDS, readCtMountAdmission } from "../lib/ct-mount-admission.ts";
 import { definitionField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
 
@@ -24,33 +16,28 @@ const COMPOSE = "packages/client/src/compose";
 const DOOR_SECTIONS = `${COMPOSE}/config-sections.ts`;
 const DOOR_TILES = `${COMPOSE}/home-tiles.ts`;
 const DOOR_CONTRIBUTORS = `${COMPOSE}/contributors.ts`;
-const DOOR_GROUPS = `${COMPOSE}/authed-app.tsx`;
+const DOOR_GROUPS = `${COMPOSE}/authed-composition.tsx`;
+const DOOR_PROVIDERS = `${COMPOSE}/authed-providers.tsx`;
+const DOOR_RUNTIME = `${COMPOSE}/client-runtime.ts`;
+const CT_RUNTIME = "tests/support/browser/ct-runtime.ts";
 const CT_DOOR = "tests/support/browser/ct-door.ts";
 const CT_GROUPS = "tests/support/browser/ct-config-groups.ts";
 const CT_PROVIDERS = "tests/support/browser/ct-data-providers.tsx";
 const CT_ISOLATION = "tests/support/browser/ct-isolation.ts";
-const CHROME_REGISTRY = "realChromeRegistry";
 /** Every module a CT or story reaches is judged for hand-minted door registries: the whole client test tree and
  *  the test support tree, except unit tests (which never mount a registry in a browser). */
-const JUDGED_TREES = ["tests/client/**", "tests/support/**"] as const;
+const JUDGED_TREES = ["tests/**"] as const;
 const UNIT_TEST_NAMES = ["*.test.ts", "*.test.tsx", "*.test-d.ts"] as const;
 /** The factory and the exception are recognised by DECLARATION, never by import spelling or local name. */
 const MINT = "createContributorRegistry";
+const CLOSED_MINT = "createRegistry";
 const MINT_FILE = /(?:^|\/)lib\/registry\.ts$/u;
 const ISOLATE = "isolationRegistry";
 const ISOLATE_FILE = /(?:^|\/)ct-isolation\.ts$/u;
-/** Fewer words than this cannot name what a story isolates. */
-const MIN_ISOLATES_WORDS = 3;
 
 const MESSAGE =
-  "the browser-CT door has drifted from the production door: every registry the CT mounts must be the production " +
-  "declaration or list the same rows in the same order (config sections by (anchor, nav.id, contribution id), config " +
-  "groups by (group key, canonical export), every other list by its member expression). " +
-  `The mirrors are ${CT_DOOR} and ${CT_GROUPS}; the harness ${CT_PROVIDERS} must consume them, never re-list a door registry. ` +
-  `A registry of a door contribution type in a CT or story module is judged by its type, whatever its name: take it from ${CT_DOOR}, or declare a deliberate subset with isolationRegistry(name, isolates, members) from ${CT_ISOLATION}.`;
-const FIX =
-  `re-export the production declaration from ${CT_DOOR} instead of listing it; a derived section address is \`anchor\` plus \`nav.id\`, never the contribution id. ` +
-  "In a CT or story module, replace a hand-minted registry of a door contribution type with the door export or isolationRegistry whose `isolates` text names what the story keeps apart.";
+  "CTs must reuse production factories, registry declarations and providers; an equal copied assembly is still drift. Maintained browser-package CTs enter through CtClientProviders or a named CtIsolation. Registry subsets use isolationRegistry with the actual registry name and an authored reason.";
+const FIX = `Forward declarations through ${CT_DOOR}; mount CtClientProviders from ${CT_PROVIDERS}, or state a genuine isolated subject through ${CT_ISOLATION}. Derive registry variants through isolationRegistry instead of copying lists.`;
 
 type RowReader = (declaration: VariableDeclaration) => readonly string[];
 
@@ -187,9 +174,11 @@ function registryName(declaration: VariableDeclaration): string | undefined {
   return first !== undefined && Node.isStringLiteral(first) ? first.getLiteralText() : undefined;
 }
 
-const GROUP_DOOR = 'export const groupA = {};\nexport const configGroups = createRegistry("config-groups", IDS, { a: groupA });\n';
-const GROUP_CT = "const groupA = {};\nconst REAL_CONFIG_GROUPS = { a: groupA };\n";
-const GROUP_DOOR_TWO = 'const groupA = {};\nconst groupB = {};\nconst configGroups = createRegistry("config-groups", IDS, { a: groupA, b: groupB });\n';
+const GROUP_DOOR =
+  'import { createRegistry } from "../lib/registry.ts";\nconst IDS = ["a"] as const;\nexport const groupA = { id: "a", shelf: "user", label: "A", body: { sections: true } };\nexport const configGroups = createRegistry("config-groups", IDS, { a: groupA });\nexport function createAuthedComposition(channel: object) { return channel; }\n';
+const GROUP_CT = `export { configGroups as realConfigGroups } from "../../../${DOOR_GROUPS}";\n`;
+const GROUP_DOOR_TWO =
+  'import { createRegistry } from "../lib/registry.ts";\nconst IDS = ["a", "b"] as const;\nexport const groupA = { id: "a", shelf: "user", label: "A", body: { sections: true } };\nexport const groupB = { id: "b", shelf: "user", label: "B", body: { sections: true } };\nexport const configGroups = createRegistry("config-groups", IDS, { a: groupA, b: groupB });\nexport function createAuthedComposition(channel: object) { return channel; }\n';
 const SECTION_A = 'const navA = { id: "nav-a" };\nconst sectionA = { id: "section-a", anchor: "admin", nav: navA };\n';
 const SECTION_B = 'const navB = { id: "nav-b" };\nconst sectionB = { id: "section-b", anchor: "admin", nav: navB };\n';
 const DOOR_IMPORTS =
@@ -242,12 +231,13 @@ function ctDoor(handListed: Partial<Record<ContributorName | "configSections" | 
       name === "chromeWidgets" ? `export const chromeWidgets = [${list}];\n` : `export const ${name} = createContributorRegistry("x", [${list}]);\n`,
     )
     .join("");
-  return `${SECTION_A}${SECTION_B}${reexport(["configSections"], DOOR_SECTIONS)}${reexport(["homeTiles"], DOOR_TILES)}${reexport(CONTRIBUTOR_NAMES, DOOR_CONTRIBUTORS)}${hand}`;
+  return `${SECTION_A}${SECTION_B}${reexport(["configSections"], DOOR_SECTIONS)}${reexport(["homeTiles"], DOOR_TILES)}${reexport(CONTRIBUTOR_NAMES, DOOR_CONTRIBUTORS)}${hand}export { createAuthedComposition } from "../../../${DOOR_GROUPS}";\nexport { AuthedProviders } from "../../../${DOOR_PROVIDERS}";\nexport { createClientRuntime } from "../../../${DOOR_RUNTIME}";\n`;
 }
 
 const PROVIDERS_CLEAN =
-  'import { chromeWidgets } from "./ct-door.ts";\n' +
-  'const realChromeRegistry = createContributorRegistry("chrome", assembleChrome({ sections, modals, widgets: chromeWidgets }));\n';
+  'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\n' +
+  "const composition = createAuthedComposition({});\nexport function CtClientProviders() { return <AuthedProviders composition={composition} />; }\n";
+const RUNTIME_CLEAN = 'import { createClientRuntime } from "./ct-door.ts";\nconst runtime = createClientRuntime();\n';
 
 const LIB_REGISTRY = "packages/client/src/lib/registry.ts";
 const LIB_TYPES = "packages/client/src/lib/contribution-types.ts";
@@ -255,6 +245,8 @@ const LIB_TYPES = "packages/client/src/lib/contribution-types.ts";
 const VIRTUAL_LIB: Readonly<Record<string, string>> = {
   [LIB_REGISTRY]:
     "export interface ContributorRegistry<Def extends { readonly id: string }> {\n  readonly name: string;\n  readonly list: () => readonly Def[];\n}\n" +
+    "export declare function createRegistry<Id extends string, Def>(name: string, ids: readonly Id[], definitions: Record<Id, Def>): Registry<Id, Def>;\n" +
+    "export interface Registry<Id extends string, Def> { readonly name: string; readonly get: (id: Id) => Def; readonly list: () => readonly Def[]; readonly has: (id: Id) => boolean; }\n" +
     "export function createContributorRegistry<Def extends { readonly id: string }>(name: string, contributions: readonly Def[]): ContributorRegistry<Def> {\n  return { name, list: () => contributions };\n}\n",
   [LIB_TYPES]:
     "export interface TileContribution {\n  readonly id: string;\n  readonly title: string;\n}\n" +
@@ -275,6 +267,9 @@ function proofFiles(overrides: Partial<Readonly<Record<string, string>>> = {}): 
     [CT_DOOR]: ctDoor(),
     [CT_GROUPS]: GROUP_CT,
     [CT_PROVIDERS]: PROVIDERS_CLEAN,
+    [CT_RUNTIME]: RUNTIME_CLEAN,
+    [DOOR_RUNTIME]: "export function createClientRuntime() { return {}; }\n",
+    [DOOR_PROVIDERS]: "export function AuthedProviders(props: object) { return null; }\n",
     ...overrides,
   };
 }
@@ -291,6 +286,22 @@ const ISOLATES = "keeps the probe tile apart from the production launcher grid";
 /** The clean proof tree plus one module of the judged trees. */
 function storyFiles(source: string, path: string = STORY_PATH, more: Readonly<Record<string, string>> = {}): Readonly<Record<string, string>> {
   return proofFiles({ ...more, [path]: source });
+}
+
+const MOUNT_PATH = "tests/client/features/probe/probe.ct.tsx";
+const ISOLATED_SUBJECT = "tests/support/browser/ct-isolated-subject.tsx";
+const FEATURE_SURFACE = "packages/client/src/features/probe/index.tsx";
+const MOUNT_TYPES = "node_modules/@playwright/experimental-ct-react/index.d.ts";
+
+function mountFiles(source: string, more: Readonly<Record<string, string>> = {}): Readonly<Record<string, string>> {
+  return proofFiles({
+    [MOUNT_TYPES]:
+      "export interface MountOptions<HooksConfig> { hooksConfig?: HooksConfig; }\nexport interface MountResult { unmount: () => Promise<void>; update: (component: object) => Promise<void>; }\nexport interface ComponentFixtures { mount: <HooksConfig>(component: object, options?: MountOptions<HooksConfig>) => Promise<MountResult>; }\nexport declare const test: (name: string, body: (fixtures: ComponentFixtures) => void) => void;\n",
+    [ISOLATED_SUBJECT]: "export function CtIsolation(props: { subject: string; isolates: string; children?: object }) { return null; }\n",
+    [FEATURE_SURFACE]: "export function FeatureSurface() { return <div />; }\n",
+    [MOUNT_PATH]: `import { test } from "@playwright/experimental-ct-react";\nimport { FeatureSurface } from "../../../../${FEATURE_SURFACE}";\n${source}`,
+    ...more,
+  });
 }
 
 type Required = (path: string) => SourceFile;
@@ -310,68 +321,53 @@ function checkFamilies(required: Required, report: Report): ReadonlySet<string> 
     const mirror = exported.get(family.name)?.find(Node.isVariableDeclaration);
     if (mirror === undefined) {
       report(ctDoorSource, `${family.label}: ${CT_DOOR} does not export ${family.name}.`);
-    } else if (mirror !== door) {
+    } else if (!sameDeclaration(mirror, door)) {
       const diff = differences(family.rows(door), family.rows(mirror));
-      if (diff.length > 0) {
-        report(mirror, `${family.label} differences: ${diff.join("; ")}.`);
-      }
+      report(
+        mirror,
+        diff.length > 0
+          ? `${family.label} differences: ${diff.join("; ")}.`
+          : `${family.label} must forward the canonical production declaration, not copy its rows.`,
+      );
     }
   }
   return doorRegistryNames;
 }
 
+function sameDeclaration(left: MorphNode, right: MorphNode): boolean {
+  return left.getSourceFile().getFilePath() === right.getSourceFile().getFilePath() && left.getStart() === right.getStart() && left.getEnd() === right.getEnd();
+}
+
 function checkGroups(required: Required, report: Report): void {
-  const mirror = variable(required(CT_GROUPS), "REAL_CONFIG_GROUPS");
-  const diff = differences(groupRows(variable(required(DOOR_GROUPS), "configGroups")), groupRows(mirror));
-  if (diff.length > 0) {
-    report(mirror, `config group differences: ${diff.join("; ")}.`);
+  const source = required(CT_GROUPS);
+  const mirror = source.getExportedDeclarations().get("realConfigGroups")?.find(Node.isVariableDeclaration);
+  const door = variable(required(DOOR_GROUPS), "configGroups");
+  if (mirror !== undefined && sameDeclaration(mirror, door)) {
+    return;
   }
+  const copied = source.getVariableDeclaration("REAL_CONFIG_GROUPS");
+  const diff = copied === undefined ? [] : differences(groupRows(door), groupRows(copied));
+  report(
+    copied ?? source,
+    diff.length > 0
+      ? `config group differences: ${diff.join("; ")}.`
+      : "config groups must forward the canonical production registry, not copy its group table.",
+  );
 }
 
 /** What the files the policy judges declare, gathered by the visitor (no gate-owned walk). */
 interface HarnessFacts {
-  readonly registryCalls: CallExpression[];
-  chromeWidgets: PropertyAssignment | undefined;
   /** Registry mints in the production door files: their element types are the door contribution types. */
   readonly doorMints: CallExpression[];
   /** Registry mints anywhere else in the judged trees. */
   readonly storyMints: CallExpression[];
   /** `isolationRegistry` calls in the judged trees: the named isolation exceptions. */
   readonly isolations: CallExpression[];
-}
-
-/** `(name, members)` and `(name, isolates, members)`. */
-const MINT_ARITY = 2;
-const REGISTRY_ARITIES: ReadonlySet<number> = new Set([MINT_ARITY, MINT_ARITY + 1]);
-
-/** A members argument is a list: never an object, a function or a literal. */
-const NON_LIST_KINDS: ReadonlySet<SyntaxKind> = new Set([
-  SyntaxKind.ObjectLiteralExpression,
-  SyntaxKind.ArrowFunction,
-  SyntaxKind.FunctionExpression,
-  SyntaxKind.StringLiteral,
-  SyntaxKind.NoSubstitutionTemplateLiteral,
-  SyntaxKind.TemplateExpression,
-  SyntaxKind.NumericLiteral,
-  SyntaxKind.TrueKeyword,
-  SyntaxKind.FalseKeyword,
-  SyntaxKind.NullKeyword,
-  SyntaxKind.RegularExpressionLiteral,
-]);
-
-/** The factory takes `(name, members)` and the exception `(name, isolates, members)`: only a two- or three-argument
- *  call through a name or a member read in any spelling whose last argument could be a list can be one, so the checker resolves
- *  those and no other call. */
-function couldBeRegistryCall(call: CallExpression): boolean {
-  const callee = call.getExpression();
-  const args = call.getArguments();
-  const last = args.at(-1);
-  return (
-    REGISTRY_ARITIES.has(args.length) &&
-    last !== undefined &&
-    !NON_LIST_KINDS.has(last.getKind()) &&
-    (Node.isIdentifier(callee) || staticMemberAccess(callee) !== undefined)
-  );
+  readonly compositionCalls: CallExpression[];
+  readonly providerTags: MorphNode[];
+  readonly mounts: { readonly call: CallExpression; readonly args: readonly MorphNode[] }[];
+  readonly returns: Map<object, MorphNode[]>;
+  readonly children: Map<object, MorphNode[]>;
 }
 
 /** The callee resolved to its project declaration through imports, re-exports, namespaces and immutable aliases. */
@@ -386,7 +382,7 @@ function callsDeclared(call: CallExpression, name: string, file: RegExp): boolea
 
 /** The `Def` of the `ContributorRegistry<Def>` a call returns. */
 function contributionType(call: CallExpression): Type | undefined {
-  const def = call.getType().getTypeArguments()[0];
+  const def = call.getType().getTypeArguments().at(-1);
   return def === undefined || def.isAny() ? undefined : def;
 }
 
@@ -411,20 +407,33 @@ function literalArgument(call: CallExpression, index: number): string | undefine
 }
 
 /** Sorts one call into the facts the policy judges, by the file it sits in. */
+function gatherMount(facts: HarnessFacts, path: string, call: CallExpression): void {
+  if (path === CT_PROVIDERS || path === CT_RUNTIME) {
+    facts.compositionCalls.push(call);
+  }
+  if ([...BROWSER_PACKAGES].some((name) => path.startsWith(`tests/${name}/`)) && path.endsWith(".ct.tsx")) {
+    const args = ctMountArguments(call);
+    if (args !== undefined) {
+      facts.mounts.push({ call, args });
+    }
+  }
+}
+
+const CLOSED_REGISTRY_ARITY = 3;
+const REGISTRY_CALL_ARITIES: ReadonlySet<number> = new Set([2, CLOSED_REGISTRY_ARITY]);
+
 function gatherCall(facts: HarnessFacts, path: string, call: CallExpression): void {
-  if (!couldBeRegistryCall(call)) {
+  gatherMount(facts, path, call);
+  if (!REGISTRY_CALL_ARITIES.has(call.getArguments().length)) {
     return;
   }
+  const mint = callsDeclared(call, MINT, MINT_FILE) || callsDeclared(call, CLOSED_MINT, MINT_FILE);
   if (path.startsWith(`${COMPOSE}/`)) {
-    if (callsDeclared(call, MINT, MINT_FILE)) {
+    if (mint) {
       facts.doorMints.push(call);
     }
-  } else if (path === CT_PROVIDERS) {
-    if (call.getExpression().getText() === MINT) {
-      facts.registryCalls.push(call);
-    }
-  } else if (path !== CT_ISOLATION && path !== CT_DOOR && (path.startsWith("tests/client/") || path.startsWith("tests/support/"))) {
-    if (callsDeclared(call, MINT, MINT_FILE)) {
+  } else if (path !== CT_ISOLATION && path !== CT_DOOR && path.startsWith("tests/")) {
+    if (mint) {
       facts.storyMints.push(call);
     } else if (callsDeclared(call, ISOLATE, ISOLATE_FILE)) {
       facts.isolations.push(call);
@@ -432,18 +441,10 @@ function gatherCall(facts: HarnessFacts, path: string, call: CallExpression): vo
   }
 }
 
-/** The `widgets` property of the harness's real chrome assembly. */
-function isChromeWidgets(node: MorphNode): node is PropertyAssignment {
-  return (
-    Node.isPropertyAssignment(node) &&
-    node.getName() === "widgets" &&
-    node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() === CHROME_REGISTRY
-  );
-}
-
 /** A registry of a door contribution type is the door export or a named isolation subset, whatever its name. */
 function checkStories(facts: HarnessFacts, report: Report): void {
   const doorTypes = facts.doorMints.flatMap((call) => contributionType(call) ?? []);
+  const names = new Set(facts.doorMints.flatMap((call) => literalArgument(call, 0) ?? []));
   if (doorTypes.length === 0) {
     throw new Error("the production door files mint no registry the checker can type, so no story mint can be judged");
   }
@@ -456,33 +457,95 @@ function checkStories(facts: HarnessFacts, report: Report): void {
       );
     }
   }
-  for (const call of facts.isolations) {
+  checkIsolations(facts.isolations, doorTypes, names, report);
+}
+
+function checkIsolations(isolations: readonly CallExpression[], doorTypes: readonly Type[], names: ReadonlySet<string>, report: Report): void {
+  for (const call of isolations) {
     const def = contributionType(call);
     const isolates = literalArgument(call, 1);
+    const name = literalArgument(call, 0);
     if (def === undefined || !isDoorType(def, doorTypes)) {
       report(call, `${ISOLATE} wraps a registry that is not of a door contribution type; mint it with ${MINT}.`);
-    } else if (isolates === undefined || isolates.trim().split(/\s+/u).length < MIN_ISOLATES_WORDS) {
+    } else if (name === undefined || !names.has(name)) {
+      report(call, `${ISOLATE} must name the production registry whose contributions it keeps apart.`);
+    } else if (isolates === undefined || isolates.trim().split(/\s+/u).length < MIN_ISOLATION_REASON_WORDS) {
       report(
         call,
-        `${ISOLATE} for "${typeLabel(def)}" has no \`isolates\` text: state in an authored string of ${MIN_ISOLATES_WORDS}+ words what the story keeps apart from the production roster.`,
+        `${ISOLATE} for "${typeLabel(def)}" has no \`isolates\` text: state in an authored string of ${MIN_ISOLATION_REASON_WORDS}+ words what the story keeps apart from the production roster.`,
       );
     }
   }
 }
 
-/** The harness consumes the mirror: no door registry is minted by hand, and the real chrome assembly takes the door's widget list. */
-function checkHarness(required: Required, facts: HarnessFacts, doorRegistryNames: ReadonlySet<string>, report: Report): void {
-  for (const call of facts.registryCalls) {
-    const first = call.getArguments()[0];
-    if (first !== undefined && Node.isStringLiteral(first) && doorRegistryNames.has(first.getLiteralText())) {
-      report(call, `${CT_PROVIDERS} mints the "${first.getLiteralText()}" door registry by hand.`);
+/** Genuine factories and providers prevent a parallel graph; maintained mounts enter through that door or named isolation. */
+function checkHarness(required: Required, facts: HarnessFacts, _doorRegistryNames: ReadonlySet<string>, report: Report): void {
+  for (const [home, name] of [
+    [DOOR_GROUPS, "createAuthedComposition"],
+    [DOOR_RUNTIME, "createClientRuntime"],
+  ] as const) {
+    const target = required(home).getFunctionOrThrow(name);
+    if (
+      !facts.compositionCalls.some((call) => {
+        const resolved = resolveCallableDeclaration(call);
+        return resolved.kind === "resolved" && sameDeclaration(resolved.value.declaration, target);
+      })
+    ) {
+      report(required(CT_PROVIDERS), `the CT mount must call the production ${name} factory instead of assembling a parallel graph.`);
     }
   }
-  const widgets = facts.chromeWidgets;
-  const value = widgets?.getInitializer();
-  const doorWidgets = variable(required(DOOR_CONTRIBUTORS), "chromeWidgets");
-  if (value === undefined || !Node.isIdentifier(value) || findCanonicalVariable(value) !== doorWidgets) {
-    report(widgets ?? required(CT_PROVIDERS), `${CHROME_REGISTRY} must assemble \`widgets: chromeWidgets\`, the production list.`);
+  const provider = required(DOOR_PROVIDERS).getFunctionOrThrow("AuthedProviders");
+  if (
+    !facts.providerTags.some((tag) => {
+      const resolved = resolveCallableDeclaration(tag);
+      return resolved.kind === "resolved" && sameDeclaration(resolved.value.declaration, provider);
+    })
+  ) {
+    report(required(CT_PROVIDERS), "the CT mount must use the actual AuthedProviders stack, not repeat its provider list.");
+  }
+  for (const { call, args } of facts.mounts) {
+    const problems =
+      args.length === 0
+        ? ["an indirect or empty native mount exposes no readable subject"]
+        : args.flatMap((arg) => readCtMountAdmission(arg, facts.returns, facts.children));
+    for (const problem of problems) {
+      report(call, problem);
+    }
+  }
+}
+
+function gatherReturns(facts: HarnessFacts, node: MorphNode): void {
+  if (Node.isReturnStatement(node)) {
+    const owner = node.getFirstAncestor(Node.isFunctionLikeDeclaration);
+    const expression = node.getExpression();
+    if (owner !== undefined && expression !== undefined) {
+      const rows = facts.returns.get(owner.compilerNode) ?? [];
+      rows.push(expression);
+      facts.returns.set(owner.compilerNode, rows);
+    }
+  } else if (Node.isArrowFunction(node) && !Node.isBlock(node.getBody())) {
+    facts.returns.set(node.compilerNode, [node.getBody()]);
+  }
+}
+
+function gatherView(facts: HarnessFacts, node: MorphNode, path: string): void {
+  if (worldOf(path) !== "browser") {
+    return;
+  }
+  gatherReturns(facts, node);
+  if ((Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node)) && path === CT_PROVIDERS) {
+    facts.providerTags.push(node.getTagNameNode());
+  }
+  if (!(Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node) || Node.isJsxFragment(node) || Node.isJsxExpression(node))) {
+    return;
+  }
+  const parent = node.getFirstAncestor(
+    (ancestor) => Node.isJsxElement(ancestor) || Node.isJsxFragment(ancestor) || Node.isJsxExpression(ancestor) || Node.isFunctionLikeDeclaration(ancestor),
+  );
+  if (parent !== undefined && (Node.isJsxElement(parent) || Node.isJsxFragment(parent))) {
+    const rows = facts.children.get(parent.compilerNode) ?? [];
+    rows.push(node);
+    facts.children.set(parent.compilerNode, rows);
   }
 }
 
@@ -500,18 +563,35 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const files = new Map<string, SourceFile>();
-    const harness: HarnessFacts = { registryCalls: [], chromeWidgets: undefined, doorMints: [], storyMints: [], isolations: [] };
+    const harness: HarnessFacts = {
+      doorMints: [],
+      storyMints: [],
+      isolations: [],
+      compositionCalls: [],
+      providerTags: [],
+      mounts: [],
+      returns: new Map(),
+      children: new Map(),
+    };
     return {
       visitFile: (source) => files.set(ctx.relativePath(source), source),
       visitors: [
         {
-          kinds: [SyntaxKind.CallExpression, SyntaxKind.PropertyAssignment],
+          kinds: [
+            SyntaxKind.CallExpression,
+            SyntaxKind.ReturnStatement,
+            SyntaxKind.ArrowFunction,
+            SyntaxKind.JsxElement,
+            SyntaxKind.JsxOpeningElement,
+            SyntaxKind.JsxSelfClosingElement,
+            SyntaxKind.JsxFragment,
+            SyntaxKind.JsxExpression,
+          ],
           visit: (node, source) => {
             const path = ctx.relativePath(source);
+            gatherView(harness, node, path);
             if (Node.isCallExpression(node)) {
               gatherCall(harness, path, node);
-            } else if (path === CT_PROVIDERS && isChromeWidgets(node)) {
-              harness.chromeWidgets = node;
             }
           },
         },
@@ -533,6 +613,84 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: mountFiles('test("probe", ({ mount }) => { mount(<FeatureSurface />); });\n'),
+      expect: { count: 1, messageIncludes: "outside the production door" },
+      why: "a bare client component mounts a tree without the actual authenticated provider door",
+    },
+    {
+      mode: "types",
+      files: mountFiles('function CtClientProviders() { return <FeatureSurface />; }\ntest("probe", ({ mount }) => { mount(<CtClientProviders />); });\n'),
+      expect: { count: 1, messageIncludes: "outside the production door" },
+      why: "a same-named local wrapper is not the canonical client mount door",
+    },
+    {
+      mode: "types",
+      files: mountFiles(
+        'import { CtIsolation } from "../../../support/browser/ct-isolated-subject.tsx";\ntest("probe", ({ mount }) => { mount(<CtIsolation subject="FeatureSurface" isolates="feature"><FeatureSurface /></CtIsolation>); });\n',
+      ),
+      expect: { count: 1, messageIncludes: "requires an authored subject" },
+      why: "an isolation that does not say what it keeps apart is not an admitted mounting boundary",
+    },
+    {
+      mode: "types",
+      files: mountFiles(
+        'import { CtIsolation } from "../../../support/browser/ct-isolated-subject.tsx";\ntest("probe", ({ mount }) => { mount(<div><CtIsolation subject="Control" isolates="keeps the control apart"><span /></CtIsolation><FeatureSurface /></div>); });\n',
+      ),
+      expect: { count: 1, messageIncludes: "outside the production door" },
+      why: "an isolated sibling cannot grant admission to a bare client component beside it",
+    },
+    {
+      mode: "types",
+      files: mountFiles(
+        'import { CtClientProviders } from "../../../support/browser/ct-data-providers.tsx";\nfunction Story({ good }: { good: boolean }) { return good ? <CtClientProviders /> : <FeatureSurface />; }\ntest("probe", ({ mount }) => { mount(<Story good={true} />); });\n',
+      ),
+      expect: { count: 1, messageIncludes: "outside the production door" },
+      why: "all authored component return branches are judged rather than taking the first valid branch",
+    },
+    {
+      mode: "types",
+      files: mountFiles(
+        'import { CtClientProviders } from "../../../support/browser/ct-data-providers.tsx";\ntest("probe", ({ mount }) => { mount.call(null, <CtClientProviders />); });\n',
+      ),
+      expect: { count: 1, messageIncludes: "indirect or empty native mount" },
+      why: "an unsupported Function wrapper remains a refusal instead of hiding the native mount",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { AuthedProviders } from "./ct-door.ts";\nfunction createAuthedComposition() { return {}; }\nexport function CtClientProviders() { return <AuthedProviders composition={createAuthedComposition()} />; }\n',
+      }),
+      expect: { count: 1, messageIncludes: "production createAuthedComposition factory" },
+      why: "a local factory with the production name cannot replace genuine graph construction",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition } from "./ct-door.ts";\nconst composition = createAuthedComposition({});\nexport function CtClientProviders() { return <div />; }\n',
+      }),
+      expect: { count: 1, messageIncludes: "actual AuthedProviders stack" },
+      why: "a genuine factory call does not excuse replacing the actual provider stack",
+    },
+    {
+      mode: "types",
+      files: proofFiles({ [CT_DOOR]: ctDoor({ chatSettingsSections: "memberA, memberB" }) }),
+      expect: { count: 1, messageIncludes: "canonical production declaration" },
+      why: "an equal copied chat-settings list is still a second assembly",
+    },
+
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_DOOR]: ctDoor({ toolRenderers: "memberA, memberB" }),
+      }),
+      expect: { count: 1, messageIncludes: "canonical production declaration" },
+      why: "even an equal hand list is a copied assembly rather than the production door",
+    },
+
     {
       mode: "types",
       files: proofFiles({ [CT_DOOR]: ctDoor({ configSections: "sectionB, sectionA" }) }),
@@ -577,7 +735,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: proofFiles({ [CT_DOOR]: ctDoor({ chromeWidgets: "memberA" }) }),
-      expect: { count: 2, messageIncludes: "memberB (door 1, CT 0)" },
+      expect: { count: 1, messageIncludes: "memberB (door 1, CT 0)" },
       why: "a CT chrome list missing a production widget renders a topbar the product does not ship, and the harness that assembles it no longer takes the production list",
     },
     {
@@ -600,13 +758,15 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: proofFiles({ [CT_DOOR]: 'export { toolRenderers } from "../../../packages/client/src/compose/contributors.ts";\n' }),
-      expect: { count: 9, messageIncludes: "does not export" },
-      why: "a CT door that stops exporting a production family is flagged once per missing family (eight here) and once for the harness widgets, never silently skipped",
+      files: proofFiles({
+        [CT_DOOR]: `export { toolRenderers } from "../../../${DOOR_CONTRIBUTORS}";\nexport { createAuthedComposition } from "../../../${DOOR_GROUPS}";\nexport { AuthedProviders } from "../../../${DOOR_PROVIDERS}";\nexport { createClientRuntime } from "../../../${DOOR_RUNTIME}";\n`,
+      }),
+      expect: { count: 8, messageIncludes: "does not export" },
+      why: "missing family exports are reported while the genuine factory and provider imports remain intact",
     },
     {
       mode: "types",
-      files: proofFiles({ [DOOR_GROUPS]: GROUP_DOOR_TWO }),
+      files: proofFiles({ [DOOR_GROUPS]: GROUP_DOOR_TWO, [CT_GROUPS]: "const groupA = {};\nconst REAL_CONFIG_GROUPS = { a: groupA };\n" }),
       expect: { count: 1, token: "REAL_CONFIG_GROUPS", messageIncludes: "b=>groupB (door 1, CT 0)" },
       why: "ct-config-groups is governed by the same two-sided mirror contract, through the production group door",
     },
@@ -621,14 +781,18 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: proofFiles({ [CT_PROVIDERS]: `${PROVIDERS_CLEAN}const hand = createContributorRegistry("tool-renderers", []);\n` }),
-      expect: { count: 1, messageIncludes: 'mints the "tool-renderers" door registry by hand' },
+      files: proofFiles({
+        [CT_PROVIDERS]: `${PROVIDERS_CLEAN}${importsFor("../../../")}const hand = createContributorRegistry<SectionContribution>("tool-renderers", []);\n`,
+      }),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
       why: "the harness may not rebuild a door registry (the empty tool-renderer registry the chat stories used to mount)",
     },
     {
       mode: "types",
-      files: proofFiles({ [CT_PROVIDERS]: `${PROVIDERS_CLEAN}const hand = createContributorRegistry("chat-settings-sections", []);\n` }),
-      expect: { count: 1, messageIncludes: 'mints the "chat-settings-sections" door registry by hand' },
+      files: proofFiles({
+        [CT_PROVIDERS]: `${PROVIDERS_CLEAN}${importsFor("../../../")}const hand = createContributorRegistry<SectionContribution>("chat-settings-sections", []);\n`,
+      }),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
       why: "the harness may not rebuild the This chat section registry empty: every shell CT then renders the tab without the production sections",
     },
     {
@@ -640,10 +804,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: proofFiles({
-        [CT_PROVIDERS]: 'const realChromeRegistry = createContributorRegistry("chrome", assembleChrome({ sections, modals, widgets: [bell, wand] }));\n',
+        [CT_PROVIDERS]: `${importsFor("../../../")}const realChromeRegistry = createContributorRegistry<SectionContribution>("chrome", []);\n`,
       }),
-      expect: { count: 1, messageIncludes: "must assemble `widgets: chromeWidgets`" },
-      why: "the real chrome assembly takes the door's widget list, never a hand array that drops the plugin and bug-report widgets",
+      expect: { count: 3, messageIncludes: "createAuthedComposition factory" },
+      why: "a hand-minted chrome registry cannot replace the production composition factory and provider stack",
     },
     {
       mode: "types",
@@ -752,15 +916,30 @@ export const gate = defineGate({
   mustPass: [
     {
       mode: "types",
-      files: proofFiles(),
-      why: "a CT door that re-exports every production declaration, with a harness that consumes it, is clean",
+      files: mountFiles(
+        'import { CtClientProviders as Door } from "../../../support/browser/ct-data-providers.tsx";\nfunction Story() { return <Door><FeatureSurface /></Door>; }\ntest("probe", ({ mount }) => { const mountAlias = mount; mountAlias(<Story />); });\n',
+      ),
+      why: "native mount aliases and a genuine door imported under another name keep canonical identity",
+    },
+    {
+      mode: "types",
+      files: mountFiles(
+        'import * as isolation from "../../../support/browser/ct-isolated-subject.tsx";\ntest("probe", ({ mount }) => { mount(<isolation.CtIsolation subject="FeatureSurface" isolates="keeps the component state apart"><FeatureSurface /></isolation.CtIsolation>); });\n',
+      ),
+      why: "a namespace import reaches the same named isolation without being mistaken for an intrinsic element",
     },
     {
       mode: "types",
       files: proofFiles({
-        [CT_DOOR]: ctDoor({ toolRenderers: "memberA, memberB" }),
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition as build, AuthedProviders as Deliver } from "./ct-door.ts";\nconst composition = build({});\nexport function CtClientProviders() { return <Deliver composition={composition} />; }\n',
       }),
-      why: "a hand list identical to the production list in membership and order is clean",
+      why: "factory and provider aliases still use the actual production declarations",
+    },
+    {
+      mode: "types",
+      files: proofFiles(),
+      why: "a CT door that re-exports every production declaration, with a harness that consumes it, is clean",
     },
     {
       mode: "types",
@@ -786,11 +965,6 @@ export const gate = defineGate({
         "tests/client/features/probe/registry.test.ts",
       ),
       why: "a unit test is not mounted by a CT or story, so the factory's own duplicate-id throw can be asserted on a hand-made roster",
-    },
-    {
-      mode: "types",
-      files: proofFiles({ [CT_DOOR]: ctDoor({ chatSettingsSections: "memberA, memberB" }) }),
-      why: "a chat settings section list identical to the production list in membership and order is clean",
     },
   ],
 });

@@ -2,7 +2,11 @@
 // registries that ship (`client-compose-door-only`, Spine-Testing §10). The door's own halves import the
 // sibling files directly; the authed assembly stays behind the `/` route's lazy boundary.
 
+export { AppDataProviders } from "./app-data-providers.tsx";
+export { configGroups, createAuthedComposition, modals } from "./authed-composition.tsx";
+export { AuthedProviders } from "./authed-providers.tsx";
 export { characterDetailContributors, makeChatContextContributors, makeChatContextRegions } from "./chat-context.ts";
+export { browserSessionDocumentHost, createClientRuntime } from "./client-runtime.ts";
 export { configSections } from "./config-sections.ts";
 export {
   chatSettingsSections,

@@ -38,6 +38,7 @@ export {
   useAppearanceBootHint,
 } from "./appearance-boot-hint.ts";
 export { assembleChrome } from "./assemble-chrome.ts";
+export type { AuthedComposition } from "./authed-composition.ts";
 export { closeCharacterGallery, openCharacterGallery, useCharacterGalleryTarget } from "./character-gallery-store.ts";
 export {
   __resetTagFilter,

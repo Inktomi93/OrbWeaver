@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterAll, beforeAll } from "vitest";
-import { IMPORT_ENTRY_ROOTS } from "../../tooling/src/floor/compiler/import-population.ts";
+import { selectImportEntries } from "../../tooling/src/floor/compiler/import-population.ts";
 import { TEST_KIND_SUFFIXES } from "../../tooling/src/floor/testing/test-kinds.ts";
 
 interface DcRestriction {
@@ -62,14 +62,17 @@ const ROOT = join(import.meta.dirname, "..", "..");
 const VAL = "export const t = 1;\n";
 const CACHE_TRIPWIRE_FIXTURE = "packages/kit/src/__dc_cache_fresh_node.ts";
 let fixtureRoot = "";
+const fixturePaths = new Set<string>();
 
 function fx(rel: string, content: string): void {
+  fixturePaths.add(rel);
   const abs = join(fixtureRoot, rel);
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, content);
 }
 
 function copyFixtureFile(rel: string): void {
+  fixturePaths.add(rel);
   const destination = join(fixtureRoot, rel);
   mkdirSync(dirname(destination), { recursive: true });
   copyFileSync(join(ROOT, rel), destination);
@@ -82,6 +85,7 @@ function linkPackageDependency(packageDir: string, dependency: string, target = 
 }
 
 function writeNativeSubstrate(): void {
+  copyFixtureFile("tests/support/package.json");
   for (const packageDir of [
     "packages/kit",
     "packages/contracts",
@@ -102,6 +106,7 @@ function writeNativeSubstrate(): void {
     linkPackageDependency("packages/ui", dependency);
   }
   linkPackageDependency("packages/client", "@orb/ui", join(fixtureRoot, "packages/ui"));
+  linkPackageDependency("tests/support", "@orb/server", join(fixtureRoot, "packages/server"));
 
   fx("packages/contracts/src/credentials/index.ts", "export interface ResolvedCredential { readonly apiKey: string; }\n");
   fx("packages/server/src/index.ts", "export type AppRouter = { readonly ping: true };\n");
@@ -359,6 +364,15 @@ function writeAllFixtures(): void {
   // testkit-app-router-bridge: the kit takes AppRouter from the server root as a type; a value edge is the violation.
   fx("tests/support/node/__dc/router-type.ts", `import type { AppRouter } from "../../../../packages/server/src/index.ts";\nexport type R = AppRouter;\n`);
   fx("tests/support/node/__dc/router-value.ts", `import { AppRouter } from "../../../../packages/server/src/index.ts";\nexport const r = AppRouter;\n`);
+  fx("packages/server/src/domain/chat/index.ts", VAL);
+  fx("tests/support/browser/__dc/server-value.ts", `import { t } from "@orb/server/domain/chat";\nexport const value = t;\n`);
+  fx("tests/support/browser/__dc/server-reexport.ts", `export { t } from "@orb/server/domain/chat";\n`);
+  fx("tests/support/browser/__dc/server-dynamic.ts", `export const value = (await import("@orb/server/domain/chat")).t;\n`);
+  fx("tests/support/browser/__dc/router-type.ts", `import type { AppRouter } from "@orb/server";\nexport type Router = AppRouter;\n`);
+  fx("tests/support/node/__dc/server-runtime.tsx", `import { t } from "@orb/server/domain/chat";\nexport const value = t;\n`);
+  fx("tests/client/features/__dc/probe-stories.tsx", `import { t } from "../../../../packages/server/src/domain/chat/index.ts";\nexport const value = t;\n`);
+  fx("tests/contracts/probe.fixtures.tsx", `import { t } from "../../packages/server/src/domain/chat/index.ts";\nexport const value = t;\n`);
+  fx("tests/contracts/bridge.fixtures.tsx", `import type { AppRouter } from "../../packages/server/src/index.ts";\nexport type Router = AppRouter;\n`);
   // testkit-tooling-doors: the kit may enter a tool's front door or the floor, never a tool's internals.
   fx("tooling/src/__dc_tb/index.ts", VAL);
   fx("tooling/src/floor/process/__dc_floor.ts", VAL);
@@ -436,7 +450,13 @@ function runCruise(): Violation[] {
     // changes the child cwd back to the workspace and silently cruises the real tree instead.
     stdout = execFileSync(
       join(ROOT, "node_modules/.bin/depcruise"),
-      [...IMPORT_ENTRY_ROOTS.filter((dir) => existsSync(join(fixtureRoot, dir))), "--config", join(ROOT, ".dependency-cruiser.cjs"), "--output-type", "json"],
+      [
+        ...selectImportEntries([...fixturePaths]).filter((path) => existsSync(join(fixtureRoot, path))),
+        "--config",
+        join(ROOT, ".dependency-cruiser.cjs"),
+        "--output-type",
+        "json",
+      ],
       {
         cwd: fixtureRoot,
         encoding: "utf8",
@@ -617,6 +637,25 @@ test("the test kit reaches the server root only as the type-only AppRouter bridg
   expect(tooling).toEqual(["tooling/src/__dc_ta/testkit.ts"]);
   const doors = allViolations.filter((violation) => violation.rule.name === "testkit-tooling-doors").map((violation) => violation.from);
   expect(doors).toEqual(["tests/support/node/__dc/tool-internal.ts"]);
+});
+
+test("native browser stories, fixtures and support reject server value routes while admitting type-only and Node-world routes", () => {
+  const sources = allViolations
+    .filter((violation) => violation.rule.name === "browser-tests-no-server-runtime")
+    .map((violation) => violation.from)
+    .toSorted();
+  expect(sources).toEqual([
+    "tests/client/features/__dc/probe-stories.tsx",
+    "tests/contracts/probe.fixtures.tsx",
+    "tests/support/browser/__dc/server-dynamic.ts",
+    "tests/support/browser/__dc/server-reexport.ts",
+    "tests/support/browser/__dc/server-value.ts",
+  ]);
+  expect(allViolations.some((violation) => violation.rule.name === "not-to-unresolvable" && sources.includes(violation.from))).toBe(false);
+  expect(selectImportEntries([...fixturePaths])).toContain("tests/contracts/probe.fixtures.tsx");
+  expect(sources).not.toContain("tests/contracts/bridge.fixtures.tsx");
+  expect(sources).not.toContain("tests/support/browser/__dc/router-type.ts");
+  expect(sources).not.toContain("tests/support/node/__dc/server-runtime.tsx");
 });
 
 test("helper worlds reject node→browser and type-only iso→node while preserving same-world type imports", () => {

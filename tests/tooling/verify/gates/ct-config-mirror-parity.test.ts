@@ -1,4 +1,4 @@
-// The CT config mirrors are hand-authored test composition roots. This pin drives their parity policy
+// CT mounts must consume production composition rather than hand-authored mirrors. This pin drives that policy
 // through the production proof dispatcher and separately proves filesystem discovery sees the policy. Its
 // real-corpus liveness arm is DATA in `_liveness/tests.ts`, run by the one liveness runner.
 
@@ -11,7 +11,7 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-test("ct config mirror parity keeps missing, extra, duplicate, wrong-anchor and group controls", () => {
+test("CT composition preserves forwarding, factory, mounting and named-isolation controls", () => {
   expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
@@ -24,7 +24,7 @@ test("the production loader dispatches ct-config-mirror-parity", { timeout: scal
 // several times longer than the door-only pass it started as.
 const WHOLE_TREE_PASS_FACTOR = 4;
 
-test("the checked-in production and CT config compositions have equal multisets", {
+test("the checked-in CT mounting and registry door uses canonical production composition", {
   timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS * WHOLE_TREE_PASS_FACTOR),
 }, ({ repoRoot }) => {
   const result = runPolicyPass({
