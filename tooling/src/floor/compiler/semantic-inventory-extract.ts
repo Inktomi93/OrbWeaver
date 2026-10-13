@@ -91,6 +91,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const fileSystem = inventoryFileSystem(base, request.overlay, inputs);
   const implementationInputs = [
     import.meta.filename,
+    fileURLToPath(new URL("./ts-workspace.ts", import.meta.url)),
     fileURLToPath(new URL("./semantic-inventory-filesystem.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-contract.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-inputs.ts", import.meta.url)),
@@ -109,13 +110,23 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     project.resolveSourceFileDependencies();
     return nativeCompilerSourceFiles(project);
   });
+  // Bootstrap forgetting can recreate ancestors; retain the native SourceFiles, not their incidental wrappers.
+  for (const sf of files) {
+    sf.forgetDescendants();
+  }
   const roots = request.descriptor.files.map((path) => canonicalInventoryPath(resolve(request.root, path)));
   const authored = new Set(
     [...readAuthoredRepositoryInventory(request.root).paths, ...(request.overlay?.files.map((file) => file.path) ?? [])].map((path) =>
       canonicalInventoryPath(resolve(request.root, path)),
     ),
   );
-  const facts = extractSourceFacts(project, files, authored);
+  const service = project.getLanguageService().compilerObject;
+  const program = service.getProgram();
+  if (program === undefined) {
+    throw new Error("native inventory language service has no Program");
+  }
+  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, files, authored);
+  const facts = { ...sourceFacts, references: extractReferenceFacts(service, referenceDeclarations) };
   return {
     format: INVENTORY_FORMAT,
     program: request.descriptor.id,
@@ -160,17 +171,23 @@ function registerReferenceDeclarations(declarations: readonly MorphNode[], autho
 }
 
 function extractSourceFacts(
-  project: Project,
+  program: ts.Program,
   files: readonly SourceFile[],
   authored: ReadonlySet<string>,
-): Pick<InventoryPartition, "exports" | "modules" | "bindings" | "references" | "witnesses"> {
+): Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses"> & { referenceDeclarations: ReadonlyMap<string, ReferenceDeclaration> } {
   const exports: InventoryPartition["exports"] = [];
   const modules: InventoryPartition["modules"] = [];
   const bindings: InventoryPartition["bindings"] = [];
   const witnesses: InventoryPartition["witnesses"] = [];
   const referenceDeclarations = new Map<string, ReferenceDeclaration>();
-  for (const sf of files) {
-    project.forgetNodesCreatedInBlock(() => {
+  const standaloneSources = nativeCompilerSourceFiles(program);
+  const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
+  try {
+    for (const original of files) {
+      const sf = byCompilerSource.get(original.compilerNode);
+      if (sf === undefined) {
+        throw new Error(`native inventory source is not shared with its language-service Program: ${original.getFilePath()}`);
+      }
       const file = canonicalInventoryPath(sf.getFilePath());
       // Dependency exports are required because importing worlds can resolve a package to a distinct closure.
       for (const [name, declarations] of sf.getExportedDeclarations()) {
@@ -187,13 +204,15 @@ function extractSourceFacts(
           registerReferenceDeclarations(symbol?.getDeclarations() ?? [], authored, referenceDeclarations);
         }
       }
-    });
+      sf.forgetDescendants();
+    }
+  } finally {
+    // These wrappers belong to the standalone checker context, never either native Program's host.
+    for (const sf of standaloneSources) {
+      sf.forget();
+    }
   }
-  // Scoped forgetting can recreate ancestor wrappers while releasing children; clear those without discarding SourceFiles.
-  for (const sf of files) {
-    sf.forgetDescendants();
-  }
-  return { exports, modules, bindings, witnesses, references: extractReferenceFacts(project.getLanguageService().compilerObject, referenceDeclarations) };
+  return { exports, modules, bindings, witnesses, referenceDeclarations };
 }
 
 function extractReferenceFacts(
