@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-13
 priority: P2
+lane: codex/shared-references-955
 plan: test-foundation
 ---
 
@@ -10,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-`ast/lib/resolve.ts`, `usage.ts` and `ast/ops/wiring.ts` answer reference and member-read questions beside `floor/code-facts/reference-fact.ts`. Move `pnpm ast refs`, `callers`, `importers` and `unwired` onto the floor reader and delete the ast copies. Item 944 started this for member reads. About fifty more sites read a bracket key by hand with `getArgumentExpression`: in `tooling/src/ast/lib` (fields, liveness), `ast/ops` (regkeys, registry-candidates, swallowed), many `verify/lib` readers (bus, css-family, static-class, json-column, caught-failure, id-brand and others) and many gates. Move them family by family onto the floor reader, diffing each owning gate before and after. Controls to carry: the clientgap false positive on ViewerView, a JSDoc link that is not a consumer, and mutable bindings that are not const aliases.
+Consolidate named declaration selection, module targets and literal member/index extraction in the floor. Reference commands live in `ast/ops/symbols.ts`; wiring and checker adapters preserve their own admission and reporting. `ast/lib/usage.ts` is help text, not a reader. Preserve native/store identity, relative-only import policy, optional and bracket spellings, type-index distinctions and literal-versus-const judgments. Carry ViewerView client-gap, JSDoc-not-consumer and mutable-binding controls.
 
 ## Why
 
@@ -22,4 +23,4 @@ Two reference stacks mean a `pnpm ast` verb and a gate can disagree about who ca
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The bounded source batch is authored; its floor and native repository equivalence remain pending. Existing reference verbs already use the canonical reference reader. Keep native views until store coverage is proven: dynamic importer file lookup differs from typed module targets, and dependency-origin reference keys are not completely extracted. An absent stored key must not become a false empty-reference verdict. Preserve extensionless importer controls and unresolved outcomes rather than routing through synthetic compiler options.

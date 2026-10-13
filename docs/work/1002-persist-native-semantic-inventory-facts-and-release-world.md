@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-13
 priority: P1
 area: tooling
-lane: codex/semantic-store-1002
+lane: codex/store-memory-1002
 plan: test-foundation
 ---
 
@@ -32,4 +32,6 @@ Main owns the cold frozen replay on the reviewed lane source. It runs the comple
 
 The replay stopped during native extraction after source review confirmed duplicate declaration and name reference queries. It supplies no complete inventory verdict. Reuse each native result for both physical keys, preserving every demanded fact. Prove query reuse and output parity before scheduling the corrected frozen replay.
 
-The reviewed query correction preserves native results and both physical keys while executing each query once. Its discriminating native control and affected checks pass. The reviewed store is integrated without closing this item. The corrected cold replay has started on frozen lane source; its historical input does not qualify current main production usage. Complete replay and memory qualification remain required.
+The reviewed query correction preserves native results and both physical keys while executing each query once. Its controls and affected checks pass; the reviewed store is integrated without closure. The corrected frozen cold replay fails during client native extraction with a fatal heap OOM at the unchanged managed limit. It produces no complete inventory verdict. Historical input does not qualify current main usage.
+
+Native reference wrappers retain source-event subscriptions until source modification; this worker never modifies sources. The repair must preserve native reference ordering, alias filtering and physical spans without those wrappers. Bounded parity controls precede another native qualification. Checker and fact-array costs remain separate questions; no heap increase, population shrink or implicit replay retry is authorized.

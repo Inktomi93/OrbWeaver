@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-12
+updated: 2026-10-13
 priority: P3
 ---
 
@@ -21,4 +21,4 @@ Each listed doc matches the tree; the citation gate reds a dead section referenc
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The generated enforcement index omits maintained ESLint ownership and directs new syntax claims to custom gates. Update its generator's layer prose to match native ownership and retained semantic remainders. Preserve the derived gate table and its generation procedure. Schedule regeneration through main after the cold inventory replay releases shared load; do not hand-edit the generated law.
