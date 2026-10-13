@@ -1,4 +1,4 @@
-// Conformance entry for the eleven CLIENT-side policies whose exceptions were sanctioned HOMES. Every
+// Conformance entry for CLIENT-side policies whose exceptions are sanctioned HOMES. Every
 // proof runs through the production dispatcher on an isolated population; the pins below cover what a proof
 // cannot express — a receipt REFUSAL (a tool error, not a finding) and the central grant liveness these
 // policies' whole authority rests on.
@@ -12,7 +12,6 @@ import { gate as clientCacheSurgeryOnlyInData } from "../../../../tooling/src/ve
 import { gate as noEffectOnSharedSelection } from "../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
 import { gate as noInlineInvalidateOutsideSeam } from "../../../../tooling/src/verify/gates/no-inline-invalidate-outside-seam.ts";
 import { gate as noRawIntlTime } from "../../../../tooling/src/verify/gates/no-raw-intl-time.ts";
-import { gate as noUntrustedHtmlInMainDom } from "../../../../tooling/src/verify/gates/no-untrusted-html-in-main-dom.ts";
 import { gate as registryContextViaMint } from "../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../tooling/src/verify/gates/render-error-via-battery.ts";
 import { gate as selectionStoreViaFactory } from "../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
@@ -27,7 +26,6 @@ const FAMILY: readonly GatePolicy[] = [
   noEffectOnSharedSelection,
   noInlineInvalidateOutsideSeam,
   noRawIntlTime,
-  noUntrustedHtmlInMainDom,
   registryContextViaMint,
   renderErrorViaBattery,
   selectionStoreViaFactory,

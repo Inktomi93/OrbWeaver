@@ -19,7 +19,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { PRODUCT_STYLESHEETS } from "../../../../../tooling/src/verify/contract/css-family.ts";
 import { gate as cssVarDefinedHealth } from "../../../../../tooling/src/verify/gates/css-var-defined-health.ts";
-import { gate as noCallerUserId } from "../../../../../tooling/src/verify/gates/no-caller-user-id.ts";
 import { gate as noHandwrittenWireJsonSchema } from "../../../../../tooling/src/verify/gates/no-handwritten-wire-json-schema.ts";
 import { gate as noInlinePackageInterface } from "../../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as noInlineTypes } from "../../../../../tooling/src/verify/gates/no-inline-types.ts";
@@ -37,7 +36,6 @@ import { gate as packageSubpathCrossing } from "../../../../../tooling/src/verif
 import { gate as playwrightCssTopology } from "../../../../../tooling/src/verify/gates/playwright-css-topology.ts";
 import { gate as policyRefusalCoverage } from "../../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
 import { gate as policyWaiverIdentity } from "../../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
-import { gate as queryMachineSealsHealth } from "../../../../../tooling/src/verify/gates/query-machine-seals-health.ts";
 import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/verify/gates/real-corpus-liveness-manifest.ts";
 import { gate as scrubberFactoryHome } from "../../../../../tooling/src/verify/gates/scrubber-factory-home.ts";
 import { gate as staleDraftDecisionHealth } from "../../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
@@ -86,16 +84,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ...PRODUCT_STYLESHEETS.map((path): RealCorpusOverlay => ({ kind: "resource", path, source: ".liveness { color: inherit; }\n" })),
     ],
     messageIncludes: "css-var-defined measured zero",
-  },
-  {
-    policy: noCallerUserId,
-    overlays: [
-      add(
-        `${DOMAIN}/liveness-caller.ts`,
-        `export function livenessCaller(${["caller", "UserId"].join("")}: string): string {\n  return ${["caller", "UserId"].join("")};\n}\n`,
-      ),
-    ],
-    messageIncludes: "is forbidden (D19)",
   },
   {
     policy: noHandwrittenWireJsonSchema,
@@ -197,11 +185,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: policyWaiverIdentity,
     overlays: [probeGate({ id: "liveness-no-waiver-arm", authority: "ordinary" })],
     messageIncludes: "no positive §6.2 identity arm",
-  },
-  {
-    policy: queryMachineSealsHealth,
-    overlays: [{ kind: "neutralise", path: "packages/client/src/data/create-collection-surface.ts", source: "export const createCollectionSurface = null;\n" }],
-    messageIncludes: "useInfiniteQuery.",
   },
   {
     policy: realCorpusLivenessManifest,

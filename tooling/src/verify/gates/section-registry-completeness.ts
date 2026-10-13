@@ -10,10 +10,7 @@
 // resolved across files, so an imported initializer is not an unjudgeable blob: it is a definition whose
 // HOME is checked directly.
 //
-// THE ROUTE IMPORT ARM IS NOT HERE. "A non-auth feature front door may be imported only by the sanctioned
-// composition route" is a rule whose exceptions are recurring repository PERMISSIONS, not per-occurrence
-// waivers, so it is `route-imports-no-feature` under reviewed-grant authority — one authority per policy
-// (the same split the design's own `tooling-front-door` row prescribes).
+// Native ESLint import selectors own route feature doors and their exact composition/auth permissions.
 //
 // FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`,
 // one provider per definition kind) plus `lib/registry-definition-{anchor,field,home}.ts`, consumed

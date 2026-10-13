@@ -182,7 +182,7 @@ three seams. The three standing rulings (also D43 (1)/(2)/(3)):
 ### 11.2 The container model is a FREEZE, not an unwind
 
 Correction to D42 §4: features MAY use `@container`; only the SHELL tier may use viewport `@media`.
-`no-media-queries-in-features` + `no-layout-context-props` freeze this at a handful of existing sites'
+`no-media-queries-in-features` + ESLint layout-attribute restrictions in `eslint.config.js` freeze this at a handful of existing sites'
 cost — pin before features regrow the threading. (The near-zero unwind cost is the archaeology record.)
 
 ### 11.3 NEW structural primitives — convert every leaked convention into an API the call site can't bypass
@@ -301,7 +301,7 @@ Also pinned: `remark-gfm { singleTilde:false }` (else `10~20°C` renders struck-
 (per-message trust selection + `MessageMedia`/`SandboxFrame` dispatch) is in place: `message-row.tsx`
 resolves `render` via `resolveRowRenderPolicy`; `message-content.tsx` dispatches markdown/media/html-card
 per block. The `html-card` and `asset`-media paths are pre-wired, awaiting their producers (card grammar
-needs `cardTrust`; asset needs a resolver and composer attach). *Gate `no-untrusted-html-in-main-dom`;
+needs `cardTrust`; asset needs a resolver and composer attach). *ESLint direct HTML-attribute restrictions in `eslint.config.js` and Biome `noDangerouslySetInnerHtml`;
 Biome `noRestrictedElements` in `biome.json` for raw media (UI-Theming-and-Content.md §12.6).*
 
 ### 11.7 Sequencing (born-compliant — the non-negotiable)

@@ -1271,7 +1271,7 @@
 }
 
 /* The two IDENTITY arms are both in the DOM; the container query BELOW shows exactly one (a WIDTH question
- * belongs to the container, never to a `compact` prop — `no-layout-context-props`).
+ * belongs to the container, never to a `compact` prop — ESLint layout-attribute restrictions in `eslint.config.js`).
  *
  * DECLARED HERE, ABOVE that query, on purpose: these selectors and the query's are the same specificity
  * (0,2,0), so source order decides. Declared after it, this `display: none` won the narrow arm back and the

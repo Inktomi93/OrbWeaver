@@ -4,7 +4,7 @@
 // padding/radius every primitive underneath resolves. Features therefore never express island spacing or
 // radius at all — the D44 impossible-by-construction pattern.
 //
-// Why an ATTRIBUTE and not a prop/context: `no-layout-context-props` bans `density`/`compact`/`inDrawer`
+// Why an ATTRIBUTE and not a prop/context: ESLint layout-attribute restrictions in `eslint.config.js` ban `density`/`compact`/`inDrawer`
 // props and UI-Architecture-and-Layout §4 states density is the `data-*` axis. This is the SURFACE-CLASS
 // axis; the user-pref `data-density="comfortable|compact"` axis is orthogonal and untouched (D9).
 //

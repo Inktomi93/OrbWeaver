@@ -26,7 +26,7 @@ import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as baseuiRenderProp } from "../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
-import { gate as routeImportsNoFeature } from "../../../../tooling/src/verify/gates/route-imports-no-feature.ts";
+import { gate as toolingRootConfigImport } from "../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
 import { policyGrantIdentityRowCount } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -104,12 +104,12 @@ test("a planted root that carries a REVIEWED-GRANT target judges that policy's r
 }, async ({ plantedTree, repoRoot, runCli }) => {
   // Arm 1 — a real reviewed-grant policy re-exported into the corpus: its own grant rows are judged and valid.
   const partial = await plantedTree({
-    [`${GATES}/route-imports-no-feature.ts`]: realPolicyShim(repoRoot, "route-imports-no-feature"),
+    [`${GATES}/tooling-root-config-import.ts`]: realPolicyShim(repoRoot, "tooling-root-config-import"),
   });
   const judged = await runCli("verify", ["policy-conformance"], { cwd: partial, timeoutMs: CLI_TIMEOUT_MS });
   await expect(judged).toExitWith(0);
   expect(judged.stdout).toContain(
-    `1 policies · ${String(proofRows(routeImportsNoFeature))} proof rows · 0 refusal rows · ${String(identityRows(routeImportsNoFeature))} identity-proof rows · 0 failure(s) · `,
+    `1 policies · ${String(proofRows(toolingRootConfigImport))} proof rows · 0 refusal rows · ${String(identityRows(toolingRootConfigImport))} identity-proof rows · 0 failure(s) · `,
   );
   expect(judged.stdout).toMatch(/· [1-9]\d* grant rows \(rows naming loaded policies\) · 0 invalid/u);
 
@@ -119,13 +119,13 @@ test("a planted root that carries a REVIEWED-GRANT target judges that policy's r
   // equals the count of rows naming policies OTHER than the one loaded — the arm reads the equality off the run
   // rather than pinning a table size that moves with every reviewed grant.
   const whole = await plantedTree({
-    [`${GATES}/route-imports-no-feature.ts`]: realPolicyShim(repoRoot, "route-imports-no-feature"),
+    [`${GATES}/tooling-root-config-import.ts`]: realPolicyShim(repoRoot, "tooling-root-config-import"),
     "tooling/src/verify/lib/reviewed-grants.ts": `export * from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/reviewed-grants.ts")).href)};\n`,
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: whole, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
   expect(res.stdout).toContain("· [invalid-grant] · reviewed grant targets an unknown policy:");
-  expect(res.stdout).not.toContain("reviewed grant targets an unknown policy: route-imports-no-feature");
+  expect(res.stdout).not.toContain("reviewed grant targets an unknown policy: tooling-root-config-import");
   const summary = /(?<rows>\d+) grant rows \(whole table\) · (?<invalid>\d+) invalid/u.exec(res.stdout)?.groups;
   expect(summary).toBeDefined();
   const rows = Number(summary?.["rows"]);

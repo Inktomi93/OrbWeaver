@@ -1,20 +1,4 @@
-// The standing conformance + differential net for the fourth SIMPLE-tier wave (#1584/#1943): two pure
-// syntax policies converted from free-form `visitFile`/descendant-walk descriptors into kind-indexed
-// `defineGate` visitors with all state moved into `create`.
-//
-//   no-form-state-in-useeffect             — the legacy `deps.forEachDescendant` walk inverted into a
-//                                              direct MEMBER_ACCESS_KINDS subscription plus an ancestor
-//                                              climb (#1506 identity-not-spelling preserved).
-//   persist-partialize-and-total-migrate    — factory options completeness; since #1954 it reports ONE finding
-//                                              per call site rather than one per missing key, so its ordinary
-//                                              waiver door is addressable at all. The bare `persist(` ban
-//                                              lives in eslint.config.js (`orb/no-raw-zustand-persist`).
-//
-// Same recipe as simple-visitors-wave-2.suite.test.ts: `verifyPolicyProofs` runs each final policy's own proofs
-// through the production runtime; the differential replays every ORIGINAL mustFlag/mustPass example from
-// the frozen pre-conversion source (79e5f7e6db, the commit immediately before this wave) through both the
-// legacy dispatcher and the final one.
-
+// Conformance and positional waiver identity for computed form dependencies and persisted-store options.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -55,7 +39,7 @@ test("a waiver naming a DIFFERENT known ordinary policy at the same position sup
     root: ROOT,
     project: projectOf({
       "src/some-component.tsx":
-        "// @orb-waive persist-partialize-and-total-migrate(form.state.values): wrong policy id entirely.\nuseEffect(() => {}, [form.state.values]);\n",
+        'const key = "store";\n// @orb-waive persist-partialize-and-total-migrate(form[key]): wrong policy id entirely.\nuseEffect(() => {}, [form[key]]);\n',
     }),
     reviewedGrants: [],
     failOnWarnings: false,

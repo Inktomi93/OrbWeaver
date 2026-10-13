@@ -43,7 +43,7 @@ export interface ShellTopbarProps {
   /** What the NARROW row calls this screen: the OPEN member's own name where the section resolves one
    *  (`SectionDefinition.useSelectionTitle`), else the section label. CONTENT, not layout context — WHICH
    *  identity shows is a width question the container query answers (`shell.css`), never a prop
-   *  (`no-layout-context-props`: the container model replaces `compact`/`isSheet`/`density` props).
+   *  (ESLint layout-attribute restrictions in `eslint.config.js`: the container model replaces `compact`/`isSheet`/`density` props).
    *
    *  Why the narrow row swaps at all (side-eye P1, measured at 320px): the section's rich `header` cluster
    *  (avatars + member chip + badges) is desktop-shaped, and with the trail taking 277 of 320px the LEAD

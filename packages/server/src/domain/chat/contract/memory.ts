@@ -64,7 +64,7 @@ export interface ResolvedMemoryConfig {
  *  ALWAYS a real `CharacterId` (inv 8): the synthetic group-as-character for the shared bucket (solo/merged/
  *  narrator — everyone sees everything), or a seated character's id for a scoped-group per-character bucket
  *  (egocentric-only recall). `isGroup` rides onto the digest row (`chat_digests.isGroup`, the analytics split).
- *  Derived by the engine at compose from `cardScope` + the active speaker — NOT a branch here (`no-if-is-group`:
+ *  Derived by the engine at compose from `cardScope` + the active speaker — NOT a branch here (D16:
  *  solo keys the same way as merged-of-one, just with the seated character vs the synthetic group char). */
 export interface MemoryScope {
   readonly chatId: ChatId;

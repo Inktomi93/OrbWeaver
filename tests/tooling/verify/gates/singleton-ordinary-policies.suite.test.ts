@@ -1,33 +1,4 @@
-// The standing family floor for five ORDINARY policies that each declare a SINGLETON `family:` — their own
-// id — and which, before this file, had no family test anywhere in `tests/tooling/verify/gates/` (#1994,
-// re-derived 2026-09-12 by grepping each id across that directory with a `no-inline-types` positive
-// control). They are grouped here by that fact and nothing else; the header says so plainly rather than
-// inventing a shared theme, because §7 item 4 of docs/law/gate-runtime-standardization.md is explicit that a
-// theme is not a family.
-//
-//   baseui-render-prop-composition  — `asChild` (Radix's idiom) in @client/@ui JSX or a props signature.
-//   bus-on-data-no-store-write      — a raw `.setState(` inside a bus onData/onConnectionStateChange body.
-//   membership-fan-guard            — the `emitUserEvent` identifier under domain/chat/**.
-//   no-caller-user-id               — the `callerUserId` identifier anywhere but this gate tree.
-//   test-factory-contract           — the make*/seed* pure-vs-persisted split under tests/support/factories.
-//
-// WHAT THIS FILE CARRIES, AND WHY IT IS NOT A SECOND CONFORMANCE RUNNER: every one of these modules'
-// declared `mustFlag`/`mustPass` rows already executes on the static bar (`structure:policy-conformance`),
-// and four of the five already carry an in-module `mustPass` waiver row — the other valid §4.2 shape. What a
-// `mustPass` row structurally does NOT assert, and what therefore lives here, is `waivedFindings === 1` and
-// `authorityAlarms === []`: a row is green when the marker suppressed the finding AND green when the
-// fixture's finding was never produced in the first place, and it cannot distinguish "suppressed" from
-// "consumed nothing". The §4.2 triple — `effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []` —
-// is the arm (gold standard: ordinary-visitors-family.suite.test.ts:187-196, the POSITIVE arm only). §4.8's
-// fixture-specifier resolution control is the other standing piece of every family floor.
-//
-// §4.3 (reviewed grants) and §4.5 (refusal/receipt) do not apply to any of the five: all declare `facts: []`
-// and `resources: []`, resolve no home and derive no population, so there is no receipt to forge and
-// nothing to refuse about. §4.6 (the conversion differential): its "landing-commit evidence, not standing
-// law" clause was RETIRED by #2000 deliverable 3 (`(pruned from public history)`) — evidence may no longer vanish. One of
-// the five (`baseui-render-prop-composition`) was on the #2000 Tier-3 CLOSE-BY-RULE roster; the other four were not, and their
-// differentials are #2000 work rather than something this file claims.
-
+// Positional waiver identity for ordinary singleton policies, through the production policy runtime.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
@@ -35,7 +6,6 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { gate as baseuiRenderPropComposition } from "../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
 import { gate as membershipFanGuard } from "../../../../tooling/src/verify/gates/membership-fan-guard.ts";
-import { gate as noCallerUserId } from "../../../../tooling/src/verify/gates/no-caller-user-id.ts";
 import { gate as testFactoryContract } from "../../../../tooling/src/verify/gates/test-factory-contract.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
@@ -43,7 +13,7 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 
 const ROOT = "/singleton-ordinary-policies";
 
-const FAMILY: readonly GatePolicy[] = [baseuiRenderPropComposition, busOnDataNoStoreWrite, membershipFanGuard, noCallerUserId, testFactoryContract];
+const FAMILY: readonly GatePolicy[] = [baseuiRenderPropComposition, busOnDataNoStoreWrite, membershipFanGuard, testFactoryContract];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -57,7 +27,7 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
   return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project: projectOf(files), reviewedGrants: [], failOnWarnings: false });
 }
 
-test("the five singleton-family ordinary policies pass their production proof runtime", () => {
+test("the singleton-family ordinary policies pass their production proof runtime", () => {
   expect(verifyPolicyProofs(FAMILY)).toEqual([]);
 });
 
@@ -72,7 +42,7 @@ function danglingSpecifiers(files: readonly SourceFile[]): readonly string[] {
     .map((declaration) => `${declaration.getSourceFile().getFilePath()} -> ${declaration.getModuleSpecifierValue()}`);
 }
 
-test("every relative import in every proof of these five resolves inside the proof's own file map", () => {
+test("every relative import in every proof resolves inside the proof's own file map", () => {
   const shared = new Project({ useInMemoryFileSystem: true });
   const dangling: string[] = [];
   let sequence = 0;
@@ -108,7 +78,6 @@ test("every relative import in every proof of these five resolves inside the pro
 //   baseui-render-prop-composition  the ATTRIBUTE NAME, not the tag or the whole attribute
 //   bus-on-data-no-store-write      the bare `setState` identifier — the marker grammar forbids parens
 //   membership-fan-guard            each banned identifier OCCURRENCE
-//   no-caller-user-id               each banned identifier OCCURRENCE
 //   test-factory-contract           the FACTORY'S OWN NAME, not the `db` parameter the message names
 // ---------------------------------------------------------------------------------------------------
 const REASON = "the proof's stand-in reason; ends when this fixture stops flagging.";
@@ -146,17 +115,6 @@ test("membership-fan-guard: a waiver naming the banned identifier binds to its s
   expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
-test("no-caller-user-id: a waiver naming the banned identifier binds to its single occurrence", () => {
-  const waived = passOf(noCallerUserId, {
-    "packages/server/src/domain/chat/waived.ts": `// @orb-waive no-caller-user-id(callerUserId): ${REASON}\nexport const forward = (callerUserId: string): void => undefined;\n`,
-  });
-
-  expect(waived.toolErrors).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
 test("test-factory-contract: a waiver naming the FACTORY, not its db parameter, binds to its finding", () => {
   const waived = passOf(testFactoryContract, {
     "tests/support/node/factories/waived.ts": `// @orb-waive test-factory-contract(makeUser): ${REASON}\nexport function makeUser(db: unknown) {\n  return db;\n}\n`,
@@ -178,7 +136,7 @@ test("test-factory-contract: a waiver naming the FACTORY, not its db parameter, 
 // ---------------------------------------------------------------------------------------------------
 const DEAD = "names a position this carrier does not declare.";
 
-test("a waiver naming a DEAD position suppresses nothing and alarms, for every one of the five", () => {
+test("a waiver naming a DEAD position suppresses nothing and alarms, for every policy", () => {
   const arms: readonly (readonly [GatePolicy, Readonly<Record<string, string>>])[] = [
     [
       baseuiRenderPropComposition,
@@ -196,12 +154,6 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for every o
       membershipFanGuard,
       {
         "packages/server/src/domain/chat/verbs/dead.ts": `// @orb-waive membership-fan-guard(emitChatChanged): ${DEAD}\nexport const forward = emitUserEvent;\n`,
-      },
-    ],
-    [
-      noCallerUserId,
-      {
-        "packages/server/src/domain/chat/dead.ts": `// @orb-waive no-caller-user-id(triggeredBy): ${DEAD}\nexport const forward = (callerUserId: string): void => undefined;\n`,
       },
     ],
     [

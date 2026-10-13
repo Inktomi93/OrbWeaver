@@ -11,7 +11,6 @@ import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verif
 import { gate as noParallelSectionMap } from "../../../../tooling/src/verify/gates/no-parallel-section-map.ts";
 import { gate as placeholderCopyRegistry } from "../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
-import { gate as routeImportsNoFeature } from "../../../../tooling/src/verify/gates/route-imports-no-feature.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { gate as sectionRegistryCompleteness } from "../../../../tooling/src/verify/gates/section-registry-completeness.ts";
 import { gate as warningCodeCoverage } from "../../../../tooling/src/verify/gates/warning-code-coverage.ts";
@@ -32,7 +31,6 @@ test("registry definition policies keep their founding and nearest-legal fixture
       modalRegistryCompleteness,
       noParallelSectionMap,
       placeholderCopyRegistry,
-      routeImportsNoFeature,
       sectionFactoryContributionBundle,
       sectionRegistryCompleteness,
       warningCodeCoverage,

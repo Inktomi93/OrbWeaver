@@ -152,9 +152,13 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
   {
     policy: noFormStateInUseeffect,
     overlays: [
-      { kind: "add", path: "packages/client/src/features/chat/components/liveness-form-effect.tsx", source: "useEffect(() => {}, [form.state.values]);\n" },
+      {
+        kind: "add",
+        path: "packages/client/src/features/chat/components/liveness-form-effect.tsx",
+        source: 'export const formDependencyKey = "store"; useEffect(() => {}, [form[formDependencyKey]]);\n',
+      },
     ],
-    messageIncludes: "form.state.values",
+    messageIncludes: "computed form dependency",
   },
   {
     policy: noNulBytesInSource,
