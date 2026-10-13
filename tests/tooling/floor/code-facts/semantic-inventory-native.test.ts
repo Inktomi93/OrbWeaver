@@ -13,6 +13,8 @@ import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
 import { createSemanticWorkspace, semanticReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
+import { vi } from "vitest";
+import { declarationsNamed } from "../../../../tooling/src/floor/code-facts/reference-declarations.ts";
 
 function fixtureValue<T>(value: T | undefined): T {
   if (value === undefined) {
@@ -330,4 +332,80 @@ test("actual codemod transaction inventories preserve aliases, native package pa
   using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
   expect(latestInventoryGeneration(database)).toBe(committed.generation);
   expect(source(committed, "packages/kit/src/base.ts").getFullText()).toBe(original);
+});
+
+test("stored declaration selection preserves native local/export admission without invoking a syntax-carrier checker", ({ scratch }) => {
+  initialize(scratch);
+  write(
+    scratch,
+    "packages/kit/src/declarations.ts",
+    `
+export function direct(): void {}
+export const directValue = 1;
+function internal(): void {}
+function aliased(): void {}
+export { aliased as publicAlias };
+const localValue = 1;
+let mutableValue = 2;
+class LocalClass { method(): void {} }
+interface LocalInterface { value: string }
+type LocalType = LocalInterface;
+enum LocalEnum { Value }
+export default function NamedDefault(): void {}
+`,
+  );
+  write(scratch, "packages/kit/src/declarations-barrel.ts", 'export { direct as viaBarrel, publicAlias } from "./declarations";');
+  write(scratch, "packages/kit/src/default-alias.ts", "function publishedDefault(): void {} export default publishedDefault;");
+  const native = createSemanticWorkspace({ root: scratch });
+  using stored = createSemanticInventory({ root: scratch });
+  const names = [
+    "direct",
+    "directValue",
+    "viaBarrel",
+    "publishedDefault",
+    "internal",
+    "aliased",
+    "publicAlias",
+    "localValue",
+    "mutableValue",
+    "LocalClass",
+    "LocalInterface",
+    "LocalType",
+    "LocalEnum",
+    "method",
+    "NamedDefault",
+    "default",
+  ];
+  const expected = names.map((name) =>
+    declarationsNamed(native.sourceCorpus().getSourceFiles(), name).map((node) => [node.getSourceFile().getFilePath(), node.getStart(), node.getKind()]),
+  );
+  const files = stored.sourceCorpus().getSourceFiles();
+  const exportSpies = files.map((file) =>
+    vi.spyOn(file, "getExportedDeclarations").mockImplementation(() => {
+      throw new Error("syntax carrier invoked native export discovery");
+    }),
+  );
+  const declarationSpies = files
+    .flatMap((file) => [
+      ...file.getFunctions(),
+      ...file.getVariableDeclarations(),
+      ...file.getClasses(),
+      ...file.getInterfaces(),
+      ...file.getTypeAliases(),
+      ...file.getEnums(),
+    ])
+    .map((node) =>
+      vi.spyOn(node, "isExported").mockImplementation(() => {
+        throw new Error("syntax carrier invoked native export classification");
+      }),
+    );
+  try {
+    expect(names.map((name) => declarationsNamed(files, name).map((node) => [node.getSourceFile().getFilePath(), node.getStart(), node.getKind()]))).toEqual(
+      expected,
+    );
+  } finally {
+    for (const spy of [...exportSpies, ...declarationSpies]) {
+      spy.mockRestore();
+    }
+  }
 });

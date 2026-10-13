@@ -404,6 +404,37 @@ export function staticMemberAccess(node: MorphNode): MemberReference | undefined
   return fact?.kind === "resolved" ? fact.value : undefined;
 }
 
+/** A symbol mention inside a JSDoc link is documentation, distinct from JSDoc type annotations and code references. */
+export function isDocumentationLinkReference(node: MorphNode): boolean {
+  return [node, ...node.getAncestors()].some((part) => Node.isJSDocLink(part) || Node.isJSDocLinkCode(part) || Node.isJSDocLinkPlain(part));
+}
+
+/** Read only authored member spelling; constant bindings, wrappers and numeric keys remain outside this door. */
+export function literalMemberAccess(node: MorphNode, includeTemplates = false): MemberReference | undefined {
+  if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
+    return;
+  }
+  const fact = readMemberAccessWith(node, {
+    unwrapExpression: (expression) => expression,
+    readComputedName: (key): ReferenceFact<string> => {
+      const target = state();
+      return Node.isStringLiteral(key) || (includeTemplates && Node.isNoSubstitutionTemplateLiteral(key))
+        ? resolved(key.getLiteralText(), target, key)
+        : unresolved("unsupported", key, target, "computed member key is not an admitted authored string literal");
+    },
+  });
+  return fact.kind === "resolved" ? fact.value : undefined;
+}
+
+/** A string-literal type index, distinct from a runtime member expression or constant-origin read. */
+export function literalTypeIndex(node: MorphNode): string | undefined {
+  if (!Node.isLiteralTypeNode(node)) {
+    return;
+  }
+  const literal = node.getLiteral();
+  return Node.isStringLiteral(literal) ? literal.getLiteralText() : undefined;
+}
+
 function declarationOf(identifier: Identifier): ReferenceFact<MorphNode> {
   return uniqueDeclaration(identifier, state());
 }
