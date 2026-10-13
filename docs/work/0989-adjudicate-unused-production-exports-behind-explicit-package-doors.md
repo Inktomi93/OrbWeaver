@@ -28,7 +28,9 @@ Native production Knip completes on `292d99464e` with additional composition-fac
 
 The reviewed client, DB and kit re-export batch is merged at `f2101d2246`, including the evaluation-preserving codemod correction at `dba31a7efc`. Independent review confirms the complete batch. The emitted-ESM controls, scoped lint and affected native compiler programs pass. Declarations, implementations, same-package callers and uncertain consumers remain unchanged. The plan records the retained macro API vocabulary.
 
-The grouped native projection completes across its full world roster. Its work set and affected-program results remain in the production-export worktree's `reports/` directory. Native production inventory reconciliation remains pending on the combined main tree. Reuse completed evidence; do not repeat the typed inventory for confidence. This partial batch does not complete symbol adjudication.
+The grouped native projection completes across its full world roster. Its work set and affected-program results remain in the production-export worktree's `reports/` directory. Native inventory reconciliation is merged at `d9b30cc9d3`: the baseline removes only proven stale keys. Unbaselined file, export and type findings remain visible. This partial batch does not complete symbol adjudication.
+
+The UI batch requires a complete grouped origin and consumer projection before editing. Native metadata admits changed or uncertain worlds rather than assuming an older closure proves absence. Keep deliberately supported primitive parts and named passthrough props under UI law; classify tooling and test consumers separately from application callers. Reuse existing readers and apply one adjudicated batch, not a program per symbol.
 
 Use existing `pnpm ast apisurface` results for package-boundary consumption and alias-resolved origin identity. Use `rot`, `dead` and their existing collectors for chains, type-only value references and namespace consumption. These report candidates: scripts/tooling can count as public consumers there, but cannot establish application production use.
 
