@@ -10,7 +10,8 @@ import { open, readdir, rm } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import type { StagedArchive, StagedEntry } from "./zip.ts";
 
-async function readNoFollow(path: string): Promise<Uint8Array> {
+/** Refuse a staged leaf replaced by a symlink, closing the handle on every read outcome. */
+export async function readStorageFileNoFollow(path: string): Promise<Uint8Array> {
   // `await using`: node's `FileHandle` carries `[Symbol.asyncDispose]` (= `close()`), so the fd is closed on
   // every exit of this scope — and a close that throws while the READ also threw now surfaces as a
   // SuppressedError carrying BOTH, instead of the finally's close error masking the real fault.
@@ -34,7 +35,7 @@ export async function stageDirectory(dir: string): Promise<StagedArchive> {
     }
     const absolute = `${dirent.parentPath}${sep}${dirent.name}`;
     const rel = relative(dir, absolute).split(sep).join("/");
-    entries.push({ path: rel, read: () => readNoFollow(absolute) });
+    entries.push({ path: rel, read: () => readStorageFileNoFollow(absolute) });
   }
   return {
     entries,

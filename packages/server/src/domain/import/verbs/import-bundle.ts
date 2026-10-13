@@ -1,88 +1,12 @@
-// The entity-agnostic bundle-import composition driver: extracts an untrusted archive through the
-// infra/storage/zip belt battery, routes each file to its owning entity's importFile by leading
-// directory, and imports in the fixed PORTABLE_IMPORT_ORDER dependency order so cross-entity attachments
-// resolve. Consumes the injected PortabilityRegistry — knows nothing about any specific entity.
-//
-// Per-file isolation: a descriptor's importFile never throws for a malformed file, but the driver also
-// try/catches so a throwing descriptor can't abort the bundle. A file whose leading dir matches no
-// registered entity is a benign skip. A hostile archive is rejected whole by extractZip — nothing written.
-//
-// Memory: extractZip stages decompressed entries to a temp disk dir; the driver holds only lazy read
-// handles and reads each entry's bytes off disk just before its importFile, so peak memory is one entry.
-// Must dispose() the staged archive in a try/finally.
-//
-// Cancellation is the driver's job: the optional signal is checked between files.
-
 import type { PortabilityRegistry, PortableEntity, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
-import type { ChatId, UserId } from "@orb/kit/ids";
-import type { ExtractOptions, StagedArchive } from "#infra/storage";
+import type { UserId } from "@orb/kit/ids";
+import type { StagedArchive } from "#infra/storage";
 import { extractZip } from "#infra/storage";
 
-// @orb-waive no-inline-package-interface(BundleImportFileOutcome): baselined when the gate landed; burn-down item 952.
-/** One file's bundle-import outcome, aggregated into the operator-auditable report. `kind: null` marks a
- *  file whose directory matched no registered entity (skipped, not failed); `notes` carries what a file that
- *  DID import still left behind (#1688). */
-export interface BundleImportFileOutcome {
-  readonly kind: PortableKind | null;
-  /** The file's full path within the archive (e.g. "characters/Aria.png"). */
-  readonly path: string;
-  readonly ok: boolean;
-  /** Set on a successful import: true = a new row, false = deduped/replaced (idempotent re-import). */
-  readonly created?: boolean;
-  /** Set when ok is false: the skip/failure reason (unknown dir, a per-file importFile error, or a throw). */
-  readonly error?: string;
-  /** The descriptor's own {@link PortableImportOutcome.notes} — what a file that DID import deliberately left
-   *  behind (#1688). Absent ⇒ the entity restored whole. Carried per file rather than tallied: a note names a
-   *  plane of ONE file, and a count would tell the operator a campaign was dropped without saying which. */
-  readonly notes?: readonly string[];
-  /** The descriptor's own {@link PortableImportOutcome.memoryChatIds}; absent ⇒ the file wrote no real conversation. */
-  readonly memoryChatIds?: readonly ChatId[];
-  /** Set when the driver never even TRIED this file — the run was aborted before reaching it. It is a SKIP,
-   *  not a failure: nothing was attempted, so nothing failed. Before this the unreached files vanished from
-   *  the report entirely and a cancelled half-import read as a complete one. */
-  readonly notAttempted?: true;
-}
-
-// @orb-waive no-inline-package-interface(BundleImportReport): baselined when the gate landed; burn-down item 952.
-/** The per-bundle report the route returns (or the workload records). */
-export interface BundleImportReport {
-  readonly outcomes: readonly BundleImportFileOutcome[];
-  readonly imported: number;
-  readonly skipped: number;
-  readonly failed: number;
-  /** True when the signal fired mid-run: the counts describe a PARTIAL import, and every file the driver did
-   *  not reach is present in `outcomes` with `notAttempted`. */
-  readonly aborted: boolean;
-}
-
-// @orb-waive no-inline-package-interface(BundleImportDeps): baselined when the gate landed; burn-down item 952.
-export interface BundleImportDeps {
-  readonly registry: PortabilityRegistry;
-  readonly ownerId: UserId;
-  readonly archive: Uint8Array | ReadableStream<Uint8Array>;
-  readonly extractOptions?: ExtractOptions;
-  readonly signal?: AbortSignal;
-}
-
-/** Every per-file {@link BundleImportFileOutcome.notes} in the report, flattened in file order (#1710). This
- *  is the ONE derivation of "what did a bundle import leave behind" — a caller that needs the operator-facing
- *  notes (the workload result, a future sync route) reads them off HERE rather than re-walking `outcomes`
- *  itself, so a new note-carrying entity plane is visible everywhere without a second traversal to update. */
-// @orb-waive compose-wiring-only(bundleImportNotes): baselined when the gate landed; burn-down item 964.
-export function bundleImportNotes(report: BundleImportReport): readonly string[] {
-  return report.outcomes.flatMap((outcome) => outcome.notes ?? []);
-}
-
-/** Every real conversation the bundle wrote, in file order — the input that decides whether the import has a
- *  memory scope at all, on the {@link bundleImportNotes} precedent. */
-// @orb-waive compose-wiring-only(bundleImportMemoryChatIds): baselined when the gate landed; burn-down item 964.
-export function bundleImportMemoryChatIds(report: BundleImportReport): readonly ChatId[] {
-  return report.outcomes.flatMap((outcome) => outcome.memoryChatIds ?? []);
-}
+import type { BundleImportDeps, BundleImportFileOutcome, BundleImportReport, StagedBundleImportDeps } from "../contract/bundle.ts";
 
 /** The leading directory of an archive path, including the trailing slash, or null for a top-level file. */
-// @orb-waive compose-wiring-only(leadingDir): baselined when the gate landed; burn-down item 964.
 function leadingDir(path: string): string | null {
   const slash = path.indexOf("/");
   return slash === -1 ? null : path.slice(0, slash + 1);
@@ -95,7 +19,6 @@ interface StagedFile {
 }
 
 /** Group the staged entries by their leading directory. Files with no directory are unroutable skips. */
-// @orb-waive compose-wiring-only(groupByDir): baselined when the gate landed; burn-down item 964.
 function groupByDir(staged: StagedArchive): {
   readonly byDir: Map<string, StagedFile[]>;
   readonly unrouted: string[];
@@ -128,7 +51,6 @@ function notAttemptedFrom(entity: PortableEntity, files: readonly StagedFile[]):
 
 /** One descriptor answer as the report's file outcome. The two lists are forwarded only when the descriptor
  *  said something: an empty list on every clean file would bury the one file that has a note. */
-// @orb-waive compose-wiring-only(fileOutcome): baselined when the gate landed; burn-down item 964.
 function fileOutcome(entity: PortableEntity, path: string, result: PortableImportOutcome): BundleImportFileOutcome {
   return {
     kind: entity.kind,
@@ -142,7 +64,6 @@ function fileOutcome(entity: PortableEntity, path: string, result: PortableImpor
 }
 
 /** Import every file routed to one entity, isolating per-file failures into outcomes. */
-// @orb-waive compose-wiring-only(importEntity): baselined when the gate landed; burn-down item 964.
 async function importEntity(
   entity: PortableEntity,
   files: readonly StagedFile[],
@@ -178,7 +99,6 @@ async function importEntity(
 
 /** Import every registered entity in the fixed dependency order. A kind with no registered descriptor, or
  *  no files in the bundle, is simply absent from the pass. */
-// @orb-waive compose-wiring-only(importInDepOrder): baselined when the gate landed; burn-down item 964.
 async function importInDepOrder(
   registry: PortabilityRegistry,
   byDir: ReadonlyMap<string, readonly StagedFile[]>,
@@ -207,7 +127,6 @@ async function importInDepOrder(
 }
 
 /** Record every file that matched no registered entity as a skip. */
-// @orb-waive compose-wiring-only(collectSkips): baselined when the gate landed; burn-down item 964.
 function collectSkips(
   registry: PortabilityRegistry,
   byDir: ReadonlyMap<string, readonly StagedFile[]>,
@@ -234,7 +153,6 @@ function collectSkips(
   return outcomes;
 }
 
-// @orb-waive compose-wiring-only(tally): baselined when the gate landed; burn-down item 964.
 function tally(outcomes: readonly BundleImportFileOutcome[]): {
   readonly imported: number;
   readonly skipped: number;
@@ -257,22 +175,11 @@ function tally(outcomes: readonly BundleImportFileOutcome[]): {
   return { imported, skipped, failed };
 }
 
-// @orb-waive no-inline-package-interface(StagedBundleImportDeps): baselined when the gate landed; burn-down item 952.
-/** What {@link importStagedArchive} needs: an already-staged tree (from `extractZip` OR `stageDirectory`)
- *  plus the routing registry + target owner. `staged.dispose()` runs in the finally regardless of outcome. */
-export interface StagedBundleImportDeps {
-  readonly registry: PortabilityRegistry;
-  readonly ownerId: UserId;
-  readonly staged: StagedArchive;
-  readonly signal?: AbortSignal;
-}
-
 /**
  * Import an already-staged tree: route each entry to its owning entity by leading dir and import in
  * dependency order, then dispose the staging dir. The seam BOTH sources funnel through — an extracted zip
  * (`runBundleImport`) and an uploaded folder (`stageDirectory`) — so the entity routing lives in one place.
  */
-// @orb-waive compose-wiring-only(importStagedArchive): baselined when the gate landed; burn-down item 964.
 export async function importStagedArchive(deps: StagedBundleImportDeps): Promise<BundleImportReport> {
   const { registry, ownerId, staged, signal } = deps;
   try {
