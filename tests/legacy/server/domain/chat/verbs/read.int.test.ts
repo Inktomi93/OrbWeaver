@@ -47,8 +47,9 @@ import type {
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
 import { safeTokenWindow } from "@orb/kit/tokens";
-import type { ImageRefAssets } from "@orb/server/entry/compose";
-import { createTurnPersonaResolver, resolveImageRefToUrl, voicePersonaFor } from "@orb/server/entry/compose";
+import type { ImageRefAssets } from "@orb/server/domain/chat";
+import { resolveImageRefToUrl } from "@orb/server/domain/chat";
+import { createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";

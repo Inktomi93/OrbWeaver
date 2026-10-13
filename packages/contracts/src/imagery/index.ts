@@ -301,7 +301,7 @@ export interface GeneratedPictureImage {
 
 /** The imagery drop codes surfaced to a caller: `image_edit_dropped` = the whole edit/
  *  avatar reference dropped for a non-edit model.
- *  Structural subset of the infra `WARNING_CODES` image members (imagery never imports `#infra`; mapped at compose). */
+ *  The imagery-owned provider operation projects the runtime warnings onto this image-only shape. */
 export interface ImageryWarning {
   readonly code: "image_edit_dropped";
   readonly detail: string;

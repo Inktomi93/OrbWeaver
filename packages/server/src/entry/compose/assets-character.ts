@@ -21,7 +21,7 @@ import { resolveSideGenSampling } from "@orb/inference";
 import type { CharacterId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
-import { createAssetsService } from "#domain/assets";
+import { createAssetsService, createBackgroundStore, createMaterializeBackground } from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder } from "#domain/character";
 import {
   createCharacterOwned,
@@ -49,7 +49,6 @@ import { publishUserEvent } from "#transport/trpc";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
 import { createGalleryCharacterOps } from "./gallery-character-ops.ts";
-import { createMaterializeBackground } from "./materialize-background.ts";
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
 
@@ -204,8 +203,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   // public-internet SSRF firewall (ANY_HOST, no ownerConfiguredEndpoint) — this is a user-pasted URL; the
   // image magic-belt + the effective per-image byte cap bound the download (side-eye F-P0-2).
   const materializeBackgroundOp = createMaterializeBackground({
-    storeBackground: (principal, bytes, mime) =>
-      assets.store({ principal, bytes, kind: "background", mime, enforceMagic: true, maxBytes: deps.maxImageBytes() }),
+    storeBackground: createBackgroundStore({ store: (params) => assets.store(params), maxBytes: () => deps.maxImageBytes() }),
     maxBytes: () => deps.maxImageBytes(),
   });
 

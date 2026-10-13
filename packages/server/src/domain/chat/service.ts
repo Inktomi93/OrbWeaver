@@ -4,6 +4,7 @@
 
 import type { ChatContext, ChatServiceDeps } from "./context.ts";
 import type { ClaimChatOp } from "./contract/context.ts";
+import type { VisibleExtractQuiet, VisibleExtractQuietDeps } from "./contract/imagery-access.ts";
 import type { RequestTurnOp } from "./contract/results.ts";
 import type { ChatService } from "./contract/service.ts";
 import type { SignupInviteOps } from "./contract/signup.ts";
@@ -16,6 +17,7 @@ import { createChatLifecycle } from "./verbs/chat-lifecycle.ts";
 import { createClaimChat } from "./verbs/claim-chat.ts";
 import { createCompaction } from "./verbs/compaction.ts";
 import { createEdit } from "./verbs/edit.ts";
+import { createExtractQuiet } from "./verbs/extract-quiet.ts";
 import { createFork } from "./verbs/fork.ts";
 import { createGenerateImage } from "./verbs/generate-image.ts";
 import { createInvitePreview } from "./verbs/invite-preview.ts";
@@ -29,6 +31,20 @@ import { createRead } from "./verbs/read.ts";
 import { createSignupInvite } from "./verbs/signup-invite.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
 import { createRequestTurn, createTurn } from "./verbs/turn.ts";
+import { createQuietExtractionInputs, createVisibleExtractQuietGate } from "./verbs/visible-extract-quiet.ts";
+
+export function createVisibleExtractQuiet(deps: VisibleExtractQuietDeps): VisibleExtractQuiet {
+  return createVisibleExtractQuietGate({
+    resolveViewerVisibility: deps.resolveViewerVisibility,
+    extractQuiet: createExtractQuiet({
+      db: deps.db,
+      now: deps.now,
+      ...createQuietExtractionInputs(deps),
+      resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
+      resolveUserMacroDefs: deps.resolveUserMacroDefs,
+    }),
+  });
+}
 
 /** Assemble the chat composition-root product: the routed {@link ChatService} PLUS the PRINCIPAL-FREE
  *  `requestTurn` seam. `requestTurn` is deliberately OFF `ChatService` — it is an
