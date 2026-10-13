@@ -87,8 +87,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     // when databank and preset became its second and third consumers (#276/#279).
     resolveVisibleRooms: createVisibleRoomsReader(db),
     emitUserEvent: publishUserEvent,
-    // #1733 — the ROOM plane. Both arms live at the composition root for the same reason the guards do: the
-    // fan is chat's bus and the reach is SQL over chat's junction, and regex may import neither.
+    // Regex owns room-junction reach; chat owns the live fan policy, bound together by the graph seam.
     emitRoomRegexChanged: createEmitRoomRegexChanged(deps.emitChatEventLive),
     fanRegexScriptRooms: createFanRegexScriptRooms(db, deps.emitChatEventLive),
     // #1746 — the DELETE arm of the same reach: `chat_regex_scripts` CASCADEs with the library row, so the
