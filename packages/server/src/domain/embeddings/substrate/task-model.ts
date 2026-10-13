@@ -20,11 +20,12 @@
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
 import type { RoleClientTask } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
+import type { LiveEmbedSpaceDeps } from "../contract/live-embed-space.ts";
 import type { ImageSpace } from "../contract/results.ts";
 import type { RoleClientsFor } from "../contract/service.ts";
 
 /** The LIVE space tag for `task`, or `null` when the owner has no connection bound for it. */
-export async function requireTaskModel(ctx: { readonly roleClientsFor: RoleClientsFor }, ownerId: UserId, task: RoleClientTask): Promise<string | null> {
+export async function requireTaskModel(ctx: LiveEmbedSpaceDeps, ownerId: UserId, task: RoleClientTask): Promise<string | null> {
   const resolved = await (await ctx.roleClientsFor(ownerId)).resolved(task);
   return resolved === null ? null : embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability));
 }

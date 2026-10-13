@@ -3,6 +3,7 @@
 
 export { createCertificateController } from "./certificate/controller.ts";
 export type { EnableIpCertificateParams, ShareParams } from "./contract/params.ts";
+export type { EnableShareSeatingDeps } from "./contract/seating.ts";
 export type {
   CertificateBootOutcome,
   CertificateCheckResult,
@@ -24,3 +25,4 @@ export { createShareService } from "./service.ts";
 export { certificateRefusal } from "./substrate/certificate-refusal.ts";
 /** @public exported for the client CTs that stub the share verbs: the refusal code and sentence come from here. */
 export { modeShareRefusal } from "./substrate/refusal.ts";
+export { createEnableShareSeating } from "./verbs/enable-share-seating.ts";

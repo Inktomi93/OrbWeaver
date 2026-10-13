@@ -15,7 +15,7 @@
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { BankHealthView, DatabankSettings, IngestRunResult, ReindexMode, ReindexResult, ReindexScope } from "@orb/contracts/databank";
-import type { DocumentVectorSweepReceipt } from "@orb/contracts/embeddings";
+import type { DocumentVectorSweepReceipt, MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -82,9 +82,7 @@ type EnsureChatMemberOp = (principal: Principal, chatId: ChatId) => Promise<void
 /** The active embed space tag the chunk-store arm tags rows with — PER OWNER (the owner's `embed` binding
  *  defines it and its width, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed
  *  into, and every chunk-count read answers zero through {@link NO_EMBED_SPACE_MODEL}. */
-interface ActiveEmbedSpace {
-  readonly model: string;
-}
+type ActiveEmbedSpace = Pick<MemoryEmbedSpace, "model">;
 
 /** The model tag a count read uses when the owner has NO space: no stored chunk ever carries the empty tag, so
  *  the read is honestly zero without a second query shape. */

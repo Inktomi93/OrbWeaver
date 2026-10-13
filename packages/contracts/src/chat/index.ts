@@ -312,7 +312,15 @@ export {
 export { CHAT_PROSE_SLOTS, CHAT_REACT_TOOL_DESCRIPTION } from "./prose.ts";
 // B6/MR0 — the message-reaction vocabulary + the grouped read projection (MA-2); B7 adds the segment
 // anchor, the `react` tool name and the attribution caps.
-export type { ChatReactionsView, MessageReactionGroup, ReactionEmoji } from "./reactions.ts";
+export type {
+  ChatReactionsView,
+  MessageReactionGroup,
+  ReactAsCharacterResult,
+  ReactionEmoji,
+  ReactToolArgs,
+  ReactToolOutcome,
+  ReactToolValue,
+} from "./reactions.ts";
 export {
   CHAT_REACT_TOOL_NAME,
   CHAT_REACTION_SLOT_WINDOW,
@@ -325,6 +333,7 @@ export {
   REACTION_SEGMENT_SNIPPET_MAX,
   REACTION_SPEAKER_NAME_MAX,
   reactionEmojiSchema,
+  reactToolArgsSchema,
 } from "./reactions.ts";
 export type {
   CharacterRegexSlice,

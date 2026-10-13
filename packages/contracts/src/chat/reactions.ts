@@ -110,6 +110,24 @@ export const REACTION_SEGMENT_SNIPPET_MAX = 120;
  *  produced always fits and anything longer is refused at the boundary. */
 export const REACTION_SPEAKER_NAME_MAX = 200;
 
+/** Parsed model-facing reaction arguments carry names, never row ids. */
+export const reactToolArgsSchema = z.object({
+  character: z.string().min(1).max(REACTION_SPEAKER_NAME_MAX),
+  emoji: reactionEmojiSchema,
+  toSpeaker: z.string().min(1).max(REACTION_SPEAKER_NAME_MAX).optional(),
+});
+export type ReactToolArgs = z.infer<typeof reactToolArgsSchema>;
+
+/** Character reactions answer legality as data; repeats retain their original attribution. */
+export type ReactAsCharacterResult =
+  | { readonly ok: true; readonly alreadyReacted: boolean; readonly character: string; readonly emoji: ReactionEmoji; readonly target: string }
+  | { readonly ok: false; readonly reason: string };
+
+export type ReactToolValue = Omit<Extract<ReactAsCharacterResult, { readonly ok: true }>, "ok"> & { readonly reacted: boolean };
+export type ReactToolOutcome =
+  | { readonly ok: true; readonly value: ReactToolValue }
+  | { readonly ok: false; readonly error: Extract<ReactAsCharacterResult, { readonly ok: false }>["reason"] };
+
 /** B7/MR4 — the prompt-attribution loop's bounds (the mini-spec §6 caps, ruled owner-tunable in shape;
  *  the tunable SURFACE is a recorded flip — these constants are the one built home).
  *  `MAX_PER_MESSAGE` = most-recent K reactions attributed per message (a brigaded message cannot blow the

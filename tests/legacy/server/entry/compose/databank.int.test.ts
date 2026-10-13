@@ -24,11 +24,11 @@ import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createGetDatabankSettings } from "@orb/server/domain/settings";
 import type { Services } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { bindGetDatabankSettings } from "#server/entry/compose/databank.ts";
 import { seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { principal } from "../../domain/settings/_support.ts";
 
@@ -47,7 +47,7 @@ describe("databank settings wire — composed-real (createServices)", () => {
 
     // The EXACT bound compose op (what ingest + gather call) — an unwritten user gets the defaults, NOT the
     // former stub's ownerId-blind constants (which happened to match, but for the wrong reason).
-    const bound = bindGetDatabankSettings(services.settings.loadUserSettings)(host);
+    const bound = createGetDatabankSettings(services.settings.loadUserSettings)(host);
     expect((await bound).retrieval).toEqual({ k: 5, minScore: 0.25, rerank: false });
     expect((await bound).chunk.chunkSize).toBe(2500);
   });
@@ -67,7 +67,7 @@ describe("databank settings wire — composed-real (createServices)", () => {
     // The EXACT bound compose op reflects the write (the stub-kill's whole point): `getDatabankSettings(host)`
     // returns the OWNER's stored `{chunk, retrieval}`, not schema defaults. `slotTokenBudget` is NOT on this
     // op's shape (it rides ForeignInputs) — the op projects exactly the two fields ingest + gather consume.
-    const resolved = await bindGetDatabankSettings(services.settings.loadUserSettings)(host);
+    const resolved = await createGetDatabankSettings(services.settings.loadUserSettings)(host);
     expect(resolved.retrieval).toEqual({ k: 3, minScore: 0.4, rerank: true });
     expect(resolved.chunk.chunkSize).toBe(1200);
   });

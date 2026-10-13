@@ -41,6 +41,7 @@ export { createApplyImportedAppearance } from "./verbs/apply-imported-appearance
 export { createSettingsComposedOps } from "./verbs/composed-ops.ts";
 export { createExportTheme } from "./verbs/export-theme.ts";
 export { createExportUserSettings } from "./verbs/export-user-settings.ts";
+export { createGetDatabankSettings } from "./verbs/get-databank-settings.ts";
 export { createImportTheme } from "./verbs/import-theme.ts";
 export { createImportUserSettings } from "./verbs/import-user-settings.ts";
 export { createJoinerSettingsStatement } from "./verbs/joiner-settings-statement.ts";

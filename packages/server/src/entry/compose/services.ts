@@ -56,7 +56,13 @@ import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins"
 import type { ServerRestartPort } from "#domain/admin";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
-import { createImportAvatarStore, createImportOwnedAsset, createStoreGeneratedImage, createStoreInlineReplyImage } from "#domain/assets";
+import {
+  createAssetEmbeddingReads,
+  createImportAvatarStore,
+  createImportOwnedAsset,
+  createStoreGeneratedImage,
+  createStoreInlineReplyImage,
+} from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions, createRuleOwnedBy } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
@@ -103,7 +109,7 @@ import {
   recordSeededItemKeys,
 } from "#domain/settings";
 import type { CertificateController, RelayController } from "#domain/share";
-import { createShareService } from "#domain/share";
+import { createEnableShareSeating, createShareService } from "#domain/share";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
 import type { TagContext } from "#domain/tag";
 import { createImportedCardTag, createReadAttachedEntity, createTagService } from "#domain/tag";
@@ -162,7 +168,6 @@ import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
 import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
-import { createEnableShareSeating } from "./share-seating.ts";
 import { createUpstreamProbes } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
@@ -767,7 +772,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     audit,
     assetsStore: assets.store,
-    loadAssetBytes: assets.loadAssetBytes,
+    loadAssetBytes: createAssetEmbeddingReads(assets).loadAssetBytes,
     embeddings,
     extractText,
     roleClientsFor,
@@ -1169,9 +1174,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       appPort: deps.share.appPort,
       enableSeating: createEnableShareSeating({
         seating: () => settings.getEffectiveConfig(),
-        overrides: async (principal) => (await settings.getAppSettingsWithOverrides({ principal })).overrides,
-        updateAppSettings: (params) => settings.updateAppSettings(params),
-        sessions,
+        getAppSettingsWithOverrides: (params) => settings.getAppSettingsWithOverrides(params),
+        updateAppSettings: async (params) => {
+          await settings.updateAppSettings(params);
+        },
+        getOwnerUserId: () => sessions.getOwnerUserId(),
         resolvePrincipal: resolveHostPrincipal,
       }),
       requireOwner,

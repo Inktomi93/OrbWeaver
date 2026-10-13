@@ -47,8 +47,8 @@ export interface AssetsContext {
   readonly loadChatAssetRefs?: (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
   /** Gallery owner-only posture: does `ownerId` own `characterId`? Optional — absent skips the subject check. */
   readonly assertCharacterOwned?: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
-  /** Gallery export re-link: the portable `handle` of a character by id, or null if gone. Optional. */
-  readonly resolveCharacterHandle?: (characterId: CharacterId) => Promise<string | null>;
+  /** Gallery export re-link: an owned character's portable handle, or null if missing or foreign. Optional. */
+  readonly resolveCharacterHandle?: (ownerId: UserId, characterId: CharacterId) => Promise<CharacterHandle | null>;
   /** Gallery import re-link: the owner's own character id carrying `handle`, or null if none exists. Optional. */
   readonly findCharacterByHandle?: (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<CharacterId | null>;
   /** The character-owned avatar-pointer WRITE `backfillAvatars` delegates to (`characters.avatarAssetId` is

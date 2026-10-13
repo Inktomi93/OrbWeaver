@@ -27,6 +27,7 @@ import {
   createCharacterOwned,
   createCharacterService,
   createDefaultCharacterSeeder,
+  createGalleryCharacterOps,
   createLinkCharacterAvatars,
   migrateSeededCardBackgrounds,
 } from "#domain/character";
@@ -48,7 +49,6 @@ import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "#transport/trpc";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
-import { createGalleryCharacterOps } from "./gallery-character-ops.ts";
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
 
