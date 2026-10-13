@@ -11,7 +11,7 @@
 
 import { splitRecursive } from "./split.ts";
 
-export { CHUNK_SEPARATORS } from "./split.ts";
+export {} from "./split.ts";
 
 /** Chunking parameters. The zod wire twin (`@orb/contracts/databank` chunkParamsSchema) is pinned to this
  *  shape by a `satisfies` check THERE. */

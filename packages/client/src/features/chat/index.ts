@@ -6,24 +6,17 @@
 // root (a feature may not import the write store).
 
 export { CharacterGalleryAnchor } from "./anchors/character-gallery-anchor.tsx";
-export type { ChatListAnchorProps } from "./anchors/chat-list-anchor.tsx";
 export { ChatListAnchor } from "./anchors/chat-list-anchor.tsx";
-export type { JoinInviteDialogProps } from "./anchors/join-invite-dialog.tsx";
 export { JoinInviteDialog } from "./anchors/join-invite-dialog.tsx";
-export type { MessageThreadAnchorProps } from "./anchors/message-thread-anchor.tsx";
 export { MessageThreadAnchor } from "./anchors/message-thread-anchor.tsx";
 export { ChatsWithCharacterPane } from "./components/chats-with-character-pane.tsx";
-export type { ComposerProps } from "./components/composer.tsx";
 export { Composer } from "./components/composer.tsx";
 /** @public exported for the reaction CT story, which mounts the picker the way the message row does. */
 export { RowReactionPicker } from "./components/row-reaction-picker.tsx";
-export type {
-  UseSendMessageOptions,
-  UseSendMessageResult,
-} from "./hooks/use-send-message.ts";
-export { useSendMessage } from "./hooks/use-send-message.ts";
-export type { UseStopTurnResult } from "./hooks/use-stop-turn.ts";
-export { useStopTurn } from "./hooks/use-stop-turn.ts";
+
+export {} from "./hooks/use-send-message.ts";
+export {} from "./hooks/use-stop-turn.ts";
+
 export { appearanceAvatarsSection } from "./lib/appearance-avatars-section.tsx";
 export { appearanceMessageDetailsSection } from "./lib/appearance-message-details-section.tsx";
 export { appearanceMessageStyleSection } from "./lib/appearance-message-style-section.tsx";
@@ -34,7 +27,9 @@ export { makeChatControlsContribution } from "./lib/chat-controls-contribution.t
 export { chatSlashCommands } from "./lib/chat-slash-commands.ts";
 export { chatContextTabs, makeChatsSection } from "./lib/chats-section.tsx";
 export { commandModal } from "./lib/command-modal.tsx";
-export { isContinueEligible } from "./lib/continue-on-empty.ts";
+
+export {} from "./lib/continue-on-empty.ts";
+
 export { databankSettingsSection } from "./lib/databank-settings-section.tsx";
 export { chatAlsoOpenTile } from "./lib/home-also-open-tile.tsx";
 export { chatMastheadTile } from "./lib/home-masthead-tile.tsx";
@@ -47,17 +42,10 @@ export { memorySettingsSection } from "./lib/memory-settings-section.tsx";
 export { chatMessageReactionsSurface } from "./lib/message-reactions-surface.tsx";
 export { newChatModal } from "./lib/new-chat-modal.tsx";
 export { proseSettingsSection } from "./lib/prose-settings-section.tsx";
-export type { ChatLandingSurfaceProps } from "./surfaces/chat-landing-surface.tsx";
 export { ChatLandingSurface } from "./surfaces/chat-landing-surface.tsx";
-export type { ChatListSurfaceProps } from "./surfaces/chat-list-surface.tsx";
 export { ChatListSurface } from "./surfaces/chat-list-surface.tsx";
-export type { ChatRoomSurfaceProps } from "./surfaces/chat-room-surface.tsx";
 export { ChatRoomSurface } from "./surfaces/chat-room-surface.tsx";
-export type {
-  CommandPaletteSurfaceProps,
-  GoToSection,
-} from "./surfaces/command-palette-surface.tsx";
+export type { GoToSection } from "./surfaces/command-palette-surface.tsx";
 export { CommandPaletteSurface } from "./surfaces/command-palette-surface.tsx";
-export type { MessageListSurfaceProps } from "./surfaces/message-list-surface.tsx";
 export { MessageListSurface } from "./surfaces/message-list-surface.tsx";
 export { NewChatPicker } from "./surfaces/new-chat-picker-surface.tsx";

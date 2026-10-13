@@ -4,12 +4,13 @@
 export type { ChatBusDeps } from "./apply-chat-bus-event.ts";
 export { applyChatBusEvent } from "./apply-chat-bus-event.ts";
 export { markTurnStopping, recoverTurnAfterStopFailure, useChatBusDeps } from "./chat-bus-writes.ts";
-export type { ChatEventSeqGuard } from "./chat-event-seq-guard.ts";
 export { createChatEventSeqGuard } from "./chat-event-seq-guard.ts";
 export { PostEventSource } from "./post-event-source.ts";
 export type { RoomSubscriber, RoomTransport } from "./room-registry.ts";
-export { createRoomRegistry, roomRegistry } from "./room-registry.ts";
-export { socketId } from "./socket-id.ts";
+export { createRoomRegistry } from "./room-registry.ts";
+
+export {} from "./socket-id.ts";
+
 export type { BusRoomHandlers } from "./use-bus-room.ts";
 export { useBusRoom } from "./use-bus-room.ts";
 export { useChatBus } from "./use-chat-bus.ts";

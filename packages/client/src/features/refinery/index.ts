@@ -45,31 +45,23 @@ export { ScopeEditorDialog } from "./components/scope-editor-dialog.tsx";
 export { TeachingState } from "./components/teaching-state.tsx";
 export { useRefineryListHeader } from "./hooks/use-refinery-list-header.tsx";
 export {
-  useApplyRefineryAsCopy,
   useApplyRefineryFields,
   useDeleteRefinerySession,
   useIterateRefinery,
   useRunRefineryStage,
-  useSubmitManualRewrite,
   useUpdateRefinerySession,
 } from "./hooks/use-refinery-mutations.ts";
-export {
-  useCreateRefinerySchema,
-  useDeleteRefinerySchema,
-  useGenerateRefinerySchema,
-  useRefineRefinerySchema,
-  useRefineryPreflight,
-  useRefinerySchemas,
-  useTestRefinerySchema,
-  useUpdateRefinerySchema,
-} from "./hooks/use-refinery-schemas.ts";
+
+export {} from "./hooks/use-refinery-schemas.ts";
+
 export { useRefineryRuns, useRefinerySession, useRefinerySessions } from "./hooks/use-refinery-sessions.ts";
 export { BUILTIN_STAGE_HINTS } from "./lib/builtin-hints.ts";
 export { refinerySection } from "./lib/refinery-section.tsx";
-export type { HintOverlay, PlanField, RenderPlan } from "./lib/render-plan.ts";
-export { buildRenderPlan, formatLabel } from "./lib/render-plan.ts";
+export { buildRenderPlan } from "./lib/render-plan.ts";
 export type { ReviewEntry } from "./lib/review-entries.ts";
-export { reviewEntriesOf } from "./lib/review-entries.ts";
+
+export {} from "./lib/review-entries.ts";
+
 /** @public exported for the routed CT that mounts the LIVE content workflow whole (load → view-back → a
  *  per-block rewrite decision → apply → the terminal outcome) — `refinerySection` imports it relatively,
  *  and a story importing it relatively would mount against a different React context instance (header). */
