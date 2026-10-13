@@ -23,4 +23,4 @@ Two reference stacks mean a `pnpm ast` verb and a gate can disagree about who ca
 
 ## Evidence
 
-The bounded source floor passes; native repository equivalence remains pending. Independent review rejects the stored `dead` path: dependency-origin exports lack indexed references and can become false deletion candidates. The correction lane owns an explicit refusal or qualified reference result, with a dependency-barrel control. Keep native views until store coverage is proven. Preserve extensionless importer controls and unresolved outcomes rather than routing through synthetic compiler options.
+The reviewed source and correction are integrated. Bounded controls and affected tooling/root checks pass. Dependency-origin declarations remain selectable; unsupported stored references refuse instead of becoming false deletion candidates. The dependency-barrel control proves native consumption, stored refusal and valid authored zero-reference results. Native repository equivalence remains pending. Keep native views until store coverage is proven; preserve extensionless importer controls and unresolved outcomes.
