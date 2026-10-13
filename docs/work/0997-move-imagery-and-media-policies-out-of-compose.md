@@ -24,8 +24,10 @@ Preserve room-host funding, member visibility floors and subject-seat checks, ow
 
 ## Evidence
 
-The security lane owns the imagery and media batch in its prepared worktree. Propose the owner split before editing shared domains or composition callers. Administrative and room-reach lanes own their separate shared hunks; main coordinates additions.
+Source `d21b9cdd8d` has independent security review with no findings. Integration `917c7ba7ed` preserves administrative and room-reach owner changes and explicit package doors. The compose barrel resolution removes both obsolete export sets.
 
-Use the canonical row-derived Principal resolver instead of the synthetic imagery card Principal. Preserve visibility before host reads and the history floor before extraction. Keep current funding semantics; the runtime funding item owns a broader executor correction unless it blocks this move.
+Focused media behavior and native server evidence pass. Preserved per-file successes inside a failed aggregate remain separate from aggregate-green evidence. The final native import graph includes every touched production subject without rule changes.
 
-Keep heavy checks queued through main. No live stack drive is required for implementation; the unidentified listener remains untouched. Main owns independent wave review, landing and whole-tree verification.
+The matching root-native integration run finishes red on the maintained room-reach fixture extension. Its fixture correction and the administrative proof's redundant kind comparisons are assigned to the media lane. Preserve all cases and authority predicates. Item closure waits for matching affected checks; do not replay the broader behavioral population.
+
+Main owns documentation repoints and exact budget reconciliation. Runtime funding and strike-out remain with their own work item. The broader compose item stays open.
