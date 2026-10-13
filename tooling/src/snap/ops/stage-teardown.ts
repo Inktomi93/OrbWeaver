@@ -31,6 +31,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { listeningPids } from "../../floor/host/platform.ts";
 import { stageBandPorts } from "../../floor/host/ports.ts";
 import { killPidGroup, runNicedSync } from "../../floor/process/proc.ts";
+import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { escalateStopSync } from "../../floor/process/stop-escalation.ts";
 import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { StageBandView, StagePorts, StageReapArm, StageRow, StageStopDeps, StageStopVerdict } from "../contract/stage.ts";
@@ -51,8 +52,7 @@ const REAL_STOP_DEPS: StageStopDeps = {
   signalGroup: killPidGroup,
   wait: waitSync,
   runLauncher: (spawn, opts) => {
-    // biome-ignore lint/style/noProcessEnv: the launcher child needs the ambient PATH; only the band's address is layered on top.
-    runNicedSync(spawn.command, spawn.args, { cwd: opts.cwd, env: { ...process.env, ...opts.env }, stdio: "inherit" });
+    runNicedSync(spawn.command, spawn.args, { cwd: opts.cwd, env: inheritedProcessEnv(opts.env), stdio: "inherit" });
   },
 };
 

@@ -4,7 +4,6 @@
 // keepNames `__name` helper breaking serialized functions — died with the 2026-08-03 tsx shed;
 // the lib-mismatch reason stands alone.)
 
-import process from "node:process";
 import type { Browser, BrowserContext, CDPSession, devices, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { warn } from "../cli/log.ts";
@@ -20,10 +19,8 @@ import { resolveProbeMedia } from "./browser-media.ts";
 
 export type { CapturedConsole, CapturedRequest } from "./browser-capture.ts";
 
-// biome-ignore lint/style/noProcessEnv: SNAP_BASE_URL is a probe-harness knob (where the running dev stack answers; `localhost`, not 127.0.0.1 — vite v8 binds [::1] only) — ambient tooling env, not app config.
-export const DEFAULT_BASE = process.env["SNAP_BASE_URL"] ?? `http://localhost:${DEV_PORTS.vite}`;
-// biome-ignore lint/style/noProcessEnv: DEBUG_TOKEN is the ambient dev-stack debug token the operator already exported for curl loops; snap seeds it into `orb:debug-token` so token-gated routes render real data. Harness plumbing, not app config.
-export const DEFAULT_DEBUG_TOKEN = process.env["DEBUG_TOKEN"] ?? "";
+export const DEFAULT_BASE = processEnvValue("SNAP_BASE_URL") ?? `http://localhost:${DEV_PORTS.vite}`;
+export const DEFAULT_DEBUG_TOKEN = processEnvValue("DEBUG_TOKEN") ?? "";
 
 const TRAILING_SLASH_RE = /\/$/u;
 

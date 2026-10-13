@@ -20,11 +20,11 @@
 // cookie), never a bypass. A handle outside the fixture's roster (or a `--contexts N` bigger than the
 // fixture actually seeds) is a loud refusal, never a guess.
 
-import process from "node:process";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
 import { httpJsonSync, httpOkSync } from "../../floor/http/http-probe.ts";
 import { SESSION_COOKIE_MINTED } from "../../floor/http/session-cookie.ts";
+import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
 
@@ -48,11 +48,7 @@ function stripSlash(url: string): string {
  *  SNAP_FIXTURE_BASE_URL) \> the offset-pair defaults. Pure apart from the env read (injectable for tests).
  *  An unparseable server URL falls back to the default port for the refusal lines rather than throwing —
  *  the health probe below will refuse loudly on the same URL anyway, with a reason a human can act on. */
-export function resolveFixtureTarget(
-  override: FixtureTargetOverride = {},
-  // biome-ignore lint/style/noProcessEnv: dev-tooling module (probe harness), not app config — mirrors the exemption pattern in browser.ts/snap-stage.ts.
-  env: Record<string, string | undefined> = process.env,
-): FixtureTarget {
+export function resolveFixtureTarget(override: FixtureTargetOverride = {}, env: Record<string, string | undefined> = inheritedProcessEnv()): FixtureTarget {
   const serverUrl = stripSlash(override.serverUrl ?? env["SNAP_FIXTURE_SERVER_URL"] ?? FIXTURE_SERVER_URL_DEFAULT);
   const baseUrl = stripSlash(override.baseUrl ?? env["SNAP_FIXTURE_BASE_URL"] ?? FIXTURE_BASE_URL_DEFAULT);
   let serverPort = FIXTURE_PORTS.server;

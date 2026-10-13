@@ -20,6 +20,7 @@ import { BoundedEvidenceRing, browserEvidenceRetentionBatchSchema } from "@orb/t
 import { resolveProbeMedia } from "@orb/tooling/floor/browser/browser-media";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
+import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { parseDiagnosticQuery, queryDiagnostics } from "../../../../tooling/src/snap/ops/diagnostics.ts";
@@ -240,22 +241,8 @@ const CDP_FAULT_ENV = "ORB_PROBE_TEST_CDP_FAULT";
 
 /** Run `body` with the seam's fault injector armed for `fault`, restoring whatever the env carried
  *  before (never assume it was unset — a sibling arm in the same run may have left it). */
-async function withCdpFault<T>(fault: string, body: () => Promise<T>): Promise<T> {
-  // biome-ignore lint/style/noProcessEnv: the seam's fault gate IS process.env-shaped (`floor/browser/browser.ts` reads it fresh per `newContext`) — this is the seam's own knob, not app config; restored below.
-  const prior = process.env[CDP_FAULT_ENV];
-  // biome-ignore lint/style/noProcessEnv: see above — arming the fault is the mechanism.
-  process.env[CDP_FAULT_ENV] = fault;
-  try {
-    return await body();
-  } finally {
-    if (prior === undefined) {
-      // biome-ignore lint/style/noProcessEnv: see above — the restore half.
-      delete process.env[CDP_FAULT_ENV];
-    } else {
-      // biome-ignore lint/style/noProcessEnv: see above — the restore half.
-      process.env[CDP_FAULT_ENV] = prior;
-    }
-  }
+function withCdpFault<T>(fault: string, body: () => Promise<T>): Promise<T> {
+  return withProcessEnv(CDP_FAULT_ENV, fault, body);
 }
 
 test("controlled CDP failures stay loud: Audits degrades explicitly while Log stays live, and Log setup rejects", async () => {

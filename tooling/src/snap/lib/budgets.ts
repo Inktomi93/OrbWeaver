@@ -9,8 +9,8 @@
 //
 // The `*_SETTLE_MS` / `*_REVEAL_MS` values below are deliberately NOT budgets and not scaled: they are
 // SLEEPS the run always pays in full, so stretching them under load would spend real time to buy nothing.
-import process from "node:process";
 import { budget } from "../../floor/host/load-budget.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 
 // The BASE consts are exported (not just their derived ceilings) so a load-scaling pin can drive the
 // SAME numbers this module actually uses through an injected reader (T14/T15)
@@ -71,8 +71,7 @@ const DESIGN_AUDIT_SELECTOR_PROOF_CAP = 64;
  *  run), so a caller sets it in the CHILD's environment, never mid-process. A non-numeric or non-positive
  *  value falls back to the shipped cap rather than silently disabling the proof. */
 const SELECTOR_PROOF_CAP_ENV = "ORB_SNAP_SELECTOR_PROOF_CAP";
-// biome-ignore lint/style/noProcessEnv: ORB_SNAP_SELECTOR_PROOF_CAP is an ambient TOOLING knob (the harness override that makes the proof cap's truncation reachable in a test), the same class as floor/host/load-budget.ts's ORB_BUDGET_CEILING_MS — not app config, and the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake, so it cannot be imported down here.
-const SELECTOR_PROOF_CAP_OVERRIDE = Number(process.env[SELECTOR_PROOF_CAP_ENV]);
+const SELECTOR_PROOF_CAP_OVERRIDE = Number(processEnvValue(SELECTOR_PROOF_CAP_ENV));
 
 /** The proof cap in force for THIS process. */
 export function designAuditSelectorProofCap(): number {

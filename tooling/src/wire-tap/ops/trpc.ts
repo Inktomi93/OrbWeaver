@@ -5,12 +5,12 @@
 //
 //   wire-tap trpc character.list
 //   wire-tap trpc chat.startChat --input '{"characterIds":["…"]}' --mutate
-import process from "node:process";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { DEV_PORTS } from "../../floor/host/ports.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
@@ -60,10 +60,8 @@ function parseTrpcArgs(argv: readonly string[]): TrpcArgs {
 }
 
 function baseUrl(): string {
-  // biome-ignore lint/style/noProcessEnv: PORT mirrors the server's listen port — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
-  const port = process.env["PORT"] ?? String(DEV_PORTS.server);
-  // biome-ignore lint/style/noProcessEnv: WIRE_TAP_BASE points the harvest at a non-local server when needed — ambient tooling env, not app config.
-  return process.env["WIRE_TAP_BASE"] ?? `http://127.0.0.1:${port}`;
+  const port = processEnvValue("PORT") ?? String(DEV_PORTS.server);
+  return processEnvValue("WIRE_TAP_BASE") ?? `http://127.0.0.1:${port}`;
 }
 
 export async function trpcOp(argv: readonly string[]): Promise<number> {

@@ -25,6 +25,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { DEV_PORTS } from "../../floor/host/ports.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
@@ -74,15 +75,12 @@ function parseCapturesArgs(argv: readonly string[]): CapturesArgs {
 }
 
 function baseUrl(): string {
-  // biome-ignore lint/style/noProcessEnv: PORT mirrors the server's listen port — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
-  const port = process.env["PORT"] ?? String(DEV_PORTS.server);
-  // biome-ignore lint/style/noProcessEnv: WIRE_TAP_BASE points the reader at a non-local server when needed — ambient tooling env, not app config.
-  return process.env["WIRE_TAP_BASE"] ?? `http://127.0.0.1:${port}`;
+  const port = processEnvValue("PORT") ?? String(DEV_PORTS.server);
+  return processEnvValue("WIRE_TAP_BASE") ?? `http://127.0.0.1:${port}`;
 }
 
 function authHeaders(): Record<string, string> {
-  // biome-ignore lint/style/noProcessEnv: DEBUG_TOKEN is the ambient dev debug token (optional — single-user dev needs none). Harness plumbing, not app config.
-  const token = process.env["DEBUG_TOKEN"];
+  const token = processEnvValue("DEBUG_TOKEN");
   return token === undefined || token === "" ? {} : { "x-debug-token": token };
 }
 

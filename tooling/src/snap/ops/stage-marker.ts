@@ -27,6 +27,7 @@ import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../floor/host/ports.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { StageBandClaim, StageBandsFile, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
 import { liveHoldersOf } from "../lib/stage-bands.ts";
@@ -79,8 +80,7 @@ function readKeeper(value: unknown): Pick<StageRow, "keeper"> | Record<never, ne
  *  states for `ORB_SNAP_SESSION_HOME`, and it exists for the same reason: a committed proof that wrote the
  *  box's REAL `bands.json` would evict a live sibling lane's stage. It is also what lets a proof's SPAWNED
  *  child (a keeper) agree with the parent about which table it is keeping, since the child inherits it. */
-// biome-ignore lint/style/noProcessEnv: the ambient TOOLING knob this file owns — the scratch band-table home the committed proofs plant, twin of ops/session-registry.ts's ORB_SNAP_SESSION_HOME. The env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
-const { ORB_SNAP_STAGE_HOME: HOME_OVERRIDE } = process.env;
+const HOME_OVERRIDE = processEnvValue("ORB_SNAP_STAGE_HOME");
 
 export function markerRoot(root: string): string {
   if (HOME_OVERRIDE !== undefined && HOME_OVERRIDE !== "") {
