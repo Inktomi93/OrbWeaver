@@ -732,74 +732,6 @@ const RESTRICTIONS = [
     id: "dialog-via-composite",
     scope: [CLIENT_FEATURES_TSX],
     homes: [],
-    // Each deferred file hand-assembles a raw Dialog for a species no composite (FormDialog / ConfirmDialog) covers yet.
-    deferred: [
-      {
-        path: "packages/client/src/features/chat/components/variant-wire-viewer.tsx",
-        item: 986,
-        why: "read-only host wire inspector with one Close",
-      },
-      {
-        path: "packages/client/src/features/chat/components/member-card-viewer.tsx",
-        item: 986,
-        why: "read-only level-clamped member-card viewer with one Close",
-      },
-      {
-        path: "packages/client/src/features/rpg/components/rpg-scene-cards.tsx",
-        item: 986,
-        why: "archived ImmersiveCard opens as a read-only lightbox viewer",
-      },
-      {
-        path: "packages/client/src/features/chat/components/gallery-lightbox.tsx",
-        item: 986,
-        why: "gallery lightbox owns its root and its destructive confirm",
-      },
-      {
-        path: "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx",
-        item: 986,
-        why: "character-gallery picker owns its root and selection surface",
-      },
-      {
-        path: "packages/client/src/features/chat/components/gallery-add-picker.tsx",
-        item: 986,
-        why: "gallery add-picker owns its root and selection surface",
-      },
-      {
-        path: "packages/client/src/features/chat/components/reaction-picker.tsx",
-        item: 986,
-        why: "one-press emoji grid whose coarse trigger has no anchor box",
-      },
-      {
-        path: "packages/client/src/features/databank/components/databank-character-attachments.tsx",
-        item: 986,
-        why: "keyset-paged CharacterPicker attaches on selection and has no submit",
-      },
-      {
-        path: "packages/client/src/features/persona/components/persona-from-character-dialog.tsx",
-        item: 986,
-        why: "selecting a CharacterPicker row performs creation and dismisses, with no submit",
-      },
-      {
-        path: "packages/client/src/features/persona/components/persona-connected-characters.tsx",
-        item: 986,
-        why: "keyset-paged CharacterPicker connects on selection and has no submit",
-      },
-      {
-        path: "packages/client/src/features/chat/anchors/join-invite-dialog.tsx",
-        item: 986,
-        why: "/join preview-to-confirm landing owns loading, invalid and ready states rather than a form",
-      },
-      {
-        path: "packages/client/src/features/app-shell/components/modal-host.tsx",
-        item: 986,
-        why: "the shell's generic modal seam renders arbitrary registry-owned bodies and drawer presentation",
-      },
-      {
-        path: "packages/client/src/features/preset/components/variable-editor-dialog.tsx",
-        item: 986,
-        why: "seven-field form needing a pinned title above an internally-scrolled dynamic body; FormDialog lacks that layout",
-      },
-    ],
     selectors: [
       {
         selector: "ImportDeclaration[source.value='@orb/ui/dialog'] > ImportSpecifier[imported.name='Dialog']",
@@ -1393,30 +1325,7 @@ const STANDARD_CONFIG = tseslint.config(
         "error",
         {
           labelAttributes: ["label"],
-          ignoreElements: [
-            "audio",
-            "canvas",
-            "embed",
-            "input",
-            "textarea",
-            "tr",
-            "video",
-            // THESE COMPONENT NAMES ARE UNREACHABLE WHILE THE `components` MAP ABOVE CARRIES THEM (#1633),
-            // and reading them as "so a `<Switch>` is exempt" is the trap this comment exists to close: the
-            // rule resolves `elementType()` — i.e. applies the map — BEFORE testing this list, so what a
-            // mapped component is judged by is its LOWERCASE target ("input"/"textarea"), never its own
-            // name. They are a fallback that only wakes if the map stops naming that component; the row
-            // that decides whether a family passes is the `components` entry, not this one. Measured:
-            // `<Select>` maps to "select", which is NOT in this list, which is why `SelectField` still
-            // carries a cited suppression while `SwitchField` (mapped to "input") no longer needs one.
-            "Checkbox",
-            "Switch",
-            "Input",
-            "Textarea",
-            "Select",
-            "CommandInput",
-            "Slider",
-          ],
+          ignoreElements: ["audio", "canvas", "embed", "input", "textarea", "tr", "video"],
         },
       ],
       // Tell jsx-a11y that nesting our custom Checkbox inside a label is sufficient (just like native inputs).

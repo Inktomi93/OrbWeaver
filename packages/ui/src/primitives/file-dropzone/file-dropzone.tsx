@@ -210,7 +210,6 @@ export function FileDropzone({
   const slots = fileDropzoneVariants();
   const instructionsId = useId();
   const fieldLabelled = useFieldLabelled();
-  // biome-ignore lint/nursery/useNullishCoalescing: a real boolean OR — `disabled`/`loading` are both plain `boolean` (defaulted above), so `??` (which only falls through on null/undefined) would silently ignore an explicit `false` and isn't equivalent here.
   const inert = disabled || loading;
 
   // The ONE entry seam: both feeders (the native picker's `change` and an explicit drop) land here, so

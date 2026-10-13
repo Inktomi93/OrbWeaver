@@ -327,8 +327,7 @@ export function installMotionObservers(): void {
         }
       }
     });
-    // biome-ignore lint/suspicious/noExplicitAny: PerformanceObserverInit in lib.dom predates the LoAF entry type; the string is a valid Chrome M123+ observe target.
-    loaf.observe({ type: "long-animation-frame", buffered: true } as any);
+    loaf.observe({ type: "long-animation-frame", buffered: true });
   }
 
   if (supported.includes("layout-shift")) {

@@ -58,7 +58,6 @@ export function FolderPicker({
     event.target.value = "";
   };
 
-  // biome-ignore lint/nursery/useNullishCoalescing: a real boolean OR — both operands are plain booleans, so `??` (null/undefined only) would be wrong here (same call FileDropzone makes).
   const inert = disabled || loading;
 
   return (
