@@ -3,7 +3,7 @@ kind: work
 status: doing
 updated: 2026-10-13
 priority: P1
-lane: codex/compose-media-997
+lane: codex/harness-integration-958
 plan: test-foundation
 ---
 

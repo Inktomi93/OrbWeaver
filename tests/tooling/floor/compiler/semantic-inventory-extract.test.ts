@@ -1,7 +1,8 @@
-import { writeFileSync } from "node:fs";
+import { symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { InventoryBuildRequest, InventorySpan } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
+import { inputsCurrent } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
@@ -461,4 +462,71 @@ test("native reference projection retains an enclosing width-match instead of an
       partition.references.filter((entry) => JSON.stringify(entry.declaration) === JSON.stringify(span(declaration))).map((entry) => entry.reference),
     ).toEqual(expected);
   }
+});
+
+test("identical physical spans share one extraction-local payload across facts and native reference queries", ({ scratch }) => {
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+  );
+  writeFileSync(join(scratch, "base.ts"), "export const value=1; export interface Shape {value:number}\n");
+  writeFileSync(join(scratch, "barrel.ts"), "export {value,value as renamed,type Shape} from './base';\n");
+  writeFileSync(
+    join(scratch, "consumer.ts"),
+    "import {value,renamed,type Shape} from './barrel'; export const use:Shape={value:renamed+value}; export const witness='value' satisfies keyof typeof import('./base'); export const later=import('./base').then(m=>m.value);\n",
+  );
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const request = { root: scratch, descriptor, destination: join(scratch, "unused.sqlite") };
+  const { partition, queries } = extractWithoutReferenceWrappers(request);
+  const spans = [
+    ...partition.exports.flatMap((entry) => entry.declarations),
+    ...partition.modules.flatMap((entry) => [entry.node, ...entry.declarations]),
+    ...partition.bindings.flatMap((entry) => [entry.node, ...entry.symbols.lexical, ...entry.symbols.origins]),
+    ...partition.witnesses.flatMap((entry) => [entry.node, ...entry.declarations]),
+    ...partition.references.flatMap((entry) => [entry.declaration, entry.reference]),
+  ];
+  const physical = new Map<string, InventorySpan>();
+  for (const current of spans) {
+    const key = JSON.stringify(current);
+    const existing = physical.get(key) ?? current;
+    expect(current).toBe(existing);
+    expect(Object.isFrozen(current)).toBe(true);
+    physical.set(key, existing);
+  }
+  expect(spans.length - physical.size).toBeGreaterThan(physical.size);
+  const again = extractWithoutReferenceWrappers(request);
+  expect(again.queries).toEqual(queries);
+  expect(again.partition).toEqual(partition);
+  const origin = fixtureValue(partition.exports.find((entry) => entry.name === "value")?.declarations[0]);
+  const nextOrigin = fixtureValue(again.partition.exports.find((entry) => entry.name === "value")?.declarations[0]);
+  expect(nextOrigin).not.toBe(origin);
+});
+
+test("physical span reuse observes symlink retargeting and changed bytes between extractions", ({ scratch }) => {
+  writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["link.ts"], compilerOptions: { noLib: true, types: [] } }));
+  writeFileSync(join(scratch, "first.ts"), "export const first=1; export const use=first;\n");
+  writeFileSync(join(scratch, "second.ts"), "export const second=2; export const use=second;\n");
+  symlinkSync("first.ts", join(scratch, "link.ts"));
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const request = { root: scratch, descriptor, destination: join(scratch, "unused.sqlite") };
+  const { partition: first } = extractWithoutReferenceWrappers(request);
+  const original = JSON.stringify(first);
+  expect(first.exports.find((entry) => entry.name === "first")?.file).toBe(join(scratch, "first.ts"));
+  expect(inputsCurrent(first.inputs)).toBe(true);
+  unlinkSync(join(scratch, "link.ts"));
+  symlinkSync("second.ts", join(scratch, "link.ts"));
+  expect(inputsCurrent(first.inputs)).toBe(false);
+  const { partition: second } = extractWithoutReferenceWrappers(request);
+  expect(second.exports.find((entry) => entry.name === "second")?.file).toBe(join(scratch, "second.ts"));
+  expect(second.exports.some((entry) => entry.name === "first")).toBe(false);
+  expect(inputsCurrent(second.inputs)).toBe(true);
+  writeFileSync(join(scratch, "second.ts"), "export const changed=3; export const use=changed;\n");
+  expect(inputsCurrent(second.inputs)).toBe(false);
+  const { partition: changed } = extractWithoutReferenceWrappers(request);
+  expect(changed.exports.find((entry) => entry.name === "changed")?.file).toBe(join(scratch, "second.ts"));
+  expect(changed.exports.some((entry) => entry.name === "second")).toBe(false);
+  expect(inputsCurrent(changed.inputs)).toBe(true);
+  expect(JSON.stringify(first)).toBe(original);
 });

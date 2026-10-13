@@ -14,20 +14,56 @@ import { readAuthoredRepositoryInventory } from "./authored-repository.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
 import { descendantsOfKind, nativeCompilerSourceFiles } from "./ts-workspace.ts";
 
-function inventorySpan(node: MorphNode): InventorySpan {
-  return { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() };
+interface InventorySpans {
+  readonly path: (path: string) => string;
+  readonly span: (path: string, start: number, end: number, kind: number) => InventorySpan;
+  readonly node: (node: MorphNode) => InventorySpan;
 }
 
-function bindingFacts(node: MorphNode): { lexical: InventorySpan[]; origins: InventorySpan[] } {
-  const parent = node.getParent();
-  const symbol = Node.isShorthandPropertyAssignment(parent) && parent.getNameNode() === node ? parent.getValueSymbol() : node.getSymbol();
+interface InventoryFileSpans {
+  readonly path: string;
+  readonly spans: Map<string, InventorySpan>;
+}
+
+function inventorySpans(): InventorySpans {
+  const files = new Map<string, InventoryFileSpans>();
+  const file = (path: string): InventoryFileSpans => {
+    // Intern resolved values, not lookup results: a symlink change must still be observed.
+    const canonical = canonicalInventoryPath(path);
+    let entry = files.get(canonical);
+    if (entry === undefined) {
+      entry = { path: canonical, spans: new Map() };
+      files.set(canonical, entry);
+    }
+    return entry;
+  };
+  const span = (path: string, start: number, end: number, kind: number): InventorySpan => {
+    const entry = file(path);
+    const key = `${String(start)}:${String(end)}:${String(kind)}`;
+    let value = entry.spans.get(key);
+    if (value === undefined) {
+      value = Object.freeze({ file: entry.path, start, end, kind });
+      entry.spans.set(key, value);
+    }
+    return value;
+  };
   return {
-    lexical: (symbol?.getDeclarations() ?? []).map(inventorySpan),
-    origins: ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).map(inventorySpan),
+    path: (path: string): string => file(path).path,
+    span,
+    node: (node: MorphNode): InventorySpan => span(node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()),
   };
 }
 
-function moduleFacts(sf: SourceFile): InventoryPartition["modules"] {
+function bindingFacts(node: MorphNode, spans: InventorySpans): { lexical: InventorySpan[]; origins: InventorySpan[] } {
+  const parent = node.getParent();
+  const symbol = Node.isShorthandPropertyAssignment(parent) && parent.getNameNode() === node ? parent.getValueSymbol() : node.getSymbol();
+  return {
+    lexical: (symbol?.getDeclarations() ?? []).map(spans.node),
+    origins: ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).map(spans.node),
+  };
+}
+
+function moduleFacts(sf: SourceFile, spans: InventorySpans): InventoryPartition["modules"] {
   const out: InventoryPartition["modules"] = [];
   for (const node of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
     const literal = node.getModuleSpecifier();
@@ -36,9 +72,9 @@ function moduleFacts(sf: SourceFile): InventoryPartition["modules"] {
     }
     const target = node.getModuleSpecifierSourceFile();
     out.push({
-      node: inventorySpan(node),
-      target: target === undefined ? null : canonicalInventoryPath(target.getFilePath()),
-      declarations: (literal.getSymbol()?.getDeclarations() ?? []).map(inventorySpan),
+      node: spans.node(node),
+      target: target === undefined ? null : spans.path(target.getFilePath()),
+      declarations: (literal.getSymbol()?.getDeclarations() ?? []).map(spans.node),
       specifier: literal.getLiteralText(),
       dynamic: false,
     });
@@ -49,15 +85,15 @@ function moduleFacts(sf: SourceFile): InventoryPartition["modules"] {
     }
     const literal = call.getArguments()[0];
     if (literal === undefined || !Node.isStringLiteral(literal)) {
-      out.push({ node: inventorySpan(call), target: null, declarations: [], specifier: null, dynamic: true });
+      out.push({ node: spans.node(call), target: null, declarations: [], specifier: null, dynamic: true });
       continue;
     }
     const [module] = call.getType().getTypeArguments();
     const target = module?.getSymbol()?.getDeclarations().find(Node.isSourceFile);
     out.push({
-      node: inventorySpan(call),
-      target: target === undefined ? null : canonicalInventoryPath(target.getFilePath()),
-      declarations: (module?.getSymbol()?.getDeclarations() ?? []).map(inventorySpan),
+      node: spans.node(call),
+      target: target === undefined ? null : spans.path(target.getFilePath()),
+      declarations: (module?.getSymbol()?.getDeclarations() ?? []).map(spans.node),
       specifier: literal.getLiteralText(),
       dynamic: true,
     });
@@ -65,7 +101,7 @@ function moduleFacts(sf: SourceFile): InventoryPartition["modules"] {
   return out;
 }
 
-function witnessFacts(sf: SourceFile): InventoryPartition["witnesses"] {
+function witnessFacts(sf: SourceFile, spans: InventorySpans): InventoryPartition["witnesses"] {
   const out: InventoryPartition["witnesses"] = [];
   for (const node of descendantsOfKind(sf, SyntaxKind.SatisfiesExpression)) {
     const type = node.getTypeNode();
@@ -79,13 +115,14 @@ function witnessFacts(sf: SourceFile): InventoryPartition["witnesses"] {
     }
     const name = expression.getLiteralText();
     const symbol = imported.getType().getProperty(name);
-    out.push({ node: inventorySpan(node), name, declarations: ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).map(inventorySpan) });
+    out.push({ node: spans.node(node), name, declarations: ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).map(spans.node) });
   }
   return out;
 }
 
 /** Extract primitive compiler facts without running any consumer classification. */
 export function extractInventoryPartition(request: InventoryBuildRequest): InventoryPartition {
+  const spans = inventorySpans();
   const inputs = new Map<string, InventoryInput>();
   const base = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
   const fileSystem = inventoryFileSystem(base, request.overlay, inputs);
@@ -114,10 +151,10 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   for (const sf of files) {
     sf.forgetDescendants();
   }
-  const roots = request.descriptor.files.map((path) => canonicalInventoryPath(resolve(request.root, path)));
+  const roots = request.descriptor.files.map((path) => spans.path(resolve(request.root, path)));
   const authored = new Set(
     [...readAuthoredRepositoryInventory(request.root).paths, ...(request.overlay?.files.map((file) => file.path) ?? [])].map((path) =>
-      canonicalInventoryPath(resolve(request.root, path)),
+      spans.path(resolve(request.root, path)),
     ),
   );
   const service = project.getLanguageService().compilerObject;
@@ -125,8 +162,8 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   if (program === undefined) {
     throw new Error("native inventory language service has no Program");
   }
-  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, files, authored);
-  const facts = { ...sourceFacts, references: extractReferenceFacts(service, referenceDeclarations) };
+  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, files, authored, spans);
+  const facts = { ...sourceFacts, references: extractReferenceFacts(service, referenceDeclarations, spans) };
   return {
     format: INVENTORY_FORMAT,
     program: request.descriptor.id,
@@ -139,11 +176,11 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     nativeRoots: [...project.getProgram().compilerObject.getRootFileNames()],
     inputs: [...inputs.values()].toSorted((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind)),
     sources: files.map((sf) => ({
-      file: canonicalInventoryPath(sf.getFilePath()),
+      file: spans.path(sf.getFilePath()),
       path: sf.getFilePath(),
       consumerClass: inventoryConsumerClass(sf.getFilePath()),
       text: sf.getFullText(),
-      authored: authored.has(canonicalInventoryPath(sf.getFilePath())),
+      authored: authored.has(spans.path(sf.getFilePath())),
     })),
     ...facts,
   };
@@ -155,15 +192,20 @@ interface ReferenceDeclaration {
   readonly query: { readonly file: string; readonly start: number };
 }
 
-function registerReferenceDeclarations(declarations: readonly MorphNode[], authored: ReadonlySet<string>, target: Map<string, ReferenceDeclaration>): void {
+function registerReferenceDeclarations(
+  declarations: readonly MorphNode[],
+  authored: ReadonlySet<string>,
+  target: Map<InventorySpan, ReferenceDeclaration>,
+  spans: InventorySpans,
+): void {
   for (const declaration of declarations) {
-    if (authored.has(canonicalInventoryPath(declaration.getSourceFile().getFilePath())) && Node.isReferenceFindable(declaration)) {
-      const span = inventorySpan(declaration);
+    if (authored.has(spans.path(declaration.getSourceFile().getFilePath())) && Node.isReferenceFindable(declaration)) {
+      const span = spans.node(declaration);
       const query = referenceQueryNode(declaration);
       const name = Node.hasName(declaration) ? declaration.getNameNode() : undefined;
-      target.set(JSON.stringify(span), {
+      target.set(span, {
         declaration: span,
-        name: name !== undefined && Node.isReferenceFindable(name) ? inventorySpan(name) : undefined,
+        name: name !== undefined && Node.isReferenceFindable(name) ? spans.node(name) : undefined,
         query: { file: query.getSourceFile().getFilePath(), start: query.getStart() },
       });
     }
@@ -174,12 +216,13 @@ function extractSourceFacts(
   program: ts.Program,
   files: readonly SourceFile[],
   authored: ReadonlySet<string>,
-): Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses"> & { referenceDeclarations: ReadonlyMap<string, ReferenceDeclaration> } {
+  spans: InventorySpans,
+): Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses"> & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
   const exports: InventoryPartition["exports"] = [];
   const modules: InventoryPartition["modules"] = [];
   const bindings: InventoryPartition["bindings"] = [];
   const witnesses: InventoryPartition["witnesses"] = [];
-  const referenceDeclarations = new Map<string, ReferenceDeclaration>();
+  const referenceDeclarations = new Map<InventorySpan, ReferenceDeclaration>();
   const standaloneSources = nativeCompilerSourceFiles(program);
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
   try {
@@ -188,20 +231,20 @@ function extractSourceFacts(
       if (sf === undefined) {
         throw new Error(`native inventory source is not shared with its language-service Program: ${original.getFilePath()}`);
       }
-      const file = canonicalInventoryPath(sf.getFilePath());
+      const file = spans.path(sf.getFilePath());
       // Dependency exports are required because importing worlds can resolve a package to a distinct closure.
       for (const [name, declarations] of sf.getExportedDeclarations()) {
-        exports.push({ file, name, declarations: declarations.map(inventorySpan) });
-        registerReferenceDeclarations(declarations, authored, referenceDeclarations);
+        exports.push({ file, name, declarations: declarations.map(spans.node) });
+        registerReferenceDeclarations(declarations, authored, referenceDeclarations, spans);
       }
       if (authored.has(file)) {
-        modules.push(...moduleFacts(sf));
-        witnesses.push(...witnessFacts(sf));
+        modules.push(...moduleFacts(sf, spans));
+        witnesses.push(...witnessFacts(sf, spans));
         for (const id of descendantsOfKind(sf, SyntaxKind.Identifier)) {
-          const symbols = bindingFacts(id);
-          bindings.push({ node: inventorySpan(id), symbols });
+          const symbols = bindingFacts(id, spans);
+          bindings.push({ node: spans.node(id), symbols });
           const symbol = id.getSymbol();
-          registerReferenceDeclarations(symbol?.getDeclarations() ?? [], authored, referenceDeclarations);
+          registerReferenceDeclarations(symbol?.getDeclarations() ?? [], authored, referenceDeclarations, spans);
         }
       }
       sf.forgetDescendants();
@@ -217,12 +260,13 @@ function extractSourceFacts(
 
 function extractReferenceFacts(
   service: ts.LanguageService,
-  referenceDeclarations: ReadonlyMap<string, ReferenceDeclaration>,
+  referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration>,
+  spans: InventorySpans,
 ): InventoryPartition["references"] {
   const references: InventoryPartition["references"] = [];
   // Use the native language service, not an approximation based on equal-spelled identifiers.
   for (const declaration of referenceDeclarations.values()) {
-    const nativeReferences = nativeReferenceFacts(service, declaration.query);
+    const nativeReferences = nativeReferenceFacts(service, declaration.query, spans);
     for (const reference of nativeReferences) {
       references.push({
         declaration: declaration.declaration,
@@ -244,6 +288,7 @@ function extractReferenceFacts(
 function nativeReferenceFacts(
   service: ts.LanguageService,
   query: ReferenceDeclaration["query"],
+  spans: InventorySpans,
 ): Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] {
   // DocumentSpan wrappers subscribe to source modifications and retain every result in this read-only worker.
   const groups = service.findReferences(query.file, query.start) ?? [];
@@ -257,7 +302,7 @@ function nativeReferenceFacts(
         if (source === undefined) {
           throw new Error(`native reference source is outside its language-service program: ${reference.fileName}`);
         }
-        references.push({ reference: nativeReferenceSpan(source, reference.textSpan), consumerClass: inventoryConsumerClass(reference.fileName) });
+        references.push({ reference: nativeReferenceSpan(source, reference.textSpan, spans), consumerClass: inventoryConsumerClass(reference.fileName) });
       }
     }
   }
@@ -272,7 +317,7 @@ function referenceQueryNode(declaration: MorphNode): MorphNode {
   return name ?? (Node.isExportable(declaration) ? (declaration.getDefaultKeyword() ?? declaration) : declaration);
 }
 
-function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan): InventorySpan {
+function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan, spans: InventorySpans): InventorySpan {
   let best: ts.Node = source;
   let found = false;
   let node: ts.Node | undefined = source;
@@ -289,5 +334,5 @@ function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan): Inventor
     }
     node = node.getChildren(source).find((child) => child.pos <= span.start && span.start < child.end);
   }
-  return { file: canonicalInventoryPath(source.fileName), start: best.getStart(source), end: best.end, kind: best.kind };
+  return spans.span(source.fileName, best.getStart(source), best.end, best.kind);
 }
