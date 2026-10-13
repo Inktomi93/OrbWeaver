@@ -32,4 +32,4 @@ Main owns the cold frozen replay on the reviewed lane source. It runs the comple
 
 The replay stopped during native extraction after source review confirmed duplicate declaration and name reference queries. It supplies no complete inventory verdict. Reuse each native result for both physical keys, preserving every demanded fact. Prove query reuse and output parity before scheduling the corrected frozen replay.
 
-The reviewed query correction preserves native results and both physical keys while executing each query once. Its discriminating native control and affected checks pass. Main integrates the reviewed store without closing this item. Complete replay and memory qualification remain required.
+The reviewed query correction preserves native results and both physical keys while executing each query once. Its discriminating native control and affected checks pass. The reviewed store is integrated without closing this item. The corrected cold replay has started on frozen lane source; its historical input does not qualify current main production usage. Complete replay and memory qualification remain required.
