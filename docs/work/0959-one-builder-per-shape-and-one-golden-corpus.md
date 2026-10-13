@@ -31,6 +31,6 @@ Inventory data returned or serialized by live production doors and their reusabl
 
 Capture HTTP auth outputs through the real application and its resolved request identity. A tRPC caller does not produce anonymous auth configuration. The server root owns HTTP construction; corpus code must not build another app or copy its projection.
 
-The complete auth-configuration wire schema is missing. Its canonical contract and consumer parsing belong to the [boundary-parsing assignment](0982-wire-values-are-parsed-at-every-boundary-not.md). Keep that builder incomplete until the production owner exists; continue independent builders and real HTTP capture.
+The canonical auth-configuration schema and consumer parsing are integrated through the [boundary-parsing assignment](0982-wire-values-are-parsed-at-every-boundary-not.md). Capture its complete request-specific response through the qualified server root before claiming the builder. The schema supplies validation, not fabricated authentication or deployment defaults.
 
 Browser responders select actual captured route inputs and outputs. Preserve absent versus explicit null input, reject conflicting captures, and refuse unmatched input without a fabricated success. This lookup does not establish generated corpus adoption.
