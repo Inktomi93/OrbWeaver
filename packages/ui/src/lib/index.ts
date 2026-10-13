@@ -14,8 +14,6 @@ export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-poi
 export { CHIP_BOX, CONTROL_SIZE } from "./control-size.ts";
 export {
   CSS_MERGE_TRACE_INPUT_LIMIT,
-  type CssMergeConflict,
-  type CssMergeReceipt,
   type CssMergeTraceSnapshot,
   cssMergeTrace,
 } from "./css-merge-trace.ts";

@@ -1,6 +1,4 @@
 export {
-  type ClampedTheme,
-  clampThemeTokens,
   THEME_FONT_ALLOWLIST,
   THEME_SCOPE_DENSITIES,
   THEME_SCOPE_RADII,

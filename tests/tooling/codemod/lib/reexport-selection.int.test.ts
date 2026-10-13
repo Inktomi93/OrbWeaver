@@ -1,3 +1,9 @@
+import { spawnSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join, relative } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { removeReExport } from "@orb/tooling/codemod";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
@@ -6,6 +12,129 @@ import { z } from "zod";
 import { withTree } from "../_kit-tree.ts";
 
 const SOURCE = "export class Subject {}\n";
+const RECIPE = fileURLToPath(new URL("../../../../scripts/codemods/production-exports-989.ts", import.meta.url));
+const LUCIDE_MANIFEST = createRequire(new URL("../../../../packages/ui/package.json", import.meta.url)).resolve("lucide-react/package.json");
+const LUCIDE = z.object({ name: z.literal("lucide-react"), version: z.string(), typings: z.string() }).parse(JSON.parse(readFileSync(LUCIDE_MANIFEST, "utf8")));
+const VENDOR_FILE = `node_modules/lucide-react/${LUCIDE.typings}`;
+const VENDOR_SOURCE = readFileSync(join(dirname(LUCIDE_MANIFEST), LUCIDE.typings), "utf8");
+const VENDOR_BARREL = 'export { Shrink, Expand } from "lucide-react";\n';
+
+test.each(["exact", "span", "forged", "outside", "undeclared", "module", "editable", "resolution"])(
+  "recipe vendor origin control %s preserves only the adjudicated installed dependency",
+  async (control) => {
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({
+          compilerOptions: {
+            module: "esnext",
+            moduleResolution: "bundler",
+            verbatimModuleSyntax: true,
+            ...(control === "resolution" ? { paths: { "lucide-react": ["./node_modules/redirected/lucide-react.d.ts"] } } : {}),
+          },
+        }),
+        "packages/ui/package.json": JSON.stringify({ name: "@fixture/ui", dependencies: control === "undeclared" ? {} : { "lucide-react": LUCIDE.version } }),
+        "packages/ui/src/icons/index.ts": VENDOR_BARREL,
+        "node_modules/lucide-react/package.json": readFileSync(LUCIDE_MANIFEST, "utf8"),
+        [VENDOR_FILE]: VENDOR_SOURCE,
+        "node_modules/redirected/lucide-react.d.ts": VENDOR_SOURCE,
+      },
+      async ({ root, read, run }) => {
+        let origin = { file: "", start: 0 };
+        await run((ctx) => {
+          const declarations = ctx
+            .semantic()
+            .sourceCorpus()
+            .getSourceFile(join(root, "packages/ui/src/icons/index.ts"))
+            ?.getExportedDeclarations()
+            .get("Shrink");
+          const declaration = declarations?.[0];
+          expect(declaration).toBeDefined();
+          if (declaration === undefined) {
+            throw new Error("Installed dependency export is absent");
+          }
+          origin = { file: relative(root, declaration.getSourceFile().getFilePath()), start: declaration.getStart() };
+        });
+        let selectedFile = origin.file;
+        if (control === "outside") {
+          selectedFile = "../outside.d.ts";
+        }
+        if (control === "forged") {
+          selectedFile = "node_modules/lucide-react/forged.d.ts";
+        }
+        const selectedOrigin = {
+          file: selectedFile,
+          start: control === "span" ? origin.start + 1 : origin.start,
+        };
+        const workset = [
+          {
+            file: control === "editable" ? VENDOR_FILE : "packages/ui/src/icons/index.ts",
+            moduleSpecifier: control === "module" ? "lucide-react/not-the-export" : "lucide-react",
+            exports: [{ name: "Shrink", exportedName: "Shrink", isTypeOnly: false, origins: [selectedOrigin] }],
+            preserveModuleEvaluation: true,
+            reason: "Exercise the installed dependency origin boundary through the real recipe.",
+          },
+        ];
+        writeFileSync(join(root, "workset.json"), JSON.stringify(workset));
+        const result = spawnSync(process.execPath, [RECIPE, "--workset=workset.json", "--apply", "--no-diagnostics-check"], { cwd: root, encoding: "utf8" });
+        expect(result.error).toBeUndefined();
+        expect(result.status, result.stdout + result.stderr).toBe(control === "exact" ? 0 : 1);
+        expect(read("packages/ui/src/icons/index.ts")).toBe(control === "exact" ? 'export { Expand } from "lucide-react";\n' : VENDOR_BARREL);
+        expect(result.stdout.includes("Wrote 1 file(s)")).toBe(control === "exact");
+        expect(read(VENDOR_FILE)).toBe(VENDOR_SOURCE);
+      },
+    );
+  },
+);
+
+test.each([
+  { control: "target-traversal", file: "packages/ui/../../scripts/barrel.ts", barrel: "scripts/barrel.ts" },
+  { control: "target-dot", file: "packages/ui/src/./icons/index.ts", barrel: "packages/ui/src/icons/index.ts" },
+  { control: "target-backslash", file: "packages/ui/src/icons\\index.ts", barrel: "packages/ui/src/icons/index.ts" },
+  { control: "target-source", file: "packages/ui/barrel.ts", barrel: "packages/ui/barrel.ts" },
+])("recipe vendor origin control $control preserves only the adjudicated installed dependency", async ({ file, barrel }) => {
+  await withTree(
+    {
+      "tsconfig.json": JSON.stringify({ compilerOptions: { module: "esnext", moduleResolution: "bundler", verbatimModuleSyntax: true } }),
+      "packages/ui/package.json": JSON.stringify({ name: "@fixture/ui", dependencies: { "lucide-react": LUCIDE.version } }),
+      "packages/ui/src/anchor.ts": "export {};\n",
+      [barrel]: VENDOR_BARREL,
+      "node_modules/lucide-react/package.json": readFileSync(LUCIDE_MANIFEST, "utf8"),
+      [VENDOR_FILE]: VENDOR_SOURCE,
+    },
+    async ({ root, read, run }) => {
+      let origin = { file: "", start: 0 };
+      await run((ctx) => {
+        const declarations = ctx.semantic().sourceCorpus().getSourceFile(join(root, barrel))?.getExportedDeclarations().get("Shrink");
+        expect(declarations).toHaveLength(1);
+        const declaration = declarations?.[0];
+        if (declaration === undefined) {
+          throw new Error("Installed dependency export is absent");
+        }
+        origin = { file: relative(root, declaration.getSourceFile().getFilePath()), start: declaration.getStart() };
+      });
+      writeFileSync(
+        join(root, "workset.json"),
+        JSON.stringify([
+          {
+            file,
+            moduleSpecifier: "lucide-react",
+            exports: [{ name: "Shrink", exportedName: "Shrink", isTypeOnly: false, origins: [origin] }],
+            preserveModuleEvaluation: true,
+            reason: "Exercise canonical package-source target admission through the real recipe.",
+          },
+        ]),
+      );
+      const result = spawnSync(process.execPath, [RECIPE, "--workset=workset.json", "--apply", "--no-diagnostics-check"], { cwd: root, encoding: "utf8" });
+      expect(result.error).toBeUndefined();
+      expect(read(barrel)).toBe(VENDOR_BARREL);
+      expect(result.status, result.stdout + result.stderr).toBe(1);
+      expect(result.stderr).toContain("canonical packages/<owner>/src path");
+      expect(result.stdout).not.toContain("── Plans ──");
+      expect(result.stdout).not.toContain("Wrote 1 file(s)");
+      expect(read(VENDOR_FILE)).toBe(VENDOR_SOURCE);
+    },
+  );
+});
 
 test("exact removal separates source identity, exported aliases and whole/inline type arms", async () => {
   const barrel = [

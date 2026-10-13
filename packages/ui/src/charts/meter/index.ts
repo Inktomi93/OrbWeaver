@@ -22,15 +22,9 @@ export type { WaystoneClock, WaystoneProps } from "./waystone.tsx";
 export { Waystone } from "./waystone.tsx";
 export { handAngle, hourAngle } from "./waystone-geometry.ts";
 export type {
-  WaystoneCelestial,
-  WaystoneOverlayKind,
   WaystoneParticleLayer,
   WaystonePhase,
-  WaystonePhaseSpan,
-  WaystoneSky,
-  WaystoneTreatment,
   WaystoneWeather,
-  WaystoneWeatherRecipe,
 } from "./waystone-treatment.ts";
 export {
   resolveWaystoneTreatment,
