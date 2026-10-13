@@ -22,11 +22,6 @@ export interface InstrumentAffectedArm {
   readonly policy: { readonly id: string };
 }
 
-export interface InstrumentAffectedPolicyReach {
-  readonly policyIds: readonly string[];
-  readonly unclassifiableGatePaths: readonly string[];
-}
-
 interface InstrumentAffectedSelectionFields {
   readonly sources: readonly string[];
   readonly specs: readonly string[];

@@ -3,7 +3,7 @@
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
-import { testReach } from "../../../../tooling/src/verify/lib/test-reach.ts";
+import { testReach } from "../../../../tooling/src/floor/code-facts/test-reach.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/repo";

@@ -1,13 +1,14 @@
-// The syntax-level readers behind `test-reach`: what a test file declares or imports, with no module resolution.
-import { posix } from "node:path";
+// Module closure and authored test syntax retain caller-specific admission without module resolution.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, ts } from "ts-morph";
+
+import { resolveRelativeImport } from "./module-specifier.ts";
 
 const SUBJECT_RE = /@subject[\t ]+(\S+)/gu;
 /** The root `package.json` imports map: `#<package>/<path>` is `packages/<package>/src/<path>`. */
 const SUBPATH_IMPORT_RE = /^#([a-z][a-z-]*)\/(.+)$/u;
 
-// Every path reachable from `starts` through `targetsOf`.
+/** Every path reachable from `starts` through the caller's admitted target edges. */
 export function moduleClosure(starts: readonly string[], targetsOf: (path: string) => readonly string[]): ReadonlySet<string> {
   const reached = new Set<string>();
   const pending = [...starts];
@@ -22,7 +23,7 @@ export function moduleClosure(starts: readonly string[], targetsOf: (path: strin
   return reached;
 }
 
-// The `@subject` paths in a file's leading comment block.
+/** The `@subject` paths in a file's leading comment block. */
 export function subjectHeader(sourceFile: SourceFile): readonly string[] {
   const text = sourceFile.getFullText();
   const out: string[] = [];
@@ -102,7 +103,7 @@ export function destructuredNames(call: MorphNode): readonly string[] {
 /** A repo-relative path for a relative or `#<package>/` specifier; `undefined` for a bare package name. */
 export function specifierPath(from: string, specifier: string): string | undefined {
   if (specifier.startsWith(".")) {
-    return posix.normalize(posix.join(posix.dirname(from), specifier));
+    return resolveRelativeImport(from, specifier) ?? undefined;
   }
   const subpath = SUBPATH_IMPORT_RE.exec(specifier);
   return subpath === null ? undefined : `packages/${subpath[1] ?? ""}/src/${subpath[2] ?? ""}`;

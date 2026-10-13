@@ -2,10 +2,10 @@
 // the test kit (Core-0-Architecture-and-Structure.md §5): a package is entered through its declared entries, the kit
 // through `@orb/testkit/<world>/<path>`. Arms: import · re-export · import() in a value or type position · vi.mock-family calls.
 // DECLARED LIMITS: a path read as data (a CSS or JSON file) and a package-root file are not module imports into src.
-// FAMILY: tests-package-subpath — the module-specifier reader `lib/test-import-door.ts#testModuleSpecifier`, shared with `tests-raw-package-reach`.
-import { Node, SyntaxKind } from "ts-morph";
+// FAMILY: tests-package-subpath — the forbidden-door judgment `lib/test-import-door.ts#testImportDoor`, shared with `tests-raw-package-reach`.
+import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { relativeClimb, testModuleSpecifier } from "../lib/test-import-door.ts";
+import { testImportDoor } from "../lib/test-import-door.ts";
 
 const MESSAGE =
   "a test reaches by a relative path into a package's source or into the test kit. A test enters a package through its " +
@@ -31,16 +31,12 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression, SyntaxKind.ImportType],
         visit: (node, sourceFile) => {
-          const literal = testModuleSpecifier(node);
-          if (literal === undefined || !Node.isStringLiteral(literal)) {
+          const climb = testImportDoor(node, ctx.relativePath(sourceFile));
+          if (climb === undefined || climb.kind === "raw-package") {
             return;
           }
-          const climb = relativeClimb(ctx.relativePath(sourceFile), literal.getLiteralValue());
-          if (climb === undefined) {
-            return;
-          }
-          const door = climb.kind === "testkit" ? climb.door : `the public entry of @orb/${climb.pkg}`;
-          ctx.report.node(literal, { message: `${MESSAGE} Use ${door}.`, fix: FIX });
+          const door = climb.kind === "relative-testkit" ? climb.door : `the public entry of @orb/${climb.pkg}`;
+          ctx.report.node(climb.literal, { message: `${MESSAGE} Use ${door}.`, fix: FIX });
         },
       },
     ],

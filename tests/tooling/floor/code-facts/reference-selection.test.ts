@@ -1,9 +1,8 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleKind, ModuleResolutionKind, Project, SyntaxKind } from "ts-morph";
 import { buildLiveness, deadEvidenceFor } from "../../../../tooling/src/ast/index.ts";
-import { resolveModule } from "../../../../tooling/src/ast/lib/resolve.ts";
 import { INVENTORY_VERBS } from "../../../../tooling/src/ast/ops/verbs.ts";
-import { dynamicModuleTarget, importerModulePath } from "../../../../tooling/src/floor/code-facts/module-target.ts";
+import { dynamicModuleTarget, importerModulePath, relativeModuleTarget as resolveModule } from "../../../../tooling/src/floor/code-facts/module-target.ts";
 import { declarationsNamed } from "../../../../tooling/src/floor/code-facts/reference-declarations.ts";
 import {
   isDocumentationLinkReference,

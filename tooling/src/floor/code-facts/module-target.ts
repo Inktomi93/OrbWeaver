@@ -2,6 +2,7 @@
 import { dirname, resolve } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import { Node as TsNode, ts } from "ts-morph";
+import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import { semanticInventoryOf } from "./semantic-inventory-reader.ts";
 
@@ -52,4 +53,18 @@ export function dynamicModuleTarget(call: Node): SourceFile | undefined {
   const [moduleType] = call.getType().getTypeArguments();
   const declarations = moduleType?.getSymbol()?.getDeclarations() ?? [];
   return declarations.find((declaration): declaration is SourceFile => TsNode.isSourceFile(declaration));
+}
+
+const MODULE_FILE_EXTS = [".ts", ".tsx"] as const;
+
+/** Resolve a relative import specifier to its workspace source file (used for dynamic `import()` — which
+ *  ts-morph gives no resolution primitive for). Non-relative specs (`#alias`/`@orb`) are left unresolved here;
+ *  the dev-only dynamic imports that mattered for the false-orphan class are all relative. */
+export function relativeModuleTarget(project: SourceCorpus, fromDir: string, spec: string): SourceFile | undefined {
+  if (!spec.startsWith(".")) {
+    return;
+  }
+  const base = `${fromDir}/${spec}`;
+  const candidates = [base, ...MODULE_FILE_EXTS.map((e) => `${base}${e}`), ...MODULE_FILE_EXTS.map((e) => `${base}/index${e}`)];
+  return candidates.map((c) => project.getSourceFile(c)).find((sf) => sf !== undefined);
 }

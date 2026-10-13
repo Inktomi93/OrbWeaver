@@ -36,18 +36,18 @@
 // SPLIT AT THE SIZE CAP (2026-09-18): the static-text reads (2) — `staticSegments`, `messageAlternatives`,
 // `staticText`, the waiver-spelling text tests, `enclosingStringExpression`, `discriminationOf` and the
 // family's `unwrapExpression` — are `policy-static-text.ts`; the production-reach walk behind
-// `policyProductionDependencies` is `policy-production-reach.ts`. Both are leaves; registration, the
+// `policyProductionDependencies` is `floor/code-facts/production-reach.ts`. Both are leaves; registration, the
 // descriptor fields, proof rows and the report-site readers (3) stay here.
 
 import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, PropertyAssignment, ShorthandPropertyAssignment, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { ProductionEdges } from "../../floor/code-facts/module-reach-contract.ts";
+import { reachableDeclarations } from "../../floor/code-facts/production-reach.ts";
 import { readAuthoredArrayPresence } from "../../floor/code-facts/static-authored-value.ts";
 import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { FinalRegistration, ProofRows, ReportSiteMessage } from "../contract/policy-descriptor-read.ts";
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
-import type { ProductionEdges } from "./policy-production-reach.ts";
-import { reachableDeclarations } from "./policy-production-reach.ts";
 import { messageAlternatives, unwrapExpression } from "./policy-static-text.ts";
 
 const REPORT_SINK = "report";

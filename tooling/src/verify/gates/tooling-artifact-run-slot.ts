@@ -42,10 +42,10 @@
 
 import type { Node as MorphNode } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { isToolCli, TOOLING_PREFIX, toolOf } from "../../floor/code-facts/module-specifier.ts";
 import { defineGate } from "../contract/policy.ts";
 import { ARTIFACT_FILERS, classifyFilingCall, RUN_SLOT_DOOR } from "../lib/artifact-filing.ts";
 import { locateProjectHome } from "../lib/project-home-origin.ts";
-import { isToolCli, TOOLING_PREFIX, toolOf } from "../lib/tooling-import-door.ts";
 
 const FILERS_RECEIPT = "artifact home: filers";
 const SLOT_RECEIPT = "artifact home: run slot";

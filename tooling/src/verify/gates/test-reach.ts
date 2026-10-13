@@ -1,14 +1,16 @@
 // Policy: test-reach (docs/law/Spine-Testing.md §5) — every presence-gated module is reached by a test of the kind
 // its surface owes: a test, or a test-tree helper it imports, references one of the module's value exports, or the
 // test names the module in an `@subject` header. A file at a computed path proves nothing. The surfaces are derived
-// by SHAPE (`demandFor`); reach is `lib/test-reach.ts`. Family `mirror-index`: `@subject` paths must exist in the
+// by SHAPE (`demandFor`); reach is `floor/code-facts/test-reach.ts`. Family `mirror-index`: `@subject` paths must exist in the
 // package or tooling source space. Current debt is reviewed-grant rows in `lib/reviewed-grants-test-reach*.ts`.
 // The client `data/`, `forms/` and `state/` seals and the non-primitive `@orb/ui` logic groups are demanded here too,
 // and every action a client store file exports must be CALLED by a test, not only imported. The standing
 // worst-legal-art CT, a named-file floor rather than a reach demand, stays in `test-presence-client`.
 import type { Expression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import type { DeclaredSubject } from "../../floor/code-facts/module-reach-contract.ts";
 import { resolveExportedDeclarations } from "../../floor/code-facts/reference-fact.ts";
+import { testReach } from "../../floor/code-facts/test-reach.ts";
 import type { TestFamily } from "../../floor/testing/test-kinds.ts";
 import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -16,8 +18,6 @@ import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
 import { codeTextForScan } from "../lib/comment-spans.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
-import type { DeclaredSubject } from "../lib/test-reach.ts";
-import { testReach } from "../lib/test-reach.ts";
 
 const SERVER_SRC = "packages/server/src/";
 const CONTRACTS_SRC = "packages/contracts/src/";
