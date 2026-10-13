@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Add a test composition root to `@orb/testkit/node` that builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, timers, the inference provider edge, the plugin host and the network. Production exposes each seam at its composition root. It starts from the compose that item 964 leaves: every rule already exported from its owning domain, so the root reaches each one. Port one domain suite onto it as the proof.
+Build the real `entry/compose` graph through `@orb/testkit/node`. Inject database, clock, ids, random, timers, provider execution, plugin host and network edges. Domain rules remain in production; port one complete domain suite as proof.
 
 ## Why
 
@@ -31,13 +31,13 @@ Thread deterministic IDs through actual owner writes. Inject business randomness
 
 Expose plugin-host execution and lifecycle. Inject imagery, scraping, installation and plugin egress without bypassing admission. Join startup, failed construction and teardown of database, runtime, workers and host resources. Deleting temporary files is not cleanup.
 
-`packages/server/src/foundation/observability/tracing.ts` resolves `superviseSettled` before the enclosing request span closes and its rejection report completes. Repair that existing completion boundary so harness teardown joins the actual supervised operation. Preserve the existing trace status and error report; prove completion and rejection through the public observability surface.
+`packages/server/src/foundation/observability/tracing.ts` must settle `superviseSettled` after its request span and rejection report complete. Preserve status and errors; prove both outcomes through public observability.
 
 Keep transport event buses and the chat-open tap graph-owned. Wire both publishers and subscribers through the same instance. Preserve synthetic timing and automation behavior. Prove concurrent roots with identical IDs cannot share events; disposal may finish out of order. Join aborted socket room pumps before database disposal.
 
 Notifications supplies the replacement case set. Preserve scope, replay, standing, persistence and projection assertions. Adjudicate unused cases without fake callers; delete legacy only after matching replacement proof.
 
-Public notification verbs can replace their copied assembly independently. Keep unresolved direct persistence cases in legacy until production intent and replacement are adjudicated. That partial port does not establish complete domain replacement. The root must also reuse production HTTP construction and request identity for corpus auth outputs.
+Keep unresolved notification persistence cases in legacy until intent and replacement are adjudicated. A partial port is not complete replacement. Corpus auth outputs use production HTTP construction and request identity.
 
 Scoped controls prove resolved CIDR admission can widen a restricted hostname port. The correction rejects that path before dialing and preserves declared-port, unrelated-host and public-address admission. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.
 
