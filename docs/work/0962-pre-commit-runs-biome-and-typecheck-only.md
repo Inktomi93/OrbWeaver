@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-13
 priority: P1
+lane: codex/commit-floor-962
 plan: test-foundation
 ---
 
