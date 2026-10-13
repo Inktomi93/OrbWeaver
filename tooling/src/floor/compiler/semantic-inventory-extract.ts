@@ -102,18 +102,20 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     inputs.set(`file\0${absolute}`, { path: absolute, kind: "file", version: inputVersion(absolute, "file", fileSystem) });
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true, compilerOptions: request.descriptor.commandLine.options, fileSystem });
-  for (const path of request.descriptor.files) {
-    project.addSourceFileAtPath(resolve(request.root, path));
-  }
-  project.resolveSourceFileDependencies();
+  const files = project.forgetNodesCreatedInBlock(() => {
+    for (const path of request.descriptor.files) {
+      project.addSourceFileAtPath(resolve(request.root, path));
+    }
+    project.resolveSourceFileDependencies();
+    return nativeCompilerSourceFiles(project);
+  });
   const roots = request.descriptor.files.map((path) => canonicalInventoryPath(resolve(request.root, path)));
   const authored = new Set(
     [...readAuthoredRepositoryInventory(request.root).paths, ...(request.overlay?.files.map((file) => file.path) ?? [])].map((path) =>
       canonicalInventoryPath(resolve(request.root, path)),
     ),
   );
-  const files = nativeCompilerSourceFiles(project);
-  const facts = extractSourceFacts(files, authored);
+  const facts = extractSourceFacts(project, files, authored);
   return {
     format: INVENTORY_FORMAT,
     program: request.descriptor.id,
@@ -136,15 +138,29 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   };
 }
 
-function registerReferenceDeclarations(declarations: readonly MorphNode[], authored: ReadonlySet<string>, target: Map<string, MorphNode>): void {
+interface ReferenceDeclaration {
+  readonly declaration: InventorySpan;
+  readonly name: InventorySpan | undefined;
+  readonly query: { readonly file: string; readonly start: number };
+}
+
+function registerReferenceDeclarations(declarations: readonly MorphNode[], authored: ReadonlySet<string>, target: Map<string, ReferenceDeclaration>): void {
   for (const declaration of declarations) {
     if (authored.has(canonicalInventoryPath(declaration.getSourceFile().getFilePath())) && Node.isReferenceFindable(declaration)) {
-      target.set(JSON.stringify(inventorySpan(declaration)), declaration);
+      const span = inventorySpan(declaration);
+      const query = referenceQueryNode(declaration);
+      const name = Node.hasName(declaration) ? declaration.getNameNode() : undefined;
+      target.set(JSON.stringify(span), {
+        declaration: span,
+        name: name !== undefined && Node.isReferenceFindable(name) ? inventorySpan(name) : undefined,
+        query: { file: query.getSourceFile().getFilePath(), start: query.getStart() },
+      });
     }
   }
 }
 
 function extractSourceFacts(
+  project: Project,
   files: readonly SourceFile[],
   authored: ReadonlySet<string>,
 ): Pick<InventoryPartition, "exports" | "modules" | "bindings" | "references" | "witnesses"> {
@@ -152,49 +168,52 @@ function extractSourceFacts(
   const modules: InventoryPartition["modules"] = [];
   const bindings: InventoryPartition["bindings"] = [];
   const witnesses: InventoryPartition["witnesses"] = [];
-  const referenceDeclarations = new Map<string, MorphNode>();
+  const referenceDeclarations = new Map<string, ReferenceDeclaration>();
   for (const sf of files) {
-    const file = canonicalInventoryPath(sf.getFilePath());
-    // Dependency exports are required because importing worlds can resolve a package to a distinct closure.
-    for (const [name, declarations] of sf.getExportedDeclarations()) {
-      exports.push({ file, name, declarations: declarations.map(inventorySpan) });
-      registerReferenceDeclarations(declarations, authored, referenceDeclarations);
-    }
-    if (!authored.has(file)) {
-      continue;
-    }
-    modules.push(...moduleFacts(sf));
-    witnesses.push(...witnessFacts(sf));
-    for (const id of descendantsOfKind(sf, SyntaxKind.Identifier)) {
-      const symbols = bindingFacts(id);
-      bindings.push({ node: inventorySpan(id), symbols });
-      const symbol = id.getSymbol();
-      registerReferenceDeclarations(symbol?.getDeclarations() ?? [], authored, referenceDeclarations);
-    }
+    project.forgetNodesCreatedInBlock(() => {
+      const file = canonicalInventoryPath(sf.getFilePath());
+      // Dependency exports are required because importing worlds can resolve a package to a distinct closure.
+      for (const [name, declarations] of sf.getExportedDeclarations()) {
+        exports.push({ file, name, declarations: declarations.map(inventorySpan) });
+        registerReferenceDeclarations(declarations, authored, referenceDeclarations);
+      }
+      if (authored.has(file)) {
+        modules.push(...moduleFacts(sf));
+        witnesses.push(...witnessFacts(sf));
+        for (const id of descendantsOfKind(sf, SyntaxKind.Identifier)) {
+          const symbols = bindingFacts(id);
+          bindings.push({ node: inventorySpan(id), symbols });
+          const symbol = id.getSymbol();
+          registerReferenceDeclarations(symbol?.getDeclarations() ?? [], authored, referenceDeclarations);
+        }
+      }
+    });
   }
-  return { exports, modules, bindings, witnesses, references: extractReferenceFacts(referenceDeclarations) };
+  // Scoped forgetting can recreate ancestor wrappers while releasing children; clear those without discarding SourceFiles.
+  for (const sf of files) {
+    sf.forgetDescendants();
+  }
+  return { exports, modules, bindings, witnesses, references: extractReferenceFacts(project.getLanguageService().compilerObject, referenceDeclarations) };
 }
 
-function extractReferenceFacts(referenceDeclarations: ReadonlyMap<string, MorphNode>): InventoryPartition["references"] {
+function extractReferenceFacts(
+  service: ts.LanguageService,
+  referenceDeclarations: ReadonlyMap<string, ReferenceDeclaration>,
+): InventoryPartition["references"] {
   const references: InventoryPartition["references"] = [];
   // Use the native language service, not an approximation based on equal-spelled identifiers.
   for (const declaration of referenceDeclarations.values()) {
-    if (!Node.isReferenceFindable(declaration)) {
-      continue;
-    }
-    const span = inventorySpan(declaration);
-    const nativeReferences = nativeReferenceFacts(declaration);
+    const nativeReferences = nativeReferenceFacts(service, declaration.query);
     for (const reference of nativeReferences) {
       references.push({
-        declaration: span,
+        declaration: declaration.declaration,
         ...reference,
       });
     }
-    const name = Node.hasName(declaration) ? declaration.getNameNode() : undefined;
-    if (name !== undefined && Node.isReferenceFindable(name)) {
+    if (declaration.name !== undefined) {
       for (const reference of nativeReferences) {
         references.push({
-          declaration: inventorySpan(name),
+          declaration: declaration.name,
           ...reference,
         });
       }
@@ -203,11 +222,12 @@ function extractReferenceFacts(referenceDeclarations: ReadonlyMap<string, MorphN
   return references;
 }
 
-function nativeReferenceFacts(declaration: MorphNode): Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] {
-  const query = referenceQueryNode(declaration);
-  const service = declaration.getProject().getLanguageService().compilerObject;
+function nativeReferenceFacts(
+  service: ts.LanguageService,
+  query: ReferenceDeclaration["query"],
+): Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] {
   // DocumentSpan wrappers subscribe to source modifications and retain every result in this read-only worker.
-  const groups = service.findReferences(query.getSourceFile().getFilePath(), query.getStart()) ?? [];
+  const groups = service.findReferences(query.file, query.start) ?? [];
   const program = service.getProgram();
   const references: Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] = [];
   for (const group of groups) {
