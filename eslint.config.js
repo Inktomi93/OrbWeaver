@@ -419,6 +419,13 @@ const CLIENT_SYNTAX = [...SHIPPED_SYNTAX, NO_ARRAY_LITERAL_QUERYKEY];
 const rootSources = (...refs) => refs.flatMap((ref) => POPULATION_ROOTS[ref].map((root) => `${root}**/*.{ts,tsx}`));
 const AUTHORED_SRC = POPULATION_SETS["@authored"].flatMap((ref) => rootSources(ref));
 
+// These are the native source groups configured before restriction-only inputs were admitted.
+const MAINTAINED_GLOBAL_SURFACES = [
+  { files: ["**/*.{js,cjs,mjs}", ...AUTHORED_SRC, ...TSDOC_SURFACE, "scripts/probes/st-goldens/**/*.ts"] },
+  { files: NODE_TOOL_SURFACE, ignores: ["**/*.d.{ts,mts,cts}"] },
+  { files: SCRIPTS_NESTED_SURFACE, ignores: ["scripts/probes/st-goldens/**"] },
+];
+
 const GENERATED_SOURCE = ["**/*.gen.ts", "packages/ui/src/tokens/index.ts"];
 const STRICT_SYNTAX_IGNORES = [`${LEGACY_TEST_ROOT}/**`];
 const CALLER_SRC = rootSources("@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tooling", "@tests", "@scripts");
@@ -957,15 +964,10 @@ const STANDARD_CONFIG = tseslint.config(
     ],
   },
   {
-    // A stale `eslint-disable` can never rot silently: a directive that suppresses nothing is itself an
-    // ERROR. No `files` key ⇒ this applies to every linted file. ESLint's own default here is "warn", which
-    // only bites where `--max-warnings 0` is passed (the verify `eslint` op's CHILD_FLAGS, which
-    // `pnpm lint:eslint` runs, and the verify registry's scoped argv both do; an ad-hoc `npx eslint <file>`
-    // does not) — "error" makes the verdict the same everywhere. A
-    // suppression that stops matching a real diagnostic is exactly the comment the doctrine wants deleted,
-    // and this is what turns "should be deleted" into "must be deleted".
-    linterOptions: { reportUnusedDisableDirectives: "error" },
+    // Restriction-only inputs must not acquire unrelated directive diagnostics.
+    linterOptions: { reportUnusedDisableDirectives: "off" },
   },
+  ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({ ...surface, linterOptions: { reportUnusedDisableDirectives: "error" } })),
   {
     files: FORM_SYNTAX_SRC,
     languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" } },
@@ -1556,6 +1558,16 @@ function maintainedRulePacks() {
   const playwrightTests = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component" || family === "e2e").map(({ suffix }) => `tests/**/*${suffix}`);
   const vitestTests = ["tests/**/*.{ts,tsx}"];
 
+  const globalRules = {
+    ...packRules(eslintComments.configs.recommended, "@eslint-community/eslint-comments/"),
+    "@eslint-community/eslint-comments/require-description": "error",
+    ...packRules(regexp.configs["flat/recommended"], "regexp/"),
+    // These equivalent regex spellings have no defect class behind them.
+    "regexp/prefer-w": "off",
+    "regexp/use-ignore-case": "off",
+    "regexp/no-unused-capturing-group": "off",
+  };
+
   return [
     {
       // Playwright. Rules Biome already enforces (biome.json: noPlaywright*, noConditionalExpect,
@@ -1663,23 +1675,13 @@ function maintainedRulePacks() {
       ],
       rules: { "drizzle/enforce-delete-with-where": "off" },
     },
-    {
-      // eslint-comments and regexp apply to every linted file. The captured DevTools frontend is vendored
-      // third-party source that the snap instrument serves; its regexes are not ours to rewrite.
-      ignores: ["tooling/src/snap/lib/devtools-frontend/**"],
+    ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({
+      ...surface,
+      // The captured DevTools frontend is vendored; its regexes are not ours to rewrite.
+      ignores: [...(surface.ignores ?? []), "tooling/src/snap/lib/devtools-frontend/**"],
       plugins: { "@eslint-community/eslint-comments": eslintComments, regexp },
-      rules: {
-        ...packRules(eslintComments.configs.recommended, "@eslint-community/eslint-comments/"),
-        // A bounded directive carries its reason on the same comment (`-- why`).
-        "@eslint-community/eslint-comments/require-description": "error",
-        ...packRules(regexp.configs["flat/recommended"], "regexp/"),
-        // Rewrites with no defect class behind them (same match, shorter spelling): `\\w` for `[A-Za-z0-9_]`,
-        // `/i` instead of both cases, and a capturing group nobody reads.
-        "regexp/prefer-w": "off",
-        "regexp/use-ignore-case": "off",
-        "regexp/no-unused-capturing-group": "off",
-      },
-    },
+      rules: globalRules,
+    })),
     {
       // The guard's operand-tail regex ends in `>\S*` and `\d*>>?&?\d*`, which overlap on `>>&1`. The two
       // alternatives accept different digit-prefixed redirects (`2>file` matches only one), so merging them

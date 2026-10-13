@@ -66,6 +66,44 @@ test("generated outputs retain migrated restrictions without activating other ru
   }
 });
 
+test("restriction-only admission preserves the original maintained JS and TS populations", async () => {
+  for (const path of [
+    "aggregator-assets.d.ts",
+    "platform.d.ts",
+    "packages/plugin-sdk/frame.d.ts",
+    "packages/showcase-plugins/bundles/affinity-tracker/main.ts",
+    "packages/showcase-plugins/bundles/pocket-arcade/frame.ts",
+    "playwright/globals.d.ts",
+    "playwright/index.tsx",
+  ]) {
+    const config = await eslint.calculateConfigForFile(join(ROOT, path));
+    expect(config, path).toBeDefined();
+    expect(Object.keys(config.rules), path).toEqual(["no-restricted-syntax"]);
+    expect(config.linterOptions.reportUnusedDisableDirectives, path).toBe(0);
+    expect(config.languageOptions.parserOptions.project ?? false, path).toBe(false);
+    expect(config.languageOptions.parserOptions.projectService ?? false, path).toBe(false);
+    expect(await findings(path, "useEffect(() => {}, [form.store]);"), path).toHaveLength(1);
+    expect(await findings(path, 'const callerUserId = 1; const isGroup = true; import { useMutation } from "@tanstack/react-query";'), path).toEqual([]);
+  }
+  for (const path of [
+    "eslint.config.js",
+    ".claude/hooks/tool-guard.mjs",
+    "scripts/probes/control.cjs",
+    "vitest.config.ts",
+    "packages/client/vite.config.ts",
+    "packages/server/src/entry/app.ts",
+    "packages/client/src/main.tsx",
+    "tooling/src/verify/ops/eslint.ts",
+    "scripts/probes/st-goldens/rig-helper.ts",
+  ]) {
+    const config = await eslint.calculateConfigForFile(join(ROOT, path));
+    expect(config, path).toBeDefined();
+    expect(config.rules["regexp/no-invalid-regexp"], path).toEqual([2]);
+    expect(config.rules["@eslint-community/eslint-comments/require-description"], path).toEqual([2]);
+    expect(config.linterOptions.reportUnusedDisableDirectives, path).toBe(2);
+  }
+});
+
 test("group vocabulary judges direct declarations and conditions only on its source population", async () => {
   const source = "const isGroup = true; if (isGroupChat) {} const mode = isGroupMode ? 1 : 0; let is_group = false;";
   for (const path of ["packages/client/src/probe.ts", "packages/showcase-plugins/src/probe.ts", "tooling/src/probe.ts"]) {
