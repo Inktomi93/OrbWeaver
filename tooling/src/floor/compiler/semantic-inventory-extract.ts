@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
-import { Node, Project, SyntaxKind } from "ts-morph";
+import { Node, Project, SyntaxKind, ts } from "ts-morph";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import type { InventoryBuildRequest, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT } from "../code-facts/semantic-inventory-contract.ts";
@@ -183,13 +183,11 @@ function extractReferenceFacts(referenceDeclarations: ReadonlyMap<string, MorphN
       continue;
     }
     const span = inventorySpan(declaration);
-    // ts-morph already queries the name for named declarations; both physical keys share its native result.
-    const nativeReferences = declaration.findReferencesAsNodes();
+    const nativeReferences = nativeReferenceFacts(declaration);
     for (const reference of nativeReferences) {
       references.push({
         declaration: span,
-        reference: inventorySpan(reference),
-        consumerClass: inventoryConsumerClass(reference.getSourceFile().getFilePath()),
+        ...reference,
       });
     }
     const name = Node.hasName(declaration) ? declaration.getNameNode() : undefined;
@@ -197,11 +195,60 @@ function extractReferenceFacts(referenceDeclarations: ReadonlyMap<string, MorphN
       for (const reference of nativeReferences) {
         references.push({
           declaration: inventorySpan(name),
-          reference: inventorySpan(reference),
-          consumerClass: inventoryConsumerClass(reference.getSourceFile().getFilePath()),
+          ...reference,
         });
       }
     }
   }
   return references;
+}
+
+function nativeReferenceFacts(declaration: MorphNode): Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] {
+  const query = referenceQueryNode(declaration);
+  const service = declaration.getProject().getLanguageService().compilerObject;
+  // DocumentSpan wrappers subscribe to source modifications and retain every result in this read-only worker.
+  const groups = service.findReferences(query.getSourceFile().getFilePath(), query.getStart()) ?? [];
+  const program = service.getProgram();
+  const references: Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] = [];
+  for (const group of groups) {
+    const alias = group.definition.kind === ts.ScriptElementKind.alias;
+    for (const [index, reference] of group.references.entries()) {
+      if (alias || reference.isDefinition !== true || index > 0) {
+        const source = program?.getSourceFile(reference.fileName);
+        if (source === undefined) {
+          throw new Error(`native reference source is outside its language-service program: ${reference.fileName}`);
+        }
+        references.push({ reference: nativeReferenceSpan(source, reference.textSpan), consumerClass: inventoryConsumerClass(reference.fileName) });
+      }
+    }
+  }
+  return references;
+}
+
+function referenceQueryNode(declaration: MorphNode): MorphNode {
+  if (Node.isIdentifier(declaration) || Node.isStringLiteral(declaration)) {
+    return declaration;
+  }
+  const name = declaration.getNodeProperty<"name", ts.NamedDeclaration>("name");
+  return name ?? (Node.isExportable(declaration) ? (declaration.getDefaultKeyword() ?? declaration) : declaration);
+}
+
+function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan): InventorySpan {
+  let best: ts.Node = source;
+  let found = false;
+  let node: ts.Node | undefined = source;
+  while (node !== undefined) {
+    if (!found) {
+      best = node;
+    }
+    // DocumentSpan compares node width with the span's end, not length; retain its physical-node selection.
+    if (node.getStart(source) === span.start && node.getWidth(source) === span.start + span.length) {
+      best = node;
+      found = true;
+    } else if (found) {
+      break;
+    }
+    node = node.getChildren(source).find((child) => child.pos <= span.start && span.start < child.end);
+  }
+  return { file: canonicalInventoryPath(source.fileName), start: best.getStart(source), end: best.end, kind: best.kind };
 }
