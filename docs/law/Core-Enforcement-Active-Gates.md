@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-07
+updated: 2026-10-13
 ---
 
 # Orbweaver — Enforcement Registry: Active Gates
@@ -25,7 +25,7 @@ ordering, an owner-scoped route) is routinely held by a behavioural suite by des
 structural gate, and a resolve-time or lint-time fact (the package cake, dependency-cruiser) can hold a
 property a structural gate would only restate.
 
-**Verification** — `pnpm verify --list` owns stage membership. Hook, CI, nightly and merge-train responsibilities
+**Verification** — `pnpm verify --list` owns stage membership. Hook, CI, nightly, weekly and pre-push responsibilities
 live in `UNIFIED-VERIFICATION-DESIGN.md` §4. Scoped commit checks do not establish whole-tree qualification.
 
 **On-demand lanes** — `pnpm cpd` (jscpd, Layer 5) and `pnpm test:mutation[:gate]` (Stryker, Layer 6).
