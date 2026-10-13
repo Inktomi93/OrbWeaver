@@ -438,6 +438,17 @@ test("lexical value declarations retain the checker value of a merged symbol", (
   expect(fact.value).toBe(sf.getFunctionOrThrow("merged"));
 });
 
+test("lexical value declarations resolve shorthand parameter values, never synthesized property symbols", () => {
+  const sf = sourceOf("function project(userId: string) { return { userId }; }");
+  const fn = sf.getFunctionOrThrow("project");
+  const parameter = fn.getParameterOrThrow("userId");
+  const shorthand = fn.getFirstDescendantByKindOrThrow(SyntaxKind.ShorthandPropertyAssignment);
+  const fact = expectResolved(resolveLexicalValueDeclaration(shorthand.getNameNode()));
+  expect(fact.value).toBe(parameter);
+  expect(fact.trace.declarations).toEqual([parameter]);
+  expect(fact.trace.origin).toBe(parameter);
+});
+
 test("lexical value declarations do not chase imported targets or invent values for types", () => {
   const project = projectOf({
     "leaf.ts": "export const target = 1;",

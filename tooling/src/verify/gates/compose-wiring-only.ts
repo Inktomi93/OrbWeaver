@@ -449,7 +449,13 @@ interface ProjectionParameters {
 function projectionParameters(fn: FunctionDeclaration): ProjectionParameters | undefined {
   const params = fn.getParameters();
   const [userId, fields] = params;
-  if (params.length !== 2 || userId === undefined || fields === undefined || !canonicalReference(userId.getTypeNode(), IDS_CONTRACT, "UserId")) {
+  if (
+    params.length !== 2 ||
+    params.some((parameter) => parameter.getInitializer() !== undefined) ||
+    userId === undefined ||
+    fields === undefined ||
+    !canonicalReference(userId.getTypeNode(), IDS_CONTRACT, "UserId")
+  ) {
     return;
   }
   const fieldsType = fields.getTypeNode();
@@ -496,7 +502,8 @@ function canonicalPrincipalProjection(fn: MorphNode): boolean {
     return false;
   }
   const { userId, fields } = params;
-  const statements = fn.getBody()?.getStatements() ?? [];
+  const body = fn.getBody();
+  const statements = Node.isBlock(body) ? body.getStatements() : [];
   const [statement] = statements;
   const value = Node.isReturnStatement(statement) ? statement.getExpression() : undefined;
   if (statements.length !== 1 || !Node.isObjectLiteralExpression(value)) {
@@ -794,6 +801,16 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}declare const currentFields: UserPrincipalFields;\n${PRINCIPAL_MAPPER.replace("fields: UserPrincipalFields | null", "fields: UserPrincipalFields | null = currentFields.enabled ? currentFields : null")}${PRINCIPAL_BRIDGE.replace("principalFromRow(userId, fields)", "principalFromRow(userId)")}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "currentFields.enabled" },
+      why: "a reached canonical mapper's executable parameter default remains per-call admission even when its body is only the pure row projection",
+    },
+    {
+      mode: "types",
+      files: {
         [DRIZZLE_FILE]: DRIZZLE,
         [SCHEMA_FILE]: SCHEMA,
         [COMPOSE_FILE]: `${DB_PRELUDE}export function build(db: Db) {\n  const rows = db.select().from(chats);\n  return { rows };\n}\n`,
@@ -889,6 +906,15 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace("return { userId,", "return { userId: userId,")}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      why: "an explicit property forward denotes the same parameter as shorthand; source spelling cannot turn the row projection into admission",
+    },
     {
       mode: "types",
       files: { ...PRINCIPAL_TYPE_FILES, [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE}`, [COMPOSE_FILE]: PRINCIPAL_COMPOSE },
