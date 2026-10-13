@@ -1,4 +1,4 @@
-import type { BackgroundLibraryEntry } from "./index.ts";
+import type { BackgroundLibraryEntry } from "./appearance.ts";
 
 /** The `appearance` half of a foreign-profile import (today: the SillyTavern profile importer). Two planes in
  *  ONE write because both land in the same JSON namespace and the array plane needs a read-modify-write that

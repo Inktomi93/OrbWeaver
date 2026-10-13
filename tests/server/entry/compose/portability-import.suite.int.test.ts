@@ -1,11 +1,13 @@
-// @subject packages/server/src/domain/export/verbs/export-portable.ts
-// @subject packages/server/src/domain/import/verbs/import-portable.ts
-// @subject packages/server/src/domain/import/verbs/import-bundle.ts
+// @subject packages/server/src/domain/export/verbs/portable-exports.ts
+// @subject packages/server/src/domain/import/verbs/portable-imports.ts
+// @subject packages/server/src/domain/import/loader/import-bundle.ts
 // @subject packages/server/src/domain/import/loader/profile-directory.ts
 // @subject packages/server/src/domain/import/loader/workload-drivers.ts
 // @subject packages/server/src/domain/import/substrate/bundle-report.ts
 // @subject packages/server/src/domain/import/substrate/report.ts
-// @subject packages/server/src/domain/import/verbs/post-import.ts
+// @subject packages/server/src/domain/import/verbs/enqueue-import-index.ts
+// @subject packages/server/src/domain/import/verbs/settle-import-memory.ts
+// @subject packages/server/src/domain/import/verbs/import-library-emitter.ts
 // @subject packages/server/src/infra/storage/profile-fs.ts
 // @subject packages/server/src/infra/storage/report.ts
 // @subject packages/server/src/entry/compose/portability.ts
@@ -17,6 +19,7 @@ import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
+import type { PortableFile } from "@orb/contracts/portability";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
@@ -26,6 +29,14 @@ async function owners(app: ServicesResult): Promise<readonly [Principal, Princip
   const source = await app.sessions.ensureUser(principal(OWNER_USER_ID).handle);
   const target = await app.sessions.ensureUser(principal(OTHER_USER_ID).handle);
   return [principal(source), principal(target)];
+}
+
+async function exportedFiles(stream: AsyncIterable<PortableFile>): Promise<PortableFile[]> {
+  const files: PortableFile[] = [];
+  for await (const file of stream) {
+    files.push(file);
+  }
+  return files;
 }
 
 test("portable owner binding refuses malformed cards before effects and content-dedups only within each owner", async ({ app }) => {
@@ -38,9 +49,9 @@ test("portable owner binding refuses malformed cards before effects and content-
   if (descriptor === undefined) {
     throw new Error("the production graph omitted the character descriptor");
   }
-  const files = await Array.fromAsync(descriptor.exportAll(source.userId));
+  const files = await exportedFiles(descriptor.exportAll(source.userId));
   expect(files).toHaveLength(1);
-  expect(await Array.fromAsync(descriptor.exportAll(target.userId))).toEqual([]);
+  expect(await exportedFiles(descriptor.exportAll(target.userId))).toEqual([]);
   const file = files[0];
   if (file === undefined) {
     throw new Error("the real exporter produced no card");
@@ -57,7 +68,7 @@ test("portable owner binding refuses malformed cards before effects and content-
   expect(create.mock.calls[0]?.[0].principal.userId).toBe(target.userId);
   expect(await app.services.character.count({ principal: source })).toBe(1);
   expect(await app.services.character.count({ principal: target })).toBe(1);
-  const targetFiles = await Array.fromAsync(descriptor.exportAll(target.userId));
+  const targetFiles = await exportedFiles(descriptor.exportAll(target.userId));
   expect(targetFiles).toHaveLength(1);
   expect(await app.exportService.exportCharacter({ principal: target, characterId: character.id })).toBeNull();
 });

@@ -5,4 +5,4 @@ export type { PortableExportDeps, PortableExports } from "./contract/portable.ts
 export type { HostChatRef } from "./contract/results.ts";
 export type { ExportCardFormat, ExportChatFormat, ExportService } from "./contract/service.ts";
 export { createExportService } from "./service.ts";
-export { createPortableExports } from "./verbs/export-portable.ts";
+export { createPortableExports } from "./verbs/portable-exports.ts";

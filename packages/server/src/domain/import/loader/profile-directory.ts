@@ -800,8 +800,8 @@ async function importCollectedBundles(
  *  here — the driver owns the one enqueue. */
 function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"]): ReturnType<typeof buildImportContext> {
   return buildImportContext({
-    principal: deps.principal,
     ...deps.contextFor(deps.principal, store),
+    principal: deps.principal,
     ...(deps.importLorebook !== undefined ? { importLorebook: deps.importLorebook } : {}),
     ...(deps.hasPrimaryBook !== undefined ? { hasPrimaryBook: deps.hasPrimaryBook } : {}),
     ...(deps.linkCarriedBooks !== undefined ? { linkCarriedBooks: deps.linkCarriedBooks } : {}),
