@@ -1,17 +1,6 @@
-import type { EmbeddingTask, ImageCaptionMeta } from "@orb/contracts/embeddings";
-import type { EmbedGenerationId } from "@orb/kit/ids";
+import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 
-/** noop = content_hash unchanged, no re-embed/write happened; written = a fresh insert or hash-changed update landed. */
-export interface StoreResult {
-  readonly outcome: "noop" | "written";
-  readonly contentHash: string;
-  /** The concrete space of the row that satisfied this write (provider-stamped for a write). */
-  readonly model: string;
-  /** Immutable encoder generation that satisfied this write/noop. Sweep terminals use it as their receipt. */
-  readonly generationId?: EmbedGenerationId;
-  readonly generationEpoch?: number;
-  readonly generationVia?: EmbeddingTask;
-}
+export type { StoreResult } from "@orb/contracts/embeddings";
 
 export interface WriteHubScoresResult {
   readonly rowsUpdated: number;

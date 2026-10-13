@@ -82,6 +82,7 @@ import { createImageryPortability } from "#domain/imagery";
 import { createImportService } from "#domain/import";
 import { createPluginMacroRegistry } from "#domain/plugin";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
+import { createResolveStructuredBinding } from "#domain/refinery";
 import type { ImportCardScripts } from "#domain/regex";
 import type { RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
@@ -145,7 +146,7 @@ import { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 import { minter } from "./minter.ts";
 import type { PortabilityRunnerComposeResult } from "./portability-runner.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
-import { buildRefinery, createResolveStructuredBinding } from "./refinery.ts";
+import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
 import { withRetrievalDegrade } from "./retrieval-degrade.ts";
 import { buildRosterPreset } from "./roster-preset.ts";
@@ -781,7 +782,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     roleClientsFor,
-    resolveStructuredBinding: createResolveStructuredBinding(runtime, resolveFunderPrincipal),
+    resolveStructuredBinding: createResolveStructuredBinding({ resolve: (input) => runtime.resolve(input), principalOf: resolveFunderPrincipal }),
     character,
     resolveUtilityPresetParams,
     loadUserSettings: settings.loadUserSettings,

@@ -1,6 +1,6 @@
 // The dispatch axes (SourceKind, SourceLens) + the verb input shapes for the embeddings write surface.
 
-import type { EmbeddingTask, ImageLens } from "@orb/contracts/embeddings";
+import type { CardTextStoreInput, EmbeddingTask, ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
@@ -38,16 +38,7 @@ interface EmbedAbortParams {
 }
 
 /** Embed a character card's text. Unique key: `(characterId, model)`. */
-export interface CardTextStoreParams extends EmbedAbortParams {
-  readonly kind: "card";
-  readonly lens: "card-text";
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly content: string;
-  readonly model: string;
-  /** Re-embed even when the stored `content_hash` matches. */
-  readonly force?: boolean | undefined;
-}
+export interface CardTextStoreParams extends CardTextStoreInput, EmbedAbortParams {}
 
 /** Embed an avatar image's pure visual signal (no caption influence). Unique key: `(assetId, model, lens)`. */
 export interface ImageRawStoreParams extends EmbedAbortParams {
