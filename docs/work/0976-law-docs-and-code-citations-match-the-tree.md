@@ -21,4 +21,6 @@ Each listed doc matches the tree; the citation gate reds a dead section referenc
 
 ## Evidence
 
-The generated enforcement index omits maintained ESLint ownership and directs new syntax claims to custom gates. Update its generator's layer prose to match native ownership and retained semantic remainders. Preserve the derived gate table and its generation procedure. Schedule regeneration through main after the cold inventory replay releases shared load; do not hand-edit the generated law.
+The enforcement-index generator states maintained ESLint ownership and preserves custom gates only for unmatched semantic judgments. Main regenerates the law from that source; its derived gate table remains unchanged. The listed law and citation corrections remain open.
+
+The selected documentation-reference checks complete without tool errors or withheld policies. Path and document citations pass. Reviewed citation grants exceed their zero budget, so the selected run remains red; do not expand that budget.
