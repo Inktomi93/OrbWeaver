@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-13
 priority: P1
 area: tooling
-lane: codex/native-memory-diagnostic-1002
+lane: codex/native-inventory-allocation-1002
 plan: test-foundation
 ---
 
