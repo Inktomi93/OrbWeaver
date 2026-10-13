@@ -1,40 +1,5 @@
-// Policy: tooling-root-config-import (docs/law/Core-Tooling-Law.md §4.2) — a tooling module that
-// imports OUTSIDE the tooling tree by relative path. Cross-package needs go through `@orb/*` package
-// specifiers; a repo-root CONFIG whose data would otherwise be re-spelled requires an exact reviewed grant.
-// Prodonly derives runtime entries from package manifests and tool conventions; knip.ts stays analysis-only.
-//
-// AUTHORITY IS reviewed-grant, and that is the whole reason this arm has its own policy id
-// (#1950). The exception is not a per-occurrence mistake an author waives with a reason — it is a recurring
-// repository PERMISSION: one exact `(subject, operation)` row in the central reviewed-grant table with its
-// own `why` and `endsWhen`. After a complete run a row consumed zero times is STALE and a row matching more
-// than one finding is OVER-BROAD and licenses nothing — the two-sided stale sweep is owned centrally.
-// Nothing here subtracts a path from the population and this policy holds no allowlist of its own.
-//
-// FAMILY `tooling-front-door` — the shared reader is `lib/tooling-import-door.ts` (`resolveRelativeImport`),
-// the same specifier resolution the ordinary sibling judges the tooling-internal boundary with.
-//
-// `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts). A scoped run
-// therefore cannot call a live row stale, which retires the legacy defect the retired int test pinned, and the
-// legacy `fileLoaded(exit-contract)` anchor guard with it. The knip fixture retains an ungranted `mustFlag`
-// baseline; its authored witness proves synthetic exact-grant consumption, while the family test exercises
-// real central grant identity and staleness through the live argv policy (§4.3).
-//
-// THE OPERATION CARRIES THE RESOLVED TARGET (`root-config-import:knip.ts`), so a grant licenses one
-// consumer reading ONE config: a second root config imported by the same file is a second finding.
-//
-// POPULATION PORT: byte-identical (`@tooling`). Legacy descriptor: `8de18d2f5f`
-// (`tooling/src/verify/gates/tooling-front-door.ts`, the escape arm and the `ROOT_CONFIG_IMPORTS` sweep).
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tooling-front-door` descriptor at 12d34bb79a7d599eea9c9cf3a40cfbd8498fb9f1, the parent of the conversion
-// `24ed572f1c`; this module did not exist there, so it is measured against the module it was carved from,
-// `tooling-front-door` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `8de18d2f5f` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
-// citations resolve to this source. Over the SAME 7,445 harness candidates at that tree (`git ls-tree` ∩
-// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
-// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts`
-// (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
-// both.
+// Relative escapes from tooling source require a reviewed root-config import permission.
+// Singleton: native dependency rules own internal tool boundaries; this policy judges authored relative escapes.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -52,7 +17,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "tooling-root-config-import",
-  family: "tooling-front-door",
+  family: "tooling-root-config-import",
   authority: "reviewed-grant",
   severity: "error",
   population: "@tooling",

@@ -79,7 +79,6 @@ test("product is exactly the complete full roster minus instrument proofs and mu
     "structure:full",
     "ledgers:fresh",
     "release:showcase-versions",
-    "config:biome-rule-liveness",
     "config:knip-negative-liveness",
     "imports:depcruise",
     "deps:knip",
@@ -187,7 +186,7 @@ test("policy conformance cannot be decorated back into an automatic scope", () =
   expect(applyPathTriggers([collision])).toEqual([collision]);
 });
 
-// A markdown-only change owes none of the near-identity stages: no type, Biome grant or ledger reads a doc. The
+// A markdown-only change owes none of the near-identity stages: no type assertion or ledger reads a doc. The
 // controls keep the admission complete: a markdown LEDGER, every source and config path, and a `.md`-lookalike.
 test("the near-identity triggers skip a markdown-only change and still admit every input they read", () => {
   const trigger = (name: string): RegExp => {
@@ -197,7 +196,7 @@ test("the near-identity triggers skip a markdown-only change and still admit eve
     }
     return paths;
   };
-  const nearIdentity = ["types:testd", "config:biome-rule-liveness", "ledgers:fresh"] as const;
+  const nearIdentity = ["types:testd", "ledgers:fresh"] as const;
   for (const name of nearIdentity) {
     for (const doc of ["docs/adr/0267-the-commit-and-push-gates-judge-a-snapshot.md", "README.md", "docker/README.md"]) {
       expect(trigger(name).test(doc), `${name} skips ${doc}`).toBe(false);

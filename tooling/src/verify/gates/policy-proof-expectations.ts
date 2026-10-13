@@ -451,7 +451,7 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(REGISTRY_DRIVEN_MODULE('{ countFrom: "PORTABLE_CANON_TABLES" }', DRIVER)),
       expect: { count: 1, token: "countFrom", messageIncludes: "NO other identity field" },
-      why: "C TIGHTER THAN THE RULING, deliberately: the driver resolves, but the row names no `token`/`line`/`messageIncludes`, so it asserts NOTHING — strictly worse than the literal `count` it replaces. The ruling accepted `countFrom` and required only resolution; this companion requirement is the gate's, and it is why `verify-registry-parity`'s bare row gained a `token` rather than an exemption",
+      why: "C TIGHTER THAN THE RULING, deliberately: the driver resolves, but the row names no `token`/`line`/`messageIncludes`, so it asserts NOTHING — strictly worse than the literal `count` it replaces. The ruling accepted `countFrom` and required only resolution; this companion requirement is the gate's",
     },
     {
       mode: "types",

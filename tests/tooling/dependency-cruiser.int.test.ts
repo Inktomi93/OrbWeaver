@@ -375,6 +375,14 @@ function writeAllFixtures(): void {
   // ── @orb/tooling (the tool fleet ABOVE the cake — Core-Tooling-Law.md §4.6) ──
   fx("tooling/src/__dc_tb/ops/y.ts", VAL);
   fx("tooling/src/__dc_ta/x.ts", `import "../__dc_tb/ops/y.ts";\n`);
+  fx("tooling/src/__dc_tb/root.ts", `${VAL}export type Ty = number;\n`);
+  fx("tooling/src/__dc_tb/index.ts", VAL);
+  fx("tooling/src/__dc_tb/cli.ts", `export { t } from "./index.ts";\n`);
+  fx("tooling/src/__dc_ta/root-crossing.ts", `import "../__dc_tb/root.ts";\n`);
+  fx("tooling/src/__dc_ta/type-crossing.ts", `import type { Ty } from "../__dc_tb/root.ts";\nexport type T = Ty;\n`);
+  fx("tooling/src/__dc_ta/sibling-cli.ts", `import "../__dc_tb/cli.ts";\n`);
+  fx("tooling/src/__dc_ta/legal-doors.ts", `import "./x.ts";\nimport "../__dc_tb/index.ts";\nimport "../floor/process/probe.ts";\n`);
+  fx("tooling/src/floor/process/probe.ts", VAL);
   // packages-no-tooling: the one-way glass — a cake package deep-relative-escaping into tooling.
   fx("packages/kit/src/__dc/toolingup.ts", `import "../../../../tooling/src/__dc_tb/ops/y.ts";\n`);
   // tooling-cli-via-index: a cli reaching its own internals instead of ./index.ts.
@@ -465,6 +473,20 @@ afterAll(() => {
 
 test("derives a non-trivial set of active rules from the config (the list isn't silently empty)", () => {
   expect(ACTIVE_RULES.length).toBeGreaterThan(20);
+});
+
+test("tool boundaries reject sibling root, cli and type-only reaches while allowing own modules, public index and floor", () => {
+  const importers = allViolations
+    .filter(({ rule }) => rule.name === "tooling-internal-direction")
+    .map(({ from }) => from)
+    .toSorted();
+  expect(importers).toEqual([
+    "tooling/src/__dc_ta/root-crossing.ts",
+    "tooling/src/__dc_ta/sibling-cli.ts",
+    "tooling/src/__dc_ta/type-crossing.ts",
+    "tooling/src/__dc_ta/x.ts",
+    "tooling/src/floor/process/__dc_up.ts",
+  ]);
 });
 
 test("the compose door is open to the browser-CT support world only: a feature, a node test helper and a client story still fail", () => {

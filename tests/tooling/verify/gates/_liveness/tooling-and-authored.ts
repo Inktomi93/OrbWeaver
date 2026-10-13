@@ -24,7 +24,6 @@ import { gate as toolingArtifactPathHome } from "../../../../../tooling/src/veri
 import { gate as toolingArtifactRunSlot } from "../../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { gate as toolingBrowserDoor } from "../../../../../tooling/src/verify/gates/tooling-browser-door.ts";
 import { gate as toolingChildProcessDoor } from "../../../../../tooling/src/verify/gates/tooling-child-process-door.ts";
-import { gate as toolingFrontDoor } from "../../../../../tooling/src/verify/gates/tooling-front-door.ts";
 import { gate as toolingProcessExitHome } from "../../../../../tooling/src/verify/gates/tooling-process-exit-home.ts";
 import { gate as toolingProjectHome } from "../../../../../tooling/src/verify/gates/tooling-project-home.ts";
 import { gate as toolingRootConfigImport } from "../../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
@@ -166,13 +165,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: toolingChildProcessDoor,
     overlays: [add("tooling/src/seed/ops/liveness-raw.ts", 'import { spawn } from "node:child_process";\nexport const s = spawn;\n')],
     messageIncludes: "operation: child-process-import",
-  },
-  {
-    policy: toolingFrontDoor,
-    overlays: [
-      add("tooling/src/snap/ops/liveness-deep.ts", 'import { collectApiSurface } from "../../ast/ops/apisurface.ts";\nexport const x = collectApiSurface;\n'),
-    ],
-    messageIncludes: "cross-tool deep import",
   },
   {
     policy: toolingProcessExitHome,

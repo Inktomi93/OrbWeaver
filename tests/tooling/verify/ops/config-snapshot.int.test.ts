@@ -1,34 +1,19 @@
 // Native-loader proof for config-snapshot: executable Vitest config is observed after functions, imports,
 // and derived arrays resolve, while absent optional fields remain absence and malformed selectors refuse.
-import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import process from "node:process";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { ESLint } from "eslint";
 import { createVitest } from "vitest/node";
 import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
-import { snapshotDepcruiseConfig, snapshotEslintConfig, snapshotVitestConfig } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
+import { snapshotDepcruiseConfig, snapshotVitestConfig } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
 
 const CONFIG_REL = "vitest.config.ts";
-const ESLINT_CONFIG_REL = "eslint.config.js";
 const DEPCRUISE_CONFIG_REL = ".dependency-cruiser.cjs";
 
 async function plant(root: string, source: string): Promise<void> {
   await writeFile(join(root, CONFIG_REL), source, "utf8");
-}
-
-async function plantEslintRepo(root: string, files: Readonly<Record<string, string>>): Promise<void> {
-  await writeFile(join(root, "package.json"), '{"type":"module"}\n', "utf8");
-  for (const [rel, source] of Object.entries(files)) {
-    const abs = join(root, rel);
-    await mkdir(dirname(abs), { recursive: true });
-    await writeFile(abs, source, "utf8");
-  }
-  execFixtureGit(root, ["init", "-q"]);
-  execFixtureGit(root, ["add", "-A"]);
 }
 
 test("loads an async Vitest config and preserves derived selector owner/field identities", async ({ scratch }) => {
@@ -155,7 +140,7 @@ test("the process boundary observes rewritten CommonJS config instead of a stale
   expect(second.kind === "ok" ? second.snapshot.selectors[0]?.value : second.detail).toBe("^packages/second/");
 });
 
-test("materialization failures stay unreadable and private ESLint population input refuses another runner", ({ scratch, repoRoot }) => {
+test("materialization failures stay unreadable", ({ scratch }) => {
   writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/live.test.ts"] } };\n');
   execFixtureGit(scratch, ["init", "-q"]);
   execFixtureGit(scratch, ["add", "-A"]);
@@ -163,15 +148,6 @@ test("materialization failures stay unreadable and private ESLint population inp
     kind: "unreadable",
     detail: expect.stringContaining("non-authored"),
   });
-
-  const manifest = join(scratch, "population.json");
-  writeFileSync(manifest, "[]\n");
-  expect(() =>
-    execFileSync(process.execPath, [join(repoRoot, "tooling/src/verify/ops/config-snapshot-entry.ts"), "vitest", CONFIG_REL, "--eslint-population", manifest], {
-      cwd: scratch,
-      stdio: "pipe",
-    }),
-  ).toThrow();
 });
 
 test("the process boundary evaluates config and relative filesystem sidecars from one overlay transaction", ({ scratch }) => {
@@ -216,17 +192,19 @@ test("a contained absolute symlink resolves to staged target bytes", ({ scratch 
 });
 
 test("the overlay transaction resolves @orb workspace imports from staged bytes", ({ repoRoot }) => {
-  const helper = "tooling/src/floor/testing/config-snapshot-overlay-control.ts";
-  const config = `import { SELECTOR } from "@orb/tooling/floor/testing/config-snapshot-overlay-control";\nexport default { test: { include: [SELECTOR] } };\n`;
+  const helper = "tooling/src/floor/testing/test-kinds.ts";
+  const original = readFileSync(join(repoRoot, helper), "utf8");
+  const config = `import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/floor/testing/test-kinds";\nexport default { test: { include: [VITEST_TYPECHECK_GROUP_PREFIX] } };\n`;
   const overlaid = readConfigSnapshot(repoRoot, "vitest", CONFIG_REL, {
-    overlay: { [CONFIG_REL]: config, [helper]: 'export const SELECTOR = "tests/staged.test.ts";\n' },
+    overlay: { [CONFIG_REL]: config, [helper]: 'export const VITEST_TYPECHECK_GROUP_PREFIX = "tests/staged.test.ts";\n' },
   });
+  expect(overlaid.kind, overlaid.kind === "unreadable" ? overlaid.detail : "").toBe("ok");
   expect(overlaid.kind === "ok" ? overlaid.snapshot.selectors : []).toContainEqual({
     owner: "root",
     field: "test.include",
     values: ["tests/staged.test.ts"],
   });
-  expect(existsSync(join(repoRoot, helper))).toBe(false);
+  expect(readFileSync(join(repoRoot, helper), "utf8")).toBe(original);
 });
 
 test("the overlay transaction refuses a deleted workspace target instead of resolving the original package", ({ repoRoot }) => {
@@ -348,220 +326,6 @@ test("Vitest accepts a globalSetup directory and executes its index module", asy
   } finally {
     await vitest.close();
   }
-});
-
-test("evaluates imported and derived ESLint selectors with entry-local populations", async ({ scratch }) => {
-  await plantEslintRepo(scratch, {
-    "selector-values.js": 'export const source = ["src/**/*.js"];\nexport const ignored = ["**/*.test.js"].map((value) => value);\n',
-    [ESLINT_CONFIG_REL]: 'import { ignored, source } from "./selector-values.js";\nexport default [{ name: "derived", files: source, ignores: ignored }];\n',
-    "src/live.js": "export const live = 1;\n",
-    "src/live.test.js": "export const test = 1;\n",
-    "outside.test.js": "export const outside = 1;\n",
-  });
-
-  const snapshot = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
-
-  expect(snapshot.selectors).toEqual([
-    { owner: "config[0]:derived", field: "files", position: 0, value: "src/**/*.js", scope: "files", members: 1 },
-    { owner: "config[0]:derived", field: "ignores", position: 0, value: "**/*.test.js", scope: "local-ignore", members: 1 },
-  ]);
-});
-
-test("identical ESLint selection predicates retain separate owner observations", async ({ scratch }) => {
-  await plantEslintRepo(scratch, {
-    [ESLINT_CONFIG_REL]: 'export default [{ name: "first", files: ["src/**/*.js"] }, { name: "second", files: ["src/**/*.js"] }];\n',
-    "src/live.js": "export const live = 1;\n",
-  });
-  const snapshot = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
-  const rows = snapshot.selectors.filter((row) => row.field === "files");
-  expect(rows.map((row) => row.owner)).toEqual(["config[0]:first", "config[1]:second"]);
-  expect(rows[0]?.members).toBeGreaterThan(0);
-  expect(rows[1]?.members).toBe(rows[0]?.members);
-});
-
-test("overlay ESLint evaluation uses staged helpers and the original tracked population minus deletions", async ({ scratch }) => {
-  await plantEslintRepo(scratch, {
-    [ESLINT_CONFIG_REL]: 'export default [{ files: ["disk/**/*.js"] }];\n',
-    "src/live.js": "export const live = 1;\n",
-  });
-  const read = readConfigSnapshot(scratch, "eslint", ESLINT_CONFIG_REL, {
-    overlay: {
-      [ESLINT_CONFIG_REL]: 'import { FILES } from "./selector-values.js";\nexport default [{ name: "overlay", files: FILES }];\n',
-      "selector-values.js": 'export const FILES = ["src/**/*.js"];\n',
-      "src/live.js": null,
-    },
-  });
-
-  expect(read.kind === "ok" ? read.snapshot.selectors : []).toContainEqual({
-    owner: "config[0]:overlay",
-    field: "files",
-    position: 0,
-    value: "src/**/*.js",
-    scope: "files",
-    members: 0,
-  });
-  expect(existsSync(join(scratch, "src/live.js"))).toBe(true);
-});
-
-test("preserves global directory/negation/dotfile and local basePath/AND semantics", async ({ scratch }) => {
-  await plantEslintRepo(scratch, {
-    [ESLINT_CONFIG_REL]: `export default [
-  { ignores: ["ignored/*", "!ignored/keep.js", "**/.*.js", "blocked"] },
-  { name: "scoped", basePath: ${JSON.stringify(join(scratch, "packages/app"))}, files: [["src/**", "**/*.js"]], ignores: ["src/generated/**"] },
-];\n`,
-    "ignored/drop.js": "drop\n",
-    "ignored/keep.js": "keep\n",
-    "src/.hidden.js": "hidden\n",
-    "blocked/nested.js": "blocked\n",
-    "packages/app/src/live.js": "live\n",
-    "packages/app/src/generated/output.js": "generated\n",
-    "packages/other/src/live.js": "outside base\n",
-  });
-
-  const snapshot = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
-  const population = Object.fromEntries(snapshot.selectors.map((row) => [`${row.owner}.${row.field}[${String(row.position)}]`, row.members]));
-
-  expect(population).toMatchObject({
-    "config[0].ignores[0]": 2,
-    "config[0].ignores[1]": 1,
-    "config[0].ignores[2]": 1,
-    "config[0].ignores[3]": 1,
-    "config[1]:scoped.files[0]": 1,
-    "config[1]:scoped.ignores[0]": 1,
-  });
-});
-
-test("refuses empty and unsupported ESLint selector values", async ({ scratch }) => {
-  await plantEslintRepo(scratch, { [ESLINT_CONFIG_REL]: "export default [];\n", "live.js": "live\n" });
-  await expect(snapshotEslintConfig(scratch, ESLINT_CONFIG_REL)).rejects.toThrow("resolved zero config entries");
-
-  await writeFile(join(scratch, ESLINT_CONFIG_REL), "export default [{ files: [] }];\n", "utf8");
-  await expect(snapshotEslintConfig(scratch, ESLINT_CONFIG_REL)).rejects.toThrow("Expected value to be a non-empty array");
-
-  await writeFile(join(scratch, ESLINT_CONFIG_REL), "export default [{ files: [() => true] }];\n", "utf8");
-  await expect(snapshotEslintConfig(scratch, ESLINT_CONFIG_REL)).rejects.toThrow("unsupported selector value");
-});
-
-test("matches ESLint's implicit base files for every universal files spelling", async ({ scratch }) => {
-  await plantEslintRepo(scratch, {
-    [ESLINT_CONFIG_REL]: 'export default [{ files: ["src/**"], rules: { semi: "error" } }];\n',
-    "live.js": "export const root = 1\n",
-    "src/live.js": "export const nested = 1\n",
-  });
-  const cases = [
-    { pattern: "*", path: "live.js" },
-    { pattern: "**/*", path: "src/live.js" },
-    { pattern: "src/**", path: "src/live.js" },
-    { pattern: "src/*", path: "src/live.js" },
-  ] as const;
-
-  for (const row of cases) {
-    await writeFile(join(scratch, ESLINT_CONFIG_REL), `export default [{ files: [${JSON.stringify(row.pattern)}], rules: { semi: "error" } }];\n`, "utf8");
-    const snapshot = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
-    const eslint = new ESLint({ cwd: scratch, overrideConfigFile: join(scratch, ESLINT_CONFIG_REL) });
-    const nativeMembers = (
-      await Promise.all([ESLINT_CONFIG_REL, "live.js", "src/live.js"].map((path) => eslint.calculateConfigForFile(join(scratch, path))))
-    ).filter((config) => config?.rules?.semi !== undefined).length;
-    expect(snapshot.selectors[0]).toMatchObject({ value: row.pattern, members: nativeMembers });
-    expect((await eslint.calculateConfigForFile(join(scratch, row.path)))?.rules?.semi).toBeDefined();
-  }
-});
-
-test("matches ESLint for a local ignores-and-rules entry without files", async ({ scratch }) => {
-  await plantEslintRepo(scratch, {
-    [ESLINT_CONFIG_REL]: 'export default [{ files: ["**/*.js"], rules: {} }, { ignores: ["**/*.test.js"], rules: { semi: "error" } }];\n',
-    "src/live.js": "export const live = 1\n",
-    "src/live.test.js": "export const test = 1\n",
-  });
-
-  const snapshot = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
-  const ignore = snapshot.selectors.find((row) => row.owner === "config[1]" && row.field === "ignores");
-  const eslint = new ESLint({ cwd: scratch, overrideConfigFile: join(scratch, ESLINT_CONFIG_REL) });
-
-  expect(ignore).toMatchObject({ scope: "local-ignore", value: "**/*.test.js", members: 1 });
-  expect((await eslint.calculateConfigForFile(join(scratch, "src/live.js")))?.rules?.semi).toBeDefined();
-  expect((await eslint.calculateConfigForFile(join(scratch, "src/live.test.js")))?.rules?.semi).toBeUndefined();
-});
-
-// ── The ESLint candidate population is ONE rule for both callers (#2302, 2026-09-13) ──────────────────
-// Git tracks a SYMLINK TO A DIRECTORY as an ordinary path and `lib/policy-repo-inventory.ts` admits every
-// symlink, so such a path is a member of the list BOTH `eslintTrackedPaths` callers read. It used to be
-// admitted unvalidated by the inventory branch and REFUSED by the supplied branch (taken only under an
-// overlay), which made the overlay door unusable at the real repository root — the only door through which
-// a counterfactual of the real `eslint.config.js` can be observed. These three arms pin the repair on a
-// PLANTED fixture, so they do not depend on which symlinks the live tree happens to carry: the founding
-// live case is `.agents/skills` -> `../.claude/skills`, and `.codex/hooks` is its twin.
-async function plantSymlinkedEslintRepo(root: string): Promise<void> {
-  await plantEslintRepo(root, {
-    [ESLINT_CONFIG_REL]: 'export default [{ files: ["src/**/*.js"] }];\n',
-    "src/live.js": "export const live = 1;\n",
-    "target/inside.js": "export const inside = 1;\n",
-  });
-  symlinkSync("../target", join(root, "src/linked-dir"));
-  execFixtureGit(root, ["add", "-A"]);
-}
-
-test("a tracked symlink-to-DIRECTORY leaves the ESLint candidate population BY NAME, on both caller branches", async ({ scratch }) => {
-  await plantSymlinkedEslintRepo(scratch);
-  const tracked = execFixtureGit(scratch, ["ls-files"]).split("\n").filter(Boolean);
-  expect(tracked, "the planted symlink must be a TRACKED path or this arm proves nothing").toContain("src/linked-dir");
-
-  const supplied = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL, tracked);
-  const inventory = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
-
-  expect(supplied.excludedNonFilePaths).toEqual(["src/linked-dir"]);
-  expect(supplied.trackedFiles).toBe(tracked.length - 1);
-  // THE DEFECT WAS THE DISAGREEMENT, so the pin is the equality, not either number on its own.
-  expect(inventory.excludedNonFilePaths).toEqual(supplied.excludedNonFilePaths);
-  expect(inventory.trackedFiles).toBe(supplied.trackedFiles);
-  expect(inventory.selectors).toEqual(supplied.selectors);
-});
-
-test("relaxing the file-kind refusal did NOT relax containment: a symlink out of the transaction still refuses", async ({ scratch }) => {
-  await plantSymlinkedEslintRepo(scratch);
-  symlinkSync("..", join(scratch, "escape"));
-
-  await expect(snapshotEslintConfig(scratch, ESLINT_CONFIG_REL, ["src/live.js", "escape"])).rejects.toThrow("is not a contained transaction file");
-  await expect(snapshotEslintConfig(scratch, ESLINT_CONFIG_REL, ["src/live.js", "src/gone.js"])).rejects.toThrow("is absent from the transaction");
-});
-
-test("the private population manifest carries the exclusion across the worker's process boundary", async ({ scratch }) => {
-  await plantSymlinkedEslintRepo(scratch);
-
-  const read = readConfigSnapshot(scratch, "eslint", ESLINT_CONFIG_REL, {
-    overlay: { [ESLINT_CONFIG_REL]: 'export default [{ name: "overlay", files: ["src/**/*.js"] }];\n' },
-  });
-
-  expect(read.kind === "ok" ? read.snapshot.excludedNonFilePaths : read.detail).toEqual(["src/linked-dir"]);
-});
-
-test("keeps local-ignore counterfactuals from widening universal selectors or unrelated no-files entries", async ({ scratch }) => {
-  await plantEslintRepo(scratch, {
-    [ESLINT_CONFIG_REL]: `export default [
-  { files: ["src/**/*.ts"], ignores: ["src/**/*.test.ts"] },
-  { files: ["src/**"], rules: { semi: "error" } },
-  { ignores: ["src/**/*.test.ts"], rules: { quotes: ["error", "double"] } },
-];\n`,
-    "src/live.ts": "export const live = 1\n",
-    "src/live.test.ts": "export const test = 1\n",
-  });
-
-  const snapshot = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
-  const population = Object.fromEntries(snapshot.selectors.map((row) => [`${row.owner}.${row.field}[${String(row.position)}]`, row.members]));
-  const eslint = new ESLint({ cwd: scratch, overrideConfigFile: join(scratch, ESLINT_CONFIG_REL) });
-  const live = await eslint.calculateConfigForFile(join(scratch, "src/live.ts"));
-  const testFile = await eslint.calculateConfigForFile(join(scratch, "src/live.test.ts"));
-
-  expect(population).toMatchObject({
-    "config[0].files[0]": 1,
-    "config[0].ignores[0]": 1,
-    "config[1].files[0]": 1,
-    "config[2].ignores[0]": 0,
-  });
-  expect(live?.rules?.semi).toBeDefined();
-  expect(live?.rules?.quotes).toBeDefined();
-  expect(testFile?.rules?.semi).toBeUndefined();
-  expect(testFile?.rules?.quotes).toBeUndefined();
 });
 
 test("dependency-cruiser rule identity refuses missing and duplicate names", async ({ plantedTree }) => {

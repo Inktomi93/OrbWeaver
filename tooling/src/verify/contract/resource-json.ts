@@ -4,13 +4,8 @@
 // a config that silently fell back to a default runs a different tool than the repository asked for, which
 // makes every verdict downstream of it a lie.
 //
-// THERE IS NO `jsonc` SIBLING, AND THERE WILL NOT BE (frozen 2026-09-11, #1930 — reason in
-// `docs/law/gate-runtime-standardization.md` §4). Guide §4 named one; an earlier draft of this
-// header described it beside `json`. It was never built and is now ruled out: the whole gate corpus contains
-// exactly ONE JSONC parse (`gates/tsconfig-entry-liveness.ts:233`), so the kind would serve one gate, and the
-// `extends`-FOLDING half §11.4 asked for is already owned by the world program's shared compiler reader
-// (`lib/policy-program-membership.ts:78-85`, #1351). That gate's conversion needs a shared READER exposing
-// per-config RAW include/exclude entries, not a resource kind.
+// JSONC is not a resource kind (gate-runtime-standardization §4). Compiler configuration and
+// extends folding belong to the shared compiler reader, not the authored-data door.
 //
 // MISSING AND UNPARSEABLE ARE SEPARATE FACTS AT BOTH DOORS, and neither ever becomes `{}`.
 // the ResourceHost access-pattern ruling is the law: *"Missing and parse failure must be separate
@@ -33,7 +28,7 @@ export type JsonValue = null | boolean | number | string | readonly JsonValue[] 
 /** Every strict-JSON resource, keyed by a closed id. A gate may not supply a path; adding an id is a
  *  contract edit with a named consumer, which is what keeps this from becoming `readFile(path)`. */
 export const JSON_RESOURCE_PATHS = {
-  /** `biome-grant-liveness`: the override rows whose `includes` are suppression grants. */
+  /** `no-blanket-suppression`: the authored override suppression policy. */
   biome: "biome.json",
   /** `no-raw-z-index` and the token policies: the canonical token vault. */
   tokens: "packages/ui/src/tokens/tokens.json",

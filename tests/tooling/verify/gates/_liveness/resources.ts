@@ -15,17 +15,13 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as baseuiSurfaceManifest } from "../../../../../tooling/src/verify/gates/baseui-surface-manifest.ts";
-import { gate as biomeGrantLiveness } from "../../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
-import { gate as biomeGrantLivenessHealth } from "../../../../../tooling/src/verify/gates/biome-grant-liveness-health.ts";
 import { gate as clientPackageNoSideEffects } from "../../../../../tooling/src/verify/gates/client-package-no-side-effects.ts";
 import { gate as commentedCode } from "../../../../../tooling/src/verify/gates/commented-code.ts";
 import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
 import { gate as dbStructureProducerHome } from "../../../../../tooling/src/verify/gates/db-structure-producer-home.ts";
-import { gate as depcruiseGrantLiveness } from "../../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
 import { gate as depcruiseGrantLivenessHealth } from "../../../../../tooling/src/verify/gates/depcruise-grant-liveness-health.ts";
 import { gate as devtoolsFrontendAssets } from "../../../../../tooling/src/verify/gates/devtools-frontend-assets.ts";
-import { gate as eslintGrantLiveness } from "../../../../../tooling/src/verify/gates/eslint-grant-liveness.ts";
 import { gate as featureOwnsDefinition } from "../../../../../tooling/src/verify/gates/feature-owns-definition.ts";
 import { gate as featureStructure } from "../../../../../tooling/src/verify/gates/feature-structure.ts";
 import { gate as ledgerSymbolLiveness } from "../../../../../tooling/src/verify/gates/ledger-symbol-liveness.ts";
@@ -34,6 +30,7 @@ import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verif
 import { gate as noNulBytesInSource } from "../../../../../tooling/src/verify/gates/no-nul-bytes-in-source.ts";
 import { gate as noRawColorInCss } from "../../../../../tooling/src/verify/gates/no-raw-color-in-css.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
+import { gate as rootDevelopmentDependencies } from "../../../../../tooling/src/verify/gates/root-development-dependencies.ts";
 import { gate as runnerConfigPathLiveness } from "../../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
 import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
 import { gate as serverLayout } from "../../../../../tooling/src/verify/gates/server-layout.ts";
@@ -42,10 +39,7 @@ import { gate as surfaceInAContainerHealth } from "../../../../../tooling/src/ve
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as tokensContract } from "../../../../../tooling/src/verify/gates/tokens-contract.ts";
 import { gate as toolingRunnerConfigLiterals } from "../../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
-import { gate as tsconfigEntryLiveness } from "../../../../../tooling/src/verify/gates/tsconfig-entry-liveness.ts";
-import { gate as tsconfigEntryLivenessHealth } from "../../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
 import { gate as uiExportsMapComplete } from "../../../../../tooling/src/verify/gates/ui-exports-map-complete.ts";
-import { gate as verifyRegistryParity } from "../../../../../tooling/src/verify/gates/verify-registry-parity.ts";
 
 const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
 const DEPCRUISE = ".dependency-cruiser.cjs";
@@ -57,8 +51,6 @@ const PRODUCT_SHEETS = [
   "packages/client/src/features/app-shell/surfaces/shell.css",
 ] as const;
 const DEVTOOLS_ASSET = "tooling/src/snap/lib/devtools-frontend/assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/application_tokens.css";
-/** Thirty distinct glob includes: the size the biome tripwire treats as a real config. */
-const BIOME_GLOBS = Array.from({ length: 30 }, (_, index) => `"packages/liveness${String(index)}/**"`).join(", ");
 // Assembled so no suppression directive appears whole in this file.
 const SUPPRESSION = ["biome", "-ignore"].join("");
 
@@ -80,20 +72,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     // The ledger loses its `Meter` component, which the installed package still ships.
     overlays: [replace("tooling/src/verify/gates/baseui-surface.manifest.json", '"Meter": {', '"LivenessMeter": {')],
     messageIncludes: "absent from the manifest",
-  },
-  {
-    policy: biomeGrantLivenessHealth,
-    // An anchor-sized config (the tripwire judges one of at least 30 includes) from which the classifier
-    // derives ZERO file-exact rows: every include is a glob.
-    overlays: [source("biome.json", `{\n  "overrides": [{ "includes": [${BIOME_GLOBS}], "linter": { "rules": {} } }]\n}\n`)],
-    messageIncludes: "ZERO file-exact grant rows",
-  },
-  {
-    policy: biomeGrantLiveness,
-    overlays: [
-      replace("biome.json", '"overrides": [', '"overrides": [\n    { "includes": ["packages/client/src/liveness-gone.ts"], "linter": { "rules": {} } },'),
-    ],
-    messageIncludes: "packages/client/src/liveness-gone.ts",
   },
   {
     policy: clientPackageNoSideEffects,
@@ -139,27 +117,10 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "GROWTH",
   },
   {
-    policy: depcruiseGrantLiveness,
-    overlays: [
-      append(
-        DEPCRUISE,
-        '\nmodule.exports.forbidden.push({ name: "liveness-dead", severity: "error", from: {}, to: { pathNot: "^packages/ui/src/liveness-gone\\\\.ts$" } });\n',
-      ),
-    ],
-    messageIncludes: "liveness-gone",
-  },
-  {
     policy: devtoolsFrontendAssets,
     overlays: [source(DEVTOOLS_ASSET, "mutated liveness asset\n")],
     reportsAt: ["tooling/src/snap/lib/devtools-frontend/pin.json"],
     messageIncludes: "hash/size mismatch",
-  },
-  {
-    policy: eslintGrantLiveness,
-    overlays: [
-      replace("eslint.config.js", "export default tseslint.config(\n", 'export default tseslint.config(\n  { files: ["packages/ui/src/liveness-gone.ts"] },\n'),
-    ],
-    messageIncludes: "files[0]",
   },
   {
     policy: featureOwnsDefinition,
@@ -277,23 +238,13 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "Literal: `testTimeout: 5000`",
   },
   {
-    policy: tsconfigEntryLivenessHealth,
-    overlays: [source("tsconfig.json", '{\n  "include": [ \n}\n')],
-    messageIncludes: "did not parse",
-  },
-  {
-    policy: tsconfigEntryLiveness,
-    overlays: [replace("tsconfig.json", '"exclude": [\n', '"exclude": [\n    "packages/client/src/liveness-gone.ts",\n')],
-    messageIncludes: "packages/client/src/liveness-gone.ts",
-  },
-  {
     policy: uiExportsMapComplete,
     overlays: [source("packages/ui/src/primitives/liveness-hint/index.ts", "export const LivenessHint = 1;\n")],
     messageIncludes: "no entry at all",
   },
   {
-    policy: verifyRegistryParity,
-    overlays: [replace("package.json", '"scripts": {\n', '"scripts": {\n    "check:liveness": "true",\n')],
-    messageIncludes: "check:liveness",
+    policy: rootDevelopmentDependencies,
+    overlays: [replace("package.json", '"devDependencies": {', '"dependencies": { "tsx": "^4.0.0" },\n  "devDependencies": {')],
+    messageIncludes: "Dependency: tsx.",
   },
 ];

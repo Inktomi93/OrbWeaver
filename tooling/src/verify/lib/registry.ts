@@ -1,7 +1,6 @@
 // The verification stage registry (UNIFIED-VERIFICATION-DESIGN.md §3.1) — every verification surface in
 // the repo, self-described: each stage declares its tier membership, how to scope it, and how to map its
-// child's native exit into the repo's 0/1/2/3 contract. A "forgotten script" becomes structurally
-// impossible: verify-registry-parity.ts reds when a package.json verification-shaped script has no row here.
+// child's native exit into the repo's 0/1/2/3 contract.
 
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { StageDef, Tier } from "../contract/stage.ts";
@@ -244,23 +243,6 @@ const GATING_STAGES: readonly StageDef[] = [
     // narrowed file selection cannot prove that every changed installable byte has a version increase.
   },
 
-  {
-    name: "config:biome-rule-liveness",
-    applicationArgv: "implementation-only",
-    group: "structure",
-    tiers: STATIC,
-    argv: ["pnpm", "check:biome-rule-liveness"],
-    // THE RULE HALF of biome grant liveness (#2074), successor to the arm `bd0a01d6b4` deleted under §12.3
-    // (a policy may not write a file and spawn a child). Path liveness proves the granted SUBJECT exists;
-    // NOTHING proved the granted RULE still fires, so a rule-off override on a file that stopped violating
-    // the rule was invisible — and an exemption nobody granted it is what the next violation at that path
-    // inherits. Our OWN 0/1/2/3-speaking op (ops/biome-rule-liveness.ts): every report shape it cannot
-    // trust (truncated, non-lint, unparseable, zero files processed) THROWS ⇒ exit 2, because each of them
-    // produces an empty diagnostic list that is byte-identical to "every grant is dead".
-    classify: ownScheme,
-    // The subject is the config's complete grant table, so there is no sound narrowed derivation. The
-    // changed-tier trigger decorator runs this stage's whole argv whenever a changed selection owes it.
-  },
   {
     name: "config:knip-negative-liveness",
     applicationArgv: "implementation-only",

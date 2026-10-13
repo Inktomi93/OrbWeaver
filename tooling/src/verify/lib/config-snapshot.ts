@@ -1,8 +1,6 @@
 // Synchronous client for the private native-config snapshot worker. Gates remain synchronous; executable
 // runner config is evaluated only in the narrow niced child, and the parent accepts no malformed/partial JSON.
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { budget } from "@orb/tooling/floor/host/load-budget";
@@ -16,24 +14,16 @@ import type {
   DepcruiseConfigSnapshot,
   DepcruiseConfigSnapshotField,
   DepcruiseSelectorSnapshot,
-  EslintConfigSnapshot,
-  EslintSelectorSnapshot,
-  EslintSelectorValue,
   VitestConfigSnapshot,
   VitestConfigSnapshotField,
 } from "../contract/config-snapshot.ts";
 import { DEPCRUISE_CONFIG_SNAPSHOT_FIELDS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
 import { materializeConfigSnapshotTransaction } from "../ops/config-snapshot-transaction.ts";
-import { readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
 
 const SNAPSHOT_ENTRY = fileURLToPath(new URL("../ops/config-snapshot-entry.ts", import.meta.url));
 const SNAPSHOT_TIMEOUT_BASE_MS = 30_000;
 const SNAPSHOT_TIMEOUT_MS = budget(SNAPSHOT_TIMEOUT_BASE_MS);
 const SNAPSHOT_MAX_BUFFER = 16_777_216;
-
-function deletedByOverlay(path: string, overlay: Readonly<Record<string, string | null>>): boolean {
-  return Object.entries(overlay).some(([entry, value]) => value === null && (path === entry || path.startsWith(`${entry}/`)));
-}
 
 function oneOf<T extends string>(value: unknown, values: readonly T[]): value is T {
   return typeof value === "string" && (values as readonly string[]).includes(value);
@@ -54,38 +44,6 @@ function parseSelector(value: unknown): ConfigSelectorSnapshot | undefined {
   return isStringArray(row.values) ? { owner: row.owner, field: row.field, values: row.values } : undefined;
 }
 
-function isEslintSelectorValue(value: unknown): value is EslintSelectorValue {
-  return typeof value === "string" || (isStringArray(value) && value.length > 0);
-}
-
-function parseEslintSelector(value: unknown): EslintSelectorSnapshot | undefined {
-  if (typeof value !== "object" || value === null) {
-    return;
-  }
-  const row = value as {
-    readonly field?: unknown;
-    readonly members?: unknown;
-    readonly owner?: unknown;
-    readonly position?: unknown;
-    readonly scope?: unknown;
-    readonly value?: unknown;
-  };
-  if (
-    typeof row.owner !== "string" ||
-    row.owner === "" ||
-    (row.field !== "files" && row.field !== "ignores") ||
-    !Number.isSafeInteger(row.position) ||
-    (row.position as number) < 0 ||
-    !isEslintSelectorValue(row.value) ||
-    (row.scope !== "files" && row.scope !== "local-ignore" && row.scope !== "global-ignore") ||
-    !Number.isSafeInteger(row.members) ||
-    (row.members as number) < 0
-  ) {
-    return;
-  }
-  return row as EslintSelectorSnapshot;
-}
-
 function parseVitestSnapshot(snapshot: Record<string, unknown>, config: string): VitestConfigSnapshot | undefined {
   const values = snapshot["selectors"];
   if (!Array.isArray(values)) {
@@ -96,38 +54,6 @@ function parseVitestSnapshot(snapshot: Record<string, unknown>, config: string):
     return;
   }
   return { version: 1, runner: "vitest", config, selectors: selectors as ConfigSelectorSnapshot[] };
-}
-
-function parseEslintSnapshot(snapshot: Record<string, unknown>, config: string): EslintConfigSnapshot | undefined {
-  const trackedFiles = snapshot["trackedFiles"];
-  const entries = snapshot["entries"];
-  const values = snapshot["selectors"];
-  // `excludedNonFilePaths` is REQUIRED and may be empty: an emitter that omits it is an older or forged
-  // worker whose population claim cannot be read, which is a malformed snapshot, not an absent field.
-  const excludedNonFilePaths = snapshot["excludedNonFilePaths"];
-  if (
-    !Number.isSafeInteger(trackedFiles) ||
-    (trackedFiles as number) <= 0 ||
-    !Number.isSafeInteger(entries) ||
-    (entries as number) <= 0 ||
-    !isStringArray(excludedNonFilePaths) ||
-    !Array.isArray(values)
-  ) {
-    return;
-  }
-  const selectors = values.map(parseEslintSelector);
-  if (selectors.length === 0 || selectors.some((row) => row === undefined)) {
-    return;
-  }
-  return {
-    version: 1,
-    runner: "eslint",
-    config,
-    trackedFiles: trackedFiles as number,
-    excludedNonFilePaths,
-    entries: entries as number,
-    selectors: selectors as EslintSelectorSnapshot[],
-  };
 }
 
 function parseDepcruiseSelector(value: unknown): DepcruiseSelectorSnapshot | undefined {
@@ -186,9 +112,6 @@ function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: strin
   if (runner === "vitest") {
     return parseVitestSnapshot(snapshot, config);
   }
-  if (runner === "eslint") {
-    return parseEslintSnapshot(snapshot, config);
-  }
   return parseDepcruiseSnapshot(snapshot, config);
 }
 
@@ -205,22 +128,12 @@ export function readConfigSnapshot(
   options: ConfigSnapshotReadOptions = {},
 ): ConfigSnapshotRead<ConfigSnapshotRunner> {
   const overlay = options.overlay ?? {};
-  const cache = join(root, ".cache");
   let transaction: ReturnType<typeof materializeConfigSnapshotTransaction> | undefined;
-  let requestDirectory: string | undefined;
   let child: ReturnType<typeof runNicedSync>;
   // @orb-waive caught-failure-ownership(error): native-config parse error: surfaced as a structured tool-error diagnostic in the config-snapshot report; the broken config is excluded from the snapshot
   try {
     transaction = Object.keys(overlay).length === 0 ? undefined : materializeConfigSnapshotTransaction({ root, overlay });
     const args = [SNAPSHOT_ENTRY, runner, config];
-    if (transaction !== undefined && runner === "eslint") {
-      const population = readPolicyRepositoryInventory(root).trackedPaths.filter((path) => !deletedByOverlay(path, overlay));
-      mkdirSync(cache, { recursive: true });
-      requestDirectory = mkdtempSync(join(cache, "config-snapshot-request-"));
-      const manifest = join(requestDirectory, "eslint-population.json");
-      writeFileSync(manifest, JSON.stringify(population));
-      args.push("--eslint-population", manifest);
-    }
     child = runNicedSync(process.execPath, args, {
       cwd: transaction === undefined ? root : transaction.root,
       maxBuffer: SNAPSHOT_MAX_BUFFER,
@@ -230,9 +143,6 @@ export function readConfigSnapshot(
     return { kind: "unreadable", detail: error instanceof Error ? error.message : String(error) };
   } finally {
     transaction?.cleanup();
-    if (requestDirectory !== undefined) {
-      rmSync(requestDirectory, { recursive: true, force: true });
-    }
   }
   if (child.status !== 0) {
     const detail = child.stderr.trim() || child.stdout.trim() || `child exited ${String(child.status)}`;

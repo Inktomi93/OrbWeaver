@@ -58,8 +58,7 @@ test("the vitest half is its own stage, and the composite that hid both cannot r
   expect(node.argv, "`pnpm test:node` is the vitest projects ONLY — the CT half is browser:ct now").toEqual(["pnpm", "test:node"]);
   expect(stageHangCeilingBaseMs(node), "a ~10-minute suite keeps the default ceiling").toBe(readStageBudgets().defaultMs);
 
-  // `pnpm test` is still the explicit product-test command and a NAMED stage, so verify-registry-parity
-  // stays satisfied — but a tier row here would run both suites a second time.
+  // The composite remains manual so automatic tiers do not run both halves twice.
   const composite = stage("tests:product-composite");
   expect(composite.argv).toEqual(["pnpm", "test"]);
   expect(composite.tiers, "manual ONLY — the runner runs the halves").toEqual(["manual"]);
