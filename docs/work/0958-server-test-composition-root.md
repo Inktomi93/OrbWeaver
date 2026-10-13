@@ -25,11 +25,11 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 ## Evidence
 
-The unqualified source reuses production HTTP, service and job composition. Provider overrides script external execution, not admission, funding, accounting or persisted resolution.
+The unqualified root reuses production HTTP, service and job composition. Provider overrides script execution, not admission, funding, accounting or resolution.
 
 Keep transport event buses and the chat-open tap graph-owned. Wire both publishers and subscribers through the same instance. Preserve synthetic timing and automation behavior. Prove concurrent roots with identical IDs cannot share events; disposal may finish out of order. Join aborted socket room pumps before database disposal.
 
-Notifications supplies the replacement case set. Preserve scope, replay, standing, persistence and projection assertions. Keep unresolved cases in legacy until matching replacement proof. Corpus auth uses production HTTP construction and request identity.
+Notifications supplies replacement cases for scope, replay, standing, persistence and projection. Keep unresolved cases in legacy. Corpus auth uses production HTTP and request identity.
 
 Scoped controls prove resolved CIDR admission can widen a restricted hostname port. The correction rejects that path before dialing and preserves declared-port, unrelated-host and public-address admission. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.
 
@@ -37,7 +37,7 @@ Native listener controls prove Request branding, chunked body admission, cloned 
 
 Affected production configs pass. Root typechecking remains red on non-owned probes and copied helpers. Preserve their meaningful cases for replacement.
 
-Current-owned-read and executor dependencies are integrated in the lane, not main. Scoped HTTP, auth and native model controls pass. Native SDK startup controls prove actual child execution and timer cleanup. Watchdog controls prove child close and sibling survival; the old-source timeout supplies no verdict.
+Canonical funding and owner-bearing reads are integrated on main. Harness SDK, kernel, timer, network and graph-bus seams remain lane-only. Integrate complete prerequisites; the listener delta alone is not main-ready. Scoped HTTP, auth and model controls pass. SDK controls prove actual child execution, timer cleanup, close and sibling survival; the old-source timeout supplies no verdict.
 
 Notification replacement cases and public replay pass. Removing recipient filtering delivers foreign data; replacing the host read prevents required prune effects. Both controls fail meaningfully and exact restoration passes. Legacy persistence cases remain until replacement coverage is complete.
 
