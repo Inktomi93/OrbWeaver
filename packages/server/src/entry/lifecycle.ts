@@ -66,6 +66,7 @@ import { fetchPinnedDownload, installEgressFirewall, parseAllowlist, startTlsTer
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
 import { createCas } from "#infra/storage";
+import { createMemoryRecallInspector, createRpgTraceInspector } from "#transport/debug-recorders";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
 import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler.ts";
 import { startWorkloadScheduleScheduler } from "../transport/jobs/workload-schedule-scheduler.ts";
@@ -105,7 +106,7 @@ import {
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
 import type { ServicesResult } from "./compose/index.ts";
-import { createMemoryRecallInspector, createRpgTraceInspector, createServices } from "./compose/index.ts";
+import { createServices } from "./compose/index.ts";
 import type { FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps, SignupRouteDeps } from "./http/index.ts";
 import { createRateLimitGate } from "./rate-limit-gate.ts";
 

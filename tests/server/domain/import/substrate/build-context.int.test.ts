@@ -7,6 +7,7 @@ import { createImportAvatarStore } from "@orb/server/domain/assets";
 import { createCharacterImportOps } from "@orb/server/domain/character";
 import { buildImportContext, createImportService, createInstallerCharacterImport } from "@orb/server/domain/import";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -20,7 +21,7 @@ test("owner binders retain Principal identity and ignore foreign owner arguments
 }): Promise<void> => {
   await ownerCaller.character.list({});
   const actor = principal(OWNER_USER_ID, { role: "owner", via: "header" });
-  const foreignOwner = mintTypeId(ID_PREFIX.user);
+  const foreignOwner = (await seedUser(db)).id;
   const created = vi.spyOn(services.character, "create");
   const ctx = buildImportContext({
     principal: actor,

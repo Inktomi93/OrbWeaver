@@ -124,3 +124,8 @@ export async function logAudit(db: Db, entry: AuditEntry, createdAt: number): Pr
     }
   }
 }
+
+/** Bind the guarded unexecuted audit insert; the privileged caller owns its adjacent batch position. */
+export function createAuditStatementAfterWrite(db: Db): (entry: AuditEntry, at: number) => BatchStmt {
+  return (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at);
+}

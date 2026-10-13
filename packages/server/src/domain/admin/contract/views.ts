@@ -6,7 +6,8 @@
 
 import type { UserKind, UserRole } from "@orb/contracts/identity";
 import { userKindSchema, userRoleSchema } from "@orb/contracts/identity";
-import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { SessionView } from "@orb/contracts/session";
+import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -35,15 +36,9 @@ export const adminUserViewSchema = z.strictObject({
   updatedAt: z.number(),
 }) satisfies z.ZodType<AdminUserView>;
 
-// Reconciled against domain/sessions' canonical SessionView (packages/contracts/src/session/index.ts).
-export interface SessionAdminView {
-  readonly id: SessionId;
+/** The secret-free session view, stamped with the user the admin asked for. */
+export interface SessionAdminView extends Readonly<SessionView> {
   readonly userId: UserId;
-  readonly expiresAt: number;
-  readonly lastSeenAt: number;
-  readonly revokedAt: number | null;
-  readonly userAgent: string | null;
-  readonly createdAt: number;
 }
 
 // `.readonly()` keeps the wire type's readonly fields: the device list narrows `revokedAt` through a const alias,

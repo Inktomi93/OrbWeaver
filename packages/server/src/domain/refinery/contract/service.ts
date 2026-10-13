@@ -94,8 +94,7 @@ export interface RefineryContext {
   readonly loadOwnedCard: LoadOwnedCardOp;
   /** The `characters.refinery` merge-stamp (F6) — score runs stamp `score`, analyze runs `analysis`. */
   readonly stampRefinerySignals: StampRefinerySignalsOp;
-  /** The structured planner's answer for a projected draft on the owner's bound `structured` connection (composed
-   *  at `entry/compose/refinery.ts`, where the resolved connection is in hand). */
+  /** The refinery-owned planner's answer for a projected draft on the owner's bound `structured` connection. */
   readonly planSchema: (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan>;
   /** `character.snapshot` — the pre-apply reversibility belt ("auto: before refinery apply", §4.13). */
   readonly snapshotCharacter: CharacterService["snapshot"];
