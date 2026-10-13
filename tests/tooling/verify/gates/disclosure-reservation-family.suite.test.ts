@@ -127,8 +127,8 @@ test("a line comment on the enclosing return statement binds a trigger inside a 
 test("an ordinary waiver binds to the exact policy and the `fallback` position query-boundary-reservation reports", () => {
   const waived = passOf([qbr], {
     "packages/client/src/features/a/marked.tsx":
-      "// @orb-waive query-boundary-reservation(fallback): mounts once at app boot and never again.\n" +
-      'export const G = <QueryBoundary fallback={<SkeletonRows count={3} />}>{"b"}</QueryBoundary>;\n',
+      "const ROWS = 3;\n// @orb-waive query-boundary-reservation(fallback): mounts once at app boot and never again.\n" +
+      'export const G = <QueryBoundary fallback={<SkeletonRows count={ROWS} />}>{"b"}</QueryBoundary>;\n',
   });
   expect(waived.authority.authorityAlarms).toEqual([]);
   expect(waived.authority.effectiveFindings).toEqual([]);
@@ -157,7 +157,7 @@ test("a reason-less marker is MALFORMED centrally and exempts nothing — the le
 
   const qbrRun = passOf([qbr], {
     "packages/client/src/features/a/bare.tsx":
-      '// @orb-waive query-boundary-reservation(fallback)\nexport const G = <QueryBoundary fallback={<SkeletonRows count={3} />}>{"b"}</QueryBoundary>;\n',
+      'const ROWS = 3;\n// @orb-waive query-boundary-reservation(fallback)\nexport const G = <QueryBoundary fallback={<SkeletonRows count={ROWS} />}>{"b"}</QueryBoundary>;\n',
   });
   expect(qbrRun.authority.effectiveFindings).toHaveLength(1);
   expect(qbrRun.authority.authorityAlarms).toMatchObject([{ kind: "ordinary-waiver", policyId: qbr.id }]);

@@ -99,6 +99,7 @@ import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
 import zod from "eslint-plugin-zod";
 import tseslint from "typescript-eslint";
+import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
 import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
 
@@ -484,6 +485,19 @@ const routeImports = (doors = []) => ({
   message: "A route mounts the registry-assembled shell, not a feature. Only exact composition and pre-authentication doors are permitted.",
 });
 
+const NO_MANUAL_MEMO_IMPORT = {
+  selector: `ImportDeclaration[source.value='react'] > ImportSpecifier[imported.name=/^(${MANUAL_MEMO_EXPORTS.join("|")})$/]`,
+  message: "React Compiler owns memoization; remove the manual useMemo/useCallback/memo import.",
+};
+const NO_LITERAL_RESERVATION = {
+  selector:
+    "JSXOpeningElement[name.type='JSXIdentifier'][name.name='QueryBoundary'][selfClosing=false]:not(:has(> JSXAttribute[name.name='reserveKey'])) > " +
+    "JSXAttribute[name.name='fallback'] > JSXExpressionContainer > JSXElement[openingElement.selfClosing=true][openingElement.name.type='JSXIdentifier'][openingElement.name.name='SkeletonRows'] > " +
+    "JSXOpeningElement > JSXAttribute[name.name='count'] > JSXExpressionContainer > Literal[value=type(number)]",
+  message: "A direct static SkeletonRows count guesses the settled box. Add reserveKey to QueryBoundary.",
+};
+const MEMO_NATIVE_SRC = rootSources("@client", "@ui", "@tests");
+
 // Flat config replaces rule arrays. Repeat the applicable native layers in each existing override partition.
 function syntaxBlocks(files, selectors, ignores = []) {
   const base = [...selectors, NO_FORM_DEPENDENCY];
@@ -506,12 +520,26 @@ function syntaxBlocks(files, selectors, ignores = []) {
       rules: { "no-restricted-syntax": ["error", ...base, NO_CALLER_USER_ID, NO_GROUP_BRANCH] },
     },
   ];
-  return blocks.flatMap((block) => [
+  const layered = blocks.flatMap((block) => [
     block,
     {
       files: block.files.flatMap((file) => AUTHORED_SRC.map((authored) => [...(Array.isArray(file) ? file : [file]), authored])),
       ignores: [...(block.ignores ?? []), ...STRICT_SYNTAX_IGNORES, "**/*.test.{ts,tsx}", ...QUERY_HOMES],
       rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_RAW_QUERY_HOOKS] },
+    },
+  ]);
+  return layered.flatMap((block) => [
+    block,
+    {
+      ...block,
+      files: block.files.flatMap((file) => MEMO_NATIVE_SRC.map((source) => [...(Array.isArray(file) ? file : [file]), source])),
+      ignores: [...(block.ignores ?? []), ...STRICT_SYNTAX_IGNORES, ...Object.values(MANUAL_MEMO_CUSTOM_HOMES)],
+      rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_MANUAL_MEMO_IMPORT] },
+    },
+    {
+      ...block,
+      files: block.files.map((file) => [...(Array.isArray(file) ? file : [file]), CLIENT_SRC]),
+      rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_MANUAL_MEMO_IMPORT, NO_LITERAL_RESERVATION] },
     },
   ]);
 }

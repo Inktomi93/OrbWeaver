@@ -1,4 +1,4 @@
-// Policy: query-boundary-reservation (#885).
+// Policy: query-boundary-reservation (#885). Native ESLint owns direct numeric counts; this owner retains const/TS-wrapper counts.
 // A `QueryBoundary` whose fallback is a `SkeletonRows` with a STATIC count reserves a guess, not the box
 // the surface settles at — the boot-CLS class home paid for (F14) and #885 sealed as `reserveKey`.
 //
@@ -54,6 +54,14 @@ const FIX =
   "a boundary that genuinely never re-mounts — `// @orb-waive query-boundary-reservation(fallback): <why it never re-mounts>` " +
   "on the line above the element; the position is the `fallback` attribute name. One boundary is one finding.";
 
+function nativeExpression(initializer: Node | undefined): Node | undefined {
+  let expression = initializer !== undefined && Node.isJsxExpression(initializer) ? initializer.getExpression() : undefined;
+  while (expression !== undefined && Node.isParenthesizedExpression(expression)) {
+    expression = expression.getExpression();
+  }
+  return expression;
+}
+
 export const gate = defineGate({
   id: "query-boundary-reservation",
   family: "query-boundary-reservation",
@@ -78,6 +86,12 @@ export const gate = defineGate({
           if (skeleton === undefined || !hasStaticCount(skeleton, sourceFile)) {
             return;
           }
+          const fallbackExpression = nativeExpression(jsxAttributeNamed(node, "fallback")?.getInitializer());
+          const countExpression = nativeExpression(jsxAttributeNamed(skeleton, "count")?.getInitializer());
+          // Native parsing erases parentheses, but retains TS wrappers and same-file identifier counts.
+          if (fallbackExpression === skeleton && countExpression !== undefined && Node.isNumericLiteral(countExpression)) {
+            return;
+          }
           ctx.report.node(jsxAttributeNamed(node, "fallback") ?? node);
         },
       },
@@ -87,11 +101,11 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        "packages/client/src/features/a/unkeyed.tsx":
-          'export const G = <QueryBoundary fallback={<SkeletonRows count={3} shape="line" />}>{"b"}</QueryBoundary>;\n',
+        "packages/client/src/features/a/wrappedcount.tsx":
+          'export const G = <QueryBoundary fallback={<SkeletonRows count={3 as number} />}>{"b"}</QueryBoundary>;\n',
       },
       expect: { count: 1, token: "fallback" },
-      why: "the founding shape — a static-count skeleton fallback with no reserveKey reserves a guess (F14)",
+      why: "a TS-wrapped literal is outside native direct-number grammar but remains a static guess",
     },
     {
       mode: "source",
@@ -106,13 +120,20 @@ export const gate = defineGate({
       mode: "source",
       files: {
         "packages/client/src/features/a/retired.tsx":
-          '// @first-boot-only: the retired grammar\nexport const G = <QueryBoundary fallback={<SkeletonRows count={3} />}>{"b"}</QueryBoundary>;\n',
+          'const ROWS = 3;\n// @first-boot-only: the retired grammar\nexport const G = <QueryBoundary fallback={<SkeletonRows count={ROWS} />}>{"b"}</QueryBoundary>;\n',
       },
       expect: { count: 1, token: "fallback" },
       why: "THE RETIRED GRAMMAR IS INERT TEXT: a legacy `@first-boot-only` marker exempts nothing any more — the finding stands (the grammar had zero live sites, so nothing was lost)",
     },
   ],
   mustPass: [
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/a/native.tsx": 'export const G = <QueryBoundary fallback={(<SkeletonRows count={((3))} />)}>{"b"}</QueryBoundary>;\n',
+      },
+      why: "native numeric-literal coverage owns this occurrence without a duplicate custom finding",
+    },
     {
       mode: "source",
       files: {
@@ -164,9 +185,9 @@ export const gate = defineGate({
       mode: "source",
       files: {
         "packages/client/src/features/a/marked.tsx":
-          '// @orb-waive query-boundary-reservation(fallback): mounts once at app boot and never again — nothing to remember between mounts.\nexport const G = <QueryBoundary fallback={<SkeletonRows count={3} />}>{"b"}</QueryBoundary>;\n',
+          'const ROWS = 3;\n// @orb-waive query-boundary-reservation(fallback): mounts once at app boot and never again — nothing to remember between mounts.\nexport const G = <QueryBoundary fallback={<SkeletonRows count={ROWS} />}>{"b"}</QueryBoundary>;\n',
       },
-      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the reported position — the `fallback` attribute — suppresses the twin of mustFlag[0]. One finding, one marker, zero effective findings and zero authority alarms",
+      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the reported position — the `fallback` attribute — suppresses the same-file constant remainder. One finding, one marker, zero effective findings and zero authority alarms",
     },
   ],
 });
