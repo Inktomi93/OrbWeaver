@@ -213,9 +213,6 @@ test("the discovery payload is MEASURED against the ceilings, and the number is 
 // stated the intent it failed to implement: "Local tool caches are derived scratch artifacts, never
 // authored inputs." The config carries `"**/.cache/**"` since `89fe893fad`; this paragraph is the incident,
 // not the tree, and the assertions below are what keep the tree that way. THE COUPLED SITE the same change
-// missed is `gates/eslint-grant-liveness.ts`, whose then-gate-local RATIFIED row matched that value BYTE-FOR-BYTE
-// and sat stale for a day (#2213, re-pointed 2026-09-12). Since #1922 that value is the `operation` of the
-// central `eslint-grant-liveness:cache` row in `lib/reviewed-grants.ts`, still matched byte-for-byte.
 //
 // WHY THIS IS PINNED AGAINST THE REAL CONFIG rather than a synthetic one: the defect was IN the real
 // config's pattern, and a fixture would have reproduced whatever pattern the fixture author wrote. The

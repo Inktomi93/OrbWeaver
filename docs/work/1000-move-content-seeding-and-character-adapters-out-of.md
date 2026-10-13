@@ -24,8 +24,10 @@ Preserve seed manifest settlement, deletion respect, failure retries, per-user i
 
 ## Evidence
 
-The security lane prepares the complete owner, caller and preserved-case map before editing. Main owns shared composition hunks, independent review, budget reconciliation and landing. Compiler and gate-heavy runs require the scheduled slot.
+The security lane implements the reviewed owner and preserved-case map. Main owns shared composition hunks, independent review, budget reconciliation and landing. Compiler and gate-heavy runs require the scheduled slot.
 
 D263 requires the manifest, per-account ledger and first-run persona behavior; it does not require entry to own settlement policy. D147 requires per-recipient ownership, consent and deletion respect; it does not require an entry-owned latch. Replace placement-only headers when consumer-owned injected ports remove their stated dependency obstacle. Keep the ledger contracts unchanged.
+
+The planned entry graph projects the single default-content manifest into settings-owned seed steps. Domain factories own completion, character lookup, empty settlement and campaign interpretation. Entry binds static inputs and selects factories at construction. D160 remains unchanged: domain modules import no content package; actual readers remain injected. Assets derives its reader result from the existing store-input type.
 
 Keep the auth seam's Principal mint at its ledger-mandated home. Its compose-marker judgment needs a separate precise checker decision, not a relocation or waiver.

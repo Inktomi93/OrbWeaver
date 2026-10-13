@@ -30,18 +30,8 @@
 //      same arm: `ctx.resources` in ANY position other than the receiver of a wrapped door call hands the
 //      closed host to code this reader cannot follow.
 //
-//      A HAND-OFF EXCEPTION EXISTED HERE BETWEEN `bf9beb617` AND #2148, AND WAS REMOVED DELIBERATELY — it was
-//      not lost in a refactor, and this paragraph exists so a reader who meets it in `git log` can tell. The
-//      arm's first cut accused two CORRECT modules (`tsconfig-entry-liveness` and its `-health` sibling, which
-//      handed the host to `lib/config-grant-rows.ts` (`readTsconfigRoster` as it then was) — a reader that narrowed it
-//      correctly), caught by the family's real-corpus arm rather than by any fixture, and the repair was to
-//      admit that one shape. THE CARVE HAD A HOLE IT COULD NOT SEE: this policy's population is
-//      `tooling/src/verify/gates/**`, so the instant the closed host crossed into `lib/`, NOTHING policed what
-//      happened to it — the guard stopped exactly where the escape began, and the next `lib/` reader had no
-//      enforcer at all. #2148 ruled the stricter shape: readers take READY VALUES and the CALLER reads its own
-//      door, so the host never leaves the call site and no exception is needed. The three live hand-offs were
-//      inverted in the same commit (`lib/config-grant-rows.ts` `tsconfigRosterFrom` / `acquiredConfigText`).
-//      An exception you have to keep proving safe is worse than one you do not need.
+//      Readers take READY VALUES and the CALLER reads its own door (#2148). Passing the host into
+//      a library would move its use beyond this gate population, where this arm cannot police it.
 //   E6 a RETIRED marker grammar parsed in a final module (#2111 B8; `RETIRED_MARKER_OPENERS`, the §7 kind-1
 //      and kind-3 vocabulary): a regex literal, a `new RegExp(<static text>)` or a `.includes/.startsWith/
 //      .test/.exec/.indexOf` argument carrying `@orb-gate-ignore`, `FABRICATION-OK`, `@swallowed-ok`, … is a

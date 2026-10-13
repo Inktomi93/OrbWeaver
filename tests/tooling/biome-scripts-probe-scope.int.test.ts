@@ -33,9 +33,8 @@
 // answer the same way and the hook can no longer accuse a fenced path. No rule was disabled, nothing was
 // labelled checked-clean, and the loud refusal of answer 2 is unchanged.
 //
-// WHY THIS TEST EXISTS AT ALL. `biome-grant-liveness` reads OVERRIDE `includes` rows and
-// `config:biome-rule-liveness` reads rule-off grants — neither has `files.includes` in its population, so
-// the two new fence rows are held live by NOTHING in the gate corpus. This file is their two-sided keeper:
+// Native unused suppression checks do not establish `files.includes` fence membership.
+// This file is the two-sided keeper for the two authored fence rows:
 // the reason and the END CONDITION are data below, each row must be declared in `biome.json`, each fenced
 // directory must still hold tracked TypeScript, and both configs must agree. A control OUTSIDE the fence
 // proves the drive can see a file at all, so a broken spawn cannot read as "everything is fenced".

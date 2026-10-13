@@ -1,6 +1,4 @@
-// The shapes the CODE-config static reader speaks (lib/config-static-read.ts) — the extractor behind the
-// `eslint-grant-liveness` / `depcruise-grant-liveness` gates, which must resolve a file-exact row out of
-// JS/CJS (consts, arrays, spreads, template literals) or REFUSE LOUDLY. Homed in contract/ per the
+// The static config reader resolves runner selector values or returns each unreadable shape. Homed in contract/ per the
 // five-slot type law (docs/law/Core-Tooling-Law.md §2.5): contract/ owns the shapes, lib/ owns the
 // behavior. `no-inline-types` enforces it — a `lib/` module exporting a type alias is RED.
 import type { SourceFile } from "ts-morph";

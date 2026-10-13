@@ -30,7 +30,7 @@ Code comments cite the numbered invariants below as "invariant N":
    `entry/compose/world-info.ts`, which builds its own `resolveOwnerPrincipal =
    createHostPrincipalResolver(deps.sessions)` (world-info.ts:125) — `entry/lifecycle.ts`'s boot seed)
    and **the fail-closed floor** (a synthetic `role:"user"` for role-irrelevant host-ops in
-   `entry/compose/chat.ts`, `entry/compose/imagery.ts`, `entry/compose/search-discovery.ts`). No entry
+   `entry/compose/chat.ts`, `entry/compose/search-discovery.ts`). No entry
    site stamps a role that grants authority. A new synthetic-Principal site must land in one of these
    two classes and name which; a third class is a defect.
 2. **Resolve once.** Everything below the seam reads `Principal.userId`. Nothing re-resolves or

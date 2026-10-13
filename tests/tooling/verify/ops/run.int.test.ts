@@ -558,10 +558,6 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // main sat red on the next whole node run.
     "ledgers:fresh",
     "release:showcase-versions",
-    // #2074: the RULE half of biome grant liveness, successor to the policy arm `bd0a01d6b4` deleted under
-    // §12.3 (a write plus a spawn). Path liveness proves the granted SUBJECT exists; nothing proved the
-    // granted RULE still fires, so a rule-off override on a file that stopped violating it was unpoliced.
-    "config:biome-rule-liveness",
     // Every literal knip.ts negation names a tracked file; knip's own hints never report a dead negation.
     "config:knip-negative-liveness",
     "imports:depcruise",
@@ -969,15 +965,15 @@ test("#2277 — the DECLINED rows keep deferring: no path set over-approximates 
 });
 
 // The cheap whole-command checks run for every source change; knip's negations still run for any path, since
-// deleting any tracked file can kill one, while the four that read no markdown skip a markdown-only change.
+// deleting any tracked file can kill one, while checks that read no markdown skip a markdown-only change.
 test("the cheap whole-command checks run for source, and only knip's negations run for a markdown-only change", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const source = resolveSelection({ kind: "file", paths: ["packages/kit/src/ids/index.ts"] });
   const markdown = resolveSelection({ kind: "file", paths: ["README.md"] });
-  for (const name of ["types:testd", "config:biome-rule-liveness", "config:knip-negative-liveness", "ledgers:fresh", "release:showcase-versions"]) {
+  for (const name of ["types:testd", "config:knip-negative-liveness", "ledgers:fresh", "release:showcase-versions"]) {
     expect(stage(name).scopedArgv?.(source), `${name}: source`).toEqual(stage(name).argv);
   }
   expect(stage("config:knip-negative-liveness").scopedArgv?.(markdown)).toEqual(stage("config:knip-negative-liveness").argv);
-  for (const name of ["types:testd", "config:biome-rule-liveness", "ledgers:fresh", "release:showcase-versions"]) {
+  for (const name of ["types:testd", "ledgers:fresh", "release:showcase-versions"]) {
     expect(stage(name).scopedArgv?.(markdown), `${name}: markdown`).toBe("skip-empty");
   }
 });
@@ -1291,9 +1287,7 @@ test("every stage carries a classify + non-empty tiers", () => {
 // sharing a name (or two names that FLATTEN to the same log file: "a:b" and "a-b" both land on `a-b.log`)
 // would silently overwrite one another's output and hide the second row behind the first — a verification
 // stage that ran but whose evidence is gone. The registry's `name` doc says "kebab, unique"; nothing enforced
-// it. (The other two completeness arms are already covered: the `verify-registry-parity` gate reconciles both
-// directions between the registry and package.json — arm 1 = an unplaced verification-shaped script, arm 2 =
-// a registry row whose `pnpm <script>` argv names no script — exercised below.)
+// it.
 const STAGE_NAME_RE = /^[a-z0-9]+(?:[:-][a-z0-9]+)*$/u;
 
 test("stage names are unique, kebab, and collide-free as log filenames", () => {
@@ -1310,14 +1304,6 @@ test("every manual-tier stage carries a reason", () => {
   const manualWithoutReason = REGISTRY.filter((s) => s.tiers.includes("manual") && s.manualReason === undefined);
   expect(manualWithoutReason).toEqual([]);
 });
-
-// ── V4 verify-registry-parity (§3.6) — ONE HOME, and it is the gate's own conformance rows ──
-// The three standalone cases that used to sit here (arm 1 bites · arm 1 no-over-bite on the allowlist ·
-// arm 2 guarded on a dev-only package.json) were deleted 2026-08-22 (#417 F5): the gate is `fsBacked`, so
-// the conformance runner already materializes a real temp dir and drives every one of those behaviors
-// through the SAME dispatcher — tooling/src/verify/gates/verify-registry-parity.ts's mustFlag/mustPass.
-// The one behavior conformance did not yet carry (the `check:show` INSPECTOR half of the allowlist) moved
-// into that gate's first mustPass row in the same commit; nothing was dropped.
 
 // ── the stage transcript (#259) — the log/excerpt a failure is READ from ──
 // The stage runner used to capture with spawnSync and store `stdout + stderr` (whole-stream CONCATENATION).

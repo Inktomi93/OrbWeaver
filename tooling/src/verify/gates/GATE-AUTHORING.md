@@ -87,8 +87,7 @@ its guarantee. Search all test assertions of the legacy roster, including ledger
 membership matchers. Renames also sweep document citations, literal paths and escaped regex paths; §9.
 
 `gate-modernization` still audits legacy descriptors and cites this path. Its legacy field and stale-arm advice belongs
-to the archived §§1–4, not to `defineGate`. Keep the original path live: `eslint-grant-liveness` and
-`depcruise-grant-liveness` also use it as reviewed fixture-ignore authority; §6.
+to the archived §§1–4, not to `defineGate`.
 
 ## 3. Population, analysis and resources
 
@@ -217,15 +216,7 @@ hooks receive only admitted capabilities. Final proof files are isolated: in-mem
 fixtures; real-corpus controls use virtual overlays. Final policies never plant checkout fixtures. Refer to standing law
 §6.5 and current conformance headers before changing substrate mechanics.
 
-No suite plants a transient fixture into the checkout any more. The reserved `__g_*` namespace belonged to the legacy
-gate self-test, which retired with the legacy runtime at #2176 Phase F (2026-09-14); its native-tool fixture ignores went
-with it — the ESLint `**/__g_*` ignore, the dependency-cruiser `(^|/)__g_` exclude, the `vitest.config.ts` entry and the
-two generated-tsconfig excludes are all gone, and so are the four reviewed-grant rows that carried them. Two `__g_*`
-entries deliberately survive and belong to ONE owner that is not a fixture: `tooling/src/verify/lib/biome-rule-liveness.ts`
-writes a repo-root `__g_biome-rule-liveness.<pid>.json` probe, which is why `.gitignore` still ignores the prefix and
-`biome.json` still negates it. `__dc_*` remains the dependency-cruiser self-test's own live planter. A final policy proves
-real-corpus liveness through a VIRTUAL overlay (`tests/support/node/real-corpus-liveness.ts`) and plants nothing — none of the
-surviving entries is permission to change that.
+Final policies prove real-corpus liveness through virtual overlays (`tests/support/node/real-corpus-liveness.ts`), never checkout fixtures. The dependency-cruiser tool test retains its own `__dc_*` planter; that does not authorize policy fixtures to write the checkout.
 
 ## 7. Header and style
 

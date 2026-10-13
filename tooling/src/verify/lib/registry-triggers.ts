@@ -105,10 +105,6 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
     paths: NOT_MARKDOWN,
     why: "a `.test-d.ts` asserts against the TYPES of arbitrary source, so every path but markdown is admitted: a `.md` is never a type input, so a docs-only change cannot move an assertion.",
   },
-  "config:biome-rule-liveness": {
-    paths: NOT_MARKDOWN,
-    why: "the subject is biome.json's GRANT TABLE plus every path those grants name — and whether a granted rule still FIRES depends on the content of the granted file. Biome processes no markdown and no grant names one, so every other path is admitted.",
-  },
   "config:knip-negative-liveness": {
     paths: /./u,
     why: "the subject is knip.ts's literal negations judged against the git INDEX, so deleting or renaming ANY tracked file can kill a negation that names it. No narrower pattern is complete; the stage reads one config and one index listing, so the identity trigger costs nothing.",

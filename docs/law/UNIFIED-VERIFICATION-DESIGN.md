@@ -13,15 +13,13 @@ updated: 2026-10-10
 > The code is truth on any conflict:
 > `tooling/src/verify/ops/{run,scoped,tests-type-membership,tests-execution-membership}.ts`,
 > `tooling/src/verify/lib/{registry,selection,run-render}.ts`,
-> `tooling/src/verify/gates/verify-registry-parity.ts`, `lefthook.yml`,
+> `tooling/src/verify/gates/root-development-dependencies.ts`, `lefthook.yml`,
 > `.github/workflows/ci.yml`.
 
 ## 1. Run every stage, report every failure
 
 A tier runs EVERY stage and reports EVERY failure at once, then exits at max severity — strictly more
-informative than a pipe that stops at the first red. Every verification-shaped `package.json` script is
-reachable from the registry or dies to a parity gate (§3.6): a forgotten script is structurally
-impossible. Output survives truncation — a reader who sees only the first or last few lines can still
+informative than a pipe that stops at the first red. Registry data names runnable stages; `pnpm verify --list` shows that population. Output survives truncation — a reader who sees only the first or last few lines can still
 read PASS/FAIL and learn that `reports/verify.json` is authoritative. Compact console is the default;
 full stage output goes to `reports/verify/<stage>.log` plus the json, never scrolled off by a live
 stream (`--verbose` / a TTY opts into the live stream).
@@ -83,8 +81,7 @@ resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the origin
 - **Tier membership is data, and this doc never re-spells it.** `pnpm verify --list` is the only roster;
   the §3.2 table characterizes what each tier is FOR and cites the rationale a row cannot carry, never
   which rows are in it. A prose copy of the registry cannot be reconciled against it by any gate, so it
-  rots the moment a row moves — the registry-parity suite pins the ORDER instead, which is the
-  enforcement this sentence leans on rather than replacing.
+  rots the moment a row moves. `tests/tooling/verify/lib/registry.test.ts` pins registry selection and order.
 
 ### 3.2 Tier composition (the ladder)
 
@@ -300,19 +297,11 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
   caller who wants a scoped run to fail loudly rather than silently skip the whole-project gates.
 - **A scoped green is not whole-tree qualification.** Deferred cross-file checks remain owed at the orchestrator's merged-tree boundary and in CI. The `lane` skill defines assignment completion and matching evidence reuse.
 
-### 3.6 The parity gates
+### 3.6 Registry and root dependency ownership
 
-Two live parity gates keep the registry and the scripts honest, both directions:
+The stage registry owns execution and native command selection. Do not maintain a second script-membership model.
 
-- **`verify-registry-parity`** (`tooling/src/verify/gates/verify-registry-parity.ts`, docRow cites §3.6):
-  - Case 1 — every `package.json` script matching the verification shape
-    (`check*`/`test*`/`lint*`/`typecheck*`/`depcruise*`/`e2e*`/`cpd*`/`format*`/`knip*`) must be a registry stage's
-    `pnpm <script>` argv, OR on the small `NON_STAGE_ALLOWLIST` (the verify host + its check alias, the
-    WRITERS `lint:fix`/`format`/`format:docs`, the depcruise mermaid ARTIFACT generators, `cpd:report`,
-    the `check:show` inspector, `depcruise:affected`). A forgotten script is RED.
-  - Case 2 (the mirror) — every registry stage's whole-scope `pnpm <script>` argv must name a REAL
-    `package.json` script (a dead row is RED). Guarded on the presence of the `verify` script so a synthetic
-    example `package.json` doesn't flag every registered stage.
+`root-development-dependencies` (`tooling/src/verify/gates/root-development-dependencies.ts`) rejects runtime dependencies in the root package manifest. Production dependencies belong to their workspace package. The gate preserves resource read and parse refusals; it does not certify script or config-path liveness.
 
 ### 3.7 The test lanes as ONE concept
 

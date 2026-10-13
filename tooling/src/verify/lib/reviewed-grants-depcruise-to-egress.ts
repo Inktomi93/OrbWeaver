@@ -1,4 +1,4 @@
-// Reviewed grants: depcruise-grant-liveness, eslint-grant-liveness, json-column-write-parity, knob-wire-coverage....
+// Reviewed grants for JSON writes, configuration wiring, identity, macros and egress.
 // Split from reviewed-grants.ts — see that file for the central home comment.
 //
 // TWO `knob-wire-coverage` ROWS RETIRED 2026-09-20 (lane cb-gate-reach, the @orb/inference §12 extraction
@@ -17,75 +17,6 @@
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] = [
-  {
-    id: "depcruise-grant-liveness:dist",
-    policyId: "depcruise-grant-liveness",
-    subject: "config.options.exclude.path[0]",
-    operation: 'depcruise-zero-member-pattern:"^packages/[^/]+/dist/"',
-    why: "BUILD OUTPUT: `dist/` is gitignored, so it is absent from the tracked corpus by design and present only after a build — judging it either way makes the verdict depend on machine state. The exclude is ANCHORED to workspace packages on purpose: a bare `(^|/)dist/` also matches `node_modules/<lib>/dist/` and would drop the sealed-lib import edges the satellite-seal rules fire on. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen: "the packages stop emitting dist/ — the exclude leaves .dependency-cruiser.cjs and this row is consumed zero times.",
-  },
-  {
-    id: "depcruise-grant-liveness:quickjs-wasm-url",
-    policyId: "depcruise-grant-liveness",
-    subject: "config.forbidden:not-to-unresolvable.to.pathNot[0]",
-    operation: 'depcruise-zero-member-pattern:"^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\\\?url$"',
-    why: "a vite ASSET QUERY specifier (`?url`), not a module path and not a repo file: its member set is what the bundler emits at build time, which no static tree read can enumerate — dep-cruiser matches it only as an unresolvable-import exemption. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts` (the one importer that makes it live) is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen:
-      "the guest worker stops importing the quickjs wasm through a `?url` asset query — the exemption then leaves .dependency-cruiser.cjs and this row is consumed zero times.",
-  },
-  {
-    id: "eslint-grant-liveness:cache",
-    policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[4]",
-    operation: 'eslint-zero-member-selector:"**/.cache/**"',
-    why: "local tools write derived, refetchable cache artifacts outside the tracked corpus, at the root and at every nesting depth, so the ignore has no tracked member by construction. The value is `**/.cache/**`, NOT `.cache/**` (#2213): a flat-config glob is anchored at the config directory, and the bare spelling left `playwright/.cache` linted. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen:
-      "the cache root changes or the repository starts tracking authored files under a `.cache` directory — the selector then gains a member or moves, and this row is consumed zero times.",
-  },
-  {
-    id: "eslint-grant-liveness:claude-worktrees",
-    policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[5]",
-    operation: 'eslint-zero-member-selector:"**/.claude/worktrees/**"',
-    why: "agent worktrees are transient checkouts the repository never tracks, and ESLint cannot see .gitignore (flat config reads no VCS ignore file), so this selector is the only fence and has no tracked member by construction (#2281). Migrated from the retired gate-local RATIFIED row (#1922), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen:
-      "worktrees stop living inside the repository or the harness stops creating them under .claude/ — the ignore leaves the config and this row is consumed zero times.",
-  },
-  {
-    id: "eslint-grant-liveness:dist",
-    policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[1]",
-    operation: 'eslint-zero-member-selector:"**/dist/**"',
-    why: "build output is absent from the tracked corpus by design, so the ignore has no tracked member by construction. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen: "packages stop emitting dist/ — the ignore leaves the config and this row is consumed zero times.",
-  },
-  {
-    id: "eslint-grant-liveness:node-modules",
-    policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[0]",
-    operation: 'eslint-zero-member-selector:"**/node_modules/**"',
-    why: "installed dependencies are absent from the tracked corpus by design, so the ignore has no tracked member by construction. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen: "ESLint stops ignoring node_modules — the ignore leaves the config and this row is consumed zero times.",
-  },
-  {
-    id: "eslint-grant-liveness:st-goldens-runtime",
-    policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[6]",
-    operation: 'eslint-zero-member-selector:"scripts/probes/st-goldens/sillytavern-runtime/**"',
-    why: "the st-parity rig's captured SillyTavern runtime is vendored third-party source the repository deliberately does not track; the rig's own 9 tracked files sit ABOVE this path and stay outside the fence, so the selector has no tracked member by construction (#2282). Migrated from the retired gate-local RATIFIED row (#1922), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen:
-      "the rig stops materialising a runtime under scripts/probes/ or the repository starts tracking it — the selector leaves the config or gains a member, and this row is consumed zero times.",
-  },
-  {
-    id: "eslint-grant-liveness:stryker-tmp",
-    policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[3]",
-    operation: 'eslint-zero-member-selector:".stryker-tmp/**"',
-    why: "Stryker writes rewritten copies and generated runner setup outside the authored corpus, so the ignore has no tracked member by construction. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `tooling/src/floor/testing/stryker-config.ts` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen:
-      "Stryker's sandbox directory changes or mutation execution is retired — the ignore moves or leaves the config and this row is consumed zero times.",
-  },
   {
     id: "json-column-write-parity:chats-pending-handoff-offer",
     policyId: "json-column-write-parity",

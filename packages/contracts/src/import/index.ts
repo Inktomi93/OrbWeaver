@@ -129,3 +129,6 @@ export function chatDirCardCandidates(slug: string): string[] {
   const candidates = [slug.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""), SPEC_WRAPPER.exec(slug)?.[1]];
   return candidates.filter((c): c is string => c !== undefined && c.length > 0 && c !== slug);
 }
+
+export type { FsDirEntry, FsDirEntryKind, ImportFsPort } from "./filesystem.ts";
+export { FS_DIR_ENTRY_KINDS } from "./filesystem.ts";

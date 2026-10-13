@@ -14,7 +14,7 @@
 // `TEST_LANE_STAGES` is spliced back at the EXACT position the rows occupied, so `REGISTRY` order is
 // unchanged and `verify --list` — which prints in registry order — is byte-identical across the extraction.
 // Verified by diffing `pnpm verify --list` before and after. Nothing else changes: `REGISTRY`,
-// `stagesForTier` and `manualStages` keep their shapes, and `verify-registry-parity` reads `REGISTRY`.
+// `stagesForTier` and `manualStages` keep their shapes.
 //
 // MEMBERSHIP IS "DOES THIS ROW RUN A TEST SUITE", not the `group` string — `browser:ct`, `browser:e2e-smoke`
 // and `quality:boot-chunk` carry other group labels while being exactly that. The rows that are NOT here

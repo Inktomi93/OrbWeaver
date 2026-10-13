@@ -12,7 +12,7 @@ Chat attachments reached models only as images. Users attach video files and ani
 
 ## Decision
 
-`ChatContentPart` in `packages/contracts/src/chat/bus.ts` has a `video` member beside `image`. The model's `video` input modality gates it (`packages/contracts/src/inference/capability/reads.ts`), in the same way `vision` gates images. The media kind is classified once, in `packages/server/src/entry/compose/resolve-image-ref.ts`: a `video/*` asset is video, an animated `image/gif` (kit `isAnimated`) is video, and every other image is an image. Backend translators dispatch on `type` and never sniff bytes again. This extends ADR 0045, whose content-part list names only `text` and `image`.
+`ChatContentPart` in `packages/contracts/src/chat/bus.ts` has a `video` member beside `image`. The model's `video` input modality gates it (`packages/contracts/src/inference/capability/reads.ts`), in the same way `vision` gates images. The media kind is classified once, in `packages/server/src/domain/chat/verbs/resolve-media-ref.ts`: a `video/*` asset is video, an animated `image/gif` (kit `isAnimated`) is video, and every other image is an image. Backend translators dispatch on `type` and never sniff bytes again. This extends ADR 0045, whose content-part list names only `text` and `image`.
 
 ## Consequences
 

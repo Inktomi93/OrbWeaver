@@ -1,36 +1,15 @@
-// The bulk-import composition driver: the one place that constructs the per-owner `ImportService` and
-// wires the cross-feature injected ops the import verbs declared type-only (domain/import sideways-imports
-// neither character, assets, nor tag — the runtime is supplied here). The HTTP multipart upload route
-// delegates here; a future job runner is the second caller.
-//
-// The acting Principal is threaded through and used directly for the character/assets verbs (which
-// owner-scope off principal.userId). Per-card failure isolation: one unreadable card is recorded and
-// skipped, never aborting the batch.
-//
-// This composes a card-only ImportContext (no `profile`) — the chats/personas write ops are wired only
-// where needed (the portability chat descriptor + the bundle driver). Callers here pass already-extracted
-// card files; the on-disk ST profile-DIRECTORY delivery path (personas + chats included) is its sibling
-// `run-profile-dir-import.ts` (driven by the `import-st` workload), and a zip bundle is the third path.
-
 import type { Principal } from "@orb/contracts/identity";
-import type { CardImportResult, FailedCard, ImportedCard } from "@orb/contracts/import";
+import type { CardImportResult } from "@orb/contracts/import";
 import type { ImportAssetPort } from "#domain/assets";
 import { createImportAvatarStore } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
-import type { RestoreCharacterBookResult } from "#domain/import";
-import { buildImportContext, createImportService } from "#domain/import";
+import type { ImportFile, RestoreCharacterBookResult } from "#domain/import";
+import { buildImportContext, createImportService, importCardBatch } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
 import type { ImportTagPort } from "#domain/tag";
 import { createImportedCardTag } from "#domain/tag";
 import type { ImportWorldInfoPort } from "#domain/world-info";
-
-// @orb-waive no-inline-package-interface(ImportFile): baselined when the gate landed; burn-down item 952.
-/** One card file to import: the raw bytes + an optional source filename (provenance + name fallback). */
-export interface ImportFile {
-  readonly bytes: Uint8Array;
-  readonly filename?: string;
-}
 
 // @orb-waive no-inline-package-interface(ProfileImportDeps): baselined when the gate landed; burn-down item 952.
 export interface ProfileImportDeps {
@@ -45,6 +24,17 @@ export interface ProfileImportDeps {
   readonly importCardScripts?: ImportCardScripts;
   readonly files: readonly ImportFile[];
 }
+
+/** What the #1598 RESTORE door needs: the same card-import wiring, plus the ONE card file whose embedded
+ *  lorebook the owner is asking to re-assert. `worldInfo` is REQUIRED here (unlike the batch import, whose
+ *  card-only arm legitimately skips embedded books) — a restore with no lorebook write op could only refuse. */
+// @orb-waive no-inline-package-interface(CardLorebookRestoreDeps): baselined when the gate landed; burn-down item 952.
+export interface CardLorebookRestoreDeps extends Omit<ProfileImportDeps, "files" | "worldInfo"> {
+  readonly worldInfo: ImportWorldInfoPort;
+  readonly file: ImportFile;
+}
+
+export type { ImportFile } from "#domain/import";
 
 /** The card-only per-owner `ImportContext`, in ONE place: both card doors (the batch import and the #1598
  *  lorebook restore) compose the identical wiring, so a port that lands on one arm can never be missing from
@@ -65,15 +55,6 @@ function cardImportService(deps: Omit<ProfileImportDeps, "files">): ReturnType<t
   );
 }
 
-// @orb-waive no-inline-package-interface(CardLorebookRestoreDeps): baselined when the gate landed; burn-down item 952.
-/** What the #1598 RESTORE door needs: the same card-import wiring, plus the ONE card file whose embedded
- *  lorebook the owner is asking to re-assert. `worldInfo` is REQUIRED here (unlike the batch import, whose
- *  card-only arm legitimately skips embedded books) — a restore with no lorebook write op could only refuse. */
-export interface CardLorebookRestoreDeps extends Omit<ProfileImportDeps, "files" | "worldInfo"> {
-  readonly worldInfo: ImportWorldInfoPort;
-  readonly file: ImportFile;
-}
-
 /**
  * Re-assert one uploaded card file's embedded lorebook over the character those bytes imported as (#1598 —
  * the explicit, owner-asked-for half of the non-destructive re-upload). Never throws for a bad/unmatched
@@ -86,40 +67,6 @@ export async function runCardLorebookRestore(deps: CardLorebookRestoreDeps): Pro
   });
 }
 
-/**
- * Build the per-owner `ImportService` (with the entry-supplied character/assets ops) and import each card
- * file, isolating per-card failures. Returns the per-card outcome (imported/deduped vs failed).
- */
-export async function runProfileImport(deps: ProfileImportDeps): Promise<CardImportResult> {
-  const { files, ...wiring } = deps;
-
-  const service = cardImportService(wiring);
-  const imported: ImportedCard[] = [];
-  const failed: FailedCard[] = [];
-
-  for (const file of files) {
-    const filename = file.filename ?? null;
-    // @orb-waive caught-failure-ownership(err): bookkeeping — the failure is recorded into
-    // `failed` (with message), the function's own return value; one bad card never aborts the batch. Ends
-    // if `failed` stops being read by the caller.
-    try {
-      const result = await service.importCharacter({
-        card: {
-          bytes: file.bytes,
-          ...(file.filename !== undefined && { filename: file.filename }),
-        },
-      });
-      imported.push({
-        filename,
-        characterId: result.characterId,
-        created: result.created,
-        importHash: result.importHash,
-        notes: result.skippedOverlays,
-      });
-    } catch (err) {
-      failed.push({ filename, error: err instanceof Error ? err.message : String(err) });
-    }
-  }
-
-  return { imported, failed };
+export function runProfileImport(deps: ProfileImportDeps): Promise<CardImportResult> {
+  return importCardBatch({ service: cardImportService(deps), files: deps.files });
 }

@@ -100,6 +100,7 @@ import tsdoc from "eslint-plugin-tsdoc";
 import zod from "eslint-plugin-zod";
 import tseslint from "typescript-eslint";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
+import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -1531,6 +1532,24 @@ function maintainedRulePacks() {
         // Style: schema variable naming is Biome's `useNamingConvention` territory.
         "zod/consistent-schema-var-name": "off",
         "zod/no-number-schema-with-int": "error",
+      },
+    },
+    {
+      files: ["packages/server/src/**/*.{ts,tsx}"],
+      ignores: SANCTIONED_DOMAINS.map((domain) => `${DOMAIN_ROOT}${domain}/**`),
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                regex: PNG_CHUNK_SPECIFIER_PATTERN,
+                importNames: [...PNG_CHUNK_SYMBOL_NAMES],
+                message: "Use the import or export domain for PNG card-chunk operations.",
+              },
+            ],
+          },
+        ],
       },
     },
     {

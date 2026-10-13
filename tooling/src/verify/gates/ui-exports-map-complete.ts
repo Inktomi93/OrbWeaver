@@ -26,7 +26,7 @@
 // provider's `stringMap(undefined)` returns `{}` for EVERY optional map key (`scripts`, `dependencies`,
 // `devDependencies`, `peerDependencies`, `optionalDependencies`, `exports`; `ops/resource-config.ts`), so
 // every `packageMetadata` consumer inherits "absent key reads as an authored empty map" and must pin what
-// its arm does with an empty map (`verify-registry-parity` reads `scripts` the same way). Only a key that
+// its predicate does with an empty map. Only a key that
 // is PRESENT and not a string map refuses.
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that is missing/empty/unresolved/
 // malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`) THROW during the

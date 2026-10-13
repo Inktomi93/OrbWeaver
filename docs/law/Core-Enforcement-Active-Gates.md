@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(352 registered gates)
+(344 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -67,8 +67,6 @@ in its own module header, never restated here.
 | `baseui-render-prop-composition` | — | ordinary/error | @client,@ui | asChild is Radix's composition idiom… |
 | `baseui-state-data-attributes` | baseui-read | ordinary/error | @ui | a @orb/ui seal computes a Base UI… |
 | `baseui-surface-manifest` | baseui-read | hard/error | none | the committed Base UI surface… |
-| `biome-grant-liveness` | grant-liveness | reviewed-grant/error | none | a path in a biome.json override… |
-| `biome-grant-liveness-health` | grant-liveness | hard/error | none | biome.json parsed but ZERO file-exact… |
 | `bound-field-via-hook` | — | reviewed-grant/error | @client\* | a bound field reaches the raw… |
 | `bounded-list-limit` | — | ordinary/error | @server,@contracts\* | an unbounded limit in a list/paged… |
 | `brand-in-name-position` | id-brand-flow | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@inference,@tests | a parameter or field uses bare string… |
@@ -130,8 +128,7 @@ in its own module header, never restated here.
 | `db-structure-producer-home` | db-structure | reviewed-grant/error | none | a schema module has no same-named… |
 | `density-tier` | — | reviewed-grant/error | @client,@ui | density-tier violation… |
 | `density-tier-slot-map` | density-tier | hard/error | @client,@ui | the tier SLOT MAP and the primitives… |
-| `depcruise-grant-liveness` | grant-liveness | reviewed-grant/error | none | a FILE-EXACT path/pathNot in… |
-| `depcruise-grant-liveness-health` | grant-liveness | hard/error | none | the count of IRREDUCIBLE… |
+| `depcruise-grant-liveness-health` | — | hard/error | none | the count of IRREDUCIBLE… |
 | `design-audit-rule-proof` | — | hard/error | @tooling,@tests\* | the design-audit proof denominator is… |
 | `detached-work-traced` | — | ordinary/error | @server,@inference | fire-and-forget work whose FAILURE IS… |
 | `detached-work-traced-health` | detached-work-traced | hard/error | @server,@inference | detached-work-traced derived ZERO… |
@@ -143,7 +140,6 @@ in its own module header, never restated here.
 | `duplicate-action-doors-health` | action-doors | hard/error | @client\* | the duplicate-action-door family's… |
 | `empty-state-has-action` | — | ordinary/error | @client\* | an \<EmptyState> with no action CTA… |
 | `entry-synthetic-role-is-user` | — | hard/error | @server,@inference\* | a hardcoded role: "user" inside a… |
-| `eslint-grant-liveness` | grant-liveness | reviewed-grant/error | none | an evaluated ESLint files/ignores… |
 | `evaluate-no-scope-capture` | — | ordinary/error | @tooling | a .evaluate()/.evaluateAll() FUNCTION… |
 | `external-id-single-writer` | — | hard/error | @server | a users.externalId write or… |
 | `external-id-single-writer-health` | external-id-single-writer | hard/error | @server | the U1 externalId single-writer… |
@@ -293,10 +289,11 @@ in its own module header, never restated here.
 | `registry-context-via-mint` | react-origin | ordinary/error | @client | a createContext typed over a registry… |
 | `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError prop on… |
 | `rest-transform-grid` | static-class-expression | hard/error | @client,@ui | A REST-state transform that cannot… |
+| `root-development-dependencies` | — | hard/error | none | the private repository root declares… |
 | `route-imports-no-feature` | — | reviewed-grant/error | @client | a route imports a feature front door… |
 | `route-trpc-lifo-order` | — | ordinary/error | @tests\* | a page.route("\*\*/api/trpc...", …) is… |
 | `route-trpc-no-broad-spread` | — | hard/error | @tests\* | a routeTrpc fixture object spreads a… |
-| `runner-config-path-liveness` | grant-liveness | hard/error | none | a FILE-EXACT path in a test-runner… |
+| `runner-config-path-liveness` | — | hard/error | none | a FILE-EXACT path in a test-runner… |
 | `sanctioned-css-homes` | css-home-topology | hard/error | none | a repository-owned product stylesheet… |
 | `schema-banned-shapes` | drizzle-schema | hard/error | @db\* | a ledger-REJECTED schema shape has… |
 | `schema-branding` | drizzle-schema | ordinary/error | @db\* | a schema entity id is unbranded or an… |
@@ -308,8 +305,7 @@ in its own module header, never restated here.
 | `seed-theme-ink-contrast` | — | reviewed-grant/error | @client,@ui | a colour token painted as TEXT does… |
 | `selection-store-via-factory` | — | reviewed-grant/error | @client\* | a \*-selection-store.ts mints the raw… |
 | `serde-core-definition-uniqueness` | — | hard/error | @server | a SECOND declaration of a serde-core… |
-| `serde-core-seal` | — | ordinary/error | @server | the PNG card-chunk engine… |
-| `serde-core-seal-health` | serde-core-seal | hard/error | @server,@kit | a sanctioned serde home… |
+| `serde-core-seal-health` | — | hard/error | @server,@kit | a sanctioned serde home… |
 | `server-layout` | — | hard/error | none | an illegal or missing top-level entry… |
 | `session-channel-boundary` | session-channel | ordinary/error | @client | a BroadcastChannel constructed… |
 | `session-channel-boundary-health` | session-channel | hard/error | @client | session-channel-boundary is BLIND:… |
@@ -341,7 +337,7 @@ in its own module header, never restated here.
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
 | `test-presence-client` | mirror-index | hard/error | @client\* | the standing DOM-derived… |
 | `test-production-clone` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content,@tooling | a test-side function has the shape of… |
-| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@client,@ui,@tests,@legacy-tests | a presence-gated module is reached by… |
+| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@client,@ui,@tests | a presence-gated module is reached by… |
 | `test-world-browser-contracts` | — | hard/error | @tests | a Node-intent test consumes a… |
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests,@legacy-tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
@@ -359,21 +355,18 @@ in its own module header, never restated here.
 | `tooling-child-process-door` | — | reviewed-grant/error | @tooling | a subprocess outside the ONE home —… |
 | `tooling-cli-entry` | tooling-program-entry | hard/error | @tooling\* | a tool cli.ts must enter through… |
 | `tooling-clock-budget` | plumbing-literals | ordinary/error | @tooling,@tests\* | a fixed wall clock — a numeric… |
-| `tooling-front-door` | — | ordinary/error | @tooling | a @orb/tooling import bypasses a… |
 | `tooling-instrument-proof` | — | hard/error | @tooling,@tests\* | the instrument-proof contract is… |
 | `tooling-ops-direct-invocation` | tooling-program-entry | hard/error | @tooling\* | an ops/ module can be RUN as a… |
 | `tooling-os-neutral` | — | hard/error | @tooling,@scripts,@tests\* | an OS-specific program, path, env key… |
 | `tooling-port-registry` | plumbing-literals | reviewed-grant/error | @tooling,@tests\* | a TCP port outside the ONE registry —… |
 | `tooling-process-exit-home` | process-member | reviewed-grant/error | @tooling | a bare process.exit outside the… |
 | `tooling-project-home` | — | reviewed-grant/error | @tooling | a second ts-morph loader — the shared… |
-| `tooling-root-config-import` | tooling-front-door | reviewed-grant/error | @tooling | a tooling module imports outside the… |
+| `tooling-root-config-import` | — | reviewed-grant/error | @tooling | a tooling module imports outside the… |
 | `tooling-runner-config-literals` | plumbing-literals | hard/error | none | a runner-config literal outside its… |
 | `tooling-size` | — | hard/error | @tooling\* | a @orb/tooling source file exceeds… |
 | `tooling-slot-template` | — | hard/error | @tooling | a @orb/tooling tree entry violates… |
 | `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |
 | `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |
-| `tsconfig-entry-liveness` | grant-liveness | reviewed-grant/error | none | a FILE-EXACT include/exclude entry in… |
-| `tsconfig-entry-liveness-health` | grant-liveness | hard/error | none | the tsconfig roster parsed but ZERO… |
 | `turn-identity` | — | ordinary/error | @server\* | the chat engine is Principal-BLIND… |
 | `two-class-role-authority` | role-vocabulary | reviewed-grant/error | @server\* | inline participant-role comparison in… |
 | `typeid-prefix-boundary` | id-brand-flow | hard/error | @product | a canonical TypeID crosses a trust… |
@@ -391,7 +384,6 @@ in its own module header, never restated here.
 | `untrusted-regex-safe-exec` | — | hard/error | @server\* | the canonical world-info regex-key… |
 | `vector-scope-derived` | — | ordinary/error | @server | a vector-substrate chokepoint was… |
 | `verb-naming` | — | hard/error | @server\* | a domain verb file does not export… |
-| `verify-registry-parity` | — | hard/error | none | a package.json verification-shaped… |
 | `warning-code-coverage` | — | ordinary/error | @server,@contracts,@inference | a warning-code tuple member has NO… |
 | `warning-workitem-liveness` | policy-soundness | hard/error | @tooling\* | a warning policy's workItem must name… |
 | `windowed-infinite-query` | — | ordinary/error | @client | maxPages WINDOWS an infinite query's… |

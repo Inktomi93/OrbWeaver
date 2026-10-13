@@ -1,73 +1,5 @@
-// Policy: runner-config-path-liveness — a FILE-EXACT path in a TEST-RUNNER config's file-SELECTION lists
-// (`include`/`exclude`/`testDir`/`globalSetup` in vitest.config.ts + the two playwright configs) names ONE
-// tree node, and a runner NEVER complains when it names nothing: vitest silently drops a non-matching
-// include/exclude entry. #1018's founding defect: `tests/tooling/ast-observability.int.test.ts` moved in
-// 07a2b1f776 and vitest.config.ts's SERIAL_INT row was not repointed, so the row matched NOTHING for months
-// and the heaviest file in the repo (17.6 min) ran in the PARALLEL lane — the load bomb that row exists to
-// prevent. This is eslint-grant-liveness's shape on the RUNNER configs, which are CODE: kind globs and named
-// selector arrays hide behind imports, calls and spreads, so a bare-StringLiteral reader finds almost
-// nothing. Arms: DEAD · OUTSIDE · INCLUDE-NOT-FILE · UNRESOLVED-IDENTITY · NO-ROWS (the blindness tripwire).
-//
-// FAMILY: `grant-liveness`, with `depcruise-grant-liveness` and `eslint-grant-liveness`. The shared readers,
-// as module AND function: `lib/grant-liveness.ts` `deadExactFindings` (the DEAD arm) and
-// the executable-config subject readers behind the ResourceHost — `native-config` (vitest, through Vitest's
-// public `resolveConfig` across the config-snapshot process boundary) and `static-config` (both Playwright
-// configs, through `lib/config-static-read.ts`'s preserved evaluator). No reader is private to this module.
-//
-// POPULATION PORT: the legacy descriptor declared `scanRoot: () => false` — it admitted NO source file and
-// judged only config values — so the final population is `{ of: "none" }` and the admitted AST set is
-// byte-identical (empty on both sides). The judged SUBJECT set moved from three private
-// `readConfigSource`/`readConfigSnapshot` reads to three declared resources; the four judged KEYS are now
-// owned by `ops/resource-config.ts` `STATIC_KEYS` for the Playwright half, which spells exactly the legacy
-// `JUDGED_KEYS` (`include`/`exclude`/`testDir`/`globalSetup`), and by `VITEST_CONFIG_SNAPSHOT_FIELDS` for
-// the Vitest half, which is the same five selector fields the legacy module read off the same snapshot.
-//
-// CONVERSION, 2026-09-12 (#1584 / #1930), and what it retires. The legacy header refused conversion on a
-// missing authored-path identity door. THAT DOOR SHIPPED — `authored-path` is one of the 18 frozen resource
-// kinds (`contract/resource-declaration.ts`), minted FROM this module's refusal and specified by it
-// (`contract/resource-path.ts` cites these lines by name), and it serves both reads the refusal named:
-// symlink-aware containment, and root-relative normalization of an ABSOLUTE selector. The refusal's second
-// half — that a `native-config` declaration drags the whole repository inventory into the population and the
-// ordinary-waiver carrier demand then throws on tracked symlinks — was a `lib/policy-pass.ts` defect fixed at
-// #1947: the demand is HARD-owner-exempt, and this policy is `authority: "hard"` exactly like its two
-// converted siblings. Neither ground survives; a re-refusal on them would be inherited, not measured.
-//
-// WHAT THE CONVERSION MOVED OUT OF THIS MODULE, deliberately: MISSING-CONFIG, UNPARSEABLE-CONFIG, and
-// UNREADABLE-SHAPE are now population-phase refusals. The integration drive retains their runtime envelope
-// and real-root twin: each failure names its status and phase, while the live repository run completes the
-// owner, files a resource receipt, and has no tool errors or carrier refusals (§6.3).
-//
-// DECLARED LIMITS: (1) glob rows (`tests/**/*.int.test.ts`) are declared skips; (2) `testMatch` is NOT
-// judged — playwright takes a glob or a RegExp there and the per-mode values are computed from
-// tests/e2e/support/modes.ts, so it is a PATTERN axis by construction and carries no file-exact row;
-// (3) reporter/output paths (`outputDir`, `outputFile`, a custom reporter module) are NOT judged — a
-// missing reporter module fails the runner LOUDLY at start-up, and the silent class this gate exists for is
-// file SELECTION; (4) a deliberately-absent-on-a-clean-checkout class is expressed with the runner's
-// pattern syntax rather than a dead exact selector; (5) the UNRESOLVED-IDENTITY arm is REACHABLE BUT
-// UNPROVABLE BY FIXTURE:
-// `ops/resource-path.ts` returns `unresolved` for a tree node that is neither file nor directory (a socket,
-// FIFO or device node) or for a `stat` failure behind a link, and the proof runtime can create only files
-// and symlinks (`GatePolicyProof.files` / `.links`). The arm is fail-closed and carries its own message; no
-// row is invented for it, per guide §6.1's structurally-unfalsifiable classification.
-// §4.1 NARROWING CUTS, measured 2026-09-12 in the guide's direction (make the policy flag MORE), each run
-// against this module's own rows through `grant-liveness-family.suite.test.ts`:
-//   · the field fence (`FILE_ONLY_FIELDS`) → widened to every directory identity: RED across both arms.
-//   · the glob classifier (`classifyGlob` returning every value) → RED across both arms.
-//   · the containment arm (`status === "outside"` no longer reported) → RED on the two containment rows (`mustFlag[1]`, `mustFlag[2]`), which is the receipt that the new SYMLINK row discriminates rather than passing by luck.
-//   · the real-tree anchor (`anchorOk` forced true) → RED on `mustPass[5]`, which is the row that exists to
-//     hold it. The anchor decides ONE thing no other fence decides: whether a zero-exact corpus is the
-//     classifier having ROTTED (report MSG_NO_ROWS) or a corpus that legitimately derives no exact row
-//     (stay silent). Forced true, a five-value all-glob config is accused of blindness — the tripwire firing
-//     FALSELY, which is the failure mode a blindness tripwire cannot have. Recorded UNFALSIFIABLE until
-//     2026-09-12; the cut came back clean only because EVERY row then in the module went through `configs()`,
-//     which plants two exact playwright `testDir` values and so never reaches the zero-exact branch the anchor
-//     guards. The clean cut measured THE HELPER, not the fence (guide §6.1) — `mustPass[5]` stops using it.
-// MEASURED INTERACTION worth knowing before you write a fixture: a TRACKED symlink whose target escapes the
-// repository makes `readPolicyRepositoryInventory` throw ("resolves outside repository"), which refuses
-// every `native-config` consumer at the population phase. So the OUTSIDE-through-a-symlink finding is
-// reachable only for a selector git does not track, and this module's own symlink proof gitignores its link
-// for that reason — the loud upstream refusal covers the tracked case.
-// COMMENT POSTURE: comment-SAFE — extraction is pure AST/native-loader observation over config values.
+// Runner selectors retain existence, containment and include-file identity checks.
+// Singleton: native Vitest observation and the retained Playwright reader supply this policy's selection values.
 import type { ConfigSnapshotField } from "../contract/config-snapshot.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -314,7 +246,7 @@ function globFiller(count: number): string {
 export const gate = defineGate({
   id: "runner-config-path-liveness",
   application: "implementation",
-  family: "grant-liveness",
+  family: "runner-config-path-liveness",
   authority: "hard",
   severity: "error",
   population: {

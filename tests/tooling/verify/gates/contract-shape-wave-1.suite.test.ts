@@ -5,7 +5,6 @@ import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/
 import { gate as contractDerivesNotRespells } from "../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
 import { gate as injectedOpCallerParam } from "../../../../tooling/src/verify/gates/injected-op-caller-param.ts";
 import { gate as injectedOpCallerParamHealth } from "../../../../tooling/src/verify/gates/injected-op-caller-param-health.ts";
-import { gate as serdeCoreSeal } from "../../../../tooling/src/verify/gates/serde-core-seal.ts";
 import { gate as serdeCoreSealHealth } from "../../../../tooling/src/verify/gates/serde-core-seal-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
@@ -117,9 +116,9 @@ test("the retired ordinary marker door is CLOSED: the waiver is inert and the en
 });
 
 test(
-  "the serde-core-seal family proves the importer seal and the sanctioned-domain staleness ratchet",
+  "the sanctioned serde domains retain their engine imports",
   () => {
-    expect(verifyPolicyProofs([serdeCoreSeal, serdeCoreSealHealth])).toEqual([]);
+    expect(verifyPolicyProofs([serdeCoreSealHealth])).toEqual([]);
   },
   FAMILY_TIMEOUT_MS,
 );

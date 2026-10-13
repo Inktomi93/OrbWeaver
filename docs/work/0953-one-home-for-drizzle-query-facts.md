@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-Tables, joins, subqueries, columns, reads and writes are read once, in `tooling/src/floor/code-facts/`. Move `resolveTableDef` and the checker read path from `tooling/src/ast/lib/columns.ts` and `column-reads.ts`, and fold `verify/lib/drizzle-client-call.ts`, `tenancy-read.ts`, `tenancy-join.ts` and the json-column readers onto it. `pnpm ast columns`, the tenancy gates, the json-column gates and the single-writer gates call it. byte-check-cast reads its schema population through the one drizzle fact.
+Tables, joins, subqueries, columns, reads and writes are read once in `tooling/src/floor/code-facts/`. Reuse existing schema, table, column and write-chain readers. Move remaining query, row and raw-SQL extraction from the AST column readers into shared facts; fold tenancy, JSON and client-call consumers onto those facts. Consumer adapters retain their output and policy judgments, not a second extraction. `pnpm ast columns`, tenancy, JSON, single-writer and byte-check-cast consumers share the complete schema population.
 
 ## Why
 
@@ -22,4 +22,8 @@ One drizzle reader in the floor; the old readers are deleted; `pnpm ast columns`
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Preparation confirms existing floor owners for schema declarations, table references, write chains and column shapes. The AST table resolver is already an adapter over those owners; preserve its output projection rather than replacing it with another reader.
+
+Remaining extraction includes AST query, row and raw-SQL read facts, plus statement, predicate, join and parser provenance consumed by tenancy and JSON judgments. Keep consumer-specific ownership and reporting judgments separate from shared fact extraction. A bounded walk is not automatically a duplicate or a reason to create another program.
+
+Preserve native program identity, complete schema populations, unresolved outcomes and the foundation plan's persisted store contract. The precise security-case coverage matrix remains an implementation prerequisite; reconnaissance is not proof that a named case is missing or covered. Compose cleanup remains ahead of implementation.

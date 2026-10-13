@@ -22,13 +22,11 @@ test("the current showcase package produces typed facts", ({ repoRoot }) => {
   expect(loadPackageMetadata(reader, "showcase-plugins")).toMatchObject({ status: "ready", value: { name: "@orb/showcase-plugins" } });
 });
 
-for (const id of ["eslint", "depcruise", "vitest", "playwright", "ct"] as const) {
+for (const id of ["depcruise", "vitest", "playwright", "ct"] as const) {
   test(`the current ${id} config produces nonempty typed facts`, { timeout: scaledBudget(10_000) }, ({ repoRoot }) => {
     const reader = createResourceReader({ root: repoRoot });
     const result =
-      id === "eslint" || id === "depcruise" || id === "vitest"
-        ? createResourceHost({ root: repoRoot }).host.nativeConfig(id)
-        : loadStaticConfig(reader, id, parser());
+      id === "depcruise" || id === "vitest" ? createResourceHost({ root: repoRoot }).host.nativeConfig(id) : loadStaticConfig(reader, id, parser());
     expect(result.status, id).toBe("ready");
     expect(result.members, id).toBeGreaterThan(0);
   });
