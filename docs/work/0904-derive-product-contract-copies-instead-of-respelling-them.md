@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-13
 priority: P2
 area: contracts
+lane: codex/contract-boundary-salvage-904-905
 plan: test-foundation
 ---
 
@@ -28,3 +29,5 @@ Security review of branch wt/agent-a90022c3a8927247c at 0ed29a23d2 against main 
 The branch still carries structural-copy and inline-wire-interface markers naming this item. Their reasons are not completion evidence. Derive discovery, embedding, and diagnostic read projections from database rows rather than unrelated wire payloads. Give the copied RPG handoff input and plugin worker input one shared legal home, then derive each consumer's subset.
 
 The retained branch remains recovery material, not a verified implementation. Its completed reports cover selected files and suites only. Reconcile producer, schema, router, and consumer changes with current package exports before proposing a salvage commit.
+
+The assigned recovery batch owns the current production marker population and coupled contracts, producers and consumers. Preserve shared reader and active runtime boundaries; source work precedes the main-scheduled affected floor. Auth prerequisite completion does not establish this item's acceptance.

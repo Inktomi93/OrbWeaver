@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-13
 priority: P2
 area: server
+lane: codex/contract-boundary-salvage-904-905
 plan: test-foundation
 ---
 
@@ -36,3 +37,5 @@ Confirmed blockers in the retained branch:
 - The new authentication-config schema needs an explicit contracts export. Add its genuine public door, not a wildcard or transitional test door.
 
 The fresh-database connection probe passed its controls without network calls or live application data. No public transport exploit or foreign payload disclosure was established. Other boundaries still need focused proof after salvage. Legacy fixture and harness retrofits are not part of that work.
+
+The assigned recovery batch owns remaining stored JSON and import-response boundaries. Credit the active boundary assignment's owner-bearing connection read and completed auth prerequisite without duplicating them. Preserve authorization before private decoding, honest workload corruption and refusal before effects. Current-tree source and malformed-input controls precede the scheduled floor; this item remains incomplete until its whole stated population is repaired.

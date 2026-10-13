@@ -32,6 +32,8 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 Production funding (969), identity (972), every-owner tokens (984), type homes (981) and boundary parsing (982) remain production work. Schedule their owner-specific batches after the compose and initial Drizzle work, without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
 
+Contract derivation (904) and stored-value parsing (905) require current-tree recovery. Complete their required fixes before dependent corpus qualification. Auth and connection prerequisites do not close their remaining production population. These assignments take priority over new follow-up investigations once their shared reader prerequisites are integrated.
+
 ### Foundation boundaries
 
 The legacy folder, maintained lint migration, explicit package exports, native integer migration and domain-owned compose rules are implemented. The selected compose policy holds on its complete population without findings or exemptions. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probes keep their harness dependencies and case lists.
