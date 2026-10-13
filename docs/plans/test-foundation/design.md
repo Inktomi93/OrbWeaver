@@ -22,7 +22,7 @@ This plan owns execution order. The [test-mirror inventory](../test-mirror/desig
 
 | Phase | Work | Exit condition |
 | - | - | - |
-| Current foundation | Finish compose cleanup (964) and legacy-boundary follow-ups (987). | Rules and queries have domain homes; legacy remains a CI regression population, not strict test evidence. |
+| Current foundation | Finish compose cleanup (964). Keep harness-dependent probe rebuilds with their recorded case lists. | Rules and queries have domain homes; legacy remains a CI regression population, not strict test evidence. |
 | Shared readers | Start Drizzle facts (953), then shape identity, references, import reach and codemods (954 to 957). | Consumers share the floor reader and preserve findings or record proven corrections. |
 | Real harness | Build the server composition root (958) after 964; continue readers in independent files. | Every external edge is injectable and a complete domain case set proves the real graph. |
 | Test inputs and mounting | Finish builders/corpus (959) and the client compose door (960). | Test data derives from production and CT wiring derives from client composition. |
@@ -32,7 +32,7 @@ Production funding (969), identity (972), every-owner tokens (984), type homes (
 
 ### Foundation boundaries
 
-The legacy folder, maintained lint migration, explicit package exports and native integer migration are implemented. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. The [legacy-boundary item](../../work/0987-close-the-legacy-folder-migration-forks.md) owns monotonic-folder enforcement and probe dependencies.
+The legacy folder, maintained lint migration, explicit package exports and native integer migration are implemented. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probe rebuilds have source-specific harness dependencies and preserved case lists in their work items.
 
 Testkit exists as a world-split package. The complete server composition root, shared fact store, builders/corpus and client door remain work, not assumptions. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
@@ -124,7 +124,7 @@ A rule about names, imports, globals, JSX elements or syntax lives in Biome, ESL
 
 Tooling tests follow one rule: test verdict logic and lifecycle or concurrency rules (caps, races, reaping, ownership, slots, bands) fast against the decision code; an instrument's plumbing is proven by use; a test that reruns a gate over the real tree is deleted, because CI's structure stage already does it.
 
-The [CT live-read checker decision](../../work/0990-decide-the-maintained-ct-live-read-assertion-checker.md) requires a semantic comparison with maintained Playwright lint before replacement. Population shrink does not establish equivalent enforcement.
+Keep the semantic CT live-read assertion checker alongside maintained Playwright lint. Native rules do not follow imported snapshots, recursive aliases and the typed live-read cases. Their direct syntax coverage does not replace that invariant; population shrink does not establish equivalence.
 
 ### Public doors and production usage
 
