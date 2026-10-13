@@ -3,6 +3,7 @@
 // child's native exit into the repo's 0/1/2/3 contract.
 
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import type { Selection } from "../contract/selection.ts";
 import type { StageDef, Tier } from "../contract/stage.ts";
 import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
@@ -25,6 +26,8 @@ import { mutationGateHangCeilingMs } from "./stage-budget.ts";
 // EXACTLY run.ts's stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
 
 const STATIC: readonly Tier[] = ["static", "push", "full", "product", "weekly"];
+// D317 restricts index checks without narrowing ordinary static verification.
+const COMMIT_STAGES: ReadonlySet<string> = new Set(["lint:biome", "types:native"]);
 const HOSTED_MUTATION_OMISSION_REASON = "mutation quality is not measured on GitHub-hosted CI; run pnpm test:mutation:gate locally";
 
 /** `node --check` on every `.claude/hooks/*.mjs`, and a refusal when the glob matches nothing. */
@@ -381,8 +384,8 @@ export const REGISTRY: readonly StageDef[] = [...applyPathTriggers(GATING_STAGES
 
 /** The stages that run at a given tier, in registry order. `manual` stages are never included in a run —
  *  they surface only in `verify --list`. */
-export function stagesForTier(tier: Tier): readonly StageDef[] {
-  return REGISTRY.filter((s) => s.tiers.includes(tier));
+export function stagesForTier(tier: Tier, selection?: Selection): readonly StageDef[] {
+  return REGISTRY.filter((s) => s.tiers.includes(tier) && (selection?.kind !== "staged" || COMMIT_STAGES.has(s.name)));
 }
 
 /** Every stage carrying a `manual` tier row (for `verify --list`). */

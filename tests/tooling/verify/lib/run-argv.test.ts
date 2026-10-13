@@ -14,7 +14,7 @@ function tierAndScope(argv: readonly string[]): readonly [string, string | undef
   return [r.tier, r.request?.kind];
 }
 
-test("--changed beside an explicit tier is only the selector: pre-commit runs the static stages over the working change", () => {
+test("--changed beside an explicit tier is only the selector: ordinary static verification keeps its tier over the working change", () => {
   expect(tierAndScope(["--static", "--changed", DOC])).toStrictEqual(["static", "changed"]);
   expect(tierAndScope(["--tier", "static", "--changed", DOC]), "the --tier spelling agrees").toStrictEqual(["static", "changed"]);
   expect(tierAndScope(["--changed", DOC]), "alone, --changed still names the inner-loop tier").toStrictEqual(["changed", "changed"]);

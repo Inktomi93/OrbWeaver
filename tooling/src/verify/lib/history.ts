@@ -131,34 +131,10 @@ export function slowdownLines(previous: RunHistoryEntry | undefined, advisories:
   ];
 }
 
-// ── #1983 PART 2: THE INSTRUMENT BATTERY'S CADENCE, MADE VISIBLE ──────────────────────────────────────
-//
-// THE DEFECT. A `tests/tooling/**` suite can sit RED on main for DAYS with no signal, and it happened FOUR
-// times in one five-day window: `registry-family.suite.test.ts` (5 days), `gate-ignore-grammar.repo.int.test.ts`
-// (5 days), `gate-conformance.repo.int.test.ts` and `gate-spelling-twins.int.test.ts`. The mechanism is not
-// a bad test — every one of them fired LOUD the moment its premise moved. It is that `tests/tooling/**` is
-// `--full`-only (#1842, owner's word, unchanged) and NOTHING RUNS `--full` ON A CADENCE, so the observation
-// channel was the break, not the instrument.
-//
-// PART 2 WAS RULED, NOT INVENTED HERE (claude-b, 2026-09-12): the battery runs ONCE PER MERGE TRAIN at the
-// quiescent barrier — not on `push`, not nightly — capping unobserved red at one train. That ruling is
-// recorded in the orchestrator playbook's owed-at-barrier list, and until now it lived ONLY there. A law
-// that lives only in prose is a wish (constitution §2): nothing on the machine could say how long it had
-// actually been, which is the same blindness one layer up.
-//
-// SO THE CADENCE BECOMES A READING, NOT AN ENFORCEMENT. The ruling assigns the barrier runner, while this
-// module has no merge-train identity, schedule or pass/fail history from which it could enforce that duty.
-// `reports/verify-history.jsonl` already records every verify-family run
-// with its sha and its per-stage modes, so "when did the battery last RUN on this checkout" is answerable
-// from a store that already exists — no new artifact, no clock, no schedule. Every WHOLE-TREE run prints it.
-//
-// WHAT THE LINE CLAIMS, EXACTLY — and it is narrower than "the battery is green". History records a stage's
-// MODE and DURATION, never its exit, so this says LAST RAN and never "last passed"; and the window is the
-// retained MAX_ENTRIES of a gitignored per-checkout file, so "not within the retained window" is the honest
-// phrasing for an absent answer rather than "never". Both limits are in the rendered text, not just here:
-// a cadence advisory that overstated itself would be the false clean this row is about.
+// History reports observed checker execution, not CI status or a local merge-train obligation (D307/D317).
+// An absent row means no run within the retained checkout history, never that the battery has never run.
 
-/** The stage whose cadence this advisory reports — the `--full`-only instrument battery (#1842). */
+/** The stage whose cadence this advisory reports — the weekly instrument battery (D307). */
 const BATTERY_STAGE = "tests:tooling";
 
 /** The most recent retained run in which `stage` actually RAN (a deferred/skipped row records 0ms and is
@@ -186,8 +162,8 @@ export function batteryCadenceLines(history: readonly RunHistoryEntry[], report:
       ? "NOT WITHIN THE RETAINED HISTORY WINDOW on this checkout"
       : `last RAN at ${last.sha} (${last.at}, tier ${last.tier}) — ${String(history.length - history.indexOf(last) - 1)} verify run(s) ago`;
   return [
-    `[verify] ${BATTERY_STAGE} did NOT run here (it runs only under --full): ${since}.`,
-    "[verify]   A tests/tooling/** failure stays invisible until it runs. Run `pnpm verify --full` once per merge train.",
+    `[verify] ${BATTERY_STAGE} did NOT run here (it runs under --weekly): ${since}.`,
+    "[verify]   Weekly CI owns checker proof (D307). Use `pnpm verify --weekly` for explicit local recertification.",
     "[verify]   This says when the battery last ran, not whether it passed.",
   ];
 }

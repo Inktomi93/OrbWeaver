@@ -11,7 +11,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit, fixtureGitEnvironment } from "@orb/tooling/floor/git/git-fixture";
 import YAML from "yaml";
 import { z } from "zod";
-import { REGISTRY, resolveSelection, stagesForTier } from "../../../../tooling/src/verify/index.ts";
+import { REGISTRY, resolveSelection, runVerify, stagesForTier } from "../../../../tooling/src/verify/index.ts";
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -75,15 +75,42 @@ test("control: the working-change selection over the same repo still sees the un
   expect(working.existingPaths).toEqual(expect.arrayContaining([FILES.unstaged, FILES.untracked, FILES.staged]));
 });
 
-// D274: a commit runs only what narrows to its files. A staged selection that matches every near-identity trigger
-// must still plan no stage's whole command; the working-change control plans them.
-test("the commit gate defers every whole command its change triggers, and the working change runs them", { timeout: scaledBudget(20_000) }, ({
+test("a staged leaf selects native imported consumers as well as its root owner", async ({ repoRoot, plantedTree }) => {
+  const root = await plantedTree({
+    ".gitignore": "node_modules\n",
+    "package.json": '{"name":"staged-closure-fixture","private":true}\n',
+    "scripts/ts7.ts": readFileSync(join(repoRoot, "scripts/ts7.ts"), "utf8"),
+    "tsconfig.json": '{"compilerOptions":{"types":[]},"files":["consumer.ts"]}\n',
+    "packages/client/tsconfig.json": '{"compilerOptions":{"types":[]},"include":["src"]}\n',
+    "consumer.ts": 'import "./packages/client/src/staged";\n',
+    [FILES.staged]: "export const value = false;\n",
+  });
+  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  execFixtureGit(root, ["init"]);
+  execFixtureGit(root, ["add", "."]);
+  execFixtureGit(root, ["-c", "user.name=Orb Test", "-c", "user.email=orb@example.invalid", "commit", "-m", "baseline"]);
+  writeFileSync(join(root, FILES.staged), "export const value = true;\n");
+  execFixtureGit(root, ["add", FILES.staged]);
+  expect(resolveSelection({ kind: "staged" }, root).tsconfigs).toEqual(["packages/client/tsconfig.json", "tsconfig.json"]);
+});
+
+// D317 narrows commit execution, not ordinary static working-change verification.
+test("the commit plans exactly Biome and native typecheck while the working change keeps static checks", { timeout: scaledBudget(20_000) }, ({
   repoRoot,
   scratch,
 }) => {
   plantRepo(repoRoot, scratch);
   const staged = resolveSelection({ kind: "staged" }, scratch);
   const working = resolveSelection({ kind: "changed", paths: [] }, scratch);
+  const commitStages = stagesForTier("static", staged);
+  expect(commitStages.map((stage) => stage.name)).toEqual(["lint:biome", "types:native"]);
+  expect(commitStages.map((stage) => planStage(stage, staged, "static", { root: scratch }).argv)).toEqual([
+    biomeArgv(staged),
+    ["pnpm", "typecheck", ...staged.tsconfigs.flatMap((config) => ["--config", config])],
+  ]);
+  expect(staged.tsconfigs).toEqual(["packages/client/tsconfig.json", "tsconfig.json"]);
+  expect(stagesForTier("static", working).map((stage) => stage.name)).toEqual(stagesForTier("static").map((stage) => stage.name));
+  expect(stagesForTier("static", working).map((stage) => stage.name)).toEqual(expect.arrayContaining(["lint:eslint", "imports:depcruise", "structure:full"]));
   const wholeAt = (selection: typeof staged): readonly string[] =>
     stagesForTier("static")
       .filter((stage) => JSON.stringify(planStage(stage, selection, "static", { root: scratch }).argv) === JSON.stringify(stage.argv))
@@ -97,6 +124,32 @@ test("the commit gate defers every whole command its change triggers, and the wo
 interface HookConfig {
   readonly commands: Readonly<Record<string, { readonly run: string }>>;
 }
+
+test("the staged runner publishes only the commit stages and executes the complete native plan", async ({ repoRoot, scratch, fakeBin }) => {
+  plantRepo(repoRoot, scratch);
+  const selection = resolveSelection({ kind: "staged" }, scratch);
+  await fakeBin(
+    "pnpm",
+    "import fs from 'node:fs'; fs.writeFileSync('typecheck-argv.json', JSON.stringify(process.argv.slice(2))); process.exitCode = process.argv[2] === 'typecheck' ? 0 : 99;\n",
+  );
+  const parsed = parseRequest(["--static", "--changed", "staged"]);
+  if ("error" in parsed) {
+    throw new Error(parsed.error);
+  }
+  const { request: _request, ...flags } = parsed;
+  expect(await runVerify(scratch, { ...flags, selection })).toBe(0);
+  const report = z
+    .object({ stages: z.array(z.object({ name: z.string(), mode: z.string(), childExit: z.number() })) })
+    .parse(JSON.parse(readFileSync(join(scratch, "reports/verify.json"), "utf8")));
+  expect(report.stages).toEqual([
+    { name: "lint:biome", mode: "scoped", childExit: 0 },
+    { name: "types:native", mode: "scoped", childExit: 0 },
+  ]);
+  expect(JSON.parse(readFileSync(join(scratch, "typecheck-argv.json"), "utf8"))).toEqual([
+    "typecheck",
+    ...selection.tsconfigs.flatMap((config) => ["--config", config]),
+  ]);
+});
 
 function hooks(repoRoot: string): Readonly<Record<string, HookConfig>> {
   return YAML.parse(readFileSync(join(repoRoot, "lefthook.yml"), "utf8")) as Readonly<Record<string, HookConfig>>;
@@ -136,7 +189,7 @@ test.for(["pre-commit", "pre-merge-commit"] as const)(
     expect(selection.paths).not.toContain(FILES.unstaged);
     expect(selection.paths).not.toContain(FILES.untracked);
     expect(selection.tsconfigs, "the real native compiler owns the staged tooling subject").toEqual(["tooling/tsconfig.json"]);
-    expect(stagesForTier(request.tier).some((row) => row.name === "tests:instrument-affected")).toBe(false);
+    expect(stagesForTier(request.tier, selection).map((row) => row.name)).toEqual(["lint:biome", "types:native"]);
     expect(stagesForTier("changed").some((row) => row.name === "tests:instrument-affected")).toBe(false);
     expect(stagesForTier("weekly").some((row) => row.name === "tests:tooling")).toBe(true);
     const lint = stagesForTier(request.tier).find((row) => row.name === "lint:biome");
@@ -299,6 +352,7 @@ test("native Git commit and merge topology keeps the staged hooks and partial-fi
   writeFileSync(join(scratch, "lefthook.yml"), readFileSync(join(repoRoot, "lefthook.yml")));
   writeFileSync(join(scratch, ".gitignore"), "node_modules\nhook-checks.jsonl\n");
   writeFileSync(join(scratch, "probe.ts"), "export const value = 0;\n");
+  writeFileSync(join(scratch, "unstaged.ts"), "export {};\n");
   mkdirSync(join(scratch, "scripts"));
   writeFileSync(join(scratch, "scripts/commit-msg-check.sh"), readFileSync(join(repoRoot, "scripts/commit-msg-check.sh")));
   mkdirSync(join(scratch, "tooling/src/doc"), { recursive: true });
@@ -333,6 +387,12 @@ test("native Git commit and merge topology keeps the staged hooks and partial-fi
   writeFileSync(join(scratch, "probe.ts"), "export const value = 1;\n");
   execFixtureGit(scratch, ["add", "probe.ts"]);
   writeFileSync(join(scratch, "probe.ts"), "export const value = 2;\n");
+  writeFileSync(join(scratch, "unstaged.ts"), "export const unstaged = true;\n");
+  writeFileSync(join(scratch, "untracked.ts"), "export {};\n");
+  clear();
+  const refused = native(["commit", "-m", "invalid message"]);
+  expect(refused.status, refused.stdout + refused.stderr).toBe(1);
+  expect(execFixtureGit(scratch, ["show", "HEAD:probe.ts"])).toBe("export const value = 0;\n");
   clear();
   const committed = native(["commit", ...message]);
   expect(committed.status, committed.stdout + committed.stderr).toBe(0);
@@ -372,5 +432,5 @@ test("native Git commit and merge topology keeps the staged hooks and partial-fi
   execFixtureGit(scratch, ["checkout", "lane"]);
   clear();
   expect(native(["merge", "--ff-only", "fast-forward"]).status).toBe(0);
-  expect(checks(), "fast-forward has no commit hook; composed train verification remains an orchestrator obligation").toEqual([]);
+  expect(checks(), "fast-forward has no commit hook; pre-push application verification remains an orchestrator obligation").toEqual([]);
 });

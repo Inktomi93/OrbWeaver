@@ -2,7 +2,7 @@
 // One arm: the live site's `siteId` is absent from `caught-failure-ownership.population.json`. DECLARED LIMIT: a row
 // whose site is gone is whole-corpus knowledge and stays with `caught-failure-ownership-health`.
 // FAMILY: caught-failure-ownership, the site classifier and identity readers its siblings share.
-// POPULATION: the sibling's, so a narrowed commit that stages one file still judges that file's sites.
+// POPULATION: the sibling's, so a narrowed structure check still judges each selected file's sites.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
@@ -13,9 +13,9 @@ import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const POPULATION_PATH = JSON_RESOURCE_PATHS["caught-failure-population"];
 
-const MESSAGE = `a caught-failure site has no row in the committed census (${POPULATION_PATH}). Pre-commit runs only the staged files, so a missing row would otherwise surface after merge. (tooling/src/verify/ops/gen/caught-failure-population.ts)`;
+const MESSAGE = `a caught-failure site has no row in the committed census (${POPULATION_PATH}). CI and the pre-push application check enforce census membership; commit hooks run only Biome and typecheck. (tooling/src/verify/ops/gen/caught-failure-population.ts)`;
 
-const FIX = `add the site's row to ${POPULATION_PATH}: \`{ "siteId": "<id named in the finding>", "verdict": "deliberate-absorb", "reason": "<why this absorb is safe and when it ends>" }\`. The census generator re-derives the totals at the merge barrier; edit only your own row.`;
+const FIX = `add the site's row to ${POPULATION_PATH}: \`{ "siteId": "<id named in the finding>", "verdict": "deliberate-absorb", "reason": "<why this absorb is safe and when it ends>" }\`. The census generator re-derives the totals before the owner pushes; edit only your own row.`;
 
 const missingRow = (siteId: string): string =>
   `caught-failure site \`${siteId}\` has no census row. Add \`{ "siteId": "${siteId}", "verdict": "deliberate-absorb", "reason": "<why this absorb is safe and when it ends>" }\` to ${POPULATION_PATH}. (tooling/src/verify/ops/gen/caught-failure-population.ts)`;
@@ -35,7 +35,7 @@ export const gate = defineGate({
   population: CAUGHT_FAILURE_POPULATION,
   // `resource`, not `syntax`: the census is a declared JSON resource, which only resource analysis may read.
   analysis: "resource",
-  // Each site's verdict depends on its own file plus the census, so a staged subset is a complete answer.
+  // Each site's verdict depends on its own file plus the census, so a selected-file subset is a complete answer.
   execution: "selected-files",
   facts: [],
   resources: [{ kind: "json", id: "caught-failure-population" }],

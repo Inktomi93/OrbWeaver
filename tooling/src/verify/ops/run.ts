@@ -3,7 +3,7 @@
 //
 //   pnpm verify              → --static  (today's `pnpm check`, byte-compatible)
 //   pnpm verify --changed    → the inner loop (scoped, related tests)
-//   pnpm verify --static     → the whole static tier (= `pnpm check`); pre-commit adds `--changed staged`
+//   pnpm verify --static     → the whole static tier (= `pnpm check`); `--changed staged` restricts execution to Biome + native typecheck (D317)
 //   pnpm verify --push       → static + node tests + CT + e2e-smoke (the pre-push bar)
 //   pnpm verify --full       → complete application checks and mutation; no tooling recertification
 //   pnpm verify --weekly     → complete checker recertification, independent of product qualification
@@ -306,7 +306,7 @@ function scopeLabel(parsed: Parsed): string {
 }
 
 function executionStages(parsed: Parsed): readonly StageDef[] {
-  const stages = parsed.partition === undefined ? stagesForTier(parsed.tier) : applicationPartitionStages(parsed.tier, parsed.partition);
+  const stages = parsed.partition === undefined ? stagesForTier(parsed.tier, parsed.selection) : applicationPartitionStages(parsed.tier, parsed.partition);
   if (parsed.shard === undefined) {
     return stages;
   }
@@ -366,8 +366,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
       });
       continue;
     }
-    // Sequential BY DESIGN: stages share the CPU, the memory, the reports dir and the console. Concurrent commit
-    // stages were measured to thrash a 15 GB box: type-aware ESLint, tsc and the structure walk each hold gigabytes.
+    // Sequential because native compiler and structure stages share the host memory budget.
     results.push(
       await runOneStage(
         { root, slot, verbose: parsed.verbose || processEnvValue("GITHUB_ACTIONS") === "true", applicationOnly: parsed.applicationOnly, runMarker, runLease },

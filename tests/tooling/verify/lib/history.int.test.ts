@@ -126,18 +126,7 @@ test("appendHistory: an unwritable reports root WARNS and returns — a timing l
   expect(readHistory(root)).toEqual([]);
 });
 
-// ── #1983 PART 2: THE INSTRUMENT BATTERY'S CADENCE, AS A READING ─────────────────────────────────────
-//
-// FOUR `tests/tooling/**` SUITES SAT RED ON MAIN FOR DAYS in one five-day window, and not one of them was
-// a bad test — every one fired loud the moment its premise moved. The break was the OBSERVATION CHANNEL:
-// `tests/tooling/**` is `--full`-only (#1842, owner's word, unchanged) and nothing runs `--full` on a
-// cadence, so the red was unobservable rather than unobserved.
-//
-// Part 2 was RULED (claude-b, 2026-09-12): the battery runs ONCE PER MERGE TRAIN at the quiescent barrier.
-// That ruling lived only in the orchestrator playbook's owed-at-barrier list, and a law that lives only in
-// prose is a wish — nothing on the machine could say how long it had actually been. These arms pin the
-// reading that answers it, INCLUDING its two honest limits, because an overstated cadence line would be
-// the same false clean one layer up.
+// The advisory records observed execution without assigning a per-merge local cadence.
 
 /** A whole-tree report carrying `stages`, in the shape `batteryCadenceLines` reads. */
 function report(stages: readonly { readonly name: string; readonly mode: string }[], scope = "whole"): Parameters<typeof batteryCadenceLines>[1] {
@@ -182,10 +171,10 @@ test("#1983 — a whole-tree run WITHOUT the battery names when it last ran, in 
   expect(lastRanAt(history, "tests:tooling")?.sha).toBe("bbb2222");
 
   const lines = batteryCadenceLines(history, report([{ name: "lint:biome", mode: "full" }])).join("\n");
-  expect(lines).toContain("tests:tooling did NOT run here (it runs only under --full)");
+  expect(lines).toContain("tests:tooling did NOT run here (it runs under --weekly)");
   expect(lines).toContain("last RAN at bbb2222");
   expect(lines, "distance is in RUNS — the store has no clock and a wall-clock claim would be invented").toContain("1 verify run(s) ago");
-  expect(lines, "and the cadence it is measuring against is named, not implied").toContain("once per merge train");
+  expect(lines, "and the cadence it is measuring against is named, not implied").toContain("Weekly CI owns checker proof");
   // LIMIT 1, IN THE RENDERED TEXT: history records a stage's MODE and DURATION, never its exit. The line
   // may not be read as "the battery was green", and saying so is part of the advisory rather than a
   // comment only this file can see.
