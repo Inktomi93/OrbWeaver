@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Import-door and reach questions live once: fold `verify/lib/test-reach.ts`, `test-reach-syntax.ts`, `test-import-door.ts`, `tooling-import-door.ts`, `instrument-affected-reach.ts` and `policy-production-reach.ts` with the `pnpm ast importers` and `reaches` readers into one floor reader.
+Import-door and reach questions live once: fold `verify/lib/test-reach.ts`, `test-reach-syntax.ts`, `test-import-door.ts`, `tooling-import-door.ts`, `instrument-affected-reach.ts` and `policy-production-reach.ts` with the custom `pnpm ast importers` reader into the floor. Preserve their distinct spelling and semantic judgments. Native dependency-cruiser owns `flow` and `reaches`; retain those command wrappers and their partial-output refusal.
 
 ## Why
 
