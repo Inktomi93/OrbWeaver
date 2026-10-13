@@ -3,7 +3,7 @@ import { Project } from "ts-morph";
 import { describe } from "vitest";
 import { collectAppRouterOutputProvenance } from "../../../tooling/src/ast/lib/app-router-provenance.ts";
 import { declKey } from "../../../tooling/src/ast/lib/keys.ts";
-import { collectServerProcedures } from "../../../tooling/src/ast/ops/wiring.ts";
+import { collectClientConsumed, collectServerProcedures } from "../../../tooling/src/ast/ops/wiring.ts";
 
 const ROOT = "/repo";
 
@@ -190,4 +190,27 @@ export type AppRouter = { admin: { listSessions: Procedure<readonly SessionAdmin
       ),
     ).toBeUndefined();
   });
+});
+
+test("ViewerView remains client-consumed through an aliased AppRouter output and indexed procedure type", () => {
+  const project = projectOf({
+    "packages/contracts/src/viewer/views.ts": "export interface ViewerView { id: string }",
+    "packages/contracts/src/viewer/index.ts": 'export { type ViewerView as CurrentViewer } from "./views";',
+    "packages/server/src/transport/trpc/router.ts": `
+import type { CurrentViewer } from "../../../../contracts/src/viewer";
+type Procedure<Output> = { _def: { procedure: true; $types: { input: void; output: Output } } };
+declare const t: { router<T>(record: T): T };
+declare const p: { query<T>(callback: () => T): Procedure<T> };
+declare const viewer: CurrentViewer;
+export const appRouter = t.router({ viewer: t.router({ current: p.query(() => viewer) }) });
+export type AppRouter = { viewer: { current: Procedure<CurrentViewer> } };
+`,
+    "packages/client/src/viewer.ts": 'type View = Trpc["viewer"]["current"];',
+  });
+  const procedures = collectServerProcedures(project);
+  const consumed = collectClientConsumed(project, new Set(procedures.map(({ full }) => full)));
+  expect(consumed).toEqual(new Set(["viewer.current"]));
+  const result = collectAppRouterOutputProvenance(project, consumed, procedures);
+  expect(result?.unresolvedProcedures).toEqual([]);
+  expect(result?.contractKeys).toContain(exportedKey(project, "packages/contracts/src/viewer/views.ts", "ViewerView"));
 });

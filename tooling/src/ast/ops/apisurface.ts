@@ -2,6 +2,7 @@
 import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { dynamicModuleTarget } from "../../floor/code-facts/module-target.ts";
 import { inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { ApiClass, ApiSurfaceEntry, Flags, Hit, Liveness } from "../contract/types.ts";
@@ -10,7 +11,6 @@ import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey, exposedNames } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { buildLiveness, dynamicImportMemberNames, isReferencedInOwnFile } from "../lib/liveness.ts";
-import { resolveDynamicImportTarget } from "../lib/resolve.ts";
 import { isTestPath, TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
 import { PACKAGES_PREFIX } from "./chains.ts";
@@ -197,7 +197,7 @@ function recordDynamicApiConsumption(sf: SourceFile, project: SourceCorpus, cons
       recordWholeDynamicTarget(inventoryExports(target, call), consumer, map);
       continue;
     }
-    const aliasedTarget = resolveDynamicImportTarget(call);
+    const aliasedTarget = dynamicModuleTarget(call);
     if (aliasedTarget === undefined) {
       continue;
     }

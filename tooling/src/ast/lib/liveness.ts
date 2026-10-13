@@ -2,12 +2,14 @@
 // Split from ast.ts (P4 of #393); the section headers carry the keying law verbatim.
 import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { dynamicModuleTarget } from "../../floor/code-facts/module-target.ts";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { declarationBindingKeys, inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { ConsumptionArm, Liveness, LivenessOptions, NamespaceSite } from "../contract/types.ts";
 import { dynamicImportTargetOf, recordDeclarationEdges } from "./edges.ts";
 import { declKey, exposedNames } from "./keys.ts";
-import { resolveDynamicImportTarget } from "./resolve.ts";
 import { isTestPath } from "./root.ts";
 import { collectExternalConsumptions } from "./tooling-entries.ts";
 
@@ -169,18 +171,12 @@ function propertyAccessNamesOn(scope: Node, binding: Node): Set<string> {
   const bindingKeys = new Set(declarationBindingKeys(binding, false));
   const isBinding = (node: Node): boolean => declarationBindingKeys(node).some((key) => bindingKeys.has(key));
   const names = new Set<string>();
-  for (const pa of scope.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    if (isBinding(pa.getExpression())) {
-      names.add(pa.getName());
-    }
-  }
-  for (const ea of scope.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
-    if (!isBinding(ea.getExpression())) {
-      continue;
-    }
-    const arg = ea.getArgumentExpression();
-    if (arg !== undefined && Node.isStringLiteral(arg)) {
-      names.add(arg.getLiteralText());
+  for (const kind of MEMBER_ACCESS_KINDS) {
+    for (const access of scope.getDescendantsOfKind(kind)) {
+      const read = literalMemberAccess(access);
+      if (read !== undefined && isBinding(read.receiver)) {
+        names.add(read.name);
+      }
     }
   }
   return names;
@@ -190,17 +186,8 @@ function propertyAccessNamesOn(scope: Node, binding: Node): Set<string> {
  *  undefined when `access` isn't one of those two kinds reading `target` (including `access` itself being
  *  undefined — no parent at all). */
 function propertyNameOfAccess(access: Node | undefined, target: Node): string | undefined {
-  if (access === undefined) {
-    return;
-  }
-  if (Node.isPropertyAccessExpression(access) && access.getExpression() === target) {
-    return access.getName();
-  }
-  if (!Node.isElementAccessExpression(access) || access.getExpression() !== target) {
-    return;
-  }
-  const arg = access.getArgumentExpression();
-  return arg !== undefined && Node.isStringLiteral(arg) ? arg.getLiteralText() : undefined;
+  const read = access === undefined ? undefined : literalMemberAccess(access);
+  return read?.receiver === target ? read.name : undefined;
 }
 
 /** Shape 1: `import(spec).then((m) => … m.X …)` — `call` chained directly into a `.then(cb)`, `cb`'s
@@ -303,7 +290,7 @@ function markLazyImportMembers(call: Node, sf: SourceFile, bucket: Set<string>, 
   if (members.size === 0) {
     return;
   }
-  const target = resolveDynamicImportTarget(call);
+  const target = dynamicModuleTarget(call);
   if (target === undefined) {
     return;
   }

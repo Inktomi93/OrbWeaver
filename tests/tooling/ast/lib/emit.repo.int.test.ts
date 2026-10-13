@@ -4,7 +4,7 @@ import { semanticWorkspaceOf } from "@orb/tooling/floor/compiler/ts-workspace";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { Node, SyntaxKind } from "ts-morph";
 import { beforeAll } from "vitest";
-import { resolveDynamicImportTarget } from "../../../../tooling/src/ast/lib/resolve.ts";
+import { dynamicModuleTarget } from "../../../../tooling/src/floor/code-facts/module-target.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // The loader acquires descriptors lazily; registration needs their count before Vitest captures the hook deadline.
@@ -50,7 +50,5 @@ test("typed AST corpus resolves an authored @orb dynamic import through its nati
     return argument !== undefined && Node.isStringLiteral(argument) && argument.getLiteralText() === "@orb/ui/code-editor";
   });
   expect(dynamicImport).toBeDefined();
-  expect(dynamicImport === undefined ? undefined : resolveDynamicImportTarget(dynamicImport)?.getFilePath()).toMatch(
-    /packages\/ui\/src\/code-editor\/index\.ts$/u,
-  );
+  expect(dynamicImport === undefined ? undefined : dynamicModuleTarget(dynamicImport)?.getFilePath()).toMatch(/packages\/ui\/src\/code-editor\/index\.ts$/u);
 });

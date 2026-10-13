@@ -1,5 +1,6 @@
 // Canonical @orb/kit/ids phantom extraction shared by schema and source identity policies.
 
+import { literalMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
@@ -27,16 +28,7 @@ function couldNameExport(call: CallExpression, exportedName: string, names: Read
   if (Node.isIdentifier(callee)) {
     return names.has(callee.getText());
   }
-  if (Node.isPropertyAccessExpression(callee)) {
-    return callee.getName() === exportedName;
-  }
-  if (!Node.isElementAccessExpression(callee)) {
-    return false;
-  }
-  const argument = callee.getArgumentExpression();
-  return (
-    argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) && argument.getLiteralText() === exportedName
-  );
+  return literalMemberAccess(callee, true)?.name === exportedName;
 }
 
 /** Invocation-local exact kit-call matcher; each source's import aliases are indexed once.

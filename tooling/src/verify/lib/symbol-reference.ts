@@ -19,9 +19,6 @@ import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import type { ModuleMemberReference } from "../contract/symbol-reference.ts";
 
-/** The node kinds a gate MUST subscribe to so that no spelling of a member read escapes it. Subscribing to
- *  `PropertyAccessExpression` alone is the #1506 hole; this tuple is the whole family. */
-
 /** Does the member read at `node` name one of `names`, however spelled? The one-line door for a gate whose
  *  subject is a fixed member vocabulary (`.insert`/`.update`/`.delete`, `.state`, `.printResult`). */
 export function readsMemberNamed(node: Node, names: ReadonlySet<string>): MemberReference | undefined {

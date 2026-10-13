@@ -5,6 +5,8 @@ import process from "node:process";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { declarationBindingKeys } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit, Liveness, NamespaceSite, SwallowedCandidate } from "../contract/types.ts";
@@ -50,15 +52,12 @@ function namedMembersOf(site: NamespaceSite): Set<string> {
   const bindingKeys = new Set(declarationBindingKeys(site.binding, false));
   const isNamespaceBinding = (node: Node): boolean => declarationBindingKeys(node, false).some((key) => bindingKeys.has(key));
   const named = new Set<string>();
-  for (const pa of site.file.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    if (isNamespaceBinding(pa.getExpression())) {
-      named.add(pa.getName());
-    }
-  }
-  for (const ea of site.file.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
-    const arg = ea.getArgumentExpression();
-    if (isNamespaceBinding(ea.getExpression()) && arg !== undefined && Node.isStringLiteral(arg)) {
-      named.add(arg.getLiteralText());
+  for (const kind of MEMBER_ACCESS_KINDS) {
+    for (const access of site.file.getDescendantsOfKind(kind)) {
+      const read = literalMemberAccess(access);
+      if (read !== undefined && isNamespaceBinding(read.receiver)) {
+        named.add(read.name);
+      }
     }
   }
   for (const v of site.file.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {

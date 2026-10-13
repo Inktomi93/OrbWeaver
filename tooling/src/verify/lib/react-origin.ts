@@ -41,7 +41,7 @@
 // The other two members — `no-effect-on-shared-selection` and `registry-context-via-mint` — each had a real
 // legacy `scanRoot`, so each states its own port in its own header rather than sharing this one.
 
-import { resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import { literalMemberAccess, resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ModuleMemberOrigin, ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { ImportSpecifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -130,10 +130,7 @@ function couldNameReactExport(callee: MorphNode, exportedName: string, names: Re
   if (!Node.isElementAccessExpression(callee)) {
     return false;
   }
-  const argument = callee.getArgumentExpression();
-  const key =
-    argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) ? argument.getLiteralText() : undefined;
-  return key === exportedName || names.has(callee.getExpression().getText());
+  return literalMemberAccess(callee, true)?.name === exportedName || names.has(callee.getExpression().getText());
 }
 
 export interface ReactExportMatcher {

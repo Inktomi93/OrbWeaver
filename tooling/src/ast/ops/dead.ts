@@ -2,6 +2,8 @@
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { declarationsNamed } from "../../floor/code-facts/reference-declarations.ts";
+import { isDocumentationLinkReference } from "../../floor/code-facts/reference-fact.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { DeadEvidence, DeadVerdict, Flags, Hit, Liveness, PublicMarker } from "../contract/types.ts";
@@ -13,7 +15,6 @@ import { publicMarkerOf } from "../lib/public-markers.ts";
 import { isTestPath } from "../lib/root.ts";
 import { declSite } from "./stringy.ts";
 import { byProdFirst, collectSwallowedCandidates, relPath } from "./swallowed.ts";
-import { declarationsNamed } from "./symbols.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
@@ -107,7 +108,7 @@ export function deadEvidenceFor(project: SourceCorpus, decl: Node, name: string,
   const refs = Node.isReferenceFindable(decl)
     ? semanticReferenceNodes(decl)
         .filter((r) => !(r.getSourceFile() === sf && r.getParent()?.getStart() === decl.getStart()))
-        .filter((r) => !isReexportPassthroughRef(r))
+        .filter((r) => !(isReexportPassthroughRef(r) || isDocumentationLinkReference(r)))
     : [];
   const prodNodes = refs.filter((r) => PRODUCT_SOURCE_RE.test(r.getSourceFile().getFilePath()));
   const toolNodes = refs.filter((r) => {
