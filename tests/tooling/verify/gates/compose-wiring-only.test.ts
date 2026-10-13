@@ -1,8 +1,11 @@
+import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
+import { assertArmVerdict, openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/compose-wiring-only.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { ALL_ARMS } from "./_liveness/runner.ts";
 
 const ROOT = "/compose-wiring-only";
 const SUBJECT = "packages/server/src/entry/compose/x.ts";
@@ -34,4 +37,26 @@ test("the baseline waiver binds at the reported op name and nowhere else", () =>
   expect(deadPosition.authority.waivedFindings).toEqual([]);
   expect(deadPosition.authority.effectiveFindings).toHaveLength(1);
   expect(deadPosition.authority.authorityAlarms.length).toBeGreaterThan(0);
+});
+
+test("the real canonical mint is admitted while a reached admission helper beside it remains detectable", { timeout: 120_000 }, ({ repoRoot }) => {
+  const bridge = "return async (userId: UserId): Promise<Principal> => principalFromRow(userId, await sessions.loadUserById(userId));";
+  const arm: RealCorpusLivenessArm = {
+    policy: gate,
+    reportsAt: ["packages/server/src/entry/auth/seam.ts"],
+    overlays: [
+      {
+        kind: "edit",
+        path: "packages/server/src/entry/auth/seam.ts",
+        replace: [
+          bridge,
+          "function composeAdmission(fields: UserPrincipalFields | null): boolean { return fields?.enabled === true; }\n  return async (userId: UserId): Promise<Principal> => { const fields = await sessions.loadUserById(userId); composeAdmission(fields); return principalFromRow(userId, fields); };",
+        ],
+      },
+    ],
+    messageIncludes: "=== true",
+  };
+  const runner = openRealCorpusLiveness(repoRoot, [arm], [...ALL_ARMS.filter((known) => known.policy.id !== gate.id), arm]);
+  expect(runner.assertBaseline()).toEqual([gate.id]);
+  expect(assertArmVerdict(arm, runner.verdict(arm))).toHaveLength(1);
 });

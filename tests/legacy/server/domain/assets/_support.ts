@@ -33,7 +33,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createCharacterOwned, createCharacterService, createLinkCharacterAvatars } from "@orb/server/domain/character";
+import { createCharacterOwned, createCharacterService, createGalleryCharacterOps, createLinkCharacterAvatars } from "@orb/server/domain/character";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "@orb/server/domain/chat";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
@@ -44,7 +44,6 @@ import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "#server/domain/assets/context.ts";
-import { createGalleryCharacterOps } from "#server/entry/compose/gallery-character-ops.ts";
 import { createCas, createVariantCache } from "#server/infra/storage/index.ts";
 import { makeHarness as makeCharacterHarness } from "../character/_support.ts";
 

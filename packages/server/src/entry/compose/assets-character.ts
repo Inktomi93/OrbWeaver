@@ -24,6 +24,7 @@ import {
   createCharacterOwned,
   createCharacterService,
   createDefaultCharacterSeeder,
+  createGalleryCharacterOps,
   createGreetingCompletion,
   createGreetingTemplate,
   createLinkCharacterAvatars,
@@ -54,7 +55,6 @@ import type { AuditEntry } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "#transport/trpc";
-import { createGalleryCharacterOps } from "./gallery-character-ops.ts";
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
 

@@ -92,6 +92,7 @@ export {
   TOOL_RECURSE_LIMIT_DEFAULT,
   toolRecurseLimitSchema,
 } from "./contract/metadata.ts";
+export type { ReactToolHandler, ReactToolHandlerContext, ReactToolHandlerDeps } from "./contract/react-tool.ts";
 export type {
   ImpersonateStreamDelta,
   ReactAsCharacterOp,
@@ -209,6 +210,7 @@ export { setParticipantActivePersona } from "./verbs/participants.ts";
 export { createPluginChatAuthority } from "./verbs/plugin-authority.ts";
 export { loadPluginCharacters, loadPluginMessages } from "./verbs/plugin-reads.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
+export { createReactToolHandler } from "./verbs/react-tool-handler.ts";
 // B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
 // the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).
 export { createReactAsCharacter } from "./verbs/reactions.ts";

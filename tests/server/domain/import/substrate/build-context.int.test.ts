@@ -6,13 +6,13 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createImportAvatarStore } from "@orb/server/domain/assets";
 import { createCharacterImportOps } from "@orb/server/domain/character";
 import { buildImportContext, createImportService, createInstallerCharacterImport } from "@orb/server/domain/import";
+import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { createImportedCardTag } from "#server/domain/tag/index.ts";
-import { createHostPrincipalResolver } from "#server/entry/auth/index.ts";
 
 test("owner binders retain Principal identity and ignore foreign owner arguments through real character/tag writes", async ({
   db,

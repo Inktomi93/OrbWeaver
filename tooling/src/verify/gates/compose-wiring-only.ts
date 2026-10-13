@@ -3,19 +3,30 @@
 // reaches by reference (an `entry/auth` factory it calls is judged as compose). ARMS: a drizzle-declared call (`readDrizzleClientCall`,
 // fail-closed on an unbound query verb, table via `resolveDrizzleTableRefs`); a per-call decision (branch, loop, catch, `?:`, `&&`/`||`/
 // `??`, comparison, `?.`, `Math.max`/`min`, a call dispatched by a computed key) inside a handed-out function or a helper it reaches.
-// A decision in a factory body at construction is wiring. FAMILY: singleton — the timing classification is this subject's own.
-import type { CallExpression, Node as MorphNode } from "ts-morph";
+// Construction-time decisions are wiring; D1/D135's exact canonical row projection is identity minting, not admission policy.
+// FAMILY: singleton — the timing and canonical projection classifications are this subject's own.
+import type { CallExpression, FunctionDeclaration, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { DrizzleTableRef } from "../../floor/code-facts/drizzle-table-ref.ts";
 import { resolveDrizzleTableRefs } from "../../floor/code-facts/drizzle-table-ref.ts";
 import { readCalledMember } from "../../floor/code-facts/drizzle-write-chain.ts";
-import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import {
+  readMemberReference,
+  resolveGlobalMemberOrigin,
+  resolveLexicalValueDeclaration,
+  resolveModuleMemberOrigin,
+} from "../../floor/code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 
 const ENTRY_POPULATION = { in: ["@server"], under: ["packages/server/src/entry/**"] } as const;
 const COMPOSE_PREFIX = "packages/server/src/entry/compose/";
+const AUTH_SEAM = "packages/server/src/entry/auth/seam.ts";
+const IDENTITY_CONTRACT = "packages/contracts/src/identity/index.ts";
+const PRINCIPAL_FIELDS = "packages/server/src/domain/sessions/contract/results.ts";
+const IDS_CONTRACT = "packages/kit/src/ids/index.ts";
+const PROJECTION_KEYS = ["userId", "role", "handle", "externalId", "via"] as const;
 
 /** The ambient `Math` members that pick between runtime values. */
 const CLAMP_MEMBERS = new Set(["max", "min"]);
@@ -385,9 +396,150 @@ function classify(named: ReadonlySet<object>, references: readonly Reference[], 
 }
 
 /** A judged decision whose enclosing function runs per call. */
-function decidesPerCall(decision: MorphNode, classifier: Classifier): boolean {
+function decidesPerCall(decision: MorphNode, classifier: Classifier, canonicalProjection: (fn: MorphNode) => boolean): boolean {
   const fn = enclosingFunction(decision);
-  return fn !== undefined && classifier.perCall(fn) && classifier.judged(decision);
+  return fn !== undefined && classifier.perCall(fn) && classifier.judged(decision) && !canonicalProjection(fn);
+}
+
+function canonicalReference(node: MorphNode | undefined, home: string, name: string): boolean {
+  if (node === undefined) {
+    return false;
+  }
+  const origin = resolveModuleMemberOrigin(Node.isTypeReference(node) ? node.getTypeName() : node);
+  return (
+    origin.kind === "resolved" &&
+    origin.value.canonical.kind === "project" &&
+    origin.value.canonical.exportedName === name &&
+    origin.value.canonical.sourceFile.getFilePath().endsWith(`/${home}`) &&
+    origin.value.memberPath.length === 0
+  );
+}
+
+function referencesParameter(node: MorphNode | undefined, parameter: MorphNode): boolean {
+  if (node === undefined) {
+    return false;
+  }
+  const value = resolveLexicalValueDeclaration(unwrapParens(node));
+  return value.kind === "resolved" && value.value.compilerNode === parameter.compilerNode;
+}
+
+function rowDefault(node: MorphNode | undefined, parameter: MorphNode, field: string): MorphNode | undefined {
+  if (!Node.isBinaryExpression(node) || node.getOperatorToken().getKind() !== SyntaxKind.QuestionQuestionToken) {
+    return;
+  }
+  const read = node.getLeft();
+  const member = readMemberReference(read);
+  return read.getFirstChildByKind(SyntaxKind.QuestionDotToken) !== undefined &&
+    member.kind === "resolved" &&
+    member.value.name === field &&
+    referencesParameter(member.value.receiver, parameter)
+    ? node.getRight()
+    : undefined;
+}
+
+function literalString(node: MorphNode | undefined, value: string): boolean {
+  return Node.isStringLiteral(node) && node.getLiteralText() === value;
+}
+
+interface ProjectionParameters {
+  readonly userId: MorphNode;
+  readonly fields: MorphNode;
+}
+
+function projectionParameters(fn: FunctionDeclaration): ProjectionParameters | undefined {
+  const params = fn.getParameters();
+  const [userId, fields] = params;
+  if (
+    params.length !== 2 ||
+    params.some((parameter) => parameter.getInitializer() !== undefined) ||
+    userId === undefined ||
+    fields === undefined ||
+    !canonicalReference(userId.getTypeNode(), IDS_CONTRACT, "UserId")
+  ) {
+    return;
+  }
+  const fieldsType = fields.getTypeNode();
+  if (!Node.isUnionTypeNode(fieldsType)) {
+    return;
+  }
+  const arms = fieldsType.getTypeNodes();
+  if (
+    arms.length !== 2 ||
+    !arms.some((arm) => canonicalReference(arm, PRINCIPAL_FIELDS, "UserPrincipalFields")) ||
+    !arms.some((arm) => Node.isLiteralTypeNode(arm) && arm.getLiteral().getKind() === SyntaxKind.NullKeyword)
+  ) {
+    return;
+  }
+  return { userId, fields };
+}
+
+function propertyExpression(properties: ReadonlyMap<string, MorphNode>, name: string): MorphNode | undefined {
+  const property = properties.get(name);
+  if (Node.isPropertyAssignment(property)) {
+    return property.getInitializer();
+  }
+  return Node.isShorthandPropertyAssignment(property) ? property.getNameNode() : undefined;
+}
+
+/** D1/D135 classify this exact pure row projection as identity construction, not request admission. */
+function canonicalPrincipalProjection(fn: MorphNode): boolean {
+  if (
+    !(
+      Node.isFunctionDeclaration(fn) &&
+      fn.getSourceFile().getFilePath().endsWith(`/${AUTH_SEAM}`) &&
+      canonicalReference(fn.getReturnTypeNode(), IDENTITY_CONTRACT, "Principal")
+    )
+  ) {
+    return false;
+  }
+  const name = fn.getNameNode();
+  if (name === undefined || name.getText() !== "principalFromRow") {
+    return false;
+  }
+  const identity = resolveCallableDeclaration(name);
+  const params = projectionParameters(fn);
+  if (identity.kind !== "resolved" || identity.value.declaration.compilerNode !== fn.compilerNode || params === undefined) {
+    return false;
+  }
+  const { userId, fields } = params;
+  const body = fn.getBody();
+  const statements = Node.isBlock(body) ? body.getStatements() : [];
+  const [statement] = statements;
+  const value = Node.isReturnStatement(statement) ? statement.getExpression() : undefined;
+  if (statements.length !== 1 || !Node.isObjectLiteralExpression(value)) {
+    return false;
+  }
+  const properties = value.getProperties();
+  if (
+    properties.length !== PROJECTION_KEYS.length ||
+    !properties.every((property) => Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property))
+  ) {
+    return false;
+  }
+  const byName = new Map(properties.map((property) => [property.getName(), property]));
+  const expression = (key: string): MorphNode | undefined => propertyExpression(byName, key);
+  const role = rowDefault(expression("role"), fields, "role");
+  const externalId = rowDefault(expression("externalId"), fields, "externalId");
+  const handle = rowDefault(expression("handle"), fields, "handle");
+  if (
+    byName.size !== PROJECTION_KEYS.length ||
+    !referencesParameter(expression("userId"), userId) ||
+    !literalString(role, "user") ||
+    externalId?.getKind() !== SyntaxKind.NullKeyword ||
+    !literalString(expression("via"), "fallback") ||
+    !Node.isCallExpression(handle)
+  ) {
+    return false;
+  }
+  const args = handle.getArguments();
+  const types = handle.getTypeArguments();
+  return (
+    args.length === 1 &&
+    types.length === 1 &&
+    referencesParameter(args[0], userId) &&
+    canonicalReference(types[0], IDS_CONTRACT, "Handle") &&
+    canonicalReference(handle.getExpression(), IDS_CONTRACT, "castId")
+  );
 }
 
 interface Subject {
@@ -430,6 +582,20 @@ const SCHEMA_FILE = "packages/db/src/schema/chats.ts";
 const SCHEMA = 'export declare const chats: { readonly _: { readonly brand: "Table"; readonly name: "chats" } };\n';
 const DB_PRELUDE = 'import type { Db } from "drizzle-orm";\nimport { chats } from "../../../../db/src/schema/chats.ts";\n';
 const COMPOSE_FILE = "packages/server/src/entry/compose/x.ts";
+const PRINCIPAL_TYPE_FILES = {
+  [IDS_CONTRACT]:
+    'declare const brand: unique symbol;\nexport type UserId = string & { readonly [brand]: "UserId" };\nexport type Handle = string & { readonly [brand]: "Handle" };\nexport type ExternalId = string & { readonly [brand]: "ExternalId" };\nexport declare function castId<T extends string>(raw: string): T;\n',
+  [IDENTITY_CONTRACT]:
+    'import type { UserId, Handle, ExternalId } from "../../../kit/src/ids/index.ts";\nexport type UserRole = "owner" | "admin" | "user";\nexport interface Principal { userId: UserId; role: UserRole; handle: Handle; externalId: ExternalId | null; via: "cookie" | "header" | "fallback"; }\n',
+  [PRINCIPAL_FIELDS]:
+    'import type { Handle, ExternalId } from "../../../../../kit/src/ids/index.ts";\nimport type { UserRole } from "../../../../../contracts/src/identity/index.ts";\nexport interface UserPrincipalFields { role: UserRole; handle: Handle; externalId: ExternalId | null; enabled: boolean; }\n',
+};
+const PRINCIPAL_IMPORTS =
+  'import type { Principal } from "../../../../contracts/src/identity/index.ts";\nimport type { UserId, Handle } from "../../../../kit/src/ids/index.ts";\nimport { castId } from "../../../../kit/src/ids/index.ts";\nimport type { UserPrincipalFields } from "../../domain/sessions/contract/results.ts";\n';
+const PRINCIPAL_MAPPER =
+  'function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {\n  return { userId, role: fields?.role ?? "user", handle: fields?.handle ?? castId<Handle>(userId), externalId: fields?.externalId ?? null, via: "fallback" };\n}\n';
+const PRINCIPAL_BRIDGE = "export function bridge(userId: UserId, fields: UserPrincipalFields | null): Principal { return principalFromRow(userId, fields); }\n";
+const PRINCIPAL_COMPOSE = 'import { bridge } from "../auth/seam.ts";\nexport function build() { return { principal: bridge }; }\n';
 
 export const gate = defineGate({
   id: "compose-wiring-only",
@@ -508,8 +674,18 @@ export const gate = defineGate({
         const named = new Set<object>([...callables.values()].flat().map((fn) => fn.compilerNode));
         const inCompose = (node: MorphNode): boolean => ctx.relativePath(node.getSourceFile()).startsWith(COMPOSE_PREFIX);
         const { perCall, judged } = classify(named, references(named), inCompose);
+        const projections = new Map<object, boolean>();
+        const canonicalProjection = (fn: MorphNode): boolean => {
+          const known = projections.get(fn.compilerNode);
+          if (known !== undefined) {
+            return known;
+          }
+          const admitted = canonicalPrincipalProjection(fn);
+          projections.set(fn.compilerNode, admitted);
+          return admitted;
+        };
         for (const decision of decisions) {
-          if (decidesPerCall(decision, { perCall, judged })) {
+          if (decidesPerCall(decision, { perCall, judged }, canonicalProjection)) {
             subjectOf(decision, perCall).decision ??= decision;
           }
         }
@@ -526,6 +702,112 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        "packages/server/src/entry/auth/other.ts": `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE.replace("seam.ts", "other.ts"),
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "a same-named pure Principal mapper outside the canonical auth seam is not the D1 mint; removing the declaration-home fence admits it",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace('?? "user"', '?? "owner"')}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "the canonical name/home cannot admit a changed authority grant instead of D135's absent-row user floor",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace("  return {", '  if (!fields?.enabled) { throw new Error("disabled"); }\n  return {')}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "an added request admission branch is policy even in the canonical mapper; only the pure single-return projection is admitted",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [DRIZZLE_FILE]: DRIZZLE,
+        [SCHEMA_FILE]: SCHEMA,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}import { Db } from "drizzle-orm";\nimport { chats } from "../../../../db/src/schema/chats.ts";\n${PRINCIPAL_MAPPER.replace("  return {", "  new Db().select().from(chats);\n  return {")}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "runs a Drizzle query" },
+      why: "a query added inside the mapper remains reportable; canonical identity never disables the query arm",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER}function admission(fields: UserPrincipalFields | null) { return fields?.enabled === true; }\n${PRINCIPAL_BRIDGE.replace("return principalFromRow", "admission(fields); return principalFromRow")}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "admission", messageIncludes: "=== true" },
+      why: "an arbitrary auth helper reached beside the admitted mapper remains policy; the seam is not a file exemption",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [DRIZZLE_FILE]: DRIZZLE,
+        [SCHEMA_FILE]: SCHEMA,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}import { Db } from "drizzle-orm";\nimport { chats } from "../../../../db/src/schema/chats.ts";\n${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE.replace("return principalFromRow", "new Db().select().from(chats); return principalFromRow")}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "bridge", messageIncludes: "runs a Drizzle query" },
+      why: "queries elsewhere in the reached auth file remain live even when its canonical mapper is admitted",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS.replace('"../../../../contracts/src/identity/index.ts"', '"./lookalike.ts"')}${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE}`,
+        "packages/server/src/entry/auth/lookalike.ts": "export interface Principal { role: string; }\n",
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "a same-spelled but foreign Principal annotation proves no canonical authority construction",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS.replace('"../../domain/sessions/contract/results.ts"', '"./missing.ts"')}${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "unresolved row-fields provenance cannot admit the projection merely because the imported type has the right name",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS.replace('import { castId } from "../../../../kit/src/ids/index.ts";', 'import { castId } from "./lookalike.ts";')}${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE}`,
+        "packages/server/src/entry/auth/lookalike.ts": "export declare function castId<T extends string>(raw: string): T;\n",
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "a lookalike cast helper cannot borrow the canonical mapper's permission",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}declare const currentFields: UserPrincipalFields;\n${PRINCIPAL_MAPPER.replace("fields: UserPrincipalFields | null", "fields: UserPrincipalFields | null = currentFields.enabled ? currentFields : null")}${PRINCIPAL_BRIDGE.replace("principalFromRow(userId, fields)", "principalFromRow(userId)")}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "currentFields.enabled" },
+      why: "a reached canonical mapper's executable parameter default remains per-call admission even when its body is only the pure row projection",
+    },
     {
       mode: "types",
       files: {
@@ -624,6 +906,29 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace("return { userId,", "return { userId: userId,")}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      why: "an explicit property forward denotes the same parameter as shorthand; source spelling cannot turn the row projection into admission",
+    },
+    {
+      mode: "types",
+      files: { ...PRINCIPAL_TYPE_FILES, [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE}`, [COMPOSE_FILE]: PRINCIPAL_COMPOSE },
+      why: "D1/D135's one row-derived mint remains at the auth seam, with its absent-row user floor and no admission decision",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS.replace("{ Principal }", "{ Principal as Caller }").replace("{ castId }", "{ castId as brandId }")}${PRINCIPAL_MAPPER.replace(": Principal", ": Caller").replace("castId<", "brandId<")}${PRINCIPAL_BRIDGE.replace(": Principal", ": Caller")}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      why: "canonical declaration identity survives import aliases; names alone neither admit nor accuse the projection",
+    },
     {
       mode: "types",
       files: {

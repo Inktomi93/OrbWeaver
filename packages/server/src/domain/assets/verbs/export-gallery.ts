@@ -20,7 +20,7 @@ export function createExportGallery(ctx: AssetsContext): (ownerId: UserId) => Pr
     const distinctIds = [...new Set(rows.flatMap((r) => (r.subjectCharacterId !== null ? [r.subjectCharacterId] : [])))];
     const handleById = new Map<CharacterId, string | null>();
     if (resolve !== undefined) {
-      const resolved = await Promise.all(distinctIds.map((id) => resolve(id)));
+      const resolved = await Promise.all(distinctIds.map((id) => resolve(ownerId, id)));
       for (const [i, id] of distinctIds.entries()) {
         handleById.set(id, resolved[i] ?? null);
       }

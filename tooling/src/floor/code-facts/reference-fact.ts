@@ -309,7 +309,8 @@ export function resolveExportedDeclarations(sourceFile: SourceFile, name: string
  *  an import alias with no lexical value declaration refuses explicitly. */
 export function resolveLexicalValueDeclaration(node: MorphNode): ReferenceFact<MorphNode> {
   const target = state();
-  const declaration = node.getSymbol()?.getValueDeclaration();
+  const symbol = Node.isIdentifier(node) ? lexicalReferenceSymbol(node) : node.getSymbol();
+  const declaration = symbol?.getValueDeclaration();
   if (declaration === undefined) {
     return unresolved("missing", node, target, `no lexical value declaration binds ${node.getText()}`);
   }

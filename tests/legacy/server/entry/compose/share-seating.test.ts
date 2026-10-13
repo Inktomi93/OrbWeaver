@@ -6,9 +6,9 @@ import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings } from "@orb/contracts/settings";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createEnableShareSeating } from "@orb/server/domain/share";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { createEnableShareSeating } from "#server/entry/compose/share-seating.ts";
 
 const OWNER = castId<UserId>("user_owner");
 const BOTH_ON: AppSettings = { localMultiUser: true, discreetLogin: true };
@@ -34,12 +34,12 @@ function harness(
   const writes: Write[] = [];
   const op = createEnableShareSeating({
     seating: () => start,
-    overrides: () => Promise.resolve(options.stored ?? {}),
+    getAppSettingsWithOverrides: () => Promise.resolve({ overrides: options.stored ?? {} }),
     updateAppSettings: (params) => {
       writes.push(params);
       return Promise.resolve();
     },
-    sessions: { getOwnerUserId: () => Promise.resolve((options.ownerRow ?? true) ? OWNER : undefined) },
+    getOwnerUserId: () => Promise.resolve((options.ownerRow ?? true) ? OWNER : undefined),
     resolvePrincipal: (userId) => Promise.resolve(ownerPrincipal(userId)),
   });
   return { op, writes };

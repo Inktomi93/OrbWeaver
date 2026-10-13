@@ -6,9 +6,8 @@
 // handles + sibling service front doors onto the `DatabankContext`.
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
-import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
+import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { RoleClientsWithSignal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
@@ -16,8 +15,10 @@ import { loadPresentHostUserId, requireHost, requireParticipant } from "#domain/
 import type { DatabankContext, DatabankIngest, DatabankPortabilityContext, DatabankService } from "#domain/databank";
 import { createDatabankIngest, createDatabankService } from "#domain/databank";
 import type { EmbeddingsService } from "#domain/embeddings";
+import { createGetLiveEmbedSpace } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
+import { createGetDatabankSettings } from "#domain/settings";
 import type { WorkloadService } from "#domain/workloads";
 import type { AuditEntry } from "#foundation/observability";
 import { EXTRACTOR_VERSION } from "#infra/extraction";
@@ -41,12 +42,12 @@ export interface DatabankComposeDeps {
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly assetsStore: DatabankContext["assetsStore"];
-  readonly loadAssetBytes: (assetId: Parameters<DatabankContext["loadAssetBytes"]>[0]) => Promise<Uint8Array | null>;
+  readonly loadAssetBytes: DatabankContext["loadAssetBytes"];
   readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks" | "countDocumentChunksByOwner">;
   readonly extractText: DatabankContext["extractText"];
   /** The per-FUNDER role-client binder: a bank's space is its OWNER's `embed` binding (vector tasks are
    *  owner-scoped, §7.5), read per call so a re-bound connection reaches the next ingest with no restart. */
-  readonly roleClientsFor: (ownerId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
+  readonly roleClientsFor: (ownerId: UserId) => Promise<Pick<RoleClients, "resolved">>;
   readonly search: Pick<SearchService, "documents">;
   readonly workloads: Pick<WorkloadService, "start">;
   /** The per-user settings loader — `getDatabankSettings(ownerId)` reads the user's `databank` section
@@ -69,20 +70,6 @@ export interface DatabankComposeResult {
   readonly databankPortability: DatabankPortabilityContext;
 }
 
-/** The bound `getDatabankSettings(ownerId)` op — reads the owner's REAL `UserSettings.databank` and projects
- *  the `{chunk, retrieval}` the `DatabankSettings` op contract carries (the user tier's `slotTokenBudget` is a
- *  chat-side concern threaded via ForeignInputs, not this op). Extracted (not inlined) so the composed-real
- *  test invokes the EXACT binding, not a re-implementation of it. Replaced the compose-stub-goes-stale 0-param
- *  arrow that ignored `ownerId` and returned schema defaults.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function bindGetDatabankSettings(loadUserSettings: SettingsService["loadUserSettings"]): DatabankContext["getDatabankSettings"] {
-  return async (ownerId) => {
-    const { databank } = await loadUserSettings(ownerId);
-    return { chunk: databank.chunk, retrieval: databank.retrieval };
-  };
-}
-
 export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult {
   const { db, now, audit, embeddings, extractText, search, workloads, loadUserSettings } = deps;
   const databankCtx: DatabankContext = {
@@ -103,8 +90,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     fanDatabankRoomsForMember: createFanDatabankMemberRooms(db, deps.emitChatEventLive),
     captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive).databank,
     assetsStore: deps.assetsStore,
-    // @orb-waive compose-wiring-only(loadAssetBytes): baselined when the gate landed; burn-down item 964.
-    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await deps.loadAssetBytes(assetId)) ?? undefined,
+    loadAssetBytes: deps.loadAssetBytes,
     embeddingsStore: embeddings.store,
     pruneDocumentChunks: embeddings.pruneDocumentChunks,
     countChunks: embeddings.countDocumentChunks,
@@ -122,14 +108,9 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // of this bank's chunks are embedded where they need to be". Counting against the last-complete space
     // would report a bank as fully embedded while a reindex is still moving it, which is the one answer the
     // databank surface must not give. During a transition "0 of N" is the truth and the progress signal.
-    // @orb-waive compose-wiring-only(getActiveEmbedSpace): baselined when the gate landed; burn-down item 964.
-    getActiveEmbedSpace: async (ownerId) => {
-      const space = await (await deps.roleClientsFor(ownerId)).resolved("embed");
-      return space === null ? null : { model: embedSpaceOf(space.model, embedDtypeOf(space.capability)) };
-    },
-    // The OWNER's real databank settings (chunk params ingest uses + retrieval params gather passes to
-    // search.documents) — the extracted binding (below), replacing the compose-stub-goes-stale 0-param stub.
-    getDatabankSettings: bindGetDatabankSettings(loadUserSettings),
+    getActiveEmbedSpace: createGetLiveEmbedSpace({ roleClientsFor: deps.roleClientsFor }),
+    // Settings owns the live owner projection; chat's slot budget stays on its separate input plane.
+    getDatabankSettings: createGetDatabankSettings(loadUserSettings),
     searchDocuments: search.documents,
     enqueueIngest: async ({ documentId, ownerId }) => {
       const started = await workloads.start({ input: { kind: "databank-ingest", params: { documentId } }, caller: null, mode: "singular", ownerId });
