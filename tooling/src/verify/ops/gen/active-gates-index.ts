@@ -39,9 +39,9 @@ updated: ${UPDATED}
 generator and regenerate. Everything else on this page is authored here too, so a change to the prose
 is a change to the generator's source, never a diff against the committed file.
 
-> What fails a build today, across five active layers (Biome, ts-morph structural gates,
-> dependency-cruiser, jscpd, Stryker). GritQL, the former Layer 2, is gone — do not add a plugin,
-> add a Layer-3 gate. A gate proposed but not yet buildable is a \`docs/work\` decision item; a gate
+> Maintained tools own the claims they can express: Biome, ESLint, the compiler and dependency-cruiser.
+> Structural gates retain unmatched semantic judgments and consume shared code facts.
+> A gate proposed but not yet buildable is a \`docs/work\` decision item; a gate
 > proposal turned down stays as a rejected ADR (for example \`docs/adr/0220-rejected-neo-and-report-only-gates.md\`).
 
 Gates are written before the code they govern, so code is born compliant. A gate that would only
@@ -67,10 +67,12 @@ see \`biome.json\` for the exact rule set. \`noConsole\` is a total ban outside 
 (relaxed until a client logger lands) and \`scripts/**\`/\`tests/**\` (console is their output channel).
 See \`Spine-TypeScript-and-Patterns.md\`.
 
-## Layer 2 — GritQL — gone
+## Layer 2 — ESLint (\`eslint.config.js\`)
 
-Every plugin was ported 1:1 to a Layer-3 \`defineGate\` policy; \`tools/grit/\` is deleted and
-\`biome.json\`'s \`plugins\` stays empty. Do not add a grit plugin — add a Layer-3 gate.
+Installed maintained rules own typed, React, accessibility, query, schema and browser API claims
+within their proven coverage. Native restrictions own covered import, API and syntax rules.
+\`eslint.config.js\` owns rule selection and scope. Confirm installed behavior and effective configuration
+before adding a structural gate or carrying an exception into native configuration.
 
 ## Layer 3 — Structural gates (\`tooling/src/verify/\`, ts-morph + fs)
 
@@ -78,6 +80,10 @@ One module per gate under \`gates/\`; the loader (\`lib/loader.ts\`) is the regi
 dropping a valid \`defineGate\` module in that directory, nothing else to register.
 \`tooling/src/verify/gates/GATE-AUTHORING.md\` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
+
+Use a structural gate only for a judgment the compiler and maintained tools cannot express.
+Shared code-facts readers own remaining typed analysis; gates and code commands consume the same facts.
+The test-foundation plan owns reader migration and native replacement qualification.
 
 `;
 

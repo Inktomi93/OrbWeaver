@@ -78,6 +78,7 @@ export function inventoryReader(root: string, generation: number, partitions: re
   const texts = new Map<string, string>();
   const aliases = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
+  const authored = new Set(partitions.flatMap((partition) => partition.sources.filter((source) => source.authored).map((source) => source.file)));
   for (const partition of partitions) {
     for (const source of partition.sources) {
       const previous = texts.get(source.file);
@@ -186,9 +187,15 @@ export function inventoryReader(root: string, generation: number, partitions: re
       );
     },
     references: (node) => {
-      const key = spanKey(capturedSpan(node));
-      const found = new Map<string, InventorySpan>();
       assertOpen();
+      const origin = capturedSpan(node);
+      if (!authored.has(origin.file)) {
+        throw new SemanticInventoryError(
+          `native semantic inventory references unsupported for non-authored origin: ${origin.file}:${String(origin.start)}-${String(origin.end)}; dependency-origin references are not indexed; use a native semantic view`,
+        );
+      }
+      const key = spanKey(origin);
+      const found = new Map<string, InventorySpan>();
       for (const partition of indexes) {
         for (const span of partition.references.get(key) ?? []) {
           found.set(spanKey(span), span);
@@ -210,6 +217,7 @@ export function inventoryReader(root: string, generation: number, partitions: re
       indexes = [];
       texts.clear();
       aliases.clear();
+      authored.clear();
       for (const source of project.getSourceFiles()) {
         source.forget();
       }

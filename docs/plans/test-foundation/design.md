@@ -18,6 +18,8 @@ The aim is three things at once. Honest: a test proves what production does, nev
 
 This plan owns execution order. The [test-mirror inventory](../test-mirror/design.md) supplies migration candidates, not a competing retrofit queue. Work items own current assignments, blockers and verification evidence; temporary handoffs do not establish completion.
 
+Read the [side-plan priority note](../inference-flow/design.md#reading-priority) before using inference-flow to choose work or report program status.
+
 ### Execution sequence
 
 | Phase | Work | Exit condition |
@@ -169,7 +171,7 @@ Native configuration owns tooling sibling import boundaries in `.dependency-crui
 
 Evaluate package/test reach, capability provenance, ambient aliases and shadows, imported/composed classes, suppression taxonomy, Zod identity and CT scheduling/live reads separately. These are candidate semantic remainders, not a blanket retention list. Native syntax coverage alone does not establish their judgments; the shared-reader work consolidates any remaining analysis. The token reset remains unconfigured, and generic config-path liveness remains unbuilt. CSS-file tooling proposals remain unapproved dependencies. D307 and D317 retain weekly checker cadence.
 
-Installed Zod replacements differ in call grammar, binding identity and literal-union remedies. Preserve those judgments until a native replacement proves their actual accepted population. React and query plugins do not replace application selection taint, invalidation reach or window recovery. Direct memo imports and literal reservation counts can move independently; retain their unmatched origin and constant-resolution judgments.
+Installed Zod replacements differ in call grammar, binding identity and literal-union remedies. Preserve those judgments until a native replacement proves their actual accepted population. React and query plugins do not replace application selection taint, invalidation reach or window recovery. Native ESLint owns direct React memo named imports and direct numeric reservation counts. Custom policies retain unmatched origins, constants and TypeScript wrappers. Shared subject vocabulary preserves actual file-level memo permissions and their custom authority.
 
 Tooling tests follow one rule: test verdict logic and lifecycle or concurrency rules (caps, races, reaping, ownership, slots, bands) fast against the decision code; an instrument's plumbing is proven by use; a test that reruns a gate over the real tree is deleted, because CI's structure stage already does it.
 

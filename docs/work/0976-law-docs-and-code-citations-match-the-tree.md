@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-12
+updated: 2026-10-13
 priority: P3
 ---
 
@@ -21,4 +21,6 @@ Each listed doc matches the tree; the citation gate reds a dead section referenc
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The enforcement-index generator states maintained ESLint ownership and preserves custom gates only for unmatched semantic judgments. Main regenerates the law from that source; its derived gate table remains unchanged. The listed law and citation corrections remain open.
+
+The selected documentation-reference checks complete without tool errors or withheld policies. Path and document citations pass. Reviewed citation grants exceed their zero budget, so the selected run remains red; do not expand that budget.

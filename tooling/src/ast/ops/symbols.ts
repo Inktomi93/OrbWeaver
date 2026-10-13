@@ -1,8 +1,10 @@
 // The symbol verbs: refs / callers / importers / exports / jsx / ident / literal.
-import { dirname, resolve } from "node:path";
 import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
-import { Node, SyntaxKind, ts } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { importerModulePath } from "../../floor/code-facts/module-target.ts";
+import { declarationsNamed } from "../../floor/code-facts/reference-declarations.ts";
+import { inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
@@ -10,34 +12,6 @@ import { emit, hitOf } from "../lib/emit.ts";
 import { scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
-
-/** Every exported (workspace-wide) or module-local (same-file refs still matter) declaration named `name`,
- *  over the SCANNED corpus (the caller's `scanCorpus` result — never a second walk of the project). */
-export function declarationsNamed(files: readonly SourceFile[], name: string): Node[] {
-  // Dedupe by node identity: `getExportedDeclarations()` resolves THROUGH re-exports, so every barrel
-  // that re-exports a shape returns the SAME origin node — without this, a barreled symbol counts one
-  // "declaration" per barrel (false one-home alarm) and refs run/push once per duplicate (inflated hits).
-  const candidates: Node[] = [];
-  for (const sf of files) {
-    candidates.push(...(sf.getExportedDeclarations().get(name) ?? []));
-    candidates.push(...sf.getFunctions().filter((fn) => fn.getName() === name && !fn.isExported()));
-    candidates.push(...sf.getVariableDeclarations().filter((v) => v.getName() === name && !v.isExported()));
-    candidates.push(...sf.getClasses().filter((decl) => decl.getName() === name && !decl.isExported()));
-    candidates.push(...sf.getInterfaces().filter((decl) => decl.getName() === name && !decl.isExported()));
-    candidates.push(...sf.getTypeAliases().filter((decl) => decl.getName() === name && !decl.isExported()));
-    candidates.push(...sf.getEnums().filter((decl) => decl.getName() === name && !decl.isExported()));
-    candidates.push(...sf.getDescendantsOfKind(SyntaxKind.MethodDeclaration).filter((decl) => decl.getName() === name));
-  }
-  const seen = new Set<string>();
-  return candidates.filter((node) => {
-    const key = `${node.getSourceFile().getFilePath()}:${node.getStart()}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-}
 
 export function cmdRefs(project: SourceCorpus, name: string, flags: Flags): void {
   const decls = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
@@ -88,43 +62,13 @@ function staticImporterHits(sf: SourceFile, spec: string): Hit[] {
     // signal) — resolution handles relative/#alias/@orb subpath uniformly (same technique as resolvedGraph).
     const raw = d.getModuleSpecifierValue();
     const rawHit = raw?.includes(spec);
-    const resolved = d.getModuleSpecifierSourceFile()?.getFilePath();
+    const resolved = inventoryStaticTarget(d)?.getFilePath();
     const resolvedHit = resolved?.includes(spec);
     if (rawHit === true || resolvedHit === true) {
       out.push(hitOf(d, "import"));
     }
   }
   return out;
-}
-
-function resolvedModulePath(sf: SourceFile, spec: string): string | undefined {
-  if (spec.startsWith(".")) {
-    const base = resolve(dirname(sf.getFilePath()), spec);
-    for (const candidate of [base, `${base}.ts`, `${base}.tsx`, `${base}.mts`, `${base}/index.ts`, `${base}/index.tsx`, `${base}/index.mts`]) {
-      const source = sf.getProject().getSourceFile(candidate);
-      if (source !== undefined) {
-        return source.getFilePath();
-      }
-    }
-  }
-  const fs = sf.getProject().getFileSystem();
-  const readFile = (path: string): string | undefined => {
-    let content: string | undefined;
-    try {
-      content = fs.readFileSync(path, "utf-8");
-      // @orb-waive caught-failure-ownership(catch): TypeScript intentionally probes nonexistent module candidates; an unreadable candidate is `undefined` so resolution continues. Ends if this callback reads an already-proven-existing path.
-    } catch {
-      // TypeScript probes extension/package candidates that need not exist.
-    }
-    return content;
-  };
-  return ts.resolveModuleName(spec, sf.getFilePath(), sf.getProject().getCompilerOptions(), {
-    directoryExists: (path) => fs.directoryExistsSync(path),
-    fileExists: (path) => fs.fileExistsSync(path),
-    getCurrentDirectory: () => fs.getCurrentDirectory(),
-    readFile,
-    realpath: (path) => fs.realpathSync(path),
-  }).resolvedModule?.resolvedFileName;
 }
 
 function dynamicImporterHits(sf: SourceFile, spec: string, targets: ReadonlySet<string>): Hit[] {
@@ -137,7 +81,7 @@ function dynamicImporterHits(sf: SourceFile, spec: string, targets: ReadonlySet<
     if (
       arg !== undefined &&
       Node.isStringLiteral(arg) &&
-      (arg.getLiteralText().includes(spec) || targets.has(resolvedModulePath(sf, arg.getLiteralText()) ?? ""))
+      (arg.getLiteralText().includes(spec) || targets.has(importerModulePath(sf, arg.getLiteralText()) ?? ""))
     ) {
       out.push(hitOf(call, "dynamic-import"));
     }
@@ -148,7 +92,7 @@ function dynamicImporterHits(sf: SourceFile, spec: string, targets: ReadonlySet<
 function staticResolvedTargets(sf: SourceFile, spec: string): string[] {
   const targets: string[] = [];
   for (const declaration of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-    const resolved = declaration.getModuleSpecifierSourceFile()?.getFilePath();
+    const resolved = inventoryStaticTarget(declaration)?.getFilePath();
     if (resolved !== undefined && (declaration.getModuleSpecifierValue()?.includes(spec) === true || resolved.includes(spec))) {
       targets.push(resolved);
     }
@@ -161,7 +105,7 @@ function dynamicResolvedTargets(sf: SourceFile, spec: string): string[] {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const arg = call.getExpression().getKind() === SyntaxKind.ImportKeyword ? call.getArguments()[0] : undefined;
     const target =
-      arg !== undefined && Node.isStringLiteral(arg) && arg.getLiteralText().includes(spec) ? resolvedModulePath(sf, arg.getLiteralText()) : undefined;
+      arg !== undefined && Node.isStringLiteral(arg) && arg.getLiteralText().includes(spec) ? importerModulePath(sf, arg.getLiteralText()) : undefined;
     if (target !== undefined) {
       targets.push(target);
     }
@@ -182,7 +126,7 @@ function resolvedTargets(files: readonly SourceFile[], spec: string): Set<string
 function resolvedImporterHits(sf: SourceFile, targets: ReadonlySet<string>): Hit[] {
   const hits: Hit[] = [];
   for (const declaration of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-    const resolved = declaration.getModuleSpecifierSourceFile()?.getFilePath();
+    const resolved = inventoryStaticTarget(declaration)?.getFilePath();
     if (resolved !== undefined && targets.has(resolved)) {
       hits.push(hitOf(declaration, "import"));
     }

@@ -1,7 +1,7 @@
 // unwired (tRPC procedures no client consumes) + clientgap (server-only client-facing shapes).
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { literalTypeIndex, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { collectAppRouterOutputProvenance } from "../lib/app-router-provenance.ts";
@@ -193,12 +193,12 @@ function markConsumedFromIndexedType(ia: Node, valid: Set<string>, consumed: Set
   if (!Node.isIndexedAccessTypeNode(ia)) {
     return;
   }
-  const outerKey = literalOfIndex(ia.getIndexTypeNode());
+  const outerKey = literalTypeIndex(ia.getIndexTypeNode());
   const objectType = ia.getObjectTypeNode();
   if (outerKey === undefined || !Node.isIndexedAccessTypeNode(objectType)) {
     return;
   }
-  const nsKey = literalOfIndex(objectType.getIndexTypeNode());
+  const nsKey = literalTypeIndex(objectType.getIndexTypeNode());
   if (nsKey === undefined) {
     return;
   }
@@ -206,15 +206,6 @@ function markConsumedFromIndexedType(ia: Node, valid: Set<string>, consumed: Set
   if (valid.has(full)) {
     consumed.add(full);
   }
-}
-
-/** The string value of a literal type index node (`"list"` → `list`), else undefined. */
-function literalOfIndex(node: Node): string | undefined {
-  if (!Node.isLiteralTypeNode(node)) {
-    return;
-  }
-  const lit = node.getLiteral();
-  return Node.isStringLiteral(lit) ? lit.getLiteralText() : undefined;
 }
 
 // The two HONEST exemption categories for a client-unconsumed procedure — each a distinct marker whose
