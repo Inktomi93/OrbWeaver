@@ -1,9 +1,4 @@
-// domain/import/contract/workloads — the DI bundle import's `WorkloadContribution` factory closes over.
-//
-// The two DRIVERS are injected-op TYPES, not imports: `runProfileDirImport`/`runBundleImport`/
-// `runStagedDirImport` are cross-domain compositions (they fan into character/chat/persona/world-info/tag/
-// assets), so they are composed once at `entry/` and handed in. `reconcileImportStats` is the SAME op the
-// portability descriptors take — one slice, built once, shared by both consumers.
+// Import orchestration runs in the owner; composition supplies the foreign operations and external edges.
 
 import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";

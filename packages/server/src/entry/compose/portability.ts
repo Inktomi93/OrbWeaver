@@ -1,12 +1,5 @@
-// Composition seam that assembles the injected `PortabilityRegistry` the delivery core iterates. The
-// entity-agnostic core knows nothing about any specific entity; adding an entity = append one descriptor
-// here. Each `PortableEntity` is `{ kind, dir, ext, exportAll, importFile }`: `exportAll` streams the
-// owner's rows as portable files; `importFile` parses one file's bytes into the owner's tables, never
-// throwing for a malformed file (returns `{ok:false,error}`). Import order is NOT this array's order — the
-// core imports by `PORTABLE_IMPORT_ORDER` (contracts/portability).
-
 import type { Principal } from "@orb/contracts/identity";
-import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
+import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
@@ -18,9 +11,10 @@ import type { BulkImportChats } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#domain/databank";
 import type { ExportService } from "#domain/export";
+import { createPortableExports } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ImportProfileDeps, ImportService } from "#domain/import";
-import { buildImportContext, createImportService } from "#domain/import";
+import type { ImportProfileDeps } from "#domain/import";
+import { createPortableImports } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
@@ -33,8 +27,8 @@ import type { ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportCont
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
 import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 
-// @orb-waive no-inline-package-interface(PortabilityDeps): baselined when the gate landed; burn-down item 952.
 /** What the registry builder needs from the composition root to compose each descriptor. */
+// @orb-waive no-inline-package-interface(PortabilityDeps): baselined when the gate landed; burn-down item 952.
 export interface PortabilityDeps {
   readonly db: Db;
   readonly now: () => number;
@@ -73,24 +67,42 @@ export interface PortabilityDeps {
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
 }
 
-/** Build the per-owner `ImportContext`, shared by both the character card path and the chat path. */
-async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise<ImportService> {
-  const principal = await deps.resolveOwnerPrincipal(ownerId);
-  const ctx = buildImportContext({
-    principal,
-    characterOps: createCharacterImportOps(principal, deps.character),
-    storeAsset: createImportAvatarStore(principal, (args) => deps.storeAvatar(args)),
-    attachCardTag: createImportedCardTag(principal.userId, (args) => deps.attachCardTag(args)),
-    importLorebook: deps.importLorebook,
-    hasPrimaryBook: deps.hasPrimaryBook,
-    linkCarriedBooks: deps.linkCarriedBooks,
-    importCardScripts: deps.importCardScripts,
+export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegistry {
+  const exports = createPortableExports({
+    gallery: createExportGallery(deps.assetsCtx),
+    tags: createTagLibraryExport(deps.tagCtx),
+    theme: createExportTheme(deps.settingsCtx),
+    userSettings: createExportUserSettings(deps.settingsCtx),
+    presets: createExportPresets(deps.presetCtx),
+    worldBook: createExportWorldBook(deps.worldInfoExportCtx),
+    listBookIds: createListOwnedBookIds(deps.worldInfoExportCtx),
+    regex: deps.exportRegexScripts,
+    document: createExportDocument(deps.databankCtx),
+    listDocumentIds: createListOwnedDocumentIds(deps.databankCtx),
+    persona: deps.persona,
+    exportService: deps.exportService,
+    listCharacterIds: deps.listOwnedCharacterIds,
+    resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
+  });
+  const imports = createPortableImports({
+    tags: createTagLibraryImport(deps.tagCtx),
+    regex: deps.importRegexScript,
+    document: createImportDocument(deps.databankCtx),
+    persona: deps.persona,
+    resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
+    wallClockZone: hostTimeZone,
+    contextFor: (principal) => ({
+      principal,
+      characterOps: createCharacterImportOps(principal, deps.character),
+      storeAsset: createImportAvatarStore(principal, deps.storeAvatar),
+      attachCardTag: createImportedCardTag(principal.userId, deps.attachCardTag),
+      importLorebook: deps.importLorebook,
+      hasPrimaryBook: deps.hasPrimaryBook,
+      linkCarriedBooks: deps.linkCarriedBooks,
+      importCardScripts: deps.importCardScripts,
+    }),
     profile: {
       now: deps.now,
-      // An uploaded ST transcript's zone-less wall-clock dates were written against a local `Date`; the
-      // importing box's zone is the honest reading (and the exact one for the same-box case).
-      stWallClockZone: hostTimeZone(),
-      personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,
       enqueueImportIndex: deps.enqueueImportIndex,
@@ -100,285 +112,36 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
       importRpgGame: deps.importRpgGame,
     },
   });
-  return createImportService(ctx);
-}
-
-/** Wrap a single-file export verb (`() => Promise<{filename,bytes}>`) as the streaming `exportAll`. */
-function oneFile(produce: (ownerId: UserId) => Promise<{ readonly filename: string; readonly bytes: Uint8Array }>): PortableEntity["exportAll"] {
-  return async function* exportOne(ownerId: UserId): AsyncIterable<PortableFile> {
-    yield await produce(ownerId);
-  };
-}
-
-/** Map the error thrown by a domain import verb to a `{ok:false}` outcome (the never-throw contract). */
-// @orb-waive compose-wiring-only(errorOutcome): baselined when the gate landed; burn-down item 964.
-function errorOutcome(err: unknown): PortableImportOutcome {
-  return { ok: false, error: err instanceof Error ? err.message : String(err) };
-}
-
-/**
- * Assemble the portability registry from the built domain verbs. Owner-scoped throughout — `ownerId` is
- * the only owner any exportAll/importFile ever sees.
- */
-export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegistry {
-  const assets: PortableEntity = {
-    kind: "assets",
-    dir: "assets/",
-    ext: "",
-    exportAll: createExportAssets(deps.assetsCtx),
-    importFile: createImportAsset(deps.assetsCtx),
-  };
-
-  const exportGallery = createExportGallery(deps.assetsCtx);
   const importGallery = createImportGallery(deps.assetsCtx);
-  const gallery: PortableEntity = {
-    kind: "gallery",
-    dir: "gallery/",
-    ext: ".json",
-    exportAll: oneFile((ownerId) => exportGallery(ownerId)),
-    importFile: (ownerId, file) => importGallery(ownerId, file),
-  };
-
-  const exportTags = createTagLibraryExport(deps.tagCtx);
-  const importTags = createTagLibraryImport(deps.tagCtx);
-  const tagExportAll = oneFile(async (ownerId) => ({
-    filename: "tags.json",
-    bytes: await exportTags(ownerId),
-  }));
-  const tag: PortableEntity = {
-    kind: "tag",
-    dir: "tags/",
-    ext: ".json",
-    exportAll: tagExportAll,
-    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
-    importFile: async (ownerId, file) => {
-      try {
-        const { created } = await importTags(ownerId, file.bytes);
-        return { ok: true, created: created > 0 };
-      } catch (err) {
-        return errorOutcome(err);
-      }
-    },
-  };
-
-  const exportTheme = createExportTheme(deps.settingsCtx);
   const importTheme = createImportTheme(deps.settingsCtx);
-  const theme: PortableEntity = {
-    kind: "theme",
-    dir: "themes/",
-    ext: ".json",
-    exportAll: oneFile((ownerId) => exportTheme(ownerId)),
-    importFile: (ownerId, file) => importTheme(ownerId, file.bytes),
-  };
-
-  const exportUserSettings = createExportUserSettings(deps.settingsCtx);
   const importUserSettings = createImportUserSettings(deps.settingsCtx);
-  const userSettings: PortableEntity = {
-    kind: "user-settings",
-    dir: "user-settings/",
-    ext: ".json",
-    exportAll: oneFile((ownerId) => exportUserSettings(ownerId)),
-    importFile: (ownerId, file) => importUserSettings(ownerId, file.bytes),
-  };
-
-  const exportPresets = createExportPresets(deps.presetCtx);
   const importPreset = createImportPresets(deps.presetCtx);
-  const presetExportAll = async function* presetAll(ownerId: UserId): AsyncIterable<PortableFile> {
-    for (const file of await exportPresets({ ownerId })) {
-      yield file;
-    }
-  };
-  const preset: PortableEntity = {
-    kind: "preset",
-    dir: "presets/",
-    ext: ".json",
-    exportAll: presetExportAll,
-    importFile: (ownerId, file) => importPreset({ ownerId, bytes: file.bytes }),
-  };
-
-  const exportWorldBook = createExportWorldBook(deps.worldInfoExportCtx);
-  const importWorldBook = createImportWorldBook({
-    importStandalone: deps.importStandaloneLorebook,
-  });
-  const listOwnedBookIds = createListOwnedBookIds(deps.worldInfoExportCtx);
-  const worldInfoExportAll = async function* worldInfoAll(ownerId: UserId): AsyncIterable<PortableFile> {
-    for (const bookId of await listOwnedBookIds({ ownerId })) {
-      const book = await exportWorldBook({ ownerId, bookId });
-      if (book !== null) {
-        yield book;
-      }
-    }
-  };
-  const worldInfo: PortableEntity = {
-    kind: "world-info",
-    dir: "world-info/",
-    ext: ".json",
-    exportAll: worldInfoExportAll,
-    importFile: (ownerId, file) => importWorldBook({ ownerId, bytes: file.bytes }),
-  };
-
-  // D121-E: the script library rides the backup bundle as its own entity, so a restore brings the scripts
-  // back even though no character/preset/chat in the bundle references them by junction. `global` is the one
-  // attachment carried (it is a property of the script itself); the other three scopes point at rows the
-  // bundle cannot guarantee, so they are re-attached by hand — the same posture world-info takes.
-  const regex: PortableEntity = {
-    kind: "regex",
-    dir: "regex/",
-    ext: ".json",
-    // @orb-waive compose-wiring-only(exportAll): baselined when the gate landed; burn-down item 964.
-    async *exportAll(ownerId: UserId): AsyncIterable<PortableFile> {
-      for (const file of await deps.exportRegexScripts({ ownerId })) {
-        yield file;
-      }
+  const importWorldBook = createImportWorldBook({ importStandalone: deps.importStandaloneLorebook });
+  return [
+    { kind: "assets", dir: "assets/", ext: "", exportAll: createExportAssets(deps.assetsCtx), importFile: createImportAsset(deps.assetsCtx) },
+    { kind: "gallery", dir: "gallery/", ext: ".json", exportAll: exports.gallery, importFile: (ownerId, file) => importGallery(ownerId, file) },
+    { kind: "tag", dir: "tags/", ext: ".json", exportAll: exports.tag, importFile: imports.tag },
+    { kind: "theme", dir: "themes/", ext: ".json", exportAll: exports.theme, importFile: (ownerId, file) => importTheme(ownerId, file.bytes) },
+    {
+      kind: "user-settings",
+      dir: "user-settings/",
+      ext: ".json",
+      exportAll: exports.userSettings,
+      importFile: (ownerId, file) => importUserSettings(ownerId, file.bytes),
     },
-    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
-    importFile: async (ownerId, file) => {
-      try {
-        const { created } = await deps.importRegexScript({ ownerId, bytes: file.bytes });
-        return { ok: true, created };
-      } catch (err) {
-        return errorOutcome(err);
-      }
+    { kind: "preset", dir: "presets/", ext: ".json", exportAll: exports.preset, importFile: (ownerId, file) => importPreset({ ownerId, bytes: file.bytes }) },
+    {
+      kind: "world-info",
+      dir: "world-info/",
+      ext: ".json",
+      exportAll: exports.worldInfo,
+      importFile: (ownerId, file) => importWorldBook({ ownerId, bytes: file.bytes }),
     },
-  };
-
-  // databank was born AFTER the portability spec froze its kind list, so a full-account backup
-  // silently lost the whole document library. One file per document — `extractedText` IS the canon and can be
-  // megabytes, so the stream pulls one body at a time.
-  const listOwnedDocumentIds = createListOwnedDocumentIds(deps.databankCtx);
-  const exportDocument = createExportDocument(deps.databankCtx);
-  const importDocument = createImportDocument(deps.databankCtx);
-  const databank: PortableEntity = {
-    kind: "databank",
-    dir: "databank/",
-    ext: ".json",
-    // @orb-waive compose-wiring-only(exportAll): baselined when the gate landed; burn-down item 964.
-    async *exportAll(ownerId: UserId): AsyncIterable<PortableFile> {
-      for (const documentId of await listOwnedDocumentIds({ ownerId })) {
-        const file = await exportDocument({ ownerId, documentId });
-        if (file !== null) {
-          yield file;
-        }
-      }
-    },
-    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
-    importFile: async (ownerId, file) => {
-      try {
-        const outcome = await importDocument({ ownerId, bytes: file.bytes });
-        return outcome.ok ? { ok: true, created: outcome.created } : { ok: false, error: outcome.error };
-      } catch (err) {
-        return errorOutcome(err);
-      }
-    },
-  };
-
-  const personaExportAll = async function* personaAll(ownerId: UserId): AsyncIterable<PortableFile> {
-    const principal = await deps.resolveOwnerPrincipal(ownerId);
-    for (const detail of await deps.persona.list({ principal })) {
-      yield await deps.persona.export({ principal, personaId: detail.id });
-    }
-  };
-  const persona: PortableEntity = {
-    kind: "persona",
-    dir: "personas/",
-    ext: ".json",
-    exportAll: personaExportAll,
-    // Pure wiring: the parse, the refusal copy and the idempotent-merge all live in `persona/verbs/import`
-    // (the ONE import path the single-entity door also calls).
-    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
-    importFile: async (ownerId, file) => {
-      try {
-        const principal = await deps.resolveOwnerPrincipal(ownerId);
-        const outcome = await deps.persona.import({ principal, bytes: file.bytes });
-        return outcome.ok ? { ok: true, created: outcome.created } : { ok: false, error: outcome.error };
-      } catch (err) {
-        return errorOutcome(err);
-      }
-    },
-  };
-
-  const characterExportAll = async function* characterAll(ownerId: UserId): AsyncIterable<PortableFile> {
-    const principal = await deps.resolveOwnerPrincipal(ownerId);
-    for (const characterId of await deps.listOwnedCharacterIds(ownerId)) {
-      const card = await deps.exportService.exportCharacter({ principal, characterId });
-      if (card !== null) {
-        yield { filename: card.filename, bytes: card.bytes };
-      }
-    }
-  };
-  const character: PortableEntity = {
-    kind: "character",
-    dir: "characters/",
-    ext: ".png",
-    exportAll: characterExportAll,
-    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
-    importFile: async (ownerId, file) => {
-      try {
-        const service = await buildOwnerImport(deps, ownerId);
-        const result = await service.importCharacter({
-          card: { bytes: file.bytes, filename: file.filename },
-        });
-        // #1688 + #1598: a card whose character already holds an edited primary book imports WITHOUT
-        // re-asserting the card's lorebook. The verb records that; this is where it stops being invisible to
-        // whoever is reading the restore.
-        return { ok: true, created: result.created, ...(result.skippedOverlays.length > 0 ? { notes: result.skippedOverlays } : {}) };
-      } catch (err) {
-        return errorOutcome(err);
-      }
-    },
-  };
-
-  // R6 — an ACCOUNT BACKUP carries the ORB-NATIVE bundle, not the ST interchange. The jsonl arm was the
-  // spec's ruled shape (G-3) and is correct for ST parity, but it carries messages and nothing else: every
-  // chat-anchored plane born after the spec froze (rpg campaigns, `chat_injections`, room overrides, the
-  // `chat_tags` overlay, the per-chat variable/macro picks) was unportable BY CONSTRUCTION, so "backup
-  // everything" quietly excluded whole planes (F9). It is NOT a second `PORTABLE_KINDS` member: that would
-  // put every transcript in every backup TWICE and hand the import router two answers per chat. The jsonl arm
-  // lives on where it belongs — the single-chat share door (`GET /api/export/chat/:id?format=jsonl|txt`) and
-  // the ST import, which the descriptor's import half still accepts by extension.
-  const chatExportAll = async function* chatAll(ownerId: UserId): AsyncIterable<PortableFile> {
-    const principal = await deps.resolveOwnerPrincipal(ownerId);
-    for (const { chatId, handle } of await deps.exportService.listHostChats({ principal })) {
-      const bundle = await deps.exportService.exportChatBundle({ principal, chatId });
-      if (bundle !== null) {
-        // Nest under the host handle, chat id as the leaf (same-title chats can't collide) — the jsonl arm's
-        // layout, unchanged, so the DIRECTORY stays a usable re-link fallback for a file whose carried seat
-        // list did not survive. The verb's own flat slug is the single-chat DOWNLOAD name, not this.
-        yield { filename: `${handle}/${chatId}${CHAT_BUNDLE_EXT}`, bytes: bundle.bytes };
-      }
-    }
-  };
-  const chat: PortableEntity = {
-    kind: "chat",
-    dir: "chats/",
-    // The extension an EXPORT writes. The import half accepts BOTH formats under this dir (an ST `.jsonl`
-    // routes to the interchange verb, anything else to the orb-native one, which refuses by envelope).
-    ext: CHAT_BUNDLE_EXT,
-    exportAll: chatExportAll,
-    // Pure wiring: the format routing, the handle derivation, both parses and every refusal copy live in
-    // `import/verbs/import-chat-file` + `import-chat-bundle` (the ONE path `POST /api/import/chat` also calls).
-    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
-    importFile: async (ownerId, file) => {
-      try {
-        const service = await buildOwnerImport(deps, ownerId);
-        const outcome = await service.importChatFile({ filename: file.filename, bytes: file.bytes });
-        // #1688: an orb-native bundle carries planes the room's canon write does not own (the tag overlay, the
-        // rpg campaign). The verb names each one it could not restore; forwarding them is what keeps a bundle
-        // that dropped a campaign from reporting clean.
-        return outcome.ok
-          ? {
-              ok: true,
-              created: outcome.created,
-              ...(outcome.skippedOverlays.length > 0 ? { notes: outcome.skippedOverlays } : {}),
-              ...(outcome.memoryChatIds.length > 0 ? { memoryChatIds: outcome.memoryChatIds } : {}),
-            }
-          : { ok: false, error: outcome.error };
-      } catch (err) {
-        return errorOutcome(err);
-      }
-    },
-  };
-
-  const imagery: PortableEntity = { kind: "imagery", dir: "imagery/", ext: ".json", exportAll: deps.imagery.exportAll, importFile: deps.imagery.importFile };
-  return [assets, gallery, tag, theme, userSettings, preset, worldInfo, regex, databank, persona, character, chat, imagery];
+    { kind: "regex", dir: "regex/", ext: ".json", exportAll: exports.regex, importFile: imports.regex },
+    { kind: "databank", dir: "databank/", ext: ".json", exportAll: exports.databank, importFile: imports.databank },
+    { kind: "persona", dir: "personas/", ext: ".json", exportAll: exports.persona, importFile: imports.persona },
+    { kind: "character", dir: "characters/", ext: ".png", exportAll: exports.character, importFile: imports.character },
+    { kind: "chat", dir: "chats/", ext: CHAT_BUNDLE_EXT, exportAll: exports.chat, importFile: imports.chat },
+    { kind: "imagery", dir: "imagery/", ext: ".json", exportAll: deps.imagery.exportAll, importFile: deps.imagery.importFile },
+  ];
 }

@@ -270,6 +270,21 @@ describe("runProfileDirImport", () => {
 });
 
 describe("createNodeFsImportPort", () => {
+  test("reads an ordinary leaf but refuses a staged leaf pointing outside the profile", async () => {
+    const fs = createNodeFsImportPort();
+    const base = await mkdtemp(join(tmpdir(), "profile-nofollow-"));
+    const external = join(base, "external.json");
+    const leaf = join(base, "staged.json");
+    try {
+      await writeFile(external, "external-private-marker");
+      await expect(fs.readFile(external)).resolves.toEqual(new TextEncoder().encode("external-private-marker"));
+      await symlink(external, leaf);
+      await expect(fs.readFile(leaf)).rejects.toMatchObject({ code: "ELOOP" });
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
   test("readdir resolves [] for a missing dir instead of throwing", async () => {
     const fs = createNodeFsImportPort();
     await expect(fs.readdir("/no/such/orbweaver/profile/dir")).resolves.toEqual([]);
