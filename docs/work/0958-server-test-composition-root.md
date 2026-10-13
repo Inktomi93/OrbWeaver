@@ -27,16 +27,18 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 Production database and clock seams are partial. Provider overrides script external execution, never runtime admission, funding, accounting or persisted resolution.
 
-Thread deterministic IDs through actual owner writes, including sessions, notifications, stats and nested RPG operations. Thread business randomness and timer controls through turn heartbeats, deadlines, retries and observers. Keep security-token randomness distinct. A top-level seeded-ID or clock field does not establish deterministic composition; preserve database-owned timestamp semantics.
+Thread deterministic IDs through actual owner writes. Inject business randomness and timers through heartbeats, deadlines, retries and observers. Keep security-token randomness distinct and preserve database-owned timestamps.
 
-Expose the complete plugin-host edge and its lifecycle, not only per-instance disposal. Cover outbound imagery, scraping, plugin installation and plugin egress without bypassing network admission. The root must settle startup, failed-construction cleanup and teardown of database, runtime, workers and host resources. Temporary-directory deletion alone is not cleanup.
+Expose plugin-host execution and lifecycle. Inject imagery, scraping, installation and plugin egress without bypassing admission. Join startup, failed construction and teardown of database, runtime, workers and host resources. Deleting temporary files is not cleanup.
 
 `packages/server/src/foundation/observability/tracing.ts` resolves `superviseSettled` before the enclosing request span closes and its rejection report completes. Repair that existing completion boundary so harness teardown joins the actual supervised operation. Preserve the existing trace status and error report; prove completion and rejection through the public observability surface.
 
-Refresh the seam inventory after compose integration. Preserve one production graph and world separation; the existing fixture does not supply every edge.
+Keep transport event buses and the chat-open tap graph-owned. Wire both publishers and subscribers through the same instance. Preserve synthetic timing and automation behavior. Prove concurrent roots with identical IDs cannot share events; disposal may finish out of order. Join aborted socket room pumps before database disposal.
 
-Notifications supplies the replacement case set. Preserve scope, replay, standing, persistence and projection assertions through real composition. Adjudicate unused helper cases without fake callers. Delete legacy suites and their harness only after matching replacement proof.
+Notifications supplies the replacement case set. Preserve scope, replay, standing, persistence and projection assertions. Adjudicate unused cases without fake callers; delete legacy only after matching replacement proof.
 
 Public notification verbs can replace their copied assembly independently. Keep unresolved direct persistence cases in legacy until production intent and replacement are adjudicated. That partial port does not establish complete domain replacement. The root must also reuse production HTTP construction and request identity for corpus auth outputs.
 
-Scoped network controls expose a real endpoint-port defect: resolved CIDR admission can widen an explicitly restricted hostname port. The correction rejects that path before physical dialing and preserves declared-port, unrelated-host and public-address admission. Completed controls establish this behavior only. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.
+Scoped controls prove resolved CIDR admission can widen a restricted hostname port. The correction rejects that path before dialing and preserves declared-port, unrelated-host and public-address admission. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.
+
+Response ownership must await physical cancellation even when a pending read observes EOF first. Immutable clone-header behavior remains an unresolved adapter boundary; native metadata alone does not establish equivalent Response semantics.
