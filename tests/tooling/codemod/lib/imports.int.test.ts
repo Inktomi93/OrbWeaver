@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { describe, vi } from "vitest";
-import { moduleStringArg, repointAliasPaths, routeSymbolsByMap } from "../../../../tooling/src/codemod/index.ts";
+import { findImporters, moduleStringArg, repointAliasPaths, repointImports, routeSymbolsByMap } from "../../../../tooling/src/codemod/index.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { withTree } from "../_kit-tree.ts";
 
@@ -54,6 +54,41 @@ test("moduleStringArg preserves its exact admission around shadowed bindings and
     null,
     null,
   ]);
+});
+
+test("exact import queries preserve declaration order and never expand to peer targets or other module positions", async () => {
+  const before =
+    'import { value as Exact } from "./source.ts";\n' +
+    'import type { Shape } from "./source.ts";\n' +
+    'import { value as Peer } from "./source";\n' +
+    'import { value as Longer } from "./source.ts-extra";\n' +
+    'export { value as Public } from "./source.ts";\n' +
+    'const later = import("./source.ts");\nvi.mock("./source.ts");\n';
+  await withTree({ "source.ts": "export const value = 1;\nexport interface Shape {}\n", "consumer.ts": before }, async ({ run, read }) => {
+    const { result, output } = await run((ctx) => {
+      expect(findImporters(ctx.project, "./source.ts").map((declaration) => declaration.getText())).toEqual([
+        'import { value as Exact } from "./source.ts";',
+        'import type { Shape } from "./source.ts";',
+      ]);
+      ctx.plan(repointImports(ctx, "./source.ts", "./destination.ts"));
+      expect(findImporters(ctx.project, "./source.ts")).toEqual([]);
+      expect(findImporters(ctx.project, "./destination.ts").map((declaration) => declaration.getText())).toEqual([
+        'import { value as Exact } from "./destination.ts";',
+        'import type { Shape } from "./destination.ts";',
+      ]);
+      expect(
+        ctx.project
+          .getSourceFiles()
+          .find((file) => file.getBaseName() === "consumer.ts")
+          ?.getFullText(),
+      ).toBe(before.replace('from "./source.ts"', 'from "./destination.ts"').replace('from "./source.ts"', 'from "./destination.ts"'));
+    });
+
+    expect(result.filesChanged).toBe(1);
+    expect(output).toContain('Repoint imports "./source.ts" → "./destination.ts" (2 declarations)');
+    expect(output).toContain("~ consumer.ts");
+    expect(read("consumer.ts")).toBe(before);
+  });
 });
 
 const fourFiles = {

@@ -84,3 +84,47 @@ test("a routed file that matches no role refuses before anything moves", async (
   expect(() => planRelocation(root, ROUTED_PLAN)).toThrow(CodemodError);
   expect(() => planRelocation(root, ROUTED_PLAN)).toThrow(/stray\.ts matches no role/u);
 });
+
+test("relocation retains its complete module-position grammar without rewriting lookalike data", async ({ plantedTree }) => {
+  const admitted = [
+    'import { n } from "./old/net.ts";',
+    'export { n } from "./old/net.ts";',
+    'import old = require("./old/net.ts");',
+    'type Old = import("./old/net.ts").Old;',
+    'import("./old/net.ts");',
+    "import(`./old/net.ts`);",
+    'require("./old/net.ts");',
+    'require.resolve("./old/net.ts");',
+    'import.meta.resolve("./old/net.ts");',
+    'createRequire(import.meta.url)("./old/net.ts");',
+    'vi.mock("./old/net.ts");',
+    'vi.doMock("./old/net.ts");',
+    'vi.unmock("./old/net.ts");',
+    'vi.doUnmock("./old/net.ts");',
+    'vi.importActual("./old/net.ts");',
+    'vi.importMock("./old/net.ts");',
+    'new URL("./old/net.ts", import.meta.url);',
+  ];
+  const data = [
+    'new URL("./old/net.ts", anotherBase);',
+    'vi["mock"]("./old/net.ts");',
+    'vi.mock("untracked", "./old/net.ts");',
+    'readFileSync("./old/net.ts");',
+    'const path = "./old/net.ts";',
+  ];
+  const before = `${[...admitted, ...data].join("\n")}\n`;
+  const root = await gitTree(plantedTree, { "tool/src/old/net.ts": "export const n = 1;\n", "tool/src/use.ts": before });
+
+  const result = planRelocation(root, relocatePlanSchema.parse({ moves: [{ from: "tool/src/old", to: "tool/src/new" }] }));
+
+  expect(result.writes.get("tool/src/use.ts")).toBe(`${[...admitted.map((line) => line.replace("./old/net.ts", "./new/net.ts")), ...data].join("\n")}\n`);
+  expect(result.notes).toEqual(
+    data.map((_line, index) => ({
+      file: "tool/src/use.ts",
+      line: admitted.length + index + 1,
+      text: "./old/net.ts",
+      reason: "a relative literal outside a module position; its file-relative spelling would be ./new/net.ts",
+    })),
+  );
+  expect(read(root, "tool/src/use.ts")).toBe(before);
+});

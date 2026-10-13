@@ -214,6 +214,8 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 Give lanes cohesive assignments with explicit ownership, affected behavior and a scoped floor. Batch review corrections into the assignment's final commit. The orchestrator schedules compiler and gate-heavy work; lanes request permission before whole-tree checks.
 
+Run affected typechecks, scoped tests and focused check or structure selections concurrently within measured host limits. Reserve whole-tree runs for the main-owned qualification boundary.
+
 Commit red is permitted under the owner-authorized check bypass, retaining commit-message validation and recording the reason and deferred checks. This does not permit suppressions, waiver inflation or weakened assertions.
 
 Use one independent review per substantive wave and reuse matching completed checks. Recheck only concrete failures or changed behavior. D317 owns the single application check before an owner-authorized push; no whole-tree check follows each merge. The dev stack is disposable; the release container is outside this program's authority.

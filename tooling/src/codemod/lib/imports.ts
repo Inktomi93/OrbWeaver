@@ -3,6 +3,7 @@
 
 import type { CallExpression, ImportDeclaration, Project, SourceFile, SourceFileReferencingNodes, StringLiteral } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { collectModuleImporters } from "../../floor/code-facts/module-importers.ts";
 import { declarationBindingKeys, inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { CodemodContext, ImportSpecFilter, OperationOptions, Plan } from "../contract/types.ts";
 import { groupImportsByDestination, mergeNamedImportInto, routeSpecifiersToDestination } from "./import-routing.ts";
@@ -15,15 +16,9 @@ import { absolutePath, assert, assertPathString, noteSuffix, repoRelative } from
  * importing file.
  */
 export function findImporters(project: Project, moduleSpecifier: string): ImportDeclaration[] {
-  const out: ImportDeclaration[] = [];
-  for (const sf of project.getSourceFiles()) {
-    for (const decl of sf.getImportDeclarations()) {
-      if (decl.getModuleSpecifierValue() === moduleSpecifier) {
-        out.push(decl);
-      }
-    }
-  }
-  return out;
+  return collectModuleImporters(project.getSourceFiles(), moduleSpecifier, "exact-import-spelling")
+    .hits.map(({ node }) => node)
+    .filter(Node.isImportDeclaration);
 }
 
 /**

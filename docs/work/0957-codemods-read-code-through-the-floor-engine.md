@@ -23,4 +23,6 @@ Codemod read paths call the floor engine; each codemod's dry-run plan is unchang
 
 ## Evidence
 
-The reviewed batch routes exported declarations, export origins, static import closure and imported Vitest binding identity through existing floor readers. Original-source preservation controls and the changed corpus pass. Scoped lint and tooling/root configs pass; independent source and artifact review confirms the batch. Native manipulation and compiler relations retain their owners. Exact-spelling import queries, broader relocation grammar and remaining shared syntax questions require separate admission-preserving consolidation; this integration does not close the item.
+Exported declarations, export origins, static import closure and imported Vitest binding identity use existing floor readers. Original-source preservation controls and the changed corpus pass. Scoped lint and tooling/root configs pass; independent source and artifact review confirms the batch. Native manipulation and compiler relations retain their owners; this integration does not close the item.
+
+The next reviewed batch shares exact-import admission and module-position grammar through the floor. It preserves default native matching, nonliteral arguments, relocation-specific forms and URL rewrite refusal. Original-source preservation and changed cases pass with scoped lint and tooling/root configs. Remaining native diagnostics, relation queries and caller-specific spelling decisions retain their semantics; full reader qualification remains required.

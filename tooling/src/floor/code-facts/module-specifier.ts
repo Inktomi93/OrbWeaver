@@ -1,9 +1,9 @@
 // Authored module positions and path spellings; native resolution belongs to module-target.
 import { posix } from "node:path";
 import type { Node as MorphNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { ts } from "ts-morph";
 import { PACKAGE_NAMES } from "../compiler/project-worlds.ts";
-import type { PackageFileReach, RelativeClimb } from "./module-reach-contract.ts";
+import type { ModulePositionAdmission, PackageFileReach, RelativeClimb } from "./module-reach-contract.ts";
 
 /** The test kit's package root and the specifier prefix its world subpaths export under. */
 export const TESTKIT_ROOT = "tests/support/";
@@ -13,22 +13,37 @@ const PACKAGE_SOURCE = /^packages\/([^/]+)\/src\/(.+)$/u;
 const MODULE_CALLEES: ReadonlySet<string> = new Set(["vi.mock", "vi.doMock", "vi.unmock", "vi.doUnmock", "vi.importActual", "vi.importMock", "require"]);
 const PACKAGES: ReadonlySet<string> = new Set(PACKAGE_NAMES);
 
-/** The string literal in a module position: an import or re-export declaration, `import()` in a value or type position, or a vi.mock-family or
+/** The authored argument in a module position: an import or re-export declaration, `import()` in a value or type position, or a vi.mock-family or
  *  `require` call. Anything else (a path read as data, a fixture source string) is not a module edge. */
 export function modulePositionSpecifier(node: MorphNode): MorphNode | undefined {
-  if (Node.isImportDeclaration(node) || Node.isExportDeclaration(node)) {
-    return node.getModuleSpecifier();
+  const specifier = nativeModulePositionSpecifier(node.compilerNode);
+  return specifier === undefined ? undefined : node.getDescendantAtStartWithWidth(specifier.getStart(), specifier.getWidth());
+}
+
+/** Read the authored argument without resolving its target or imposing a literal-only caller admission. */
+export function nativeModulePositionSpecifier(node: ts.Node, admission: ModulePositionAdmission = {}): ts.Node | undefined {
+  if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+    return node.moduleSpecifier;
   }
-  if (Node.isImportTypeNode(node)) {
-    const argument = node.getArgument();
-    return Node.isLiteralTypeNode(argument) ? argument.getLiteral() : undefined;
+  if (ts.isImportTypeNode(node)) {
+    return ts.isLiteralTypeNode(node.argument) ? node.argument.literal : undefined;
   }
-  if (!Node.isCallExpression(node)) {
-    return;
+  if (admission.importEquals === true && ts.isExternalModuleReference(node)) {
+    return node.expression;
   }
-  const callee = node.getExpression();
-  const isModuleCall = callee.getKind() === SyntaxKind.ImportKeyword || MODULE_CALLEES.has(callee.getText());
-  return isModuleCall ? node.getArguments()[0] : undefined;
+  if (ts.isCallExpression(node)) {
+    const callee = node.expression;
+    const spelling = callee.getText();
+    const isModuleCall =
+      callee.kind === ts.SyntaxKind.ImportKeyword ||
+      MODULE_CALLEES.has(spelling) ||
+      admission.additionalCallees?.has(spelling) === true ||
+      (admission.createRequire === true && ts.isCallExpression(callee) && callee.expression.getText() === "createRequire");
+    return isModuleCall ? node.arguments[0] : undefined;
+  }
+  return admission.fileUrl === true && ts.isNewExpression(node) && node.expression.getText() === "URL" && node.arguments?.[1]?.getText() === "import.meta.url"
+    ? node.arguments[0]
+    : undefined;
 }
 
 /** A relative specifier from `importer` that climbs into a package's `src/`, or into the test kit from outside it. */

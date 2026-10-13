@@ -1,5 +1,5 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { ModuleKind, ModuleResolutionKind, Node, Project } from "ts-morph";
+import { ModuleKind, ModuleResolutionKind, Node, Project, SyntaxKind } from "ts-morph";
 import { inventoryConsumerClass } from "../../../../tooling/src/floor/code-facts/inventory-consumers.ts";
 import { collectModuleImporters } from "../../../../tooling/src/floor/code-facts/module-importers.ts";
 import { modulePositionSpecifier } from "../../../../tooling/src/floor/code-facts/module-specifier.ts";
@@ -48,6 +48,32 @@ declare const computed: string; import(computed); vi.mock(computed);
   ]);
 });
 
+test("default module grammar retains nonliteral arguments without admitting relocation-only forms", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    `${ROOT}/tests/arguments.test.ts`,
+    "declare const computed: string; import(computed); vi.mock(computed); require(computed);\n" +
+      'require.resolve("resolve-only"); import.meta.resolve("meta-only"); createRequire(import.meta.url)("created-only");\n' +
+      'new URL("url-only", import.meta.url); import other = require("equals-only");\n',
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  expect(calls.map((call) => modulePositionSpecifier(call)?.getText())).toEqual([
+    "computed",
+    "computed",
+    "computed",
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+  ]);
+  expect(
+    source.getDescendants().flatMap((node) => {
+      const argument = modulePositionSpecifier(node);
+      return argument === undefined ? [] : [argument.getText()];
+    }),
+  ).toEqual(["computed", "computed", "computed"]);
+});
+
 test("native importer identity includes alias peers and literal dynamic imports without counting mock, require or import-type spelling", () => {
   const project = new Project({
     useInMemoryFileSystem: true,
@@ -69,6 +95,9 @@ test("native importer identity includes alias peers and literal dynamic imports 
   expect(new Set(result.hits.map(({ node, kind }) => `${node.getSourceFile().getBaseName()}:${kind}`))).toEqual(
     new Set(["alias.ts:import", "relative.ts:import", "dynamic.ts:dynamic-import"]),
   );
+  const exact = collectModuleImporters(project.getSourceFiles(), "#target", "exact-import-spelling");
+  expect(exact.hits.map(({ node }) => node.getSourceFile().getBaseName())).toEqual(["alias.ts"]);
+  expect([...exact.targetPaths]).toEqual([]);
 });
 
 test("unqualified syntax carriers refuse native importer, test and runtime reach rather than claiming empty facts", () => {
@@ -122,6 +151,10 @@ test("unqualified syntax carriers refuse native importer, test and runtime reach
     throw new Error("refusal fixture must contain the same runtime source");
   }
   expect(() => collectModuleImporters(syntaxFiles, "target.ts")).toThrow(SemanticInventoryError);
+  expect(
+    collectModuleImporters(syntaxFiles, "../../packages/kit/src/target.ts", "exact-import-spelling").hits.map(({ node }) => node.getSourceFile().getFilePath()),
+  ).toEqual([spec.getFilePath(), runtime.getFilePath()].toSorted());
+  expect(collectModuleImporters(syntaxFiles, "target.ts", "exact-import-spelling").hits).toEqual([]);
   expect(() => collectModuleImporters(syntaxFiles, "target.ts")).toThrow("importer queries require an explicit native program view");
   expect(() => testReach({ ...input, files: syntaxFiles })).toThrow("test reach requires an explicit native program view");
   expect(() => reachableDeclarations(syntaxRuntime.getVariableDeclarationOrThrow("create").getInitializerOrThrow(), new Map())).toThrow(
