@@ -5,7 +5,7 @@
 // for a method it lacks.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import type { ModelListing, ProviderId, Wire } from "@orb/contracts/inference";
+import type { ModelListing, ProviderId, UserConnection, Wire } from "@orb/contracts/inference";
 import type {
   AccountCredits,
   EmbedResult,
@@ -16,7 +16,7 @@ import type {
   SummarizeResult,
   VerifyAuthResult,
 } from "@orb/contracts/providers";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AgentTurnRequest } from "./agent.ts";
 import type { ChatRequest, ChatResult } from "./chat.ts";
 import type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, VerifyAuthRequest } from "./diagnostics.ts";
@@ -81,6 +81,9 @@ export type WireCaptureSink = (entry: {
 /** The registry the runtime builds: one entry per wire whose `needs` were present at construction. A task
  *  that resolves to an absent wire fail-closes (`unavailable` — an operator error, never a silent default). */
 export type BackendRegistry = ReadonlyMap<Wire, ProviderBackend>;
+
+/** The runtime's canonical ownership check, before opening a stored connection's private fields. */
+export type ReadOwnedExecutionConnection = (connectionId: UserConnection["id"], ownerId: UserId) => Promise<UserConnection>;
 
 /** The bound task surface — `createProviderExecutor(registry)` returns this. Consumers call these with a
  *  `Resolved` connection and never see a wire or a backend. */

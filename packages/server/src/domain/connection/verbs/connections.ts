@@ -327,10 +327,11 @@ function createRemove(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): Con
   return (params): Promise<void> =>
     rowWrite(ctx, ownerWrites, { ownerId: params.principal.userId, connectionId: params.connectionId }, async () => {
       const ownerId = params.principal.userId;
-      const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
       // No embed-space trigger: the delete sets every binding on the row to nothing, and nothing can embed there.
-      await deleteOwnedConnection(ctx.db, ownerId, row.id);
-      await ctx.audit({ actorUserId: ownerId, action: "connection.remove", entityType: "connection", entityId: row.id }, ctx.now());
+      if (!(await deleteOwnedConnection(ctx.db, ownerId, params.connectionId))) {
+        throw new ConnectionNotFoundError(params.connectionId);
+      }
+      await ctx.audit({ actorUserId: ownerId, action: "connection.remove", entityType: "connection", entityId: params.connectionId }, ctx.now());
       ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
     });
 }

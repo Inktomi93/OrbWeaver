@@ -5,7 +5,7 @@
 import type { CredentialHealth, ProviderMetadata } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
-import type { ProviderErrorKind } from "@orb/inference";
+import type { InferenceDeps } from "@orb/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 
 /** Common to every ownership-scoped credential verb: the acting principal (`principal.userId` is the
@@ -25,23 +25,8 @@ export interface ResolveCredentialParams {
   readonly providerId: ProviderId;
 }
 
-/** Post-generation `auth_failed` side-effect input (the chat engine's three generation catch seams and the
- *  role-clients strike-out inject this verb). `credentialId` is `null` for keyless rows — no row to revoke —
- *  and is the id the generation ACTUALLY authenticated with, never a post-failure re-resolve (a rotate between
- *  the rejection and the strike would otherwise revoke the user's new, good key).
- *
- *  `errorKind` is the CLOSED provider union, not a free string (#1373): an open discriminator on an INJECTED op
- *  is precisely what hid the defect for the life of the feature. `errorMessage` is operator-facing provenance
- *  that reaches the security-event log, so it must be secret-free — `ProviderError.message` is contractually so.
- *
- *  `ownerId` IS THE SCOPE (`injected-op-caller-param`): it becomes the WHERE predicate of the revoke, so a
- *  credentialId this owner does not hold matches no row and the strike refuses loudly. */
-export interface MaybeRevokeParams {
-  readonly ownerId: UserId;
-  readonly credentialId: UserCredentialId | null;
-  readonly errorKind: ProviderErrorKind;
-  readonly errorMessage: string;
-}
+/** The canonical executor callback carries only scoped, opaque dispatched-key evidence. */
+export type MaybeRevokeParams = Parameters<NonNullable<InferenceDeps["onAuthFailed"]>>[0];
 
 /** The ROW half of a connection probe. `result` is the diagnostic's verdict (the connection domain dialled);
  *  `localEndpoint` says the dialled host was loopback/LAN — an offline box there is a REACHABILITY fact, never

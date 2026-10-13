@@ -1,4 +1,4 @@
-import type { ResolvedSecret } from "@orb/contracts/credentials";
+import type { CredentialExecutionEvidence, ResolvedSecret } from "@orb/contracts/credentials";
 import type { BeginEmbeddingAccounting } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type {
@@ -168,8 +168,14 @@ export interface SnapshotStore {
   readonly deletePrefix: (prefix: string) => Promise<void>;
 }
 
+/** The by-id read exposes scope before decoding stored JSON, so corrupt foreign bytes cannot hide a mismatch. */
+export interface StoredConnectionRead {
+  readonly ownerId: UserId;
+  readonly parse: () => UserConnection;
+}
+
 export interface ConnectionStore {
-  readonly get: (id: UserConnection["id"]) => Promise<UserConnection | null>;
+  readonly get: (id: UserConnection["id"]) => Promise<StoredConnectionRead | null>;
   readonly listForOwner: (ownerId: UserId) => Promise<readonly UserConnection[]>;
 }
 
@@ -215,12 +221,13 @@ export interface InferenceDeps {
     readonly providerId: ProviderId;
   }) => Promise<ResolvedSecret>;
   readonly onAuthFailed?:
-    | ((args: {
-        readonly ownerId: UserId;
-        readonly credentialId: UserCredentialId | null;
-        readonly errorKind: ProviderErrorKind;
-        readonly errorMessage: string;
-      }) => Promise<void>)
+    | ((
+        args: CredentialExecutionEvidence & {
+          readonly ownerId: UserId;
+          readonly errorKind: ProviderErrorKind;
+          readonly errorMessage: string;
+        },
+      ) => Promise<void>)
     | undefined;
   readonly connections: ConnectionStore;
   readonly bindings: BindingStore;

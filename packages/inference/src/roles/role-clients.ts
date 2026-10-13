@@ -1,9 +1,5 @@
-// `roleClientsFor(funder, actor?)` — the per-call `RoleClients` bundle (§3.3, §8.5b). Every callable resolves
-// its task through the fold AT CALL TIME (a re-pointed binding governs the very next call, no restart, no
-// invalidation hook to forget), names its task at the call site (`structured` is a method, never sniffed
-// off an option — §7.5-1), and hands a provider failure to the credentials domain's strike-out before
-// re-throwing the ORIGINAL error unchanged (#1800). One `resolved(task)` read replaces the six per-role
-// getters: model, capability and connection id in one object, read live.
+// Each callable folds its binding at call time; a re-point governs the next call without invalidation.
+// The executor owns execution authority and strike-out; resolved(task) keeps the unavailable projection.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Task, UnavailableCause } from "@orb/contracts/inference";
@@ -11,14 +7,13 @@ import { canFund } from "@orb/contracts/inference";
 import { rolePresetParamsOf } from "@orb/contracts/preset";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, SummarizeInput } from "@orb/contracts/role-clients";
-import type { UserId } from "@orb/kit/ids";
 import type { ProviderExecutor } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
 import type { RoleClientsFor } from "../contract/runtime.ts";
-import type { BindingActor, InferenceDeps } from "../deps.ts";
+import type { BindingActor } from "../deps.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
 import type { ResolverContext } from "../resolve/resolve-task.ts";
 import { NoConnectionError, resolveTask } from "../resolve/resolve-task.ts";
@@ -52,16 +47,6 @@ export function unavailableRefusal(task: Task, cause: UnavailableCause): NoConne
   return new NoConnectionError(REFUSAL_TEXT[cause](task));
 }
 
-function providerFailureOf(err: unknown): ProviderError | null {
-  let cause: unknown = err;
-  const seen = new Set<unknown>();
-  while (cause instanceof Error && !(cause instanceof ProviderError) && cause.cause !== undefined && !seen.has(cause)) {
-    seen.add(cause);
-    cause = cause.cause;
-  }
-  return cause instanceof ProviderError ? cause : null;
-}
-
 /** The embed request off the fold's knobs — each optional knob spread only when set (`exactOptionalPropertyTypes`). */
 function embedRequestOf(conn: Resolved<"embed">, input: string | readonly string[], knobs: ResolvedEmbedKnobs): EmbedRequest {
   return {
@@ -73,37 +58,8 @@ function embedRequestOf(conn: Resolved<"embed">, input: string | readonly string
   };
 }
 
-/** Run one task's provider call; on failure let the credentials domain decide whether it costs the key the
- *  call ran under (#1800), then rethrow the ORIGINAL error (the recall seam reads this exact object). */
-async function runWithStrikeOut<T>(args: {
-  readonly deps: InferenceDeps;
-  readonly ownerId: UserId;
-  readonly conn: Resolved;
-  readonly call: () => Promise<T>;
-}): Promise<T> {
-  const { deps, conn } = args;
-  try {
-    return await args.call();
-  } catch (err) {
-    const failure = providerFailureOf(err);
-    if (failure !== null && deps.onAuthFailed !== undefined) {
-      // @orb-waive caught-failure-ownership(Promise.resolve): strike-out is a passenger side effect; its failure is warning-logged and the provider's original error is rethrown. Precedent: packages/server/src/entry/import/run-profile-import.ts accepts the same passenger-side-effect failure while preserving the primary owner. Ends if either owner changes.
-      await Promise.resolve(
-        deps.onAuthFailed({ ownerId: args.ownerId, credentialId: conn.credential.credentialId, errorKind: failure.kind, errorMessage: failure.message }),
-      ).catch((strikeErr: unknown) => {
-        deps.log.warn({ task: conn.task, err: strikeErr }, "inference: the credential strike-out failed (the call's own error is unaffected)");
-      });
-    }
-    throw err;
-  }
-}
-
-export function createRoleClientsFor(args: {
-  readonly deps: InferenceDeps;
-  readonly ctx: ResolverContext;
-  readonly executor: ProviderExecutor;
-}): RoleClientsFor {
-  const { deps, ctx, executor } = args;
+export function createRoleClientsFor(args: { readonly ctx: ResolverContext; readonly executor: ProviderExecutor }): RoleClientsFor {
+  const { ctx, executor } = args;
 
   return (funder: Principal, actor?: BindingActor): RoleClientsWithSignal => {
     const live = async <T extends DeriveTask>(task: T): Promise<Resolved<T>> => {
@@ -116,8 +72,6 @@ export function createRoleClientsFor(args: {
       return resolved as Resolved<T>;
     };
 
-    const withStrikeOut = <T>(conn: Resolved, call: () => Promise<T>): Promise<T> => runWithStrikeOut({ deps, ownerId: funder.userId, conn, call });
-
     return {
       embed: async (input, opts): Promise<EmbedResult> => {
         const conn = await live("embed");
@@ -125,42 +79,36 @@ export function createRoleClientsFor(args: {
           throw new ProviderError({ kind: "invalid", retryable: false, message: "the embed binding resolved to a non-embedding model" });
         }
         const knobs = resolveEmbed({ inputType: opts?.inputType, instruction: opts?.instruction }, conn.capability.embedding);
-        return withStrikeOut(conn, () => executor.embed(embedRequestOf(conn, input, knobs)));
+        return executor.embed(embedRequestOf(conn, input, knobs));
       },
       rerank: async (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> => {
         const conn = await live("rerank");
-        return withStrikeOut(conn, () =>
-          executor.rerank({ connection: conn, query, documents, ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}) }),
-        );
+        return executor.rerank({ connection: conn, query, documents, ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}) });
       },
       imageEmbed: async (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
         const conn = await live("imageEmbed");
-        return withStrikeOut(conn, () => executor.imageEmbed({ connection: conn, input: req }));
+        return executor.imageEmbed({ connection: conn, input: req });
       },
       summarize: async (inputs: readonly SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> => {
         const conn = await live("summarize");
-        return withStrikeOut(conn, () =>
-          executor.summarize({
-            connection: conn,
-            inputs,
-            onObservedResult: opts?.onObservedResult,
-            ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
-            ...samplerFields(opts),
-          }),
-        );
+        return executor.summarize({
+          connection: conn,
+          inputs,
+          onObservedResult: opts?.onObservedResult,
+          ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
+          ...samplerFields(opts),
+        });
       },
       structured: async (inputs: readonly SummarizeInput[], opts: StructuredCallOptions): Promise<SummarizeResult> => {
         const conn = await live("structured");
-        return withStrikeOut(conn, () =>
-          executor.structured({
-            connection: conn,
-            inputs,
-            responseFormat: opts.responseFormat,
-            onObservedResult: opts.onObservedResult,
-            ...(opts.signal !== undefined ? { signal: opts.signal } : {}),
-            ...samplerFields(opts),
-          }),
-        );
+        return executor.structured({
+          connection: conn,
+          inputs,
+          responseFormat: opts.responseFormat,
+          onObservedResult: opts.onObservedResult,
+          ...(opts.signal !== undefined ? { signal: opts.signal } : {}),
+          ...samplerFields(opts),
+        });
       },
       resolved: async (task: DeriveTask): Promise<Resolved | null> => {
         try {

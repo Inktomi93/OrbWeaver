@@ -101,13 +101,30 @@ declare const secretBrand: unique symbol;
 export const RESOLVED_SECRET_KINDS = ["apiKey", "oauthToken", "bearer", "none"] as const;
 export type ResolvedSecretKind = (typeof RESOLVED_SECRET_KINDS)[number];
 
-/** The decrypted secret a resolved connection carries. Brand-protected for the same reason
- *  the retired `ResolvedCredential` union was: the ONLY producer is the credentials domain's resolve factory, so a
- *  `{ secret: "…" }` literal cannot impersonate a row that was actually decrypted under its AAD.
- *  `credentialId` is `null` and `kind` is `none` exactly together. */
-export interface ResolvedSecret {
-  readonly [secretBrand]: true;
-  readonly credentialId: UserCredentialId | null;
-  readonly kind: ResolvedSecretKind;
-  readonly secret: string | null;
+declare const executionWitnessBrand: unique symbol;
+
+/** Opaque evidence of the sealed credential admitted for one execution; only its owner can inspect it. */
+export interface CredentialExecutionWitness {
+  readonly [executionWitnessBrand]: true;
+}
+
+/** Keyless executions carry no credential evidence; keyed executions always carry both fields. */
+export type CredentialExecutionEvidence =
+  | { readonly credentialId: null; readonly executionWitness: null }
+  | { readonly credentialId: UserCredentialId; readonly executionWitness: CredentialExecutionWitness };
+
+/** Decrypted authority minted by the credentials domain after ownership and AAD verification. */
+export type ResolvedSecret = { readonly [secretBrand]: true } & (
+  | (Extract<CredentialExecutionEvidence, { credentialId: null }> & { readonly kind: "none"; readonly secret: null })
+  | (Extract<CredentialExecutionEvidence, { credentialId: UserCredentialId }> & {
+      readonly kind: Exclude<ResolvedSecretKind, "none">;
+      readonly secret: string;
+    })
+);
+
+/** Project dispatched-key evidence without forwarding decrypted material to the strike-out operation. */
+export function credentialExecutionEvidenceOf(secret: ResolvedSecret): CredentialExecutionEvidence {
+  return secret.credentialId === null
+    ? { credentialId: null, executionWitness: null }
+    : { credentialId: secret.credentialId, executionWitness: secret.executionWitness };
 }

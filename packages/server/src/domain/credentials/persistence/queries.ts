@@ -8,8 +8,9 @@ import type { Db } from "@orb/db";
 import { userCredentials } from "@orb/db";
 import { fetchOwned } from "@orb/db/query";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";
+import type { CapturedCredentialExecution, CredentialExecutionStrike } from "../contract/execution-witness.ts";
 import type { CredentialView } from "../contract/views.ts";
 
 type CredentialRow = typeof userCredentials.$inferSelect;
@@ -134,6 +135,24 @@ export function setRevokedById(
     .set({ revokedAt: args.revokedAt, revokedReason: args.reason, updatedAt: args.revokedAt })
     .where(and(eq(userCredentials.id, args.credentialId), eq(userCredentials.ownerId, args.ownerId)))
     .returning({ id: userCredentials.id });
+}
+
+/** Apply rejection only to the dispatched material; a same-id replacement remains untouched atomically. */
+export function strikeCredentialExecution(db: Db, captured: CapturedCredentialExecution, revokedAt: number): Promise<CredentialExecutionStrike[]> {
+  const sameMaterial = and(
+    eq(userCredentials.ciphertext, captured.sealed.ciphertext),
+    eq(userCredentials.iv, captured.sealed.iv),
+    eq(userCredentials.tag, captured.sealed.tag),
+  );
+  return db
+    .update(userCredentials)
+    .set({
+      revokedAt: sql`case when ${sameMaterial} then ${revokedAt} else ${userCredentials.revokedAt} end`,
+      revokedReason: sql`case when ${sameMaterial} then ${"auth_failed" satisfies CredRevokedReason} else ${userCredentials.revokedReason} end`,
+      updatedAt: sql`case when ${sameMaterial} then ${revokedAt} else ${userCredentials.updatedAt} end`,
+    })
+    .where(and(eq(userCredentials.id, captured.credentialId), eq(userCredentials.ownerId, captured.ownerId)))
+    .returning({ id: userCredentials.id, applied: sql`case when ${sameMaterial} then 1 else 0 end`.mapWith(Boolean) });
 }
 
 /** Clear a revocation (owner-scoped) — the user knows the key is good again. */

@@ -119,6 +119,7 @@ export type {
   Reachability,
   ScheduleTimeout,
   SpawnIdentity,
+  StoredConnectionRead,
 } from "./runtime.ts";
 export { ANTH_IMAGE_MEDIA_TYPES, LOCAL_LIGHT_MODEL_SLOTS } from "./runtime.ts";
 export type { ChatPosture, SideGenSampling } from "./side-gen.ts";

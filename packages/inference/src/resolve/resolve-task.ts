@@ -284,7 +284,7 @@ async function connectionFor(ctx: ResolverContext, args: ResolveArgs): Promise<U
     // distinction survives INWARD in the `securityEvent` above, which is where an operator wants it.
     throw new NoConnectionError(connectionNotFoundMessage(connectionId));
   }
-  return connection;
+  return connection.parse();
 }
 
 /** The one requirement a WIRE adds beyond the capability: rerank on the openai-compat wire is a plain POST

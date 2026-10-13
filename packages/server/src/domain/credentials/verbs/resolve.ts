@@ -14,6 +14,7 @@ import type { CredentialsService } from "../contract/service.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { fetchOwnedCredential } from "../persistence/queries.ts";
 import { decryptSealed } from "../substrate/decrypt.ts";
+import { mintCredentialExecutionWitness } from "../substrate/execution-witness.ts";
 import { mintSecret } from "../substrate/mint-secret.ts";
 
 /** The metadata `auth` arm → the secret kind. A row with no metadata (every pre-metadata key) is an API key. */
@@ -33,7 +34,7 @@ export function createResolve(ctx: CredentialContext): CredentialsService["resol
   return async (params: ResolveCredentialParams): Promise<ResolvedSecret> => {
     const { ownerId, credentialId, providerId } = params;
     if (credentialId === null) {
-      return mintSecret({ credentialId: null, kind: "none", secret: null });
+      return mintSecret({ credentialId: null, executionWitness: null, kind: "none", secret: null });
     }
     const row = await fetchOwnedCredential(ctx.db, ownerId, credentialId);
     if (row === undefined || row.revokedAt !== null) {
@@ -42,6 +43,15 @@ export function createResolve(ctx: CredentialContext): CredentialsService["resol
     // The AAD is `${owner}|${providerId}` — a row sealed under another provider id (or lifted to another
     // owner) decrypt-fails as the typed configuration error, never as a wrong key on the wire.
     const plaintext = decryptSealed(ctx.box, row, aadFor(ownerId, providerId));
-    return mintSecret({ credentialId: row.id, kind: kindOf(row.metadata), secret: plaintext });
+    return mintSecret({
+      credentialId: row.id,
+      executionWitness: mintCredentialExecutionWitness({
+        ownerId,
+        credentialId: row.id,
+        sealed: { ciphertext: row.ciphertext, iv: row.iv, tag: row.tag },
+      }),
+      kind: kindOf(row.metadata),
+      secret: plaintext,
+    });
   };
 }

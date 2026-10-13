@@ -849,7 +849,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     can,
     roleClientsFor,
     connection,
-    maybeRevokeOnAuthFailed: credentials.maybeRevokeOnAuthFailed,
     character,
     persona,
     resolvePersonasForParticipants,
