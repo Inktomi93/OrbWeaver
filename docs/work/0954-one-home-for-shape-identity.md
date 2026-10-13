@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-13
 priority: P1
+lane: codex/shape-identity-954
 plan: test-foundation
 ---
 
