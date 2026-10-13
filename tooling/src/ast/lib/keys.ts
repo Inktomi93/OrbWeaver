@@ -1,7 +1,7 @@
 // The declaration-identity keys — the leaf both the liveness build and the edge map hang off
 // (split to its own module at P4 to keep lib/liveness <-> lib/edges acyclic).
 import type { Node, SourceFile } from "ts-morph";
-import { KEY_SEP } from "./root.ts";
+import { inventoryDeclarationKey, inventoryExports } from "../../floor/code-facts/semantic-inventory-reader.ts";
 
 // ── Resolution-based liveness (the substrate for orphans + testonly) ──────────────────────────
 // The rot lenses answer "is this (declaring-file, export) reached by anyone?" — keyed on RESOLVED
@@ -50,17 +50,15 @@ import { KEY_SEP } from "./root.ts";
 // consumption arm (a `require`, a registry-value marking pass, an `export * as ns` treated as consumption)
 // MUST record its own arm there, or every key it marks becomes a false swallowed candidate.
 /** `<declFile>` + `<declStart>` — the identity a candidate export and every consumer of it agree on. */
-export function declKey(decl: Node): string {
-  return `${decl.getSourceFile().getFilePath()}${KEY_SEP}${decl.getStart()}`;
-}
+export const declKey = inventoryDeclarationKey;
 
 /** origin-key → the export NAME(s) `target` surfaces it under. The inverse of `getExportedDeclarations()`,
  *  which is keyed by NAME: a namespace consumer writes `ns.<the barrel's name>`, so the swallowed lens needs
  *  the barrel's spelling for a key it identifies by declaration node. (A key can carry several names — a
  *  barrel may re-export the same declaration twice under different aliases.) */
-export function exposedNames(target: SourceFile): Map<string, string[]> {
+export function exposedNames(target: SourceFile, importer?: Node): Map<string, string[]> {
   const out = new Map<string, string[]>();
-  for (const [name, decls] of target.getExportedDeclarations()) {
+  for (const [name, decls] of inventoryExports(target, importer)) {
     for (const d of decls) {
       const key = declKey(d);
       out.set(key, [...(out.get(key) ?? []), name]);

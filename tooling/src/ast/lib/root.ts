@@ -1,5 +1,8 @@
 // Shared root constants of the ast lens fleet (split from the pre-move scripts/codemods/ast.ts,
 // P4 of #393). REPO_ROOT re-derived at the move: tooling/src/ast/lib is FOUR levels deep.
+
+import { INVENTORY_TEST_FILE_RE, isInventoryPackageSourcePath, isInventoryTestPath } from "../../floor/code-facts/inventory-consumers.ts";
+import { INVENTORY_KEY_SEPARATOR } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { PACKAGE_NAMES } from "../../floor/compiler/project-worlds.ts";
 export const REPO_ROOT = new URL("../../../..", import.meta.url).pathname.replace(/\/$/u, "");
 
@@ -11,7 +14,7 @@ export const DEFAULT_MAX = 60;
 // actually wants at that scale: WHERE, not 200 snippets). --max overrides.
 export const COLLAPSE_THRESHOLD = 60;
 
-export const TEST_FILE_RE = /\.(test|ct)\.tsx?$/u;
+export const TEST_FILE_RE = INVENTORY_TEST_FILE_RE;
 
 export const WORKSPACE_PACKAGES = PACKAGE_NAMES;
 
@@ -26,20 +29,14 @@ export const LEADING_SLASHES_RE = /^\/+/u;
 export const TRAILING_SLASHES_RE = /\/+$/u;
 
 // (declFile, declStart) identity separator — a NUL can never appear in a path or a decimal offset.
-export const KEY_SEP = "\u0000";
-
-const PACKAGE_SOURCE_RE = /\/packages\/[^/]+\/src\//u;
+export const KEY_SEP = INVENTORY_KEY_SEPARATOR;
 
 /** `--near` with no explicit percentage. */
 export const RESPELL_NEAR_DEFAULT_PCT = 80;
 
 /** A test source file (a `.test`/`.ct` file or anything under a `/tests/` tree) — never a prod node. */
-export function isTestPath(fp: string): boolean {
-  return TEST_FILE_RE.test(fp) || fp.includes("/tests/");
-}
+export const isTestPath = isInventoryTestPath;
 
 /** Authored shipped package source. Tooling, scripts, probes, tests, and package-root configs are outside
  *  this corpus even when they legitimately consume package exports. */
-export function isPackageSourcePath(fp: string): boolean {
-  return PACKAGE_SOURCE_RE.test(fp);
-}
+export const isPackageSourcePath = isInventoryPackageSourcePath;

@@ -16,6 +16,7 @@ import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { readMemberAccessWith, readMemberReferenceWith } from "./reference-fact-member.ts";
 import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
 import { reassignedReferenceSymbols, writtenReferenceSymbols } from "./reference-fact-writes.ts";
+import { inventoryExports } from "./semantic-inventory-reader.ts";
 
 interface ResolutionState {
   readonly declarations: MorphNode[];
@@ -295,7 +296,7 @@ function resolveStableExpressionInternal(raw: MorphNode, target: ResolutionState
  *  stands in for the set. Consumers decide whether a home requires one declaration or all of them. */
 export function resolveExportedDeclarations(sourceFile: SourceFile, name: string): ReferenceFact<readonly MorphNode[]> {
   const target = state();
-  const declarations = sourceFile.getExportedDeclarations().get(name) ?? [];
+  const declarations = inventoryExports(sourceFile).get(name) ?? [];
   if (declarations.length === 0) {
     return unresolved("missing", sourceFile, target, `module ${sourceFile.getFilePath()} exports no declaration named ${name}`);
   }

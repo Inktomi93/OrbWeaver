@@ -1,4 +1,5 @@
 import type { FileSystemHost, Node, Project, ResolutionHostFactory, SourceFile } from "ts-morph";
+import type { SemanticInventory } from "../code-facts/semantic-inventory-contract.ts";
 import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
 
 export interface WorkspaceOptions {
@@ -58,6 +59,8 @@ export interface SemanticWorkspace {
   readonly sourceFiles: () => readonly SourceFile[];
   /** Authored-root-only carrier for syntax-oriented readers. */
   readonly sourceCorpus: () => SourceCorpus;
+  /** Fresh pinned inventory over these native roots and transaction bytes; the caller owns disposal. */
+  readonly inventory: () => SemanticInventory;
   /** References unioned across every native program containing the declaration, deduped by physical span. */
   readonly findReferences: (node: Node) => readonly SemanticReference[];
   /** Visit physical references until `visit` returns false; the declaration's owning world is searched first. */

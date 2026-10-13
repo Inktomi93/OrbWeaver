@@ -1,9 +1,10 @@
 // DECLARATION-GRANULAR consumption edges — the chains substrate (parallel + opt-in).
 import type { BindingElement, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { inventoryExports, inventoryStaticTarget, semanticInventoryOf } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { declKey, exposedNames } from "./keys.ts";
-import { resolveModule } from "./resolve.ts";
+import { resolveDynamicImportTarget, resolveModule } from "./resolve.ts";
 import { KEY_SEP } from "./root.ts";
 
 // ── DECLARATION-GRANULAR consumption edges (the substrate `chains` needs, and nothing else reads) ──────
@@ -167,11 +168,16 @@ function addConsumerEdge(consumers: Map<string, Set<string>>, originKey: string,
 }
 
 /** Link every consumer of a local binding to the ORIGIN declarations the exported name resolves to. */
-function linkLocalBinding(target: SourceFile, exportName: string, consumerKeys: ReadonlySet<string> | undefined, consumers: Map<string, Set<string>>): void {
+function linkLocalBinding(
+  exported: ReadonlyMap<string, readonly Node[]>,
+  exportName: string,
+  consumerKeys: ReadonlySet<string> | undefined,
+  consumers: Map<string, Set<string>>,
+): void {
   if (consumerKeys === undefined || consumerKeys.size === 0) {
     return;
   }
-  for (const decl of target.getExportedDeclarations().get(exportName) ?? []) {
+  for (const decl of exported.get(exportName) ?? []) {
     const originKey = declKey(decl);
     for (const consumerKey of consumerKeys) {
       addConsumerEdge(consumers, originKey, consumerKey);
@@ -182,14 +188,14 @@ function linkLocalBinding(target: SourceFile, exportName: string, consumerKeys: 
 /** ONE static import's declaration-granular edges. A namespace import spreads the target's WHOLE export
  *  surface across the consumers of its alias — the err-alive arm, unchanged in spirit from markModuleAlive. */
 function recordImportEdges(imp: ImportDeclaration, sites: ReadonlyMap<string, Set<string>>, consumers: Map<string, Set<string>>): void {
-  const target = imp.getModuleSpecifierSourceFile();
+  const target = inventoryStaticTarget(imp);
   if (target === undefined) {
     return;
   }
   const ns = imp.getNamespaceImport();
   if (ns !== undefined) {
     const consumerKeys = sites.get(ns.getText());
-    for (const originKey of exposedNames(target).keys()) {
+    for (const originKey of exposedNames(target, imp).keys()) {
       for (const consumerKey of consumerKeys ?? []) {
         addConsumerEdge(consumers, originKey, consumerKey);
       }
@@ -197,11 +203,11 @@ function recordImportEdges(imp: ImportDeclaration, sites: ReadonlyMap<string, Se
     return;
   }
   for (const spec of imp.getNamedImports()) {
-    linkLocalBinding(target, spec.getName(), sites.get(spec.getAliasNode()?.getText() ?? spec.getName()), consumers);
+    linkLocalBinding(inventoryExports(target, imp), spec.getName(), sites.get(spec.getAliasNode()?.getText() ?? spec.getName()), consumers);
   }
   const byDefault = imp.getDefaultImport();
   if (byDefault !== undefined) {
-    linkLocalBinding(target, "default", sites.get(byDefault.getText()), consumers);
+    linkLocalBinding(inventoryExports(target, imp), "default", sites.get(byDefault.getText()), consumers);
   }
 }
 
@@ -215,6 +221,9 @@ export function dynamicImportTargetOf(call: Node, sf: SourceFile, project: Sourc
   if (arg === undefined || !Node.isStringLiteral(arg)) {
     return;
   }
+  if (semanticInventoryOf(call.getProject()) !== undefined) {
+    return arg.getLiteralText().startsWith(".") ? resolveDynamicImportTarget(call) : undefined;
+  }
   return resolveModule(project, sf.getDirectoryPath(), arg.getLiteralText());
 }
 
@@ -227,15 +236,15 @@ function recordDynamicImportEdges(sf: SourceFile, project: SourceCorpus, consume
       continue;
     }
     for (const consumerKey of consumerKeysOf(call, sf)) {
-      markModuleEdges(target, consumerKey, consumers);
+      markModuleEdges(inventoryExports(target, call), consumerKey, consumers);
     }
   }
 }
 
 /** Every export of `target` gains `consumerKey` as a consumer — the whole-surface arm shared by the
  *  namespace-import and dynamic-import edges (err alive, exactly as `markModuleAlive` does). */
-function markModuleEdges(target: SourceFile, consumerKey: string, consumers: Map<string, Set<string>>): void {
-  for (const decls of target.getExportedDeclarations().values()) {
+function markModuleEdges(exported: ReadonlyMap<string, readonly Node[]>, consumerKey: string, consumers: Map<string, Set<string>>): void {
+  for (const decls of exported.values()) {
     for (const decl of decls) {
       addConsumerEdge(consumers, declKey(decl), consumerKey);
     }

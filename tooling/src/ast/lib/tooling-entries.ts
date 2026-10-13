@@ -1,6 +1,7 @@
 // Runtime/tool entry conventions shared by file reachability and symbol liveness.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { inventoryExports, semanticInventoryOf } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { ExternalConsumption } from "../contract/types.ts";
@@ -46,14 +47,15 @@ function sourceReaderWitness(satisfies: Node): { readonly name: string; readonly
     return refuseWitness(`the witness at ${externalSite(satisfies.getSourceFile().getFilePath(), satisfies.getStartLineNumber())} must name a literal export`);
   }
   const name = expression.getLiteralText();
-  const exported = imported.getType().getProperty(name);
-  if (exported === undefined) {
+  const inventory = semanticInventoryOf(satisfies.getProject());
+  const exported = inventory === undefined ? imported.getType().getProperty(name) : undefined;
+  const origin = exported?.getAliasedSymbol() ?? exported;
+  const declarations = inventory === undefined ? (origin?.getDeclarations() ?? []) : inventory.witnessOrigins(satisfies);
+  if (declarations.length === 0) {
     return refuseWitness(
       `the witness for ${name} at ${externalSite(satisfies.getSourceFile().getFilePath(), satisfies.getStartLineNumber())} resolves no export`,
     );
   }
-  const origin = exported.getAliasedSymbol() ?? exported;
-  const declarations = origin.getDeclarations();
   if (declarations.length !== 1 || declarations[0] === undefined) {
     return refuseWitness(`the witness for ${name} resolves ${String(declarations.length)} origin declarations; exactly one is required`);
   }
@@ -65,7 +67,7 @@ function configConsumptions(sf: SourceFile): ExternalConsumption[] {
   if (!isPackageRootToolingConfig(sf.getFilePath())) {
     return facts;
   }
-  for (const declaration of sf.getExportedDeclarations().get("default") ?? []) {
+  for (const declaration of inventoryExports(sf).get("default") ?? []) {
     const targetKey = declKey(declaration);
     facts.push({
       targetKey,

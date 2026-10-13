@@ -80,6 +80,9 @@ export const TYPED_VERBS = new Set([
   "rot",
 ]);
 
+/** These readers use stored native identities and syntax, never syntax-carrier types. */
+export const INVENTORY_VERBS = new Set(["dead", "orphans", "testonly", "swallowed", "typeonly-alive", "chains", "apisurface", "rot"]);
+
 // Verbs that load searchGlobs WITHOUT the type graph — purely syntactic walks over the wide corpus.
 export const WIDE_SYNTACTIC_VERBS = new Set(["aliases", "exports", "ident", "literal"]);
 

@@ -6,6 +6,7 @@ import type { Node } from "ts-morph";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { warn } from "../../floor/cli/log.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
+import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { EPILOGUE_TAG, noteMatches, scanMeta } from "./ledger.ts";
 import { COLLAPSE_THRESHOLD, DEFAULT_MAX, REPO_ROOT, RESPELL_NEAR_DEFAULT_PCT, SNIPPET_CAP } from "./root.ts";
@@ -243,4 +244,9 @@ export function loadProject(needTypes: boolean, wide = false): SourceCorpus {
     return getWorkspace({ root: REPO_ROOT, types: false, globs: searchGlobs(REPO_ROOT) });
   }
   return getWorkspace({ root: REPO_ROOT, types: false });
+}
+
+/** Explicit syntax inventory with native facts; unported typed readers use {@link loadProject}. */
+export function loadInventoryProject(): SourceCorpus {
+  return createSemanticInventory({ root: REPO_ROOT }).sourceCorpus();
 }

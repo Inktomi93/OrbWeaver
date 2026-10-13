@@ -1,6 +1,7 @@
 // The relative-specifier dynamic-import resolver (ts-morph gives no primitive for it).
 import type { Node, SourceFile } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
+import { semanticInventoryOf } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 
 const MODULE_FILE_EXTS = [".ts", ".tsx"] as const;
@@ -20,6 +21,10 @@ export function resolveModule(project: SourceCorpus, fromDir: string, spec: stri
 /** Resolve a dynamic `import()` call through the checker. Its expression type is
  *  `Promise<typeof import("…")>`; the unwrapped module symbol declares the target SourceFile. */
 export function resolveDynamicImportTarget(call: Node): SourceFile | undefined {
+  const inventory = semanticInventoryOf(call.getProject());
+  if (inventory !== undefined) {
+    return inventory.moduleTarget(call);
+  }
   if (!TsNode.isCallExpression(call)) {
     return;
   }

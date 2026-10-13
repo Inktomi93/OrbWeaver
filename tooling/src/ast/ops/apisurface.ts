@@ -2,6 +2,7 @@
 import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { ApiClass, ApiSurfaceEntry, Flags, Hit, Liveness } from "../contract/types.ts";
 import { dynamicImportTargetOf } from "../lib/edges.ts";
@@ -130,7 +131,7 @@ function recordApiConsumer(map: Map<string, ApiConsumption>, originKey: string, 
  *  value unless `import type * as`). `export { X } from` is a re-export pass-through, never consumption —
  *  which is why only IMPORT declarations are walked, exactly as `markImportConsumption` does. */
 function recordImportApiConsumption(imp: ImportDeclaration, consumerFp: string, map: Map<string, ApiConsumption>): void {
-  const target = imp.getModuleSpecifierSourceFile();
+  const target = inventoryStaticTarget(imp);
   if (target === undefined) {
     return;
   }
@@ -138,12 +139,12 @@ function recordImportApiConsumption(imp: ImportDeclaration, consumerFp: string, 
   const typeOnlyImport = imp.isTypeOnly();
   const ns = imp.getNamespaceImport();
   if (ns !== undefined) {
-    for (const key of exposedNames(target).keys()) {
+    for (const key of exposedNames(target, imp).keys()) {
       recordApiConsumer(map, key, { fp: consumerFp, site, isValue: !typeOnlyImport });
     }
     return;
   }
-  const exported = target.getExportedDeclarations();
+  const exported = inventoryExports(target, imp);
   for (const spec of imp.getNamedImports()) {
     const isValue = !(typeOnlyImport || spec.isTypeOnly());
     for (const decl of exported.get(spec.getName()) ?? []) {
@@ -157,17 +158,22 @@ function recordImportApiConsumption(imp: ImportDeclaration, consumerFp: string, 
   }
 }
 
-function recordWholeDynamicTarget(target: SourceFile, consumer: ApiConsumer, map: Map<string, ApiConsumption>): void {
-  for (const decls of target.getExportedDeclarations().values()) {
+function recordWholeDynamicTarget(exported: ReadonlyMap<string, readonly Node[]>, consumer: ApiConsumer, map: Map<string, ApiConsumption>): void {
+  for (const decls of exported.values()) {
     for (const decl of decls) {
       recordApiConsumer(map, declKey(decl), consumer);
     }
   }
 }
 
-function recordNamedDynamicTarget(target: SourceFile, names: ReadonlySet<string>, consumer: ApiConsumer, map: Map<string, ApiConsumption>): void {
+function recordNamedDynamicTarget(
+  exported: ReadonlyMap<string, readonly Node[]>,
+  names: ReadonlySet<string>,
+  consumer: ApiConsumer,
+  map: Map<string, ApiConsumption>,
+): void {
   for (const name of names) {
-    for (const decl of target.getExportedDeclarations().get(name) ?? []) {
+    for (const decl of exported.get(name) ?? []) {
       recordApiConsumer(map, declKey(decl), consumer);
     }
   }
@@ -188,14 +194,14 @@ function recordDynamicApiConsumption(sf: SourceFile, project: SourceCorpus, cons
     const site = `${relPath(consumerFp)}:${call.getStartLineNumber()}`;
     const consumer = { fp: consumerFp, site, isValue: true } as const;
     if (target !== undefined) {
-      recordWholeDynamicTarget(target, consumer, map);
+      recordWholeDynamicTarget(inventoryExports(target, call), consumer, map);
       continue;
     }
     const aliasedTarget = resolveDynamicImportTarget(call);
     if (aliasedTarget === undefined) {
       continue;
     }
-    recordNamedDynamicTarget(aliasedTarget, dynamicImportMemberNames(call, sf), consumer, map);
+    recordNamedDynamicTarget(inventoryExports(aliasedTarget, call), dynamicImportMemberNames(call, sf), consumer, map);
   }
 }
 

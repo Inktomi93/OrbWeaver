@@ -16,17 +16,21 @@ import { print } from "../floor/artifacts/artifacts.ts";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { warn } from "../floor/cli/log.ts";
 import { runTool, UsageError } from "../floor/cli/run-tool.ts";
+import { SemanticInventoryError } from "../floor/code-facts/semantic-inventory-contract.ts";
 import {
   ANTIPATTERNS_VERB,
   ARGLESS_VERBS,
   AstToolError,
   beginRun,
   CORPUS_DEPCRUISE,
+  CORPUS_INVENTORY,
   CORPUS_SYNTACTIC,
   CORPUS_TYPED,
   CORPUS_WIDE_SYNTACTIC,
   DEPCRUISE_VERBS,
   finishRun,
+  INVENTORY_VERBS,
+  loadInventoryProject,
   loadProject,
   noteToolError,
   parseFlags,
@@ -39,7 +43,10 @@ import {
 } from "./index.ts";
 
 /** Which corpus label a run's epilogue carries — the three arms `loadProject` can produce. */
-function corpusOf(typed: boolean, wide: boolean): string {
+function corpusOf(typed: boolean, wide: boolean, verb: string): string {
+  if (INVENTORY_VERBS.has(verb)) {
+    return CORPUS_INVENTORY;
+  }
   if (typed) {
     return CORPUS_TYPED;
   }
@@ -90,6 +97,12 @@ function resolveInvocation(verb: string, arg: string | undefined, rest: readonly
 /** Map the two typed error carriers to their exit-contract codes; rethrow anything else (runTool's
  *  crash arm owns it). */
 function mapKnownError(e: unknown): number {
+  if (e instanceof SemanticInventoryError) {
+    warn(`ast: ${e.message}`);
+    noteToolError();
+    finishRun();
+    return EXIT.toolError;
+  }
   if (e instanceof AstToolError) {
     // exitToolError already printed the diagnosis + epilogue — the throw only unwinds the verb.
     return EXIT.toolError;
@@ -130,10 +143,10 @@ async function main(): Promise<number> {
   const typed = TYPED_VERBS.has(verb);
   const wide = WIDE_SYNTACTIC_VERBS.has(verb);
   const flags = parseFlags([...invocation.flagTokens]);
-  beginRun(verb, corpusOf(typed, wide), flags);
+  beginRun(verb, corpusOf(typed, wide, verb), flags);
   // @orb-waive caught-failure-ownership(e): the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean.
   try {
-    VERBS[verb]?.(loadProject(typed, wide), invocation.effectiveArg, flags);
+    VERBS[verb]?.(INVENTORY_VERBS.has(verb) ? loadInventoryProject() : loadProject(typed, wide), invocation.effectiveArg, flags);
   } catch (e) {
     return mapKnownError(e);
   }

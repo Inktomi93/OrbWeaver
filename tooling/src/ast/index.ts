@@ -40,10 +40,20 @@ export type {
 } from "./contract/types.ts";
 export { collectColumnCandidates, rawSqlBlob, scanRowReads } from "./lib/column-reads.ts";
 export { collectSchemaTables, isColumnExempt, scanColumnWrites } from "./lib/columns.ts";
-export { loadProject, parseFlags } from "./lib/emit.ts";
+export { loadInventoryProject, loadProject, parseFlags } from "./lib/emit.ts";
 export { addFileLocalParts, addRegistryValues, contractDeclarations, modelProjectedSchemas } from "./lib/field-seeds.ts";
 export { contractFieldsOf, fieldClass, fieldHit, fieldIndexes, isCompositionAlias } from "./lib/fields.ts";
-export { AstToolError, beginRun, CORPUS_DEPCRUISE, CORPUS_SYNTACTIC, CORPUS_TYPED, CORPUS_WIDE_SYNTACTIC, finishRun, noteToolError } from "./lib/ledger.ts";
+export {
+  AstToolError,
+  beginRun,
+  CORPUS_DEPCRUISE,
+  CORPUS_INVENTORY,
+  CORPUS_SYNTACTIC,
+  CORPUS_TYPED,
+  CORPUS_WIDE_SYNTACTIC,
+  finishRun,
+  noteToolError,
+} from "./lib/ledger.ts";
 export { buildLiveness } from "./lib/liveness.ts";
 export { isPublicTagged, publicMarkerOf } from "./lib/public-markers.ts";
 export { ownExports } from "./lib/scope.ts";
@@ -71,5 +81,5 @@ export {
 } from "./ops/subset-callers.ts";
 export { collectSwallowedCandidates, isSwallowedExempt } from "./ops/swallowed.ts";
 export { collectTypeOnlyCandidates, isTypeOnlyExempt } from "./ops/typeonly.ts";
-export { ARGLESS_VERBS, TYPED_VERBS, VERBS, WIDE_SYNTACTIC_VERBS } from "./ops/verbs.ts";
+export { ARGLESS_VERBS, INVENTORY_VERBS, TYPED_VERBS, VERBS, WIDE_SYNTACTIC_VERBS } from "./ops/verbs.ts";
 export { collectClientConsumed, collectServerProcedures, isUnwiredExempt } from "./ops/wiring.ts";

@@ -31,3 +31,5 @@ The reviewed correction preserves current caller-selected native subsets and rea
 Main owns the cold frozen replay on the reviewed lane source. It runs the complete existing collector sequence with unchanged managed heap settings. Preserve historical Knip input provenance and unresolved outcomes. Read the completed output and process measurements before claiming replay qualification. Parent high-water measurements do not establish aggregate process-tree memory or hosted-runner qualification.
 
 The replay stopped during native extraction after source review confirmed duplicate declaration and name reference queries. It supplies no complete inventory verdict. Reuse each native result for both physical keys, preserving every demanded fact. Prove query reuse and output parity before scheduling the corrected frozen replay.
+
+The reviewed query correction preserves native results and both physical keys while executing each query once. Its discriminating native control and affected checks pass. Main integrates the reviewed store without closing this item. Complete replay and memory qualification remain required.

@@ -1,12 +1,13 @@
 // Resolution-based liveness — the substrate for orphans/testonly/clientgap/swallowed/apisurface.
 // Split from ast.ts (P4 of #393); the section headers carry the keying law verbatim.
-import type { ImportDeclaration, SourceFile } from "ts-morph";
+import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { declarationBindingKeys, inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { ConsumptionArm, Liveness, LivenessOptions, NamespaceSite } from "../contract/types.ts";
-import { recordDeclarationEdges } from "./edges.ts";
+import { dynamicImportTargetOf, recordDeclarationEdges } from "./edges.ts";
 import { declKey, exposedNames } from "./keys.ts";
-import { resolveDynamicImportTarget, resolveModule } from "./resolve.ts";
+import { resolveDynamicImportTarget } from "./resolve.ts";
 import { isTestPath } from "./root.ts";
 import { collectExternalConsumptions } from "./tooling-entries.ts";
 
@@ -31,8 +32,8 @@ const SCRIPTS_SRC_PREFIX = "/scripts/";
  *  Used for namespace imports and dynamic imports, both of which keep a module's WHOLE export surface
  *  alive (err toward alive, never false-dead). The barrel's export NAME is irrelevant here — only the
  *  declarations it resolves to are recorded, which is what makes an alias hop invisible to the key. */
-function markModuleAlive(target: SourceFile, bucket: Set<string>, record: ArmRecorder, arm: ConsumptionArm): void {
-  for (const decls of target.getExportedDeclarations().values()) {
+function markModuleAlive(exported: ReadonlyMap<string, readonly MorphNode[]>, bucket: Set<string>, record: ArmRecorder, arm: ConsumptionArm): void {
+  for (const decls of exported.values()) {
     for (const d of decls) {
       const key = declKey(d);
       bucket.add(key);
@@ -45,8 +46,8 @@ function markModuleAlive(target: SourceFile, bucket: Set<string>, record: ArmRec
  *  `getExportedDeclarations().get(<the name the CONSUMER wrote>)` follows the re-export chain — including
  *  renames — to the real declarations; those declaration nodes ARE the key the candidate side uses, so the
  *  consumer's spelling never enters the identity. */
-function markNamedAlive(target: SourceFile, name: string, bucket: Set<string>, record: ArmRecorder): void {
-  const decls = target.getExportedDeclarations().get(name);
+function markNamedAlive(exported: ReadonlyMap<string, readonly MorphNode[]>, name: string, bucket: Set<string>, record: ArmRecorder): void {
+  const decls = exported.get(name);
   if (decls === undefined) {
     return;
   }
@@ -62,13 +63,13 @@ function markNamedAlive(target: SourceFile, name: string, bucket: Set<string>, r
  *  miss class: a file re-exporting its own symbol must not mark it "used" and hide deadness elsewhere),
  *  so this only walks IMPORT declarations. */
 function markImportConsumption(imp: ImportDeclaration, sink: ConsumptionSink): void {
-  const target = imp.getModuleSpecifierSourceFile();
+  const target = inventoryStaticTarget(imp);
   if (target === undefined) {
     return;
   }
   const ns = imp.getNamespaceImport();
   if (ns !== undefined) {
-    const exposed = exposedNames(target);
+    const exposed = exposedNames(target, imp);
     for (const key of exposed.keys()) {
       sink.bucket.add(key);
       sink.record(key, "namespace");
@@ -77,10 +78,10 @@ function markImportConsumption(imp: ImportDeclaration, sink: ConsumptionSink): v
     return;
   }
   for (const spec of imp.getNamedImports()) {
-    markNamedAlive(target, spec.getName(), sink.bucket, sink.record);
+    markNamedAlive(inventoryExports(target, imp), spec.getName(), sink.bucket, sink.record);
   }
   if (imp.getDefaultImport() !== undefined) {
-    markNamedAlive(target, "default", sink.bucket, sink.record);
+    markNamedAlive(inventoryExports(target, imp), "default", sink.bucket, sink.record);
   }
 }
 
@@ -98,18 +99,15 @@ interface ConsumptionSink {
  *  Both spellings are scanned because a file may rename its own export
  *  (`const Inner = …; export { Inner as Outer }`): the export-map name is `Outer` while every in-file
  *  use says `Inner`. */
-export function isReferencedInOwnFile(sf: SourceFile, name: string, decl: Node): boolean {
-  const targetKeys = new Set((decl.getSymbol()?.getDeclarations() ?? [decl]).map(declKey));
+export function isReferencedInOwnFile(sf: SourceFile, _name: string, decl: Node): boolean {
+  const nativeKeys = declarationBindingKeys(decl, false);
+  const targetKeys = new Set(nativeKeys.length === 0 ? [declKey(decl)] : nativeKeys);
   for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    if (id.getFirstAncestorByKind(SyntaxKind.ExportDeclaration) !== undefined || id.getParent() === decl) {
+    const parent = id.getParent();
+    if (id.getFirstAncestorByKind(SyntaxKind.ExportDeclaration) !== undefined || (parent !== undefined && declKey(parent) === declKey(decl))) {
       continue;
     }
-    const parent = id.getParent();
-    // In `{ transform }`, the identifier's ordinary symbol is the object PROPERTY. The checker exposes
-    // the VALUE binding separately; that binding is the same declaration a direct `transform(x)` resolves.
-    const symbol = Node.isShorthandPropertyAssignment(parent) && parent.getNameNode() === id ? parent.getValueSymbol() : id.getSymbol();
-    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
-    if ((id.getText() === name || declarations.length > 0) && declarations.some((candidate) => targetKeys.has(declKey(candidate)))) {
+    if (declarationBindingKeys(id).some((key) => targetKeys.has(key))) {
       return true;
     }
   }
@@ -128,9 +126,9 @@ function markDynamicImports(sf: SourceFile, project: SourceCorpus, bucket: Set<s
     if (arg === undefined || !Node.isStringLiteral(arg)) {
       continue;
     }
-    const target = resolveModule(project, sf.getDirectoryPath(), arg.getLiteralText());
+    const target = dynamicImportTargetOf(call, sf, project);
     if (target !== undefined) {
-      markModuleAlive(target, bucket, record, "dynamic");
+      markModuleAlive(inventoryExports(target, call), bucket, record, "dynamic");
       continue;
     }
     // `resolveModule` above only follows RELATIVE specifiers, so a package-aliased lazy import
@@ -155,7 +153,7 @@ function markDynamicImports(sf: SourceFile, project: SourceCorpus, bucket: Set<s
 // `await` read names, resolved through the TYPE CHECKER — the SAME resolution a static import gets
 // (tsconfig `paths`/`@orb/*` subpath exports included), never a second hand-rolled resolver. A dynamic
 // import's own expression type is always `Promise<typeof import("…")>`; unwrapping to the module type and
-// reading its symbol's SourceFile declaration is exactly what `imp.getModuleSpecifierSourceFile()` gives a
+// reading its symbol's SourceFile declaration is exactly what `inventoryStaticTarget(imp)` gives a
 // static import for free.
 //
 // CONSERVATIVE BY CONSTRUCTION: exactly four shapes are recognized (the ones this repo's lazy-loaded
@@ -168,11 +166,8 @@ function markDynamicImports(sf: SourceFile, project: SourceCorpus, bucket: Set<s
  *  (`x.prop`/`x?.prop`/`x["prop"]`; a dot-only sweep is a known false clean in this repo, see the
  *  `regkeys` fix beside this one). */
 function propertyAccessNamesOn(scope: Node, binding: Node): Set<string> {
-  const bindingKeys = new Set((binding.getSymbol()?.getDeclarations() ?? []).map(declKey));
-  const isBinding = (node: Node): boolean => {
-    const symbol = node.getSymbol();
-    return ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).some((declaration) => bindingKeys.has(declKey(declaration)));
-  };
+  const bindingKeys = new Set(declarationBindingKeys(binding, false));
+  const isBinding = (node: Node): boolean => declarationBindingKeys(node).some((key) => bindingKeys.has(key));
   const names = new Set<string>();
   for (const pa of scope.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
     if (isBinding(pa.getExpression())) {
@@ -313,7 +308,7 @@ function markLazyImportMembers(call: Node, sf: SourceFile, bucket: Set<string>, 
     return;
   }
   for (const name of members) {
-    markNamedAlive(target, name, bucket, record);
+    markNamedAlive(inventoryExports(target, call), name, bucket, record);
   }
 }
 
@@ -323,7 +318,7 @@ function markLazyImportMembers(call: Node, sf: SourceFile, bucket: Set<string>, 
 function collectStarTargets(sf: SourceFile, starTargets: Set<string>): void {
   for (const exp of sf.getExportDeclarations()) {
     if (exp.isNamespaceExport()) {
-      const t = exp.getModuleSpecifierSourceFile();
+      const t = inventoryStaticTarget(exp);
       if (t !== undefined) {
         starTargets.add(t.getFilePath());
       }

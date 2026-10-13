@@ -5,6 +5,7 @@ import process from "node:process";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { declarationBindingKeys } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit, Liveness, NamespaceSite, SwallowedCandidate } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
@@ -46,8 +47,8 @@ export function isSwallowedExempt(decl: Node): boolean {
  *  `alias["member"]`, and `const { member } = alias`. A member named here is genuinely consumed — it is the
  *  arm that separates "the module was swallowed" from "this export was actually used through it". */
 function namedMembersOf(site: NamespaceSite): Set<string> {
-  const bindingKeys = new Set((site.binding.getSymbol()?.getDeclarations() ?? []).map(declKey));
-  const isNamespaceBinding = (node: Node): boolean => (node.getSymbol()?.getDeclarations() ?? []).some((declaration) => bindingKeys.has(declKey(declaration)));
+  const bindingKeys = new Set(declarationBindingKeys(site.binding, false));
+  const isNamespaceBinding = (node: Node): boolean => declarationBindingKeys(node, false).some((key) => bindingKeys.has(key));
   const named = new Set<string>();
   for (const pa of site.file.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
     if (isNamespaceBinding(pa.getExpression())) {

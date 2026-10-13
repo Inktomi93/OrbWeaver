@@ -16,6 +16,9 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import type { FileSystemHost, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
 import { Project, Node as TsNode, ts } from "ts-morph";
+import { createSemanticInventory } from "../code-facts/semantic-inventory.ts";
+import { semanticInventoryOf } from "../code-facts/semantic-inventory-reader.ts";
+
 import { readCompilerPrograms } from "./compiler-programs.ts";
 import type { CompilerProgram } from "./compiler-programs-contract.ts";
 import { predictedProgram } from "./project-worlds.ts";
@@ -139,6 +142,10 @@ export function semanticWorkspaceOf(value: object): SemanticWorkspace | undefine
 
 /** References from every native program containing `node`; an ordinary in-memory Project keeps its native behavior. */
 export function semanticReferenceNodes(node: Node): readonly Node[] {
+  const inventory = semanticInventoryOf(node.getProject());
+  if (inventory !== undefined) {
+    return inventory.references(node);
+  }
   const workspace = semanticWorkspaces.get(node.getProject());
   if (workspace !== undefined) {
     return workspace.findReferences(node).map(({ node: reference }) => reference);
@@ -148,6 +155,10 @@ export function semanticReferenceNodes(node: Node): readonly Node[] {
 
 /** Visit references without forcing a complete cross-world union when the consumer already has its verdict. */
 export function visitSemanticReferenceNodes(node: Node, visit: (reference: Node) => boolean): boolean {
+  const inventory = semanticInventoryOf(node.getProject());
+  if (inventory !== undefined) {
+    return inventory.references(node).every(visit);
+  }
   const workspace = semanticWorkspaces.get(node.getProject());
   if (workspace !== undefined) {
     return workspace.visitReferences(node, ({ node: reference }) => visit(reference));
@@ -273,6 +284,7 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
   };
   workspace = {
     root,
+    inventory: (): ReturnType<typeof createSemanticInventory> => createSemanticInventory({ ...options, root }),
     programs,
     program: (config): SemanticProgram | undefined => byConfig.get(repoRelative(root, config)),
     rootOwners,
@@ -399,6 +411,26 @@ export type KindVisitor = (node: Node, sf: SourceFile) => void;
  *  the internal name is spelled; every raw-walk primitive below wraps through it. */
 function wrapDoor(sf: SourceFile): (compilerNode: ts.Node) => Node {
   return (sf as unknown as { _getNodeFromCompilerNode: (compilerNode: ts.Node) => Node })._getNodeFromCompilerNode.bind(sf);
+}
+
+/** The native closure includes dependencies ts-morph does not mark as authored project members. */
+export function nativeCompilerSourceFiles(project: Project): readonly SourceFile[] {
+  const anchor = project.getSourceFiles()[0] ?? project.resolveSourceFileDependencies()[0];
+  const compilerFiles = project.getProgram().compilerObject.getSourceFiles();
+  if (compilerFiles.length === 0) {
+    return [];
+  }
+  if (anchor === undefined) {
+    throw new Error("native compiler closure has no source wrapper anchor");
+  }
+  const wrap = wrapDoor(anchor);
+  return compilerFiles.map((compilerFile) => {
+    const source = wrap(compilerFile);
+    if (!TsNode.isSourceFile(source)) {
+      throw new Error(`native compiler closure wrapper is not a SourceFile: ${compilerFile.fileName}`);
+    }
+    return source;
+  });
 }
 
 /** Every descendant of `kind`, in `forEachChild` (document) order, wrapped only on match. The replacement for

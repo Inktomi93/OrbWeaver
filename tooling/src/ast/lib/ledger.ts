@@ -55,6 +55,9 @@ function corpusLabel(authority: string, globs: readonly string[]): string {
 /** Semantic searches expose authored roots from the native per-tsconfig programs. */
 export const CORPUS_TYPED = "native-program-authored-roots(per-tsconfig)";
 
+/** Complete authored syntax roots with pinned persisted native partitions. */
+export const CORPUS_INVENTORY = "stored-native-inventory-authored-roots(pinned-generation)";
+
 export const CORPUS_SYNTACTIC = corpusLabel("harness-globs", harnessGlobs(REPO_ROOT));
 
 /** The shared search globs without a type graph, used by the literal/fixture sweep. Native semantic
