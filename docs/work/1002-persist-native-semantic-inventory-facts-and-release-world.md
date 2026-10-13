@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-13
 priority: P1
 area: tooling
-lane: codex/native-inventory-allocation-1002
+lane: codex/native-late-diagnostic-1002
 plan: test-foundation
 ---
 
@@ -36,4 +36,4 @@ Source-fact samples identify retained canonical-path strings and checker instant
 
 Extraction uses the compiler bundled with ts-morph, not the native TS7 typechecker. Client and root descriptors remain separate browser and Node programs. The language-service host exposes cached closure paths as roots; this does not establish combined worlds or permit changing native membership.
 
-Use the measured attribution before selecting another fix or full replay. Read counters only on the already-hydrated checker. Preserve frozen inputs and failed artifacts; no private cache clearing, heap increase or population reduction. Profiling changes execution costs and does not qualify replay memory or timing.
+The active complete-root client diagnostic uses sparse public sampling and durable query/publication markers, without forced collection. Preserve frozen inputs and failed artifacts; no private cache clearing, heap increase or population reduction. Instrumented client results do not qualify all worlds or clean timing.
