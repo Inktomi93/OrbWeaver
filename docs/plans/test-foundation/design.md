@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 # Tests on one harness and one code-facts engine
@@ -22,9 +22,9 @@ This plan owns execution order. The [test-mirror inventory](../test-mirror/desig
 
 | Phase | Work | Exit condition |
 | - | - | - |
-| Current foundation | Finish compose cleanup (964). Keep harness-dependent probe rebuilds with their recorded case lists. | Rules and queries have domain homes; legacy remains a CI regression population, not strict test evidence. |
+| Composition boundary | Queries and per-call rules live in domains; entry wires their graph. | The complete compose-policy population passes without waivers; legacy remains regression evidence only. |
 | Shared readers | Start Drizzle facts (953), then shape identity, references, import reach and codemods (954 to 957). | Consumers share the floor reader and preserve findings or record proven corrections. |
-| Real harness | Build the server composition root (958) after 964; continue readers in independent files. | Every external edge is injectable and a complete domain case set proves the real graph. |
+| Real harness | Build the server composition root (958) on the cleaned graph; continue readers in independent files. | Every external edge is injectable and a complete domain case set proves the real graph. |
 | Test inputs and mounting | Finish builders/corpus (959) and the client compose door (960). | Test data derives from production and CT wiring derives from client composition. |
 | Replacement suites | Corpus-backed e2e smoke, server domains, component CTs, then remaining suites. | Replacement preserves meaningful cases, catches a production defect and deletes the corresponding legacy harness. |
 
@@ -32,7 +32,7 @@ Production funding (969), identity (972), every-owner tokens (984), type homes (
 
 ### Foundation boundaries
 
-The legacy folder, maintained lint migration, explicit package exports and native integer migration are implemented. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probe rebuilds have source-specific harness dependencies and preserved case lists in their work items.
+The legacy folder, maintained lint migration, explicit package exports, native integer migration and domain-owned compose rules are implemented. The selected compose policy holds on its complete population without findings or exemptions. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probes keep their harness dependencies and case lists.
 
 Testkit exists as a world-split package. The complete server composition root, shared fact store, builders/corpus and client door remain work, not assumptions. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
@@ -56,7 +56,7 @@ The hard parts come first because they decide the shape of every rebuilt test. A
 - The engine readers (953 to 957), because the strict gates that judge rebuilt files read code through them.
 - The legacy folder (961), because it lets rebuilt files run strict while legacy files keep running in CI, and it lets item 983 narrow the exports maps without breaking them.
 
-Dependencies that hold the order: 958 waits on 964; 966 waits on 954; 939's remaining splits wait on 961; a structural move such as a file split runs after the content lanes in the same files, never beside them.
+Dependencies that hold the order: the server harness uses clean production composition; 966 waits on 954. A structural move such as a file split runs after content lanes in the same files, never beside them.
 
 Then the rebuild, cheapest proof first: the e2e smoke matrix on the corpus, which proves the app works end to end; server suites by domain on the composition root; CTs on the door with builder stubs; the rest. Tooling tests stay as they are; they test the tools, not the product.
 
