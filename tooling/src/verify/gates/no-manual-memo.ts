@@ -1,15 +1,16 @@
-// Policy: no-manual-memo — React Compiler full-compile makes hand-written useMemo/useCallback/memo
-// redundant except at three reviewed, recurring subjects. React identity is resolved canonically through
-// lib/react-origin.ts; aliases, namespace members, computed members and re-export doors remain the same API.
-// Findings aggregate by (file, manual-react-memo), preserving the legacy file-grant cardinality.
+// React memo origin remainder: namespaces/defaults/computed members/re-exports retain canonical identity.
+// Native ESLint owns direct named doors outside MANUAL_MEMO_CUSTOM_HOMES; those subjects retain real grants.
+// Findings aggregate by (file, manual-react-memo); lib/react-origin.ts remains the shared origin reader.
+import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
+import { Node } from "ts-morph";
+import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "../contract/manual-memo.ts";
 import { defineGate } from "../contract/policy.ts";
 import { reactExportVisitors } from "../lib/react-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactProofModule } from "./_proof/react.ts";
 
-const EXPORTS = ["useMemo", "useCallback", "memo"] as const;
 const OPERATION = "manual-react-memo";
 const MESSAGE =
   "manual React memoization in compiler-managed code. The React Compiler already memoizes compiled components and hooks; a dependency array adds maintenance and can re-arm effects. (tooling/src/verify/gates/GATE-AUTHORING.md)";
@@ -38,11 +39,23 @@ export const gate = defineGate({
   create: (ctx) => {
     const candidates: ReviewedGrantCandidate[] = [];
     return {
-      visitors: EXPORTS.flatMap((exportedName) =>
+      visitors: MANUAL_MEMO_EXPORTS.flatMap((exportedName) =>
         reactExportVisitors(exportedName, (node, verdict) => {
+          const subject = ctx.relativePath(node.getSourceFile());
+          if (!Object.values(MANUAL_MEMO_CUSTOM_HOMES).some((home) => home === subject)) {
+            const origin = resolveModuleMemberOrigin(node);
+            const nativeDoor = (declaration: MorphNode): boolean =>
+              Node.isImportSpecifier(declaration) &&
+              declaration.getSourceFile() === node.getSourceFile() &&
+              declaration.getName() === exportedName &&
+              declaration.getImportDeclaration().getModuleSpecifierValue() === "react";
+            if (nativeDoor(node) || origin.trace.declarations.some(nativeDoor)) {
+              return;
+            }
+          }
           candidates.push({
             node,
-            subject: ctx.relativePath(node.getSourceFile()),
+            subject,
             operation: OPERATION,
             unreadable: verdict === "unreadable",
             ...position(node, exportedName),
@@ -63,38 +76,10 @@ export const gate = defineGate({
       mode: "types",
       files: {
         [REACT_TYPES_HOME]: reactProofModule(),
-        "packages/client/src/features/x/components/x.tsx": 'import { useMemo } from "react";\nexport const v = useMemo(() => 1, []);\n',
-      },
-      expect: { count: 1, token: "useMemo" },
-      grant: { subject: "packages/client/src/features/x/components/x.tsx", operation: OPERATION },
-      why: "the founding named-import shape; the door and call aggregate to the one file-level reviewed act",
-    },
-    {
-      mode: "types",
-      files: {
-        [REACT_TYPES_HOME]: reactProofModule(),
-        "packages/client/src/features/x/components/x.tsx": 'import { useCallback as cb } from "react";\nexport const v = cb(() => 1, []);\n',
-      },
-      expect: { count: 1 },
-      why: "an import alias remains React's useCallback and cannot escape the policy",
-    },
-    {
-      mode: "types",
-      files: {
-        [REACT_TYPES_HOME]: reactProofModule(),
         "packages/ui/src/x/x.tsx": 'import * as R from "react";\nexport const C = R.memo(() => null);\n',
       },
       expect: { count: 1 },
       why: "a namespace member is resolved by origin instead of the legacy React-dot text spelling",
-    },
-    {
-      mode: "types",
-      files: {
-        [REACT_TYPES_HOME]: reactProofModule(),
-        "packages/ui/src/x/x.tsx": 'import { memo } from "react";\nexport const C = memo(() => null);\n',
-      },
-      expect: { count: 1, token: "memo" },
-      why: "the component-level memo export is the same compiler-redundant operation",
     },
     {
       mode: "types",
@@ -162,6 +147,15 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactProofModule(),
+        "packages/client/src/features/x/components/x.tsx":
+          'import { useMemo, useCallback as cb, memo } from "react";\nexport const v = useMemo(() => 1, []); export const c = cb(() => 1, []); export const C = memo(() => null);\n',
+      },
+      why: "native direct-import coverage owns the binding and its calls without duplicate custom findings",
+    },
     {
       mode: "types",
       files: {

@@ -102,7 +102,7 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noManualMemo,
-    overlays: [add(`${FEATURE}/components/liveness-memo.tsx`, 'import { useMemo } from "react";\nexport const livenessMemo = useMemo(() => 1, []);\n')],
+    overlays: [add(`${FEATURE}/components/liveness-memo.tsx`, 'import * as React from "react";\nexport const livenessMemo = React.useMemo(() => 1, []);\n')],
     messageIncludes: "manual React memoization",
   },
   {

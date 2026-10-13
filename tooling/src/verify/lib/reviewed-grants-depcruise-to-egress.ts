@@ -14,7 +14,9 @@
 //     and this is that stale check firing.
 // Both were live stale-grant ALARMS on `pnpm check:structure`, not findings — which is why nothing failed
 // loudly for the week between the deletions and this commit.
+
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
+import { MANUAL_MEMO_CUSTOM_HOMES } from "../contract/manual-memo.ts";
 
 export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] = [
   {
@@ -215,7 +217,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
   {
     id: "no-manual-memo:fuzzy-search",
     policyId: "no-manual-memo",
-    subject: "packages/ui/src/fuzzy-search/fuzzy-search.ts",
+    subject: MANUAL_MEMO_CUSTOM_HOMES.fuzzySearch,
     operation: "manual-react-memo",
     why: "the MiniSearch index is cached on value-keyed dependencies because callers pass fresh inline field arrays. React Compiler memoizes by reference and cannot express this value-keyed cache.",
     endsWhen: "the options API requires stable option objects, or React Compiler learns value-keyed dependency semantics.",
@@ -223,7 +225,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
   {
     id: "no-manual-memo:media-grid",
     policyId: "no-manual-memo",
-    subject: "packages/ui/src/primitives/media-grid/media-grid.tsx",
+    subject: MANUAL_MEMO_CUSTOM_HOMES.mediaGrid,
     operation: "manual-react-memo",
     why: "React Compiler's installed bundle marks @tanstack/react-virtual known-incompatible, so this useVirtualizer component is skipped and its manual memo remains real work.",
     endsWhen: "the installed compiler delists @tanstack/react-virtual; no-manual-memo-compiler-health reports that transition.",
@@ -231,7 +233,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
   {
     id: "no-manual-memo:message-list",
     policyId: "no-manual-memo",
-    subject: "packages/ui/src/primitives/message-list/message-list.tsx",
+    subject: MANUAL_MEMO_CUSTOM_HOMES.messageList,
     operation: "manual-react-memo",
     why: "React Compiler's installed bundle marks @tanstack/react-virtual known-incompatible, so this useVirtualizer component is skipped and its manual memo remains its only memoization.",
     endsWhen: "the installed compiler delists @tanstack/react-virtual; no-manual-memo-compiler-health reports that transition.",

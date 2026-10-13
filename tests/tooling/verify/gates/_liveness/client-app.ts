@@ -250,7 +250,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         `${CHAT_COMPONENTS}/liveness-unkeyed.tsx`,
-        'import { QueryBoundary } from "#components";\nimport { SkeletonRows } from "#data";\nexport const G = () => <QueryBoundary fallback={<SkeletonRows count={3} shape="line" />}>{"b"}</QueryBoundary>;\n',
+        'import { QueryBoundary } from "#components";\nimport { SkeletonRows } from "#data";\nconst ROWS = 3;\nexport const G = () => <QueryBoundary fallback={<SkeletonRows count={ROWS} shape="line" />}>{"b"}</QueryBoundary>;\n',
       ),
     ],
     messageIncludes: "STATIC count and no `reserveKey`",
