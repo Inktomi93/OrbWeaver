@@ -20,7 +20,6 @@
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
 //   config-snapshot          → cli.ts config-snapshot <runner> <config>  (native-config observation)
-//   check:biome-rule-liveness → cli.ts biome-rule-liveness  (the RULE half of biome grant liveness, #2074)
 //   check:knip-negative-liveness → cli.ts knip-negative-liveness  (every literal knip negation names a tracked file)
 //   typecheck-plan           → cli.ts typecheck-plan --primary|--affected --file <paths…>
 //   typecheck                → cli.ts typecheck [--config <paths>…]
@@ -37,7 +36,6 @@ import {
   runApplicationTypeMembership,
   runAssetRefsCoverage,
   runBaseline,
-  runBiomeRuleLiveness,
   runBootChunkRatchet,
   runConfigSnapshot,
   runDbBaselineParity,
@@ -127,8 +125,6 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runBootChunkRatchet(root);
     case "ledgers-fresh":
       return runLedgersFresh(root, rest);
-    case "biome-rule-liveness":
-      return runBiomeRuleLiveness(root);
     case "knip-negative-liveness":
       return runKnipNegativeLiveness(root);
     case "debt":

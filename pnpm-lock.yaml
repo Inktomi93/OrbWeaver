@@ -215,9 +215,6 @@ catalogs:
     '@eslint-community/eslint-plugin-eslint-comments':
       specifier: 4.8.1
       version: 4.8.1
-    '@eslint/config-array':
-      specifier: 0.23.5
-      version: 0.23.5
     '@hono/node-server':
       specifier: ^2.0.6
       version: 2.1.1
@@ -1320,9 +1317,6 @@ importers:
 
   tooling:
     dependencies:
-      '@eslint/config-array':
-        specifier: 'catalog:'
-        version: 0.23.5(supports-color@7.2.0)
       '@orb/contracts':
         specifier: workspace:*
         version: link:../packages/contracts

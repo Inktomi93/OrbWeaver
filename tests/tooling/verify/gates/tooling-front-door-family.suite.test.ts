@@ -1,34 +1,4 @@
-// The standing family floor for the two tooling front-door families converted in #1950 group 2:
-//
-//   `tooling-front-door`      → `tooling-front-door` (ordinary import boundary) + `tooling-root-config-import`
-//                                (reviewed relative-escape grant) — family `tooling-front-door`.
-//   `tooling-argv-front-door` → `tooling-argv-front-door` (reviewed argv reader) + `tooling-argv-front-door-health`
-//                                (hard blindness tripwire) — family `tooling-argv-front-door`.
-//
-// What a declared row structurally cannot express lives here:
-//   §4.2 — the ordinary policy's identity arm, all three assertions, alarms first.
-//   §4.3 — grant identity for the reviewed argv policy with a REAL row from `lib/reviewed-grants.ts`:
-//          the intended row is consumed exactly once; a row keyed on the wrong operation licenses nothing;
-//          a row whose subject no longer performs the act is STALE after a complete run. The root-config
-//          policy has no real grant after prodonly stopped importing knip.ts; its exact synthetic-grant
-//          binding remains in its declared conformance row.
-//   §4.5 — every `entire-population` policy DEFERS a narrowed request instead of adjudicating a row its
-//          scope cannot see — the successor of the legacy int test's scoped-run defect pin (2026-08-30).
-//   §4.6 — the two split differentials against the frozen legacy descriptors (`8de18d2f5f`, `29d09f0697`):
-//          every legacy example replayed through the legacy `runPass` and through the UNION of the two
-//          final policies, differences CLASSIFIED rather than averaged, and the legacy-side coverage of every
-//          moved arm asserted. Classified for the import family: (1) POSITION — the finding moved from the
-//          whole ImportDeclaration (legacy `token: spec, offset: 0`, not even an exact slice) to the quoted
-//          specifier literal; (2) the historical root-config row is a FINDING in the final policy where
-//          legacy passed it through its table; (3) the legacy escape example's
-//          `../../../packages/...` resolved INSIDE `tooling/` — legacy called any non-`tooling/src/` path an
-//          escape and so does the final policy. For the argv family: (4) POSITION of the element-access
-//          spelling — legacy normalized `process["argv"]` to `process.argv`; (5) the six entry rows are
-//          FINDINGS licensed by grants where legacy passed them through its table, and the two-sided stale
-//          example is a stale-grant pin here, not a finding; (6) the blindness arm anchors on the anchor
-//          file, not the gate module; (7) the ambient `process` spelling is UNREADABLE in a project without
-//          `@types/node`, so it is reported fail-closed under the unreadable text where legacy matched text
-//          (count identical, message differs) — the planted-types rows in the module pin the precise branch.
+// Retained root-config and operator-argv authority controls use the production policy runtime.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -37,14 +7,13 @@ import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as argvFrontDoor } from "../../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
 import { gate as argvHealth } from "../../../../tooling/src/verify/gates/tooling-argv-front-door-health.ts";
-import { gate as frontDoor } from "../../../../tooling/src/verify/gates/tooling-front-door.ts";
 import { gate as rootConfigImport } from "../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/tooling-front-door-family";
-const IMPORT_FAMILY: readonly GatePolicy[] = [frontDoor, rootConfigImport];
+const IMPORT_FAMILY: readonly GatePolicy[] = [rootConfigImport];
 const ARGV_FAMILY: readonly GatePolicy[] = [argvFrontDoor, argvHealth];
 const ALL: readonly GatePolicy[] = [...IMPORT_FAMILY, ...ARGV_FAMILY];
 const ANCHOR = "tooling/src/floor/cli/exit-contract.ts";
@@ -86,20 +55,8 @@ function passOf(policies: readonly GatePolicy[], files: Readonly<Record<string, 
   });
 }
 
-test("all four front-door policies preserve their founding fixtures", () => {
+test("the retained front-door policies preserve their founding fixtures", () => {
   expect(verifyPolicyProofs(ALL)).toEqual([]);
-});
-
-// ─── §4.2 ORDINARY IDENTITY ─────────────────────────────────────────────────────────────────────────────
-test("an ordinary waiver binds to the exact policy and the QUOTED-SPECIFIER position tooling-front-door reports", () => {
-  const waived = passOf([frontDoor], {
-    "tooling/src/aa/ops/x.ts":
-      '// @orb-waive tooling-front-door("../../bb/ops/y.ts"): the proof\'s stand-in reason and its end condition.\nimport { y } from "../../bb/ops/y.ts";\nexport const x = y;\n',
-    "tooling/src/bb/ops/y.ts": "export const y = 1;\n",
-  });
-  expect(waived.authority.authorityAlarms).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
 });
 
 // ─── §4.3 GRANT IDENTITY — a real central row ──────────────────────────────────────────────────────────

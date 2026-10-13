@@ -1,4 +1,4 @@
-export const CONFIG_SNAPSHOT_RUNNERS = ["vitest", "eslint", "depcruise"] as const;
+export const CONFIG_SNAPSHOT_RUNNERS = ["vitest", "depcruise"] as const;
 
 export type ConfigSnapshotRunner = (typeof CONFIG_SNAPSHOT_RUNNERS)[number];
 
@@ -18,39 +18,6 @@ export interface VitestConfigSnapshot {
   readonly runner: "vitest";
   readonly config: string;
   readonly selectors: readonly ConfigSelectorSnapshot[];
-}
-
-export type EslintSelectorValue = string | readonly string[];
-
-export interface EslintSelectorSnapshot {
-  readonly owner: string;
-  readonly field: "files" | "ignores";
-  readonly position: number;
-  readonly value: EslintSelectorValue;
-  readonly scope: "files" | "local-ignore" | "global-ignore";
-  readonly members: number;
-}
-
-/** The ESLint candidate population, split by the ONE rule both of `ops/config-snapshot.ts`'s callers apply.
- *  `excludedNonFilePaths` is the honesty half: a tracked symlink-to-directory is an authored path Git and
- *  the repository inventory both admit, and it is not a lintable file, so it leaves the population BY NAME
- *  rather than by a silent filter (#2302). */
-export interface EslintTrackedPopulation {
-  readonly paths: readonly string[];
-  readonly excludedNonFilePaths: readonly string[];
-}
-
-export interface EslintConfigSnapshot {
-  readonly version: 1;
-  readonly runner: "eslint";
-  readonly config: string;
-  readonly trackedFiles: number;
-  /** Authored paths admitted by the inventory and excluded from the candidate population because they are
-   *  not files. Carried across the worker's process boundary so the population claim is readable, never
-   *  re-derived: `trackedFiles + excludedNonFilePaths.length` is the list the inventory handed in. */
-  readonly excludedNonFilePaths: readonly string[];
-  readonly entries: number;
-  readonly selectors: readonly EslintSelectorSnapshot[];
 }
 
 export const DEPCRUISE_CONFIG_SNAPSHOT_FIELDS = ["path", "pathNot"] as const;
@@ -75,7 +42,6 @@ export interface DepcruiseConfigSnapshot {
 
 export interface ConfigSnapshotByRunner {
   readonly vitest: VitestConfigSnapshot;
-  readonly eslint: EslintConfigSnapshot;
   readonly depcruise: DepcruiseConfigSnapshot;
 }
 

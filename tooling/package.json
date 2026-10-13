@@ -163,7 +163,6 @@
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
-    "@eslint/config-array": "catalog:",
     "@orb/contracts": "workspace:*",
     "@orb/default-content": "workspace:*",
     "@orb/inference": "workspace:*",

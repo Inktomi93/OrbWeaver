@@ -30,7 +30,6 @@ import { gate as pluginDumpGuard } from "../../../../../tooling/src/verify/gates
 import { gate as publicRouteBodyCap } from "../../../../../tooling/src/verify/gates/public-route-body-cap.ts";
 import { gate as publicRouteBodyCapHealth } from "../../../../../tooling/src/verify/gates/public-route-body-cap-health.ts";
 import { gate as serdeCoreDefinitionUniqueness } from "../../../../../tooling/src/verify/gates/serde-core-definition-uniqueness.ts";
-import { gate as serdeCoreSeal } from "../../../../../tooling/src/verify/gates/serde-core-seal.ts";
 import { gate as singleStreamTransport } from "../../../../../tooling/src/verify/gates/single-stream-transport.ts";
 import { gate as turnIdentity } from "../../../../../tooling/src/verify/gates/turn-identity.ts";
 import { gate as twoClassRoleAuthority } from "../../../../../tooling/src/verify/gates/two-class-role-authority.ts";
@@ -239,16 +238,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: serdeCoreDefinitionUniqueness,
     overlays: [add(`${SERVER}/domain/import/substrate/liveness-dup.ts`, "export function cardFromJson(raw: unknown): unknown {\n  return raw;\n}\n")],
     messageIncludes: "cardFromJson",
-  },
-  {
-    policy: serdeCoreSeal,
-    overlays: [
-      add(
-        `${SERVER}/domain/character/liveness-png.ts`,
-        'import { readCardChunk } from "@orb/kit/png-card-chunk";\nexport const livenessRead = readCardChunk;\n',
-      ),
-    ],
-    messageIncludes: "PNG card-chunk engine",
   },
   {
     policy: singleStreamTransport,

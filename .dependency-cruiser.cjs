@@ -789,10 +789,13 @@ module.exports = {
     {
       name: "tooling-internal-direction",
       comment:
-        "Cross-tool imports enter through the sibling's index.ts — never its ops/lib/contract internals. NO type-only exemption (the domain-sibling-front-door precedent: the front-door law is a SHAPE rule). The ts-morph twin (tooling-front-door) is the lane-speed arm; this is the whole-graph resolved-edge backstop. (Core-Tooling-Law.md §4.2/§4.6.)",
+        "Cross-tool imports enter through the sibling's index.ts; root helpers and cli.ts are private too. Type-only imports obey the same boundary. The floor remains accessible per module. (Core-Tooling-Law.md §4.2/§4.6.)",
       severity: "error",
       from: { path: "^tooling/src/([^/]+)/" },
-      to: { path: "^tooling/src/([^/]+)/(ops|lib|contract)/", pathNot: "^tooling/src/$1/" },
+      to: {
+        path: "^tooling/src/([^/]+)/",
+        pathNot: ["^tooling/src/$1/", "^tooling/src/[^/]+/index\\.ts$", "^tooling/src/floor/"],
+      },
     },
     {
       name: "tooling-cli-via-index",

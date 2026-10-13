@@ -1,51 +1,5 @@
-// Policy: depcruise-grant-liveness-health — the IRREDUCIBLE BACKREFERENCE BUDGET for the dep-cruiser half of
-// the `grant-liveness` family. A `$1`/`$2` capture backreference in a `.dependency-cruiser.cjs` `path`/
-// `pathNot` is bound from the paired rule's capture AT CRUISE TIME, so the pattern denotes a different set
-// per matched file and no static reader can test its members. The count is budgeted instead, and BOTH
-// directions are RED: growth adds import-law authority nobody reviewed, and a shrink left uncommitted leaves
-// a budget nobody can trust. Never a silent counter.
-//
-// WHY IT IS A SEPARATE POLICY, AND WHY IT IS `hard` (#2485). Its sibling `depcruise-grant-liveness` is
-// `authority: "reviewed-grant"`, under which EVERY finding requires a `(subject, operation)` a central row
-// could name (`lib/gate-authority.ts` — the check is reviewed-grant-only, and it withholds the whole owner
-// as a TOOL ERROR when one is missing). This arm has no such identity to pass and must not acquire one: the
-// budget exists to stop the unreviewable population growing SILENTLY, and a grantable budget is a central
-// door to move it without touching the number — the thing the guard exists to prevent (standing law §5
-// names this the ONE sanctioned non-derivable cardinality guard). So it lived inside its sibling passing no
-// identity, and every drift it tried to report became `⚠ authority [invalid-reviewed-grant-identity]`
-// instead: the message never printed, the run exited 2, and the sibling's other findings were withheld
-// behind a diagnostic that named nothing. The arm was dead by construction — it could only ever degrade a
-// run to a tool error. One authority per descriptor (standardization §2, §5), so the arm that differs on
-// that axis is its own policy under the IDENTICAL family, exactly as `biome-grant-liveness-health` was
-// carved out of ITS reviewed-grant sibling.
-//
-// THE TWO REJECTED ARMS, so the next reader does not re-open them:
-//   · GIVE THE BUDGET AN IDENTITY (subject = the config, operation = the count). Satisfies the runtime and
-//     defeats the guard — see above.
-//   · ADMIT AN IDENTITY-LESS FINDING UNDER `reviewed-grant`. A runtime contract change weakening the
-//     invariant for every reviewed-grant policy, to serve one arm that does not belong there.
-//   · (Not a candidate, stated because the sibling's blindness tripwire took it) THROW, like the NO-ROWS
-//     alarm. A refusal says "the run is not a verdict"; budget drift is a real, fixable finding, and
-//     refusing withholds the sibling's other findings — the collateral damage #2485 reports.
-//
-// FAMILY: `grant-liveness`. Shared production declaration: `lib/grant-liveness.ts#irreducibleBudgetFindings`,
-// the same helper the arm called from inside its sibling — the two-sided comparison is not re-implemented
-// here.
-//
-// POPULATION PORT. This module is not a port of its own descriptor — it has none. It is an ARM carved out of
-// `depcruise-grant-liveness` (`reportBudget`/`BACKREF_BUDGET`/`PATTERN_MESSAGES.budgetMoved` at
-// `92ce249b47`), whose population is `{ of: "none" }` over the same two resources minus the package
-// manifests, which only the pattern-member arms read: legacy − final = ∅ and final − legacy = ∅ by
-// declaration on the TypeScript side (neither side ever admitted a source file), and the resource side is
-// `native-config:depcruise` + `tracked-files`, both carried over.
-//
-// THE COUNT IS TAKEN OVER ALL SELECTORS, where the arm used to count only the ones its sibling's file-exact
-// classifier SKIPPED. Same set, one fewer dependency: `classifyRegex` admits a value only when the body
-// carries no surviving regex metacharacter, and `$` is one — so a `$1` row can never classify as file-exact
-// and is always skipped. Pinned against the real config in
-// `tests/tooling/verify/gates/depcruise-grant-liveness-health.int.test.ts`, which counts both ways and
-// requires agreement (a policy may not import a sibling gate, so the equivalence is proven in the test).
-// COMMENT POSTURE: comment-SAFE — observation reads runtime config values, never source text.
+// Backreference selectors retain the sanctioned two-sided budget from gate-runtime-standardization §5.
+// Singleton: native dependency-cruiser configuration supplies the selectors; this policy judges only budget drift.
 import type { GatePolicyFileFindingDetails } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { irreducibleBudgetFindings } from "../lib/grant-liveness.ts";
@@ -61,13 +15,6 @@ const BACKREF_RE = /\$\d/u;
  *  an uncommitted shrink leaves a budget nobody can trust (#973 — never a silent counter). */
 // The helper-world rule adds one paired capture to permit same-world edges while refusing upward ones.
 // dependency-cruiser-worlds.int.test.ts proves that distinction, including transitive and type-only edges.
-// 16 → 14, 2026-09-20 (the `@orb/inference` extraction): the fleet yeet took `vllm-surface-isolation`'s
-// `surfaces/$1` with the rule the program deleted, and re-pointing `infra-strategy-isolation` onto
-// `packages/inference/src/backends/` collapsed its paired `infra/$1/([^/]+)/` + `infra/$1/$2/` into a
-// single `backends/$1/` — the group axis is gone, so only the strategy capture survives. This is the
-// SHRINK direction the arm's own message names, committed rather than left as a budget nobody trusts.
-// Moved here from `depcruise-grant-liveness.ts` with the arm (#2485); standing law §5's sanctioned
-// exception follows the arm to this module.
 const BACKREF_BUDGET = 14;
 
 /** The arm's REAL-TREE anchor — the budget is a fact about the real config set, so it is judged only where
@@ -97,7 +44,7 @@ const ANCHOR_FILES: Readonly<Record<string, string>> = { [BUDGET_ANCHOR]: "# Cor
 export const gate = defineGate({
   id: "depcruise-grant-liveness-health",
   application: "implementation",
-  family: "grant-liveness",
+  family: "depcruise-grant-liveness-health",
   authority: "hard",
   severity: "error",
   population: { of: "none", why: "the import-law config and the tracked corpus are closed ResourceHost facts; this policy judges no TypeScript source" },
@@ -124,7 +71,7 @@ export const gate = defineGate({
       const actual = native.selectors.filter((selector) => BACKREF_RE.test(selector.value)).length;
       for (const finding of irreducibleBudgetFindings(CONFIG_REL, actual, BACKREF_BUDGET, MESSAGE)) {
         // `message`/`token` are optional on the shared `Finding`, and `exactOptionalPropertyTypes` refuses an
-        // explicit `undefined` — spread each only when the helper produced it (the sibling's own idiom).
+        // explicit `undefined` — spread each only when the helper produced it.
         const base: GatePolicyFileFindingDetails = { line: 1, column: 1 };
         const withMessage = finding.message === undefined ? base : { ...base, message: finding.message };
         ctx.report.file(finding.file, finding.token === undefined ? withMessage : { ...withMessage, token: finding.token });
@@ -136,7 +83,7 @@ export const gate = defineGate({
       mode: "resource",
       files: { ...ANCHOR_FILES, [CONFIG_REL]: backrefConfig(BACKREF_BUDGET + 1) },
       expect: { count: 1, token: `${String(BACKREF_BUDGET + 1)} vs ${String(BACKREF_BUDGET)}`, messageIncludes: "GROWTH: justify the new pair" },
-      why: "GROWTH — a capture pair added to the import-law config that no review saw. The arm's whole point, and the direction that was MUTE until #2485: under the sibling's reviewed-grant authority this finding carried no identity, so it was never printed at all",
+      why: "a backreference count above the sanctioned budget is an unsuppressible finding",
     },
     {
       mode: "resource",

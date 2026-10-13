@@ -22,7 +22,7 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     // is that `pnpm verify` runs its two HALVES as separate stages (`tests:node` + `browser:ct`), so
     // each gets its own profile-derived hang ceiling: the composite's ~10-minute vitest half and its
     // ~40-minute CT half shared one 45-minute ceiling, and the sum blew through it on a QUIET box. This row
-    // keeps the composite a NAMED stage (verify-registry-parity arm 1 requires it) and keeps it out of
+    // keeps the composite discoverable in the manual tier and keeps it out of
     // every tier, which is what stops the suites running twice per push.
     name: "tests:product-composite",
     group: "tests",
@@ -188,10 +188,6 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     // is correct and is the whole point of the instrument — "there is nothing to compare against" is never
     // "nothing changed" — which is exactly why it must not be wired where it would fire by construction.
     //
-    // It is NOT on verify-registry-parity's NON_STAGE_ALLOWLIST, and the distinction is real: `check:show` is
-    // allowlisted as a read-only INSPECTOR, while this stage returns a VERDICT (exit 1 on a per-policy
-    // regression). A row here keeps it discoverable in `verify --list` instead of living only in a script
-    // nobody remembers — which is the failure mode #2110 was filed for.
     tiers: ["manual"],
     argv: ["pnpm", "check:structure-delta"],
     classify: asViolations,

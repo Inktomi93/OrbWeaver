@@ -1,6 +1,6 @@
 // THE CORPUS PROOF (docs/law/gate-runtime-standardization.md §1) at the production door: `cli.ts structure`
 // spawned over planted roots whose gates dir holds real policies as RE-EXPORT SHIMS
-// (`baseui-render-prop-composition` ordinary, `no-raw-intl-time` reviewed-grant, `verify-registry-parity`
+// (`baseui-render-prop-composition` ordinary, `no-raw-intl-time` reviewed-grant, `root-development-dependencies`
 // hard/resource). A shim imports the real module by absolute file URL, so the object the door runs IS the
 // production descriptor (the loader's identity law refuses a copy, proven in lib/loader.test.ts) and the shim's
 // basename is the id (the filename law).
@@ -35,7 +35,7 @@ const RUN_TIMEOUT_MS = scaledBudget(120_000);
 const ABSENT_POLICY = "probe-no-such-policy";
 const ORDINARY = "baseui-render-prop-composition";
 const REVIEWED = "no-raw-intl-time";
-const HARD_RESOURCE = "verify-registry-parity";
+const HARD_RESOURCE = "root-development-dependencies";
 /** THE NONBLOCKING-WARNING SUBJECT IS PLANTED, NOT BORROWED (#2497) — this file's own §"MATERIALIZE the
  *  premise" lesson, applied to SEVERITY. It used to shim the live `over-art-plate-arm` for its
  *  `severity: "warning"`; `8300c13bbc` raised that policy to `"error"` (its warning-debt flip condition was met
@@ -350,7 +350,7 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   repoRoot,
   runCli,
 }) => {
-  // no package.json in this root: verify-registry-parity's `package-metadata:root` resource cannot resolve, so its
+  // no package.json in this root: root-development-dependencies's `package-metadata:root` resource cannot resolve, so its
   // population phase throws — the ordinary sibling beside it still waives its finding.
   const root = await plantedTree(
     mixedTree(repoRoot, {
