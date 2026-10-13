@@ -28,3 +28,7 @@ Recall recorder proofs need a production-derived `MemoryRecallSlice` seed. The p
 Close the logical table/output inventory before broad edits. Exported declarations alone do not distinguish outputs from inputs, operations and primitives. Existing user and asset factories are not qualified defaults: their fabricated user prefix and padded asset hash differ from genuine producers. Reuse canonical ID and content-hash generation, preserve FK relations and map coupled consumers before correcting shared helpers. The harness owns graph/time/ID seams; the client-door lane owns mounting, while this item owns data builders, corpus and responders.
 
 Inventory data returned or serialized by live production doors and their reusable output components. Include server-owned wire projections; keep their producers in the node world. Classify request schemas, injected operations, primitive vocabulary and private helper shapes separately. Exported-name counts do not establish the builder denominator.
+
+Capture HTTP auth outputs through the real application and its resolved request identity. A tRPC caller does not produce anonymous auth configuration. The server root owns HTTP construction; corpus code must not build another app or copy its projection.
+
+Browser responders select actual captured route inputs and outputs. Preserve absent versus explicit null input, reject conflicting captures, and refuse unmatched input without a fabricated success. This lookup does not establish generated corpus adoption.

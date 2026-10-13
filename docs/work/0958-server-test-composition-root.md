@@ -34,3 +34,5 @@ Expose the complete plugin-host edge and its lifecycle, not only per-instance di
 Refresh the seam inventory after compose integration. Preserve the single production graph, world separation and complete domain-case acceptance above. Do not create a second domain assembly or claim the existing app fixture supplies every edge.
 
 The notifications domain supplies the first complete replacement case set. Preserve scope, replay, standing, persistence and projection assertions through real composition. Account for unused helper cases through genuine live behavior or an explicit deletion decision; adding a fake caller does not establish production reach. Delete the corresponding legacy suite and harness only after matching replacement proof.
+
+Public notification verbs can replace their copied assembly independently. Keep unresolved direct persistence cases in legacy until production intent and replacement are adjudicated. That partial port does not establish complete domain replacement. The root must also reuse production HTTP construction and request identity for corpus auth outputs.
