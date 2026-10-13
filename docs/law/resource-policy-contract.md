@@ -73,8 +73,7 @@ legacy A4 blindness case: the map names nothing, and the finding says so per mod
 returns `{}` for every optional map key the package-metadata provider reads — `scripts`, `dependencies`,
 `devDependencies`, `peerDependencies`, `optionalDependencies`, `exports` (`ops/resource-config.ts:31-52`). Every
 `packageMetadata` consumer therefore inherits "an absent key reads as an authored empty map" and owes a pin for
-what its case does with an empty map (`verify-registry-parity` reads `scripts` on the same terms;
-`depcruise-grant-liveness` reads all four dependency maps). Only a key that is PRESENT and not a string map
+what its case does with an empty map (`root-development-dependencies` reads the root runtime dependency map on these terms). Only a key that is PRESENT and not a string map
 refuses. A policy cannot tell the two apart and must not try — the distinction belongs to the provider.
 
 ## 3. The seven obligations, each with its enforcer
@@ -132,7 +131,7 @@ RED, and the one that is prose-only is called out as the gap.
    for execution. Plant `count: 99` on a `mustFlag` row as the exactness control: every count is exact, so
    the plant fails with `but got 1` on a healthy row, and a row that stays green under the plant is not
    pinning what it claims to. A row missing a declared resource is a `[population]` tool error, not a
-   finding (so `depcruise-grant-liveness` spreads `PACKAGE_FIXTURE_FILES` into every row). A
+   finding. The root dependency policy supplies its declared root manifest in each applicable resource fixture. A
    `messageIncludes` is admissible only if the transplant test passes: moving it onto every sibling row
    must red that row. Two rows sharing one report call cannot be message-discriminated and must either be
    one row or split the message. When a cut proves two checks mutually redundant (one can never fire

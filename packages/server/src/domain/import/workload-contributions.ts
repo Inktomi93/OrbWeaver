@@ -1,20 +1,5 @@
-// domain/import — the domain's OWN background work, raised as `WorkloadContribution`s (the workloads
-// junk-drawer exit: domains raise seams, the worker skims them). Two kinds: `import-st` (the SillyTavern
-// profile-directory bulk loop) and `import-bundle` (one staged portability zip / folder-upload tree).
-//
-// Both are off-request MANDATORY — the HTTP route stages bytes, replies 202 `{workloadId}`, and the run
-// survives request death. The DRIVERS stay entry-composed ops (they are cross-domain compositions by
-// nature — the profile importer fans into character/chat/persona/world-info/tag/assets); what lives here is
-// the CONTRIBUTION: the params/result contract, the lane/resume policy, the post-settle stats reconcile, and
-// the STAGING-CONTAINMENT belts (import logic, never compose logic).
-//
-// EVERY HANDLE RESOLVES UNDER THE ROW OWNER'S OWN STAGING ROOT (#1534). `params.token`/`params.stagedDir` are
-// caller-settable on an `authedProcedure` singular kind, so a handle names bytes but authorizes nothing; the
-// authority is `ctx.ownerId` — the server-stamped row owner, which is also the library the import WRITES to.
-// `stagedOwnerRoot` is the one derivation the staging routes and this file share (`substrate/staging.ts`
-// states the why), so another user's handle simply does not exist under this run's root and dies on the
-// containment belt's `staged_path_missing` before any read — and, just as load-bearing, before the cleanup
-// `finally` can delete someone else's staged upload.
+// Import contributions run owner-composed operations and injected external adapters off-request.
+// Staged handles resolve beneath the row owner's namespace before reads and cleanup; a handle grants no authority.
 
 import { constants as fsConstants } from "node:fs";
 import { lstat, open, realpath, rm } from "node:fs/promises";

@@ -1,21 +1,11 @@
-// Composition seam for the portability registry (the zip-bundle export/import descriptors) + the deps
-// domain/import's workload contributions close over. Built LAST — the profile-dir importer composes a
-// cross-domain slice (character/chat/persona/world-info/tag/assets) that only exists here. Owns no business
-// logic.
-//
-// The workloads junk-drawer exit killed the duplication this file used to carry: the ten-dep profile-import
-// slice was passed TWICE — once into `buildPortabilityRegistry` and once into the retired runner-env hub —
-// because the import brain was split between the portability descriptors and the god-hub. It is built ONCE
-// now and shared: the descriptors take it directly, and the import CONTRIBUTION takes the composed drivers.
-
-import type { ImportWindow } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { Db } from "@orb/db";
 import { optimizeDb } from "@orb/db";
-import { DomainOperationError } from "@orb/kit/errors";
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { PersonaId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
+import { createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
@@ -23,7 +13,13 @@ import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
-import { DEFAULT_IMPORT_STAGING_DIR } from "#domain/import";
+import {
+  createEnqueueImportIndex,
+  createImportLibraryEmitter,
+  createImportWorkloadDrivers,
+  createSettleImportMemory,
+  DEFAULT_IMPORT_STAGING_DIR,
+} from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import { findOwnedPersonaByName } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
@@ -35,28 +31,16 @@ import { createApplyImportedAppearance, createImportTheme } from "#domain/settin
 import { bumpStatsCanonVersion, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
-import { WORKLOAD_NOT_ADMISSIBLE } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportContext } from "#domain/world-info";
-import { stageDirectory } from "#infra/storage";
+import { stageDirectory, writeImportReportFile } from "#infra/storage";
 import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "#transport/trpc";
-import { writeImportReport } from "../import/import-report.ts";
-import {
-  bundleImportMemoryChatIds,
-  bundleImportNotes,
-  createNodeFsImportPort,
-  IMPORT_MAX_DECOMPRESSED_BYTES,
-  IMPORT_MAX_TOTAL_BYTES,
-  importStagedArchive,
-  runBundleImport,
-  runProfileDirImport,
-} from "../import/index.ts";
+import { createNodeFsImportPort, importStagedArchive, runBundleImport, runProfileDirImport } from "../import/index.ts";
 import { buildPortabilityRegistry } from "./portability.ts";
 
-/** Repo-root ST profile snapshot (gitignored) — the `import-st` default when no `stProfileDir` is set. */
 const DEFAULT_ST_PROFILE_DIR = ".st-data";
 
-// @orb-waive no-inline-package-interface(PortabilityRunnerComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the portability+import seam needs from the composition root. */
+// @orb-waive no-inline-package-interface(PortabilityRunnerComposeDeps): baselined when the gate landed; burn-down item 952.
 export interface PortabilityRunnerComposeDeps {
   readonly db: Db;
   readonly now: () => number;
@@ -93,7 +77,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
   readonly workloads: Pick<WorkloadService, "start">;
-  /** The staging root the upload routes wrote under; absent ⇒ {@link DEFAULT_IMPORT_STAGING_DIR} (the same
+  /** The staging root the upload routes wrote under; absent uses the shared import staging default (the same
    *  default the routes resolve, so the contribution reads exactly where the route wrote — and the routes
    *  write, and this reads, under the per-owner subdir `stagedOwnerRoot` derives from it). */
   readonly importStagingDir?: string | undefined;
@@ -102,8 +86,8 @@ export interface PortabilityRunnerComposeDeps {
   readonly importReportsDir: string;
 }
 
-// @orb-waive no-inline-package-interface(PortabilityRunnerComposeResult): baselined when the gate landed; burn-down item 952.
 /** The compose product: the registry the delivery core iterates + the deps import's contributions take. */
+// @orb-waive no-inline-package-interface(PortabilityRunnerComposeResult): baselined when the gate landed; burn-down item 952.
 export interface PortabilityRunnerComposeResult {
   readonly portability: PortabilityRegistry;
   readonly importWorkloads: ImportWorkloadDeps;
@@ -111,64 +95,12 @@ export interface PortabilityRunnerComposeResult {
   readonly settleImportMemory: SettleImportMemory;
 }
 
-/** The post-import index pass, shared by the zip-bundle portability descriptors AND the ST profile-directory
- *  importer — built ONCE. It embeds the owner's text corpus AFTER the import and calls no Utility model.
- *
- *  THE INDEX PASS ADOPTS: any active run of the same admission unit is idempotent and hash-gated, so it
- *  already covers the freshly imported rows, and a second enqueue would only conflict.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function createEnqueueImportIndex(workloads: Pick<WorkloadService, "start">): (args: { readonly ownerId: UserId }) => Promise<void> {
-  return async ({ ownerId }: { readonly ownerId: UserId }): Promise<void> => {
-    await workloads.start({ input: { kind: "index", params: { source: "text" } }, caller: null, mode: "singular", ownerId, adoptActive: true });
-  };
-}
-
-/** The post-import memory step, the free half of the owner ruling that derived data an import makes runs on its
- *  own. It closes the import's span and enqueues the segments-only `memory-backfill` over it: the verbatim-segment
- *  embeddings, no digest, no Utility-model call. The paid digest build is never enqueued here; the client offers
- *  it over the returned span behind the model-run confirm.
- *
- *  A memory-off owner's pass is refused at admission (it would derive nothing), and the span still returns: the
- *  client decides the offer from the owner's switch. The pass ADOPTS a run already holding this span's unit.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function createSettleImportMemory(workloads: Pick<WorkloadService, "start">, now: () => number): SettleImportMemory {
-  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
-  return async ({ ownerId, from, memoryChatIds }: { readonly ownerId: UserId; readonly from: number; readonly memoryChatIds: readonly ChatId[] }) => {
-    if (memoryChatIds.length === 0) {
-      return null;
-    }
-    // A clock that stepped back mid-import must not invert the span and fail an import that finished.
-    const importWindow: ImportWindow = { from, to: Math.max(from, now()) };
-    // @orb-waive caught-failure-ownership(err): the one absorbed failure is the memory-off admission refusal, a
-    // normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the
-    // import run. Ends if another refusal code is absorbed here.
-    try {
-      await workloads.start({
-        input: { kind: "memory-backfill", params: { importWindow, segmentsOnly: true } },
-        caller: null,
-        mode: "singular",
-        ownerId,
-        adoptActive: true,
-      });
-    } catch (err) {
-      // The ONE expected refusal: memory is off for this owner, so the pass has nothing to build (#156).
-      if (!(err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE)) {
-        throw err;
-      }
-    }
-    return importWindow;
-  };
-}
-
 export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): PortabilityRunnerComposeResult {
   const { db, now, workloads } = deps;
   const settleImportMemory = createSettleImportMemory(workloads, now);
 
-  type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
   const enqueueImportIndex = createEnqueueImportIndex(workloads);
-  const reconcileImportStats: ImportOwnerOp = async ({ ownerId }) => {
+  const reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"] = async ({ ownerId }) => {
     await reconcileStats(db, { ownerId, now });
   };
   /** The ST profile importer's cross-domain slice — the ONE spelling, shared by both consumers. */
@@ -219,111 +151,42 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     stProfileDir: deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR,
     listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
     compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion),
-    // W8 / F5 — THE THREE BULK RUNS, EACH UNDER QUIET MODE. Every per-entity import verb announces itself
-    // (`character/verbs/create.ts` fires `charactersChanged` per CARD; the persona/preset/tag/theme/regex/
-    // world-info import verbs each fire their own), so an ST library fanned hundreds of events and the
-    // client's `invalidateQueries` cancel-and-restart churned the visible library for the whole run
-    // (staleness design §2.5). The scope is opened HERE, not in a verb: only the composition of the run knows
-    // it is one gesture. Semantics + the misuse note: `transport/trpc/user-events-bus.ts`. #23's
-    // `emitLibraryChanged` deliberately stays OUTSIDE these scopes — it fires after the runner returns, from
-    // the workload contribution's settle step, and it is the belt that covers a run which wrote canon.
-    // @orb-waive compose-wiring-only(runProfileDirImport): baselined when the gate landed; burn-down item 964.
-    runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal, personaCollisions }) =>
-      await withQuietBulkFanout(async () => {
-        const principal = await deps.resolveOwnerPrincipal(ownerId);
-        const from = now();
-        const report = await runProfileDirImport({
+    ...createImportWorkloadDrivers({
+      now,
+      quiet: withQuietBulkFanout,
+      resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
+      profile: (principal, { profileRoot, dryRun, signal, personaCollisions }) =>
+        runProfileDirImport({
           fs,
           profileRoot,
           principal,
           ...profileImport,
           importStandaloneLorebook: deps.importStandaloneLorebook,
-          // The silent-gap sweep's three ST-profile-only ops: preset-scoped + global regex lifts and the
-          // world name-link attach. Direct args (not the shared `profileImport` slice) — the zip-bundle
-          // descriptors have no ST wire to spend them on.
           importPresetScripts: deps.importPresetScripts,
           importGlobalScripts: deps.importGlobalScripts,
           attachBooksByName: deps.attachBooksByName,
-          // The ST chat-completion preset wave writes through the preset domain's OWN import verb (idempotent
-          // on (ownerId, name), one serde, one collision rule) — the same op the zip-bundle descriptor uses.
           importPreset: createImportPresets(deps.presetCtx),
-          // The ST THEME wave does the same through the settings domain's own theme-backup import (idempotent
-          // on (ownerId, name); a SEED palette is `ownerId IS NULL` and structurally unreachable by that write).
           importTheme: createImportTheme(deps.settingsCtx),
-          // The ST BACKGROUND wave: one CAS write per file under the caller, kind `background`, with the
-          // extension-derived mime VERIFIED against the bytes (`enforceMagic`) before anything is persisted.
-          storeBackground: async (params) => {
-            const storedAsset = await deps.assets.store({ ...params, kind: "background", enforceMagic: true });
-            return { assetId: storedAsset.assetId, hash: storedAsset.hash };
-          },
+          storeBackground: createBackgroundStore({ store: deps.assets.store, maxBytes: () => ASSET_UPLOAD_MAX_BYTES }),
           applyImportedAppearance: createApplyImportedAppearance(deps.settingsCtx),
           newBackgroundEntryId: deps.settingsCtx.newBackgroundEntryId,
           now,
           dryRun,
           signal,
           personaCollisions,
-        });
-        // A real run writes the "what landed / what didn't" report to disk; a dry run writes nothing.
-        const reportPath = dryRun ? undefined : await writeImportReport(report, now(), deps.importReportsDir);
-        return {
-          scanned: report.scanned,
-          changed: report.changed,
-          failed: report.skippedCards.length,
-          mergedKeys: report.personasMergedKeys,
-          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: report.memoryChatIds }),
-          ...(reportPath !== undefined ? { reportPath } : {}),
-        };
-      }),
-    // @orb-waive compose-wiring-only(runBundleImport): baselined when the gate landed; burn-down item 964.
-    runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) =>
-      await withQuietBulkFanout(async () => {
-        const from = now();
-        const report = await runBundleImport({
-          registry: portability,
-          ownerId,
-          archive,
-          extractOptions: { maxTotalBytes: IMPORT_MAX_TOTAL_BYTES, maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES, stagingRoot: root },
-          signal,
-        });
-        if (report.imported > 0) {
-          await reconcileImportStats({ ownerId });
-        }
-        // #1710 — carry what #1688 already put on the report (a kept edited lorebook, a dropped overlay) into
-        // the BACKGROUND workload's own result, not only the descriptor-level report a sync door would read.
-        return {
-          imported: report.imported,
-          skipped: report.skipped,
-          failed: report.failed,
-          notes: bundleImportNotes(report),
-          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: bundleImportMemoryChatIds(report) }),
-        };
-      }),
-    // @orb-waive compose-wiring-only(runStagedDirImport): baselined when the gate landed; burn-down item 964.
-    runStagedDirImport: async ({ stagedPath, ownerId, signal }) =>
-      await withQuietBulkFanout(async () => {
-        const from = now();
-        const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
-        if (report.imported > 0) {
-          await reconcileImportStats({ ownerId });
-        }
-        return {
-          imported: report.imported,
-          skipped: report.skipped,
-          failed: report.failed,
-          notes: bundleImportNotes(report),
-          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: bundleImportMemoryChatIds(report) }),
-        };
-      }),
+        }),
+      bundle: (args) => runBundleImport({ ...args, registry: portability }),
+      staged: async ({ stagedPath, ...args }) => importStagedArchive({ ...args, registry: portability, staged: await stageDirectory(stagedPath) }),
+      writeReport: (markdown, generatedAt) => writeImportReportFile(markdown, generatedAt, deps.importReportsDir),
+      reconcileStats: reconcileImportStats,
+      settleMemory: settleImportMemory,
+    }),
     reconcileImportStats,
     refreshPlannerStats: () => optimizeDb(db),
-    // #23: the terminal "your library changed" fan for a background import. `chatsChanged` (chatId absent)
-    // already drives BOTH the chat list AND `character.list` in the client's user-bus map; `charactersChanged`
-    // is emitted too so a characters-only import (no chats) still refreshes. The always-on client user-bus
-    // receives these regardless of whether the import UI is still mounted — the gap a background import left.
-    emitLibraryChanged: ({ ownerId }) => {
-      publishUserEvent(ownerId, { type: "charactersChanged" });
-      publishChatChanged(ownerId, undefined);
-    },
+    emitLibraryChanged: createImportLibraryEmitter({
+      charactersChanged: ({ ownerId }) => publishUserEvent(ownerId, { type: "charactersChanged" }),
+      chatsChanged: ({ ownerId }) => publishChatChanged(ownerId, undefined),
+    }),
   };
 
   return { portability, importWorkloads, settleImportMemory };

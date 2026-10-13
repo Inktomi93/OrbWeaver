@@ -31,15 +31,13 @@ Each listed check is green on main or has a recorded cause and owner.
 
 The application check at `4d7b00a6d4` exited 2: `reports/runs/verify/main-4157590-2026-10-12T20-18-49-624Z/verify.json`. Biome, ESLint, native types, structure, ledger freshness, dependency-cruiser and Knip failed. Structure had tool errors and withheld policies, so the run cannot establish a whole-tree verdict.
 
-Migration corrections landed in `a5b297e094` and `bd6e38bf81`: nullable RPG read, private network import-type alias, contract formatting and native integer constructor proof. Affected compiler programs and formatting passed; the integer proof failed before its fix and passed afterward. Reuse this scoped evidence.
-
 Remaining findings: legacy disposal and typed-lint errors; maintained classes above; client formatting/import order; caught-failure census differences; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Default application Knip reports unused exports/types and configuration hints, not production-baseline reconciliation. Adjudicate intended consumers before deleting supported doors.
 
 Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Other findings and authority alarms remain unresolved. Repair product, security or checker defects, not waivers or disposable legacy suites. Preserve useful cases for the rebuild.
 
 Knip baseline typing and CLI spawn types are corrected. Focused Knip controls and root compilation pass, not a fresh production liveness verdict.
 
-Testkit citation lookup resolves world homes and rejects wrong-world basenames; red-first controls and native compilation pass. Selected reference run `main-770351-2026-10-13T00-00-13-682Z` completes, but reviewed citation grants exceed budget. Document and path policies pass. No grant is added.
+Testkit citation lookup resolves world homes and rejects wrong-world basenames; red-first controls and native compilation pass. Document and path policies pass in `main-1069035-2026-10-13T04-26-25-483Z`. Native-retirement citation corrections leave no effective finding in `main-1664924-2026-10-13T04-34-37-664Z`, but reviewed citation grants still exceed budget. This is a completed red authority verdict, not a tool error or clean citation qualification. Main owns grant adjudication; no grant or allowance is added.
 
 The caught-failure census relocates domain sites and retains unproven reindex/auth sites. Compose and Principal budgets shrink. Only the removed chat catch reduces its application budget; remaining census differences need population-specific adjudication.
 

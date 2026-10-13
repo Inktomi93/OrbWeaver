@@ -27,13 +27,6 @@ import type { UserId } from "@orb/kit/ids";
 import type { z } from "zod";
 
 /**
- * The `DomainOperationError.code` an enqueue door throws when the OWNING DOMAIN refused the row's admission
- * (`WorkloadContribution.admit`). One home for the string, because a producer reads it: the import's free segment
- * pass treats the memory-off refusal as a normal outcome (#156), not as an import failure.
- */
-export const WORKLOAD_NOT_ADMISSIBLE = "not_admissible";
-
-/**
  * ONE domain-contributed job. The params/result TYPES are authored in the OWNING domain's contracts module
  * (`@orb/contracts/<owner>`) and correlated to the kind by `WorkloadParamsByKind`/`WorkloadResultByKind`;
  * this interface only carries the execution policy the substrate needs plus the run body.

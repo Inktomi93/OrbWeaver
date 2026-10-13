@@ -16,7 +16,7 @@
 //   • the report file is named from the RUN CLOCK under the reports dir it is given, and the directory is
 //     created when absent.
 //
-// `formatImportReport` is private, so the pins drive the real `writeImportReport` and read the bytes back.
+// The pins call the production formatter and file writer, then read the resulting bytes back.
 // The reports dir resolves from cwd, so each test runs in a temp cwd and restores it (the
 // `env/index.test.ts` precedent).
 
@@ -24,11 +24,11 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { formatImportReport } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
 import type { ImportReport } from "#server/domain/import/index.ts";
-// Not on the `entry/import` barrel — `portability-runner.ts` is its only production importer, by path.
-import { writeImportReport } from "#server/entry/import/import-report.ts";
+import { writeImportReportFile } from "#server/infra/storage/index.ts";
 
 const AT = 1_700_000_000_000;
 const AT_ISO = new Date(AT).toISOString();
@@ -98,7 +98,7 @@ const REPORTS_DIR = "./data/reports";
 
 /** Write `report` from a temp cwd and return the path + the rendered markdown. */
 async function render(report: ImportReport, at = AT): Promise<{ readonly path: string; readonly md: string }> {
-  const path = await writeImportReport(report, at, REPORTS_DIR);
+  const path = await writeImportReportFile(formatImportReport(report, at), at, REPORTS_DIR);
   return { path, md: await readFile(path, "utf8") };
 }
 
@@ -329,6 +329,8 @@ describe("writeImportReport — the #1469 silent planes now have lines", () => {
     const { md } = await render({
       ...EMPTY,
       dryRun: true,
+      scanned: 12,
+      changed: 2,
       dryRunWouldImport: {
         characters: 3,
         personas: 1,
@@ -344,6 +346,10 @@ describe("writeImportReport — the #1469 silent planes now have lines", () => {
     });
 
     expect(md).toContain("**DRY RUN — nothing was written.**");
+    expect(md).toContain("Entities scanned: 12");
+    expect(md).toContain("Predicted new characters (read-only match): 2");
+    expect(md).not.toContain("New canon written");
+    expect(md).not.toContain("Every count in this report is zero");
     expect(md).toContain("- Characters: 3 (with 7 chat transcript(s))");
     expect(md).toContain("- Background images: 4");
     expect(md).toContain("- Group rooms: 1 (with 2 group transcript(s))");

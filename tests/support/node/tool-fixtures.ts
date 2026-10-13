@@ -13,10 +13,7 @@
 //                  paths — a tool move never sweeps test literals again.
 //   fakeBin      — a Node-backed POSIX + Windows command pair prepended to PATH for the test; auto-restored.
 //   plantedTree  — materialize a throwaway violation tree under scratch (the conformance-harness
-//                  pattern as a fixture); fsBacked tool tests never write the REAL tree. Nothing else does
-//                  either since #2176 Phase F: the legacy gate self-test's `__g_` real-tree planters are
-//                  deleted, and the prefix now belongs to one repo-root probe
-//                  (`verify/lib/biome-rule-liveness.ts`) and to nothing under a package.
+//                  pattern as a fixture); fsBacked tool tests write only below the owned scratch root.
 //   fixturePath  — compose a path below an owned root and REFUSE lexical or symlink escape (#2332); the
 //                  runtime half of `policy-fixture-substrate`, for the dynamic keys static provenance
 //                  cannot read.
