@@ -101,7 +101,8 @@ function stripCss(source: string): string {
         }
         end += 1;
       }
-      output += ` ${newlines}`;
+      const span = source.slice(index, end + 2);
+      output += DIRECTIVE_RE.test(span) ? span : ` ${newlines}`;
       index = end + 2;
       continue;
     }

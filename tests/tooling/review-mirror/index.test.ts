@@ -72,6 +72,24 @@ test("TS stripping removes comments without corrupting regex, template or line p
   expect(stripped.split("\n")).toHaveLength(source.split("\n").length);
 });
 
+test("CSS and SCSS stripping preserves directive comments but removes prose without touching quoted literals", () => {
+  const source =
+    "/* biome-ignore lint/x: intentional */\n" +
+    ".a { color: red; } /* ordinary prose */\n" +
+    "/* eslint-disable lint/y */\n" +
+    '.b { content: "/* biome-ignore lint/z: literal */"; }\n' +
+    "/* eslint-enable lint/y */\n";
+  for (const extension of ["css", "scss"]) {
+    const stripped = stripComments(`sample.${extension}`, source);
+    expect(stripped).toContain("/* biome-ignore lint/x: intentional */");
+    expect(stripped).toContain("/* eslint-disable lint/y */");
+    expect(stripped).toContain("/* eslint-enable lint/y */");
+    expect(stripped).toContain('.b { content: "/* biome-ignore lint/z: literal */"; }');
+    expect(stripped).not.toContain("ordinary prose");
+    expect(stripped.split("\n")).toHaveLength(source.split("\n").length);
+  }
+});
+
 // @instrument-proof: corrupt mirror and pending-guard populations are planted and the evidence door must reject the review verdict.
 // @instrument-absence-proof: tracked, mirrored-code, and E7 census populations are emptied and must never read as a clean review sweep.
 test("missing or empty generation evidence is an instrument error, never a clean zero", () => {
