@@ -286,6 +286,10 @@ Moving the tests out of the repository: it drops the regression net for the whol
 
 The test-mirror plan: item 890 server harness rows move here, item 901 hosts the harness, items 887 and 898 feed the corpus and the smoke matrix, item 952 burns down against the legacy folder. Raw package reaches and over-cap test files leave with the legacy files the ledger retires; rebuilt tests enter packages through public entries by construction. `docs/law/Spine-Testing.md` sections 2 and 10, `docs/law/Core-0-Architecture-and-Structure.md` section 5, and `docs/law/UNIFIED-VERIFICATION-DESIGN.md` section 4 for inner-loop membership.
 
+## Late tooling cleanup
+
+The [checker-recertification cleanup](../../work/1012-remove-whole-tree-checker-recertification-from-tooling-tests.md) follows foundation and replacement-suite work. Remove redundant live-tree reruns and certification scaffolding while preserving bounded verdict, refusal and lifecycle tests. Adjudicate static tooling-certification claims individually; move native-expressible restrictions and retain genuine failure semantics. This cleanup does not delay required production fixes or dependent harness and corpus qualification.
+
 ## Test plan
 
 Each engine move diffs `pnpm ast` output and gate findings before and after. Each ported suite shows the same case list and a production mutant that turns it red. The legacy-folder gate refuses a new entry and a returning file.

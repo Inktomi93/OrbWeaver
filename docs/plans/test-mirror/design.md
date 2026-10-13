@@ -98,6 +98,10 @@ Whole-tree mutation and a separate legacy retrofit campaign. Replacing one copie
 
 The test-foundation plan owns composition, builders/corpus, the CT door and reader dependencies. Its work items own current assignments. The inference-flow plan owns funding and runtime ownership concerns.
 
+## Late tooling cleanup
+
+Follow [test-foundation's late tooling cleanup](../test-foundation/design.md#late-tooling-cleanup) after the foundations and replacement suites. The checker-recertification assignment owns the deletion population and measured costs. It is not a separate prerequisite or a legacy retrofit queue.
+
 ## Test plan
 
 Use verdict-logic controls for checker changes and production defect controls for replacement suites. Preserve meaningful cases, then delete the replaced legacy assembly. The smoke matrix drives the real stack on the shared corpus.
