@@ -25,22 +25,22 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 ## Evidence
 
-The source reuses production HTTP, service and job composition; its current-tree freeze remains unqualified. Provider overrides script external execution, never admission, funding, accounting or persisted resolution.
+The unqualified source reuses production HTTP, service and job composition. Provider overrides script external execution, not admission, funding, accounting or persisted resolution.
 
 Thread deterministic IDs through actual owner writes. Inject business randomness and timers through heartbeats, deadlines, retries and observers. Keep security-token randomness distinct and preserve database-owned timestamps.
 
-Expose plugin-host execution and lifecycle. Inject imagery, scraping, installation and plugin egress without bypassing admission. Join startup, failed construction and teardown of database, runtime, workers and host resources. Deleting temporary files is not cleanup.
+Inject plugin-host lifecycle, imagery, scraping, installation and plugin egress without bypassing admission. Join startup, failed construction and resource teardown.
 
 `packages/server/src/foundation/observability/tracing.ts` must settle `superviseSettled` after its request span and rejection report complete. Preserve status and errors; prove both outcomes through public observability.
 
 Keep transport event buses and the chat-open tap graph-owned. Wire both publishers and subscribers through the same instance. Preserve synthetic timing and automation behavior. Prove concurrent roots with identical IDs cannot share events; disposal may finish out of order. Join aborted socket room pumps before database disposal.
 
-Notifications supplies the replacement case set. Preserve scope, replay, standing, persistence and projection assertions. Adjudicate unused cases without fake callers; delete legacy only after matching replacement proof.
-
-Keep unresolved notification persistence cases in legacy until intent and replacement are adjudicated. A partial port is not complete replacement. Corpus auth outputs use production HTTP construction and request identity.
+Notifications supplies the replacement case set. Preserve scope, replay, standing, persistence and projection assertions. Keep unresolved cases in legacy until matching replacement proof. Corpus auth uses production HTTP construction and request identity.
 
 Scoped controls prove resolved CIDR admission can widen a restricted hostname port. The correction rejects that path before dialing and preserves declared-port, unrelated-host and public-address admission. Root lifecycle, response-body settlement, domain replacement and combined compilation remain unqualified.
 
 Bounded response controls prove physical cancellation joins, native clone/header behavior and consumption semantics. Same-ID graph and coalescing isolation controls pass. These do not qualify the complete HTTP root.
 
-Production and strict-root configs pass; obsolete legacy assemblies remain red. Preliminary runtime fails HTTP/auth admission, tokenizer/head file reach and a DNS fixture coupling. The real-watchdog positive times out without a lifecycle verdict. Repair those exact cases after integrating current-owned-read and executor dependencies; preserve parked-read cancellation assertions.
+Affected production configs pass. The root config remains red on obsolete executor probes, inference helpers, chat strike inputs and copied inference assembly. Preserve their cases for replacement; do not repair copied wiring.
+
+Current-owned-read and executor dependencies are integrated in the lane, not main. Scoped HTTP, auth and native model controls pass. The SDK startup controls fail on old source and pass with owned timer cleanup. The restored watchdog positive proves child close and sibling survival; its old-source timeout supplies no lifecycle verdict. The DNS refusal case remains unqualified because fixture setup times out before its call. Move real graph import into collection, then rerun that case without changing its timeout or refusal.

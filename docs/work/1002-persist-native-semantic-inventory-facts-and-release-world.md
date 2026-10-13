@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-13
 priority: P1
 area: tooling
-lane: codex/store-memory-1002
+lane: codex/ast-wrapper-lifetime-1002
 plan: test-foundation
 ---
 
@@ -36,4 +36,6 @@ Native reference wrappers retain source-event subscriptions until source modific
 
 The reviewed wrapper-free repair is integrated. Its native ancestor-selection regression fails before correction and passes with the affected extraction and inventory cases. Exact-file lint and tooling/root typechecks pass. Token-tree, checker and complete fact-array costs remain unqualified; the frozen replay still supplies no complete inventory verdict. Schedule the next native memory qualification through main without increasing the heap or shrinking demanded worlds.
 
-The bounded real client-worker diagnostic stops at its external deadline without heap OOM or a completed partition. Recorded worker high water is about 11.3 GiB; it is not aggregate process-tree or complete-run qualification. Native export, symbol and reference work remains active at the bound. Preserve the measurements; source investigation must identify the remaining retention or query cost before another run.
+The bounded real client-worker diagnostic stops at its external deadline without heap OOM or a completed partition. Recorded worker high water is about 11.3 GiB; it is not aggregate process-tree or complete-run qualification. Native export, symbol and reference work remains active at the bound. Preserve the measurements; no implicit replay retry is authorized.
+
+The active correction replaces retained declaration and identifier wrappers with primitive query spans. Public scoped forgetting and descendant cleanup must release recreated ancestors before native references begin. Production remains unchanged until its lifecycle control fails; parity and affected checks precede review. Duplicate native AST ownership is not proved.

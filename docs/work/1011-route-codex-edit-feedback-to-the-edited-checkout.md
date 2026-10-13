@@ -23,4 +23,4 @@ Bounded hook controls cover main, linked checkout, multi-checkout edits, moves, 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Deferred while the main foundation program proceeds. Misrouted worktree paths produce an explicit planner refusal, not a false pass. Required scoped lane checks supply the missing feedback. Leave main-checkout feedback enabled; this item does not justify a global hook change or a competing implementation lane.

@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-13
 priority: P2
+lane: codex/codemod-readers-957
 plan: test-foundation
 ---
 
@@ -22,4 +23,4 @@ Codemod read paths call the floor engine; each codemod's dry-run plan is unchang
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The current batch routes exported declarations, export origins, static import closure and imported Vitest binding identity through existing floor readers. Native manipulation, importer relations and broader relocation grammar remain native. Preservation fixtures and affected checks are queued through main; this source batch does not complete every codemod reader.
