@@ -25,4 +25,10 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Preparation identifies partial production seams, not a complete harness. Database and domain clocks already enter production composition. Provider overrides script external execution; they must not replace runtime admission, funding, accounting or persisted resolution.
+
+Thread deterministic IDs through actual owner writes, including sessions, notifications, stats and nested RPG operations. Thread business randomness and timer controls through turn heartbeats, deadlines, retries and observers. Keep security-token randomness distinct. A top-level seeded-ID or clock field does not establish deterministic composition; preserve database-owned timestamp semantics.
+
+Expose the complete plugin-host edge and its lifecycle, not only per-instance disposal. Cover outbound imagery, scraping, plugin installation and plugin egress without bypassing network admission. The root must settle startup, failed-construction cleanup and teardown of database, runtime, workers and host resources. Temporary-directory deletion alone is not cleanup.
+
+Refresh the seam inventory after compose integration. Preserve the single production graph, world separation and complete domain-case acceptance above. Do not create a second domain assembly or claim the existing app fixture supplies every edge.
