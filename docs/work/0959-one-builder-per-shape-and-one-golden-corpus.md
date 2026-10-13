@@ -37,4 +37,6 @@ Browser responders select actual captured route inputs and outputs. Preserve abs
 
 The pure/default builder floor passes its scoped runtime, compiler, lint and selected-policy checks. Owner-schema drift fails an executed test; replacing production token calculation with zero also fails. Exact source restoration returns the baseline to green. Helpers derive private service types through the public compose result, not undeclared package doors. Derived token size is not an override. Legacy override scaffolds remain replacement debt. Producer-row runtime proof, recall and corpus adoption still require the qualified server root.
 
-The selected fabrication policy still consumes existing waivers in `tests/support/node/factories/resolved-connection.ts`. Its secret and resolved-connection fixtures remain unqualified compatibility machinery. New corpus inputs must use actual admission and credential resolution. Repository waiver budgets remain unjudged.
+The selected fabrication policy still consumes waivers in `tests/support/node/factories/resolved-connection.ts`. New corpus inputs use actual admission and credential resolution. Waiver budgets remain unjudged.
+
+Bounded producer cases pass for real seed turns, cookie authentication, ingestion, imagery and discovery. An imagery timestamp-only control merges distinct calls and fails; exact restoration passes. Complete row/output coverage, native lifecycle captures, corpus publication and each-layer loading remain unfinished.

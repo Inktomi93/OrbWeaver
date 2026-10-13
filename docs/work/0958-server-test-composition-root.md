@@ -27,12 +27,6 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 The unqualified source reuses production HTTP, service and job composition. Provider overrides script external execution, not admission, funding, accounting or persisted resolution.
 
-Thread deterministic IDs through actual owner writes. Inject business randomness and timers through heartbeats, deadlines, retries and observers. Keep security-token randomness distinct and preserve database-owned timestamps.
-
-Inject plugin-host lifecycle, imagery, scraping, installation and plugin egress without bypassing admission. Join startup, failed construction and resource teardown.
-
-`packages/server/src/foundation/observability/tracing.ts` must settle `superviseSettled` after its request span and rejection report complete. Preserve status and errors; prove both outcomes through public observability.
-
 Keep transport event buses and the chat-open tap graph-owned. Wire both publishers and subscribers through the same instance. Preserve synthetic timing and automation behavior. Prove concurrent roots with identical IDs cannot share events; disposal may finish out of order. Join aborted socket room pumps before database disposal.
 
 Notifications supplies the replacement case set. Preserve scope, replay, standing, persistence and projection assertions. Keep unresolved cases in legacy until matching replacement proof. Corpus auth uses production HTTP construction and request identity.
@@ -41,6 +35,12 @@ Scoped controls prove resolved CIDR admission can widen a restricted hostname po
 
 Bounded response controls prove physical cancellation joins, native clone/header behavior and consumption semantics. Same-ID graph and coalescing isolation controls pass. These do not qualify the complete HTTP root.
 
-Affected production configs pass. The root config remains red on obsolete executor probes, inference helpers, chat strike inputs and copied inference assembly. Preserve their cases for replacement; do not repair copied wiring.
+Affected production configs pass. Root typechecking remains red on non-owned probes and copied helpers. Preserve their meaningful cases for replacement.
 
-Current-owned-read and executor dependencies are integrated in the lane, not main. Scoped HTTP, auth and native model controls pass. The SDK startup controls fail on old source and pass with owned timer cleanup. The restored watchdog positive proves child close and sibling survival; its old-source timeout supplies no lifecycle verdict. The DNS refusal case passes after moving graph import into collection. Its refusal, timeout and transport behavior remain unchanged.
+Current-owned-read and executor dependencies are integrated in the lane, not main. Scoped HTTP, auth and native model controls pass. Native SDK startup controls prove actual child execution and timer cleanup. Watchdog controls prove child close and sibling survival; the old-source timeout supplies no verdict.
+
+Notification replacement cases and public replay pass. Removing recipient filtering delivers foreign data; replacing the host read prevents required prune effects. Both controls fail meaningfully and exact restoration passes. Legacy persistence cases remain until replacement coverage is complete.
+
+Cancellation could stop after a timer cleanup error, leaving background and egress work live. Native disposal preserves cancellation order and attempts every cleanup. Actual fetch abort and original-error controls fail before correction and pass afterward. Automation queues now belong to their graph through a pure kit engine; independent same-ID roots and ordering controls pass.
+
+Configured OIDC, share and ACME execution, strong native SDK exit joins, remaining lifecycle cases and assembly enforcement remain unqualified. Corpus storage and native ingress must reuse this graph, not build another application.
