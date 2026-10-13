@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-12
+updated: 2026-10-13
 priority: P2
 plan: test-foundation
 ---
@@ -22,4 +22,10 @@ The kit mints seeded ids and reads the frozen clock; test-determinism judges id 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The server harness owns clock, IDs, randomness and timer seams. The builder and corpus assignment owns deterministic data producers, including imagery, preset and recall inputs. Complete those shared homes before changing their enforcement; do not add parallel helper implementations.
+
+`test-determinism` excludes the entire support tree and lacks canonical mint identity checks. Its support positive control preserves that exclusion. Closing this gap requires discriminating controls for seeded production mints and ambient mints, including aliases, not another spelling-only detector.
+
+Socket support uses wall-clock polling for attach coordination. Contrast support uses wall-clock and randomness for a DOM marker. Replace these helper mechanisms with deterministic identity and actual lifecycle coordination; a frozen clock must not stand in for a browser or process completion signal.
+
+Judge maintained fake-timer and spy sites against testing law. Preserve legacy regression cases until their replacement deletes the corresponding harness; legacy waiver cleanup is not an independent retrofit assignment. Keep the existing lawful elapsed-time and external-edge distinctions without blanket support exemptions.
