@@ -31,6 +31,8 @@ Thread deterministic IDs through actual owner writes, including sessions, notifi
 
 Expose the complete plugin-host edge and its lifecycle, not only per-instance disposal. Cover outbound imagery, scraping, plugin installation and plugin egress without bypassing network admission. The root must settle startup, failed-construction cleanup and teardown of database, runtime, workers and host resources. Temporary-directory deletion alone is not cleanup.
 
+`packages/server/src/foundation/observability/tracing.ts` resolves `superviseSettled` before the enclosing request span closes and its rejection report completes. Repair that existing completion boundary so harness teardown joins the actual supervised operation. Preserve the existing trace status and error report; prove completion and rejection through the public observability surface.
+
 Refresh the seam inventory after compose integration. Preserve the single production graph, world separation and complete domain-case acceptance above. Do not create a second domain assembly or claim the existing app fixture supplies every edge.
 
 The notifications domain supplies the first complete replacement case set. Preserve scope, replay, standing, persistence and projection assertions through real composition. Account for unused helper cases through genuine live behavior or an explicit deletion decision; adding a fake caller does not establish production reach. Delete the corresponding legacy suite and harness only after matching replacement proof.

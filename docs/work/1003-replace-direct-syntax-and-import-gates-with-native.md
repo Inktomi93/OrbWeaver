@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Move no-layout-context-props, no-caller-user-id, no-if-is-group, no-form-state-in-useeffect, no-untrusted-html-in-main-dom, route-imports-no-feature and query-machine-seals into maintained native configuration. Remove query-machine-seals-health after replacing its import permission mechanism. Delete obsolete gate registrations, grants and redundant proofs with their implementations. Preserve actual policy populations and justified file-and-capability exceptions.
+Move no-layout-context-props, no-caller-user-id, no-if-is-group, no-untrusted-html-in-main-dom, route-imports-no-feature and query-machine-seals into maintained native configuration. Move direct no-form-state-in-useeffect syntax into native restrictions; retain only its unmatched computed-name analysis. Remove query-machine-seals-health after replacing its import permission mechanism. Delete obsolete gate registrations, grants and redundant proofs with their implementations. Preserve actual policy populations and justified file-and-capability exceptions.
 
 ## Why
 
@@ -24,4 +24,6 @@ Native configuration rejects the forbidden source shapes and admits the relevant
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The form reader resolves const-bound computed member and callee names through shared code facts. Native selectors cannot follow those bindings. Keep that semantic remainder without duplicating the direct syntax checks or adding another reader.
+
+Native parser handling also rejects parenthesized direct group conditions and effect callees. Parentheses do not change the prohibited operation. Record this checker correction and prove it with bounded controls; preserve the substantive population and accepted-source exclusions.

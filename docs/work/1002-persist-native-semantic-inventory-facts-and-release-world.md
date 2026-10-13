@@ -24,4 +24,6 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Independent review reproduced stale native resolution after a configuration change. A captured workspace supplied old compiler options while publication recorded current configuration bytes. Descriptor freshness must hold for explicit supplied programs as well as default construction.
+
+The correction must preserve current caller-selected native subsets and real codemod overlays. Its bounded regression exercises configuration mutation, stale-request refusal and current workspace resolution. Complete repository replay and peak-memory measurement remain unqualified until the correction passes review.
