@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Closures inside packages/server/src/entry/compose run database queries and carry business rules: resolveUserPublics, resolveConnectedPersona and the present-host read in chat.ts, the large rpg.ts closures, automation-plugin.ts, search-discovery.ts, the seat writes in session-entries.ts, and query closures in co-participant-assets.ts, emit-chat-changed.ts, event-bus.ts, regex.ts, preset-usage.ts, visible-rooms.ts, roster-preset.ts and imagery.ts. Move each to its owning domain as an exported function, or as an injected op where it crosses domains, and add a gate that a compose module calls no drizzle query builder and holds no branching beyond wiring. Build the gate first, red against the current tree; its findings are the work set. When it lands, Core-0 sections 5 and 9 and Spine-Testing section 2 describe the testkit shape (with 958).
+Move every per-call rule and database query from compose and its reachable entry callbacks to their real owners. Keep configuration decisions and graph wiring in entry. The gate owns the complete work set, including adapters, imports and boot. Build the real test composition root only after this boundary is clean.
 
 ## Why
 
@@ -25,7 +25,9 @@ The gate holds with planted controls; no compose module runs a query or carries 
 
 Chat and search/discovery moves landed at `980a8e07bd` after review and the authenticated-Principal correction. Automation/plugin landed at `292d99464e`, including canonical contracts and domain-cycle corrections. Focused behavior, affected native programs and the server import graph pass. The budget file owns the remaining compose count; this item stays open.
 
-`codex/compose-chat-964` owns services/runtime/embedding wiring and the coupled import builder. The administrative policy item owns the independent admin, update, refinery and recorder batch on `codex/compose-policy-995`. Services wiring stays with its current lane; the primary agent integrates required changes. Other adapters and boot remain open. Do not build the server harness before this boundary is clean.
+Services/runtime/embedding rules and the owner-bound import builder land at `3abe607b75`. The administrative policy item owns admin, update, refinery and recorder cleanup on `codex/compose-policy-995`. Other adapters and boot remain open. Do not build the server harness before this boundary is clean.
+
+Services review confirms the relocation map and matching native import graph. Aggregate-green evidence covers the corrected distinct case set; publication and vector cases have separately labeled per-file passes inside failed batches. Existing legacy lint findings remain visible. Compose and structural-copy budgets shrink only by this leg's actual removals. Moved expected-exception catches have no committed census rows; raw catch consolidation does not establish a waiver reduction.
 
 The native server import graph confirms the lower-contract and injected-resolver corrections without rule relaxation. Preserve canonical lower-package shapes, consumer-owned narrow ports and sibling front doors in the remaining legs.
 
