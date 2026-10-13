@@ -39,7 +39,6 @@ test("the sign-in page follows OS color scheme changes and restores the prior pa
 function config(overrides: Partial<AuthConfig>): AuthConfig {
   return {
     mode: "local",
-    requiresLogin: true,
     localEnabled: true,
     oidcEnabled: false,
     oidcProviderName: "Test IdP",
@@ -204,7 +203,7 @@ test.describe("under a coarse pointer", () => {
   }
 
   test("a THUMB drawn across the login backdrop RINGS the silk", async ({ mount, page }) => {
-    const cfg = config({ mode: "forward-header", requiresLogin: false, localEnabled: false });
+    const cfg = config({ mode: "forward-header", localEnabled: false });
     await stubAuthConfig(page, cfg);
     await mount(<LoginSceneStory width={PHONE_W} config={cfg} />);
     await expect(page.getByRole("heading", { name: PROXY_HEADING })).toBeVisible();
@@ -233,7 +232,7 @@ test.describe("under a coarse pointer", () => {
   });
 
   test("the login page still does not scroll under the gesture (the backdrop is decoration, not a surface)", async ({ mount, page }) => {
-    const cfg = config({ mode: "forward-header", requiresLogin: false, localEnabled: false });
+    const cfg = config({ mode: "forward-header", localEnabled: false });
     await stubAuthConfig(page, cfg);
     await mount(<LoginSceneStory width={PHONE_W} config={cfg} />);
     const scene = page.getByTestId("ct-login-scene");

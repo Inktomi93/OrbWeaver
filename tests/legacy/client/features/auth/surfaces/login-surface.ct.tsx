@@ -34,7 +34,6 @@ async function stubSignupPreview(page: Page, live: boolean, room: object = ROOM)
 function config(overrides: Partial<AuthConfig>): AuthConfig {
   return {
     mode: "local",
-    requiresLogin: true,
     localEnabled: true,
     oidcEnabled: false,
     oidcProviderName: "Test IdP",
@@ -99,13 +98,13 @@ test("https → no transport notice", async ({ mount, page }) => {
 });
 
 test("single-user mints no cookie → no transport notice even over plain http", async ({ mount, page }) => {
-  await mount(<LoginArmStory config={config({ mode: "single-user", requiresLogin: false, localEnabled: false, transport: "http", clientScope: "public" })} />);
+  await mount(<LoginArmStory config={config({ mode: "single-user", localEnabled: false, transport: "http", clientScope: "public" })} />);
   await expect(page.getByRole("heading", { name: "Single-user mode" })).toBeVisible();
   await expect(page.getByTestId("login-transport-notice")).toHaveCount(0);
 });
 
 test("forward-header → the proxy-config EXPLAINER (reachable now — no login form, no blank bounce)", async ({ mount, page }) => {
-  await mount(<LoginArmStory config={config({ mode: "forward-header", requiresLogin: false, localEnabled: false })} />);
+  await mount(<LoginArmStory config={config({ mode: "forward-header", localEnabled: false })} />);
   await expect(page.getByRole("heading", { name: "Authentication happens at your proxy" })).toBeVisible();
   // The explainer is NOT a form — no credential inputs.
   await expect(page.getByTestId("login-handle")).toHaveCount(0);
@@ -156,7 +155,7 @@ test("local → the credential form (handle pre-filled)", async ({ mount, page }
 });
 
 test("single-user → the 'no login needed' explainer (reachable only by direct nav)", async ({ mount, page }) => {
-  await mount(<LoginArmStory config={config({ mode: "single-user", requiresLogin: false, localEnabled: false })} />);
+  await mount(<LoginArmStory config={config({ mode: "single-user", localEnabled: false })} />);
   await expect(page.getByRole("heading", { name: "Single-user mode" })).toBeVisible();
 });
 

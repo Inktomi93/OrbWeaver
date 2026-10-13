@@ -1,11 +1,12 @@
 // entry/http/auth-meta — the public bootstrap registrar (FINAL-Auth-Modes §7 P0). Pins: /config derives
-// the per-mode flags from the INJECTED mode (requiresLogin only for the cookie modes); discreet login
+// the per-mode flags from the INJECTED mode; discreet login
 // WITHHOLDS the handle pre-fill (read per request — a runtime AppSettings flip takes effect immediately);
 // A8 serves the OIDC provider name; B4 serves the origin-scoped localFirstRun flag; /me projects the
 // middleware-resolved principal (authenticated/handle/role) and never resolves a second time. Hono isn't
 // test-resolvable, so the registrar runs over a captured mock app + context (the healthz.test.ts pattern).
 
 // @orb-waive-file no-test-fabrication({ image: number }): baselined when the gate widened to value casts; burn-down item 906.
+import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Handle, UserId } from "@orb/kit/ids";
@@ -94,10 +95,10 @@ const USER: Principal = {
 };
 
 describe("GET /api/auth/config", () => {
-  test("local mode → requiresLogin + localEnabled, handle pre-fill present", async () => {
-    expect((await run(handlers(depsFor("local")).config)).body).toEqual({
+  test("local mode → complete canonical config, localEnabled and handle pre-fill present", async () => {
+    const body = (await run(handlers(depsFor("local")).config)).body;
+    expect(authConfigSchema.parse(body)).toEqual({
       mode: "local",
-      requiresLogin: true,
       localEnabled: true,
       oidcEnabled: false,
       oidcProviderName: PROVIDER,
@@ -266,16 +267,17 @@ describe("GET /api/auth/config", () => {
     expect((body["uploads"] as { image: number }).image).toBe(MAX_IMAGE_BYTES);
   });
 
-  test("oidc mode → requiresLogin + oidcEnabled", async () => {
-    const body = (await run(handlers(depsFor("oidc")).config)).body;
-    expect(body["requiresLogin"]).toBe(true);
-    expect(body["oidcEnabled"]).toBe(true);
-    expect(body["localEnabled"]).toBe(false);
+  test("oidc mode → oidcEnabled without localEnabled", async () => {
+    const body = authConfigSchema.parse((await run(handlers(depsFor("oidc")).config)).body);
+    expect(body.oidcEnabled).toBe(true);
+    expect(body.localEnabled).toBe(false);
   });
 
-  test("single-user / forward-header → requiresLogin false (no login page can fix either)", async () => {
-    expect((await run(handlers(depsFor("single-user")).config)).body["requiresLogin"]).toBe(false);
-    expect((await run(handlers(depsFor("forward-header")).config)).body["requiresLogin"]).toBe(false);
+  test("single-user / forward-header → neither cookie login arm is enabled", async () => {
+    for (const mode of ["single-user", "forward-header"] as const) {
+      const body = authConfigSchema.parse((await run(handlers(depsFor(mode)).config)).body);
+      expect({ localEnabled: body.localEnabled, oidcEnabled: body.oidcEnabled }).toEqual({ localEnabled: false, oidcEnabled: false });
+    }
   });
 
   test("discreet login WITHHOLDS defaultHandle (no enumeration on the login surface)", async () => {

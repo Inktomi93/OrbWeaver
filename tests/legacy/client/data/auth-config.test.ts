@@ -21,7 +21,6 @@ vi.setConfig({ testTimeout: reimportBudget(30_000) });
 
 const CONFIG: AuthConfig = {
   mode: "local",
-  requiresLogin: true,
   localEnabled: true,
   oidcEnabled: false,
   oidcProviderName: "your identity provider",
@@ -80,9 +79,35 @@ test("a non-ok response throws an HTTP-status error", async () => {
   await expect(fetchAuthConfig()).rejects.toThrow("HTTP 500");
 });
 
+test.each([
+  ["missing fields", { mode: CONFIG.mode }],
+  ["unknown mode", { ...CONFIG, mode: "saml" }],
+  ["unknown transport", { ...CONFIG, transport: "ftp" }],
+  ["unknown client scope", { ...CONFIG, clientScope: "trusted" }],
+  ["malformed flag", { ...CONFIG, localFirstRun: "true" }],
+  ["malformed upload cap", { ...CONFIG, uploads: { ...CONFIG.uploads, image: "unlimited" } }],
+  ["missing share link", { ...CONFIG, share: { state: "up" } }],
+])("fetchAuthConfig refuses %s and retries after the parse failure", async (_label, body) => {
+  vi.stubGlobal("fetch", () => Promise.resolve(Response.json(body)));
+  const fetchAuthConfig = await freshFetchAuthConfig();
+  await expect(fetchAuthConfig()).rejects.toThrow();
+
+  vi.stubGlobal("fetch", () => Promise.resolve(Response.json(CONFIG)));
+  await expect(fetchAuthConfig()).resolves.toEqual(CONFIG);
+});
+
+test("fetchAuthConfig refuses every missing required field rather than inventing a default", async () => {
+  const fetchAuthConfig = await freshFetchAuthConfig();
+  for (const field of Object.keys(CONFIG)) {
+    const body = Object.fromEntries(Object.entries(CONFIG).filter(([key]) => key !== field));
+    vi.stubGlobal("fetch", () => Promise.resolve(Response.json(body)));
+    await expect(fetchAuthConfig(), field).rejects.toThrow();
+  }
+});
+
 // The share half changes while the server runs, so the live read is never served from the memo: two calls are two
 // fetches, and each answers the share the server holds at that moment.
-test("fetchLiveShare reads fresh each call, and parses only the share fields", async () => {
+test("fetchLiveShare reads fresh each call and returns the parsed config's share fields", async () => {
   const shares = [
     { state: "off", url: null },
     { state: "up", url: "https://calm-river-four-birds.trycloudflare.com" },
@@ -107,4 +132,13 @@ test("fetchLiveShare throws on a non-ok response or a malformed share, so no lin
   await expect(fetchLiveShare()).rejects.toThrow("HTTP 502");
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ ...CONFIG, share: { state: "up" } }), { status: 200 })));
   await expect(fetchLiveShare()).rejects.toThrow();
+});
+
+test("fetchLiveShare refuses an incomplete or malformed config even when its share block is valid", async () => {
+  vi.resetModules();
+  const { fetchLiveShare } = await import("#client/data/auth-config.ts");
+  for (const body of [{ share: CONFIG.share }, { ...CONFIG, transport: "ftp" }, { ...CONFIG, uploads: null }]) {
+    vi.stubGlobal("fetch", () => Promise.resolve(Response.json(body)));
+    await expect(fetchLiveShare()).rejects.toThrow();
+  }
 });

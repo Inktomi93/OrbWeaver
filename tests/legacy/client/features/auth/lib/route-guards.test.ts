@@ -1,5 +1,5 @@
 // features/auth/lib/route-guards — the `beforeLoad` gate decisions (FINAL-Auth-Modes §7 P0; the P1-a
-// reachability fix). The axis is `me.authenticated`, NOT `config.requiresLogin` — so the matrix is keyed
+// reachability fix). The axis is `me.authenticated`, not deployment mode — so the matrix is keyed
 // on the seam-resolved identity alone:
 //   • single-user — the owner fallback ALWAYS resolves → authenticated:true → genuine pass-through.
 //   • forward-header BROKEN proxy (unauthenticated) → authenticated:false → lands on /login (the arm the

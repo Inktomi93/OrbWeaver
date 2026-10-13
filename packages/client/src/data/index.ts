@@ -2,6 +2,7 @@
 // pinned QueryClient, the central invalidation seam, the bus reducer + adapter, and the three
 // factories every surface builds on (§13.2: a surface not using its primitive is the review flag).
 
+export type { AuthConfig } from "@orb/contracts/auth-config";
 export {
   confirmPendingJoin,
   fetchAuthMe,
@@ -13,7 +14,6 @@ export {
   usePendingJoinPreview,
   useSignupInvitePreview,
 } from "./auth-bootstrap.ts";
-export type { AuthConfig } from "./auth-config.ts";
 export {
   fetchLiveShare,
   useAuthConfig,

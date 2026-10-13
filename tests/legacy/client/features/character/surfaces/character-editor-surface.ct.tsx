@@ -177,7 +177,6 @@ async function stubDeploymentFloor(page: Page, trustHtml: boolean): Promise<void
       contentType: "application/json",
       body: JSON.stringify({
         mode: "single-user",
-        requiresLogin: false,
         localEnabled: false,
         oidcEnabled: false,
         discreetLogin: false,

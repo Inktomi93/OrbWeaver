@@ -29,7 +29,6 @@ async function stubAuthConfig(page: Page, opts: { readonly mode?: AuthMode; read
   const mode = opts.mode ?? "local";
   const config: AuthConfig = {
     mode,
-    requiresLogin: mode === "local" || mode === "oidc",
     localEnabled: mode === "local",
     oidcEnabled: mode === "oidc",
     oidcProviderName: "Test IdP",

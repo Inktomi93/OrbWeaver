@@ -13,7 +13,6 @@ import { LoginPendingJoinStory } from "../_ct-stories.tsx";
 
 const OIDC: AuthConfig = {
   mode: "oidc",
-  requiresLogin: true,
   localEnabled: false,
   oidcEnabled: true,
   oidcProviderName: "Test IdP",

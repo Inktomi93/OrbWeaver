@@ -115,7 +115,6 @@ async function stubAuth(page: Page, mode = "local"): Promise<void> {
       contentType: "application/json",
       body: JSON.stringify({
         mode,
-        requiresLogin: mode !== "single-user",
         localEnabled: mode === "local",
         oidcEnabled: mode === "oidc",
         discreetLogin: false,

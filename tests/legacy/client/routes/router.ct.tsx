@@ -21,7 +21,6 @@ const ROOM = {
 };
 const INVITE_CONFIG: AuthConfig = {
   mode: "local",
-  requiresLogin: true,
   localEnabled: true,
   oidcEnabled: false,
   oidcProviderName: "Test IdP",
