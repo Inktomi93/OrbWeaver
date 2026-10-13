@@ -1,4 +1,4 @@
-// Idempotent default-user-persona seeder (mirrors the default-character seeder). Called both at boot (the
+// Persona-owned default-user-persona seeder (mirrors the default-character seeder). Called both at boot (the
 // deployment owner) and on first authed request (a new user). `ensureSeeded` never throws.
 //
 // IDEMPOTENCY HAS TWO LAYERS (the character seeder's shape — #461 is what it cost to only have one):
@@ -31,9 +31,10 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
 import { errorMessage } from "@orb/kit/error-message";
-import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { getLog } from "#foundation/observability";
+import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../contract/default-seed.ts";
 
 /** The authored default persona — a neutral, editable starting `{{user}}`. Deliberately generic (the user
  *  makes it theirs), with no description until they write one.
@@ -69,44 +70,12 @@ const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
   metadata: { seededDefault: true },
 };
 
-// @orb-waive no-inline-package-interface(DefaultPersonaSeederDeps): baselined when the gate landed; burn-down item 952.
-export interface DefaultPersonaSeederDeps {
-  /** Is AUTO-CREATION on for this stack (see the file header)? `false` ⇒ `ensureSeeded` creates nothing and
-   *  records nothing — not even the latch — so the zero-personas first-run trigger genuinely holds and the
-   *  user names their own `{{user}}`. REQUIRED (never defaulted): a composer that has not decided which kind
-   *  of stack it is wiring must not silently get the automation arm. */
-  readonly autoSeedEnabled: () => boolean;
-  readonly createPersona: (args: { readonly principal: Principal; readonly input: CreatePersonaInput }) => Promise<{ readonly id: PersonaId }>;
-  /** Store the bundled "You" avatar art → its asset id, or `null` when the pack ships none / the store fails. */
-  readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;
-  readonly isSeeded: (principal: Principal) => Promise<boolean>;
-  /** LAYER 2 (file header): the id of the row this seeder already minted for this user
-   *  (`metadata.seededDefault`), or `null`. Consulted only when the latch says "not seeded", and a hit means
-   *  HEAL the latch, create nothing. Deliberately narrower than "owns any persona" — an unrelated persona has
-   *  never suppressed the seed. It returns the ID rather than a boolean (#1412) because the heal is also the
-   *  POINTER REPAIR: the incident this layer exists for is a settings blob that came back at schema defaults,
-   *  which nulls `seeds.defaultPersonaId`/`currentPersonaId` alongside the latch, and a heal that latched
-   *  without repointing left the user permanently pointing at nothing. */
-  readonly findSeededDefault: (principal: Principal) => Promise<PersonaId | null>;
-  /** Points seeds.defaultPersonaId/currentPersonaId at the seeded persona where they are still null, THEN
-   *  persists the latch. Never clobbers an explicit existing pick (the PICK LAW). The order is the contract:
-   *  the latch is written LAST so it means "complete" (#1412) — an interrupted mark leaves the user
-   *  re-seedable rather than latched-and-pointerless. */
-  readonly markSeeded: (principal: Principal, seededPersonaId: PersonaId) => Promise<void>;
-}
-
-// @orb-waive no-inline-package-interface(DefaultPersonaSeeder): baselined when the gate landed; burn-down item 952.
-export interface DefaultPersonaSeeder {
-  readonly ensureSeeded: (principal: Principal) => Promise<void>;
-}
-
 export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): DefaultPersonaSeeder {
   const log = getLog();
   // Populated only on success — a transient failure retries on the next touch. ASSUMES(single-replica).
   const settled = new Set<UserId>();
   const inFlight = new Map<UserId, Promise<void>>();
 
-  // @orb-waive compose-wiring-only(seed): baselined when the gate landed; burn-down item 964.
   async function seed(principal: Principal): Promise<void> {
     if (await deps.isSeeded(principal)) {
       return;
@@ -130,7 +99,6 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
   }
 
   return {
-    // @orb-waive compose-wiring-only(ensureSeeded): baselined when the gate landed; burn-down item 964.
     ensureSeeded: (principal: Principal): Promise<void> => {
       // The real-stack arm: no create, no latch, no settings read at all (the FIRST-RUN ASK owns this user).
       // Checked per call, not once at build: the knob is a stack posture, and reading it here keeps the

@@ -14,27 +14,13 @@
 // a db blip — leaves it unset so the user is retried on their next touch instead of silently skipped forever.
 //
 // ALL THE PLUGIN LOGIC LIVES IN THE VERB, not here: what a distributed copy is (disabled, zero grant,
-// consent-pending), which slugs are published, and the already-held skip are the domain's. This module owns
-// exactly the once-per-user question, because the latch is a SETTINGS fact and `domain/plugin` may not read
-// settings.
+// consent-pending), which slugs are published, and the already-held skip are the domain's. Plugin owns the once-per-user question; the SETTINGS latch arrives through an injected consumer port.
 
 import type { Principal } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
 import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-
-// @orb-waive no-inline-package-interface(DistributedPluginApplierDeps): baselined when the gate landed; burn-down item 952.
-export interface DistributedPluginApplierDeps {
-  /** The REAL self-scoped verb, under the receiving user's own Principal. Returns which slugs it installed. */
-  readonly apply: (principal: Principal) => Promise<{ readonly installedSlugs: readonly string[] }>;
-  readonly isApplied: (principal: Principal) => Promise<boolean>;
-  readonly markApplied: (principal: Principal) => Promise<void>;
-}
-
-// @orb-waive no-inline-package-interface(DistributedPluginApplier): baselined when the gate landed; burn-down item 952.
-export interface DistributedPluginApplier {
-  readonly ensureApplied: (principal: Principal) => Promise<void>;
-}
+import type { DistributedPluginApplier, DistributedPluginApplierDeps } from "../contract/distributed-seed.ts";
 
 export function createDistributedPluginApplier(deps: DistributedPluginApplierDeps): DistributedPluginApplier {
   const log = getLog();
@@ -42,7 +28,6 @@ export function createDistributedPluginApplier(deps: DistributedPluginApplierDep
   const settled = new Set<UserId>();
   const inFlight = new Map<UserId, Promise<void>>();
 
-  // @orb-waive compose-wiring-only(run): baselined when the gate landed; burn-down item 964.
   async function run(principal: Principal): Promise<void> {
     if (await deps.isApplied(principal)) {
       return;
@@ -58,7 +43,6 @@ export function createDistributedPluginApplier(deps: DistributedPluginApplierDep
   }
 
   return {
-    // @orb-waive compose-wiring-only(ensureApplied): baselined when the gate landed; burn-down item 964.
     ensureApplied: (principal: Principal): Promise<void> => {
       if (settled.has(principal.userId)) {
         return Promise.resolve();

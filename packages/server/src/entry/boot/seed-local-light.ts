@@ -23,13 +23,13 @@
 // but it bypasses the verb that raises the reindex. So both halves hand the owner to `onEmbedSpaceBound`, the
 // per-owner sweep enqueue; without it a fresh install's search waits forever on sweeps nothing scheduled.
 
-import { taskDef } from "@orb/contracts/inference";
+// Entry binds the writer/read capabilities; connection owns refusal, notification and sweep settlement.
+
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { seedLocalLightConnections } from "#domain/connection";
-import { getLog } from "#foundation/observability";
+import { createLocalLightUserSeed as createUserSeedPolicy, seedLocalLightAccounts, seedLocalLightConnections } from "#domain/connection";
+import { createListSeedAccountIds } from "#domain/sessions";
 import { minter } from "../compose/minter.ts";
 
 // @orb-waive no-inline-package-interface(SeedLocalLightDeps): baselined when the gate landed; burn-down item 952.
@@ -40,51 +40,22 @@ export interface SeedLocalLightDeps {
   readonly onEmbedSpaceBound: (userId: UserId) => void;
 }
 
-/** One user's seed with the shared never-rethrow posture. Returns the rows newly inserted (0 on failure). */
-// @orb-waive compose-wiring-only(seedOneUser): baselined when the gate landed; burn-down item 964.
-async function seedOneUser(deps: SeedLocalLightDeps, userId: UserId): Promise<number> {
-  try {
-    const seeded = await seedLocalLightConnections(seedDepsFrom(deps), userId);
-    if (seeded.boundTasks.some((task) => taskDef(task).kind === "embedding")) {
-      deps.onEmbedSpaceBound(userId);
-    }
-    return seeded.inserted;
-    // The DEGRADE, ruled by §7.2/§5.3b and pinned by the boot + mint tests: the owner of this failure is the
-    // connection pane, which offers "add local-light rows". A rethrow would take the server down over a
-    // convenience seed (boot) or un-create an account over it (a mint) — neither is a trade this seed gets
-    // to make. The warning names the user so an operator can repair it.
-  } catch (err) {
-    getLog().warn({ err, userId }, "seed-local-light: the local-light seed failed for a user — the pane offers a repair");
-    return 0;
-  }
-}
-
-/** The minters + clock both halves hand the connection verb. */
+/** Preserve the per-call provider lookup and determinism seams while binding only graph capabilities. */
 function seedDepsFrom(deps: SeedLocalLightDeps): Parameters<typeof seedLocalLightConnections>[0] {
   return { db: deps.db, now: deps.now, newConnectionId: minter(ID_PREFIX.userConnection), newBindingId: minter(ID_PREFIX.connectionBinding) };
 }
 
-/** The PER-USER half (§5.3b): the injected op every user-minting verb calls once its `users` row has
- *  committed. TOTAL by construction — it resolves whatever happens, because its caller is a user-create verb
- *  whose account must survive a failed convenience seed. Returns nothing: a mint has no use for the row
- *  count, which is the boot sweep's report. The shape is spelled out rather than aliased — `entry/boot` is
- *  not a type home (`no-inline-types`), and each consumer declares it in its own `contract/`. */
 export function createLocalLightUserSeed(deps: SeedLocalLightDeps): (userId: UserId) => Promise<void> {
-  return async (userId: UserId): Promise<void> => {
-    await seedOneUser(deps, userId);
-  };
+  return createUserSeedPolicy({
+    seedConnections: (userId) => seedLocalLightConnections(seedDepsFrom(deps), userId),
+    onEmbedSpaceBound: (userId) => deps.onEmbedSpaceBound(userId),
+  });
 }
 
-/** The BOOT SWEEP over the accounts that exist AT BOOT (header). Returns the number of connection rows newly
- *  inserted across them (0 on a settled db). */
 export async function seedLocalLightOnBoot(deps: SeedLocalLightDeps): Promise<number> {
-  const owners = await deps.db.select({ id: users.id }).from(users);
-  let inserted = 0;
-  for (const owner of owners) {
-    inserted += await seedOneUser(deps, owner.id);
-  }
-  if (inserted > 0) {
-    getLog().info({ inserted, owners: owners.length }, "boot/seed-local-light: seeded local-light connections");
-  }
-  return inserted;
+  return await seedLocalLightAccounts({
+    seedConnections: (userId) => seedLocalLightConnections(seedDepsFrom(deps), userId),
+    onEmbedSpaceBound: (userId) => deps.onEmbedSpaceBound(userId),
+    listAccounts: createListSeedAccountIds(deps.db),
+  });
 }

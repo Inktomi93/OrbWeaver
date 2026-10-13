@@ -11,43 +11,49 @@
 //   2. FORWARD-REFS `persona` + `preset` — the persona seeder's `createPersona` and character's greeting-template
 //      resolver deref services built LATER (search-discovery). The keystone threads them as request-time getters.
 
-import { DEFAULT_GUIDED_ACTIONS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
-import { resolveSideGenSampling } from "@orb/inference";
-import type { CharacterId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
-import { createAssetsService, createBackgroundStore, createMaterializeBackground } from "#domain/assets";
+import { createAssetsService, createBackgroundStore, createMaterializeBackground, createSeedPlateStore } from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder } from "#domain/character";
 import {
   createCharacterOwned,
   createCharacterService,
   createDefaultCharacterSeeder,
+  createGreetingCompletion,
+  createGreetingTemplate,
   createLinkCharacterAvatars,
   migrateSeededCardBackgrounds,
 } from "#domain/character";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner, migrateSeededRoomBackgrounds } from "#domain/chat";
-import type { PersonaService } from "#domain/persona";
+import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps, PersonaService } from "#domain/persona";
+import { createDefaultPersonaSeeder, createFindSeededDefault } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
-import { PresetNotFoundError } from "#domain/preset";
-import { evictFieldIndex } from "#domain/search";
-import type { DefaultBackgroundSeeder, SeededPlateAsset, SettingsService } from "#domain/settings";
-import { createDefaultBackgroundSeeder, migrateSeededBackgroundPicks } from "#domain/settings";
+import { createReadOptionalPresetConfig } from "#domain/preset";
+import { createCharacterIndexPublication } from "#domain/search";
+import type { DefaultBackgroundSeeder, SettingsService } from "#domain/settings";
+import {
+  createBackgroundSeedSettings,
+  createDefaultBackgroundSeeder,
+  createMarkWelcomeAssistant,
+  createPersonaSeedSettings,
+  createReadDefaultPresetId,
+  createSeedBackgroundRewriter,
+} from "#domain/settings";
 import { bumpStatsCanonVersion } from "#domain/stats";
 import type { TagService } from "#domain/tag";
+import { createSeedCardTag } from "#domain/tag";
 import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import { createCopyCharacterBooks } from "#domain/world-info";
-import { env } from "#foundation/env";
+import { isAutomatedPersonaSeedEnabled } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "#transport/trpc";
-import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
-import { createDefaultPersonaSeeder } from "../boot/index.ts";
 import { createGalleryCharacterOps } from "./gallery-character-ops.ts";
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
@@ -107,68 +113,14 @@ export interface AssetsCharacterComposeResult {
   readonly characterOwned: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
 }
 
-/** The default-persona seeder's three SETTINGS/LIBRARY-backed ops: the persisted latch (layer 1), the
- *  artifact probe (layer 2 — `metadata.seededDefault`, #461), and the mark.
- *
- *  THE PICK LAW, which is why this is a named factory and not an inline literal: `markSeeded` may point
- *  `seeds.defaultPersonaId`/`currentPersonaId` at the freshly-seeded row ONLY while they are still null. An
- *  explicit pick — the first-run dialog's, the picker's, an import's — outranks the seeder permanently, and
- *  the two pointers are decided INDEPENDENTLY (a user who pinned a default but never switched their current
- *  gets the current filled and the default left alone). Extracted so that law is provable over the real
- *  settings + persona services; the seeder itself never imports a domain, so it cannot own this.
- *
- *  THE LATCH IS WRITTEN LAST (#1412) — see `markSeeded` for why the order IS the invariant here. A prior
- *  ruling on this factory said the layer-2 heal must not hand over the surviving row's id ("would relitigate
- *  a pick the user may have made"); its MECHANISM survives untouched — the `=== null` guards below are what
- *  make relitigating impossible — while its premise does not cover a pointer that is already null, which is
- *  exactly the state the #461 blob-reset leaves behind and the state the heal now repairs.
- *
- * @public Test-anchored module surface; the pick law is pinned at `tests/legacy/server/entry/compose/assets-character.int.test.ts`.
- */
+/** Bind each canonical owner; persona identifies its artifact, settings repairs picks and completes the latch. */
 export function createPersonaSeedLatch(deps: {
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
   readonly getPersona: () => Pick<PersonaService, "list">;
 }): Pick<DefaultPersonaSeederDeps, "isSeeded" | "findSeededDefault" | "markSeeded"> {
   return {
-    isSeeded: async (principal): Promise<boolean> => (await deps.settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded,
-    // @orb-waive compose-wiring-only(findSeededDefault): baselined when the gate landed; burn-down item 964.
-    findSeededDefault: async (principal): Promise<PersonaId | null> =>
-      (await deps.getPersona().list({ principal })).find((row) => row.metadata?.seededDefault === true)?.id ?? null,
-    // @orb-waive compose-wiring-only(markSeeded): baselined when the gate landed; burn-down item 964.
-    markSeeded: async (principal, seededPersonaId): Promise<void> => {
-      // POINTERS FIRST, LATCH LAST (#1412). The two settings sections cannot be written in one call, so the
-      // ORDER is the only atomicity available — and it decides what a crash between them means. Latch-first
-      // committed "this user is seeded" before it was true: `isSeeded` short-circuits `seed()` ahead of the
-      // layer-2 heal, so a created persona with null pointers was permanently unrepairable. Latch-last makes
-      // the latch a COMPLETENESS claim: an interruption leaves it false, the next touch re-enters `seed()`,
-      // layer 2 recognises the surviving artifact and repairs the pointers.
-      //
-      // The read below is check-then-act over a section this same request is about to patch, so a concurrent
-      // explicit pick landing between the read and the write can still lose (a NARROW window: it is the
-      // freshest possible read immediately preceding its own write, not a stale snapshot). Closing it needs a
-      // CONDITIONAL section write in `domain/settings`, which does not exist; that is a settings-domain
-      // change, not a composition-root one.
-      const current = (await deps.settings.getUserSettings({ principal })).config;
-      const patch: { defaultPersonaId?: PersonaId; currentPersonaId?: PersonaId } = {};
-      // THE PICK LAW, unchanged: only a pointer that is genuinely NULL is filled, and the two are decided
-      // independently — an explicit pick outranks the seeder permanently, on the heal path too.
-      if (current.seeds.defaultPersonaId === null) {
-        patch.defaultPersonaId = seededPersonaId;
-      }
-      if (current.seeds.currentPersonaId === null) {
-        patch.currentPersonaId = seededPersonaId;
-      }
-      if (Object.keys(patch).length > 0) {
-        await deps.settings.updateUserSettingsSection({
-          principal,
-          input: { section: "seeds", patch },
-        });
-      }
-      await deps.settings.updateUserSettingsSection({
-        principal,
-        input: { section: "onboarding", patch: { defaultPersonaSeeded: true } },
-      });
-    },
+    ...createPersonaSeedSettings(deps.settings),
+    findSeededDefault: createFindSeededDefault((params) => deps.getPersona().list(params)),
   };
 }
 
@@ -218,13 +170,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     emit: deps.emit,
     // Every card write also drops the owner's lexical index, so the next text search rebuilds over the live
     // card set: a deleted card leaves both the hits and the coverage counts.
-    // @orb-waive compose-wiring-only(emitUserEvent): baselined when the gate landed; burn-down item 964.
-    emitUserEvent: (userId, event): void => {
-      if (event.type === "charactersChanged") {
-        evictFieldIndex(userId);
-      }
-      publishUserEvent(userId, event);
-    },
+    emitUserEvent: createCharacterIndexPublication(publishUserEvent),
     // F-P0-2: a `kind:"external"` carried card background is materialized into an owned CAS asset at update.
     materializeBackground: deps.materializeBackground,
     // Best-effort: remove/bulk-remove wrap it in try/catch, so a reap failure never fails the delete —
@@ -237,50 +183,14 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // World-info owns the character_books junction — the duplicate carry is its persistence factory,
     // wired here directly (world-info's full service composes after chat, below).
     copyCharacterBooks: createCopyCharacterBooks({ db, now }),
-    // Greeting studio (audit §3). resolveGreetingTemplate reads the CALLER's active-preset guided template
-    // (the resolvePromptConfigFor precedent — default preset id from user settings → preset.get → config,
-    // falling back to the contract default), so character never imports preset. `preset` is a forward
-    // reference resolved at request time (it composes below). generateGreetingText runs the bounded side-LLM
-    // completion over the summarize lane (the imagery captionImage precedent) at quiet-generate's floor
-    // (temp 0.3, 1024 out — a bounded rewrite, not an open turn); the caller IS the request owner so
-    // the bundle is bound for the caller — their own `summarize` connection, never a box owner's (§8.5b).
-    // @orb-waive compose-wiring-only(resolveGreetingTemplate): baselined when the gate landed; burn-down item 964.
-    resolveGreetingTemplate: async ({ caller, kind }): Promise<{ template: string; prose: ProseOverrides }> => {
-      const defaultPresetId = (await settings.getUserSettings({ principal: caller })).config.seeds.defaultPresetId;
-      const fallback = DEFAULT_GUIDED_ACTIONS[kind].prompt;
-      // No preset (or an unreadable one) ⇒ the contract default template and NO prose overrides, which
-      // resolves every transform fragment to its shipped default — the pre-fork bytes exactly.
-      if (defaultPresetId === null) {
-        return { template: fallback, prose: {} };
-      }
-      try {
-        const detail = await deps.getPreset().get({ userId: caller.userId, id: castId<PresetId>(defaultPresetId) });
-        // The SAME `promptConfig.prose` blob the chat assembly seam composes for a turn (the fork's ARM B):
-        // the studio's transform fragments are preset-homed slots, so the caller's preset is their storage.
-        // `config.prose` is `prefault({})` at the schema, so a preset that never carried one still resolves
-        // every transform fragment to its shipped default.
-        return { template: detail.config.guidedActions?.[kind].prompt ?? fallback, prose: detail.config.prose };
-      } catch (err) {
-        // Only a genuinely stale/unowned/missing preset id degrades to the contract default template — a
-        // database, I/O, or program failure must surface, never silently substitute the shipped default
-        // prose/template for the caller's configured one.
-        if (err instanceof PresetNotFoundError) {
-          return { template: fallback, prose: {} };
-        }
-        throw err;
-      }
-    },
-    // @orb-waive compose-wiring-only(generateGreetingText): baselined when the gate landed; burn-down item 964.
-    generateGreetingText: async ({ caller, prompt }): Promise<{ text: string; costUsd: number | null }> => {
-      // The caller's Utility-role preset over the `greeting_studio` posture (there is no per-template override).
-      // The result is the summarize options as-is; an absent knob is omitted (the backend default stands).
-      const presetParams = await deps.resolveUtilityPresetParams(caller.userId);
-      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.greeting_studio, presetParams);
-      const rc = await roleClientsFor(caller.userId);
-      const res = await rc.summarize([{ systemPrompt: prompt, userPrompt: "" }], posture);
-      const item = res.items[0];
-      return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
-    },
+    resolveGreetingTemplate: createGreetingTemplate({
+      readDefaultPresetId: createReadDefaultPresetId(settings),
+      readPresetConfig: createReadOptionalPresetConfig((params) => deps.getPreset().get(params)),
+    }),
+    generateGreetingText: createGreetingCompletion({
+      resolveUtilityPresetParams: (userId) => deps.resolveUtilityPresetParams(userId),
+      roleClientsFor: (userId) => roleClientsFor(userId),
+    }),
   });
 
   // The live assets ctx extended with the two character-handle resolvers the gallery export/import verbs
@@ -294,45 +204,15 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   // retire `kind:"seeded"` across settings, cards and rooms.
   const backgroundSeeder = createDefaultBackgroundSeeder({
     plates: SEED_BACKGROUND_PLATES,
-    // A missing bundled file / store hiccup returns null → that ONE plate is skipped (never blocks the seed).
-    // @orb-waive compose-wiring-only(storePlate): baselined when the gate landed; burn-down item 964.
-    storePlate: async (principal, slug): Promise<SeededPlateAsset | null> => {
-      const art = await readSeedBackground(slug);
-      if (art === null) {
-        return null;
-      }
-      // `kind: "background"` is the ONE kind a background may be (`domain/settings`'s
-      // `BACKGROUND_ASSET_KIND`) — the same kind the upload field and the pasted-URL materializer store, so
-      // the settings write predicate accepts a seeded plate exactly as it accepts an upload. The CAS is
-      // content-addressed, so a re-seed resolves the same asset instead of duplicating the bytes.
-      const stored = await assets.store({ principal, bytes: art.bytes, kind: "background", mime: art.mime, enforceMagic: true });
-      return { assetId: stored.assetId, assetHash: stored.hash, mime: art.mime };
-    },
+    storePlate: createSeedPlateStore({ readPlate: readSeedBackground, store: (params) => assets.store(params) }),
     newEntryId: deps.newBackgroundEntryId,
-    readOnboarding: async (principal) => ({ seeded: (await settings.getUserSettings({ principal })).config.onboarding.defaultBackgroundsSeeded }),
-    readLibrary: async (principal) => (await settings.getUserSettings({ principal })).config.appearance.backgroundLibrary,
-    writeLibrary: async (principal, library): Promise<void> => {
-      await settings.updateUserSettingsSection({
-        principal,
-        input: { section: "appearance", patch: { backgroundLibrary: library.map((entry) => ({ ...entry })) } },
-      });
-    },
-    markSeeded: async (principal): Promise<void> => {
-      await settings.updateUserSettingsSection({
-        principal,
-        input: { section: "onboarding", patch: { defaultBackgroundsSeeded: true } },
-      });
-    },
-    // The three storage locations of a retired `kind:"seeded"` reference, each rewritten by the domain that
-    // OWNS its table. They are summed rather than chained-with-early-exit: a user can carry a legacy
-    // reference in any subset of the three, and a zero from one says nothing about the others.
-    rewriteSeededReferences: async (userId, resolve): Promise<number> => {
-      const at = now();
-      const picks = await migrateSeededBackgroundPicks(db, userId, resolve, at);
-      const cards = await migrateSeededCardBackgrounds(db, userId, resolve, at);
-      const rooms = await migrateSeededRoomBackgrounds(db, userId, resolve, at);
-      return picks + cards + rooms;
-    },
+    ...createBackgroundSeedSettings(settings),
+    rewriteSeededReferences: createSeedBackgroundRewriter({
+      db,
+      now,
+      migrateCards: (userId, resolve, at) => migrateSeededCardBackgrounds(db, userId, resolve, at),
+      migrateRooms: (userId, resolve, at) => migrateSeededRoomBackgrounds(db, userId, resolve, at),
+    }),
   });
 
   const seedAvatars = createSeedAvatarOps(assets);
@@ -343,33 +223,15 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     importLorebook: (args) => deps.getLorebookImport().importLorebook(args),
     hasPrimaryBook: (args) => deps.getLorebookImport().hasPrimaryBook(args),
     characters: character,
-    attachCardTag: ({ ownerId, characterId, tagName }): Promise<boolean> =>
-      tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
+    attachCardTag: createSeedCardTag((params) => tag.attachCardTagByName(params)),
     ...seedAvatars.character,
-    // @orb-waive compose-wiring-only(markWelcomeAssistant): baselined when the gate landed; burn-down item 964.
-    markWelcomeAssistant: async (principal, welcomeAssistantId): Promise<void> => {
-      const current = (await settings.getUserSettings({ principal })).config;
-      if (current.seeds.welcomeAssistantCharacterId === null) {
-        await settings.updateUserSettingsSection({
-          principal,
-          input: { section: "seeds", patch: { welcomeAssistantCharacterId: welcomeAssistantId } },
-        });
-      }
-    },
+    markWelcomeAssistant: createMarkWelcomeAssistant(settings),
   });
 
   // Mirror of characterSeeder, for the default `{{user}}` persona.
   const personaSeeder = createDefaultPersonaSeeder({
-    // AUTOMATION-ONLY auto-create (the forced-first-run redesign — `boot/seed-default-persona.ts` header):
-    // a stack an agent/script booted seeds Traveler so no dev regen or e2e boot ever hits the blocking ask;
-    // a REAL stack seeds nothing, so the zero-personas first-run trigger holds and the human names their own
-    // `{{user}}`. Read per call (not captured) so the frozen env stays the single source.
-    // @orb-waive compose-wiring-only(autoSeedEnabled): baselined when the gate landed; burn-down item 964.
-    autoSeedEnabled: (): boolean => env.E2E_HARNESS === "on" || env.DEV_SEED === "on",
-    createPersona: async ({ principal, input }): Promise<{ id: PersonaId }> => {
-      const detail = await deps.getPersona().create({ principal, input });
-      return { id: detail.id };
-    },
+    autoSeedEnabled: isAutomatedPersonaSeedEnabled,
+    createPersona: (params) => deps.getPersona().create(params),
     ...seedAvatars.persona,
     ...createPersonaSeedLatch({ settings, getPersona: deps.getPersona }),
   });

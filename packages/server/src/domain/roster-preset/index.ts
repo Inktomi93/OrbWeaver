@@ -20,4 +20,4 @@ export type {
   RosterPresetService,
 } from "./contract/service.ts";
 export { createRosterPresetService } from "./service.ts";
-export { createSeedRosterPreset } from "./verbs/seed.ts";
+export { createRosterSeedStep, createSeedRosterPreset } from "./verbs/seed.ts";

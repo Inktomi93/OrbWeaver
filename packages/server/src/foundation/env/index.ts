@@ -776,6 +776,11 @@ export const APP_SECRET_ENV_KEYS = [
 /** The parsed, frozen env floor. File secrets never enter `process.env`; explicit env values take precedence. */
 export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(parseProcessEnv());
 
+/** Human-started stacks leave the first-run persona ask intact; only automation receives the default. */
+export function isAutomatedPersonaSeedEnabled(): boolean {
+  return env.E2E_HARNESS === "on" || env.DEV_SEED === "on";
+}
+
 /** Deletes every {@link APP_SECRET_ENV_KEYS} entry from `process.env`, so no child process started afterwards inherits
  *  an app secret. The server entry calls it once, right after the parse. It cannot run at module load: the dev
  *  launcher imports this module to preflight the env and then hands its own `process.env` to the server it spawns. */

@@ -1,7 +1,5 @@
 // Front door for the boot protocol's step functions, run in order by entry/lifecycle.ts.
 
-export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./apply-distributed-plugins.ts";
-export { createDistributedPluginApplier } from "./apply-distributed-plugins.ts";
 export type { BackfillPluginProvenanceOnBootDeps } from "./backfill-plugin-provenance.ts";
 export { backfillPluginProvenanceOnBoot } from "./backfill-plugin-provenance.ts";
 export type { BootSecrets, BootSecretsDeps } from "./boot-secrets.ts";
@@ -38,8 +36,6 @@ export type { SeedCredentialDeps } from "./seed-credential.ts";
 export { seedCredentialFromEnv } from "./seed-credential.ts";
 export type { SeedDefaultBackgroundsDeps } from "./seed-default-backgrounds.ts";
 export { seedDefaultBackgrounds } from "./seed-default-backgrounds.ts";
-export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./seed-default-persona.ts";
-export { createDefaultPersonaSeeder } from "./seed-default-persona.ts";
 export type { SeedDefaultPresetDeps } from "./seed-default-preset.ts";
 export { seedDefaultPreset } from "./seed-default-preset.ts";
 export type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "./seed-example-plugins.ts";

@@ -12,6 +12,7 @@ export type {
   GalleryImportOutcome,
   GalleryPortableFile,
 } from "./contract/results.ts";
+export type { SeedArtDeps, SeedAvatarOps, SeedPlateStoreDeps, StoreSeedPlate } from "./contract/seed-art.ts";
 export type { AssetsService, AssetsWorkloadDeps } from "./contract/service.ts";
 // The asset-ref CLASSIFICATION registry (values only — `AssetRef` itself stays domain-internal). Read by
 // the `structure:asset-refs` verify stage's comparator, which reconciles it against the live `@orb/db`
@@ -34,5 +35,6 @@ export { createImportOwnedAsset } from "./verbs/import-owned.ts";
 export { createImportAvatarStore } from "./verbs/import-store.ts";
 export { createMaterializeBackground } from "./verbs/materialize-background.ts";
 export { createPluginAssetReads } from "./verbs/plugin-reads.ts";
+export { createSeedAvatarOps, createSeedPlateStore } from "./verbs/seed-art.ts";
 export { createStoreInlineReplyImage } from "./verbs/store-inline-reply-image.ts";
 export { createAssetsWorkloadContributions } from "./workload-contributions.ts";
