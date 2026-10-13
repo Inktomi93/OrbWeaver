@@ -3,6 +3,8 @@
 // because only the module positions have a known base (the file's own directory).
 import { posix } from "node:path";
 import { ts } from "ts-morph";
+import type { ModulePositionAdmission } from "../../floor/code-facts/module-reach-contract.ts";
+import { nativeModulePositionSpecifier } from "../../floor/code-facts/module-specifier.ts";
 import type { RelocateNote, WorkspacePackage } from "../contract/relocate.ts";
 import type { MoveMap } from "./relocate-map.ts";
 import { isSplitDirectory, mapPath } from "./relocate-map.ts";
@@ -22,17 +24,12 @@ interface Edit {
   readonly text: string;
 }
 
-const MODULE_CALLEES: ReadonlySet<string> = new Set([
-  "require",
-  "require.resolve",
-  "import.meta.resolve",
-  "vi.mock",
-  "vi.doMock",
-  "vi.unmock",
-  "vi.doUnmock",
-  "vi.importActual",
-  "vi.importMock",
-]);
+const MODULE_ADMISSION = {
+  additionalCallees: new Set(["require.resolve", "import.meta.resolve"]),
+  importEquals: true,
+  createRequire: true,
+  fileUrl: true,
+} satisfies ModulePositionAdmission;
 const PATH_JOINERS: ReadonlySet<string> = new Set(["join", "resolve", "posix.join", "posix.resolve", "path.join", "path.resolve"]);
 const DOTS_ONLY = /^[./]+$/u;
 const DIRNAME_BASES: ReadonlySet<string> = new Set(["import.meta.dirname", "__dirname"]);
@@ -44,26 +41,8 @@ function isRelative(spec: string): boolean {
 /** True when the literal sits where a module specifier is read: an import, export, `import()`, require, mock or `new URL(…, import.meta.url)`. */
 export function isModulePosition(node: ts.StringLiteralLike): boolean {
   const parent = node.parent;
-  if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent) || ts.isExternalModuleReference(parent)) {
-    return true;
-  }
-  if (ts.isLiteralTypeNode(parent) && ts.isImportTypeNode(parent.parent)) {
-    return true;
-  }
-  if (ts.isCallExpression(parent) && parent.arguments[0] === node) {
-    const callee = parent.expression;
-    return (
-      callee.kind === ts.SyntaxKind.ImportKeyword ||
-      MODULE_CALLEES.has(callee.getText()) ||
-      (ts.isCallExpression(callee) && callee.expression.getText() === "createRequire")
-    );
-  }
-  return (
-    ts.isNewExpression(parent) &&
-    parent.expression.getText() === "URL" &&
-    parent.arguments?.[0] === node &&
-    parent.arguments[1]?.getText() === "import.meta.url"
-  );
+  const owner = ts.isLiteralTypeNode(parent) ? parent.parent : parent;
+  return nativeModulePositionSpecifier(owner, MODULE_ADMISSION) === node;
 }
 
 /** The new relative spelling of `spec`, or a reason it has none; undefined when it names nothing tracked. */

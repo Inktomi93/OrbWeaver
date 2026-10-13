@@ -1,7 +1,7 @@
-// Importer query facts preserve authored substring and canonical target matching as independent admissions.
+// Authored exact imports and native substring/target queries retain separate caller admissions.
 import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ModuleImporters, ModuleImportHit } from "./module-reach-contract.ts";
+import type { ModuleImporterQuery, ModuleImporters, ModuleImportHit } from "./module-reach-contract.ts";
 import { importerModulePath } from "./module-target.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import { inventoryStaticTarget, semanticInventoryOf } from "./semantic-inventory-reader.ts";
@@ -89,8 +89,7 @@ function resolvedImporterHits(sf: SourceFile, targets: ReadonlySet<string>): Mod
   return hits;
 }
 
-/** Import positions matching authored text or a canonical native target, retaining dynamic importer admission. */
-export function collectModuleImporters(files: readonly SourceFile[], spec: string): ModuleImporters {
+function nativeModuleImporters(files: readonly SourceFile[], spec: string): ModuleImporters {
   if (files.some((file) => semanticInventoryOf(file.getProject()) !== undefined)) {
     throw new SemanticInventoryError("importer queries require an explicit native program view");
   }
@@ -100,4 +99,22 @@ export function collectModuleImporters(files: readonly SourceFile[], spec: strin
     hits.push(...staticImporterHits(sf, spec), ...dynamicImporterHits(sf, spec, targetPaths), ...resolvedImporterHits(sf, targetPaths));
   }
   return { hits, targetPaths };
+}
+
+const QUERY_READERS = {
+  "native-target-or-substring": nativeModuleImporters,
+  "exact-import-spelling": (files, spec): ModuleImporters => ({
+    hits: files.flatMap((file) =>
+      file
+        .getImportDeclarations()
+        .filter((declaration) => declaration.getModuleSpecifierValue() === spec)
+        .map((node): ModuleImportHit => ({ node, kind: "import" })),
+    ),
+    targetPaths: new Set<string>(),
+  }),
+} satisfies Record<ModuleImporterQuery, (files: readonly SourceFile[], spec: string) => ModuleImporters>;
+
+/** Read only the requested admission; exact spelling asks no native target-resolution question. */
+export function collectModuleImporters(files: readonly SourceFile[], spec: string, query: ModuleImporterQuery = "native-target-or-substring"): ModuleImporters {
+  return QUERY_READERS[query](files, spec);
 }

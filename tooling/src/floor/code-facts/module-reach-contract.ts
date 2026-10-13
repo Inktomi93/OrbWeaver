@@ -47,5 +47,17 @@ export interface ModuleImportHit {
 
 export interface ModuleImporters {
   readonly hits: readonly ModuleImportHit[];
+  /** Native resolution targets; deliberately empty for an authored-spelling query. */
   readonly targetPaths: ReadonlySet<string>;
+}
+
+export const MODULE_IMPORTER_QUERIES = ["native-target-or-substring", "exact-import-spelling"] as const;
+export type ModuleImporterQuery = (typeof MODULE_IMPORTER_QUERIES)[number];
+
+/** Additional authored syntax a caller admits beyond static/type/dynamic imports and direct mock/require calls. */
+export interface ModulePositionAdmission {
+  readonly additionalCallees?: ReadonlySet<string>;
+  readonly importEquals?: boolean;
+  readonly createRequire?: boolean;
+  readonly fileUrl?: boolean;
 }
