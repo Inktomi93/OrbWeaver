@@ -11,9 +11,10 @@ import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { classifyTestFilename, looksLikeTestFilename, runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
 import { resolveMirrors } from "@orb/tooling/floor/testing/test-mirror";
+import { isRunnableToolingSpec, toolingImportReach, toolingTestsNaming } from "../../floor/code-facts/instrument-reach.ts";
+import type { InstrumentAffectedPolicyReach } from "../../floor/code-facts/module-reach-contract.ts";
 import type {
   InstrumentAffectedLivenessScope,
-  InstrumentAffectedPolicyReach,
   InstrumentAffectedSelection,
   InstrumentExecution,
   InstrumentExecutionComponent,
@@ -24,7 +25,6 @@ import type { MeasurementBoundary } from "../contract/selection.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
 import { NOTICE_MARKER } from "../contract/stage.ts";
 import { encodeInstrumentAffectedPolicyIds } from "../lib/instrument-affected-liveness.ts";
-import { isRunnableToolingSpec, toolingImportReach, toolingTestsNaming } from "../lib/instrument-affected-reach.ts";
 import { existsRel, publishChangedPaths, resolveMeasurementBoundary, resolvePublishBase } from "../lib/repo-paths.ts";
 import { collectNodeShards } from "./scoped-test.ts";
 

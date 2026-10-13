@@ -1,10 +1,10 @@
 // Relative escapes from tooling source require a reviewed root-config import permission.
 // Singleton: native dependency rules own internal tool boundaries; this policy judges authored relative escapes.
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveRelativeImport, TOOLING_PREFIX } from "../../floor/code-facts/module-specifier.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { resolveRelativeImport, TOOLING_PREFIX } from "../lib/tooling-import-door.ts";
 
 const OPERATION = "root-config-import";
 

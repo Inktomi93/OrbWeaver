@@ -1,15 +1,9 @@
-// Which product modules the test tree reaches (docs/law/Spine-Testing.md §5). A test reaches a module when the
-// test, or a test-tree helper it imports (a story, a harness, a fixture), names one of the module's value
-// exports through an import, a re-export, a barrel chain or a dynamic import, or when the test declares the
-// module in an `@subject` header. A module the same file mocks is faked, so a binding that resolves to it is not
-// reach, whichever module the import names. A test kind reaches only the source extensions it holds. A call of an
-// imported export is recorded for the names a caller asks about. Reach stops at the first product module: a
-// composition root that wires a verb reaches the root.
+// Test-family reach follows admitted helpers and value origins, excluding mocks and erased-only edges.
+// The first product module ends traversal; called-export credit requires canonical binding identity.
 import type { ExportDeclaration, ImportDeclaration, Node as MorphNode, Symbol as MorphSymbol, SourceFile, TypeChecker } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
-import type { TestFamily, TestKindDefinition } from "../../floor/testing/test-kinds.ts";
-import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
+import type { TestFamily, TestKindDefinition } from "../testing/test-kinds.ts";
+import { classifyTestFilename } from "../testing/test-kinds.ts";
 import {
   destructuredNames,
   isTypeDeclaration,
@@ -18,30 +12,16 @@ import {
   namespaceMembers,
   specifierPath,
   subjectHeader,
-} from "./test-reach-syntax.ts";
+} from "./module-reach.ts";
+import type { DeclaredSubject, TestReach } from "./module-reach-contract.ts";
+import { resolveModuleMemberOrigin } from "./reference-fact.ts";
+import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
+import { inventoryExports, inventoryStaticTarget, semanticInventoryOf } from "./semantic-inventory-reader.ts";
 
 const TEST_ROOT = "tests/";
 /** `vi` members that replace a module's exports for the file that calls them. */
 const VI_MOCK_MEMBERS: ReadonlySet<string> = new Set(["mock", "doMock"]);
 const SPECIFIER_SUFFIXES: readonly string[] = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
-
-/** One `@subject` declaration, kept whether or not its path names a real module so a stale header can red. */
-export interface DeclaredSubject {
-  readonly test: string;
-  readonly subject: string;
-  readonly family: TestFamily;
-}
-
-export interface TestReach {
-  /** Product module path to the families of the tests that reach it. */
-  readonly reachedBy: ReadonlyMap<string, ReadonlySet<TestFamily>>;
-  /** Product module path, then an exported name a test calls, to the families of the tests that call it. Only names asked about. */
-  readonly calledBy: ReadonlyMap<string, ReadonlyMap<string, ReadonlySet<TestFamily>>>;
-  readonly declared: readonly DeclaredSubject[];
-  /** Registered test files walked, and distinct (test-side file, product module) references resolved. */
-  readonly tests: number;
-  readonly references: number;
-}
 
 interface WalkInput {
   readonly files: readonly SourceFile[];
@@ -103,7 +83,7 @@ class Walker {
       if (declaration.isTypeOnly()) {
         return [];
       }
-      const target = this.pathOf(declaration.getModuleSpecifierSourceFile());
+      const target = this.pathOf(inventoryStaticTarget(declaration));
       return target?.startsWith(TEST_ROOT) === true ? [target] : [];
     });
     for (const call of file?.getDescendantsOfKind(SyntaxKind.CallExpression) ?? []) {
@@ -166,7 +146,7 @@ class Walker {
   }
 
   private addExportsNamed(module: SourceFile, names: readonly string[], scan: Scan): void {
-    const exported = module.getExportedDeclarations();
+    const exported = inventoryExports(module);
     for (const name of names) {
       this.addDeclarations(exported.get(name) ?? [], scan);
     }
@@ -234,7 +214,7 @@ class Walker {
 
   private collectImports(scan: Scan): void {
     for (const declaration of scan.file.getImportDeclarations()) {
-      const module = declaration.getModuleSpecifierSourceFile();
+      const module = inventoryStaticTarget(declaration);
       // Test helpers earn reach through their admitted edges, never the checker's flattened alias target.
       if (this.isProductDoor(module) && !(declaration.isTypeOnly() || (module !== undefined && scan.mocked.has(module)))) {
         this.collectImport(scan, declaration, module);
@@ -260,13 +240,13 @@ class Walker {
 
   private collectReExports(scan: Scan): void {
     for (const declaration of scan.file.getExportDeclarations()) {
-      const module = declaration.getModuleSpecifierSourceFile();
+      const module = inventoryStaticTarget(declaration);
       if (module === undefined || !this.isProductDoor(module) || declaration.isTypeOnly()) {
         continue;
       }
       const named = declaration.getNamedExports();
       if (named.length === 0) {
-        this.addExportsNamed(module, [...module.getExportedDeclarations().keys()], scan);
+        this.addExportsNamed(module, [...inventoryExports(module).keys()], scan);
         continue;
       }
       this.addExportsNamed(
@@ -331,7 +311,7 @@ class Walker {
     return (binding.getSymbol()?.getDeclarations() ?? []).some((declaration) => {
       const imported = declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
       if (imported !== undefined) {
-        const module = imported.getModuleSpecifierSourceFile();
+        const module = inventoryStaticTarget(imported);
         return module !== undefined && scan.mocked.has(module);
       }
       const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
@@ -359,9 +339,7 @@ class Walker {
     }
     if (
       member &&
-      declaration
-        .getSourceFile()
-        .getExportedDeclarations()
+      inventoryExports(declaration.getSourceFile())
         .get(target.exportedName)
         ?.some((exported) => exported === declaration) !== true
     ) {
@@ -378,7 +356,7 @@ class Walker {
     }
     const imported = file.getImportDeclarations().find((declaration) => declaration.getModuleSpecifierValue() === specifier);
     if (imported !== undefined) {
-      return imported.getModuleSpecifierSourceFile();
+      return inventoryStaticTarget(imported);
     }
     const base = specifierPath(this.input.relativePath(file), specifier);
     return base === undefined ? undefined : SPECIFIER_SUFFIXES.map((suffix) => this.fileByPath.get(`${base}${suffix}`)).find((hit) => hit !== undefined);
@@ -387,6 +365,9 @@ class Walker {
 
 /** Walk every registered test file under `tests/` and record which subject modules it reaches, and with which family. */
 export function testReach(input: WalkInput): TestReach {
+  if (input.files.some((file) => semanticInventoryOf(file.getProject()) !== undefined)) {
+    throw new SemanticInventoryError("test reach requires an explicit native program view");
+  }
   const walker = new Walker(input);
   const reachedBy = new Map<string, Set<TestFamily>>();
   const calledBy = new Map<string, Map<string, Set<TestFamily>>>();

@@ -7,7 +7,7 @@
 //
 // FAMILY `process-member` (with `tooling-argv-front-door` and `tooling-process-exit-home`) — the shared reader is `lib/process-member-origin.ts`
 // (`classifyProcessMemberRead`), the SAME predicate the sibling judges reads with, so what counts as "a
-// cli.ts reads argv" here is exactly what counts as "a read" there; `lib/tooling-import-door.ts#isToolCli`
+// cli.ts reads argv" here is exactly what counts as "a read" there; `floor/code-facts/module-specifier.ts#isToolCli`
 // is the shared cli shape.
 //
 // THE ANCHOR is the legacy one: `tooling/src/floor/cli/exit-contract.ts`, a file every real run loads and no
@@ -32,9 +32,9 @@
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import { SyntaxKind } from "ts-morph";
+import { isToolCli } from "../../floor/code-facts/module-specifier.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyProcessMemberRead } from "../lib/process-member-origin.ts";
-import { isToolCli } from "../lib/tooling-import-door.ts";
 import { argvLookalikeProof, nodeTypesProof } from "./_proof/node-types.ts";
 
 const ANCHOR = "tooling/src/floor/cli/exit-contract.ts";
@@ -59,7 +59,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "Re-derive the process.argv read shape in lib/process-member-origin.ts; if the cli.ts front door itself moved, re-derive `isToolCli` in lib/tooling-import-door.ts.",
+  fix: "Re-derive the process.argv read shape in lib/process-member-origin.ts; if the cli.ts front door itself moved, re-derive `isToolCli` in floor/code-facts/module-specifier.ts.",
   create: (ctx) => {
     let cliReaders = 0;
     return {

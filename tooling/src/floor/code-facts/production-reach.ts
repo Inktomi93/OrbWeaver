@@ -1,17 +1,12 @@
-// THE PRODUCTION-REACH WALK behind `policy-descriptor-read.ts#policyProductionDependencies`: from a `create`
-// hook, every runtime expression child (erased types, declaration names and uncalled declarations
-// excluded), following stable bindings, imported values and callable declarations to a fixpoint with no
-// hop limit. Split out at the size cap (2026-09-18); the descriptor entry point stays there. One-way: this
-// module imports nothing from `policy-descriptor-read.ts`.
-import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
-import { resolveCallableDeclaration } from "@orb/tooling/floor/code-facts/reference-fact-call";
+// Runtime declaration reach follows stable bindings and invoked helpers, never mere module imports.
+
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-
-export interface ProductionEdges {
-  readonly declarations: readonly MorphNode[];
-  readonly next: readonly MorphNode[];
-}
+import type { ProductionEdges } from "./module-reach-contract.ts";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
+import { resolveCallableDeclaration } from "./reference-fact-call.ts";
+import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
+import { semanticInventoryOf } from "./semantic-inventory-reader.ts";
 
 /** Runtime expression children, excluding erased types, declaration names, and uncalled declarations.
  *  Inline callbacks belong to the possible source reach; this is not a branch-feasibility analysis. */
@@ -94,6 +89,9 @@ function productionReferenceEdges(node: MorphNode): ProductionEdges {
 }
 
 export function reachableDeclarations(root: MorphNode, edges: Map<object, ProductionEdges>): ReadonlySet<MorphNode> {
+  if (semanticInventoryOf(root.getProject()) !== undefined) {
+    throw new SemanticInventoryError("runtime declaration reach requires an explicit native program view");
+  }
   const queue = [root];
   const visited = new Set<object>();
   const declarations = new Set<MorphNode>();

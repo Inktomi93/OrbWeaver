@@ -67,11 +67,11 @@
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import { SyntaxKind } from "ts-morph";
+import { isToolCli } from "../../floor/code-facts/module-specifier.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyProcessMemberRead } from "../lib/process-member-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { isToolCli } from "../lib/tooling-import-door.ts";
 import { argvLookalikeProof, nodeTypesProof } from "./_proof/node-types.ts";
 
 const ARGV_MEMBER = "argv";

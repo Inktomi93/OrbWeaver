@@ -1,10 +1,9 @@
 // The symbol verbs: refs / callers / importers / exports / jsx / ident / literal.
-import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { importerModulePath } from "../../floor/code-facts/module-target.ts";
+import { collectModuleImporters } from "../../floor/code-facts/module-importers.ts";
 import { declarationsNamed } from "../../floor/code-facts/reference-declarations.ts";
-import { inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
@@ -51,97 +50,13 @@ export function cmdCallers(project: SourceCorpus, name: string, flags: Flags): v
   emit(hits, flags, `callers ${name} (${declarations.length} declaration(s), identity-resolved)`);
 }
 
-function staticImporterHits(sf: SourceFile, spec: string): Hit[] {
-  const out: Hit[] = [];
-  const decls: Array<ImportDeclaration | ExportDeclaration> = [...sf.getImportDeclarations(), ...sf.getExportDeclarations()];
-  for (const d of decls) {
-    // Two independent match strategies, OR'd: (1) the raw specifier text — catches package/#alias specs
-    // the caller quotes verbatim (`@orb/ui/badge`); (2) the RESOLVED target file's path — catches relative
-    // specs (`../assembly/shape`, `./context`) that share no substring with a file-path query at all. Without
-    // (2), querying by file path silently misses every relative importer (a false "0 importers" dead-code
-    // signal) — resolution handles relative/#alias/@orb subpath uniformly (same technique as resolvedGraph).
-    const raw = d.getModuleSpecifierValue();
-    const rawHit = raw?.includes(spec);
-    const resolved = inventoryStaticTarget(d)?.getFilePath();
-    const resolvedHit = resolved?.includes(spec);
-    if (rawHit === true || resolvedHit === true) {
-      out.push(hitOf(d, "import"));
-    }
-  }
-  return out;
-}
-
-function dynamicImporterHits(sf: SourceFile, spec: string, targets: ReadonlySet<string>): Hit[] {
-  const out: Hit[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    if (call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
-      continue;
-    }
-    const arg = call.getArguments()[0];
-    if (
-      arg !== undefined &&
-      Node.isStringLiteral(arg) &&
-      (arg.getLiteralText().includes(spec) || targets.has(importerModulePath(sf, arg.getLiteralText()) ?? ""))
-    ) {
-      out.push(hitOf(call, "dynamic-import"));
-    }
-  }
-  return out;
-}
-
-function staticResolvedTargets(sf: SourceFile, spec: string): string[] {
-  const targets: string[] = [];
-  for (const declaration of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-    const resolved = inventoryStaticTarget(declaration)?.getFilePath();
-    if (resolved !== undefined && (declaration.getModuleSpecifierValue()?.includes(spec) === true || resolved.includes(spec))) {
-      targets.push(resolved);
-    }
-  }
-  return targets;
-}
-
-function dynamicResolvedTargets(sf: SourceFile, spec: string): string[] {
-  const targets: string[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const arg = call.getExpression().getKind() === SyntaxKind.ImportKeyword ? call.getArguments()[0] : undefined;
-    const target =
-      arg !== undefined && Node.isStringLiteral(arg) && arg.getLiteralText().includes(spec) ? importerModulePath(sf, arg.getLiteralText()) : undefined;
-    if (target !== undefined) {
-      targets.push(target);
-    }
-  }
-  return targets;
-}
-
-function resolvedTargets(files: readonly SourceFile[], spec: string): Set<string> {
-  const targets = new Set<string>();
-  for (const sf of files) {
-    for (const target of [...staticResolvedTargets(sf, spec), ...dynamicResolvedTargets(sf, spec)]) {
-      targets.add(target);
-    }
-  }
-  return targets;
-}
-
-function resolvedImporterHits(sf: SourceFile, targets: ReadonlySet<string>): Hit[] {
-  const hits: Hit[] = [];
-  for (const declaration of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-    const resolved = inventoryStaticTarget(declaration)?.getFilePath();
-    if (resolved !== undefined && targets.has(resolved)) {
-      hits.push(hitOf(declaration, "import"));
-    }
-  }
-  return hits;
-}
-
 export function cmdImporters(project: SourceCorpus, spec: string, flags: Flags): void {
-  const hits: Hit[] = [];
-  const files = scanCorpus(project, WHOLE_CORPUS);
-  const targetPaths = resolvedTargets(files, spec);
-  for (const sf of files) {
-    hits.push(...staticImporterHits(sf, spec), ...dynamicImporterHits(sf, spec, targetPaths), ...resolvedImporterHits(sf, targetPaths));
-  }
-  emit(hits, flags, `importers ${spec} (${targetPaths.size} resolved target(s))`);
+  const { hits, targetPaths } = collectModuleImporters(scanCorpus(project, WHOLE_CORPUS), spec);
+  emit(
+    hits.map(({ node, kind }) => hitOf(node, kind)),
+    flags,
+    `importers ${spec} (${targetPaths.size} resolved target(s))`,
+  );
 }
 
 export function cmdExports(project: SourceCorpus, path: string, flags: Flags): void {

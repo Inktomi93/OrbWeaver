@@ -1,30 +1,13 @@
-// THE AFFECTED-INSTRUMENT REACH: which specs depend on a tooling source through imports, plus the gate-ID
-// family reach whose proof file intentionally need not import every policy in its wave.
-//
-// WHY A TEXT SEARCH AND NOT THE MIRROR. A converted policy's family test routinely lives under its WAVE's
-// name rather than its gate's — `contract-shape-wave-1.test.ts`, `simple-visitors-wave-2.test.ts`,
-// `callback-provenance-family.suite.test.ts` — so `tooling/src/verify/gates/<id>.ts` prefix-swaps to a
-// path that does not exist while the policy's §4.2/§4.5 proofs sit one directory over. That is not an
-// accident to be fixed by renaming: a family's proofs belong in ONE file, which by construction cannot be
-// named after each of its members. `.claude/rules/verify-and-gates.md` already states the rule for
-// humans ("find a gate's family test by grepping its id"); this is that rule with a machine behind it.
-//
-// THE SEARCH IS DELIBERATELY DUMB — a quoted-ID substring over the spec's own text. It over-selects (a
-// spec that merely MENTIONS a policy in a comment is selected) and that direction is the safe one: the
-// cost is running a spec that did not need running, and the alternative direction is the silent miss this
-// whole stage exists to remove. It cannot under-select through an alias or an import rewrite, because a
-// proof row, a `policy:` pin and an ID assertion all spell the ID literally.
-// NO try/catch ANYWHERE IN THIS MODULE, deliberately. Absence is ASKED (`existsSync`), never caught: a
-// `catch` here would be an unproven caught-failure site (`caught-failure-ownership`) AND would turn an
-// unreadable tests tree — a real tool error — into a quiet empty reach, which is the bare-zero shape this
-// whole stage exists to remove. Every read below is of a path the directory listing produced moments
-// earlier, so a failure is a genuine I/O fault and belongs as a throw the stage reports as exit 2.
+// Conservative affected-instrument import reach includes type-only edges and quoted policy-family witnesses.
+// Native tooling configuration owns resolution; unreadable inputs throw rather than shrinking the graph.
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+
 import { dirname, join, relative as relativePath, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { ts } from "ts-morph";
-import { classifyTestFilename, runtimeForTestFamily } from "../../floor/testing/test-kinds.ts";
-import type { InstrumentAffectedPolicyReach } from "../contract/instrument-affected.ts";
+import { classifyTestFilename, runtimeForTestFamily } from "../testing/test-kinds.ts";
+import { moduleClosure } from "./module-reach.ts";
+import type { InstrumentAffectedPolicyReach } from "./module-reach-contract.ts";
 
 const GATE_TESTS_DIR = "tests/tooling/verify/gates";
 const SPEC_SUFFIX = ".ts";
@@ -144,22 +127,7 @@ function reverseImportGraph(root: string, modules: readonly string[]): ReadonlyM
 }
 
 function importingSpecs(source: string, importers: ReadonlyMap<string, readonly string[]>): readonly string[] {
-  const reachedSpecs = new Set<string>();
-  const seen = new Set<string>();
-  const pending = [source];
-  for (let current = pending.pop(); current !== undefined; current = pending.pop()) {
-    if (seen.has(current)) {
-      continue;
-    }
-    seen.add(current);
-    for (const importer of importers.get(current) ?? []) {
-      if (isRunnableToolingSpec(importer)) {
-        reachedSpecs.add(importer);
-      }
-      pending.push(importer);
-    }
-  }
-  return [...reachedSpecs].toSorted();
+  return [...moduleClosure(importers.get(source) ?? [], (path) => importers.get(path) ?? [])].filter(isRunnableToolingSpec).toSorted();
 }
 
 function basenamePolicyId(path: string): string | undefined {
@@ -219,13 +187,7 @@ function authoredPolicyId(root: string, path: string): string | undefined {
 function importingPolicies(source: string, importers: ReadonlyMap<string, readonly string[]>, root: string): InstrumentAffectedPolicyReach {
   const reachedPolicies = new Set<string>();
   const unclassifiableGatePaths = new Set<string>();
-  const seen = new Set<string>();
-  const pending = [source];
-  for (let current = pending.pop(); current !== undefined; current = pending.pop()) {
-    if (seen.has(current)) {
-      continue;
-    }
-    seen.add(current);
+  for (const current of moduleClosure([source], (path) => importers.get(path) ?? [])) {
     const basenameId = basenamePolicyId(current);
     if (basenameId !== undefined) {
       const authoredId = authoredPolicyId(root, current);
@@ -235,7 +197,6 @@ function importingPolicies(source: string, importers: ReadonlyMap<string, readon
         unclassifiableGatePaths.add(current);
       }
     }
-    pending.push(...(importers.get(current) ?? []));
   }
   return { policyIds: [...reachedPolicies].toSorted(), unclassifiableGatePaths: [...unclassifiableGatePaths].toSorted() };
 }

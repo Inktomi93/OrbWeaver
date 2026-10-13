@@ -10,7 +10,7 @@
 // `tooling-program-entry`, shared with `tooling-ops-direct-invocation` (whose "a module that IS a program"
 // arm reads the SAME runner home): the shared readers are `lib/project-home-origin.ts` (`locateProjectHome` +
 // `classifyProjectHomeOrigin`, the declaration-identity judgment against a located home) and
-// `lib/tooling-import-door.ts#isToolCli` (the four-segment cli shape). The family name is minted WITH this
+// `floor/code-facts/module-specifier.ts#isToolCli` (the four-segment cli shape). The family name is minted WITH this
 // second member — the loader refuses a one-member family under any name but its policy id.
 //
 // IDENTITY, NOT SPELLING: the legacy required an import whose specifier ENDED IN `floor/cli/run-tool.ts` plus
@@ -43,9 +43,9 @@
 // population, so the real shared member `tooling/src/floor/cli/run-tool.ts` is the control, admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { SyntaxKind } from "ts-morph";
+import { isToolCli } from "../../floor/code-facts/module-specifier.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
-import { isToolCli } from "../lib/tooling-import-door.ts";
 
 const RUNNER_HOME = { path: "tooling/src/floor/cli/run-tool.ts", names: ["runTool"] } as const;
 const RUNNER_RECEIPT = "program-entry home: run-tool";

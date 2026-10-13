@@ -1,11 +1,10 @@
 // DECLARATION-GRANULAR consumption edges — the chains substrate (parallel + opt-in).
 import type { BindingElement, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { dynamicModuleTarget } from "../../floor/code-facts/module-target.ts";
+import { dynamicModuleTarget, relativeModuleTarget as resolveModule } from "../../floor/code-facts/module-target.ts";
 import { inventoryExports, inventoryStaticTarget, semanticInventoryOf } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { declKey, exposedNames } from "./keys.ts";
-import { resolveModule } from "./resolve.ts";
 import { KEY_SEP } from "./root.ts";
 
 // ── DECLARATION-GRANULAR consumption edges (the substrate `chains` needs, and nothing else reads) ──────

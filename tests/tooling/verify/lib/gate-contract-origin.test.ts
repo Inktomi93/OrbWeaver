@@ -16,8 +16,9 @@
 // fails this one — the `LOOKALIKE` rows are what make the YES rows mean something.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { Project, SyntaxKind } from "ts-morph";
-import { isTsMorphMember, resolveCallableMember } from "../../../../tooling/src/verify/lib/gate-contract-origin.ts";
+import { Node, Project, SyntaxKind } from "ts-morph";
+import { resolveModuleMemberOrigin } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
+import { isCanonicalDefineGate, isTsMorphMember, resolveCallableMember } from "../../../../tooling/src/verify/lib/gate-contract-origin.ts";
 
 const ROOT = "/gate-contract-origin";
 
@@ -83,4 +84,59 @@ test("the same member NAME on a non-ts-morph owner is refused in every spelling 
   // …and the OWNER half still bites: a genuine ts-morph member judged against the wrong owner is not a match,
   // which is what separates `Symbol#getDeclarations` from a syntax accessor of the same name.
   expect(readsTsMorphMember(`${TS_MORPH_IMPORT}export const a = (n: Node): unknown => n.getSymbol()?.["getDeclarations"]();`, "Project")).toBe(false);
+});
+
+test("canonical policy declaration identity excludes source-file trace carriers across direct, alias, namespace and re-export doors", () => {
+  const fixture = new Project({ useInMemoryFileSystem: true });
+  const policy = fixture.createSourceFile("/repo/tooling/src/verify/contract/policy.ts", "export function defineGate<T>(value: T): T { return value; }");
+  fixture.createSourceFile("/repo/tooling/src/verify/lib/policy-door.ts", 'export { defineGate } from "../contract/policy.ts";');
+  const probe = fixture.createSourceFile(
+    "/repo/tooling/src/verify/gates/probe.ts",
+    `
+import { defineGate } from "../contract/policy.ts";
+import { defineGate as alias } from "../contract/policy.ts";
+import * as policy from "../contract/policy.ts";
+import { defineGate as viaDoor } from "../lib/policy-door.ts";
+defineGate({}); alias({}); policy.defineGate({}); viaDoor({});
+`,
+  );
+  const calls = probe.getDescendantsOfKind(SyntaxKind.CallExpression);
+  expect(calls).toHaveLength(4);
+  for (const call of calls) {
+    const origin = resolveModuleMemberOrigin(call.getExpression());
+    expect(origin.kind).toBe("resolved");
+    if (origin.kind !== "resolved") {
+      throw new Error(origin.detail);
+    }
+    expect(origin.trace.declarations.some((declaration) => Node.isSourceFile(declaration) && declaration === policy)).toBe(true);
+    expect(origin.value.canonical.declaration).toBe(policy.getFunctionOrThrow("defineGate"));
+    expect(isCanonicalDefineGate(call.getExpression())).toBe(true);
+  }
+});
+
+test("canonical policy identity refuses local, shadowed, wrong-module and ambiguous re-export bindings", () => {
+  const fixture = new Project({ useInMemoryFileSystem: true });
+  fixture.createSourceFile("/repo/tooling/src/verify/contract/policy.ts", "export function defineGate<T>(value: T): T { return value; }");
+  fixture.createSourceFile("/repo/tooling/src/verify/contract/other.ts", "export function defineGate<T>(value: T): T { return value; }");
+  fixture.createSourceFile(
+    "/repo/tooling/src/verify/lib/ambiguous.ts",
+    `
+export { defineGate } from "../contract/policy.ts";
+export { defineGate } from "../contract/other.ts";
+`,
+  );
+  const probe = fixture.createSourceFile(
+    "/repo/tooling/src/verify/gates/probe.ts",
+    `
+import { defineGate as actual } from "../contract/policy.ts";
+import { defineGate as wrong } from "../contract/other.ts";
+import { defineGate as ambiguous } from "../lib/ambiguous.ts";
+function defineGate(value: object): object { return value; }
+defineGate({}); wrong({}); ambiguous({});
+function shadow(actual: (value: object) => object): object { return actual({}); }
+`,
+  );
+  const calls = probe.getDescendantsOfKind(SyntaxKind.CallExpression);
+  expect(calls).toHaveLength(4);
+  expect(calls.map((call) => isCanonicalDefineGate(call.getExpression()))).toEqual([false, false, false, false]);
 });

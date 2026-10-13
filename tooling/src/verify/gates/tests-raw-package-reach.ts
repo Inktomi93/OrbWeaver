@@ -2,11 +2,11 @@
 // declared entries, so a test follows a refactor only by edit; each one needs a reviewed grant (Core-0 §5).
 // Arms: import · re-export · import() in a value or type position · vi.mock-family calls · DECLARED LIMITS: a raw
 // spelling read as a plain string is no module edge; the test kit cannot resolve the root map, so tsc refuses it there.
-// FAMILY: tests-package-subpath, tooling/src/verify/lib/test-import-door.ts#testModuleSpecifier.
+// FAMILY: tests-package-subpath, tooling/src/verify/lib/test-import-door.ts#testImportDoor.
 // POPULATION: every test-tree file; one finding per (test file, raw specifier) is the grant identity.
-import { Node, SyntaxKind } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { rawPackageReach, testModuleSpecifier } from "../lib/test-import-door.ts";
+import { testImportDoor } from "../lib/test-import-door.ts";
 
 const OPERATION = "raw-reach";
 
@@ -37,18 +37,17 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression, SyntaxKind.ImportType],
           visit: (node, sourceFile) => {
-            const literal = testModuleSpecifier(node);
-            if (literal === undefined || !Node.isStringLiteral(literal)) {
+            const path = ctx.relativePath(sourceFile);
+            const reach = testImportDoor(node, path);
+            if (reach?.kind !== "raw-package") {
               return;
             }
-            const spec = literal.getLiteralValue();
-            const reach = rawPackageReach(spec);
-            const path = ctx.relativePath(sourceFile);
-            if (reach === undefined || reported.has(`${path}|${spec}`)) {
+            const spec = reach.literal.getLiteralValue();
+            if (reported.has(`${path}|${spec}`)) {
               return;
             }
             reported.add(`${path}|${spec}`);
-            ctx.report.node(literal, {
+            ctx.report.node(reach.literal, {
               subject: path,
               operation: `${OPERATION}:${spec}`,
               message: `${MESSAGE} This reaches packages/${reach.pkg}/src/${reach.path}.`,

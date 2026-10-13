@@ -195,7 +195,7 @@ export function isCanonicalDefineGate(node: MorphNode): boolean {
   const declarations = [...fact.trace.declarations, fact.value.declaration];
   const canonicalDeclarations = new Set(
     declarations
-      .filter((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(FINAL_POLICY_MODULE))
+      .filter((declaration) => !Node.isSourceFile(declaration) && declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(FINAL_POLICY_MODULE))
       .map((declaration) => declaration.compilerNode),
   );
   if (canonicalDeclarations.size !== 1) {
