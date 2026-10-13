@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: blocked
+status: doing
 updated: 2026-10-13
 priority: P1
 area: tooling
-blocked: on 953
+lane: codex/drizzle-facts-953
 plan: test-foundation
 ---
 
@@ -24,4 +24,6 @@ A bounded native control rejects a recipient that obtains an owner-filtered buil
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The integrated shared statement, callable and reference readers supply the required source interfaces. The Drizzle acceptance batch owns native red-first controls and the recipient-flow correction. Complete repository output equivalence remains with that primary reader assignment; it does not block this bounded defect control.
+
+Read-only preparation identifies local binding traversal and filtered non-dynamic return trust. It supplies no runtime verdict or production exploit. Native controls must prove actual builder replacement, producing-table identity, snapshot refusal and cycle handling before qualification.

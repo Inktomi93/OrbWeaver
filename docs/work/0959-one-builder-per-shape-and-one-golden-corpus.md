@@ -23,7 +23,7 @@ A builder exists per contract output and table; the corpus is committed and load
 
 ## Evidence
 
-Recall recorder proofs need a production-derived `MemoryRecallSlice` seed. The public `assemblyPreviewSchema` carries the canonical recall schema through its trace. Validate that projection without adding another schema or public door. Generate nonempty recall through production composition and the shared corpus, not a hand-written zero trace or private import. Native recall filtering waits on that input; existing regression cases do not establish rebuilt coverage.
+The shared production recall preparation passes bounded positive and strike controls. Actual completed workloads produce nonempty digests, segments and query traces, validated through the public `assemblyPreviewSchema` projection. This does not qualify every recall filter or corpus publication. Speaker rows still require a genuine producing turn; invented rows or zero traces cannot close that population.
 
 Close the logical table/output inventory. Exported declarations alone do not distinguish outputs from inputs, operations and primitives. Qualified user and asset defaults consume production ID and content-hash generation. Preserve FK relations and coupled consumers. The harness owns graph, time and ID seams; the client door owns mounting; this item owns data builders, corpus and responders.
 

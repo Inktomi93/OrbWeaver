@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-13
 priority: P1
+lane: codex/drizzle-facts-953
 plan: test-foundation
 ---
 
@@ -22,9 +23,7 @@ One drizzle reader in the floor; the old readers are deleted; `pnpm ast columns`
 
 ## Evidence
 
-Reuse the floor's schema, table, write-chain and column readers. Preserve the AST table adapter's output projection.
-
-Remaining extraction includes AST query, row and raw-SQL read facts, plus statement, predicate, join and parser provenance consumed by tenancy and JSON judgments. Keep consumer-specific ownership and reporting judgments separate from shared fact extraction. A bounded walk is not automatically a duplicate or a reason to create another program.
+AST column consumers call shared column-reference, row-shape, selection and SQL readers. Preserve consumer-specific classification and reporting rather than treating every remaining adapter as duplicate extraction. Statement, predicate, join and parser provenance still require complete acceptance coverage. A bounded walk does not justify another program.
 
 Preserve native program identity, complete schema populations, unresolved outcomes and the foundation plan's persisted store contract. The precise security-case coverage matrix remains an implementation prerequisite; reconnaissance is not proof that a named case is missing or covered. The compose boundary is established. The native inventory store item owns persisted inventory construction; this assignment owns Drizzle extraction and its consumer judgments.
 
@@ -33,3 +32,5 @@ Gate-owned conformance fixtures are maintained proof, not only standalone test f
 Bounded consumer controls use virtual native-shaped programs. They do not establish repository-native output or finding equivalence. The existing native emit suite checks schema presence, not complete table identity; the grant suite covers broader owner populations. Keep those checks deferred and intact until main adjudicates their actual coupling and required native proof. Scoped typechecks and import graphs do not replace that verdict.
 
 Reviewed source is integrated with the store and shape readers. Combined tooling/root types and the affected CT composition-policy suite pass. Full-row subquery and CTE provenance uses one admitted table and declared column; red-first controls and the corrected family pass. Unresolved, ambiguous and joined-source refusal remain. Native repository equivalence is pending.
+
+The active batch surveys native security cases and fixes returned-builder observation in the canonical statement reader. It uses integrated shared APIs; complete native output equivalence remains separate.
