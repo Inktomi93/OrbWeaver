@@ -25,7 +25,7 @@ Adjudicate these source candidates against installed native tools. Read each com
 
 Owner-scoped reads and writes are semantic security claims. Moving an import edge cannot replace their predicates. Shared Drizzle and type facts remain the foundation plan's responsibility.
 
-The token-scale reset is not yet built. Check functional numeric utilities and composed or imported class values through native APIs. A reset is a product change and requires rendered review; do not assume namespace patterns remove every off-token class.
+The native token-scale reset is not yet configured in the generated theme. Check functional numeric utilities and composed or imported classes through native APIs. Configuration changes require rendered review; do not assume resets remove every off-token class.
 
 The semantic CT live-read checker stays: configured native rules miss imported snapshots, recursive data aliases, recorder reads and geometry. Do not repeat its completed comparison for confidence.
 

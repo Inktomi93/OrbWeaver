@@ -24,11 +24,13 @@ The gate holds with planted controls; no compose module runs a query or carries 
 
 Chat and search/discovery moves landed at `980a8e07bd` after review and the authenticated-Principal correction. Automation/plugin landed at `292d99464e`, including canonical contracts and domain-cycle corrections. Focused behavior, affected native programs and the server import graph pass. The budget file owns the remaining compose count; this item stays open.
 
-Services/runtime/embedding rules and the owner-bound import builder land at `3abe607b75`. The administrative policy item owns admin, update, refinery and recorder cleanup on `codex/compose-policy-995`. Other adapters and boot remain open. Do not build the server harness before this boundary is clean.
+Services/runtime/embedding rules and the owner-bound import builder land at `3abe607b75`. Administrative, update, refinery and recorder policy lands at `7dc34e9eda`; room-reach queries and confirmed-delete fan policy land at `4011db1ea4`. Media, portability and import work remains assigned separately. Other adapters and boot remain open. Do not build the server harness before this boundary is clean.
 
 Services review confirms the relocation map and matching native import graph. Aggregate-green evidence covers the corrected distinct case set; publication and vector cases have separately labeled per-file passes inside failed batches. Existing legacy lint findings remain visible. Compose and structural-copy budgets shrink only by this leg's actual removals. Moved expected-exception catches have no committed census rows; raw catch consolidation does not establish a waiver reduction.
 
 The native server import graph confirms the lower-contract and injected-resolver corrections without rule relaxation. Preserve canonical lower-package shapes, consumer-owned narrow ports and sibling front doors in the remaining legs.
+
+Administrative and room-reach components have independent review and matching scoped evidence. Corrected maintained fixtures use production-resolved generations and canonical user rows. Literal marker removals shrink compose and graph-interface budgets; entire-population policies remain deferred. The corpus item owns strict recall seed coverage, not another copied recorder fixture.
 
 The gate is `compose-wiring-only` (`tooling/src/verify/gates/compose-wiring-only.ts`); its header defines a rule. `pnpm check:structure --check compose-wiring-only` reports one finding per handed-out function or helper, so the counts below are functions, not decisions.
 

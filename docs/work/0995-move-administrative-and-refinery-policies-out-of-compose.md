@@ -24,8 +24,8 @@ Remove the batch's compose exceptions without adding suppressions or sideways im
 
 ## Evidence
 
-The lane implements owner factories for admin sessions and card embedding, refinery planning, settings update policy, upstream I/O and transport recorder projections. Preserve audit atomicity, live funding resolution and recorder filtering. Shared services, owner exports and package doors require coordinated integration.
+The reviewed owner factories are merged at `7dc34e9eda`. Exact services, owner exports and package doors preserve the existing graph. Matching native cases, retained legacy cases, discriminating mutation controls, scoped lint and native programs pass. The integration correction derives generation and user fixtures from production; every assertion and case remains.
 
-The card-store port must not import the embeddings service facade. Put its data-only input and result in contracts; derive the domain params with the existing abort field. Contracts remains DOM/node-free. The affected compiler programs and native import graph must confirm this correction before review.
+The card-store input and result have one data-only contracts home; the embeddings domain retains the abort field. Native contracts, server and root programs pass. The native import graph confirms the corrected port and coordinated integration without a facade cycle.
 
 The selected policy run withholds entire-population policies; it does not prove them clean. Defer those policies to main-owned verification without expanding the lane floor. The corpus item owns the unavailable production-derived recall seed; do not fabricate a trace to satisfy strict reach.
