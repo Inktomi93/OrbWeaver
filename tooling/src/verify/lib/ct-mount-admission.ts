@@ -51,6 +51,7 @@ interface DoorTree {
   readonly delivered: boolean;
   readonly escaped: boolean;
   readonly invalidComposition: boolean;
+  readonly unreadable: boolean;
 }
 
 interface CompositionOrigin {
@@ -58,8 +59,18 @@ interface CompositionOrigin {
   readonly nullable: boolean;
 }
 
-const NO_DOOR_TREE: DoorTree = { provider: false, delivered: false, escaped: false, invalidComposition: false };
+const NO_DOOR_TREE: DoorTree = { provider: false, delivered: false, escaped: false, invalidComposition: false, unreadable: false };
+const UNREADABLE_DOOR_TREE: DoorTree = { ...NO_DOOR_TREE, unreadable: true };
 const UNREADABLE_COMPOSITION: CompositionOrigin = { valid: false, nullable: false };
+const NEUTRAL_TREE_KINDS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.StringLiteral,
+  SyntaxKind.NoSubstitutionTemplateLiteral,
+  SyntaxKind.NumericLiteral,
+  SyntaxKind.NullKeyword,
+  SyntaxKind.TrueKeyword,
+  SyntaxKind.FalseKeyword,
+  SyntaxKind.JsxText,
+]);
 
 function sameHome(left: MorphNode, right: MorphNode): boolean {
   return left.getSourceFile().getFilePath() === right.getSourceFile().getFilePath() && left.getStart() === right.getStart() && left.getEnd() === right.getEnd();
@@ -126,7 +137,7 @@ class ProductionDoorReader {
     if (trees.some((tree) => tree.invalidComposition)) {
       return ["the returned AuthedProviders composition is not the delivered production factory result"];
     }
-    return trees.length > 0 && trees.every((tree) => tree.provider && tree.delivered && !tree.escaped)
+    return trees.length > 0 && trees.every((tree) => tree.provider && tree.delivered && !tree.escaped && !tree.unreadable)
       ? []
       : ["the returned CtClientProviders subtree must deliver its children through the genuine production provider and composition"];
   }
@@ -146,11 +157,15 @@ class ProductionDoorReader {
       delivered: trees.some((tree) => tree.delivered),
       escaped: trees.some((tree) => tree.escaped),
       invalidComposition: trees.some((tree) => tree.invalidComposition),
+      unreadable: trees.some((tree) => tree.unreadable),
     };
   }
 
   private childTrees(node: MorphNode, environment: DoorEnvironment, provided: boolean): DoorTree {
-    return this.siblingTrees((this.children.get(node.compilerNode) ?? []).map((child) => this.tree(child, environment, provided)));
+    const children = this.children.get(node.compilerNode) ?? [];
+    const explicit = jsxValue(node, "children");
+    const values = children.length > 0 || explicit === undefined ? children : [explicit];
+    return this.siblingTrees(values.map((child) => this.tree(child, environment, provided)));
   }
 
   private props(node: MorphNode, declaration: MorphNode, environment: DoorEnvironment): DoorEnvironment {
@@ -162,7 +177,8 @@ class ProductionDoorReader {
         const key = binding.getPropertyNameNode()?.getText() ?? binding.getName();
         const value = jsxValue(node, key);
         const attributeValues = value === undefined ? [] : [value];
-        const values = key === "children" ? (this.children.get(node.compilerNode) ?? []) : attributeValues;
+        const nested = key === "children" ? (this.children.get(node.compilerNode) ?? []) : [];
+        const values = nested.length > 0 ? nested : attributeValues;
         bindings.set(
           binding.compilerNode,
           values.map((item) => ({ node: item, environment })),
@@ -174,7 +190,7 @@ class ProductionDoorReader {
 
   private tree(input: MorphNode, environment: DoorEnvironment, provided: boolean): DoorTree {
     if (Node.isIdentifier(input) && inspectReferenceWrites(input).kind === "unresolved") {
-      return NO_DOOR_TREE;
+      return UNREADABLE_DOOR_TREE;
     }
     const binding = resolveLexicalValueDeclaration(input);
     if (binding.kind === "resolved" && this.subject.has(binding.value.compilerNode)) {
@@ -188,7 +204,7 @@ class ProductionDoorReader {
     const node = stable.kind === "resolved" ? stable.value : stable.node;
     const active = this.activeTrees.get(node.compilerNode) ?? new Set<object>();
     if (active.has(environment.invocation)) {
-      return NO_DOOR_TREE;
+      return UNREADABLE_DOOR_TREE;
     }
     this.activeTrees.set(node.compilerNode, active);
     active.add(environment.invocation);
@@ -213,14 +229,12 @@ class ProductionDoorReader {
     }
     const opening = jsxOpening(node);
     if (opening === undefined) {
-      return NO_DOOR_TREE;
+      return NEUTRAL_TREE_KINDS.has(node.getKind()) ? NO_DOOR_TREE : UNREADABLE_DOOR_TREE;
     }
     const tag = opening.getTagNameNode();
     const callable = resolveCallableDeclaration(tag);
     if (callable.kind === "resolved" && sameHome(callable.value.declaration, this.provider)) {
-      const composition = jsxValue(node, "composition");
-      const origin = composition === undefined ? UNREADABLE_COMPOSITION : this.origin(composition, environment, []);
-      return { ...this.childTrees(node, environment, true), provider: true, invalidComposition: !origin.valid || origin.nullable };
+      return this.providerTree(node, environment);
     }
     const context = this.contextIdentity(tag);
     const value = jsxValue(node, "value");
@@ -236,6 +250,13 @@ class ProductionDoorReader {
       return this.siblingTrees(this.returned(callable.value.declaration).map((item) => this.tree(item, props, provided)));
     }
     return this.childTrees(node, next, provided);
+  }
+
+  private providerTree(node: MorphNode, environment: DoorEnvironment): DoorTree {
+    const composition = jsxValue(node, "composition");
+    const origin = composition === undefined ? UNREADABLE_COMPOSITION : this.origin(composition, environment, []);
+    const children = this.childTrees(node, environment, true);
+    return { ...children, provider: true, invalidComposition: children.invalidComposition || !origin.valid || origin.nullable };
   }
 
   private contextIdentity(node: MorphNode): object | undefined {

@@ -568,7 +568,13 @@ function gatherView(facts: HarnessFacts, node: MorphNode, path: string): void {
     return;
   }
   const parent = node.getFirstAncestor(
-    (ancestor) => Node.isJsxElement(ancestor) || Node.isJsxFragment(ancestor) || Node.isJsxExpression(ancestor) || Node.isFunctionLikeDeclaration(ancestor),
+    (ancestor) =>
+      Node.isJsxElement(ancestor) ||
+      Node.isJsxFragment(ancestor) ||
+      Node.isJsxExpression(ancestor) ||
+      Node.isJsxAttribute(ancestor) ||
+      Node.isJsxSpreadAttribute(ancestor) ||
+      Node.isFunctionLikeDeclaration(ancestor),
   );
   if (parent !== undefined && (Node.isJsxElement(parent) || Node.isJsxFragment(parent))) {
     const rows = facts.children.get(parent.compilerNode) ?? [];
@@ -644,6 +650,24 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nexport function CtClientProviders({ children }: { children?: object }) { const graph = createAuthedComposition({}); return <><AuthedProviders composition={graph}>{children}</AuthedProviders>{true && children}</>; }\n',
+      }),
+      expect: { count: 1, messageIncludes: "returned" },
+      why: "an unproved conditional child beside a genuine provider cannot disappear from the mounting proof",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nexport function CtClientProviders({ children }: { children?: object }) { const graph = createAuthedComposition({}); return <AuthedProviders composition={graph}><AuthedProviders composition={{}}>{children}</AuthedProviders></AuthedProviders>; }\n',
+      }),
+      expect: { count: 1, messageIncludes: "composition" },
+      why: "a valid outer provider cannot erase the invalid composition delivered by its nested provider",
+    },
     {
       mode: "types",
       files: proofFiles({
@@ -975,6 +999,31 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nfunction Delegated({ graph, children }: { graph: object; children?: object }) { return <AuthedProviders composition={graph} children={children} />; }\nexport function CtClientProviders({ children }: { children?: object }) { const graph = createAuthedComposition({}); return <Delegated graph={graph} children={children} />; }\n',
+      }),
+      why: "explicit children props retain their delegated flow while other prop values are not misclassified as rendered children",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        "node_modules/@ct-native/sibling/index.tsx": "export function NativeSibling() { return <span />; }\n",
+        [CT_PROVIDERS]:
+          'import { NativeSibling } from "@ct-native/sibling";\nimport { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\ndeclare function UnknownSibling(): object;\nexport function CtClientProviders({ children }: { children?: object }) { const graph = createAuthedComposition({}); return <><AuthedProviders composition={graph}>{children}</AuthedProviders>{"status"}{7}{null}{false}<UnknownSibling /><NativeSibling /></>; }\n',
+      }),
+      why: "genuine neutral literals and opaque native siblings do not imply a child escape or invalidate the real provider",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nexport function CtClientProviders({ children }: { children?: object }) { const graph = createAuthedComposition({}); return <AuthedProviders composition={graph}><AuthedProviders composition={graph}>{children}</AuthedProviders></AuthedProviders>; }\n',
+      }),
+      why: "valid nested providers preserve the child delivery and composition proof",
+    },
     {
       mode: "types",
       files: proofFiles({
