@@ -8,6 +8,8 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { Principal } from "#identity";
 
+export type { SeededPlateAsset } from "./seed-plate.ts";
+
 /** The kinds of binary we content-address. `card` = a character-card PNG (also the avatar); `avatar` =
  *  a persona avatar; `export` = a future generated export (unwired in v1); `generated` = a model-generated
  *  image from a chat turn; `gallery` = a curated gallery image; `attachment` = a user-attached inline

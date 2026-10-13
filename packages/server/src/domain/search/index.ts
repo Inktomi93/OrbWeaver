@@ -44,6 +44,7 @@ export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/servi
 export { createSearchService } from "./service.ts";
 export { evictFieldIndex } from "./substrate/field-index.ts";
 export { withRetrievalDegrade } from "./substrate/retrieval-degrade.ts";
+export { createCharacterIndexPublication } from "./verbs/character-index-publication.ts";
 export { createDigestSources } from "./verbs/digest-sources.ts";
 export { createPluginDocumentSearch } from "./verbs/plugin-documents.ts";
 export { createSourceState } from "./verbs/source-state.ts";

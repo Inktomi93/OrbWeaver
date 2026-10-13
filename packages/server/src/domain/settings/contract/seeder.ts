@@ -10,10 +10,13 @@
 // asset GC could not see it at all. Seeding them makes a plate an ORDINARY owned background — which is also
 // what retires the `seeded` kind.
 
+import type { SeededPlateAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { AssetId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+
+export type { SeededPlateAsset } from "@orb/contracts/assets";
 
 /** One shipped plate's identity in the pack: the content `slug` (`<handle>-bg`) and the display NAME its
  *  `appearance.backgroundLibrary` entry wears. Structurally the `@orb/default-content` manifest row; spelled
@@ -21,15 +24,6 @@ import type { AssetId, UserId } from "@orb/kit/ids";
 export interface SeedBackgroundPlateRef {
   readonly slug: string;
   readonly label: string;
-}
-
-/** A plate that has landed in the caller's CAS as a `background`-kind asset. `assetHash` is the CAS content
- *  hash, which is what makes the seed idempotent WITHOUT a slug column anywhere: the same bytes always hash
- *  the same, so "does this library already carry this plate?" is a hash lookup, not a marker field. */
-export interface SeededPlateAsset {
-  readonly assetId: AssetId;
-  readonly assetHash: string;
-  readonly mime: string;
 }
 
 export interface DefaultBackgroundSeederDeps {

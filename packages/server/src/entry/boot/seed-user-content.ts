@@ -1,18 +1,16 @@
-// The user seed (D263): walks `@orb/default-content`'s manifest for one account and seeds every item the
-// account's seed ledger has not recorded, then records it. A deleted item stays deleted because its key is
-// recorded; an item a later build adds reaches the account on its next seed. `ensureSeeded` never throws.
-//
-// Accounts seeded before the ledger carry the old `onboarding` latches instead of ledger rows. On such an
-// account's first ledger pass the latched kinds are recorded without seeding, so a card the user deleted
-// under the latch is not brought back; only the items those latches never covered are seeded.
+// Graph adapter for D263: select concrete owner factories from the immutable canonical manifest once.
+// Settings owns settlement; character/persona/roster own each operation. Boot ordering stays at lifecycle.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { SeedManifestItem } from "@orb/default-content";
-import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
+import { createCharacterSeedStep } from "#domain/character";
 import type { SeedRosterPreset } from "#domain/roster-preset";
-import type { LegacySeedLatches } from "#domain/settings";
-import { getLog } from "#foundation/observability";
+import { createRosterSeedStep } from "#domain/roster-preset";
+import type { ContentSeedStep, LegacySeedLatches, UserContentSeeder } from "#domain/settings";
+import { createUserContentSeeder as createContentSeedPolicy } from "#domain/settings";
+
+export type { UserContentSeeder } from "#domain/settings";
 
 // @orb-waive no-inline-package-interface(UserContentSeederDeps): baselined when the gate landed; burn-down item 952.
 export interface UserContentSeederDeps {
@@ -32,114 +30,43 @@ export interface UserContentSeederDeps {
   readonly createRosterPreset: SeedRosterPreset;
 }
 
-// @orb-waive no-inline-package-interface(UserContentSeeder): baselined when the gate landed; burn-down item 952.
-export interface UserContentSeeder {
-  readonly ensureSeeded: (principal: Principal) => Promise<void>;
-}
-
-/** The keys the pre-ledger latches already stand for. */
-// @orb-waive compose-wiring-only(latchedKeys): baselined when the gate landed; burn-down item 964.
-function latchedKeys(manifest: readonly SeedManifestItem[], latches: LegacySeedLatches): readonly string[] {
-  return manifest.flatMap((item) => ((item.kind === "character" && latches.characters) || (item.kind === "persona" && latches.persona) ? [item.key] : []));
-}
-
 export function createUserContentSeeder(deps: UserContentSeederDeps): UserContentSeeder {
-  const log = getLog();
-  // The hook fires on every authed request: an account whose pass settled every item is skipped until the
-  // process restarts, which is when a new build's manifest items arrive. Assumes single-replica.
-  const settled = new Set<UserId>();
-  // Two parallel first requests share one run instead of seeding an item twice.
-  const inFlight = new Map<UserId, Promise<void>>();
-
-  /** Seed one item. `true` ⇒ the item is settled for this account and its key may be recorded. */
-  // @orb-waive compose-wiring-only(seedItem): baselined when the gate landed; burn-down item 964.
-  async function seedItem(principal: Principal, item: SeedManifestItem): Promise<boolean> {
+  const steps = deps.manifest.map((item): ContentSeedStep => {
     switch (item.kind) {
       case "character":
-        return (await deps.seedCharacter(principal, item.handle)) !== null;
+        return {
+          key: item.key,
+          legacyLatch: "characters",
+          seed: createCharacterSeedStep((principal, handle) => deps.seedCharacter(principal, handle), item.handle),
+        };
       case "persona":
-        return await deps.seedPersona(principal);
-      case "rosterPreset": {
-        const found = await Promise.all(item.characters.map((handle) => deps.findCharacter(principal, handle)));
-        const characterIds = found.filter((id): id is CharacterId => id !== null);
-        // Every seated character is gone (the user deleted them): there is nothing to start, so the item settles
-        // without a preset rather than retrying forever.
-        if (characterIds.length > 0) {
-          // A campaign roster carries rpg's default template (`{}` ⇒ the birth-default ruleset); the manifest
-          // package sits below contracts and cannot name a ruleset itself.
-          await deps.createRosterPreset(principal, { name: item.name, description: item.description, characterIds, game: item.startsGame ? {} : null });
-        }
-        return true;
-      }
+        return { key: item.key, legacyLatch: "persona", seed: (principal) => deps.seedPersona(principal) };
+      case "rosterPreset":
+        return {
+          key: item.key,
+          seed: createRosterSeedStep({
+            name: item.name,
+            description: item.description,
+            characterHandles: item.characters,
+            startsGame: item.startsGame,
+            findCharacter: (principal, handle) => deps.findCharacter(principal, handle),
+            createRosterPreset: (principal, roster) => deps.createRosterPreset(principal, roster),
+          }),
+        };
       default: {
         const exhaustive: never = item;
         return exhaustive;
       }
     }
-  }
-
-  /** The keys already settled for this account: its ledger, or on its first ledger pass its pre-ledger latches. */
-  // @orb-waive compose-wiring-only(settledKeys): baselined when the gate landed; burn-down item 964.
-  async function settledKeys(principal: Principal): Promise<ReadonlySet<string>> {
-    const seeded = await deps.seededKeys(principal.userId);
-    if (seeded.size > 0) {
-      return seeded;
-    }
-    const legacy = latchedKeys(deps.manifest, await deps.legacyLatches(principal));
-    await deps.recordSeeded(principal.userId, legacy, deps.now());
-    return new Set(legacy);
-  }
-
-  /** One pass over the manifest. Resolves `true` when every item is settled for this account. */
-  // @orb-waive compose-wiring-only(seed): baselined when the gate landed; burn-down item 964.
-  async function seed(principal: Principal): Promise<boolean> {
-    const userId = principal.userId;
-    const seeded = await settledKeys(principal);
-    let complete = true;
-    // Sequential, in manifest order: a roster preset seats the characters seeded before it.
-    for (const item of deps.manifest) {
-      if (seeded.has(item.key)) {
-        continue;
-      }
-      // One item's failure is logged and its key left unrecorded, so the next seed retries it; the others still seed.
-      try {
-        if (await seedItem(principal, item)) {
-          await deps.recordSeeded(userId, [item.key], deps.now());
-        }
-      } catch (err) {
-        complete = false;
-        log.error({ userId, key: item.key, err: errorMessage(err) }, "seed: a manifest item failed; it retries on the next seed");
-      }
-    }
-    return complete;
-  }
-
-  return {
-    // @orb-waive compose-wiring-only(ensureSeeded): baselined when the gate landed; burn-down item 964.
-    ensureSeeded: (principal: Principal): Promise<void> => {
-      if (!deps.enabled() || settled.has(principal.userId)) {
-        return Promise.resolve();
-      }
-      const pending = inFlight.get(principal.userId);
-      if (pending !== undefined) {
-        return pending;
-      }
-      const run = seed(principal)
-        .then((complete): void => {
-          if (complete) {
-            settled.add(principal.userId);
-          }
-        })
-        .catch((err: unknown): void => {
-          log.error({ userId: principal.userId, err: errorMessage(err) }, "seed: the user seed failed");
-        })
-        .finally((): void => {
-          inFlight.delete(principal.userId);
-        });
-      inFlight.set(principal.userId, run);
-      return run;
-    },
-  };
+  });
+  return createContentSeedPolicy({
+    enabled: () => deps.enabled(),
+    steps,
+    now: () => deps.now(),
+    seededKeys: (userId) => deps.seededKeys(userId),
+    recordSeeded: (userId, keys, at) => deps.recordSeeded(userId, keys, at),
+    legacyLatches: (principal) => deps.legacyLatches(principal),
+  });
 }
 
 // @orb-waive no-inline-package-interface(SeedUserContentDeps): baselined when the gate landed; burn-down item 952.

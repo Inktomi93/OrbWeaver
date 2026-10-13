@@ -6,6 +6,7 @@
 
 export type { ConnectionContext } from "./context.ts";
 export { ConnectionNotFoundError } from "./contract/errors.ts";
+export type { LocalLightBootPolicyDeps, LocalLightSeedPolicyDeps } from "./contract/local-light-policy.ts";
 export type {
   BindingActorInput,
   ConnectionDiagnosticParams,
@@ -34,4 +35,5 @@ export { createConnectionPorts } from "./persistence/ports.ts";
 export { createSessionEntryWriter } from "./persistence/session-entries.ts";
 export { createConnectionService } from "./service.ts";
 export { toResolvedView } from "./substrate/resolved-view.ts";
+export { createLocalLightUserSeed, seedLocalLightAccounts } from "./verbs/local-light-policy.ts";
 export { createConnectionWorkloadContributions } from "./workload-contributions.ts";

@@ -67,7 +67,7 @@ type CopyCharacterBooksOp = (args: { readonly ownerId: UserId; readonly fromChar
 
 /** The editable greeting-studio prompt material resolved from the CALLER's preset (audit §3): the
  *  `greeting_rewrite`/`greeting_new` `guidedActions` template PLUS that preset's `prose` overrides. Wired at
- *  compose to the preset domain's active-preset read; character never imports preset.
+ *  compose to the preset domain's optional configuration read; character owns selection and never imports preset.
  *
  *  The `prose` half landed with the templating fork's ARM B (owner 2026-08-09): the greeting studio's
  *  transform fragments are `preset.greetingTransform.*` slots now, so the verb needs the same override bag
@@ -80,9 +80,9 @@ type ResolveGreetingTemplateOp = (args: {
 }) => Promise<{ readonly template: string; readonly prose: ProseOverrides }>;
 
 /** The bounded side-LLM completion the greeting-studio verbs await (the imagery `captionImage` precedent —
- *  the summarize lane at compose). ONE prompt in, `{text, costUsd}` out; the caller's connection is resolved
- *  at compose (the caller IS the request owner — every studio verb is owner-gated). The sampling posture is
- *  resolved at compose: the caller's Utility-role preset over the `greeting_studio` posture —
+ *  the summarize lane). ONE prompt in, `{text, costUsd}` out; character resolves the caller's live connection
+ *  through the injected runtime port (every studio verb is owner-gated). Character resolves sampling from
+ *  the caller's Utility-role preset over the `greeting_studio` posture —
  *  the same for BOTH studio kinds, so the op carries no `kind` (per-template sampling was deleted, owner
  *  ruling 2026-08-01; `kind` still selects the TEMPLATE, on `resolveGreetingTemplate`). */
 type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prompt: string }) => Promise<GeneratedGreeting>;

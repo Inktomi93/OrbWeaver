@@ -3,6 +3,7 @@
 // @orb/contracts/chat directly.
 
 export type { PersonaContext } from "./context.ts";
+export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./contract/default-seed.ts";
 export { AssetNotFoundError, LastPersonaError, PersonaNotFoundError } from "./contract/errors.ts";
 export type { BulkImportPersonas, PersonaImportContext } from "./contract/import.ts";
 export type { JoinerPersonaStatementOp, ResolvePersonasForParticipants, UserPublicsDeps } from "./contract/ops.ts";
@@ -16,7 +17,9 @@ export { createPersonaOwned } from "./persistence/ownership-ops.ts";
 // restore would have merged onto (a bundle gets one fresh ImportContext per file, so the profile run's
 // in-memory `personaByUserName` map is not available to it).
 export { findOwnedPersonaByName } from "./persistence/queries.ts";
+export { createDefaultPersonaSeeder } from "./seeder/default.ts";
 export { createPersonaService } from "./service.ts";
+export { createFindSeededDefault } from "./verbs/find-seeded-default.ts";
 // D259 — the other PRINCIPAL-LESS op: the sign-up joiner's persona statement, which chat's signup batch runs.
 export { createJoinerPersonaStatement } from "./verbs/joiner-persona-statement.ts";
 export { createRepointSeedsAfterPersonaDelete } from "./verbs/repoint-seeds-after-persona-delete.ts";
@@ -28,5 +31,4 @@ export { createResolveConnectedPersona } from "./verbs/resolve-connected-persona
 export { createResolvePersonasForParticipants } from "./verbs/resolve-personas-for-participants.ts";
 export { createResolvePersonaSeedPointers } from "./verbs/resolve-seed-pointers.ts";
 export { createResolveUserPublics } from "./verbs/resolve-user-publics.ts";
-
 export { createSeedPersonaWithCompletion } from "./verbs/seed-completion.ts";

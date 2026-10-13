@@ -82,8 +82,16 @@ import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepO
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
 import { buildImportContext, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
+import type { DefaultPersonaSeeder } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
-import { createPluginGrantTasksOf, createPluginMacroRegistry, createPluginSeedOps, createShowcaseVersionReader } from "#domain/plugin";
+import type { DistributedPluginApplier } from "#domain/plugin";
+import {
+  createDistributedPluginApplier,
+  createPluginGrantTasksOf,
+  createPluginMacroRegistry,
+  createPluginSeedOps,
+  createShowcaseVersionReader,
+} from "#domain/plugin";
 import { buildSideGenParams, createCopyPresetToUser, createLoadOptionalPreset, createPresetReadable } from "#domain/preset";
 import { createResolveStructuredBinding } from "#domain/refinery";
 import type { ImportCardScripts } from "#domain/regex";
@@ -139,8 +147,8 @@ import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/sto
 import type { PresenceRegistry, Services, SocketRegistry } from "#transport/trpc";
 import { createPresenceRegistry, createSocketRegistry, publishChatEvent, publishUserEvent, silenceRoomEntityFan } from "#transport/trpc";
 import { createHostPrincipalResolver } from "../auth/index.ts";
-import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder, UserContentSeeder } from "../boot/index.ts";
-import { createDistributedPluginApplier, createExamplePluginSeeder, createLocalLightUserSeed, createUserContentSeeder } from "../boot/index.ts";
+import type { ExamplePluginSeeder, UserContentSeeder } from "../boot/index.ts";
+import { createExamplePluginSeeder, createLocalLightUserSeed, createUserContentSeeder } from "../boot/index.ts";
 import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
 import { buildAutomationPlugin } from "./automation-plugin.ts";

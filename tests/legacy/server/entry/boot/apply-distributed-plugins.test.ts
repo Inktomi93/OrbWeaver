@@ -16,8 +16,8 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { DistributedPluginApplierDeps } from "@orb/server/entry/boot";
-import { createDistributedPluginApplier } from "@orb/server/entry/boot";
+import type { DistributedPluginApplierDeps } from "@orb/server/domain/plugin";
+import { createDistributedPluginApplier } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";

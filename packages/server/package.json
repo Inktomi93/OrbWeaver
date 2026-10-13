@@ -32,7 +32,9 @@
     "./domain/settings": "./src/domain/settings/index.ts",
     "./infra/upstream-update": "./src/infra/upstream-update/index.ts",
     "./transport/debug-recorders": "./src/transport/debug-recorders/index.ts",
-    "./domain/rpg": "./src/domain/rpg/index.ts"
+    "./domain/rpg": "./src/domain/rpg/index.ts",
+    "./domain/plugin": "./src/domain/plugin/index.ts",
+    "./domain/roster-preset": "./src/domain/roster-preset/index.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts",

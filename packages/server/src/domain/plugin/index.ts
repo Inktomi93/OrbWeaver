@@ -40,6 +40,7 @@ export type {
 } from "@orb/contracts/plugin";
 export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy.ts";
 export type { PluginContext } from "./context.ts";
+export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./contract/distributed-seed.ts";
 export {
   CapabilityNotGrantedError,
   HostVersionUnservedError,
@@ -147,6 +148,7 @@ export type {
   PluginSurfaceStateStore,
   PluginUiOutbox,
 } from "./contract/service.ts";
+export type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "./contract/showcase-seed.ts";
 export { createPluginGrantTasksOf } from "./persistence/grant-tasks.ts";
 export { recordPluginFetchedAsset } from "./persistence/plugin-assets.ts";
 // `listEnabledAcrossOwners` is the BOOT reactivation step's read (#1865) — the one deliberately
@@ -157,6 +159,8 @@ export { isPluginEnabledFor, listEnabledAcrossOwners } from "./persistence/plugi
 // derives. Both are read by `entry/boot/migrate-plugin-tool-wire-names`, which hands the answer DOWN to
 // chat and automation as plain data — neither of them may import this domain.
 export { readInstalledPluginSlugs } from "./persistence/wire-name-census.ts";
+export { createDistributedPluginApplier } from "./seeder/distributed.ts";
+export { createExamplePluginSeeder } from "./seeder/showcase.ts";
 export { createPluginService } from "./service.ts";
 export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";
 // The domain's own VERSION ORDERING (#803): the showcase seeder's auto-upgrade asks "does a strictly newer
@@ -194,6 +198,5 @@ export { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused } from "./s
 export { buildPluginQuietLlm } from "./verbs/quiet-llm.ts";
 export { createPluginRegistrarOps } from "./verbs/registrar-ops.ts";
 export { createPluginRuntimeOps, createPluginSuggestionExecutor } from "./verbs/runtime-ports.ts";
-
 export { createPluginSeedOps } from "./verbs/seed-ops.ts";
 export { PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS } from "./verbs/transform-for-display.ts";

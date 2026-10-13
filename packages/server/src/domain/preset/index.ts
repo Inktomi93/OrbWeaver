@@ -6,6 +6,7 @@ export type { PresetContext } from "./context.ts";
 export type { PresetOpCode } from "./contract/errors.ts";
 export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors.ts";
 export type { CopyPresetToUser, PresetHandoffCopyContext } from "./contract/handoff-copy.ts";
+export type { ReadOptionalPresetConfig } from "./contract/optional-config.ts";
 export type { LoadOptionalPreset } from "./contract/optional-read.ts";
 export type {
   CreatePresetParams,
@@ -50,6 +51,7 @@ export { createPresetService } from "./service.ts";
 export { createLoadOptionalPreset } from "./substrate/optional-read.ts";
 export { createExport as createExportPresets } from "./verbs/export.ts";
 export { createImport as createImportPresets } from "./verbs/import.ts";
+export { createReadOptionalPresetConfig } from "./verbs/optional-config.ts";
 export { createPresetReadable } from "./verbs/readable.ts";
 // The backward-bindings rule `PresetContext.resolvePresetUsage` runs; compose wires its three foreign inputs.
 export { createResolvePresetUsage } from "./verbs/resolve-preset-usage.ts";
