@@ -3,6 +3,7 @@
 import process from "node:process";
 import { budget } from "../host/load-budget.ts";
 import { runNicedSync } from "../process/proc.ts";
+import { inheritedProcessEnv } from "../process/process-env.ts";
 
 /** The env keys the probe child reads; spelled once, so the script and its launcher cannot drift. */
 const PROBE_URL_ENV = "ORB_HTTP_PROBE_URL";
@@ -39,12 +40,7 @@ const BODY_SCRIPT = [
 
 function probeChild(url: string, script: string, stdio: "ignore" | "collect"): { readonly ok: boolean; readonly stdout: string } {
   const timeoutMs = budget(PROBE_TIMEOUT_BASE_MS);
-  const env: NodeJS.ProcessEnv = {
-    // biome-ignore lint/style/noProcessEnv: the probe child inherits PATH and the rest of the ambient environment; only the two protocol keys are added, and neither is app configuration.
-    ...process.env,
-    [PROBE_URL_ENV]: url,
-    [PROBE_TIMEOUT_ENV]: String(timeoutMs),
-  };
+  const env = inheritedProcessEnv({ [PROBE_URL_ENV]: url, [PROBE_TIMEOUT_ENV]: String(timeoutMs) });
   const res = runNicedSync(process.execPath, ["--input-type=module", "-e", script], { env, timeout: timeoutMs + CHILD_OVERHEAD_MS, stdio });
   return { ok: res.status === 0, stdout: res.stdout };
 }

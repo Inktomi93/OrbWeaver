@@ -34,6 +34,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { spawnNicedChild } from "../../floor/process/proc.ts";
+import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../floor/process/server-entry.ts";
 import { instrumentError, printVerdict } from "../../floor/verdict/evidence.ts";
 import { fireEvidenceGap } from "../lib/evidence.ts";
@@ -106,9 +107,7 @@ async function waitForReady(baseUrl: string, deadlineMs: number): Promise<void> 
 }
 
 function serverEnv(port: number, dbPath: string, debugToken: string): NodeJS.ProcessEnv {
-  return {
-    // biome-ignore lint/style/noProcessEnv: the child server inherits this probe's ambient env as the base; the pins below override the keys that matter — harness plumbing, not app config.
-    ...process.env,
+  return inheritedProcessEnv({
     PORT: String(port),
     DEBUG_TOKEN: debugToken,
     // The probe's OWN data root beside its db, so its secrets, caches and reports never land in — and its
@@ -125,7 +124,7 @@ function serverEnv(port: number, dbPath: string, debugToken: string): NodeJS.Pro
     // No embedder spin-up for a one-shot probe (same pin as vitest.config.ts).
     CORPUS_AUTOINDEX: "false",
     LOG_LEVEL: "warn",
-  };
+  });
 }
 
 interface FiredBatch {

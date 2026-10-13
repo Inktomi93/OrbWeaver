@@ -73,6 +73,7 @@ import { runGit } from "../../floor/git/git.ts";
 import { listeningPids } from "../../floor/host/platform.ts";
 import { stageBandPorts } from "../../floor/host/ports.ts";
 import { runNicedSync, spawnFullPrioritySync } from "../../floor/process/proc.ts";
+import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOps, EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import { liveHoldersOf, otherRunHolders, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildReason, stageRebuildRefusal } from "../lib/stage-bands.ts";
@@ -134,9 +135,7 @@ function stageIdentityEnv(root: string, ports: StagePorts, auth: StageAuthMode, 
 }
 
 function bootStage(paths: StagePaths, ports: StagePorts, inherited: Record<string, string>): void {
-  const env: NodeJS.ProcessEnv = {
-    // biome-ignore lint/style/noProcessEnv: the stage stack inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
-    ...process.env,
+  const env = inheritedProcessEnv({
     // The band's address, the same env the teardown's `stack down` resolves its ports from. It also skips
     // the repo-root .env entirely, so the operator's DEBUG_TOKEN/WIRE_CAPTURE/OIDC_* never arm a second
     // /api/_debug/* surface behind a copy of the dev DB; the keys the copied DB needs are declared below.
@@ -155,9 +154,9 @@ function bootStage(paths: StagePaths, ports: StagePorts, inherited: Record<strin
     // Minted per stage boot (like probe-fire.ts) rather than inherited — the operator's real token must
     // never arm a second, less-guarded /api/_debug/* surface. WIRE_CAPTURE stays at its schema default
     // (off) under ORB_ENV_NO_FILE; a caller who wants the wire-capture surface on the stage can still
-    // export WIRE_CAPTURE=on in their own shell (process.env spread above), same as any other opt-in.
+    // export WIRE_CAPTURE=on in their own shell (ambient environment above), same as any other opt-in.
     DEBUG_TOKEN: randomBytes(DEBUG_TOKEN_BYTES).toString("hex"),
-  };
+  });
   // Resolved, not hardcoded (#447): an older `--ref` stage ships a shell launcher where the current tree
   // ships the stack cli. A ref with neither is refused BY NAME here rather than spawning a path that does
   // not exist and reporting a generic boot failure.
@@ -181,8 +180,7 @@ function seedStageHumans(paths: StagePaths, ports: StagePorts): void {
   if (!existsSync(seedCli)) {
     throw new Error(`stage ${paths.dir} ships no ${FIXTURE_SEED_CLI_REL}, so --stage-auth local cannot seed its humans; use a newer --ref`);
   }
-  // biome-ignore lint/style/noProcessEnv: the seed child inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
-  const env = { ...process.env, ...fixtureIdentityEnv(ports.server) };
+  const env = inheritedProcessEnv(fixtureIdentityEnv(ports.server));
   const res = runNicedSync(process.execPath, [seedCli, "multi-user"], { cwd: paths.dir, env, stdio: "inherit" });
   if (res.status !== 0) {
     throw new Error(`stage ${paths.dir}: seeding the fixture humans failed (seed multi-user exit ${String(res.status)})`);

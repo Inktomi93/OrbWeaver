@@ -4,11 +4,11 @@
 // `tsc` here instead of silently desyncing the renderer.
 import process from "node:process";
 import type { RequestTrace, SerializedSpan } from "@orb/server/foundation/observability";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 
 /** db spans at/over this duration get a red ⚠ in the waterfall. Override: SLOW_DB_MS=250. */
 const DEFAULT_SLOW_DB_MS = 100;
-// biome-ignore lint/style/noProcessEnv: SLOW_DB_MS is a probe-render knob (the red-flag threshold for slow db spans) — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
-const SLOW_DB_MS = Number(process.env["SLOW_DB_MS"] ?? DEFAULT_SLOW_DB_MS);
+const SLOW_DB_MS = Number(processEnvValue("SLOW_DB_MS") ?? DEFAULT_SLOW_DB_MS);
 
 const tty = process.stdout.isTTY === true;
 const identity = (s: string): string => s;

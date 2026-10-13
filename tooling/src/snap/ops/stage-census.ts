@@ -12,13 +12,13 @@
 // in exactly one branch — the `shared-reuse` decision about a FOREIGN row at OUR sha — so the census probes
 // exactly those rows. Probing all ten would put ten curl pairs (and, for dirty stages, ten node children)
 // in the critical section of a lock every sibling lane is waiting on.
-import process from "node:process";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { readConcurrencyProfile } from "../../floor/host/concurrency-profile.ts";
 import type { PortOwner } from "../../floor/host/platform.ts";
 import { listeningPids, socketTableOrThrow } from "../../floor/host/platform.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../floor/host/ports.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import type { StageBandAcquireInput, StageBandAcquisition, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
 import { allocateStageBand, isSharedReuseCandidate, liveHoldersOf, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../lib/stage-plan.ts";
@@ -33,8 +33,8 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
  *  is a FRESH PROCESS (the snap cli, the daemon cli, each spawned proof), so a caller that wants different
  *  knobs sets them in the environment of the CHILD and never mid-process. Same posture as the session
  *  registry's `ORB_SESSION_TTL_MIN`/`ORB_SESSION_CAP` door. */
-// biome-ignore lint/style/noProcessEnv: the two owner-ruled ambient TOOLING knobs this file owns (F5 — the stage half of the same pair ops/session-registry.ts reads for sessions). The env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
-const { ORB_STAGE_TTL_MIN: TTL_MIN_ENV, ORB_STAGE_CAP: CAP_ENV } = process.env;
+const TTL_MIN_ENV = processEnvValue("ORB_STAGE_TTL_MIN");
+const CAP_ENV = processEnvValue("ORB_STAGE_CAP");
 
 /** The owner-ruled limits (F5), with any env-parse refusal PRINTED rather than silently defaulted — a TTL
  *  that quietly became 60 min is the strand class the table exists to end. */

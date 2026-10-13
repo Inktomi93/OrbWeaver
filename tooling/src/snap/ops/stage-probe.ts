@@ -20,6 +20,7 @@ import type { EstablishedConnection, PortOwner, SocketTableRead } from "../../fl
 import { establishedConnections, processAgeSeconds, processGroupId, processInfo, processStartTicks } from "../../floor/host/platform.ts";
 import { httpOkSync } from "../../floor/http/http-probe.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
+import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import type { ServedState } from "../../stack/index.ts";
 import type { StageHolder, StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL, stageBaseUrl, stageServedProbeSpawn } from "../lib/stage-plan.ts";
@@ -152,11 +153,7 @@ export function stageServedState(stageDir: string, vitePort: number): ServedStat
   if (spawn === null) {
     return "unverifiable";
   }
-  const env: NodeJS.ProcessEnv = {
-    // biome-ignore lint/style/noProcessEnv: spawnSync's `env` REPLACES the child's environment, so the ambient PATH (which `nice` and `node` are found through) has to come across — harness plumbing, not app config. Only VITE_PORT is added, and it is what points the probe at the STAGE's vite instead of the dev one.
-    ...process.env,
-    VITE_PORT: String(vitePort),
-  };
+  const env = inheritedProcessEnv({ VITE_PORT: String(vitePort) });
   const res = runNicedSync(spawn.command, spawn.args, { cwd: stageDir, env, timeout: budget(SERVED_PROBE_BASE_MS) });
   const state = SERVED_STATE_RE.exec(res.stdout);
   if (state === null) {

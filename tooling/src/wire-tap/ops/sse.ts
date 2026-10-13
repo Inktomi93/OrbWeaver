@@ -27,6 +27,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { DEV_PORTS } from "../../floor/host/ports.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
@@ -40,12 +41,9 @@ interface SseEnv {
 }
 
 function readEnv(): SseEnv {
-  // biome-ignore lint/style/noProcessEnv: PORT mirrors the server's listen port so the tap hits the right box — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
-  const port = process.env["PORT"] ?? String(DEV_PORTS.server);
-  // biome-ignore lint/style/noProcessEnv: SSE_TAP_BASE points the tap at a non-local server when needed — ambient tooling env, not app config.
-  const base = process.env["SSE_TAP_BASE"] ?? `http://127.0.0.1:${port}`;
-  // biome-ignore lint/style/noProcessEnv: SSE_TAP_COOKIE carries a browser session for cookie-mode deploys (single-user needs none) — harness plumbing, not app config.
-  const cookie = process.env["SSE_TAP_COOKIE"] ?? "";
+  const port = processEnvValue("PORT") ?? String(DEV_PORTS.server);
+  const base = processEnvValue("SSE_TAP_BASE") ?? `http://127.0.0.1:${port}`;
+  const cookie = processEnvValue("SSE_TAP_COOKIE") ?? "";
   return { trpcUrl: `${base}/api/trpc`, cookie };
 }
 

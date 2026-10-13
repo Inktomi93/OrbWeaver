@@ -1,8 +1,8 @@
 // ffmpeg resolution for the probes that post-process pixels. Not guaranteed on PATH —
 // consumers MUST handle null (skip ≠ fail: exit 0, SKIPPED result line).
 // Playwright's bundled ffmpeg is NOT a fallback: screencast-only build, no ssim/blend filters.
-import process from "node:process";
 import { runNicedSync } from "../process/proc.ts";
+import { processEnvValue } from "../process/process-env.ts";
 
 let cached: string | null | undefined;
 
@@ -19,8 +19,7 @@ export function resolveFfmpeg(): string | null {
   if (cached !== undefined) {
     return cached;
   }
-  // biome-ignore lint/style/noProcessEnv: FFMPEG_BIN is a probe-harness knob (which binary to spawn on a host where ffmpeg isn't on PATH) — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
-  const envBin = process.env["FFMPEG_BIN"];
+  const envBin = processEnvValue("FFMPEG_BIN");
   if (envBin !== undefined && envBin !== "" && runnable(envBin)) {
     cached = envBin;
     return cached;

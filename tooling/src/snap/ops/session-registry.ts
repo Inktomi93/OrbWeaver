@@ -12,6 +12,7 @@ import { publishRunSlot } from "../../floor/artifacts/artifacts.ts";
 import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { killPidGroup } from "../../floor/process/proc.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { SessionLimits, SessionRow } from "../contract/session.ts";
 import {
@@ -39,10 +40,11 @@ const MS_PER_MINUTE = 60_000;
 /** THE ONE env door for the session registry — read once, at module load, because every consumer is a
  *  FRESH PROCESS (the client cli, the daemon cli, each spawned proof), so a caller that wants different
  *  knobs sets them in the environment of the CHILD and never mid-process. That is the same posture
- *  `floor/host/load-budget.ts` states for `ORB_BUDGET_CEILING_MS`, and it is why one destructure can serve
- *  both readers below instead of three scattered `process.env` reads. */
-// biome-ignore lint/style/noProcessEnv: the three ambient TOOLING knobs this file owns — ORB_SNAP_SESSION_HOME (the committed proofs plant a scratch registry; writing the box's REAL one would collide with a live sibling's session) plus the owner-ruled ORB_SESSION_TTL_MIN / ORB_SESSION_CAP overrides. Same class as this tree's SNAP_BASE_URL/DEBUG_TOKEN/FFMPEG_BIN rows; the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
-const { ORB_SNAP_SESSION_HOME: HOME_OVERRIDE, ORB_SESSION_TTL_MIN: TTL_MIN_ENV, ORB_SESSION_CAP: CAP_ENV } = process.env;
+ *  `floor/host/load-budget.ts` states for `ORB_BUDGET_CEILING_MS`: protocol overrides are captured at
+ *  module initialization and supplied by the child environment, not changed mid-process. */
+const HOME_OVERRIDE = processEnvValue("ORB_SNAP_SESSION_HOME");
+const TTL_MIN_ENV = processEnvValue("ORB_SESSION_TTL_MIN");
+const CAP_ENV = processEnvValue("ORB_SESSION_CAP");
 
 /** `<main>/.cache/snap-session/` — the stage marker's `markerRoot` derivation (#108), so every worktree of
  *  the repo sees ONE registry and a session is reachable from any of them. `ORB_SNAP_SESSION_HOME`
