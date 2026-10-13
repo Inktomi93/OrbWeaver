@@ -31,6 +31,31 @@ test("moduleStringArg follows the Vitest import binding rather than the receiver
   expect(moduleStringArg(unrelatedCall)).toBeNull();
 });
 
+test("moduleStringArg preserves its exact admission around shadowed bindings and mock call spellings", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/module-calls.ts",
+    'import { vi as actual } from "vitest";\n' +
+      'actual.mock("#mock");\n' +
+      'actual.importActual("#actual");\n' +
+      'actual.doUnmock("#outside-grammar");\n' +
+      'actual["mock"]("#outside-member-grammar");\n' +
+      'function shadow(actual: { mock(value: string): void }) { actual.mock("#shadow"); }\n' +
+      'import("#dynamic");\nimport(variable);\nrequire("#require");\n',
+  );
+
+  expect(source.getDescendantsOfKind(SyntaxKind.CallExpression).map((call) => moduleStringArg(call)?.getLiteralValue() ?? null)).toEqual([
+    "#mock",
+    "#actual",
+    null,
+    null,
+    null,
+    "#dynamic",
+    null,
+    null,
+  ]);
+});
+
 const fourFiles = {
   "hit-one.ts": 'import { x } from "#old/x.ts";\n\nexport const one = x;\n',
   "hit-two.ts": 'import { x } from "#old/x.ts";\n\nexport const two = x;\n',

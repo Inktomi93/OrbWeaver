@@ -41,3 +41,57 @@ test("a narrow importer keeps its leaf through #src/ and widens no door", async 
   expect(result.writes.get("packages/p/src/a/x/use.ts")).toContain('import { z } from "#src/b/z.ts";');
   expect(result.writes.has("packages/p/src/b/index.ts")).toBe(false);
 });
+
+test("an aliased re-export already at the door preserves its origin and adds no duplicate", async ({ plantedTree }) => {
+  const root = await gitTree(plantedTree, {
+    "packages/p/src/a/x/use.ts": 'import { Public as Local } from "../../b/alias.ts";\nexport const answer = Local;\n',
+    "packages/p/src/b/value.ts": "export const Original = 1;\n",
+    "packages/p/src/b/alias.ts": 'export { Original as Public } from "./value.ts";\n',
+    "packages/p/src/b/index.ts": 'export { Public } from "./alias.ts";\n',
+  });
+
+  const result = planDeepImports(root);
+
+  expect(result.notes).toEqual([]);
+  expect(result.respelled).toBe(1);
+  expect(result.doorExports).toBe(0);
+  expect(result.writes.get("packages/p/src/a/x/use.ts")).toBe('import { Public as Local } from "#b";\nexport const answer = Local;\n');
+  expect(result.writes.has("packages/p/src/b/index.ts")).toBe(false);
+});
+
+test("a conflicting origin and a missing target export remain refusals instead of guessed door edits", async ({ plantedTree }) => {
+  const root = await gitTree(plantedTree, {
+    "packages/p/src/a/x/use.ts": 'import { Value } from "../../b/value.ts";\nimport type { Missing } from "../../b/type.ts";\n',
+    "packages/p/src/b/value.ts": "export const Value = 1;\n",
+    "packages/p/src/b/other.ts": "export const Value = 2;\n",
+    "packages/p/src/b/type.ts": "export interface Present {}\n",
+    "packages/p/src/b/index.ts": 'export { Value } from "./other.ts";\n',
+  });
+
+  const result = planDeepImports(root);
+
+  expect(result.respelled).toBe(0);
+  expect(result.doorExports).toBe(0);
+  expect(result.notes).toEqual([
+    { file: "packages/p/src/a/x/use.ts", line: 1, text: "../../b/value.ts", reason: "packages/p/src/b/index.ts already exports a different Value" },
+    { file: "packages/p/src/a/x/use.ts", line: 2, text: "../../b/type.ts", reason: "packages/p/src/b/type.ts exports no Missing" },
+  ]);
+  expect(result.writes.has("packages/p/src/a/x/use.ts")).toBe(false);
+  expect(result.writes.has("packages/p/src/b/index.ts")).toBe(false);
+});
+
+test("narrow graph closure follows static re-export cycles but does not admit dynamic-only consumers", async ({ plantedTree }) => {
+  const root = await gitTree(plantedTree, {
+    ...FILES,
+    "packages/p/src/entry.ts": 'export * from "./a/x/use.ts";\nexport const lazy = () => import("./c/x/use.ts");\n',
+    "packages/p/src/a/x/use.ts": `${FILES["packages/p/src/a/x/use.ts"]}export * from "../../entry.ts";\n`,
+    "packages/p/src/c/x/use.ts": 'import { z } from "../../b/z.ts";\nexport const dynamicOnly = z;\n',
+  });
+
+  const result = planDeepImports(root, ["./packages/p/src/entry.ts"]);
+
+  expect(result.notes).toEqual([]);
+  expect(result.writes.get("packages/p/src/a/x/use.ts")).toContain('import { z } from "#src/b/z.ts";');
+  expect(result.writes.get("packages/p/src/c/x/use.ts")).toBe('import { z } from "#b";\nexport const dynamicOnly = z;\n');
+  expect(result.writes.get("packages/p/src/b/index.ts")).toBe('export { z } from "./z.ts";\n');
+});

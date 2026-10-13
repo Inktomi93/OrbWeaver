@@ -7,6 +7,8 @@ import type { Node, Project, SourceFile } from "ts-morph";
 import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
+import { moduleClosure } from "../../floor/code-facts/module-reach.ts";
+import { inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import { readAuthoredRepositoryPathnames } from "../../floor/compiler/authored-repository.ts";
 import type { DeepImportsResult, DoorExport, DoorReader, PackageSource } from "../contract/deep-imports.ts";
 import type { RelocateNote } from "../contract/relocate.ts";
@@ -51,7 +53,7 @@ function manifestWrites(root: string, tracked: readonly string[], writes: Map<st
 }
 
 function exportsMap(sourceFile: SourceFile | undefined): ReadonlyMap<string, readonly Node[]> {
-  return sourceFile === undefined ? new Map() : sourceFile.getExportedDeclarations();
+  return sourceFile === undefined ? new Map() : inventoryExports(sourceFile);
 }
 
 interface FileRespell {
@@ -118,22 +120,18 @@ function writeDoors(root: string, exports: readonly DoorExport[], writes: Map<st
 /** Compute the migration over the authored tree. */
 /** Every package file `entries` reach through static imports and re-exports, the entries included. */
 function importGraphOf(project: Project, root: string, entries: readonly string[]): ReadonlySet<string> {
-  const seen = new Set<string>();
-  const queue = entries.map((entry) => project.getSourceFile(join(root, entry))).filter((file) => file !== undefined);
-  for (let file = queue.shift(); file !== undefined; file = queue.shift()) {
-    const path = posix.relative(root, file.getFilePath());
-    if (seen.has(path)) {
-      continue;
-    }
-    seen.add(path);
-    for (const declaration of [...file.getImportDeclarations(), ...file.getExportDeclarations()]) {
-      const next = declaration.getModuleSpecifierSourceFile();
-      if (next !== undefined && packageSourceOf(posix.relative(root, next.getFilePath())) !== undefined) {
-        queue.push(next);
-      }
-    }
-  }
-  return seen;
+  const starts = entries.flatMap((entry) => {
+    const file = project.getSourceFile(join(root, entry));
+    return file === undefined ? [] : [posix.relative(root, file.getFilePath())];
+  });
+  return moduleClosure(starts, (path) => {
+    const file = project.getSourceFileOrThrow(join(root, path));
+    return [...file.getImportDeclarations(), ...file.getExportDeclarations()].flatMap((declaration) => {
+      const next = inventoryStaticTarget(declaration);
+      const target = next === undefined ? undefined : posix.relative(root, next.getFilePath());
+      return target !== undefined && packageSourceOf(target) !== undefined ? [target] : [];
+    });
+  });
 }
 
 /**

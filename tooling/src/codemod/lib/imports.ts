@@ -3,6 +3,7 @@
 
 import type { CallExpression, ImportDeclaration, Project, SourceFile, SourceFileReferencingNodes, StringLiteral } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { declarationBindingKeys, inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { CodemodContext, ImportSpecFilter, OperationOptions, Plan } from "../contract/types.ts";
 import { groupImportsByDestination, mergeNamedImportInto, routeSpecifiersToDestination } from "./import-routing.ts";
 import { absolutePath, assert, assertPathString, noteSuffix, repoRelative } from "./plans.ts";
@@ -140,15 +141,12 @@ function isVitestModuleMethod(expr: Node): boolean {
   if (!Node.isIdentifier(receiver)) {
     return false;
   }
-  return Boolean(
-    receiver
-      .getSymbol()
-      ?.getDeclarations()
-      .some(
-        (declaration) =>
-          Node.isImportSpecifier(declaration) && declaration.getName() === "vi" && declaration.getImportDeclaration().getModuleSpecifierValue() === "vitest",
-      ),
-  );
+  const bindings = new Set(declarationBindingKeys(receiver, false));
+  return receiver
+    .getSourceFile()
+    .getImportDeclarations()
+    .filter((declaration) => declaration.getModuleSpecifierValue() === "vitest")
+    .some((declaration) => declaration.getNamedImports().some((specifier) => specifier.getName() === "vi" && bindings.has(inventoryDeclarationKey(specifier))));
 }
 
 /**
