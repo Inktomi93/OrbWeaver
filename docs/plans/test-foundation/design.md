@@ -120,7 +120,7 @@ The fact store is built once per world program, updated from file changes and pe
 
 ### Shared semantic inventory store
 
-Construction remains held pending the memory work item's diagnosis. Put the persisted semantic store in `tooling/src/floor/code-facts/` and its native worker lifecycle in `tooling/src/floor/compiler/`. Existing collectors keep their judgments and query the store for compiler facts. This is the proposed migration contract, not implemented export-cleanup infrastructure.
+The [native inventory store item](../../work/1002-persist-native-semantic-inventory-facts-and-release-world.md) owns construction after the supported abort-phase diagnosis. Put persisted facts in `tooling/src/floor/code-facts/` and native worker lifecycle in `tooling/src/floor/compiler/`. Existing collectors retain their judgments and query shared compiler facts. This migration contract is not yet implemented.
 
 Each partition belongs to a native compiler program from `compiler-programs.ts`. Preserve its options, roots, resolved closure and unresolved outcomes. Key declarations by canonical file and source span, with the program identity beside the fact. Store export origins, module targets, binding declarations and physical references. Preserve aliases, type/value distinctions, static dynamic-import members and namespace consumption. Keep native interpretations world-specific, including ambiguous and unresolved results. Physical reference spans may deduplicate body locations, but never select a typed meaning. Resolve imported export origins in the importing world, not the target file's primary world. Record product, tooling and test consumers separately.
 

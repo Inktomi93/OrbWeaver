@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-12
+updated: 2026-10-13
 priority: P1
 plan: test-foundation
 ---
@@ -26,8 +26,12 @@ Custom production-export inventory attempts exit 134 without a complete typed ve
 
 The correctly invoked `pnpm ast apisurface --in /src/ --public --json --max 1000000` completes on managed Node 26.10.0. Its timing artifact records exit 0, elapsed 2:37.88 and maximum RSS 15,719,224 KiB, without swaps. The JSON reports complete output, with total and shown equal. This measures one verb; it does not establish every tool's hosted-runner qualification.
 
-A bounded native fixture confirms one workspace and one materialized project per demanded descriptor. Shared and separate collector calls preserve results without duplicating those projects. The custom wrapper retains a native world population and multiple collector outputs; its exact aborting phase remains unresolved.
+A bounded native fixture confirms one workspace and one materialized project per demanded descriptor. Shared and separate collector calls preserve results without duplicating those projects. Historical bare-Node failure causes remain unproven.
 
 The sequential native UI export projection completes on managed Node with a released worker per demanded world. Its timing artifact reports exit 0, elapsed 1:58.62 and maximum RSS 2,501,396 KiB without swaps. This measures the bounded UI selector work set, not the full apisurface verb or aggregate concurrent-process memory. It neither diagnoses the earlier wrapper's aborting phase nor establishes a persisted shared store.
 
-Export adjudication continues separately. Its grouped projection reuses completed world results and resumes only unfinished descriptors after checking source and config identity. Preserve the store design, but hold emergency store construction. The canonical plan still requires persisted shared facts independently of this diagnosis. Full runner measurements and the shared-store work remain unassigned here.
+The supported composite diagnostic on `a5c7f1e3d1` terminates at API-surface entry with V8 heap exhaustion: exit 134, elapsed 5:42.32, peak 17,438,568 KiB without swaps. Managed Node 26.10.0 retains the unchanged heap setting. Corpus enumeration observes one native Project per descriptor; shared liveness completes with no identity changes or further world demand. No complete inventory verdict exists.
+
+This identifies the custom sequence's aborting operation, not an internal allocation cause or shipped-command failure. Later collectors, barrel sweep and serialization are not reached. Main and inputs remain unchanged. Existing logs and the parsed result remain under the diagnostic scratch directory; no second run is needed to identify this phase.
+
+Export adjudication remains separate. The planned native inventory store now owns construction and consumer migration; it is not yet built. Full hosted-runner measurements and concurrent-store qualification remain required. Do not replace complete native worlds with a synthetic program, raise heaps or infer duplicate program construction from memory size.
