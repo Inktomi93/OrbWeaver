@@ -8,14 +8,18 @@ import { subscribeAllChatEvents } from "@orb/server/transport/trpc";
 import type { HeldDb } from "@orb/testkit/node/db.ts";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
+import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { onTestFinished, vi } from "vitest";
 
-const held = test.extend<{ heldDb: HeldDb }>({
+const heldDbTest = test.extend<{ heldDb: HeldDb }>({
   heldDb: async ({}, use): Promise<void> => {
     await use(await freshHeldDb());
   },
+});
+
+const held = heldDbTest.extend<Pick<Fixtures, "db">>({
   db: async ({ heldDb }, use): Promise<void> => {
     await use(heldDb.db);
   },

@@ -24,7 +24,7 @@ import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createStoreInlineReplyImage } from "@orb/server/entry/compose";
+import { createStoreInlineReplyImage } from "@orb/server/domain/assets";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";

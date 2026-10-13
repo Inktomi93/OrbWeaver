@@ -110,7 +110,7 @@ export interface ImageGenerateRequest {
 
 /** The executor's result — the returned images + the model provenance + the economics + the runner's edit-strip
  *  belt warnings (doc 03 §2). Structural twin of the infra `ImageGenerateResult.warnings` (`ResolvedWarning[]`)
- *  mapped to the domain's `ImageryWarning` at compose — two spellings of one result must not drift (doc 01 §4 note). */
+ *  projected onto `ImageryWarning` by the imagery-owned provider operation. */
 export interface ImageGenerateResult {
   readonly images: readonly GeneratedImage[];
   /** Provider-reported foreign id; `runGeneration` validates/brands it before any persistence. */

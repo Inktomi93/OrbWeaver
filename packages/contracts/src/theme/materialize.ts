@@ -4,8 +4,8 @@
 // are a real image via the magic-sniff belt (never the claimed content-type — the avatar-proxy precedent),
 // store them in the caller's CAS, and hand back the asset ref. The write then persists a `kind:"asset"`
 // source (with the original URL as `provenanceUrl`), OR — on any failure — refuses with a typed reason the
-// caller surfaces. The op IMPL is compose-built from `infra/network` + `assets.store` (the domain never
-// imports infra); its TYPE is homed here so chat / character / settings share the one shape.
+// caller surfaces. Assets owns materialization; composition injects its store and byte cap.
+// Its type lives here so chat, character and settings share one shape.
 
 import type { AssetId } from "@orb/kit/ids";
 import type { Principal } from "#identity";

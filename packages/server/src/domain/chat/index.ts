@@ -67,7 +67,15 @@ export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract
 // to bind prompt-config `{{user}}`, so the union has to reach entry.
 export type { HumanSeatPersona, ResolvedPersonas, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "./contract/foreign.ts";
 export type { BeginGenerationObservation } from "./contract/generation-observation.ts";
+export type {
+  ImageryRoomAccess,
+  ImageryRoomAccessDeps,
+  VisibleExtractQuiet,
+  VisibleExtractQuietDeps,
+  VisibleExtractQuietParams,
+} from "./contract/imagery-access.ts";
 export type { BulkImportChats, ChatImportContext } from "./contract/import.ts";
+export type { ImageRefAssets, ResolveMediaRef, ResolveMediaRefDeps } from "./contract/media-ref.ts";
 export type {
   MemoryConfig,
   MemoryEmbedSpace,
@@ -145,7 +153,7 @@ export {
   createCompareAndSetImportedTokenUsage,
   createListImportedTokenUsageCandidates,
 } from "./persistence/token-usage-backfill.ts";
-export { createChatService } from "./service.ts";
+export { createChatService, createVisibleExtractQuiet } from "./service.ts";
 // The ONE D16 per-bus-event visibility verdict (`substrate/auth/clamp`). Exported because the LIVE half of
 // the chat ROOM stream runs OUTSIDE the domain (the per-chat fan-out is transport state, keyed by chatId
 // only) yet must apply the IDENTICAL verdict the durable replay applies: one emitted event is BOTH fanned
@@ -192,6 +200,7 @@ export { createEmitChatChanged } from "./verbs/emit-chat-changed.ts";
 export { createExtractQuiet } from "./verbs/extract-quiet.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
+export { createImageryRoomAccess } from "./verbs/imagery-room-access.ts";
 // The two co-participant asset reference checks assets consumes (`AssetsContext`): room membership is chat's data.
 export { createLoadChatAssetRefs } from "./verbs/load-chat-asset-refs.ts";
 export { createLoadCoParticipantOwner } from "./verbs/load-co-participant-owner.ts";
@@ -212,6 +221,7 @@ export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.
 // The rpg roster-resolution op (docs/plans/rpg/design.md) — resolves present participants into rpg actor refs +
 // name/avatar; wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). Standalone + principal-free.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
+export { createResolveMediaRef, resolveImageRefToUrl } from "./verbs/resolve-media-ref.ts";
 // The D121-E room display policy regex consumes (`RegexContext.resolveRoomDisplayPolicy`): both halves are chat's data.
 export { createResolveRoomDisplayPolicy } from "./verbs/resolve-room-display-policy.ts";
 export { createChatRoomInputs } from "./verbs/resolve-room-inputs.ts";

@@ -14,7 +14,7 @@
 
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createStoreInlineReplyImage } from "@orb/server/entry/compose";
+import { createStoreInlineReplyImage } from "@orb/server/domain/assets";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { SafeFetchResult } from "#server/infra/network/index.ts";

@@ -2,8 +2,11 @@
 // in `@orb/contracts/assets` instead; maintenance/DR verb param types are domain-internal (contract/maintenance.ts).
 
 export type { AssetsContext } from "./context.ts";
+export type { BackgroundStoreDeps, BackgroundStoreParams, StoreBackground } from "./contract/background-store.ts";
 export { AssetContentRejectedError } from "./contract/errors.ts";
+export type { GeneratedAssetStore } from "./contract/generated-store.ts";
 export type { ImportAssetPort } from "./contract/import-store.ts";
+export type { InlineReplyImageDeps, MaterializeBackgroundDeps, StoreInlineReplyImage } from "./contract/materialize.ts";
 export type {
   AssetMetadata,
   GalleryImportOutcome,
@@ -17,15 +20,19 @@ export type { AssetsService, AssetsWorkloadDeps } from "./contract/service.ts";
 export { ASSET_REFS, DERIVED_ASSET_COLUMNS } from "./persistence/asset-refs.ts";
 export { createAssetsService } from "./service.ts";
 export { createAssetEmbeddingReads } from "./verbs/asset-embedding-reads.ts";
+export { createBackgroundStore } from "./verbs/background-store.ts";
 export { createChatAssetOps } from "./verbs/chat-asset-ops.ts";
 // The assets/gallery portability halves — entry root composes these into their PortableEntity descriptors.
 // Not on AssetsService — a bundle descriptor, not the core path.
 export { createExportAssets } from "./verbs/export-assets.ts";
 export { createExportGallery } from "./verbs/export-gallery.ts";
-export { createStoreGeneratedImage } from "./verbs/generated-store.ts";
+export { createGeneratedAssetStore, createStoreGeneratedImage } from "./verbs/generated-store.ts";
+export { createImageryGalleryAdd } from "./verbs/imagery-gallery-add.ts";
 export { createImportAsset } from "./verbs/import-asset.ts";
 export { createImportGallery } from "./verbs/import-gallery.ts";
 export { createImportOwnedAsset } from "./verbs/import-owned.ts";
 export { createImportAvatarStore } from "./verbs/import-store.ts";
+export { createMaterializeBackground } from "./verbs/materialize-background.ts";
 export { createPluginAssetReads } from "./verbs/plugin-reads.ts";
+export { createStoreInlineReplyImage } from "./verbs/store-inline-reply-image.ts";
 export { createAssetsWorkloadContributions } from "./workload-contributions.ts";
