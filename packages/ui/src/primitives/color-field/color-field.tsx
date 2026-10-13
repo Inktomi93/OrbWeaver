@@ -188,7 +188,6 @@ export function ColorField({
                 data-loading={loading ? "" : undefined}
                 data-slot="color-field-trigger"
                 data-success={success ? "" : undefined}
-                // biome-ignore lint/nursery/useNullishCoalescing: a real boolean OR — `disabled`/`loading` are both plain `boolean` (defaulted above), so `??` (which only falls through on null/undefined) would silently ignore an explicit `false` and isn't equivalent here.
                 disabled={disabled || loading}
                 type="button"
                 // mergeProps treats an explicitly-declared key on this innermost element as an
