@@ -31,8 +31,6 @@ Each listed check is green on main or has a recorded cause and owner.
 
 The application check at `4d7b00a6d4` exited 2: `reports/runs/verify/main-4157590-2026-10-12T20-18-49-624Z/verify.json`. Biome, ESLint, native types, structure, ledger freshness, dependency-cruiser and Knip failed. Structure had tool errors and withheld policies, so the run cannot establish a whole-tree verdict.
 
-Migration corrections landed in `a5b297e094` and `bd6e38bf81`: nullable RPG read, private network import-type alias, contract formatting and native integer constructor proof. Affected compiler programs and formatting passed; the integer proof failed before its fix and passed afterward. Reuse this scoped evidence.
-
 Remaining findings: legacy disposal and typed-lint errors; maintained classes above; client formatting/import order; caught-failure census differences; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Default application Knip reports unused exports/types and configuration hints, not production-baseline reconciliation. Adjudicate intended consumers before deleting supported doors.
 
 Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Other findings and authority alarms remain unresolved. Repair product, security or checker defects, not waivers or disposable legacy suites. Preserve useful cases for the rebuild.

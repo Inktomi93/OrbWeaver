@@ -41,4 +41,4 @@ Every recorded candidate has a current native, shared-reader, retained-semantic 
 
 ## Evidence
 
-Source `e2a42086ae` is reviewed. Main reconciles retired grants, generated rows and citations; the main-reds item owns the inherited citation-budget alarm.
+Source `e2a42086ae` is reviewed. Main reconciles obsolete grants, generated rows and citations; the main-reds item owns the inherited citation-budget alarm.
