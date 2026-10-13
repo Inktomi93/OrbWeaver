@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 # Inference flow: owners, ports and callers
@@ -11,6 +11,14 @@ updated: 2026-10-12
 Settle how inference flows through the server: which domain owns each table the runtime touches, which port carries it, who decides what, and how every caller reaches the runtime. The law and the code then say the same thing, and each rule has a check.
 
 ## Shape
+
+### Reading priority
+
+The main program uses [test-foundation](../test-foundation/design.md) and the [test-mirror inventory](../test-mirror/design.md). This is a coupled side plan, not a replacement for either main plan.
+
+Read both main plans in full before program dispatch or status reports.
+
+Read this plan for runtime dependencies and correctness work scheduled by test-foundation. Report its progress separately from the main program. A required runtime defect still blocks dependent foundation work.
 
 ### Execution dependencies
 

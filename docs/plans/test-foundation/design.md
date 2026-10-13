@@ -18,6 +18,8 @@ The aim is three things at once. Honest: a test proves what production does, nev
 
 This plan owns execution order. The [test-mirror inventory](../test-mirror/design.md) supplies migration candidates, not a competing retrofit queue. Work items own current assignments, blockers and verification evidence; temporary handoffs do not establish completion.
 
+Read the [side-plan priority note](../inference-flow/design.md#reading-priority) before using inference-flow to choose work or report program status.
+
 ### Execution sequence
 
 | Phase | Work | Exit condition |
