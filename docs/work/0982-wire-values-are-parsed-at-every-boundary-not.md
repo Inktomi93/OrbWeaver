@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-13
 priority: P1
+lane: codex/auth-wire-982
 ---
 
 # Wire values are parsed at every boundary, not only in the client

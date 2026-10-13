@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-13
 priority: P3
+lane: codex/auth-wire-982
 ---
 
 # Decide the auth config requiresLogin wire field
