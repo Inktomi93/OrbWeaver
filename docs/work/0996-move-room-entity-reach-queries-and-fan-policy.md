@@ -24,4 +24,8 @@ Preserve present seats, persona anchors, all book and document scopes, tenant as
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Approved split: chat owns membership reads and refresh dispatch; world-info, databank and regex own their attachment reach queries in persistence. Preserve joined statements and ownership-safe views under Tier-1 DB law. Inject narrow resolvers into chat; entry constructs the graph.
+
+The world-book owner lookup exception covers confirmed owner-scoped book changes and attachment removals. It returns no private book content and grants no general owner-agnostic read. Preserve present-host and present-human predicates. Regex removal must fan only the ids returned by its owned delete.
+
+Direct regex and databank room fans use the chat-owned live fan factory without fabricated query ports. Preserve deduplication, id-free events, exhaustive dispatch and logged failure isolation. Implementation and its focused proof remain in progress.
