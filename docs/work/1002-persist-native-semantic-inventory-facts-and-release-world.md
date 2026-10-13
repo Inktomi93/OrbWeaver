@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-13
 priority: P1
 area: tooling
-lane: codex/native-checker-1002
+lane: codex/native-memory-diagnostic-1002
 plan: test-foundation
 ---
 
@@ -16,7 +16,7 @@ Implement the planned persisted native-world inventory store and worker lifecycl
 
 ## Why
 
-The supported composite diagnostic exhausts the heap during native fact extraction. The program requires shared persisted facts, not larger heaps, truncated populations or another detector.
+The supported composite diagnostic exhausts the client worker's heap during native partition construction. The exact inner phase remains unmeasured. The program requires shared persisted facts, not larger heaps, truncated populations or another detector.
 
 ## Done when
 
@@ -26,16 +26,14 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 The reviewed descriptor correction proves configuration mutation, stale supplied-workspace refusal and current native resolution. It preserves caller-selected native subsets and transaction overlays.
 
-Main owns complete cold replay with unchanged managed heap settings. Preserve Knip input provenance and unresolved outcomes. Read completed output and measurements; parent high water does not establish aggregate or hosted-runner qualification.
-
 The reviewed query correction shares one native result across declaration/name keys; parity controls and affected checks pass.
 
 The integrated wrapper-free reference repair preserves ordering, alias filtering and physical spans. Its native ancestor-selection regression fails before correction and passes with affected extraction and inventory cases. Scoped lint and tooling/root configs pass. Token-tree, checker and complete fact-array costs remain unqualified; no heap increase, population shrink or implicit replay retry is authorized.
 
-The bounded real client-worker diagnostic stops at its external deadline without heap OOM or a completed partition. Recorded worker high water is about 11.3 GiB; it is not aggregate process-tree or complete-run qualification. Native export, symbol and reference work remains active at the bound. Preserve the measurements; no implicit replay retry is authorized.
-
 The reviewed correction replaces retained declaration and identifier wrappers with primitive query spans. Its lifecycle control fails on unchanged source and passes with extraction and inventory parity cases. Removing final descendant cleanup exposes recreated ancestors. Scoped lint and affected configs pass. Independent source and artifact review confirms the correction; complete memory qualification remains pending. Duplicate native AST ownership is not proved.
 
-The complete cold replay of the reviewed correction fails in client extraction with V8 heap OOM at the unchanged managed limit. No complete partition or inventory exists. Historical Knip bytes and native root identities remain preserved; this supplies no current production usage verdict. GNU time reports command-and-descendant high water, not simultaneous aggregate memory.
+Complete cold replay fails in the client worker with V8 heap OOM at the unchanged managed limit. No complete partition or inventory exists. Historical Knip bytes and native root identities remain preserved; this supplies no current production usage verdict. GNU time reports command-and-descendant high water, not simultaneous aggregate memory.
 
-The integrated correction uses the language-service checker while preserving bootstrap roots, dependency closure, traversal order and native source identity. Standalone wrappers use public cleanup. Ownership and cleanup controls fail before correction; bounded fact parity and affected tests, lint and configs pass. Main runs complete cold replay on the frozen candidate with unchanged historical input and heap. Memory qualification remains pending. Preserve the failed replay; no private cache clearing, heap increase or population reduction is authorized.
+The integrated correction uses the language-service checker while preserving bootstrap roots, closure, traversal order and native source identity. Standalone wrappers use public cleanup. Ownership and cleanup controls fail before correction; bounded fact parity and affected tests, lint and configs pass. Its complete frozen replay still fails with client-worker heap OOM at the unchanged limit. No complete partition or inventory exists.
+
+The active diagnostic batch must measure retained allocations and exact phase/query progress before another fix or full replay. Bracket extraction, source facts, references, JSON serialization and SQLite publication. Use public profiling APIs in an instrumented checkout at the measured revision. Distinguish native checker/reference state, wrappers and primitive arrays. Read counters only on the already-hydrated checker. Preserve frozen inputs and failed artifacts; no private cache clearing, heap increase or population reduction. Bounded samples are not qualification.
