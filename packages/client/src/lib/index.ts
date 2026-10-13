@@ -5,37 +5,18 @@
 // `cn` and the item-action name grammars are @orb/ui's: a `@orb/ui` primitive spells `Remove <x>`
 // (combobox chips), `Select <x>` (table rows) and `Copy <x>` (copy-button), and `ui` cannot import `client` (the cake, §2), so the
 // grammar homes at the lowest package that spells it and rides this barrel for client callers + tests.
-export { cn, copyActionName, removeActionName, selectActionName } from "@orb/ui/lib";
-export type { AppFailureKind, AppFailureSurfaceProps } from "./app-failure-surface.tsx";
+export { cn, removeActionName, selectActionName } from "@orb/ui/lib";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
-export type {
-  AppearanceCarrierKey,
-  AppearanceCarrierPlane,
-  AppearanceConsumerBinding,
-  AppearanceEditorOwner,
-  AppearanceLifecycle,
-  AppearancePortalObligation,
-} from "./appearance-carrier-manifest.ts";
-export {
-  APPEARANCE_CARRIER_MANIFEST,
-  APPEARANCE_CARRIER_PLANES,
-  APPEARANCE_EDITOR_OWNERS,
-  APPEARANCE_OWNER_KEYS,
-  appearanceCarrierRowsFor,
-  THEME_CARRIER_OBSERVABLES,
-} from "./appearance-carrier-manifest.ts";
+export { APPEARANCE_OWNER_KEYS } from "./appearance-carrier-manifest.ts";
 export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { __resetBusDupBursts, busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
 export { authoredChatName, chatRoomTitle, deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
-export type { ClientErrorPayload } from "./client-error-report.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";
 export type {
-  CollectionContext,
   CollectionContribution,
   CollectionCount,
-  CollectionDetailView,
   CollectionInsight,
   CollectionListView,
   CollectionMemberView,
@@ -43,7 +24,7 @@ export type {
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
 export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "./config-search-tokens.ts";
-export type { RoleBindingView, RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
+export type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
   ADD_CONNECTION_DOOR,
   backgroundRepairs,
@@ -53,9 +34,7 @@ export {
   CONNECTIONS_LIST_ADDRESS,
   connectionHost,
   connectionSummary,
-  labelNamesModel,
   MEMORY_COST_SENTENCE,
-  MODEL_ROLES_ADDRESS,
   MODEL_ROLES_SUBCATEGORY_ID,
   RERANK_ROLE_DOOR,
   ROLE_ROWS_ORDERED,
@@ -69,7 +48,6 @@ export {
 } from "./connection-roles.ts";
 export { CONSOLE_STYLES } from "./console-styles.ts";
 export type {
-  CharacterDetailAnchor,
   CharacterDetailContribution,
   CharacterDetailState,
   ChatControl,
@@ -80,7 +58,6 @@ export type {
   ChatControlSourceMountProps,
   ChatMessageSurfaceState,
   ChatRoomSurfaceState,
-  ChatSettingsSectionAnchor,
   ChatSettingsSectionContribution,
   ChatSettingsSectionState,
   ChatSurfaceAnchor,
@@ -96,24 +73,17 @@ export type {
   SlashCommandMountProps,
   SlashCommandRunner,
   ToolRenderer,
-  ToolRendererMatch,
 } from "./contribution-contracts.ts";
 export {
-  CHARACTER_DETAIL_ANCHORS,
   CHAT_CONTROL_KINDS,
-  CHAT_CONTROL_MODES,
-  CHAT_SETTINGS_SECTION_ANCHORS,
-  CHAT_SURFACE_ANCHORS,
   SLASH_COMMAND_GROUP_LABELS,
   SLASH_COMMAND_GROUPS,
-  TOOL_RENDERER_MATCHES,
 } from "./contribution-contracts.ts";
 export { copyWithNotice } from "./copy-with-notice.ts";
 export type { CorpusDestination } from "./corpus-destination.ts";
 export { CORPUS_DESTINATION_KINDS, corpusDestinationIdentity } from "./corpus-destination.ts";
 export type { CorpusMode, CorpusModeContribution } from "./corpus-modes.ts";
 export { CORPUS_MODE_LABELS, CORPUS_MODES, CORPUS_WHOLE_LABEL, isCorpusMode } from "./corpus-modes.ts";
-export type { RegistryContext } from "./create-registry-context.tsx";
 export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
 export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
@@ -137,9 +107,7 @@ export {
   SEARCH_PAUSED_COPY,
   VECTOR_ROLES,
 } from "./embedder-rebuild.ts";
-export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
-export type { FlankHost } from "./flank-placement.ts";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export type { SendRefusalKey } from "./injection-copy.ts";
 export {
@@ -175,7 +143,7 @@ export {
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
 } from "./injection-copy.ts";
-export { DEAD_INVITE_SENTENCE, inviteRoomSentence, memberCountPhrase } from "./invite-copy.ts";
+export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export { logClock } from "./log-clock.ts";
@@ -189,20 +157,16 @@ export { perfMark, perfMeasure } from "./perf-marks.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two
 // EXECUTION CONTEXTS, which is why it is a client-wide lib shape rather than a feature-private one.
 export type {
-  UiGuestBootMessage,
-  UiGuestEventMessage,
-  UiGuestHostCallMessage,
-  UiGuestHostResultMessage,
   UiGuestInbound,
-  UiGuestLogMessage,
   UiGuestOutbound,
   UiGuestReadyMessage,
-  UiGuestRenderMessage,
   UiGuestSettledMessage,
   UiGuestUnavailableMessage,
 } from "./plugin-ui-guest-protocol.ts";
-export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_BUDGETS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-protocol.ts";
-export { isProbeMode } from "./probe-mode.ts";
+export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-protocol.ts";
+
+export {} from "./probe-mode.ts";
+
 export { withUserMacros } from "./prompt-macros.ts";
 export {
   REGEX_PLACEMENT_GLYPHS,
@@ -229,11 +193,9 @@ export type {
   ConfigTeachValue,
   ConfigTeachView,
   ContextDefinition,
-  ContextEmptyArm,
   ContextRegionDef,
   ContextRegionView,
   ContextTabDef,
-  ContextTabStrip,
   ContextTabsSpec,
   CorpusContextState,
   RefineryContextState,
@@ -241,7 +203,6 @@ export type {
   ResolvedContextTabs,
 } from "./registry-contracts.ts";
 export {
-  CHAT_CONTEXT_TAB_IDS,
   CONFIG_TEACHER_TAB_IDS,
   defineContextRegion,
   defineContextTabs,
@@ -250,14 +211,13 @@ export {
   VOID_STATE,
 } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
-export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust.ts";
-export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy, SAFE_FLOOR } from "./render-trust.ts";
+export type { RowRenderPolicy } from "./render-trust.ts";
+export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
 export {
   BASE_PALETTE_COLOR_SCHEME,
   BASE_PALETTE_VARS,
   dataThemeOf,
   isSeedThemeName,
-  type ResolvedThemeScope,
   resolveThemeScopeTokens,
   type SeedThemeName,
 } from "./resolve-theme-scope-tokens.ts";
@@ -272,36 +232,32 @@ export {
 } from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
-export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
+export type { SessionMessage } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
-export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, sessionDocument } from "./session-document-host.ts";
 export { settingGloss } from "./setting-gloss.ts";
 export { settingsValueAtPath, settingsValueDiffers } from "./settings-path.ts";
-export type { UnreadableConfigCause, UnreadableConfigCopy } from "./stored-config-unreadable-copy.ts";
+export type { UnreadableConfigCopy } from "./stored-config-unreadable-copy.ts";
 export { PRESET_UNREADABLE_COPY, PRESET_UNREADABLE_ROW_MARKER, SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "./stored-config-unreadable-copy.ts";
 export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";
-export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state.ts";
+export { cycleTagFilterEntries, tagFilterStateOf } from "./tag-filter-state.ts";
 export {
-  FOLDER_TYPE_ITEMS,
   LABELS_BLURB,
   LABELS_EMPTY,
   NEW_LABEL_NAME,
   pruneConfirmLabel,
   tagColorLabel,
-  tagColorValueLabel,
   tagSortItems,
   tagTargetTitle,
   tagUsageLabel,
   USAGE_KIND_TITLES,
   unusedTagsLabel,
   usageBreakdown,
-  usageTotalLabel,
 } from "./tag-model.ts";
 export type { SortableTag, TagSortMode } from "./tag-sort.ts";
 export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
 export { talkativenessAccessibleName, talkativenessPercent, talkativenessReadout } from "./talkativeness.ts";
-export { TEST_IDS, testId } from "./test-ids.ts";
+export { testId } from "./test-ids.ts";
 export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";
@@ -309,8 +265,8 @@ export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export type { TrpcOpLogEntry } from "./trpc-devlog.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export { trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
-export { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
+export { trpcErrorReason } from "./trpc-error-reason.ts";
+export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";

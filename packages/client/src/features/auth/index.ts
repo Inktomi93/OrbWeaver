@@ -4,7 +4,8 @@
 
 // The `account` modal RETIRED with #866 S4 (owner-ruled F-3): its facts + sign-out live in the persona
 // switcher's foot now (`PersonaAccountFoot`), over the `useAuthMe`/`signOut` seams that moved to `#data`.
-export { useAuthConfig } from "#data";
+export {} from "#data";
+
 export { LoginShellAnchor } from "./anchors/login-shell-anchor.tsx";
 export { reauthModal } from "./lib/reauth-modal.tsx";
 export { redirectIfAuthed, requireAuthed } from "./lib/route-guards.ts";

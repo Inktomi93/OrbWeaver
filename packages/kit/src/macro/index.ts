@@ -1,8 +1,5 @@
-// Re-export the engine internals so `@orb/kit/macro` is the single front door (D15 directory-module).
-// The render entry points (`processMacros`/`createMacroContext`) + the shared budget live in `engine.ts`
-// (split out of this barrel so `row-macros.ts` below can import them without an import cycle).
-// The scoped-block body normalizer (trim + indent-dedent; the `#` flag bypasses it in the evaluator)
-// + the ZWSP macro-re-injection defense (re-homed from kit/guided, which re-exports it — one home).
+// Macro rendering, authoring metadata and registration share this directory door (D15).
+// Implementation-only helpers and bookkeeping remain in their owning modules.
 export { macroTextInvalidatesCache } from "./cache-safety.ts";
 export { type IdentityMapping, neutralizeMacros, swapIdentityMacros, type TrimContentOptions, trimContent, ZWSP } from "./content.ts";
 export {
@@ -20,7 +17,7 @@ export { type CheckMacroArgsOptions, checkMacroArgs, queryMacros, validateMacroA
 // MACRO_NAME_RE: the fully-anchored macro-name shape — user-macro registration + the contracts-side
 // authoring schema both validate against it (one vocabulary with the parser's identifier scan).
 export { MACRO_NAME_RE, type MacroRun, parseMacros, scanMacroRuns, stripComments } from "./parser.ts";
-export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry, selectStaticIfChildren } from "./registry.ts";
+export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry } from "./registry.ts";
 export type {
   RowCharacterName,
   RowMacroNameContext,
@@ -39,7 +36,6 @@ export type {
   MacroArgViolationKind,
   MacroAST,
   MacroBlockNode,
-  MacroBudget,
   MacroCallNode,
   MacroCategory,
   MacroContext,
@@ -53,7 +49,6 @@ export type {
   MacroMetadata,
   MacroMetadataInput,
   MacroNode,
-  MacroRegisterOptions,
   MacroRegistry,
   MacroResolveOptions,
   MacroSourceKind,
@@ -64,7 +59,7 @@ export type {
 } from "./types.ts";
 // MACRO_FLAG_DEFS: the ONE reserved-flags vocabulary — the parser derives from it, the macro
 // browser documents from it.
-export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS, MACRO_MAX_DEPTH, MACRO_SOURCE_KINDS } from "./types.ts";
+export { MACRO_ARG_TYPES, MACRO_FLAG_DEFS, MACRO_MAX_DEPTH, MACRO_SOURCE_KINDS } from "./types.ts";
 // The #24 typed-input fold: preset/game-authored user macros as first-class registry entries + the typed
 // choice-block input vocabulary and its pure values-bag resolution (random-pick draws freeze-at-commit).
 export {
@@ -76,7 +71,6 @@ export {
   type ResolveUserMacroInputsOptions,
   registerUserMacros,
   resolveUserMacroInputs,
-  USER_MACRO_CONTENT_BINDING,
   USER_MACRO_INPUT_KINDS,
   type UserMacroDef,
   type UserMacroInputDef,

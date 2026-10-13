@@ -180,7 +180,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
       },
       {
         name: "removeReExport",
-        summary: "Remove specific re-exports; drops empty declarations.",
+        summary: "Remove source-name or exact alias/type re-exports; exact selection preserves module evaluation.",
         when: "Trimming a barrel that's outgrown its purpose.",
       },
       {

@@ -116,6 +116,27 @@ export interface CreateProjectOptions {
   readonly replaceGlobs?: readonly string[];
 }
 
+/** A named barrel edge, including the public spelling and its emitted type/value arm. */
+export interface ReExportSelection {
+  readonly name: string;
+  readonly exportedName: string;
+  readonly isTypeOnly: boolean;
+}
+
+/** Legacy source-name selection or exact edge selection; neither authorizes declaration deletion. */
+export type RemoveReExportTarget =
+  | { readonly moduleSpecifier: string; readonly names: readonly string[]; readonly exports?: never }
+  | { readonly moduleSpecifier: string; readonly exports: readonly ReExportSelection[]; readonly names?: never };
+
+export interface RemoveReExportOptions extends OperationOptions {
+  readonly removeWholeDeclaration?: boolean;
+  /** Exact selection preserves runtime module requests unless the caller established a pure module. */
+  readonly preserveModuleEvaluation?: boolean;
+  /** Select an empty re-export only after every affected native world proves verbatim emission.
+   * Without that proof, a side-effect import preserves evaluation under non-verbatim emitters too. */
+  readonly verbatimModuleSyntax?: boolean;
+}
+
 // The runCodemod harness: CLI flags, dry-run default, snapshot/diff/apply, the preview-integrity
 // guard, the manipulation-error refusal, the compiler-world diagnostics check.
 /**

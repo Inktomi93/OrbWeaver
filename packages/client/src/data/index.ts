@@ -3,12 +3,10 @@
 // factories every surface builds on (§13.2: a surface not using its primitive is the review flag).
 
 export {
-  AUTH_ME_KEY,
   confirmPendingJoin,
   fetchAuthMe,
   firstRunSetup,
   login,
-  logout,
   signOut,
   signUpWithInvite,
   useAuthMe,
@@ -17,8 +15,6 @@ export {
 } from "./auth-bootstrap.ts";
 export type { AuthConfig } from "./auth-config.ts";
 export {
-  AUTH_CONFIG_KEY,
-  fetchAuthConfig,
   fetchLiveShare,
   useAuthConfig,
   useExternalMediaBlocked,
@@ -28,7 +24,7 @@ export {
   useRenderPolicyFloor,
   useUploadCaps,
 } from "./auth-config.ts";
-export type { BusRoomHandlers, ChatBusDeps, RoomSubscriber, RoomTransport, RpgBusDeps, UserBusDeps } from "./bus/index.ts";
+export type { ChatBusDeps, RoomTransport } from "./bus/index.ts";
 export {
   applyChatBusEvent,
   createRoomRegistry,
@@ -42,28 +38,21 @@ export {
   useRpgBus,
   useUserBus,
 } from "./bus/index.ts";
-export type {
-  CollectionSelection,
-  CollectionSurface,
-  CollectionSurfaceConfig,
-} from "./create-collection-surface.ts";
+export type { CollectionSurface } from "./create-collection-surface.ts";
 export { createCollectionSurface } from "./create-collection-surface.ts";
-export type { EntityMutationConfig, EntityMutationResult } from "./create-entity-mutation.ts";
 export { createEntityMutation } from "./create-entity-mutation.ts";
-export { AUTOMATION_FIRES_ROUTE, readAutomationFires } from "./fetch-automation-fires.ts";
+export { readAutomationFires } from "./fetch-automation-fires.ts";
 export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
 export { readFresh } from "./fresh-read.ts";
 export { throwHttpError } from "./http-error.ts";
-export type { BundleImportStarted } from "./import-bundle.ts";
 export { importBundle } from "./import-bundle.ts";
 export type { CardImportResult } from "./import-characters.ts";
 export { importCharacters } from "./import-characters.ts";
 export type { ChatImportResult } from "./import-chats.ts";
 export { importChats } from "./import-chats.ts";
-export type { TreeImportStarted } from "./import-tree.ts";
 export { importTree, relativePathOf, reviewTreePersonas } from "./import-tree.ts";
-export type { SkippedTreeFile, TreeImportCaps, TreeImportPlan } from "./import-tree-plan.ts";
-export { OVER_FILE_CAP_REASON, plannedFiles, planTreeImport, skippedByReason } from "./import-tree-plan.ts";
+export type { TreeImportCaps, TreeImportPlan } from "./import-tree-plan.ts";
+export { plannedFiles, planTreeImport, skippedByReason } from "./import-tree-plan.ts";
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
 export { createInvalidation } from "./invalidation.ts";
 export { applyCanonView } from "./invalidation-carrier.ts";
@@ -73,22 +62,15 @@ export { usePresenceRead, useSendAvailabilityRead } from "./live-fact-reads.ts";
 export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 export { peekQueryData } from "./peek-query.ts";
 export { postBugReport } from "./post-bug-report.ts";
-export type { AppMeta } from "./query-client.ts";
 export { createAppQueryClient, retryUnlessBadRequest, trpcErrorCode } from "./query-client.ts";
-export type { QueryErrorStateProps } from "./query-error-state.tsx";
 export { QueryErrorState } from "./query-error-state.tsx";
-export type { QueryInlineStatesProps } from "./query-inline-states.tsx";
 export { QueryInlineStates } from "./query-inline-states.tsx";
-export type { RestoreCardLorebookResult } from "./restore-card-lorebook.ts";
 export { restoreCardLorebook } from "./restore-card-lorebook.ts";
 export { __resetSessionFreshness, markSessionFresh, sessionFreshnessAgeMs, startSessionFreshness } from "./session-freshness.ts";
-export type { SessionResumeSnapshot } from "./session-resume.ts";
 export { clearJoinStash, peekJoinStash, takeSessionResume, writeSessionResume } from "./session-resume.ts";
 export { skeletonRowCountFor } from "./skeleton-row-metrics.ts";
-export type { SkeletonRowShape, SkeletonRowsProps } from "./skeleton-rows.tsx";
 export { SkeletonRows } from "./skeleton-rows.tsx";
-export type { ReauthOutcome, SessionRecoveryHost } from "./stale-session.ts";
-export { beginSessionRecovery, bindSessionRecovery, completeReauth, recoverIfStaleSession, recoverIfUnauthorizedCode } from "./stale-session.ts";
+export { completeReauth, recoverIfUnauthorizedCode } from "./stale-session.ts";
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
 export { UploadRefusedError, uploadAsset } from "./upload-asset.ts";
@@ -102,7 +84,6 @@ export { useDecisionQuery, useGatedQuery } from "./use-gated-query.ts";
 export { useHuskReaper } from "./use-husk-reaper.ts";
 export { useInvalidation } from "./use-invalidation.ts";
 export { useOnlineStatus } from "./use-online-status.ts";
-export type { UseOpenRefineryResult } from "./use-open-refinery.ts";
 export { useOpenRefinery } from "./use-open-refinery.ts";
 export type { PluginDisplayRow } from "./use-plugin-display-text.ts";
 export { usePluginDisplayText } from "./use-plugin-display-text.ts";
@@ -113,6 +94,5 @@ export { useReattributePersona } from "./use-reattribute-persona.ts";
 export type { SessionRecoveryState } from "./use-session-recovery.ts";
 export { useSessionRecovery } from "./use-session-recovery.ts";
 export { useSettingsViewerView } from "./use-settings-viewer-view.ts";
-export type { UseStartChatResult } from "./use-start-chat.ts";
 export { useStartChat } from "./use-start-chat.ts";
 export { useUploadAsset } from "./use-upload-asset.ts";

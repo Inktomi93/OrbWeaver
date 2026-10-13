@@ -4,7 +4,8 @@
 // Every OTHER tile is exported by the feature that owns its data + intent; home imports none of them.
 
 export { makeHomeSection } from "./lib/home-section.tsx";
-export { orderHomeTiles } from "./lib/order-home-tiles.ts";
+
+export {} from "./lib/order-home-tiles.ts";
+
 export { makeSectionJumpTile } from "./lib/section-jump-tile.tsx";
-export type { HomeSurfaceProps } from "./surfaces/home-surface.tsx";
 export { HomeSurface } from "./surfaces/home-surface.tsx";

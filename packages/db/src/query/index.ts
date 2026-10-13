@@ -2,14 +2,12 @@
 // batch tuple bridge, the unified constraint classifier, the owner-scoped fetch, the member-visible chat
 // scope + recency clock, the bound-variable chunker, the LIKE-term escape, and the JSON read-seam parsers.
 
-export type { AwaitableBatchStmt, BatchStmt, DbBatchInput } from "./batch.ts";
+export type { AwaitableBatchStmt, BatchStmt } from "./batch.ts";
 export { batchMany, batchStmt } from "./batch.ts";
-export type { ChatVisibilityLens } from "./chat-visibility.ts";
 export { chatRecencyExpr, memberVisibleChatScope } from "./chat-visibility.ts";
 export { checkList } from "./check-list.ts";
-export type { ConstraintKind, ConstraintViolation } from "./db-errors.ts";
-export { CONSTRAINT_KINDS, isConstraintViolation } from "./db-errors.ts";
-export type { OwnedColumns, OwnedTable } from "./fetch-owned.ts";
+export { isConstraintViolation } from "./db-errors.ts";
+export type { OwnedTable } from "./fetch-owned.ts";
 export { fetchOwned } from "./fetch-owned.ts";
 export { chunkRows, rowsPerInsert } from "./insert-chunk.ts";
 export { escapeLikeTerm } from "./like.ts";
