@@ -1,0 +1,122 @@
+// @subject packages/server/src/domain/admin/verbs/session-policy.ts
+// @subject packages/server/src/entry/compose/admin.ts
+// @subject packages/server/src/foundation/observability/audit.ts
+// @subject packages/server/src/domain/admin/substrate/audited-write.ts
+
+import "@orb/testkit/node/composed-real.ts";
+import { auditLogs, users } from "@orb/db";
+import type { SocketId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { eq, sql } from "drizzle-orm";
+import { vi } from "vitest";
+
+const PASSWORD = "a-new-valid-password";
+
+test("a single-device admin kick ends every target socket, including another device and session-less SSO, but not another user's", async ({ db, app, ids }) => {
+  const actor = await seedUser(db, { role: "admin" });
+  const target = await seedUser(db);
+  const stranger = await seedUser(db);
+  const first = await app.sessions.create({ userId: target.id });
+  const second = await app.sessions.create({ userId: target.id });
+  const evicted = [vi.fn(), vi.fn(), vi.fn(), vi.fn()];
+  const specs = [
+    { userId: target.id, sessionId: first.sessionId },
+    { userId: target.id, sessionId: second.sessionId },
+    { userId: target.id, sessionId: null },
+    { userId: stranger.id, sessionId: null },
+  ];
+  for (const [i, spec] of specs.entries()) {
+    app.sockets.goLive(app.sockets.adopt(spec.userId, castId<SocketId>(ids.next("socket")), spec.sessionId), {
+      onAttach: vi.fn(),
+      onAnnounce: vi.fn(),
+      onDetach: vi.fn(),
+      onEvicted: () => evicted[i]?.(),
+    });
+  }
+  await app.services.admin.revokeSession({ principal: principal(actor.id, { role: actor.role }), sessionId: first.sessionId });
+  expect(evicted.map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1, 0]);
+  expect(await app.sessions.validate(first.token)).toBeNull();
+  expect(await app.sessions.validate(second.token)).toMatchObject({ userId: target.id });
+  await app.services.admin.revokeSession({ principal: principal(actor.id, { role: actor.role }), sessionId: first.sessionId });
+  expect(evicted.map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1, 0]);
+});
+
+test("the admin gate runs before a revoke, and the queried target is stamped on secret-free session views", async ({ db, app }) => {
+  const actor = await seedUser(db, { role: "admin" });
+  const target = await seedUser(db);
+  const session = await app.sessions.create({ userId: target.id, oidcIdToken: "private-id-token" });
+  await expect(app.services.admin.revokeSession({ principal: principal(target.id), sessionId: session.sessionId })).rejects.toThrow();
+  expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
+  const rows = await app.services.admin.listSessions({ principal: principal(actor.id, { role: actor.role }), userId: target.id });
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ id: session.sessionId, userId: target.id, revokedAt: null });
+  expect(JSON.stringify(rows)).not.toContain("private-id-token");
+  expect(JSON.stringify(rows)).not.toContain(session.token);
+  expect(rows[0]).not.toHaveProperty("tokenHash");
+});
+
+test("revoke-all evicts session-less SSO even when the target has no cookie sessions", async ({ db, app, ids }) => {
+  const actor = await seedUser(db, { role: "admin" });
+  const target = await seedUser(db);
+  const evicted = vi.fn();
+  app.sockets.goLive(app.sockets.adopt(target.id, castId<SocketId>(ids.next("socket")), null), {
+    onAttach: vi.fn(),
+    onAnnounce: vi.fn(),
+    onDetach: vi.fn(),
+    onEvicted: evicted,
+  });
+  expect(await app.services.admin.revokeUserSessions({ principal: principal(actor.id, { role: actor.role }), userId: target.id })).toEqual({ revoked: 0 });
+  expect(evicted).toHaveBeenCalledOnce();
+});
+
+test("a refused durable revoke does not evict live sockets or invalidate a cookie", async ({ db, app, ids }) => {
+  const actor = await seedUser(db, { role: "admin" });
+  const target = await seedUser(db);
+  const session = await app.sessions.create({ userId: target.id });
+  const evicted = vi.fn();
+  app.sockets.goLive(app.sockets.adopt(target.id, castId<SocketId>(ids.next("socket")), session.sessionId), {
+    onAttach: vi.fn(),
+    onAnnounce: vi.fn(),
+    onDetach: vi.fn(),
+    onEvicted: evicted,
+  });
+  await db.run(sql`CREATE TRIGGER refuse_session_revoke BEFORE UPDATE OF revoked_at ON sessions BEGIN SELECT RAISE(ABORT, 'revoke refused'); END`);
+  await expect(app.services.admin.revokeSession({ principal: principal(actor.id, { role: actor.role }), sessionId: session.sessionId })).rejects.toThrow();
+  expect(evicted).not.toHaveBeenCalled();
+  expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
+  await db.run(sql`DROP TRIGGER refuse_session_revoke`);
+  await app.services.admin.revokeSession({ principal: principal(actor.id, { role: actor.role }), sessionId: session.sessionId });
+  expect(evicted).toHaveBeenCalledOnce();
+});
+
+test("the composed guarded audit stays adjacent and atomic with the password and session kick", async ({ db, app, ids }) => {
+  const actor = await seedUser(db, { role: "admin" });
+  const target = await seedUser(db, { passwordHash: "original-hash" });
+  const session = await app.sessions.create({ userId: target.id });
+  const evicted = vi.fn();
+  app.sockets.goLive(app.sockets.adopt(target.id, castId<SocketId>(ids.next("socket")), null), {
+    onAttach: vi.fn(),
+    onAnnounce: vi.fn(),
+    onDetach: vi.fn(),
+    onEvicted: evicted,
+  });
+  await db.run(
+    sql`CREATE TRIGGER refuse_admin_audit BEFORE INSERT ON audit_logs WHEN NEW.action = 'admin.resetPassword' BEGIN SELECT RAISE(ABORT, 'audit refused'); END`,
+  );
+  const params = { principal: principal(actor.id, { role: actor.role }), userId: target.id, password: PASSWORD };
+  await expect(app.services.admin.resetPassword(params)).rejects.toThrow();
+  expect((await db.select().from(users).where(eq(users.id, target.id)))[0]?.passwordHash).toBe("original-hash");
+  expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
+  expect(evicted).not.toHaveBeenCalled();
+  await db.run(sql`DROP TRIGGER refuse_admin_audit`);
+  await app.services.admin.resetPassword(params);
+  expect(await app.sessions.validate(session.token)).toBeNull();
+  expect(evicted).toHaveBeenCalledOnce();
+  expect(await db.select().from(auditLogs).where(eq(auditLogs.action, "admin.resetPassword"))).toHaveLength(1);
+  // A zero-row kick cannot become the audit's predecessor.
+  await app.services.admin.resetPassword(params);
+  expect(await db.select().from(auditLogs).where(eq(auditLogs.action, "admin.resetPassword"))).toHaveLength(2);
+});

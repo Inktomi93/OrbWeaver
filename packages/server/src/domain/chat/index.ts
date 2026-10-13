@@ -148,6 +148,7 @@ export { loadTurnOrigin } from "./persistence/queries.ts";
 // The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
 // host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
 export { loadPresentHostUserId } from "./persistence/reactions.ts";
+export { createRoomSeatReach } from "./persistence/room-reach.ts";
 export {
   createCompareAndSetImportedTokenUsage,
   createListImportedTokenUsageCandidates,
@@ -236,6 +237,7 @@ export { createResolveStandingAsks } from "./verbs/resolve-standing-asks.ts";
 export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility.ts";
 // The ONE leak-safe reverse-room read every attachment-junction library consumes (`ResolveVisibleRoomsOp`).
 export { createResolveVisibleRooms } from "./verbs/resolve-visible-rooms.ts";
+export { createEmitRoomEntityChanged, createRoomEntityRefresh } from "./verbs/room-refresh.ts";
 export { createChatInferenceOps, createTaskWindowReaders, speakerArbiterFor } from "./verbs/runtime-inference.ts";
 // The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).

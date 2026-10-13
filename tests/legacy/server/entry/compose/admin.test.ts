@@ -1,23 +1,5 @@
-// entry/compose/admin — the seam that wires the admin surfaces. "Owns no business logic" is true of the
-// SHAPE and false of the CONSEQUENCES: four of the ops it assembles are decisions no domain can make,
-// because each spans a boundary a domain may not cross. Those four are what this file pins.
-//
-//   W7a — EVERY ADMIN REVOKE ENDS THE STREAMS, NOT JUST THE COOKIE. The socket registry is transport state
-//         and `domain/admin`/`domain/sessions` may not import transport, so the eviction lives in THIS
-//         wrapper. If it is lost, an admin "kick" leaves the kicked user's live SSE/WS sockets reading the
-//         box until they reconnect — a revoke that revokes nothing. Both arms are pinned, including the
-//         `owner === null` arm (an already-revoked/unknown session must NOT evict a phantom user).
-//   D135 — the identity plane: `listSessions` re-stamps the OWNER onto each row (SessionView omits userId),
-//         and it must stamp the user that was ASKED for, never the acting admin.
-//   the vLLM read-model — a status key with no deployment fact resolves to the honest `port:0`/`storePath:""`
-//         guard rather than being asserted present; a disabled supervisor answers `{}` / a no-op message
-//         instead of throwing at the admin panel.
-//   the LIVE embed model — `embedModel` is a THUNK over `roleClients.embedModel` because that binding
-//         follows a role re-point; reading it at compose would re-freeze exactly what role-clients stopped
-//         freezing, and every future card would be embedded with a stale model tag.
-//
-// Every op is driven THROUGH the real `AdminService` the seam returns, so the admin gate (`requireAdmin`)
-// is exercised on the same path — a non-admin must be refused before any injected port is touched.
+// Retained compose regression cases drive the real admin service through its injected ports.
+// Session eviction and inline embedding policy are owned by admin; this seam supplies their collaborators.
 
 // @orb-waive-file no-test-fabrication({ model: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { SessionView } from "@orb/contracts/session";

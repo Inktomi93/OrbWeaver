@@ -26,7 +26,13 @@
     "./infra/plugin-host": "./src/infra/plugin-host/index.ts",
     "./infra/relay": "./src/infra/relay/index.ts",
     "./primitives/serde/card": "./src/primitives/serde/card/index.ts",
-    "./transport/trpc": "./src/transport/trpc/index.ts"
+    "./transport/trpc": "./src/transport/trpc/index.ts",
+    "./domain/admin": "./src/domain/admin/index.ts",
+    "./domain/refinery": "./src/domain/refinery/index.ts",
+    "./domain/settings": "./src/domain/settings/index.ts",
+    "./infra/upstream-update": "./src/infra/upstream-update/index.ts",
+    "./transport/debug-recorders": "./src/transport/debug-recorders/index.ts",
+    "./domain/rpg": "./src/domain/rpg/index.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts",

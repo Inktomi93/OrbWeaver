@@ -95,10 +95,8 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // transport, D38): every persisting verb fans `databankChanged`, and the ingest subsystem fans it once
     // per touched owner at a pass terminal (event-bus coverage survey H3).
     emitUserEvent: publishUserEvent,
-    // THE ROOM PLANE (#2471) — the OTHER audience the user bus structurally cannot reach. The resolvers and
-    // their SQL live in `room-reach.ts`; databank declares the ops it needs and knows nothing about the chat
-    // bus or chat's roster tables. Four post-write fans + the pre-write delete capture, one per input the
-    // rack has (the contract's `emitRoomDatabankChanged` doc states which write takes which).
+    // Databank owns document-junction reach; chat owns seat reach and the room fan/capture policy.
+    // This seam only assembles their typed operations over the live transport surface.
     emitRoomDatabankChanged: createEmitRoomDatabankChanged(deps.emitChatEventLive),
     fanDatabankRoomsForDocument: createFanDatabankDocumentRooms(db, deps.emitChatEventLive),
     fanDatabankRoomsForCharacter: createFanDatabankCharacterRooms(db, deps.emitChatEventLive),

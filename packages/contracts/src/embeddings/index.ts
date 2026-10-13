@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { EmbeddingTask } from "./accounting.ts";
 
 export * from "./accounting.ts";
+export type { CardTextStoreInput, StoreResult } from "./card-store.ts";
 
 /** The two complementary lenses through which an avatar image is embedded, both in the one 1024-dim
  *  space. `image-raw` = pure visual signal, no caption/text influence. `image-captioned` = image bytes

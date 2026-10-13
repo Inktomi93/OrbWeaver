@@ -28,8 +28,9 @@ import { makeCapability, makeGenerationCapability, makeResolved, TEST_OWNER_ID }
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { z } from "zod";
+import { createResolveStructuredBinding } from "#server/domain/refinery/index.ts";
 import type { RefineryComposeDeps } from "#server/entry/compose/refinery.ts";
-import { buildRefinery, createResolveStructuredBinding } from "#server/entry/compose/refinery.ts";
+import { buildRefinery } from "#server/entry/compose/refinery.ts";
 import { FROZEN_NOW, fakeConnection, fakeDeps, memoryStores, newUserId } from "../../../inference/_support.ts";
 
 const USER = castId<UserId>("usr_author");
@@ -259,7 +260,7 @@ test("the plan preview reads only the facts already cached, so a dead endpoint i
     return Promise.reject(new TypeError("fetch failed: connect ECONNREFUSED 127.0.0.1:1"));
   };
   const runtime = await createInferenceRuntime({ ...fakeDeps({ stores, fetch: deadServer }), now: () => clock });
-  const resolveStructuredBinding = createResolveStructuredBinding(runtime, (userId) => Promise.resolve(principal(userId)));
+  const resolveStructuredBinding = createResolveStructuredBinding({ resolve: runtime.resolve, principalOf: (userId) => Promise.resolve(principal(userId)) });
 
   for (let ask = 0; ask < 4; ask += 1) {
     expect(await resolveStructuredBinding(ownerId)).toMatchObject({ model: "local-model" });
