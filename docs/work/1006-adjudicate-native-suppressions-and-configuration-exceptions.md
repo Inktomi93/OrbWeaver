@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-14
 priority: P2
 area: tooling
-lane: codex/native-lint-conflicts-1006
 plan: test-foundation
 ---
 
@@ -26,6 +25,6 @@ Every observed entry has source evidence and a retain, remove, fix or unresolved
 
 The source audit has a frozen checkpoint and explicit unresolved proof questions. Native dialog/option cleanup and instrument environment-owner consolidation are integrated. The remaining entries are not cleared. Preserve runtime behavior, retain verified limitations and repair real findings before removing directives. The reviewed CSS mirror repair preserves directive ownership; it does not validate those suppressions.
 
-The harness integration retains owned native-lint conflicts without suppressions. Its response wrapper and controlled proof delegate to the installed deprecated `Response.formData` API. Preserve native passthrough without a parser substitute. The tracing delegate owns rejection through `superviseSettled`; native `ignoreVoid: false` still rejects its explicit delegation. Adjudicate the actual rules and behavior before claiming lint qualification.
+Reviewed source `ba07cbab45` preserves native `Response.formData` passthrough with owner-approved line-local deprecation exceptions. Bounded native lint controls reject adjacent deprecated calls and expose the warnings when those exceptions are removed. No parser or configuration replaces the native protocol.
 
-The active lane owns these maintained-code conflicts and coupled controls. Survey promise ownership and installed native API behavior before proposing a narrow rule limitation. The broader suppression inventory remains open.
+Tracing uses explicit rejection handlers and one reporting function without a known-safe grant. Operation failures settle after reporting; reporting failures can reject. Runtime controls and independent review confirm the batch. Static floors are author-reported; whole-application qualification and the broader suppression inventory remain open.

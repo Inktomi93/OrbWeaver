@@ -27,6 +27,7 @@ function createConsumptionView(body: ReadableStream<Uint8Array>, producer: Respo
     },
     formData: {
       async value(this: Response): Promise<FormData> {
+        // eslint-disable-next-line @typescript-eslint/no-deprecated -- The native Response contract requires formData passthrough; Undici's parser advice supplies no native replacement.
         return await new Response(this.body, { headers: this.headers }).formData();
       },
       configurable: true,

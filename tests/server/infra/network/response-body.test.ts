@@ -190,6 +190,7 @@ test("native blob and form-data consumers honor current producer headers", async
   await blobBody.settled;
   const formBody = createOwnedResponseBody(new Response("a=one&b=two", { headers: { "content-type": "text/plain" } }), new AbortController().signal);
   formBody.response.headers.set("content-type", "application/x-www-form-urlencoded");
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Exercise the native Response formData contract on a fixed synthetic body, not a substitute parser.
   expect([...(await formBody.response.formData())]).toEqual([
     ["a", "one"],
     ["b", "two"],
