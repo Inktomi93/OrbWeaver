@@ -4,38 +4,21 @@
 // @subject tooling/src/floor/code-facts/drizzle-predicate.ts
 // @subject tooling/src/floor/code-facts/drizzle-predicate-argument.ts
 
-import { symlinkSync } from "node:fs";
-import { join } from "node:path";
 import { closeDb, createDb } from "@orb/db";
-import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
+import { nativeFixture, PRODUCER, SCOPE_HEAD, statementObservations } from "@orb/testkit/node/native-drizzle.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns, readCallTarget } from "@orb/tooling/floor/code-facts/call-returns";
 import { readDrizzlePredicate } from "@orb/tooling/floor/code-facts/drizzle-predicate";
 import { readSqlAliasStability } from "@orb/tooling/floor/code-facts/drizzle-sql";
 import { readStatementOf } from "@orb/tooling/floor/code-facts/drizzle-statement";
-import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
-import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { and, eq, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { CallExpression, Project, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
-import { readDrizzleClientCall } from "../../../../tooling/src/verify/lib/drizzle-client-call.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { ownerTermValue, predicateHolds } from "../../../../tooling/src/verify/lib/tenancy-join.ts";
 
-const PRODUCER = "packages/server/src/domain/persona/persistence/producer.ts";
-const RECIPIENT = "packages/server/src/domain/persona/persistence/recipient.ts";
-const CONFIG = "packages/server/tsconfig.json";
-const SCHEMA = `import { sqliteTable, text } from "drizzle-orm/sqlite-core";
-export const personas = sqliteTable("personas", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull() });
-`;
-const DATABASE = `export * from "./schema/persona.js";
-import * as schema from "./schema/persona.js";
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
-export type Db = LibSQLDatabase<typeof schema>;
-`;
 const BUILDER = `import { eq } from "drizzle-orm";
 import { personas, type Db } from "@orb/db";
 export function owned(db: Db, ownerId: string) { return db.select().from(personas).where(eq(personas.ownerId, ownerId)); }
@@ -45,17 +28,6 @@ import { personas, type Db } from "@orb/db";
 import { owned } from "./producer.js";
 `;
 
-const SCOPE_SCHEMA = `
-export const users = sqliteTable("users", { id: text("id").primaryKey() });
-export const assets = sqliteTable("assets", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull() });
-export const characters = sqliteTable("characters", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), avatarAssetId: text("avatar_asset_id").references(() => assets.id) });
-export const tags = sqliteTable("tags", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull() });
-export const characterTags = sqliteTable("character_tags", { characterId: text("character_id").references(() => characters.id), tagId: text("tag_id").references(() => tags.id) });
-export const chatParticipants = sqliteTable("chat_participants", { id: text("id").primaryKey(), chatId: text("chat_id").references(() => chats.id), userId: text("user_id").references(() => users.id), leftSeq: text("left_seq"), characterId: text("character_id").references(() => characters.id) });
-`;
-const SCOPE_HEAD = `import { and, eq, exists, inArray, isNull, or, sql } from "drizzle-orm";
-import { assets, characters, characterTags, tags, chats, chatParticipants, type Db } from "@orb/db";
-`;
 const CORRELATED_BODY = `import { alias } from "drizzle-orm/sqlite-core"; const seats = alias(chatParticipants, "seats");
 function search(db: Db) { return or(sql\`lower(\${chats.id}) like \${"needle"}\`, exists(db.select({named: sql\`1\`}).from(seats).innerJoin(characters, eq(characters.id, seats.characterId)).where(and(eq(seats.chatId, chats.id), sql\`lower(\${characters.id}) like \${"needle"}\`)))); }
 function member(db: Db, userId: string) { return and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq), search(db)); }
@@ -635,67 +607,6 @@ const CASES = [
     findings: 0,
   },
 ] as const;
-
-interface NativeFixture {
-  readonly root: string;
-  readonly project: Project;
-  readonly source: SourceFile;
-  readonly anchor: CallExpression;
-}
-
-async function nativeFixture(
-  { plantedTree, repoRoot }: Pick<ToolFixtures, "plantedTree" | "repoRoot">,
-  scenario: { readonly producer: string; readonly recipient: string },
-): Promise<NativeFixture> {
-  const root = await plantedTree({
-    "package.json": '{"type":"module"}',
-    ".gitignore": "node_modules\n",
-    "tsconfig.base.json": JSON.stringify({
-      compilerOptions: {
-        strict: true,
-        skipLibCheck: true,
-        target: "ES2022",
-        module: "NodeNext",
-        moduleResolution: "NodeNext",
-        types: ["node"],
-        paths: { "@orb/db": ["./packages/db/src/index.ts"] },
-      },
-    }),
-    [CONFIG]: '{"extends":"../../tsconfig.base.json","include":["src/**/*.ts"]}',
-    "packages/db/src/schema/persona.ts": `${SCHEMA}export const chats = sqliteTable("chats", {id: text("id").primaryKey(), anchorPersonaId: text("anchor_persona_id").references(() => personas.id)});${SCOPE_SCHEMA}`,
-    "packages/db/src/index.ts": DATABASE,
-    [PRODUCER]: scenario.producer,
-    [RECIPIENT]: scenario.recipient,
-  });
-  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
-  execFixtureGit(root, ["init", "--quiet", "--template="]);
-  const view = createSemanticWorkspace({ root }).program(CONFIG);
-  if (view === undefined) {
-    throw new Error("the native fixture's server program was not admitted");
-  }
-  const project = view.project();
-  expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
-  const source = view.sourceFile(PRODUCER);
-  const anchor = source
-    ?.getDescendantsOfKind(SyntaxKind.CallExpression)
-    .find((call) => call.getExpression().getText().endsWith(".from") || call.getExpression().getText().endsWith(".findFirst"));
-  if (source === undefined || anchor === undefined) {
-    throw new Error("the genuine producer's table anchor was not loaded");
-  }
-  expect(readDrizzleClientCall(anchor)).toMatchObject({ kind: "drizzle", method: anchor.getExpression().getText().endsWith(".from") ? "from" : "findFirst" });
-  const declarations = anchor.getExpression().getSymbol()?.getDeclarations() ?? [];
-  expect(declarations).not.toHaveLength(0);
-  expect(declarations.every((declaration) => declaration.getSourceFile().getFilePath().includes("/drizzle-orm/"))).toBe(true);
-  return { root, project, source, anchor };
-}
-
-function statementObservations(root: string, project: Project): ReturnType<typeof observeCallReturns> {
-  const nodes = project
-    .getSourceFiles()
-    .filter((file) => !file.isDeclarationFile() && file.getFilePath().startsWith(root))
-    .flatMap((file) => file.getDescendants());
-  return observeCallReturns(nodes.filter(Node.isCallExpression), nodes);
-}
 
 const SQL_STABILITY_CASES = [
   { name: "immutable containing template", body: "const holder = sql`${child}`;", stable: true },

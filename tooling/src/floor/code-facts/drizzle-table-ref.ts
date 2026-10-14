@@ -5,6 +5,7 @@
 // Anything else is an honest `unresolved`.
 import type { CallExpression, Identifier, Node as MorphNode, Type, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
 
 /** One answer for a table expression. A conditional yields one per arm, so the caller judges every arm. */
@@ -41,13 +42,15 @@ export function drizzleExportOf(callee: MorphNode): string | undefined {
       ?.getDeclarations()
       .find((declaration) => Node.isImportSpecifier(declaration));
     const module = specifier?.getFirstAncestorByKind(SyntaxKind.ImportDeclaration)?.getModuleSpecifierValue();
-    return Node.isImportSpecifier(specifier) && module?.startsWith(DRIZZLE_SPECIFIER) === true ? specifier.getName() : undefined;
+    return Node.isImportSpecifier(specifier) && drizzleModule(module) ? specifier.getName() : undefined;
   }
-  if (!Node.isPropertyAccessExpression(callee)) {
-    return;
-  }
-  const module = namespaceModuleOf(callee.getExpression());
-  return module?.startsWith(DRIZZLE_SPECIFIER) === true ? callee.getName() : undefined;
+  const member = staticMemberAccess(callee);
+  const module = member === undefined ? undefined : namespaceModuleOf(member.receiver);
+  return drizzleModule(module) ? member?.name : undefined;
+}
+
+function drizzleModule(module: string | undefined): boolean {
+  return module === DRIZZLE_SPECIFIER || module?.startsWith(`${DRIZZLE_SPECIFIER}/`) === true;
 }
 
 /** The module an `import * as ns` binding names, or undefined for any other receiver. */

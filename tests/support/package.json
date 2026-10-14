@@ -113,6 +113,7 @@
     "./node/mcp-in-memory.ts": "./node/mcp-in-memory.ts",
     "./node/migrate-data-layout.ts": "./node/migrate-data-layout.ts",
     "./node/mini-drizzle-orm.ts": "./node/mini-drizzle-orm.ts",
+    "./node/native-drizzle.ts": "./node/native-drizzle.ts",
     "./node/open-context-sections.ts": "./node/open-context-sections.ts",
     "./node/planted-gate-corpus.ts": "./node/planted-gate-corpus.ts",
     "./node/provider-stream.ts": "./node/provider-stream.ts",

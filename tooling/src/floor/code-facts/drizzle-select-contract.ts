@@ -7,6 +7,7 @@ export interface DrizzleSelection {
   readonly projection: Node | undefined;
   readonly output: "row" | "rows";
   readonly calls: readonly CallExpression[];
+  readonly sqlOperands: readonly Node[];
 }
 
 /** Column lineage from an explicit member or an actual single-table full-row schema field. */
