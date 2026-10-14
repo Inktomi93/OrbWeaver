@@ -1,22 +1,23 @@
-// Gate: compose-wiring-only — `entry/compose` wires and owns no business logic (Tier-5-Entry.md invariant 1), so compose runs no
-// Drizzle query and no function value it hands out decides on runtime data. SUBJECT: compose, plus any `entry/**` function compose
-// reaches by reference (an `entry/auth` factory it calls is judged as compose). ARMS: a drizzle-declared call (`readDrizzleClientCall`,
-// fail-closed on an unbound query verb, table via `resolveDrizzleTableRefs`); a per-call decision (branch, loop, catch, `?:`, `&&`/`||`/
-// `??`, comparison, `?.`, `Math.max`/`min`, a call dispatched by a computed key) inside a handed-out function or a helper it reaches.
-// Construction-time decisions are wiring; D1/D135's exact canonical row projection is identity minting, not admission policy.
-// FAMILY: singleton — the timing and canonical projection classifications are this subject's own.
+// Gate: compose-wiring-only — Tier-5 compose wires; its reached entry helpers cannot hide queries or business decisions.
+// SUBJECT: compose and entry callables reached by reference. ARMS: native Drizzle calls (unbound verbs fail closed), per-call
+// branches/loops/catches/operators/optional chains/clamps/computed dispatch. Construction and native graph-lifetime decisions
+// are wiring; the exact D1/D135 row mint and resolved Tier-5 bucket-policy operation retain their own non-business ownership.
+// FAMILY: singleton — phase/ownership judgments are local; native reference, member and query facts are shared floor readers.
 import type { CallExpression, FunctionDeclaration, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { DrizzleTableRef } from "../../floor/code-facts/drizzle-table-ref.ts";
 import { resolveDrizzleTableRefs } from "../../floor/code-facts/drizzle-table-ref.ts";
 import { readCalledMember } from "../../floor/code-facts/drizzle-write-chain.ts";
 import {
+  inspectReferenceWrites,
   readMemberReference,
   resolveGlobalMemberOrigin,
   resolveLexicalValueDeclaration,
   resolveModuleMemberOrigin,
 } from "../../floor/code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
+import { readSymbolMemberValue } from "../../floor/code-facts/reference-fact-symbol-member.ts";
+import { isReferenceWriteTarget } from "../../floor/code-facts/reference-fact-writes.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 
@@ -26,6 +27,9 @@ const AUTH_SEAM = "packages/server/src/entry/auth/seam.ts";
 const IDENTITY_CONTRACT = "packages/contracts/src/identity/index.ts";
 const PRINCIPAL_FIELDS = "packages/server/src/domain/sessions/contract/results.ts";
 const IDS_CONTRACT = "packages/kit/src/ids/index.ts";
+const RATE_POLICY = "packages/server/src/entry/rate-limit-gate.ts";
+const RATE_LIMITER = "packages/server/src/transport/rate-limit.ts";
+const RATE_PORT = "packages/server/src/transport/trpc/context.ts";
 const PROJECTION_KEYS = ["userId", "role", "handle", "externalId", "via"] as const;
 
 /** The ambient `Math` members that pick between runtime values. */
@@ -55,6 +59,8 @@ const EAGER_ITERATION = new Set([
   "toSorted",
 ]);
 const TS_LIB_INFIX = "/typescript/lib/lib.";
+const DISPOSAL_STACKS = new Set(["DisposableStack", "AsyncDisposableStack"]);
+const DISPOSAL_KEYS = new Set(["dispose", "asyncDispose"]);
 const UNDEFINED = "undefined";
 const SNIPPET_LENGTH = 60;
 
@@ -185,7 +191,20 @@ function computedDispatch(call: CallExpression): boolean {
     return false;
   }
   const key = callee.getArgumentExpression();
-  return !(Node.isStringLiteral(key) || Node.isNumericLiteral(key) || Node.isNoSubstitutionTemplateLiteral(key));
+  return !(Node.isStringLiteral(key) || Node.isNumericLiteral(key) || Node.isNoSubstitutionTemplateLiteral(key) || nativeDisposalKey(key));
+}
+
+function nativeDisposalKey(node: MorphNode | undefined): boolean {
+  if (node === undefined) {
+    return false;
+  }
+  const origin = resolveGlobalMemberOrigin(node);
+  return (
+    origin.kind === "resolved" &&
+    origin.value.globalName === "Symbol" &&
+    origin.value.memberPath.length === 1 &&
+    DISPOSAL_KEYS.has(origin.value.memberPath[0] ?? "")
+  );
 }
 
 /** `Math.max(a, b)` / `Math.min(a, b)` on the ambient global: a clamp picks between values. */
@@ -246,6 +265,133 @@ function declaredInTsLib(call: CallExpression): boolean {
     member.value.declarations.length > 0 &&
     member.value.declarations.every((declaration) => declaration.getSourceFile().getFilePath().includes(TS_LIB_INFIX))
   );
+}
+
+/** Require the native constructor value, not a stack-shaped annotation or caller-supplied object. */
+function nativeDisposalStack(node: MorphNode, active: Set<object> = new Set()): boolean {
+  const value = unwrapParens(node);
+  if (active.has(value.compilerNode)) {
+    return false;
+  }
+  active.add(value.compilerNode);
+  if (Node.isNewExpression(value)) {
+    const origin = resolveGlobalMemberOrigin(value.getExpression());
+    return origin.kind === "resolved" && DISPOSAL_STACKS.has(origin.value.globalName) && origin.value.memberPath.length === 0;
+  }
+  if (!Node.isIdentifier(value) || inspectReferenceWrites(value).kind !== "resolved") {
+    return false;
+  }
+  const binding = resolveLexicalValueDeclaration(value);
+  const initializer = binding.kind === "resolved" && Node.isVariableDeclaration(binding.value) ? binding.value.getInitializer() : undefined;
+  return initializer !== undefined && nativeDisposalStack(initializer, active);
+}
+
+/** Language lifetime retention is a separate phase; its body remains judged for persistence queries. */
+function lifetimeSlot(node: MorphNode): boolean {
+  const parent = node.getParent();
+  if (Node.isPropertyAssignment(parent) && parent.getInitializer() === node) {
+    const key = parent.getNameNode();
+    return Node.isComputedPropertyName(key) && nativeDisposalKey(key.getExpression());
+  }
+  if (Node.isMethodDeclaration(node)) {
+    const key = node.getNameNode();
+    return Node.isComputedPropertyName(key) && nativeDisposalKey(key.getExpression());
+  }
+  const site = directCall(node);
+  if (site === undefined || site.call.getArguments()[0] !== site.slot || site.call.getArguments().length !== 1) {
+    return false;
+  }
+  const member = readMemberReference(site.call.getExpression());
+  return member.kind === "resolved" && member.value.name === "defer" && declaredInTsLib(site.call) && nativeDisposalStack(member.value.receiver);
+}
+
+/** The sanctioned bucket selector is a pure membership projection over its own immutable literal map. */
+function bucketSelector(call: CallExpression, factory: FunctionDeclaration): boolean {
+  const target = resolveCallableDeclaration(call.getExpression());
+  if (target.kind !== "resolved" || !Node.isFunctionDeclaration(target.value.declaration)) {
+    return false;
+  }
+  const helper = target.value.declaration;
+  const [parameter] = helper.getParameters();
+  const body = helper.getBody();
+  const statements = Node.isBlock(body) ? body.getStatements() : [];
+  const [statement] = statements;
+  const expression = Node.isReturnStatement(statement) ? statement.getExpression() : undefined;
+  if (
+    helper.getSourceFile() !== factory.getSourceFile() ||
+    helper.getParameters().length !== 1 ||
+    parameter === undefined ||
+    statements.length !== 1 ||
+    !Node.isBinaryExpression(expression) ||
+    expression.getOperatorToken().getKind() !== SyntaxKind.InKeyword ||
+    !referencesParameter(expression.getLeft(), parameter)
+  ) {
+    return false;
+  }
+  const map = expression.getRight();
+  if (!Node.isIdentifier(map) || inspectReferenceWrites(map).kind !== "resolved") {
+    return false;
+  }
+  const binding = resolveLexicalValueDeclaration(map);
+  const initializer = binding.kind === "resolved" && Node.isVariableDeclaration(binding.value) ? binding.value.getInitializer() : undefined;
+  const literal = Node.isAsExpression(initializer) ? initializer.getExpression() : initializer;
+  return (
+    Node.isObjectLiteralExpression(literal) &&
+    literal.getProperties().every((property) => Node.isPropertyAssignment(property) && property.getInitializer()?.getKind() === SyntaxKind.TrueKeyword)
+  );
+}
+
+function nativeBucketConsume(call: CallExpression, factory: FunctionDeclaration): boolean {
+  const member = readMemberReference(call.getExpression());
+  if (
+    member.kind !== "resolved" ||
+    member.value.name !== "consume" ||
+    !Node.isIdentifier(member.value.receiver) ||
+    inspectReferenceWrites(member.value.receiver).kind !== "resolved"
+  ) {
+    return false;
+  }
+  const receiver = resolveLexicalValueDeclaration(member.value.receiver);
+  if (receiver.kind !== "resolved" || !Node.isVariableDeclaration(receiver.value) || enclosingFunction(receiver.value) !== factory) {
+    return false;
+  }
+  const initializer = receiver.value.getInitializer();
+  if (!(Node.isCallExpression(initializer) && canonicalReference(initializer.getExpression(), RATE_LIMITER, "createRateLimiter"))) {
+    return false;
+  }
+  const operation = readCalledMember(call);
+  return (
+    operation.kind === "resolved" &&
+    operation.value.declarations.length > 0 &&
+    operation.value.declarations.every((declaration) => declaration.getSourceFile().getFilePath().endsWith(`/${RATE_LIMITER}`))
+  );
+}
+
+/** Tier-5 owns this transport-policy operation; caller-supplied operations never inherit its ownership. */
+function nativeRatePolicy(fn: MorphNode): boolean {
+  if (!Node.isArrowFunction(fn)) {
+    return false;
+  }
+  const property = fn.getParent();
+  const object = property.getParent();
+  const returned = object?.getParent();
+  const factory = enclosingFunction(fn);
+  if (
+    !Node.isPropertyAssignment(property) ||
+    property.getName() !== "enforce" ||
+    !Node.isObjectLiteralExpression(object) ||
+    !Node.isReturnStatement(returned) ||
+    !Node.isFunctionDeclaration(factory) ||
+    factory.getName() !== "createRateLimitGate" ||
+    !factory.getSourceFile().getFilePath().endsWith(`/${RATE_POLICY}`) ||
+    !canonicalReference(factory.getReturnTypeNode(), RATE_PORT, "RateLimitGate") ||
+    fn.getParameters().length !== 1 ||
+    !canonicalReference(fn.getParameters()[0]?.getTypeNode(), RATE_PORT, "RateLimitDecision")
+  ) {
+    return false;
+  }
+  const calls = fn.getDescendantsOfKind(SyntaxKind.CallExpression);
+  return calls.some((call) => nativeBucketConsume(call, factory)) && calls.every((call) => nativeBucketConsume(call, factory) || bucketSelector(call, factory));
 }
 
 /** A callback the enclosing code runs before it continues: an IIFE callee or an eager array-method callback. */
@@ -341,18 +487,25 @@ interface Reference {
   readonly called: boolean;
 }
 
-/** When each function runs, and which functions the gate judges. Compose's own code is judged; an `entry/**` named callable joins when
- *  a judged site references it, and a function nested in a judged one is judged. Named callables run per call when a judged
- *  reference hands them on as a value or calls them from per-call code; every other function value runs per call unless the code
- *  around it invokes it eagerly. Both sets settle together to a fixed point. */
+/** Named helpers and native lifetime members join by reference; their business escapes settle together to a fixed point.
+ *  Ordinary anonymous callbacks keep their per-call default independently of reference reach. */
 interface Classifier {
   readonly perCall: (fn: MorphNode) => boolean;
   readonly judged: (node: MorphNode) => boolean;
 }
 
+function businessReference(at: MorphNode, called: boolean, perCall: (fn: MorphNode) => boolean): boolean {
+  if (!(called || lifetimeSlot(at))) {
+    return true;
+  }
+  const fn = enclosingFunction(at);
+  return fn !== undefined && perCall(fn);
+}
+
 function classify(named: ReadonlySet<object>, references: readonly Reference[], inCompose: (node: MorphNode) => boolean): Classifier {
-  const perCallNamed = new Set<object>();
+  const perCallReferenced = new Set<object>();
   const judgedNamed = new Set<object>();
+  const nativeOwners = new Map<object, boolean>();
   const judged = (node: MorphNode): boolean => {
     if (inCompose(node)) {
       return true;
@@ -366,12 +519,23 @@ function classify(named: ReadonlySet<object>, references: readonly Reference[], 
   };
   const perCall = (fn: MorphNode): boolean => {
     if (named.has(fn.compilerNode)) {
-      return perCallNamed.has(fn.compilerNode);
+      return perCallReferenced.has(fn.compilerNode);
+    }
+    if (perCallReferenced.has(fn.compilerNode)) {
+      return true;
+    }
+    let owned = nativeOwners.get(fn.compilerNode);
+    if (owned === undefined) {
+      owned = nativeRatePolicy(fn);
+      nativeOwners.set(fn.compilerNode, owned);
+    }
+    const outer = enclosingFunction(fn);
+    if (owned || (lifetimeSlot(fn) && (outer === undefined || !perCall(outer)))) {
+      return false;
     }
     if (!eagerlyInvoked(fn)) {
       return true;
     }
-    const outer = enclosingFunction(fn);
     return outer !== undefined && perCall(outer);
   };
   const settle = (): boolean => {
@@ -384,9 +548,8 @@ function classify(named: ReadonlySet<object>, references: readonly Reference[], 
         judgedNamed.add(target.compilerNode);
         changed = true;
       }
-      const atFn = enclosingFunction(at);
-      if (!perCallNamed.has(target.compilerNode) && (!called || (atFn !== undefined && perCall(atFn)))) {
-        perCallNamed.add(target.compilerNode);
+      if (!perCallReferenced.has(target.compilerNode) && businessReference(at, called, perCall)) {
+        perCallReferenced.add(target.compilerNode);
         changed = true;
       }
     }
@@ -617,6 +780,8 @@ export const gate = defineGate({
     const calls: CallExpression[] = [];
     const referenceSites: MorphNode[] = [];
     const callables = new Map<string, MorphNode[]>();
+    const lifetimeMembers = new Set<object>();
+    const unresolvedMembers: { readonly at: MorphNode; readonly detail: string }[] = [];
     const subjects = new Map<object, Subject>();
     const subjectOf = (node: MorphNode, perCall: (fn: MorphNode) => boolean): Subject => {
       const key = subjectKey(node, perCall);
@@ -628,16 +793,37 @@ export const gate = defineGate({
       subjects.set(key.compilerNode, subject);
       return subject;
     };
-    const references = (named: ReadonlySet<object>): readonly Reference[] =>
+    const lifetimeTarget = (expression: MorphNode): MorphNode | undefined => {
+      if (!(Node.isElementAccessExpression(expression) && nativeDisposalKey(expression.getArgumentExpression())) || isReferenceWriteTarget(expression)) {
+        return;
+      }
+      const member = readSymbolMemberValue(expression);
+      if (member.kind === "unresolved") {
+        unresolvedMembers.push({ at: expression, detail: member.detail });
+        return;
+      }
+      if (Node.isMethodDeclaration(member.value)) {
+        return member.value;
+      }
+      const value = resolveCallableDeclaration(member.value);
+      return value.kind === "resolved" ? value.value.declaration : undefined;
+    };
+    const references = (tracked: ReadonlySet<object>): readonly Reference[] =>
       referenceSites.flatMap((expression) => {
         if (!referencePosition(expression)) {
           return [];
         }
         const callable = resolveCallableDeclaration(expression);
-        return callable.kind === "resolved" && named.has(callable.value.declaration.compilerNode)
-          ? [{ target: callable.value.declaration, at: expression, called: calledDirectly(expression) }]
-          : [];
+        const target = callable.kind === "resolved" ? callable.value.declaration : lifetimeTarget(expression);
+        return target !== undefined && tracked.has(target.compilerNode) ? [{ target, at: expression, called: calledDirectly(expression) }] : [];
       });
+    const reportMemberRefusals = ({ perCall, judged }: Classifier): void => {
+      for (const { at, detail } of unresolvedMembers) {
+        if (judged(at) && businessReference(at, calledDirectly(at), perCall)) {
+          ctx.report.node(at, { message: `compose cannot establish the native lifetime member handed to a business operation: ${detail}. ${MESSAGE}` });
+        }
+      }
+    };
     return {
       visitors: [
         {
@@ -666,11 +852,14 @@ export const gate = defineGate({
           },
         },
         {
-          kinds: [SyntaxKind.FunctionDeclaration, SyntaxKind.ArrowFunction, SyntaxKind.FunctionExpression],
+          kinds: [SyntaxKind.FunctionDeclaration, SyntaxKind.ArrowFunction, SyntaxKind.FunctionExpression, SyntaxKind.MethodDeclaration],
           visit: (node) => {
             const name = namedCallable(node)?.getText();
             if (name !== undefined) {
               callables.set(name, [...(callables.get(name) ?? []), node]);
+            }
+            if (lifetimeSlot(node)) {
+              lifetimeMembers.add(node.compilerNode);
             }
           },
         },
@@ -679,7 +868,8 @@ export const gate = defineGate({
       evaluate: () => {
         const named = new Set<object>([...callables.values()].flat().map((fn) => fn.compilerNode));
         const inCompose = (node: MorphNode): boolean => ctx.relativePath(node.getSourceFile()).startsWith(COMPOSE_PREFIX);
-        const { perCall, judged } = classify(named, references(named), inCompose);
+        const { perCall, judged } = classify(named, references(new Set([...named, ...lifetimeMembers])), inCompose);
+        reportMemberRefusals({ perCall, judged });
         const projections = new Map<object, boolean>();
         const canonicalProjection = (fn: MorphNode): boolean => {
           const known = projections.get(fn.compilerNode);
@@ -708,6 +898,115 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(receiver: AsyncDisposable) { return { op: receiver[Symbol.asyncDispose] }; }',
+      },
+      expect: { count: 1, messageIncludes: "cannot establish the native lifetime member" },
+      why: "A same-typed formal proves no actual lifetime member value for a business escape; unresolved origin refuses explicitly.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const owner = { [Symbol.asyncDispose]: () => active() ? 1 : 0 }; const alias = owner; alias[Symbol.asyncDispose] = () => 2; return { op: owner[Symbol.asyncDispose] }; }',
+      },
+      expect: { count: 1, messageIncludes: "cannot establish the native lifetime member" },
+      why: "A write through an actual receiver alias prevents an immutable member-origin claim and refuses the business escape.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const owner = { [Symbol.asyncDispose]: () => active() ? 1 : 0 }; return { op: owner[Symbol.asyncDispose] }; }',
+      },
+      expect: { count: 1, messageIncludes: "decides per call" },
+      why: "An anonymous native disposal property loses its lifetime phase when the actual callable escapes as a business operation.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const owner = { [Symbol.asyncDispose]() { return active() ? 1 : 0; } }; return { op: owner[Symbol.asyncDispose] }; }',
+      },
+      expect: { count: 1, messageIncludes: "decides per call" },
+      why: "Native method syntax cannot hide the same independent business escape of the resolved member callable.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const owner = { [Symbol.asyncDispose]: () => active() ? 1 : 0 }; return { op: () => owner[Symbol.asyncDispose]() }; }',
+      },
+      expect: { count: 1, messageIncludes: "decides per call" },
+      why: "Invoking the anonymous disposer inside an ordinary operation runs its decision per business call.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const owner = { [Symbol.asyncDispose]() { return active() ? 1 : 0; } }; return { op: () => owner[Symbol.asyncDispose]() }; }',
+      },
+      expect: { count: 1, messageIncludes: "decides per call" },
+      why: "A native disposal method invoked by a business operation participates in the same per-call fixed point.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { return { op: () => { const stack = new AsyncDisposableStack(); stack.defer(() => { if (active()) throw new Error("busy"); }); return stack; } }; }',
+      },
+      expect: { count: 1, token: "op", messageIncludes: "decides per call" },
+      why: "A request-local native stack cannot relabel business-operation decisions as graph construction or shutdown.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(stack: AsyncDisposableStack, active: () => boolean) { stack.defer(() => { if (active()) throw new Error("busy"); }); }',
+      },
+      expect: { count: 1, messageIncludes: "decides per call" },
+      why: "An annotation proves no native constructor value for a caller-supplied stack.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          'export function build(stack: { defer: (callback: () => void) => void }, active: () => boolean) { stack.defer(() => { if (active()) throw new Error("busy"); }); }',
+      },
+      expect: { count: 1, messageIncludes: "decides per call" },
+      why: "A caller-supplied defer method is not the native disposal protocol and cannot hide business policy.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const stack = new AsyncDisposableStack(); const shutdown = () => { if (active()) throw new Error("busy"); }; stack.defer(shutdown); return { op: shutdown }; }',
+      },
+      expect: { count: 1, token: "shutdown", messageIncludes: "decides per call" },
+      why: "Native lifetime retention does not erase the same function's independent business-operation escape.",
+    },
+    {
+      mode: "types",
+      files: {
+        [DRIZZLE_FILE]: DRIZZLE,
+        [SCHEMA_FILE]: SCHEMA,
+        [COMPOSE_FILE]: `/// <reference lib="esnext.disposable" />\n${DB_PRELUDE}export function build(db: Db) { const stack = new AsyncDisposableStack(); stack.defer(() => { db.select().from(chats); }); return stack; }`,
+      },
+      expect: { count: 1, messageIncludes: "runs a Drizzle query" },
+      why: "Lifecycle is not a query exemption: shutdown still cannot run a compose-owned persistence operation.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          'const Symbol = { asyncDispose: "run" } as const; export function build(active: () => boolean) { return { [Symbol.asyncDispose]: () => active() ? 1 : 0 }; }',
+      },
+      expect: { count: 1, messageIncludes: "decides per call" },
+      why: "A shadowed Symbol property does not establish a language disposal operation.",
+    },
     {
       mode: "types",
       files: {
@@ -949,6 +1248,54 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { return { [Symbol.asyncDispose]: () => active() ? 1 : 0 }; }',
+      },
+      why: "An anonymous disposal property used only by the language lifetime retains graph-shutdown decisions.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { return { [Symbol.asyncDispose]() { return active() ? 1 : 0; } }; }',
+      },
+      why: "A genuine disposal method has the same lifetime phase without an independent business escape.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const owner = { [Symbol.asyncDispose]: () => active() ? 1 : 0 }; const stack = new AsyncDisposableStack(); stack.defer(owner[Symbol.asyncDispose]); return stack; }',
+      },
+      why: "Forwarding the actual member to another proven native graph-lifetime slot is not a business escape.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const stack = new AsyncDisposableStack(); stack.defer(async () => { if (active()) throw new Error("busy"); }); return stack; }',
+      },
+      why: "A callback retained by the actual installed native disposal stack owns shutdown decisions, not business request policy.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const Stack = DisposableStack; const stack = new Stack(); function shutdown() { if (active()) throw new Error("busy"); } stack.defer(shutdown); return stack; }',
+      },
+      why: "Native constructor aliases and a named callback retain the same lifetime phase through resolved identities.",
+    },
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nexport function build(resource: AsyncDisposable) { return { [Symbol.asyncDispose]: () => resource[Symbol.asyncDispose]() }; }',
+      },
+      why: "The language's fixed well-known disposal key is neither runtime record dispatch nor a request operation.",
+    },
     {
       mode: "types",
       files: {

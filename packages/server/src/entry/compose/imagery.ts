@@ -59,6 +59,7 @@ export interface ImageryComposeDeps {
 
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
   const { db, now, connection, executor, assets, character, roleClientsFor } = deps;
+  const fetchImage = deps.fetchImageBytes ?? fetchImageBytes;
   const imagery = createImageryService({
     db,
     now,
@@ -67,7 +68,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     ...createImageProviderOps({ resolve: (params) => connection.resolve(params), generateImage: (req) => executor.generateImage(req) }),
     ...createImageryRoomAccess(deps),
     ...createImageryInstructions(deps),
-    fetchImage: (url) => (deps.fetchImageBytes ?? fetchImageBytes)(url, deps.maxImageBytes()),
+    fetchImage: (url) => fetchImage(url, deps.maxImageBytes()),
     resolveRunAs: deps.resolveHostPrincipal,
     storeAsset: createGeneratedAssetStore((params) => assets.store(params)),
     extractQuiet: createVisibleExtractQuiet({

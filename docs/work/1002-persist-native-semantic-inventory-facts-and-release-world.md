@@ -38,4 +38,4 @@ Frozen `4de2122c1a` full replay reaches its fixed deadline without an OOM or sou
 
 The terminal report preserves exact populations, timings, per-process RSS and swap observations: `/tmp/ast-native-full-current-1002/result-summary.md`. All owned processes are absent. Source, dependency and workspace-link guards pass. Staged input currency is not revalidated, so reuse is not yet authorized.
 
-Profile the failed native world before another replay. Preserve its complete descriptor and inputs. Complete extraction, collector equivalence, input rechecks, publication, concurrent reuse and hosted-runner memory qualification remain open.
+Bounded native profiling identifies repeated physical-path resolution and per-query native import-map reconstruction. Capture stops after profile flush; no partition is produced. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-profile-diagnosis.md`. Extraction-local identity reuse and a typed native readonly reference pass are in qualification. Complete replay, collector equivalence, publication, concurrent reuse and hosted memory remain open.

@@ -28,7 +28,7 @@
 //
 // THERE IS NO DEFAULT GRANT AND NO ENV KNOB, deliberately: a switch that could substitute the exchange
 // would be an authentication bypass wearing a test affordance. The single production binding is
-// `entry/compose/oidc.ts`, and `tsc` enforces the signature there.
+// `entry/http/oidc.ts`, and `tsc` enforces the signature there.
 
 import type { Configuration } from "openid-client";
 import type { OidcCodeGrant, OidcExchange, OidcTransaction, OidcVerifiedTokens } from "./contract.ts";

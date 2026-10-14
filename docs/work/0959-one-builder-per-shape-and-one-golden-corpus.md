@@ -23,34 +23,18 @@ A builder exists per contract output and table; the corpus is committed and load
 
 ## Evidence
 
-Auth uses its canonical schema. Builders require request-specific capture, not fabricated defaults.
+Builders derive request-specific outputs from production types, schema defaults or actual writers. Schema-drift and zero-token controls reject fabricated inputs. Browser responders preserve exact input/output, absent versus null, and conflicting or unmatched capture refusal. Legacy-only Resolved helpers do not qualify native data.
 
-Reviewed source `f787a21337` captures native chat import, compaction, held streams and owner-scoped handoff. Imagery rejects timestamp-only merging. Scoped controls pass.
+`tests/support/node/corpus.ts` owns the private producer composition. Its typed captures name the actual auth, library, recall, automation, plugin, knowledge, chat, imagery, RPG, search, connection and stats/settings owners. These execute the production graph with physical external edges, injected clocks and IDs; no test-side domain assembly qualifies them.
 
-Browser responders preserve captured input/output, absent versus null input and conflicting or unmatched capture refusal. Adoption remains open.
+Native controls preserve OIDC claims and pending/session transitions; watched/manual automation provenance; plugin consent and failure containment; funded workload execution; retained RPG lineage, checkpoints, cancellation and host handoff; and canonical search, library and ingestion outputs. Each family retains its scoped cases and defect controls. Enabled empty-owner memory completion is integrated through `58e889386b`.
 
-Builders reject schema drift and zeroed production tokens; helpers derive public compose types.
+Reviewed source `afdd075a66` adds native routed stats and user-settings/theme lifecycles. Actual generations and reconciliation produce nonzero rollups. Theme duplication, parser import/repeat/collision, baseline restoration and refused foreign writes use real owners. The exact CSS-copy defect control fails, and production bytes are restored. Scoped lint/Biome pass; root types retain only the existing off-wave diagnostics.
 
-New corpus inputs use actual admission; legacy Resolved fabrication helpers do not qualify them.
+Aggregate `3056035` completes producer disposal, sole-WAL observation, locks/pending/handoff checks, secret exclusion and independent DB/CAS clones, including cloned stats, themes and settings. Its case passes under the unchanged deadline. Source `fa98caa7a5` places required clone dependency initialization before the timed case; it does not reduce whole-run cost. Portable assertions run everywhere; descriptor observations are Linux-specific.
 
-Reviewed source `505c900fb5` produces native OIDC claim, pending and session captures. Its capsule proves physical disposal, sole WAL ownership on reopen, secret stripping and independent DB/CAS clones. Matching auth controls pass. Portable assertions run everywhere; descriptor observations are Linux-specific.
+The stats cohort does not qualify foreign timing isolation, differential percentile/cost populations or exact seed-byte preservation. Its refusal snapshots cover the participating owners, not ownerless seed rows. The independent review accepts the selected private wave without claiming broader authority.
 
-The same batch uses real automation producers for watcher conditions, caps, manual-run provenance, state and foreign-owner refusal. Removing the subject guard produces an extra fired row for a stranger's asset. Finite request recipes admit only validated outputs and exact captured inputs. Private captures stay Node-owned.
+SDK session capture has a canonical factory, but complete native capsule membership is being built. Notification lifecycle, positive image-skip population, remaining output/union variants and genuine plugin outputs still require current native coverage. Row aliases, route rosters and composed imports are not a unique-shape or runtime denominator; use the canonical shape reader instead of another coverage detector.
 
-Reviewed source `b78b5b8d0a` proves native SDK session lineage and the empty-seed no-row control. Reuse its funding controls.
-
-Reviewed source `800bd9d45a` captures native plugin/provider lifecycle and private rows. Consent, repeats, failure containment and physical clone controls pass. Injected edit stamps fix the world-info clock defect.
-
-Reviewed source `aea5f56d54` produces refinery and discovery rows through real admission, transcript history and memory backfill. Scoped cases and the expanded native capsule pass; independent review confirms the batch.
-
-Persisted workload funding is integrated. The expanded native capsule passes with the funder FK, producer completion, secret stripping and independent database and asset clones.
-
-Reviewed sources `3303ed4825`, `5cef750b0d` and `80bd8e5102` produce native RPG, schedule, knowledge, swipe and GIF state. Native cuts and scoped controls pass.
-
-Reviewed sources `fa0badf99b` and `69c196ed8f` preserve immutable checkpoints and native RPG recursion, cancellation, visibility, fork, handoff and intake. Defect controls preserve turn lineage.
-
-Reviewed source `7feb12bdf2` captures native routed search outputs, provenance and scopes. A capped-denominator defect control fails. Enabled empty-owner completion remains separately owned; publication and adoption remain open.
-
-Reviewed source `68e71302cf` captures native connection, catalog, capability, diagnostic and admitted-turn cost outputs. Finite physical HTTP and DNS preserve native ownership, admission, funding and parsers. Capsule holds and secret exclusion pass; the task-projection control fails. HTTP admission, complete coverage, publication and adoption remain open.
-
-Reviewed source `4c5ae5c652` captures native library lifecycles and ingestion chunks. Native, seed and order controls pass. Source `fa98caa7a5` loads the required clone module before the timed case. Aggregate `2968548` passes with disposal, independent DB/CAS clones and secret exclusion. The deadline and assertions are unchanged; whole-run cost is not reduced. Complete coverage, publication and adoption remain open.
+Committed secret-reviewed corpus publication and every-layer adoption remain open. Private captures do not widen the closed portable recipe. Existing optional loaders and bounded responder consumers do not establish application adoption. Complete builder coverage, corpus-backed smoke and general suite replacement are not claimed.

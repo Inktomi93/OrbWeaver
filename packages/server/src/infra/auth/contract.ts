@@ -101,7 +101,7 @@ export interface OidcVerifiedTokens {
 export type OidcExchange = (config: Configuration, callbackUrl: URL, tx: OidcTransaction) => Promise<OidcVerifiedTokens>;
 
 /** #867 — the raw `openid-client` grant `createOidcExchange` closes over. Named as a type so the ONE value
- *  binding to the library lives at the composition root (`entry/compose/oidc.ts`) and the adapter's
+ *  binding to the library lives at the composition root (`entry/http/oidc.ts`) and the adapter's
  *  transaction→checks mapping is provable without an IdP — the same shape `createOidcConfigCache(discover)`
  *  already uses for discovery. */
 export type OidcCodeGrant = typeof authorizationCodeGrant;

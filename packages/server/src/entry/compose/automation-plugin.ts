@@ -179,6 +179,7 @@ export interface AutomationPluginComposeResult extends AsyncDisposable {
 export const buildPluginQuietLlm = domainBuildPluginQuietLlm;
 
 export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
+  const newOpaqueId = deps.newOpaqueId ?? randomUUID;
   const hostResources = new AsyncDisposableStack();
   const pluginResources = new AsyncDisposableStack();
   await using construction = new AsyncDisposableStack();
@@ -198,7 +199,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     toolUse: deps.toolUse,
     roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
-    newToolCallId: () => `automation_${(deps.newOpaqueId ?? randomUUID)()}`,
+    newToolCallId: () => `automation_${newOpaqueId()}`,
   });
   const assetReads = createPluginAssetReads({ assets, resolveOwnerPrincipal });
   const worldInfoReads = createPluginWorldInfoReads({ worldInfo, resolveOwnerPrincipal });
@@ -281,7 +282,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       ...(deps.timers === undefined ? {} : { timers: deps.timers }),
       nowEpochMs: now,
       nextRandom: deps.random ?? Math.random,
-      mintId: deps.newOpaqueId ?? randomUUID,
+      mintId: newOpaqueId,
       ...(deps.egress === undefined ? {} : { safeFetch: deps.egress.safeFetch }),
     }),
   );
@@ -303,7 +304,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     promptTransforms: chatCompose.promptTransforms,
     pluginSubscribers,
     resolveChatAuthority,
-    newEventId: () => `plugin-event:${(deps.newOpaqueId ?? randomUUID)()}`,
+    newEventId: () => `plugin-event:${newOpaqueId()}`,
   });
   const pluginHostOps: PluginHostOps = {
     chat: {

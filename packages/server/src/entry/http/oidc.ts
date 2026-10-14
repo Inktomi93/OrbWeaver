@@ -19,8 +19,8 @@ import {
 import { createBackgroundWork } from "#infra/tasks";
 import { systemTimers } from "#infra/timers";
 import { startOidcGcScheduler } from "#src/transport/jobs/oidc-gc-scheduler.ts";
-import type { OidcRoutesDeps } from "../http/index.ts";
-import type { ServicesDeps, ServicesResult } from "./services.ts";
+import type { ServicesDeps, ServicesResult } from "../compose/services.ts";
+import type { OidcRoutesDeps } from "./index.ts";
 
 type ConfiguredOidcDeps = Pick<ServicesDeps, "db" | "now"> & {
   readonly built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections" | "egress">;
