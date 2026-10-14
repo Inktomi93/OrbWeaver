@@ -3,6 +3,7 @@
 // durable-inbox contract, the `emit` composition, and the one-directional edge from chat).
 
 import type { Db } from "@orb/db";
+import type { IdSource } from "@orb/kit/ids";
 import { createNotificationsContext } from "./context.ts";
 import type { ResolveStandingAsks } from "./contract/ops.ts";
 import type { NotificationsService } from "./contract/service.ts";
@@ -17,13 +18,14 @@ import { createStanding } from "./verbs/standing.ts";
 interface NotificationsServiceDeps {
   db: Db;
   now: () => number;
+  readonly idSource?: IdSource | undefined;
   /** The #1799 cross-feature read behind `InboxView.actionable` (contract/ops.ts). Required: see the field's
    *  note on `NotificationsContext` for why a defaulted no-op would be a silently wrong indicator. */
   resolveStandingAsks: ResolveStandingAsks;
 }
 
 export function createNotificationsService(deps: NotificationsServiceDeps): NotificationsService {
-  const ctx = createNotificationsContext(deps.db, deps.now, deps.resolveStandingAsks);
+  const ctx = createNotificationsContext(deps.db, deps.now, deps.resolveStandingAsks, deps.idSource);
   return {
     ...createRecord(ctx),
     ...createRead(ctx),

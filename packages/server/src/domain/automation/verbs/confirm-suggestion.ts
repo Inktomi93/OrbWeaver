@@ -54,7 +54,7 @@ import { runAnalysisConfirm } from "../substrate/analysis-confirm.ts";
 import { holdsChatHostAuthority } from "../substrate/authority.ts";
 import type { ArmsResult } from "../substrate/run-now.ts";
 import { dispatchRuleNow, runStashedContinuation } from "../substrate/run-now.ts";
-import { automationChatLaneKey, runInLane } from "../substrate/serial-lanes.ts";
+import { automationChatLaneKey } from "../substrate/serial-lanes.ts";
 import { armToExecute } from "../substrate/suggestions.ts";
 
 /** Gate the caller as HOST of the ask's chat. A non-present member collapses onto the ask's own leak-free
@@ -156,7 +156,12 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   // caught message is preserved into `error` and surfaces on the recorded fire below. Ends if this act stops
   // being errors-as-data.
   try {
-    await runAnalysisConfirm({ db: ctx.db, ops: ctx.ops, nowMs, applyProseRewrite: ctx.applyProseRewrite }, pending, rule, payload.act);
+    await runAnalysisConfirm(
+      { db: ctx.db, ops: ctx.ops, serialLanes: ctx.serialLanes, nowMs, applyProseRewrite: ctx.applyProseRewrite },
+      pending,
+      rule,
+      payload.act,
+    );
     outcome = "fired";
   } catch (err) {
     outcome = "action_error";
@@ -206,7 +211,7 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
  *  belts. Putting an unrelated executor behind the chat's dispatch lane would buy nothing and would make a
  *  slow generation delay every rule in the room. */
 function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
-  return runInLane(automationChatLaneKey(pending.chatId), () => executeStashedArm(ctx, pending, rule, confirmer));
+  return ctx.serialLanes.run(automationChatLaneKey(pending.chatId), () => executeStashedArm(ctx, pending, rule, confirmer));
 }
 
 /** #1553 (OWNER RULING: STASH the continuation) — combine the confirmed arm's own outcome with its

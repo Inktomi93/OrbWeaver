@@ -24,6 +24,9 @@
 // forget). `domain/rpg/flush-barrier.ts` folds the same way for the same reason and cannot import this
 // (providers is sealed to domain); its header cites this law.
 
+import type { ScheduleTimeout } from "#contract";
+import { realScheduleTimeout } from "./timers.ts";
+
 // @orb-waive no-inline-package-interface(FlattenedAbort): baselined when the gate landed; burn-down item 952.
 /** A caller signal flattened onto a signal we own — hand `signal` to the provider call, `dispose()` on
  *  settle so a long-lived caller signal doesn't accumulate listeners across calls. */
@@ -62,16 +65,16 @@ export function flattenAbortSignal(external: AbortSignal): FlattenedAbort {
 
 /** A per-request deadline composed with the caller's cancel: fires on either, reason-flattened. `dispose()`
  *  on settle also clears the deadline's timer. */
-export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number): FlattenedAbort {
+export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number, scheduleTimeout: ScheduleTimeout = realScheduleTimeout): FlattenedAbort {
   const controller = new AbortController();
   const detach = foldAbortInto(controller, external);
-  const timer = setTimeout(() => {
+  const cancelTimer = scheduleTimeout(() => {
     controller.abort();
   }, deadlineMs);
   return {
     signal: controller.signal,
     dispose: (): void => {
-      clearTimeout(timer);
+      cancelTimer();
       detach();
     },
   };

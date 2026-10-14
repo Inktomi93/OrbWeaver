@@ -9,7 +9,6 @@ import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { RpgCardCorpus } from "#domain/chat";
 import { logger } from "#foundation/observability";
@@ -18,6 +17,7 @@ import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 import { hasStructuredWriter } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
+import { createExtractionMints } from "../mints.ts";
 import { extractStructured, isUnresolvable, roomWindowed } from "./round-connection.ts";
 import { logExtractionOutcome, safeJson } from "./round-log.ts";
 
@@ -159,12 +159,10 @@ export function buildRunPopulateExtraction(deps: RpgRoundsDeps): RpgContext["run
       );
     }
     const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(
-      baseState,
-      extraction,
-      { item: () => newId(), quest: () => newId(), objective: () => newId() },
-      { participantIndex, trackerDefs: game?.config.trackers ?? [] },
-    );
+    const delta = extractionToStateDelta(baseState, extraction, createExtractionMints(deps.idSource), {
+      participantIndex,
+      trackerDefs: game?.config.trackers ?? [],
+    });
     logExtractionOutcome({
       chatId,
       model: conn.model,

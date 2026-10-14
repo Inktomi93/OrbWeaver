@@ -6,7 +6,9 @@ import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
 import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
 import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { ScheduleOp } from "@orb/kit/time";
 import { and, eq } from "drizzle-orm";
+import { systemTimers } from "#infra/timers";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
@@ -14,7 +16,7 @@ import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration, 
 import { markGenerationComplete, switchTargetGeneration } from "../persistence/space-state.ts";
 import { resolveImageSpace } from "./task-model.ts";
 
-type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved">;
+type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved" | "scheduleTimeout">;
 
 /** Record one scope of `generation` complete for its owner, and announce the promotion when this completion made it. */
 export async function completeGenerationScope(
@@ -75,9 +77,14 @@ export const LOCAL_ENCODER_PROBE_TIMEOUT_MS = 600_000;
  *  attempt. A remote embedder gets the row's embed request deadline ({@link embedRequestTimeoutMs}): a host that is
  *  down already failed its connect, and one that answered may be loading its model, which a first embed waits for.
  *  The in-process encoder gets {@link LOCAL_ENCODER_PROBE_TIMEOUT_MS}, since its cold load is not a sign it is gone. */
-export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: GenerationTask, dims: number): Promise<void> {
+export async function probeWidth(
+  connection: EmbeddingConnectionSnapshot,
+  via: GenerationTask,
+  dims: number,
+  scheduleTimeout: ScheduleOp = systemTimers.timeout,
+): Promise<void> {
   const bound = new AbortController();
-  const timer = setTimeout(
+  const cancelTimer = scheduleTimeout(
     () => bound.abort(),
     connection.wire === "local-light" ? LOCAL_ENCODER_PROBE_TIMEOUT_MS : embedRequestTimeoutMs(connection.features),
   );
@@ -85,7 +92,7 @@ export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: G
   const result = await (via === "embed"
     ? connection.embed(WIDTH_PROBE_TEXT, opts)
     : connection.imageEmbed({ kind: "text", input: WIDTH_PROBE_TEXT }, opts)
-  ).finally(() => clearTimeout(timer));
+  ).finally(cancelTimer);
   const vector = result.vectors[0];
   if (vector === null || vector === undefined) {
     throw new EmbedFailedError("width probe", result.model);
@@ -214,7 +221,7 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven,
     // The owner's writes are serialized, so this resolve lands what the proof probed. Anything else (an endpoint's
     // facts re-read in between) is probed here: no purge happens on an unprobed width.
     if (proven !== id) {
-      await probeWidth(connection, via, dims);
+      await probeWidth(connection, via, dims, ctx.scheduleTimeout);
     }
     // The switch emptied the old index; whoever moved it owes the owner the sweep that refills it, whatever the
     // caller was (a write, a sweep, a sync after a re-point).

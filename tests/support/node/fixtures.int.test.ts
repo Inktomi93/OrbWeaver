@@ -1,5 +1,5 @@
-// support/fixtures — self-test for the caller fixtures over the REAL composed graph (createServices →
-// createContext → createCaller, the full middleware ladder). Pins the three-way doctrine the fixtures
+// support/fixtures — internal row-derived callers over the production graph and middleware ladder.
+// These are authority proofs, not HTTP login/cookie/session admission proofs. Pins the three-way doctrine the fixtures
 // encode (fixtures.ts header):
 //   • anon → UNAUTHORIZED on an authed surface (authedProcedure 401s auth:null).
 //   • cross-user read → NOT_FOUND, NEVER FORBIDDEN — "missing" and "not yours" collapse into one answer
@@ -10,6 +10,7 @@
 // Also proves the happy paths (owner round-trip; admin passes the gate) and that these callers ride the
 // REAL tRPC error mapping — the matchers see genuine ladder-thrown TRPCErrors, not ducks.
 
+import "./composed-real.ts";
 import { describe } from "vitest";
 import type { Fixtures } from "./fixtures.ts";
 import { expect, test } from "./fixtures.ts";
@@ -77,6 +78,19 @@ describe("the owner happy path", () => {
 const DRAFT_ENDPOINT = "https://models.example.invalid/v1";
 const DRAFT_PROVIDER = "custom-openai";
 
+const addressed = test.extend<Pick<Fixtures, "networkExecution">>({
+  networkExecution: async ({}, use): Promise<void> => {
+    await use({
+      resolver: (hostname): Promise<readonly string[]> => {
+        if (hostname !== new URL(DRAFT_ENDPOINT).hostname) {
+          return Promise.reject(new Error("unscripted draft-catalog address resolution"));
+        }
+        return Promise.resolve(["93.184.215.14"]);
+      },
+    });
+  },
+});
+
 describe("the composed graph's provider transport", () => {
   test("the default transport refuses, naming the request it would have made", async ({ providerFetch }) => {
     // Pinned at the fixture VALUE, not through the verb: the runtime scrubs a provider's error message
@@ -84,13 +98,13 @@ describe("the composed graph's provider transport", () => {
     await expect(providerFetch(`${DRAFT_ENDPOINT}/models`, { method: "GET" })).rejects.toThrow(/unscripted provider request \(GET /);
   });
 
-  test("an unscripted dial through the front door fails rather than reaching the network", async ({ ownerCaller }) => {
+  addressed("an unscripted dial through the front door fails rather than reaching the network", async ({ ownerCaller }) => {
     const result = await ownerCaller.connection.draftCatalogModels({ providerId: DRAFT_PROVIDER, baseUrl: DRAFT_ENDPOINT });
     expect(result).toStrictEqual({ listed: false, reason: "endpoint models: transport failure" });
   });
 });
 
-const scripted = test.extend<Pick<Fixtures, "providerFetch">>({
+const scripted = addressed.extend<Pick<Fixtures, "providerFetch">>({
   providerFetch: async ({}, use): Promise<void> => {
     const body = JSON.stringify({ data: [{ id: "scripted-model" }] });
     await use(() => Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "application/json" } })));

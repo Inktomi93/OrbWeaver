@@ -8,6 +8,7 @@
 import type { Can } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { AutomationService } from "#domain/automation";
 import { resolveChatRulePresetKnobs } from "#domain/automation";
@@ -21,6 +22,7 @@ import type { AuditEntry } from "#foundation/observability";
 import { minter } from "./minter.ts";
 
 interface RosterPresetComposeInput {
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
@@ -35,7 +37,7 @@ export function buildRosterPreset(input: RosterPresetComposeInput): RosterPreset
   const ctx: RosterPresetContext = {
     db,
     now,
-    newRosterPresetId: minter(ID_PREFIX.rosterPreset),
+    newRosterPresetId: minter(ID_PREFIX.rosterPreset, input.idSource),
     audit,
     emitUserEvent,
     // The owned subset of `characterIds` — the FK proves existence, never ownership, so the producer

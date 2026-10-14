@@ -36,7 +36,7 @@
 
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { subscribeNotifications } from "#src/transport/trpc/notifications-bus.ts";
+
 import type { RoomSourceDef } from "../room-source.ts";
 
 // @orb-waive no-vanity-alias(REPLAY_PAGE): baselined when the gate widened; burn-down item 906.
@@ -53,10 +53,10 @@ export const notificationsRoomSource: RoomSourceDef<"notifications"> = {
   // caller's own userId. The `user` room's posture, for the same reason.
   authorizeAttach: () => Promise.resolve(),
 
-  async *run({ principal, services, cursor, signal }): AsyncGenerator<StreamDataFrame> {
+  async *run({ principal, services, liveBuses, cursor, signal }): AsyncGenerator<StreamDataFrame> {
     const service = services.notifications;
     // Attach the live listener FIRST (`on()` buffers from this point) so the replay→live gap loses nothing.
-    const live = subscribeNotifications(principal.userId, signal);
+    const live = liveBuses.notifications.subscribeNotifications(principal.userId, signal);
     let maxSeq = cursor ?? 0;
 
     // THE WATERMARK NEVER PASSES A ROW THAT WAS NOT YIELDED, by construction (#1459). Every page is read

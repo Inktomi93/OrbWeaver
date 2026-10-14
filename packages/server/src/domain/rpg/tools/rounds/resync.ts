@@ -7,7 +7,7 @@ import type { Resolved } from "@orb/inference";
 import { carriesForcedToolRound, GenerationObservationPersistenceError, generationOf, toForcedToolRoundRequest } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { logger } from "#foundation/observability";
 import type { ExtractCtx, PromptInputs, RpgRoundsDeps, StructuredRound } from "#src/domain/rpg/contract/rounds.ts";
@@ -15,6 +15,7 @@ import type { RpgContext, RpgStateDelta } from "#src/domain/rpg/contract/service
 import { fallbackStateRound, hasStructuredWriter, hasToolWriter, primaryStateRound } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { stateRoundNeededTokens } from "#src/domain/rpg/substrate/state-round-fit.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
+import { createExtractionMints } from "../mints.ts";
 import { stateRoundRequestText } from "./delivery.ts";
 import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
 import { extractStructured, isUnresolvable, roomWindowed, withGenerationObservation } from "./round-connection.ts";
@@ -268,7 +269,12 @@ export function buildRunResyncExtraction(deps: RpgRoundsDeps): RpgContext["runRe
     }
     const userPrompt = fitted.userPrompt;
     const args = { chatId, conn, baseState, inputs, userPrompt };
-    const observed = withGenerationObservation(deps, { chatId, turnId: mintTypeId(ID_PREFIX.chatTurn), sourceMessageId: null, sourceVariantId: null });
+    const observed = withGenerationObservation(deps, {
+      chatId,
+      turnId: (deps.idSource ?? createIdSource()).typeId(ID_PREFIX.chatTurn),
+      sourceMessageId: null,
+      sourceVariantId: null,
+    });
     return toolRound ? await resyncViaToolRound(observed, args) : await resyncViaStructured(observed, args);
   };
 }
@@ -323,12 +329,7 @@ async function resyncViaStructured(
   }
   logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
   const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-  const delta = extractionToStateDelta(
-    baseState,
-    extraction,
-    { item: () => newId(), quest: () => newId(), objective: () => newId() },
-    { participantIndex, trackerDefs: inputs.config.trackers },
-  );
+  const delta = extractionToStateDelta(baseState, extraction, createExtractionMints(deps.idSource), { participantIndex, trackerDefs: inputs.config.trackers });
   logExtractionOutcome({
     chatId,
     model: conn.model,

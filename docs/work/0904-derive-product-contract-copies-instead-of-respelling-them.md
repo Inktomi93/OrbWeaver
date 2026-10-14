@@ -26,8 +26,8 @@ No @orb-waive marker naming this item remains for either gate in product code; e
 
 Security review of branch wt/agent-a90022c3a8927247c at 0ed29a23d2 against main at 4d7b00a6d4 rejects a whole-branch merge. Preserve coherent production schema and derivation changes on the current tree. Do not port legacy harness, fixture, or waiver-budget retrofits as deliverables.
 
-The branch still carries structural-copy and inline-wire-interface markers naming this item. Their reasons are not completion evidence. Derive discovery, embedding, and diagnostic read projections from database rows rather than unrelated wire payloads. Give the copied RPG handoff input and plugin worker input one shared legal home, then derive each consumer's subset.
+Current-tree salvage is frozen at `143c019c10`, based on `f4a25d17dd`. Independent security review confirms its production boundary changes. The complete owned delta includes canonical contracts, database projections, producers, consumers and explicit package doors. It excludes inherited harness ancestry and preserves integrated funding and owner-bearing connection reads.
 
-The retained branch remains recovery material, not a verified implementation. Its completed reports cover selected files and suites only. Reconcile producer, schema, router, and consumer changes with current package exports before proposing a salvage commit.
+Each original marker has a mapped source decision. The candidate production census contains no markers naming this item; that census does not establish integrated acceptance. Affected production compiler configs, scoped lint and formatting pass. Shared-reader JSON and wire checks report no findings, errors or withheld results; unchanged budgets remain red.
 
-The assigned recovery batch owns the current production marker population and coupled contracts, producers and consumers. Preserve shared reader and active runtime boundaries; source work precedes the main-scheduled affected floor. Auth prerequisite completion does not establish this item's acceptance.
+The coherent harness and canonical asset builders remain integration prerequisites. Main owns the combined-tree acceptance and landing; the reviewed source commit does not close this item by itself.

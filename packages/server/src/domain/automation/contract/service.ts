@@ -10,6 +10,8 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId } from "@orb/kit/ids";
+import type { SerialLanes } from "@orb/kit/serial-lanes";
+import type { superviseDetached } from "#foundation/observability";
 import type {
   ApplyProseRewrite,
   ArmDispatch,
@@ -57,6 +59,7 @@ import type { ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, Str
  *  template render passes to `{{random}}`/`{{roll}}` (test-determinism gate); `can` is the ONE authority
  *  seam (D17 — automation never compares `role === 'host'` itself). */
 export interface AutomationContext {
+  readonly serialLanes: SerialLanes;
   readonly db: Db;
   readonly now: () => number;
   readonly prng: () => number;
@@ -68,8 +71,7 @@ export interface AutomationContext {
   /** The injected cross-feature READ ops (chat projections) the fact resolver + CEL env consume. */
   readonly ops: AutomationOps;
   readonly listRuleTools: ListRuleTools;
-  /** The arm dispatcher seam — the injected `runArm` the dispatch invokes per matched
-   *  arm. A not-yet-filled default records `action_error` for every arm until the real switch is wired. */
+  /** The service-owned arm dispatcher shares this context's ordering engine. */
   readonly runArm: ArmDispatch;
   /** The in-process pre-check index — maintained by the enable/disable/delete/trigger-change verbs. */
   readonly enabled: EnabledRuleIndex;
@@ -106,6 +108,9 @@ export interface AutomationContext {
    *  the event to the chat's `automation.stream` subscribers (member-visible chips + host-only fire/error). */
   readonly notify: EmitAutomationEvent;
 }
+
+/** Service inputs exclude the two owner-built runtime operations. */
+export type AutomationServiceDeps = Omit<AutomationContext, "runArm" | "serialLanes">;
 
 /** The automation surface. The global-variable slice is owner-scoped on `principal.userId`; the
  *  rule-lifecycle slice gates host authority over the chat's membership. */
@@ -198,6 +203,7 @@ export interface AutomationService {
 /** The injected event sources + the service front door the watcher subsystem consumes (assembled at
  *  entry/compose — the buddy-observer / agents-scheduler env precedent). */
 export interface AutomationWatcherEnv {
+  readonly supervise?: typeof superviseDetached;
   /** The per-chat firehose subscription (the buddy/agents `subscribeAllChatEvents` seam); returns unsubscribe. */
   readonly onChatEvent: (handler: (event: ChatBusEvent) => void) => () => void;
   /** The domain-event bus subscription (wired at entry/compose/event-bus.ts, D38); returns unsubscribe. */

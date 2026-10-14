@@ -4,10 +4,9 @@
 // Middleware order: ingress IP-allowlist runs first, then the Host allowlist, then the auth seam resolves the
 // Principal EXACTLY ONCE per request onto the context — nothing downstream re-resolves identity.
 
-import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
+import type { Principal, RelayStatus } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
-import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
@@ -30,13 +29,15 @@ import { allowedHostsInput, env, resolveAllowedHosts } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
-import type { AllowedHostsReader } from "#infra/auth";
+import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
 import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, ownerFallbackAllowed, requestTransport } from "#infra/auth";
-import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
+import type { PhysicalPeerRead } from "#infra/network";
+import { clientIp, createPhysicalPeerMiddleware, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
+import type { LiveBuses } from "#transport/trpc";
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter, createContext } from "../transport/trpc/index.ts";
 import type { AuthSeam } from "./auth/index.ts";
-import { readSessionCookie } from "./auth/index.ts";
+import { createMultiHumanCapability, readSessionCookie } from "./auth/index.ts";
 import type {
   AuthSessionsPort,
   BlobAssetsPort,
@@ -181,6 +182,11 @@ type AppEnv = PrincipalEnv;
  * Everything `createApp` needs, all built upstream by `lifecycle.ts`.
  */
 export interface AppDeps {
+  readonly physicalPeer?: PhysicalPeerRead;
+  readonly liveBuses: LiveBuses;
+  readonly importStagingDir?: string;
+  readonly authConfig?: Pick<AuthConfig, "mode" | "defaultHandle">;
+  readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
   readonly now: () => number;
   readonly db: Db;
   readonly seam: AuthSeam;
@@ -241,19 +247,11 @@ export interface AppDeps {
   readonly oidc?: OidcRoutesDeps;
 }
 
-// Can ≥2 humans authenticate on this deployment? Resolved per-request since the local arm reads a runtime
-// AppSetting (cannot be a frozen boot constant). Mapped Record over AuthMode so a new mode fails tsc.
-const MULTI_HUMAN_CAPABLE: Record<AuthMode, (cfg: EffectiveAppConfig) => boolean> = {
-  "single-user": () => false,
-  local: (cfg) => cfg.localMultiUser,
-  "forward-header": () => true,
-  oidc: () => true,
-};
-
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
+  const authMode = deps.authConfig?.mode ?? env.AUTH_MODE;
 
-  const multiHumanCapable = (): boolean => MULTI_HUMAN_CAPABLE[env.AUTH_MODE](deps.services.settings.getEffectiveConfig());
+  const multiHumanCapable = deps.multiHumanCapable ?? createMultiHumanCapability(authMode, () => deps.services.settings.getEffectiveConfig());
   // One live read for the sign-in page and the signed-out invite previews, which both keep login handles off the page.
   const discreetLogin = (): boolean => deps.services.settings.getEffectiveConfig().discreetLogin;
 
@@ -287,6 +285,8 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // the outer one a no-op for anything below it. The outer one still covers what sits BETWEEN them: the IP
   // allowlist and the principal-resolution middleware — the auth-infrastructure fault class of #1479.
   app.use("*", normalizeThrownErrors());
+
+  app.use("*", createPhysicalPeerMiddleware(deps.physicalPeer));
 
   const allowlist = parseAllowlist(env.IP_ALLOWLIST);
   if (allowlist.length > 0) {
@@ -360,13 +360,14 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       maxBatchSize: TRPC_BATCH_MAX_ITEMS,
       createContext: () =>
         createContext({
+          liveBuses: deps.liveBuses,
           auth: c.get("principal"),
           sessionId: c.get("sessionId"),
           services: deps.services,
           rateLimit: deps.rateLimit,
           presence: deps.presence,
           sockets: deps.sockets,
-          multiHumanCapable: MULTI_HUMAN_CAPABLE[env.AUTH_MODE](deps.services.settings.getEffectiveConfig()),
+          multiHumanCapable: multiHumanCapable(),
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c),
         }),
@@ -435,15 +436,16 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
   });
   registerExport(app, { export: deps.exportService, registry: deps.portability });
-  registerImportBundle(app, { workloads: deps.services.workloads, stagingDir: env.IMPORT_STAGING_DIR });
+  registerImportBundle(app, { workloads: deps.services.workloads, stagingDir: deps.importStagingDir ?? env.IMPORT_STAGING_DIR });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
   registerImportTree(app, {
     workloads: deps.services.workloads,
     persona: deps.services.persona,
     registry: deps.portability,
-    stagingDir: env.IMPORT_STAGING_DIR,
+    stagingDir: deps.importStagingDir ?? env.IMPORT_STAGING_DIR,
   });
   registerAuthRoutes(plain, {
+    emitUserEvent: deps.liveBuses.user.publishUserEvent,
     sessions: deps.sessions,
     // W7a — ending a session ends the streams it opened. The registry is transport's; the EDGE composes here,
     // because `domain/sessions` may not import transport (one-directional flow) and entry holds both halves.
@@ -459,8 +461,8 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     ...(deps.oidc !== undefined ? { oidc: deps.oidc } : {}),
   });
   registerAuthMeta(app, {
-    mode: env.AUTH_MODE,
-    defaultHandle: env.DEFAULT_USER_HANDLE,
+    mode: authMode,
+    defaultHandle: deps.authConfig?.defaultHandle ?? env.DEFAULT_USER_HANDLE,
     oidcProviderName: deps.oidcProviderName,
     ...(deps.localFirstRun !== undefined ? { localFirstRun: deps.localFirstRun } : {}),
     discreetLogin,

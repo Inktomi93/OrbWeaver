@@ -214,7 +214,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   logSessionDecision(req.chatId, resume, disposition, log);
 
   const stderrTail = new StderrTail();
-  const abort = turnAbortOf(req);
+  using abort = turnAbortOf(req, deps.scheduleIdleTimeout);
   const chatId = req.chatId;
   const terminal = terminalToolOptions(req.terminalTools ?? [], gen.turnId, log);
   const structured = sdkOutputFormatOf(connection, req.responseFormat, `agent-sdk chat (${connection.model})`);
@@ -273,15 +273,20 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
 /** The abort a turn's subprocess takes, and the frames the turn reads. A side-generation item often has no caller
  *  signal and nothing else waits on it, so a wedged subprocess would pin its batch forever: it takes the same idle
  *  ceiling the HTTP wires use. */
-function turnAbortOf(req: AgentSdkChatRequest): {
+function turnAbortOf(
+  req: AgentSdkChatRequest,
+  scheduleIdleTimeout: AgentSdkDeps["scheduleIdleTimeout"],
+): {
   readonly options: Pick<Options, "abortController">;
   readonly bound: (stream: AsyncIterable<SDKMessage>) => AsyncIterable<SDKMessage>;
+  readonly [Symbol.dispose]: () => void;
 } {
-  const idle = req.posture === "side-gen" ? turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs) : undefined;
+  const idle = req.posture === "side-gen" ? turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs, scheduleIdleTimeout) : undefined;
   const signal = idle?.signal ?? req.signal;
   return {
     options: signal !== undefined ? { abortController: linkAbort(signal) } : {},
     bound: (stream) => (idle !== undefined ? idleBounded(stream, idle, req.connection.model) : stream),
+    [Symbol.dispose]: (): void => idle?.dispose(),
   };
 }
 

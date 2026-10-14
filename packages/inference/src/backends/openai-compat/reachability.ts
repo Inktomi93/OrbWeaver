@@ -4,12 +4,12 @@
 // `wakePath` once per server and polls until it answers awake — nothing here knows the word vLLM. The `up | down` cache is per
 // base URL with a short TTL so a burst of availability reads (every composer render) shares one probe.
 
-import { setTimeout as sleep } from "node:timers/promises";
-import type { Reachability } from "#contract";
+import type { Reachability, ScheduleTimeout } from "#contract";
 import { ProviderError } from "#contract";
 import { deadlineSignal } from "../http/abort-flatten.ts";
 import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../http/sanitize.ts";
+import { waitForTimeout } from "../http/timers.ts";
 
 const PROBE_TTL_MS = 10_000;
 const WAKE_POLL_MS = 1000;
@@ -17,6 +17,7 @@ const WAKE_TIMEOUT_MS = 120_000;
 
 // @orb-waive no-inline-package-interface(ReachabilityDeps): baselined when the gate landed; burn-down item 952.
 export interface ReachabilityDeps {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly fetch: typeof fetch;
   readonly now: () => number;
 }
@@ -64,7 +65,7 @@ async function readJson(
   { url, label }: { readonly url: string; readonly label: string },
   signal: AbortSignal | undefined,
 ): Promise<unknown> {
-  const read = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS);
+  const read = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS, deps.scheduleTimeout);
   try {
     const answer = await fetchJson({
       fetch: deps.fetch,
@@ -196,7 +197,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
 
   const wakeOnce = async (target: SleepTarget, signal: AbortSignal): Promise<boolean> => {
     invalidate(target.baseUrl);
-    const post = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS);
+    const post = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS, deps.scheduleTimeout);
     // @orb-waive caught-failure-ownership(fetch): wake POST failure falls through to the bounded probe loop, whose final false is the wake verdict. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the following loop stops deciding success or timeout.
     await deps
       .fetch(sleepUrl(target.baseUrl, target.wakePath), {
@@ -217,7 +218,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
       if (state === "up") {
         return true;
       }
-      await sleep(WAKE_POLL_MS, undefined, { signal }).catch((err: unknown) => {
+      await waitForTimeout(WAKE_POLL_MS, signal, deps.scheduleTimeout).catch((err: unknown) => {
         throw wakeAborted(err);
       });
     }

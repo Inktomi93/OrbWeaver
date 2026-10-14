@@ -7,8 +7,8 @@
 
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
-import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import { seedCharacter } from "./character.ts";
@@ -31,12 +31,12 @@ export interface SeededChat extends ChatRow {
   readonly characterId?: CharacterId;
 }
 
-const ids = createSeededIds();
+const ids = createIdSource(createSeededIds().next);
 
 /** Pure builder: a fully-valid bare room row (no memberships — D18 makes that legal). */
-export function makeChat(overrides: Partial<ChatRow> = {}): ChatRow {
+export function makeChat(overrides: Partial<ChatRow> = {}, source: IdSource = ids): ChatRow {
   return {
-    id: castId<ChatId>(ids.next("chat")),
+    id: source.typeId(ID_PREFIX.chat),
     title: null,
     starred: false,
     archived: false,
@@ -67,17 +67,18 @@ export function makeChat(overrides: Partial<ChatRow> = {}): ChatRow {
 }
 
 /** `makeChat` then insert; `withHost`/`withCharacter` opt into roster rows (see the header). */
-export async function seedChat(db: Db, overrides: SeedChatOptions = {}): Promise<SeededChat> {
+export async function seedChat(db: Db, overrides: SeedChatOptions = {}, source?: IdSource): Promise<SeededChat> {
   const { withHost, withCharacter, ...rowOverrides } = overrides;
-  const row = makeChat(rowOverrides);
+  const sequence = source ?? ids;
+  const row = makeChat(rowOverrides, sequence);
   await db.insert(chats).values(row);
 
   let hostUserId: UserId | undefined;
   if (withHost === true) {
-    const host = await seedUser(db);
+    const host = await seedUser(db, {}, source);
     hostUserId = host.id;
     await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>(ids.next("chat_participant")),
+      id: sequence.typeId(ID_PREFIX.chatParticipant),
       chatId: row.id,
       kind: "human",
       userId: host.id,
@@ -89,10 +90,10 @@ export async function seedChat(db: Db, overrides: SeedChatOptions = {}): Promise
 
   let characterId: CharacterId | undefined;
   if (withCharacter === true) {
-    const character = await seedCharacter(db);
+    const character = await seedCharacter(db, {}, source);
     characterId = character.id;
     await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>(ids.next("chat_participant")),
+      id: sequence.typeId(ID_PREFIX.chatParticipant),
       chatId: row.id,
       kind: "character",
       characterId: character.id,

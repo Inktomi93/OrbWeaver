@@ -34,6 +34,14 @@ export interface PluginLifecycleLanes {
   readonly run: <T>(pluginId: PluginId, job: () => Promise<T>) => Promise<T>;
 }
 
+/** The service owns queued lifecycle jobs until their durable and resident effects finish. */
+export interface OwnedPluginLifecycleLanes extends PluginLifecycleLanes, AsyncDisposable {}
+
+/** Invocation ownership includes the domain accounting that follows guest execution. */
+export interface PluginInvocationWork extends AsyncDisposable {
+  readonly run: <T>(job: () => Promise<T>) => Promise<T>;
+}
+
 /** The per-handler invoker activation closes over: run the guest callback `handler` with JSON-encoded args
  *  under the invocation budget (the port's `invoke`, curried over the resident instance). `chat` sets the
  *  handler's invocation-chat scope — a resident tool runs in the chat it was called from, with the caller's

@@ -39,13 +39,16 @@ export interface WarmRuntimeLease {
  * may be retired without invalidating its catalog or any host registrar callback. Requests are admitted FIFO;
  * when the pool is full, the least-recently-used unpinned runtime is retired before the head request proceeds.
  */
-export class WarmRuntimePool<T extends object> {
+export class WarmRuntimePool<T extends object> implements AsyncDisposable {
   private readonly entries = new Map<T, PoolEntry>();
   private readonly cancelled = new WeakMap<T, Error>();
   private readonly requests: PoolRequest<T>[] = [];
   private drainChain: Promise<void> = Promise.resolve();
   private retiring = 0;
   private useOrder = 0;
+  private closed = false;
+  private readonly pendingRetirements = new Set<Promise<void>>();
+  private readonly retirementFailures: Error[] = [];
   private readonly maximum: number;
   private readonly retire: (target: T) => Promise<void>;
   private readonly requestMaximum: number;
@@ -63,6 +66,9 @@ export class WarmRuntimePool<T extends object> {
   }
 
   acquire(target: T, options: WarmRuntimeAcquireOptions = {}): Promise<WarmRuntimeLease> {
+    if (this.closed) {
+      return Promise.reject(new Error("plugin host: runtime pool is closed"));
+    }
     const cancelled = this.cancelled.get(target);
     if (cancelled !== undefined) {
       return Promise.reject(cancelled);
@@ -205,13 +211,20 @@ export class WarmRuntimePool<T extends object> {
 
   private retireCancelled(target: T): void {
     // @orb-waive caught-failure-ownership(this.retire): failed terminal retirement cancels the target with the same error and releases the capacity reservation. Ends if acquire can proceed for the target.
-    this.retire(target).then(
-      () => this.finishRetirement(),
-      (error: unknown) => {
-        this.cancelled.set(target, error instanceof Error ? error : new Error("plugin host: failed to retire a removed runtime"));
-        this.finishRetirement();
-      },
-    );
+    const retirement = this.retire(target)
+      .then(
+        () => this.finishRetirement(),
+        (error: unknown) => {
+          const failure = error instanceof Error ? error : new Error("plugin host: failed to retire a removed runtime");
+          this.cancelled.set(target, failure);
+          this.retirementFailures.push(failure);
+          this.finishRetirement();
+        },
+      )
+      .finally(() => {
+        this.pendingRetirements.delete(retirement);
+      });
+    this.pendingRetirements.add(retirement);
   }
 
   private finishRetirement(): void {
@@ -265,6 +278,7 @@ export class WarmRuntimePool<T extends object> {
     try {
       await this.retire(candidate);
     } catch (error) {
+      // biome-ignore lint/nursery/useDisposables: this catch shares and propagates a rejection without acquiring its ownership; local using would dispose another operation's fault.
       const failure = error instanceof Error ? error : new Error("plugin host: failed to retire an idle runtime");
       this.cancelled.set(candidate, failure);
       if (this.requests[0] === request) {
@@ -276,5 +290,23 @@ export class WarmRuntimePool<T extends object> {
       this.retiring -= 1;
     }
     return true;
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    this.closed = true;
+    const failure = new Error("plugin host: runtime pool is closing");
+    for (const request of this.requests.splice(0)) {
+      request.reject(failure);
+    }
+    for (const target of this.entries.keys()) {
+      this.remove(target, failure);
+    }
+    await this.drainChain;
+    while (this.pendingRetirements.size > 0) {
+      await Promise.all([...this.pendingRetirements]);
+    }
+    if (this.retirementFailures.length > 0) {
+      throw new AggregateError(this.retirementFailures, "plugin host: physical runtime retirement failed");
+    }
   }
 }

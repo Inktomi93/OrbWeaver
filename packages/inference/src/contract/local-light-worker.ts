@@ -56,6 +56,7 @@ export type LocalLightWorkerMessage =
 
 /** What the worker is started with: the model-cache config minus the host-side callbacks. */
 export interface LocalLightWorkerOptions {
+  readonly kernelModule?: string | undefined;
   readonly cpuPercent?: LocalLightCpuPercent | undefined;
   readonly device?: string | undefined;
   readonly embedDtype?: string | undefined;

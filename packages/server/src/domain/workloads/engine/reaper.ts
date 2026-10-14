@@ -41,7 +41,7 @@ export async function reapOrphanedWorkloads(args: ReapWorkloadsArgs): Promise<nu
       });
       if (moved) {
         const error: WorkloadError = { kind: "worker_died", message };
-        emitWorkloadEvent({
+        (args.emitEvent ?? emitWorkloadEvent)({
           type: "failed",
           workloadId: row.id,
           kind: row.kind,

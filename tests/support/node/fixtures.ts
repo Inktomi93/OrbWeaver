@@ -1,63 +1,22 @@
-// The composed test (docs/law/Spine-Testing.md §4) — `test.extend` over beforeEach. Import `test`/`expect`
-// from HERE, never vitest (gate: test-fixture-imports). Fixtures are lazy — a fixture only constructs if
-// a test destructures it:
-//   clock / ids     — the determinism seams (frozen clock + seeded ids).
-//   db              — fresh migrated libSQL `:memory:` (support/db freshDb).
-//   app             — the REAL composition root over `db` (`createServices`: frozen clock, vLLM disabled,
-//                     a SecretBox keyed by `secretBoxKey`, temp CAS/variant/import-staging dirs). The fixture IS
-//                     the composed production wiring — tests exercise the real injection graph, not a
-//                     parallel test-only assembly (Spine-Testing esoterica).
-//   secretBoxKey    — the CREDENTIALS_KEY `app` composes with. Defaults to `null` (credential storage off);
-//                     a suite that must reach a verb behind the storage guard overrides it with a key.
-//   services        — `app.services` (the transport `Services` bundle), for direct front-door calls.
-//   importStagingDir — the temp upload staging root `app` is composed over. A test that builds an upload
-//                     route passes it as `stagingDir`, so the route and the import workload agree and
-//                     nothing stages under the repo's `data/cache/import-staging` default.
-//   providerFetch   — the transport the composed inference runtime issues EVERY provider request on.
-//                     Defaults to a REFUSING fake: an unscripted provider call fails loudly instead of
-//                     silently reaching whatever happens to be listening on this box. Override it in a
-//                     suite that needs a scripted wire (see the `providerFetch` fixture below).
-//   ownerCaller     — tRPC caller as the box OWNER (role 'owner' — the owner∪admin apex, D17).
-//   adminCaller     — a SEPARATE delegated admin (role 'admin') — distinct from the owner so
-//                     admin-vs-owner gates can be exercised.
-//   otherCaller     — a separate plain user (role 'user'). Use for cross-user isolation tests.
-//   anonCaller      — auth:null. NOT a user — models the unauthenticated request; authedProcedure 401s it.
-//
-// Doctrine the callers encode (assert with `toThrowTRPCError`, registered below):
-//   • cross-user reads: `otherCaller` gets NOT_FOUND on someone else's entity — NEVER FORBIDDEN (a 403
-//     would be an existence oracle; the domains collapse "missing" and "not yours" into one answer).
-//   • admin-gated surfaces hit by a non-admin: FORBIDDEN (the caller exists; the action is gated).
-//   • anonymous requests to authed surfaces: UNAUTHORIZED.
-// Callers auth `via: "header"` — no cookie surface, so the CSRF gate is inert (mutations flow without
-// the header; the CSRF path gets its own targeted tests at the transport mirror).
-
-// RUNTIME-LIGHT ON PURPOSE: every test file imports this barrel, so its static runtime imports stay
-// tiny (vitest + clock/ids + the light matchers). The heavy modules — `./db.ts` (drizzle-kit's
-// programmatic API), `@orb/server/entry/compose` + `transport/trpc` (the whole server graph, including
-// the throw-on-misconfig `foundation/env` parse-at-load), the factories (`@orb/db` schema) — are
-// dynamic-imported INSIDE the fixture bodies: fixture laziness defers construction, but only a dynamic
-// import defers the module graph, and a kit/ui/client unit test must not pay (or crash on) the server
-// env parse. Server/db types ride in `import type` (erased).
-//
-// THE COST OF THAT LAZINESS IS CHARGED TO THE FIRST TEST THAT USES THE FIXTURE (vitest counts fixture
-// setup inside `testTimeout`), and the server graph is seconds — so a COMPOSED-REAL file states the load
-// once, in its own import list, with `import "@orb/testkit/node/composed-real.ts";` (#2386). That module owns the
-// measurement, the rejected alternatives, and the list of graphs to keep in sync with the fixtures below.
+// Lazy Node fixtures delegate server construction to the single production harness.
+// Caller fixtures use row-derived internal authority; HTTP login/session resolution proves request admission.
+// Runtime imports stay lazy so pure tests do not load the server environment or composition graph.
 
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import type { createCaller, RateLimitGate, Services } from "@orb/server/transport/trpc";
+import type { createCaller, Services } from "@orb/server/transport/trpc";
 import { test as base } from "vitest";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
 import { createSeededIds } from "../iso/ids.ts";
+import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 // Side-effect: register the custom matchers (toThrowTRPCError / toThrowProviderError) + their types.
 import "./matchers.ts";
 
@@ -65,10 +24,16 @@ import "./matchers.ts";
 export type AppCaller = ReturnType<typeof createCaller>;
 
 export interface Fixtures {
+  harness: ServerTestHarness;
   clock: Clock;
   ids: SeededIds;
   db: Db;
   providerFetch: typeof fetch;
+  networkExecution: ServerHarnessOptions["networkExecution"];
+  authConfig: ServerHarnessOptions["authConfig"];
+  sdkQuery: ServerHarnessOptions["sdkQuery"];
+  sdkSpawn: ServerHarnessOptions["sdkSpawn"];
+  runtimeSpan: ServerHarnessOptions["runtimeSpan"];
   secretBoxKey: Buffer | null;
   importStagingDir: string;
   app: ServicesResult;
@@ -84,9 +49,6 @@ export interface Fixtures {
 export const OWNER_USER_ID = castId<UserId>("user_fixture_owner");
 export const ADMIN_USER_ID = castId<UserId>("user_fixture_admin");
 export const OTHER_USER_ID = castId<UserId>("user_fixture_other");
-
-// ≥32 chars (the env floor for session-derived keys); FIXED so assertions stay deterministic.
-const TEST_SESSION_SECRET = "test-session-secret-at-least-32-chars";
 
 function urlOf(input: Parameters<typeof fetch>[0]): string {
   if (typeof input === "string") {
@@ -123,38 +85,13 @@ function refusingFetch(): typeof fetch {
   };
 }
 
-// No-op rate-limit gate: integration tests through these callers must not throttle as a side effect of
-// the ladder; the rate-limit primitive has its own slice test (tests/legacy/server/transport/rate-limit).
-const ALLOW_ALL_RATE_LIMIT: RateLimitGate = { enforce: (): Promise<void> => Promise.resolve() };
-
-/** Seed the caller's `users` row (the FK target for everything it creates) and build its Principal. */
-async function seedCallerPrincipal(db: Db, spec: { readonly id: UserId; readonly handle: Handle; readonly role: UserRole }): Promise<Principal> {
-  const { seedUser } = await import("./factories/user.ts");
-  const handle = castId<Handle>(spec.handle);
-  await seedUser(db, { id: spec.id, handle, role: spec.role });
-  return { userId: spec.id, role: spec.role, handle, externalId: null, via: "header" };
-}
-
-/** A caller over the composed graph — the REAL ladder + routers, no HTTP (createCaller is the
- *  sanctioned tRPC seam). `presence` + `sockets` are the app's OWN registries so ctx and the domain share
- *  one instance each (the cross-tenant sweep probes `stream.attach` through this caller). */
-async function callerFor(app: ServicesResult, auth: Principal | null): Promise<AppCaller> {
-  const transport = await import("@orb/server/transport/trpc");
-  return transport.createCaller(
-    transport.createContext({
-      auth,
-      // No cookie session on a hand-built context: the session identity's ONE consumer is the socket
-      // cell's stamp (W7a), and a suite that needs it passes an explicit id through the registry.
-      sessionId: null,
-      services: app.services,
-      rateLimit: ALLOW_ALL_RATE_LIMIT,
-      presence: app.presence,
-      sockets: app.sockets,
-      multiHumanCapable: true,
-      csrfHeaderPresent: false,
-      clientIp: "127.0.0.1",
-    }),
-  );
+// These callers exercise internal row-derived authority, not cookie/session authentication admission.
+async function seedInternalCaller(
+  harness: ServerTestHarness,
+  spec: { readonly id: UserId; readonly handle: Handle; readonly role: UserRole },
+): Promise<AppCaller> {
+  const row = await harness.actor(spec);
+  return await harness.internalCallerFor(row.id);
 }
 
 // `({}, use)` is the vitest fixture idiom — the 1st arg MUST be an object-destructuring pattern (else
@@ -169,69 +106,95 @@ export const test = base.extend<Fixtures>({
   },
   db: async ({}, use): Promise<void> => {
     const { freshDb } = await import("./db.ts");
-    await use(await freshDb());
+    const { closeDb } = await import("@orb/db");
+    await using lifetime = new AsyncDisposableStack();
+    const db = await freshDb();
+    lifetime.defer(() => closeDb(db));
+    await use(db);
   },
   providerFetch: async ({}, use): Promise<void> => {
     await use(refusingFetch());
+  },
+  networkExecution: async ({}, use): Promise<void> => {
+    await use(undefined);
+  },
+  authConfig: async ({}, use): Promise<void> => {
+    await use(undefined);
+  },
+  sdkQuery: async ({}, use): Promise<void> => {
+    await use(undefined);
+  },
+  sdkSpawn: async ({}, use): Promise<void> => {
+    await use(undefined);
+  },
+  runtimeSpan: async ({}, use): Promise<void> => {
+    await use(undefined);
   },
   secretBoxKey: async ({}, use): Promise<void> => {
     await use(null);
   },
   importStagingDir: async ({}, use): Promise<void> => {
+    await using lifetime = new AsyncDisposableStack();
     const dir = await mkdtemp(join(tmpdir(), "orb-fixture-staging-"));
+    lifetime.defer(() => rm(dir, { recursive: true, force: true }));
     await use(dir);
-    await rm(dir, { recursive: true, force: true });
   },
-  app: async ({ db, clock, providerFetch, secretBoxKey, importStagingDir }, use): Promise<void> => {
-    const { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
-    const casDir = await mkdtemp(join(tmpdir(), "orb-fixture-cas-"));
-    const variantDir = await mkdtemp(join(tmpdir(), "orb-fixture-var-"));
-    const result = await createServices({
-      serverRestart: UNSUPERVISED_RESTART,
-      share: NO_SHARE_RELAY,
+  harness: async (
+    { db, clock, ids, providerFetch, networkExecution, authConfig, sdkQuery, sdkSpawn, runtimeSpan, secretBoxKey, importStagingDir },
+    use,
+  ): Promise<void> => {
+    const { createServerHarness } = await import("./server.ts");
+    await using harness = await createServerHarness({
       db,
-      now: (): number => clock.now(),
+      clock,
+      ids,
       ownerId: OWNER_USER_ID,
       secretBoxKey,
-      casDir,
-      variantDir,
       importStagingDir,
-      sessionSecret: TEST_SESSION_SECRET,
-      providerSeams: { sdkFetch: providerFetch },
+      providerFetch,
+      networkExecution,
+      ...(authConfig === undefined ? {} : { authConfig }),
+      ...(sdkQuery === undefined ? {} : { sdkQuery }),
+      ...(sdkSpawn === undefined ? {} : { sdkSpawn }),
+      ...(runtimeSpan === undefined ? {} : { runtimeSpan }),
     });
-    await use(result);
-    await rm(casDir, { recursive: true, force: true });
-    await rm(variantDir, { recursive: true, force: true });
+    await use(harness);
+  },
+  app: async ({ harness }, use): Promise<void> => {
+    await use(harness.app);
   },
   services: async ({ app }, use): Promise<void> => {
     await use(app.services);
   },
-  ownerCaller: async ({ db, app }, use): Promise<void> => {
-    const auth = await seedCallerPrincipal(db, {
-      id: OWNER_USER_ID,
-      handle: castId<Handle>("fixture-owner"),
-      role: "owner",
-    });
-    await use(await callerFor(app, auth));
+  ownerCaller: async ({ harness }, use): Promise<void> => {
+    await use(
+      await seedInternalCaller(harness, {
+        id: OWNER_USER_ID,
+        handle: castId<Handle>("fixture-owner"),
+        role: "owner",
+      }),
+    );
   },
-  adminCaller: async ({ db, app }, use): Promise<void> => {
-    const auth = await seedCallerPrincipal(db, {
-      id: ADMIN_USER_ID,
-      handle: castId<Handle>("fixture-admin"),
-      role: "admin",
-    });
-    await use(await callerFor(app, auth));
+  adminCaller: async ({ harness }, use): Promise<void> => {
+    await use(
+      await seedInternalCaller(harness, {
+        id: ADMIN_USER_ID,
+        handle: castId<Handle>("fixture-admin"),
+        role: "admin",
+      }),
+    );
   },
-  otherCaller: async ({ db, app }, use): Promise<void> => {
-    const auth = await seedCallerPrincipal(db, {
-      id: OTHER_USER_ID,
-      handle: castId<Handle>("fixture-other"),
-      role: "user",
-    });
-    await use(await callerFor(app, auth));
+  otherCaller: async ({ harness }, use): Promise<void> => {
+    await use(
+      await seedInternalCaller(harness, {
+        id: OTHER_USER_ID,
+        handle: castId<Handle>("fixture-other"),
+        role: "user",
+      }),
+    );
   },
-  anonCaller: async ({ app }, use): Promise<void> => {
-    await use(await callerFor(app, null));
+  anonCaller: async ({ harness }, use): Promise<void> => {
+    await use(await harness.internalCallerFor(null));
   },
 });
 

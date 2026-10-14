@@ -8,7 +8,7 @@
 
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
 import type { ByModelOpts, LatencyScope, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
 import type { ReconcileStatsResult } from "./results.ts";
 import type {
@@ -28,6 +28,7 @@ import type {
 export interface StatsContext {
   db: Db;
   now: () => number;
+  readonly idSource?: IdSource | undefined;
 }
 
 export interface StatsService {
@@ -79,4 +80,5 @@ export interface StatsService {
 export interface StatsWorkloadDeps {
   readonly db: Db;
   readonly now: () => number;
+  readonly idSource?: IdSource | undefined;
 }

@@ -4,10 +4,10 @@ import { createServer, Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { connect } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
+import { drainHttpServer, HTTP_SERVER_TIMEOUTS, serveHttpServer } from "@orb/server/infra/network";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { drainHttpServer, HTTP_SERVER_TIMEOUTS, serveHttpServer } from "#server/entry/lifecycle.ts";
 
 const DRAIN_MS = 200;
 const SHORT_REQUEST_TIMEOUT_MS = 40;
@@ -82,13 +82,14 @@ describe("HTTP server timeout policy", () => {
     expect(result).toBe(adapterServer);
     expect(serveAdapter).toHaveBeenCalledExactlyOnceWith(
       {
-        fetch,
+        fetch: expect.any(Function),
         port: 0,
         overrideGlobalObjects: false,
         serverOptions: HTTP_SERVER_TIMEOUTS,
       },
       listeningListener,
     );
+    expect(serveAdapter.mock.calls[0]?.[0].fetch).not.toBe(fetch);
   });
 
   test("boot's default call forwards the chosen timeout values, not Node's implicit ones", () => {
@@ -109,6 +110,7 @@ describe("HTTP server timeout policy", () => {
     timeoutServer = serveHttpServer(
       {
         port: 0,
+        hostname: "127.0.0.1",
         fetch: () =>
           new Response(
             new ReadableStream<Uint8Array>({

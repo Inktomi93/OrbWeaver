@@ -15,6 +15,16 @@
 
 import { z } from "zod";
 
+/** Arm a timer and return cancellation of that exact window. */
+export type ScheduleOp = (fn: () => void, ms: number) => () => void;
+
+/** Scheduling capabilities, without a platform timer handle or ambient clock. */
+export interface TimerScheduler {
+  readonly timeout: ScheduleOp;
+  readonly timeoutUnref: ScheduleOp;
+  readonly interval: ScheduleOp;
+}
+
 // Values ≥ this are already milliseconds; smaller positive values are epoch seconds. (1e12 ms =
 // 2001; no real chat timestamp is before that, and 1e12 s would be year 33658 — unambiguous.)
 const MS_THRESHOLD = 1e12;

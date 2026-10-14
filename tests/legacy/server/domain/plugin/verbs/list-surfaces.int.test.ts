@@ -12,13 +12,14 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach } from "vitest";
 import type { PluginHandlerRef, PluginInstance } from "#server/domain/plugin/index.ts";
-import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
-// The real-runtime case below activates guests in the managed broker; reset it so a resident from one test
-// cannot pin capacity for the next (the seed-example-plugins suite's reset).
+let hostResources = new AsyncDisposableStack();
+
 afterEach(async () => {
-  await __terminateManagedPluginBrokerForTest();
+  const owned = hostResources;
+  hostResources = new AsyncDisposableStack();
+  await owned.disposeAsync();
 });
 
 /** A scripted resident instance carrying one settings surface (the `onAction` handle is opaque — listSurfaces
@@ -158,7 +159,9 @@ const SCRIPTED_ANCHORS_MAIN = `
 
 test("#0234: scripted page, dialog and tool-card surfaces list only while ui.surface is granted", async () => {
   const db = await freshDb();
-  const h = makePluginHarness(db, { port: createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "surface-id" }) });
+  const h = makePluginHarness(db, {
+    port: hostResources.use(createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "surface-id" })),
+  });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
   const bundle = (id: string): Uint8Array => makeBundle({ id, capabilities: ["ui.surface"], uiEntry: true }, SCRIPTED_ANCHORS_MAIN, "orb.ui(1);");
 

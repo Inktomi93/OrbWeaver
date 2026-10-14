@@ -3,24 +3,24 @@
 
 import { logger } from "#foundation/observability";
 import { publishRpgEvent } from "#src/domain/rpg/bus.ts";
-import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
+import type { RpgRoundObservers } from "#src/domain/rpg/contract/rounds.ts";
+import type { FlushBarrierScheduleTimeout } from "#src/domain/rpg/contract/service.ts";
 import type { RpgTraceSink } from "#src/domain/rpg/contract/trace.ts";
 import { createRpgFlushBarrier } from "#src/domain/rpg/flush-barrier.ts";
 
-type RpgRoundObservers = Pick<
-  RpgContext,
-  "emitBus" | "onStateRoundPath" | "onFoldBuildFailed" | "onStateRoundCancelled" | "onFlushSettled" | "onFlushDropped" | "flushBarrier"
->;
-
 /** The hooks, closed over the optional trace sink. Untraced, `emitBus` is `publishRpgEvent` verbatim. */
-export function createRpgRoundObservers(trace: RpgTraceSink | undefined): RpgRoundObservers {
+export function createRpgRoundObservers(
+  trace: RpgTraceSink | undefined,
+  scheduleTimeout?: FlushBarrierScheduleTimeout,
+  emitBus: RpgRoundObservers["emitBus"] = publishRpgEvent,
+): RpgRoundObservers {
   return {
     // The feature-root rpg bus emit (§4.9) — a verb/flush calls it after its durable write; fire-and-forget.
     // R-OBS taps it in passing: what the turn ANNOUNCED to the live panel is the other half of "did the write
     // reach the user", beside what it wrote.
     emitBus: (event): void => {
       trace?.({ phase: "bus", chatId: event.chatId, type: event.type });
-      publishRpgEvent(event);
+      emitBus(event);
     },
     // OBSERVABILITY (R1): which state-round PATH each flush resolved to. A `folded` game that quietly fell back
     // to the post-commit round still writes correct state — and silently pays the second call the fold exists
@@ -85,11 +85,15 @@ export function createRpgRoundObservers(trace: RpgTraceSink | undefined): RpgRou
     // The per-chat FLUSH BARRIER (the race fix): the next turn's gather awaits this chat's in-flight flush before
     // reading the state its reminder assembles from. A hung flush releases the barrier (bounded) + logs — the
     // turn proceeds on last-known state, never a deadlock.
-    flushBarrier: createRpgFlushBarrier((info) => {
-      logger.warn(
-        { event: "rpg.flush.barrier_timeout", chatId: info.chatId },
-        "rpg flush barrier timed out — the next turn proceeded on last-known state (a prior flush did not settle in time)",
-      );
-    }),
+    flushBarrier: createRpgFlushBarrier(
+      (info) => {
+        logger.warn(
+          { event: "rpg.flush.barrier_timeout", chatId: info.chatId },
+          "rpg flush barrier timed out — the next turn proceeded on last-known state (a prior flush did not settle in time)",
+        );
+      },
+      undefined,
+      scheduleTimeout,
+    ),
   };
 }

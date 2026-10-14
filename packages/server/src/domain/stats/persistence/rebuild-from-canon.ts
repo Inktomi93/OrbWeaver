@@ -23,8 +23,8 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
-import type { ModelId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { IdSource, ModelId, UserId } from "@orb/kit/ids";
+import { castId, createIdSource } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import type { Accums, CanonMessage, CharChatMeta, ChatMeta, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
@@ -62,11 +62,12 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
         ).map((r) => r.ownerId);
 
   const now = opts.now();
+  const idSource = opts.idSource ?? createIdSource();
   let totalChars = 0;
   let totalBuckets = 0;
   let totalModels = 0;
   for (const ownerId of owners) {
-    const built = await untilCanonStable(db, ownerId, opts.signal, () => computeOwner(db, ownerId, now));
+    const built = await untilCanonStable(db, ownerId, opts.signal, () => computeOwner(db, ownerId, now, idSource));
     totalChars += built.charCount;
     totalBuckets += built.bucketCount;
     totalModels += built.modelCount;
@@ -87,7 +88,7 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
  *  canon re-derives. A live write always lands both rows, so the predicate is idempotent — except for an owner
  *  whose only activity is that pre-ledger compaction spend, who re-runs an empty (cheap) rebuild each boot.
  *  Returns the owners rebuilt. */
-export async function reconcileOwnersMissingTimeline(db: Db, now: () => number): Promise<number> {
+export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, idSource: IdSource = createIdSource()): Promise<number> {
   const owners = await db.all<{ ownerId: string }>(sql`
     SELECT o.owner_id AS ownerId FROM owner_stats o
     WHERE (o.user_turns + o.assistant_turns + o.system_turns + o.chats > 0
@@ -97,7 +98,7 @@ export async function reconcileOwnersMissingTimeline(db: Db, now: () => number):
   `);
   const stamp = now();
   for (const { ownerId } of owners) {
-    await untilCanonStable(db, ownerId, undefined, () => computeOwnerTimeline(db, ownerId, stamp));
+    await untilCanonStable(db, ownerId, undefined, () => computeOwnerTimeline(db, ownerId, stamp, idSource));
   }
   return owners.length;
 }
@@ -361,9 +362,9 @@ async function foldOwnerCanon(db: Db, ownerId: string): Promise<{ a: Accums; met
 }
 
 /** Replace one owner's `daily_stats` timeline from canon, in one batch, leaving every other rollup as it is. */
-async function computeOwnerTimeline(db: Db, ownerId: string, now: number): Promise<number> {
+async function computeOwnerTimeline(db: Db, ownerId: string, now: number, idSource: IdSource): Promise<number> {
   const { a, meta } = await foldOwnerCanon(db, ownerId);
-  const rows = buildBucketRows(castId<UserId>(ownerId), a.bucketMap, meta, now);
+  const rows = buildBucketRows({ ownerId: castId<UserId>(ownerId), idSource }, a.bucketMap, meta, now);
   const stmts: BatchStmt[] = [db.delete(dailyStats).where(eq(dailyStats.ownerId, castId<UserId>(ownerId)))];
   for (const chunk of chunkRows(rows, rowsPerInsert(DAILY_COLS))) {
     stmts.push(db.insert(dailyStats).values(chunk));
@@ -372,13 +373,13 @@ async function computeOwnerTimeline(db: Db, ownerId: string, now: number): Promi
   return rows.length;
 }
 
-async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ charCount: number; bucketCount: number; modelCount: number }> {
+async function computeOwner(db: Db, ownerId: string, now: number, idSource: IdSource): Promise<{ charCount: number; bucketCount: number; modelCount: number }> {
   const { a, meta } = await foldOwnerCanon(db, ownerId);
   ownerExtrema(a.owner, meta);
 
   const oid = castId<UserId>(ownerId);
   const ownedCharacters = (await db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, oid))).map((row) => row.id);
-  const rows = buildOwnerRows({ ownerId: oid, ownedCharacterIds: ownedCharacters }, a, meta, now);
+  const rows = buildOwnerRows({ ownerId: oid, ownedCharacterIds: ownedCharacters, idSource }, a, meta, now);
   await writeOwner(db, ownerId, rows);
   return {
     charCount: rows.charRows.length,

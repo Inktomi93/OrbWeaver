@@ -4,7 +4,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { ProviderExecutor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { AssetsService } from "#domain/assets";
 import { createGeneratedAssetStore, createImageryGalleryAdd } from "#domain/assets";
@@ -21,6 +21,8 @@ import { minter } from "./minter.ts";
 
 // @orb-waive no-inline-package-interface(ImageryComposeDeps): baselined when the gate landed; burn-down item 952.
 export interface ImageryComposeDeps {
+  readonly fetchImageBytes?: typeof fetchImageBytes;
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly connection: Pick<ConnectionService, "resolve">;
@@ -60,12 +62,12 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
   const imagery = createImageryService({
     db,
     now,
-    newGenerationId: minter(ID_PREFIX.imageryGeneration),
-    newCallId: minter(ID_PREFIX.imageryCall),
+    newGenerationId: minter(ID_PREFIX.imageryGeneration, deps.idSource),
+    newCallId: minter(ID_PREFIX.imageryCall, deps.idSource),
     ...createImageProviderOps({ resolve: (params) => connection.resolve(params), generateImage: (req) => executor.generateImage(req) }),
     ...createImageryRoomAccess(deps),
     ...createImageryInstructions(deps),
-    fetchImage: (url) => fetchImageBytes(url, deps.maxImageBytes()),
+    fetchImage: (url) => (deps.fetchImageBytes ?? fetchImageBytes)(url, deps.maxImageBytes()),
     resolveRunAs: deps.resolveHostPrincipal,
     storeAsset: createGeneratedAssetStore((params) => assets.store(params)),
     extractQuiet: createVisibleExtractQuiet({
@@ -83,7 +85,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     getCard: (caller, characterId) => character.get({ principal: caller, characterId }),
     ownsCharacter: deps.characterOwned,
     addToGallery: createImageryGalleryAdd((params) => assets.addToGallery(params)),
-    applyStatsDelta,
+    applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch, opDb, delta, deps.idSource),
   });
   for (const def of imageryToolDefinitions({ generatePicture: imagery.generatePicture })) {
     deps.toolUse.register(def);

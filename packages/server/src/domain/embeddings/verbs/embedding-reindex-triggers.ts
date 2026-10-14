@@ -16,6 +16,7 @@ interface EmbedSweep {
 
 /** Build the generation-change and live-autoindex triggers over injected workload admission. */
 export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): EmbeddingReindexTriggers {
+  const supervise = deps.supervise ?? superviseDetached;
   // Memory-off owners record a vacuous receipt instead of queueing a run admission would refuse.
   const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {
     const vacuous = await deps.vacuousMemoryReceipt(ownerId);
@@ -74,18 +75,18 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
   };
   const detachEmbedReindex = (scope: UserId | null): void => {
     for (const s of embedSweeps(scope)) {
-      superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
+      supervise(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
   };
   // Target moves force only this owner's rebuild; no other owner's index or jobs are touched.
   const detachRepointReindex = (ownerId: UserId): void => {
     for (const s of embedSweeps(ownerId, true)) {
-      superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
+      supervise(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
   };
 
   const detachStaleSpaceReindex = (): void => {
-    superviseDetached("embeddings.staleGeneration.reindex", EMBED_REINDEX_SPAN, { workloadKind: "index" }, async () => {
+    supervise("embeddings.staleGeneration.reindex", EMBED_REINDEX_SPAN, { workloadKind: "index" }, async () => {
       for (const ownerId of await deps.staleGenerationOwners()) {
         await Promise.all(embedSweeps(ownerId, true).map((s) => superviseSettled(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start)));
       }
@@ -98,7 +99,7 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
     const starts = enabled && !autoindexEnabled;
     autoindexEnabled = enabled;
     if (starts) {
-      superviseDetached("embeddings.autoindex.catchup", EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
+      supervise("embeddings.autoindex.catchup", EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
         deps.startWorkload({ input: { kind: "index", params: { source: "all" } }, caller: null, mode: "bulk", ownerId: null }),
       );
     }

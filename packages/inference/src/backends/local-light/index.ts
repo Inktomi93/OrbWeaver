@@ -21,6 +21,7 @@ export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL } from "./tasks.ts";
 
 // @orb-waive no-inline-package-interface(LocalLightBackendDeps): baselined when the gate landed; burn-down item 952.
 export interface LocalLightBackendDeps {
+  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
   readonly now: () => number;
   readonly log: InferenceDeps["log"];
   readonly superviseDetached: InferenceDeps["superviseDetached"];
@@ -36,6 +37,7 @@ export interface LocalLightBackend {
   readonly loadFailed: LocalLightModelCache["loadFailed"];
   /** Stop the inference worker (bounded); a no-op for an injected cache or a worker never started. */
   readonly close: () => Promise<void>;
+  readonly settle: () => Promise<void>;
 }
 
 function isModelCache(value: unknown): value is LocalLightModelCache {
@@ -47,12 +49,19 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
   const detach = (name: string, fn: () => Promise<void>): void => deps.superviseDetached(name, {}, fn);
   let cache: LocalLightModelCache;
   let close = (): Promise<void> => Promise.resolve();
+  let settle = (): Promise<void> => Promise.resolve();
   if (isModelCache(config.cache)) {
     cache = config.cache;
   } else {
-    const workerCache = createWorkerModelCache({ ...config, log: deps.log, onProgress: (progress) => prefetch.onProgress(progress) });
+    const workerCache = createWorkerModelCache({
+      ...config,
+      scheduleTimeout: deps.scheduleTimeout,
+      log: deps.log,
+      onProgress: (progress) => prefetch.onProgress(progress),
+    });
     cache = workerCache;
     close = workerCache.close;
+    settle = workerCache.settle;
   }
   cache = createScheduledCache(cache);
   const prefetch = createLocalLightPrefetch({ cache: () => cache, now: deps.now, log: deps.log, detach });
@@ -68,5 +77,6 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
     embedSpace,
     loadFailed: (modelId): boolean => cache.loadFailed(modelId),
     close,
+    settle,
   };
 }

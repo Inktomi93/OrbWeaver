@@ -29,7 +29,6 @@ import {
 import type { ForcedToolRoundInput, Resolved } from "@orb/inference";
 import { forcesToolRound, GenerationObservationPersistenceError, planStructuredFor, runStructuredChat, toForcedToolRoundRequest } from "@orb/inference";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
-import { newId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { RpgTurnTranscriptMessage } from "#domain/chat";
@@ -38,6 +37,7 @@ import type { StateRoundPlans } from "#src/domain/rpg/contract/params.ts";
 import type { RpgRoundsDeps, StructuredRound } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgRunToolRound, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
+import { createExtractionMints } from "../mints.ts";
 import { isCancelled, logCancelled, logExtractionOutcome, logToolCallLosses, logToolRoundUsage, roundFailure, safeJson } from "./round-log.ts";
 
 /** The structured state round's `responseFormat.name`, and the vehicle name its logs and trace carry. */
@@ -166,12 +166,7 @@ export async function foldRoundCalls(
   logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: args.vehicle, events: args.events });
   const extraction = toolCallsToExtraction(calls);
   const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-  const delta = extractionToStateDelta(
-    baseState,
-    extraction,
-    { item: () => newId(), quest: () => newId(), objective: () => newId() },
-    { participantIndex, trackerDefs },
-  );
+  const delta = extractionToStateDelta(baseState, extraction, createExtractionMints(deps.idSource), { participantIndex, trackerDefs });
   logExtractionOutcome({
     chatId,
     model: conn.model,

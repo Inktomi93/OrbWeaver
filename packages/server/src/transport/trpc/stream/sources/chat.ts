@@ -71,8 +71,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatService } from "#domain/chat";
 import { isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember } from "#domain/chat";
-import { notifyChatOpened } from "#src/transport/trpc/automation-chat-open-tap.ts";
-import { subscribeChatEvents } from "#src/transport/trpc/chat-events-bus.ts";
+import type { LiveBuses } from "../../contract/live-buses.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
 /** What the member-gated `chatEventBounds` attach probe returns (derived off the service type — no new
@@ -86,11 +85,11 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
   // be an existence oracle). The whole verdict is per-yield, below.
   authorizeAttach: () => Promise.resolve(),
 
-  async *run({ ref, principal, services, cursor, signal }): AsyncGenerator<StreamDataFrame> {
+  async *run({ ref, principal, services, liveBuses, cursor, signal }): AsyncGenerator<StreamDataFrame> {
     const chatId = ref.chatId;
     const service = services.chat;
     // Attach the live listener FIRST (`on()` buffers from this point) so the replay→live gap loses nothing.
-    const live = subscribeChatEvents(chatId, signal);
+    const live = liveBuses.chat.subscribeChatEvents(chatId, signal);
     // The attach probe: membership + the retained-window bounds in ONE member-gated read. `null` = the
     // withhold-not-throw NOT_FOUND (no chat yet / not a member) — synthesize nothing, replay nothing.
     const bounds = await memberBounds(service, principal, chatId);
@@ -100,7 +99,14 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
     let authorizedOnce = bounds !== null;
     let maxSeq = cursor ?? 0;
     if (bounds !== null) {
-      for await (const frame of attachSynthesesAndReplay({ service, principal, chatId, resumeSeq: cursor, bounds })) {
+      for await (const frame of attachSynthesesAndReplay({
+        service,
+        principal,
+        chatId,
+        resumeSeq: cursor,
+        bounds,
+        notifyChatOpened: liveBuses.chatOpen.notifyChatOpened,
+      })) {
         yield frame;
         // Track the highest DURABLE seq for the live-loop dedup — REPLAY ROWS ONLY. A synthetic's stamped
         // seq is a resume hint, not a delivery: on a cursor-less attach it is the room's high-water (see
@@ -215,6 +221,7 @@ async function resolveLiveYield(args: {
  *  already holds it* — its canon read covers everything at or below `maxSeq`. A resuming attach is untouched
  *  (`cursor` wins), so the only behavior that changes is the one that used to resume from nothing. */
 async function* attachSynthesesAndReplay(args: {
+  readonly notifyChatOpened: LiveBuses["chatOpen"]["notifyChatOpened"];
   readonly service: ChatService;
   readonly principal: Principal;
   readonly chatId: ChatId;
@@ -228,7 +235,7 @@ async function* attachSynthesesAndReplay(args: {
   // `chatOpened` — the per-subscription attach synthesis (the client reducer invalidates). The
   // per-viewer automation tap (D81) fires off the SAME synthesis — it never rides the durable bus.
   yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "chatOpened", chatId } };
-  notifyChatOpened(chatId, principal.userId);
+  args.notifyChatOpened(chatId, principal.userId);
 
   // A cursor-less attach (live-only) drains live only — no replay, no truncation check.
   if (resumeSeq === null) {

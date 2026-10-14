@@ -94,7 +94,9 @@ export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } fro
 export { detectModelFamily } from "./capability/families.ts";
 export { curatedKind, curatedRows } from "./capability/sources/curated/loader.ts";
 export { synthesizeCapability } from "./capability/synthesize.ts";
+export type { AgentSdkQuery, AgentSdkSpawn } from "./contract/agent-sdk-execution.ts";
 export * from "./contract/index.ts";
+export type { LoadTransformersKernel, LocalLightKernelModule } from "./contract/local-light-kernel.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
 export { resolvedWarningSchema } from "./contract/resolve.ts";
 export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
@@ -214,7 +216,7 @@ export interface InferenceRuntime {
   /** The in-process tier's handles for the composition root: the boot prefetch (`start` with the slots that
    *  ACTUALLY resolved, §8.3), the active embed-space tag, and the
    *  bounded close of its inference worker that shutdown runs. */
-  readonly localLight: Pick<LocalLightBackend, "prefetch" | "embedSpace" | "close">;
+  readonly localLight: Pick<LocalLightBackend, "prefetch" | "embedSpace" | "close" | "settle">;
 }
 
 /** The kind a row whose model no evidence describes is read as. */
@@ -370,6 +372,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     const modelInfoApi = modelInfoApiOf({ detectedServer }, provider, connection);
     const tenant = endpointMirrorTenant(connection);
     const endpointArgs: EndpointFetchArgs = {
+      scheduleTimeout: deps.scheduleTimeout,
       fetch: fetchImpl,
       baseUrl,
       secret,
@@ -415,7 +418,12 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return true;
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
-    return (await detectedServer(baseUrl).warm(() => detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers }), secrets)).ok;
+    return (
+      await detectedServer(baseUrl).warm(
+        () => detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, scheduleTimeout: deps.scheduleTimeout }),
+        secrets,
+      )
+    ).ok;
   };
 
   const ctx: ResolverContext = {
@@ -453,6 +461,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const probe = built.openAiCompat.reachability.probe;
 
   const catalogModels = createCatalogListing({
+    scheduleTimeout: deps.scheduleTimeout,
     registry,
     resolveCredential: deps.resolveCredential,
     fetch: fetchImpl,
@@ -560,6 +569,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       prefetch: built.localLight.prefetch,
       embedSpace: built.localLight.embedSpace,
       close: built.localLight.close,
+      settle: built.localLight.settle,
     },
   };
 }

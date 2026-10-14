@@ -15,6 +15,7 @@ import type {
   UserConnection,
 } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, modelIdSchema, providerIdSchema, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
+import type { AgentSdkQuery } from "@orb/inference";
 import type { AutomationRuleId, ModelId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -228,10 +229,8 @@ export interface FakeDepsOptions {
    *  wire, including agent-sdk (whose `body` is the SDK query input, since that wire has no HTTP body). A
    *  cross-backend "this knob was never sent" pin reads it rather than a per-wire request recorder. */
   readonly captureWire?: InferenceDeps["captureWire"];
-  /** The agent-sdk `query` seam (`InferenceDeps.agentSdk.query`, typed `unknown` there on purpose): a
-   *  function returning an async iterable of SDK-shaped frames. The ONLY way to drive that wire without the
-   *  bundled `claude` subprocess. */
-  readonly agentSdkQuery?: unknown;
+  /** The raw SDK execution seam uses the installed query vocabulary. */
+  readonly agentSdkQuery?: AgentSdkQuery;
 }
 
 const NO_NETWORK: typeof fetch = () => Promise.reject(new Error("tests/legacy/inference: unexpected network call"));

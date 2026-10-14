@@ -14,7 +14,6 @@ import { can } from "#server/domain/admin/index.ts";
 import { createResolveViewerVisibility } from "#server/domain/chat/verbs/resolve-viewer-visibility.ts";
 import type { PluginActivationScope, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "#server/domain/plugin/index.ts";
 import { buildPluginStorage } from "#server/domain/plugin/index.ts";
-import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
 import { packShowcaseBundle } from "#showcase-plugins/index.ts";
 import type { makePluginHarness, ownerPrincipalFor } from "../../domain/plugin/_support.ts";
 import { makeInertOps, principalFor } from "../../domain/plugin/_support.ts";
@@ -29,26 +28,28 @@ beforeAll(async () => {
   expect(built.diagnostics).toEqual([]);
 });
 
-// Every `realHost()` below opens its own logical pool, but all of them share the one physical broker
-// process (`process-runtime.ts`'s module-level singleton) and its fixed Worker cap. Without a terminate
-// between tests, activated-but-never-disposed runtimes from earlier tests pin that shared capacity and
-// starve later ones — the same reset `tests/legacy/server/infra/plugin-host/process-runtime.test.ts` takes.
+let hostResources = new AsyncDisposableStack();
+
 afterEach(async () => {
-  await __terminateManagedPluginBrokerForTest();
+  const owned = hostResources;
+  hostResources = new AsyncDisposableStack();
+  await owned.disposeAsync();
 });
 
 /** The production runtime under DETERMINISTIC seams — the same object compose builds, so the membrane, the
  *  registration collection and the resident-invoke path are all real. */
 export function realHost(): PluginHostPort {
   let n = 0;
-  return createPluginHost({
-    nowEpochMs: (): number => FROZEN_AT_MS,
-    nextRandom: (): number => 0.5,
-    mintId: (): string => {
-      n += 1;
-      return `seed_${n}`;
-    },
-  });
+  return hostResources.use(
+    createPluginHost({
+      nowEpochMs: (): number => FROZEN_AT_MS,
+      nextRandom: (): number => 0.5,
+      mintId: (): string => {
+        n += 1;
+        return `seed_${n}`;
+      },
+    }),
+  );
 }
 
 /** What the registrar ops saw at activation — the seam the compose fan-out and the tool registry consume. */

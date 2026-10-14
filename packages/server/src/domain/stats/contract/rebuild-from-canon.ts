@@ -1,7 +1,7 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
-import type { CharacterId, ModelId, UserId } from "@orb/kit/ids";
+import type { CharacterId, IdSource, ModelId, UserId } from "@orb/kit/ids";
 
 export interface TokenSampleAccum {
   tokensInMeasuredSamples: number;
@@ -111,6 +111,7 @@ export interface GenRow {
 }
 
 export interface ReconcileOpts {
+  readonly idSource?: IdSource | undefined;
   /** Scope to one owner; omit to rebuild every owner that owns a character. */
   ownerId?: string;
   /** INJECTED clock (epoch-ms) — the determinism seam (no-raw-clock). Stamped as every row's computedAt. */
@@ -182,6 +183,7 @@ export interface ChatMeta {
 }
 
 export interface OwnerRollupScope {
+  readonly idSource?: IdSource;
   readonly ownerId: UserId;
   readonly ownedCharacterIds: readonly CharacterId[];
 }

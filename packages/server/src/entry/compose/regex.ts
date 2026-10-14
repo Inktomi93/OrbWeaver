@@ -11,6 +11,7 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
+import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
 import { createResolveRoomDisplayPolicy, requireHost, requireParticipant } from "#domain/chat";
@@ -35,7 +36,8 @@ import {
   createResolveRegexSources,
 } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
-import { publishUserEvent } from "#transport/trpc";
+import type { LiveBuses } from "#transport/trpc";
+
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
 import { createVisibleRoomsReader } from "./visible-rooms.ts";
@@ -43,6 +45,9 @@ import { createVisibleRoomsReader } from "./visible-rooms.ts";
 // @orb-waive no-inline-package-interface(RegexComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the regex seam needs from the composition root. */
 export interface RegexComposeDeps {
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
+
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
@@ -73,7 +78,7 @@ export interface RegexComposeResult {
 
 export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
   const { db, now, audit } = deps;
-  const newScriptId = minter(ID_PREFIX.regexScript);
+  const newScriptId = minter(ID_PREFIX.regexScript, deps.idSource);
 
   const regex = createRegexService({
     db,
@@ -86,7 +91,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     // The SHARED leak-safe reverse-room read — regex's original, promoted to `compose/visible-rooms.ts`
     // when databank and preset became its second and third consumers (#276/#279).
     resolveVisibleRooms: createVisibleRoomsReader(db),
-    emitUserEvent: publishUserEvent,
+    emitUserEvent: deps.emitUserEvent,
     // Regex owns room-junction reach; chat owns the live fan policy, bound together by the graph seam.
     emitRoomRegexChanged: createEmitRoomRegexChanged(deps.emitChatEventLive),
     fanRegexScriptRooms: createFanRegexScriptRooms(db, deps.emitChatEventLive),

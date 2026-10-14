@@ -6,6 +6,7 @@ import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtempSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -39,8 +40,12 @@ import {
   pluginSurfaceRegistrationMetaSchema,
 } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
+import type { TimerScheduler } from "@orb/kit/time";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
+import type { BackgroundWork } from "#infra/tasks";
+import { createBackgroundWork } from "#infra/tasks";
+import { createScopedTimers } from "#infra/timers";
 import { createAdmission } from "./admission.ts";
 import type { BridgeAuthority } from "./bridge-rpc.ts";
 import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyncCall } from "./bridge-rpc.ts";
@@ -52,7 +57,14 @@ import {
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
 } from "./budgets.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./contract/port.ts";
+import type {
+  CreateInstanceInputIn,
+  CreateInstanceOutcomeOut,
+  PluginHostSeamDeps,
+  PluginLogLineOut,
+  ProcessPluginHost,
+  SnippetRunOut,
+} from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
 import type { PluginNetEgress } from "./net-egress.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
@@ -71,6 +83,8 @@ const COMMAND_TIMEOUT_MS = {
 const CONNECT_TIMEOUT_MS = 10_000;
 
 interface Binding {
+  readonly registry: Map<string, Binding>;
+  readonly timers: TimerScheduler;
   runtimeId: string | undefined;
   lifecycleGeneration: number;
   readonly bridge: PluginBridge;
@@ -100,14 +114,8 @@ interface Binding {
   retirement: { readonly runtimeId: string; readonly done: Promise<void> } | undefined;
 }
 
-interface CreateLogicalInstanceInputIn extends CreateInstanceInputIn {
-  /** Low-level process-host tests may omit this only when they never force a cold wake. The domain-facing
-   *  PluginHostPort requires the loader, so every installed production runtime has durable replay source. */
-  readonly reloadMainJs?: () => Promise<string>;
-}
-
 interface AuthorityTail {
-  readonly timer: NodeJS.Timeout;
+  readonly timer: () => void;
   /** Bridge calls admitted under the authority since its command returned. */
   calls: number;
 }
@@ -115,7 +123,7 @@ interface AuthorityTail {
 interface PendingCommand {
   readonly resolve: (value: unknown) => void;
   readonly reject: (error: Error) => void;
-  readonly timer: NodeJS.Timeout;
+  readonly timer: () => void;
 }
 
 interface BridgeDeliveryPause {
@@ -127,6 +135,12 @@ interface BridgeDeliveryPause {
 
 interface MutableLiveness extends PluginInvocationLiveness {
   abort: () => void;
+}
+
+interface ActiveBridgeCall {
+  readonly binding: Binding;
+  readonly liveness: MutableLiveness;
+  readonly settled: Promise<void>;
 }
 
 interface AuthorityCommand {
@@ -159,44 +173,17 @@ interface LeasedInvokeInput {
   readonly chat: InvocationChat | null | undefined;
 }
 
-interface ProcessPluginHost {
-  readonly createInstance: (input: CreateLogicalInstanceInputIn) => Promise<CreateInstanceOutcomeOut>;
-  readonly invoke: (
-    instance: PluginInstance,
-    handler: PluginHandlerRef,
-    argsJson: PluginInvokeArgs,
-    chat?: InvocationChat | null,
-    signal?: AbortSignal,
-  ) => Promise<string>;
-  readonly runSnippet: (input: {
-    readonly code: string;
-    readonly grants: readonly PluginCapability[];
-    readonly bridge: PluginBridge;
-    readonly chat: InvocationChat;
-  }) => Promise<SnippetRunOut>;
-  readonly readLog: (instance: PluginInstance) => readonly PluginLogLineOut[];
-  readonly dispose: (instance: PluginInstance) => void;
-}
-
-const bindings = new Map<string, Binding>();
-const logicalBindings = new Set<Binding>();
-
-const acquireSnippetAdmission = createAdmission(PLUGIN_SNIPPET_RUNTIME_MAX);
-
 function releaseBinding(binding: Binding): void {
   binding.releaseAdmission?.();
 }
-
-let liveAuthorityTails = 0;
 
 function disarmAuthorityTail(binding: Binding, authorityId: string): void {
   const tail = binding.authorityTails.get(authorityId);
   if (tail === undefined) {
     return;
   }
-  clearTimeout(tail.timer);
+  tail.timer();
   binding.authorityTails.delete(authorityId);
-  liveAuthorityTails -= 1;
 }
 
 function releaseAuthority(binding: Binding, authorityId: string): void {
@@ -218,16 +205,14 @@ function armAuthorityTail(binding: Binding, authorityId: string): void {
   if (!binding.authorities.has(authorityId) || binding.authorityTails.has(authorityId)) {
     return;
   }
-  const timer = setTimeout(() => releaseAuthority(binding, authorityId), PLUGIN_AUTHORITY_TAIL_MS);
-  timer.unref();
+  const timer = binding.timers.timeoutUnref(() => releaseAuthority(binding, authorityId), PLUGIN_AUTHORITY_TAIL_MS);
   binding.authorityTails.set(authorityId, { timer, calls: 0 });
-  liveAuthorityTails += 1;
 }
 
 // The Worker's `authority-released` is looked up through `bindings`, so a runtime dropped from it can no longer
 // release its authorities; clear them with it, or each tail lingers for the whole continuation window.
 function forgetRuntime(binding: Binding, runtimeId: string): void {
-  bindings.delete(runtimeId);
+  binding.registry.delete(runtimeId);
   if (binding.runtimeId === runtimeId) {
     binding.runtimeId = undefined;
     clearAuthorities(binding);
@@ -288,26 +273,112 @@ function createLiveness(): MutableLiveness {
 }
 
 class BrokerClient {
+  readonly bindings = new Map<string, Binding>();
+  readonly logicalBindings = new Set<Binding>();
+  private readonly seams: PluginHostSeamDeps;
+  private readonly timers: TimerScheduler;
+  private readonly monotonicNow: () => number;
+  private readonly children = new Map<ChildProcess, Promise<void>>();
+  private closed = false;
+
+  constructor(seams: PluginHostSeamDeps, timers: TimerScheduler) {
+    this.seams = seams;
+    this.timers = timers;
+    this.monotonicNow = seams.monotonicNow ?? ((): number => performance.now());
+  }
+
+  countAuthorityTails(): number {
+    return [...new Set([...this.logicalBindings, ...this.bindings.values()])].reduce((total, binding) => total + binding.authorityTails.size, 0);
+  }
+
   private sender: PluginIpcSender | undefined;
   private generation: string | undefined;
   private readonly readyListeners = new Set<() => void>();
   private connecting: Promise<void> | undefined;
   private managedChild: ChildProcess | undefined;
   private managedDirectory: string | undefined;
+  private directoryResources = new AsyncDisposableStack();
   private readonly pending = new Map<string, PendingCommand>();
-  private readonly liveness = new Map<string, MutableLiveness>();
+  private readonly bridgeCalls = new Map<string, ActiveBridgeCall>();
+  private closing: Promise<void> | undefined;
   private killOnCommand: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"] | undefined;
   private killOnBridge: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"] | undefined;
   private bridgeDeliveryPause: BridgeDeliveryPause | undefined;
-  private connectChasePause: { readonly reached: () => void; readonly wait: Promise<void> } | undefined;
+  private connectChasePause: { readonly reached: () => void; readonly wait: Promise<void>; readonly resume: () => void } | undefined;
   private nextCommand = 0;
 
   hasManagedChild(): boolean {
     return this.managedChild !== undefined;
   }
 
+  private hasGeneration(): boolean {
+    return this.generation !== undefined;
+  }
+
+  private isClosed(): boolean {
+    return this.closed;
+  }
+
   managedDirectoryForTest(): string | undefined {
     return this.managedDirectory;
+  }
+
+  cancelBindings(owned: ReadonlySet<Binding>): void {
+    for (const call of this.bridgeCalls.values()) {
+      if (owned.has(call.binding)) {
+        call.liveness.abort();
+      }
+    }
+  }
+
+  async settleBindings(owned: ReadonlySet<Binding>): Promise<void> {
+    for (;;) {
+      const calls = [...this.bridgeCalls.values()].filter((call) => owned.has(call.binding));
+      if (calls.length === 0) {
+        return;
+      }
+      await Promise.all(calls.map((call) => call.settled));
+    }
+  }
+
+  async closeManaged(): Promise<void> {
+    this.cancelStartup();
+    this.closing ??= (async (): Promise<void> => {
+      await using cleanup = new AsyncDisposableStack();
+      cleanup.defer(async (): Promise<void> => {
+        const directories = this.directoryResources;
+        this.directoryResources = new AsyncDisposableStack();
+        await directories.disposeAsync();
+      });
+      cleanup.defer(async (): Promise<void> => {
+        await Promise.all([...this.children.values()]);
+      });
+      this.bridgeDeliveryPause?.resume();
+      this.bridgeDeliveryPause = undefined;
+      this.sender?.close();
+      this.generation = undefined;
+      this.onDisconnect(unavailableError());
+      for (const child of this.children.keys()) {
+        child.ref();
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill("SIGTERM");
+        }
+      }
+      for (const listener of this.readyListeners) {
+        listener();
+      }
+      await this.connecting;
+    })();
+    await this.closing;
+  }
+
+  cancelStartup(): void {
+    this.closed = true;
+    this.connectChasePause?.resume();
+    if (this.generation === undefined && this.connecting !== undefined) {
+      this.managedChild?.ref();
+      this.managedChild?.kill("SIGTERM");
+    }
   }
 
   // Killing only the watchdog proves the broker observes inherited-channel loss itself.
@@ -370,7 +441,7 @@ class BrokerClient {
     }
     const reached = Promise.withResolvers<void>();
     const wait = Promise.withResolvers<void>();
-    this.connectChasePause = { reached: (): void => reached.resolve(), wait: wait.promise };
+    this.connectChasePause = { reached: (): void => reached.resolve(), wait: wait.promise, resume: (): void => wait.resolve() };
     return { reached: reached.promise, release: (): void => wait.resolve() };
   }
 
@@ -399,7 +470,7 @@ class BrokerClient {
       value,
     });
     return await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const timer = this.timers.timeout(() => {
         this.pending.delete(id);
         const error = new Error(`plugin broker: ${operation} timed out`);
         reject(error);
@@ -411,14 +482,14 @@ class BrokerClient {
         // @orb-waive caught-failure-ownership(error): the command promise is rejected with the write failure and the unusable channel is terminated. Ends if either caller delivery or connection teardown is removed.
       } catch (error) {
         this.pending.delete(id);
-        clearTimeout(timer);
+        timer();
         reject(error instanceof Error ? error : unavailableError());
         this.stopConnection(error instanceof Error ? error : unavailableError());
         return;
       }
       if (this.killOnCommand === operation) {
         this.killOnCommand = undefined;
-        // @orb-waive caught-failure-ownership(this.terminateManagedForTest): forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect.
+        // @orb-waive caught-failure-ownership(this.terminateManagedForTest): forced broker death reaches the disconnect owner, which invalidates this.bindings and rejects pending work. Ends if that error path stops reaching onDisconnect.
         this.terminateManagedForTest().catch((error: unknown) => this.onDisconnect(error instanceof Error ? error : unavailableError()));
       }
     });
@@ -428,100 +499,131 @@ class BrokerClient {
     if (this.generation !== undefined) {
       return;
     }
+    if (this.closed) {
+      throw unavailableError();
+    }
+    await this.closing;
+    if (this.hasGeneration()) {
+      return;
+    }
     this.connecting ??= this.connectOnce().finally(() => {
       this.connecting = undefined;
     });
     return await this.connecting;
   }
 
-  private async connectOnce(deadline = performance.now() + CONNECT_TIMEOUT_MS): Promise<void> {
+  private async connectOnce(deadline = this.monotonicNow() + CONNECT_TIMEOUT_MS): Promise<void> {
+    if (this.closed) {
+      throw unavailableError();
+    }
     if (this.managedChild === undefined) {
       const pause = this.connectChasePause;
       if (pause !== undefined) {
-        this.connectChasePause = undefined;
         pause.reached();
         await pause.wait;
+        if (this.connectChasePause === pause) {
+          this.connectChasePause = undefined;
+        }
       }
-      const directory = mkdtempSync(join(tmpdir(), "orb-plugin-broker-"));
-      const child = spawn(
-        process.execPath,
-        [
-          ...pluginWatchdogExecArgv(),
-          fileURLToPath(new URL("./broker-watchdog.ts", import.meta.url)),
-          directory,
-          String(env.PLUGIN_BROKER_WORKER_MAX),
-          String(env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES),
-          env.NODE_ENV,
-        ],
-        {
-          env: { ["NODE_ENV"]: env.NODE_ENV },
-          // Workers can read their process cwd under Node permissions; keep the app's data directory outside it.
-          cwd: directory,
-          stdio: ["ignore", "inherit", "inherit", "ipc"],
-        },
-      );
-      child.unref();
-      child.channel?.unref();
-      this.managedChild = child;
-      this.managedDirectory = directory;
-      this.sender = new PluginIpcSender(
-        (message, callback) => {
-          child.send(message, callback);
-        },
-        (error) => this.stopConnection(error),
-      );
-      const onWatchdogGone = (error: Error): void => {
-        if (this.managedChild !== child) {
-          return;
-        }
-        this.managedChild = undefined;
-        this.managedDirectory = undefined;
-        this.sender?.close();
-        this.sender = undefined;
-        this.generation = undefined;
-        this.onDisconnect(error);
-        for (const listener of this.readyListeners) {
-          listener();
-        }
-      };
-      child.once("error", onWatchdogGone);
-      child.once("exit", () => onWatchdogGone(unavailableError()));
-      child.on("message", (value: unknown) => this.consumeWatchdogMessage(child, value));
+      if (this.isClosed()) {
+        throw unavailableError();
+      }
+      this.spawnManaged();
     }
     if (this.generation !== undefined) {
       return;
     }
     try {
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(
-          () => {
-            this.readyListeners.delete(ready);
-            reject(unavailableError());
-          },
-          Math.max(0, deadline - performance.now()),
-        );
-        const ready = (): void => {
-          if (this.generation === undefined && this.managedChild !== undefined) {
-            return;
-          }
-          clearTimeout(timer);
-          this.readyListeners.delete(ready);
-          if (this.generation === undefined) {
-            reject(unavailableError());
-          } else {
-            resolve();
-          }
-        };
-        this.readyListeners.add(ready);
-        ready();
-      });
+      await this.waitForReady(deadline);
     } catch (error) {
-      if (!this.hasManagedChild() && performance.now() < deadline) {
+      if (!(this.isClosed() || this.hasManagedChild()) && this.monotonicNow() < deadline) {
         await this.connectOnce(deadline);
         return;
       }
       throw error;
     }
+  }
+
+  private waitForReady(deadline: number): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const timer = this.timers.timeout(
+        () => {
+          this.readyListeners.delete(ready);
+          reject(unavailableError());
+        },
+        Math.max(0, deadline - this.monotonicNow()),
+      );
+      const ready = (): void => {
+        if (this.generation === undefined && this.managedChild !== undefined) {
+          return;
+        }
+        timer();
+        this.readyListeners.delete(ready);
+        if (this.generation === undefined) {
+          reject(unavailableError());
+        } else {
+          resolve();
+        }
+      };
+      this.readyListeners.add(ready);
+      ready();
+    });
+  }
+
+  private spawnManaged(): void {
+    const directory = mkdtempSync(join(tmpdir(), "orb-plugin-broker-"));
+    this.directoryResources.defer(() => rm(directory, { recursive: true, force: true }));
+    const child = (this.seams.spawn ?? spawn)(
+      process.execPath,
+      [
+        ...pluginWatchdogExecArgv(),
+        fileURLToPath(new URL("./broker-watchdog.ts", import.meta.url)),
+        directory,
+        String(env.PLUGIN_BROKER_WORKER_MAX),
+        String(env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES),
+        env.NODE_ENV,
+      ],
+      {
+        env: { ["NODE_ENV"]: env.NODE_ENV },
+        // Workers can read their process cwd under Node permissions; keep the app's data directory outside it.
+        cwd: directory,
+        stdio: ["ignore", "inherit", "inherit", "ipc"],
+      },
+    );
+    const closed = new Promise<void>((resolve) => {
+      child.once("close", () => {
+        this.children.delete(child);
+        resolve();
+      });
+    });
+    this.children.set(child, closed);
+    child.unref();
+    child.channel?.unref();
+    this.managedChild = child;
+    this.managedDirectory = directory;
+    this.sender = new PluginIpcSender(
+      (message, callback) => {
+        child.send(message, callback);
+      },
+      (error) => this.stopConnection(error),
+    );
+    const onWatchdogGone = (error: Error): void => {
+      if (this.managedChild !== child) {
+        return;
+      }
+      this.managedChild = undefined;
+      this.managedDirectory = undefined;
+      this.sender?.close();
+      this.sender = undefined;
+      this.generation = undefined;
+      this.onDisconnect(error);
+      for (const listener of this.readyListeners) {
+        listener();
+      }
+    };
+    child.once("error", onWatchdogGone);
+    child.once("exit", () => onWatchdogGone(unavailableError()));
+    child.on("message", (value: unknown) => this.consumeWatchdogMessage(child, value));
   }
 
   private consumeWatchdogMessage(child: ChildProcess, value: unknown): void {
@@ -596,7 +698,7 @@ class BrokerClient {
       return;
     }
     if (message.kind === "authority-released") {
-      const binding = bindings.get(message.runtimeId);
+      const binding = this.bindings.get(message.runtimeId);
       if (binding !== undefined) {
         releaseAuthority(binding, message.authorityId);
       }
@@ -616,7 +718,7 @@ class BrokerClient {
       return;
     }
     this.pending.delete(message.id);
-    clearTimeout(pending.timer);
+    pending.timer();
     if (message.ok) {
       pending.resolve(message.value);
     } else {
@@ -625,20 +727,19 @@ class BrokerClient {
   }
 
   private handleBridgeCancel(id: string): void {
-    const liveness = this.liveness.get(id);
-    if (liveness === undefined) {
+    const call = this.bridgeCalls.get(id);
+    if (call === undefined) {
       return;
     }
-    this.liveness.delete(id);
-    liveness.abort();
+    call.liveness.abort();
   }
 
   private handleRuntimeCrash(message: Extract<BrokerParentMessage, { readonly kind: "runtime-crashed" }>): void {
-    const binding = bindings.get(message.runtimeId);
+    const binding = this.bindings.get(message.runtimeId);
     if (binding === undefined) {
       return;
     }
-    bindings.delete(message.runtimeId);
+    this.bindings.delete(message.runtimeId);
     binding.runtimeId = undefined;
     const error = fromRpcError(message.error, "plugin worker crashed");
     binding.crashed = error;
@@ -649,7 +750,7 @@ class BrokerClient {
   }
 
   private handleLog(message: Extract<BrokerParentMessage, { readonly kind: "log" }>): void {
-    const binding = bindings.get(message.runtimeId);
+    const binding = this.bindings.get(message.runtimeId);
     if (binding === undefined || binding.crashed !== null || binding.suppressLogs) {
       return;
     }
@@ -662,11 +763,11 @@ class BrokerClient {
   private async handleBridge(message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): Promise<void> {
     if (this.killOnBridge === message.operation) {
       this.killOnBridge = undefined;
-      // @orb-waive caught-failure-ownership(this.terminateManagedForTest): forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect.
+      // @orb-waive caught-failure-ownership(this.terminateManagedForTest): forced broker death reaches the disconnect owner, which invalidates this.bindings and rejects pending work. Ends if that error path stops reaching onDisconnect.
       this.terminateManagedForTest().catch((error: unknown) => this.onDisconnect(error instanceof Error ? error : unavailableError()));
       return;
     }
-    const bindingBeforePause = bindings.get(message.runtimeId);
+    const bindingBeforePause = this.bindings.get(message.runtimeId);
     if (bindingBeforePause === undefined || bindingBeforePause.crashed !== null || bindingBeforePause.disposed) {
       this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale, crashed, or disposed runtime id"));
       return;
@@ -679,7 +780,7 @@ class BrokerClient {
         this.bridgeDeliveryPause = undefined;
       }
     }
-    const binding = bindings.get(message.runtimeId);
+    const binding = this.bindings.get(message.runtimeId);
     if (binding === undefined || binding.crashed !== null || binding.disposed) {
       this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale, crashed, or disposed runtime id"));
       return;
@@ -702,16 +803,19 @@ class BrokerClient {
         return;
       }
       const liveness = createLiveness();
-      this.liveness.set(message.id, liveness);
+      const completion = Promise.withResolvers<void>();
+      this.bridgeCalls.set(message.id, { binding, liveness, settled: completion.promise });
       // @orb-waive caught-failure-ownership(dispatchBridgeCall): the failed host operation is sent as the matching bridge error and its liveness record is removed. Ends if either action is removed.
       dispatchBridgeCall(binding, message.operation, message.args, liveness).then(
         (value) => {
-          this.liveness.delete(message.id);
+          this.bridgeCalls.delete(message.id);
           this.sendBridgeResult(message.id, true, value);
+          completion.resolve();
         },
         (error) => {
-          this.liveness.delete(message.id);
+          this.bridgeCalls.delete(message.id);
           this.sendBridgeResult(message.id, false, undefined, error);
+          completion.resolve();
         },
       );
       return;
@@ -752,17 +856,16 @@ class BrokerClient {
   private onDisconnect(error: Error): void {
     for (const [id, pending] of this.pending) {
       this.pending.delete(id);
-      clearTimeout(pending.timer);
+      pending.timer();
       pending.reject(error);
     }
-    for (const liveness of this.liveness.values()) {
-      liveness.abort();
+    for (const call of this.bridgeCalls.values()) {
+      call.liveness.abort();
     }
-    this.liveness.clear();
     // A binding that never dispatched a command onto a live connection was never served by the one that
     // just died — a belated exit/close for a forcibly-killed broker must not crash a binding whose own
-    // reconnect is still in flight, and its `bindings` registration must survive for that reconnect to use.
-    for (const binding of logicalBindings) {
+    // reconnect is still in flight, and its `this.bindings` registration must survive for that reconnect to use.
+    for (const binding of this.logicalBindings) {
       if (binding.crashed !== null || !binding.dispatched) {
         continue;
       }
@@ -773,8 +876,8 @@ class BrokerClient {
       binding.onCrash(error);
       binding.runtimeId = undefined;
     }
-    for (const binding of bindings.values()) {
-      if (logicalBindings.has(binding) || binding.crashed !== null || !binding.dispatched) {
+    for (const binding of this.bindings.values()) {
+      if (this.logicalBindings.has(binding) || binding.crashed !== null || !binding.dispatched) {
         continue;
       }
       binding.crashed = error;
@@ -784,9 +887,9 @@ class BrokerClient {
       binding.onCrash(error);
       binding.runtimeId = undefined;
     }
-    for (const [runtimeId, binding] of bindings) {
+    for (const [runtimeId, binding] of this.bindings) {
       if (binding.dispatched) {
-        bindings.delete(runtimeId);
+        this.bindings.delete(runtimeId);
       }
     }
   }
@@ -800,54 +903,71 @@ function unavailableError(): Error {
 
 const PLUGIN_INSTANCE_KEYS = ["tools", "transforms", "events", "pubsub", "surfaces", "commands", "displayTransforms", "macros"] as const;
 
-const broker = new BrokerClient();
+const brokerObservers = new WeakMap<ProcessPluginHost, BrokerClient>();
 
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __terminateManagedPluginBrokerForTest(): Promise<void> {
-  return broker.terminateManagedForTest();
+function brokerFor(host: ProcessPluginHost): BrokerClient {
+  const broker = brokerObservers.get(host);
+  if (broker === undefined) {
+    throw new Error("plugin host observer: no broker for this host");
+  }
+  return broker;
 }
 
 /** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __hasManagedPluginBrokerForTest(): boolean {
-  return broker.hasManagedChild();
+export function __terminateManagedPluginBrokerForTest(host: ProcessPluginHost): Promise<void> {
+  return brokerFor(host).terminateManagedForTest();
 }
 
 /** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __readManagedPluginDirectoryForTest(): string | undefined {
-  return broker.managedDirectoryForTest();
+export function __hasManagedPluginBrokerForTest(host: ProcessPluginHost): boolean {
+  return brokerFor(host).hasManagedChild();
 }
 
 /** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __killManagedPluginWatchdogForTest(): Promise<void> {
-  return broker.killWatchdogForTest();
+export function __readManagedPluginDirectoryForTest(host: ProcessPluginHost): string | undefined {
+  return brokerFor(host).managedDirectoryForTest();
 }
 
 /** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __killManagedPluginBrokerOnCommandForTest(operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"]): void {
-  broker.killManagedOnCommandForTest(operation);
+export function __killManagedPluginWatchdogForTest(host: ProcessPluginHost): Promise<void> {
+  return brokerFor(host).killWatchdogForTest();
 }
 
 /** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __killManagedPluginBrokerOnBridgeForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): void {
-  broker.killManagedOnBridgeForTest(operation);
+export function __killManagedPluginBrokerOnCommandForTest(
+  host: ProcessPluginHost,
+  operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"],
+): void {
+  brokerFor(host).killManagedOnCommandForTest(operation);
 }
 
 /** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __pauseManagedPluginBridgeDeliveryForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): {
+export function __killManagedPluginBrokerOnBridgeForTest(
+  host: ProcessPluginHost,
+  operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"],
+): void {
+  brokerFor(host).killManagedOnBridgeForTest(operation);
+}
+
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
+export function __pauseManagedPluginBridgeDeliveryForTest(
+  host: ProcessPluginHost,
+  operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"],
+): {
   readonly reached: Promise<void>;
   readonly release: () => void;
 } {
-  return broker.pauseBridgeDeliveryForTest(operation);
+  return brokerFor(host).pauseBridgeDeliveryForTest(operation);
 }
 
 /** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __pauseManagedPluginConnectChaseForTest(): { readonly reached: Promise<void>; readonly release: () => void } {
-  return broker.pauseConnectChaseForTest();
+export function __pauseManagedPluginConnectChaseForTest(host: ProcessPluginHost): { readonly reached: Promise<void>; readonly release: () => void } {
+  return brokerFor(host).pauseConnectChaseForTest();
 }
 
 /** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __countLiveAuthorityTailsForTest(): number {
-  return liveAuthorityTails;
+export function __countLiveAuthorityTailsForTest(host: ProcessPluginHost): number {
+  return brokerFor(host).countAuthorityTails();
 }
 
 function requireRegistrationGrant(grants: ReadonlySet<PluginCapability>, capability: PluginCapability, registrations: readonly unknown[], label: string): void {
@@ -1023,9 +1143,44 @@ function parseSnippetOutcome(value: unknown): SnippetRunOut {
 }
 
 export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
+  const timerResources = new DisposableStack();
+  // biome-ignore lint/nursery/useDisposables: timerResources owns this scheduler until returned host teardown; local using would close it before host use.
+  const timers: TimerScheduler = timerResources.use(createScopedTimers(seams.timers));
+  const broker = new BrokerClient(seams, timers);
+  const { bindings, logicalBindings } = broker;
+  const acquireSnippetAdmission = createAdmission(PLUGIN_SNIPPET_RUNTIME_MAX);
   const workerMaximum = env.PLUGIN_BROKER_WORKER_MAX;
   const instances = new Map<PluginInstance, Binding>();
-  let pool: WarmRuntimePool<Binding>;
+  const ownedBindings = new Set<Binding>();
+  const pending = new Set<Promise<void>>();
+  const poolResources = new AsyncDisposableStack();
+  const bridgeResources = new AsyncDisposableStack();
+  // biome-ignore lint/nursery/useDisposables: bridgeResources owns settlement during returned host teardown; the borrowed operation view must not close at return.
+  const bridgeSettlement: Omit<BackgroundWork, keyof AsyncDisposable> = bridgeResources.use(createBackgroundWork());
+  let closed = false;
+  let closing: Promise<void> | undefined;
+  let pool: Pick<WarmRuntimePool<Binding>, "acquire" | "discard" | "fail" | "remove">;
+
+  const runOwned = async <T>(operation: () => Promise<T>): Promise<T> => {
+    if (closed) {
+      throw new Error("plugin host: logical host is closed");
+    }
+    const completion = Promise.withResolvers<void>();
+    pending.add(completion.promise);
+    try {
+      return await operation();
+    } finally {
+      pending.delete(completion.promise);
+      completion.resolve();
+    }
+  };
+
+  const releaseOwnedBinding = (binding: Binding): void => {
+    bridgeSettlement.supervise(`plugin-host:bridge-settlement:${seams.mintId()}`, "plugin.host.bridge.settlement", {}, async () => {
+      await broker.settleBindings(new Set([binding]));
+      ownedBindings.delete(binding);
+    });
+  };
 
   const commandWithAuthority = async ({ binding, operation, phase, chat, value }: AuthorityCommand): Promise<unknown> => {
     const runtimeId = binding.runtimeId;
@@ -1083,6 +1238,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       if (binding.retirement === retirement) {
         binding.retirement = undefined;
       }
+      if (binding.disposed && binding.runtimeId === undefined) {
+        releaseOwnedBinding(binding);
+      }
     }
   };
 
@@ -1097,7 +1255,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   const activationCleanupError = (error: unknown, cleanupError: unknown): AggregateError =>
     new AggregateError([error, cleanupError], "plugin host: activation failed and its runtime could not be retired", { cause: error });
 
-  pool = new WarmRuntimePool(workerMaximum, retireRuntime, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX);
+  pool = poolResources.use(new WarmRuntimePool(workerMaximum, retireRuntime, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX));
 
   const activateRuntime = async (
     binding: Binding,
@@ -1249,11 +1407,13 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
 
   const newBinding = ({ bridge, grants, runtimeConfig, reloadMainJs, label, releaseAdmission }: NewBindingInput): Binding => {
     const binding: Binding = {
+      registry: bindings,
+      timers,
       runtimeId: undefined,
       lifecycleGeneration: 0,
       bridge,
       // A snippet carries no runtimeConfig and so no hosts: every snippet fetch is refused, as in-process.
-      netEgress: createPluginNetEgress(runtimeConfig?.netHosts ?? [], bridge),
+      netEgress: createPluginNetEgress(runtimeConfig?.netHosts ?? [], bridge, seams.safeFetch),
       grants: new Set(grants),
       authorities: new Map(),
       authorityTails: new Map(),
@@ -1272,10 +1432,11 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       ...(label === undefined ? {} : { label }),
       ...(releaseAdmission === undefined ? {} : { releaseAdmission }),
     };
+    ownedBindings.add(binding);
     return binding;
   };
 
-  return {
+  const operations: Omit<ProcessPluginHost, keyof AsyncDisposable> = {
     createInstance: async (input): Promise<CreateInstanceOutcomeOut> => {
       const { bridge, mainJs, reloadMainJs, ...runtimeConfig } = input;
       const binding = newBinding({
@@ -1289,6 +1450,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       const lease = await pool.acquire(binding).catch((error: unknown) => {
         binding.disposed = true;
         logicalBindings.delete(binding);
+        releaseOwnedBinding(binding);
         throw error;
       });
       try {
@@ -1309,6 +1471,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         throw error;
       } finally {
         lease.release();
+        if (binding.disposed && binding.runtimeId === undefined) {
+          releaseOwnedBinding(binding);
+        }
       }
     },
     invoke: async (...invokeParameters: Parameters<ProcessPluginHost["invoke"]>): Promise<string> => {
@@ -1332,26 +1497,32 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       const binding = newBinding({ bridge: input.bridge, grants: input.grants, releaseAdmission });
       const lease = await pool.acquire(binding).catch((error: unknown) => {
         releaseBinding(binding);
+        releaseOwnedBinding(binding);
         throw error;
       });
-      const runtimeId = randomUUID();
-      binding.runtimeId = runtimeId;
-      bindings.set(runtimeId, binding);
       try {
-        return parseSnippetOutcome(
-          await commandWithAuthority({
-            binding,
-            operation: "snippet",
-            phase: "snippet",
-            chat: input.chat,
-            value: { code: input.code, grants: input.grants, chat: input.chat },
-          }),
-        );
+        requireLifecycle(binding, binding.lifecycleGeneration);
+        const runtimeId = randomUUID();
+        binding.runtimeId = runtimeId;
+        bindings.set(runtimeId, binding);
+        try {
+          return parseSnippetOutcome(
+            await commandWithAuthority({
+              binding,
+              operation: "snippet",
+              phase: "snippet",
+              chat: input.chat,
+              value: { code: input.code, grants: input.grants, chat: input.chat },
+            }),
+          );
+        } finally {
+          forgetRuntime(binding, runtimeId);
+        }
       } finally {
-        forgetRuntime(binding, runtimeId);
         pool.discard(binding);
         lease.release();
         releaseBinding(binding);
+        releaseOwnedBinding(binding);
       }
     },
     readLog: (instance): readonly PluginLogLineOut[] => {
@@ -1369,6 +1540,54 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       binding.lifecycleGeneration += 1;
       const error = new Error("plugin host: invocation refused because the logical instance was disposed");
       pool.remove(binding, error);
+      if (binding.runtimeId === undefined) {
+        releaseOwnedBinding(binding);
+      }
     },
   };
+
+  // biome-ignore lint/nursery/useDisposables: the caller adopts this returned host and its identity keys explicit-host observers; local await using would close it before return.
+  const host: ProcessPluginHost = {
+    ...operations,
+    createInstance: (...args) => runOwned(() => operations.createInstance(...args)),
+    invoke: (...args) => runOwned(() => operations.invoke(...args)),
+    runSnippet: (...args) => runOwned(() => operations.runSnippet(...args)),
+    [Symbol.asyncDispose]: (): Promise<void> => {
+      closing ??= (async (): Promise<void> => {
+        closed = true;
+        await using cleanup = new AsyncDisposableStack();
+        cleanup.defer(() => timerResources.dispose());
+        cleanup.defer(() => broker.closeManaged());
+        cleanup.defer(async (): Promise<void> => {
+          await broker.settleBindings(ownedBindings);
+          for (const binding of ownedBindings) {
+            clearAuthorities(binding);
+            binding.invokeArgs.clear();
+            releaseBinding(binding);
+          }
+          ownedBindings.clear();
+        });
+        cleanup.defer(() => bridgeResources.disposeAsync());
+        cleanup.defer(async (): Promise<void> => {
+          while (pending.size > 0) {
+            await Promise.all([...pending]);
+          }
+        });
+        cleanup.defer(() => poolResources.disposeAsync());
+        const failure = new Error("plugin host: logical host is closing");
+        for (const binding of ownedBindings) {
+          logicalBindings.delete(binding);
+          binding.disposed = true;
+          binding.lifecycleGeneration += 1;
+          pool.remove(binding, failure);
+        }
+        instances.clear();
+        broker.cancelStartup();
+        broker.cancelBindings(ownedBindings);
+      })();
+      return closing;
+    },
+  };
+  brokerObservers.set(host, broker);
+  return host;
 }

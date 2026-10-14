@@ -2,7 +2,7 @@
 
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { CharacterService } from "#domain/character";
 import { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
@@ -10,12 +10,16 @@ import type { RefineryContext, RefineryService, RefineryWorkloadDeps, ResolveStr
 import { createPlanSchema, createRefineryService } from "#domain/refinery";
 import type { SettingsService } from "#domain/settings";
 import { createResolveUserProse } from "#domain/settings";
-import { publishUserEvent } from "#transport/trpc";
+import type { LiveBuses } from "#transport/trpc";
+
 import { minter } from "./minter.ts";
 
 // @orb-waive no-inline-package-interface(RefineryComposeDeps): baselined when the gate landed; burn-down item 952.
 /** Graph inputs; the refinery owns draft planning and settings owns the prose projection. */
 export interface RefineryComposeDeps {
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
+
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
@@ -39,14 +43,14 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
   const refinery = createRefineryService({
     db: deps.db,
     now: deps.now,
-    newRefinerySessionId: minter(ID_PREFIX.refinerySession),
-    newRefineryRunId: minter(ID_PREFIX.refineryRun),
-    newRefinerySchemaId: minter(ID_PREFIX.refinerySchema),
+    newRefinerySessionId: minter(ID_PREFIX.refinerySession, deps.idSource),
+    newRefineryRunId: minter(ID_PREFIX.refineryRun, deps.idSource),
+    newRefinerySchemaId: minter(ID_PREFIX.refinerySchema, deps.idSource),
     roleClientsFor: deps.roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     resolveUserProse,
     planSchema: createPlanSchema({ resolveStructuredBinding: deps.resolveStructuredBinding, resolveUtilityPresetParams: deps.resolveUtilityPresetParams }),
-    emitUserEvent: publishUserEvent,
+    emitUserEvent: deps.emitUserEvent,
     loadOwnedCard: createLoadOwnedCard({ db: deps.db }),
     stampRefinerySignals,
     snapshotCharacter: deps.character.snapshot,
@@ -63,7 +67,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
       resolveUserProse,
       listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),
       stampRefinerySignals,
-      emitUserEvent: publishUserEvent,
+      emitUserEvent: deps.emitUserEvent,
     },
   };
 }

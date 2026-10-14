@@ -2,6 +2,8 @@
 // `orb/firehose-import-allowlist` selector in eslint.config.js; this fact is what tells the health policy that
 // selector still has a symbol to ban.
 
+import { Node } from "ts-morph";
+import { inventoryExports } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import { defineFact } from "../contract/fact.ts";
 
 export const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
@@ -17,7 +19,12 @@ export const firehoseImportFact = defineFact({
     return {
       visitFile: (source) => {
         if (source.getFilePath().replaceAll("\\", "/").endsWith(FIREHOSE_HOME)) {
-          declared ||= source.getFunction(FIREHOSE_SYMBOL) !== undefined;
+          declared ||= (inventoryExports(source).get(FIREHOSE_SYMBOL) ?? []).some(
+            (declaration) =>
+              declaration.getSourceFile() === source &&
+              (Node.isFunctionDeclaration(declaration) || Node.isVariableDeclaration(declaration)) &&
+              declaration.getType().getCallSignatures().length > 0,
+          );
         }
       },
       finish: () => {

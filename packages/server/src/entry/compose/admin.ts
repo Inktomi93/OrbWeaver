@@ -1,7 +1,7 @@
 // Wire admin policy to session, producer and transport ops; the tool registry and export service are singletons.
 
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import type { AdminCardEmbedDeps, AdminService, ServerRestartPort } from "#domain/admin";
 import { can, createAdminCardEmbed, createAdminService, createAdminSessionPort } from "#domain/admin";
 import type { CharacterService } from "#domain/character";
@@ -14,12 +14,16 @@ import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
 import type { AuditEntry } from "#foundation/observability";
 import { createAuditStatementAfterWrite } from "#foundation/observability";
-import { publishUserEvent } from "#transport/trpc";
+import type { LiveBuses } from "#transport/trpc";
+
 import type { SessionSocketEviction } from "../http/index.ts";
 
 // @orb-waive no-inline-package-interface(AdminComposeDeps): baselined when the gate landed; burn-down item 952.
 /** Boot dependencies and precise sibling service capabilities wired into admin and export. */
 export interface AdminComposeDeps {
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
+
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly newUserId: () => UserId;
@@ -67,8 +71,8 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     hashPassword: deps.hashPassword,
     seedUserConnections: deps.seedUserConnections,
     audit,
-    auditStatementAfterWrite: createAuditStatementAfterWrite(db),
-    emitUserEvent: publishUserEvent,
+    auditStatementAfterWrite: createAuditStatementAfterWrite(db, deps.idSource),
+    emitUserEvent: deps.emitUserEvent,
     sessions: createAdminSessionPort({
       listForUser: (userId) => sessions.listForUser(userId),
       revoke: (sessionId) => sessions.revoke(sessionId),

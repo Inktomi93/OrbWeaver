@@ -5,7 +5,7 @@ import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/c
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can, isAdmin, isOwner, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
@@ -54,10 +54,11 @@ import { createResolveUserProse } from "#domain/settings";
 import type { StatsService } from "#domain/stats";
 import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
-import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
+import type { WorkloadContributions, WorkloadProgressBus, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import type { AuditEntry } from "#foundation/observability";
-import { publishUserEvent } from "#transport/trpc";
+import type { AuditEntry, superviseDetached } from "#foundation/observability";
+import type { LiveBuses } from "#transport/trpc";
+
 import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
@@ -66,6 +67,12 @@ import { createVisibleRoomsReader } from "./visible-rooms.ts";
 // @orb-waive no-inline-package-interface(SearchDiscoveryComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the search/discovery cluster seam needs from the composition root. */
 export interface SearchDiscoveryComposeDeps {
+  readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
+
+  readonly supervise?: typeof superviseDetached | undefined;
+  readonly scheduleTimeout?: EmbeddingsContext["scheduleTimeout"];
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
@@ -147,6 +154,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const assetReads = createAssetEmbeddingReads(assets);
   const tier0RangeOf = createLiveTier0Range(deps.getEffectiveConfig);
   const embeddings = createEmbeddingsService({
+    scheduleTimeout: deps.scheduleTimeout,
     precomputedEmbedding: precomputedSeedEmbedding,
     ...assetReads,
     db,
@@ -155,11 +163,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
     withStableEmbeddingBinding: deps.withStableEmbeddingBinding,
     now,
-    newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
-    newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
-    newChatDigestId: minter(ID_PREFIX.chatDigest),
-    newChatSegmentId: minter(ID_PREFIX.chatSegment),
-    newDocumentChunkId: minter(ID_PREFIX.documentChunk),
+    newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding, deps.idSource),
+    newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding, deps.idSource),
+    newChatDigestId: minter(ID_PREFIX.chatDigest, deps.idSource),
+    newChatSegmentId: minter(ID_PREFIX.chatSegment, deps.idSource),
+    newDocumentChunkId: minter(ID_PREFIX.documentChunk, deps.idSource),
     listCharacterIds: character.listEmbeddableCharacterIds,
     loadCardText,
     listImageAssetIds: assets.listImageAssetIds,
@@ -173,7 +181,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // A promotion ends the owner's search pause and moves the space every vector read uses. The member that refreshes
     // those reads is `corpusRecomputed`, and the last scope to finish may be one whose sweep announces nothing.
     onTargetPromoted: (ownerId) => {
-      publishUserEvent(ownerId, { type: "corpusRecomputed" });
+      deps.emitUserEvent(ownerId, { type: "corpusRecomputed" });
     },
   });
 
@@ -209,9 +217,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const personaCtx: PersonaContext = {
     db,
     now,
-    newPersonaId: minter(ID_PREFIX.persona),
+    newPersonaId: minter(ID_PREFIX.persona, deps.idSource),
     audit,
-    emitUserEvent: publishUserEvent,
+    emitUserEvent: deps.emitUserEvent,
     // The room plane (§3.6): persona content writes raise `persona.updated`, which this seam's own reach
     // subscriber turns into a `roomEntityChanged` per room the persona is live in.
     emit: eventBus.emit,
@@ -242,9 +250,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const presetCtx: PresetContext = {
     db,
     now,
-    newPresetId: minter(ID_PREFIX.preset),
+    newPresetId: minter(ID_PREFIX.preset, deps.idSource),
     audit,
-    emitUserEvent: publishUserEvent,
+    emitUserEvent: deps.emitUserEvent,
     resolveChatCapability: deps.resolveChatCapability,
     // The CONTEXT panel's backward-bindings read (#279): preset's rule over settings', rpg's and chat's facts.
     resolvePresetUsage: createResolvePresetUsage({
@@ -255,7 +263,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   };
   // Shared: the service + the portability `preset` descriptor (both write the domain's own `presets` table).
   const preset = createPresetService(presetCtx);
-  const stats = createStatsService(db, now);
+  const stats = createStatsService(db, now, deps.idSource);
   // `resolveActiveDocumentIds` is databank's ONE scope-union home, injected into search — the
   // documents lens never re-derives which documents a scope may see.
   const search = createSearchService({
@@ -276,11 +284,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     }),
     db,
     now,
-    newDuplicateCharacterPairId: minter(ID_PREFIX.duplicateCharacterPair),
-    newThemeClusterId: minter(ID_PREFIX.themeCluster),
-    newKeywordCooccurrenceId: minter(ID_PREFIX.keywordCooccurrence),
-    newCharacterKeywordProfileId: minter(ID_PREFIX.characterKeywordProfile),
-    newDuplicateChatPairId: minter(ID_PREFIX.duplicateChatPair),
+    newDuplicateCharacterPairId: minter(ID_PREFIX.duplicateCharacterPair, deps.idSource),
+    newThemeClusterId: minter(ID_PREFIX.themeCluster, deps.idSource),
+    newKeywordCooccurrenceId: minter(ID_PREFIX.keywordCooccurrence, deps.idSource),
+    newCharacterKeywordProfileId: minter(ID_PREFIX.characterKeywordProfile, deps.idSource),
+    newDuplicateChatPairId: minter(ID_PREFIX.duplicateChatPair, deps.idSource),
     roleClientsFor,
     attachCardTagByName: deps.attachCardTagByName,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
@@ -299,6 +307,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     tier0RangeOf,
   });
   const notifications = createNotificationsService({
+    idSource: deps.idSource,
     db,
     now,
     // THE #1799 CROSS-FEATURE JOIN, made here and only here. The inbox needs to know which of a page's
@@ -310,21 +319,23 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     resolveStandingAsks: createResolveStandingAsks(db),
   });
   const workloads = createWorkloadService({
+    emitEvent: deps.emitWorkloadEvent,
     db,
     getContributions: deps.getContributions,
     now,
-    newWorkloadId: minter(ID_PREFIX.workload),
-    newScheduleId: minter(ID_PREFIX.workloadSchedule),
+    newWorkloadId: minter(ID_PREFIX.workload, deps.idSource),
+    newScheduleId: minter(ID_PREFIX.workloadSchedule, deps.idSource),
     requireOwner,
     isOwner,
     isAdmin,
-    emitUserEvent: publishUserEvent,
+    emitUserEvent: deps.emitUserEvent,
   });
 
   // The memory receipt for an owner a sweep covers but builds no space for.
   const vacuousMemoryReceipt = createVacuousMemoryReceipt({ isMemoryEnabled: deps.isMemoryEnabled, embeddings });
 
   const reindex = createEmbeddingReindexTriggers({
+    supervise: deps.supervise,
     now,
     getEffectiveConfig: deps.getEffectiveConfig,
     startWorkload: (params) => workloads.start(params),

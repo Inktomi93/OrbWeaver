@@ -6,8 +6,8 @@
 
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
-import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { IdSource, MessageVariantId } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
@@ -28,14 +28,14 @@ export interface SeededMessage extends MessageRow {
   readonly content: string;
 }
 
-const ids = createSeededIds();
+const ids = createIdSource(createSeededIds().next);
 
 /** Pure builder: a fully-valid slot row (assistant, seq 1). `selectedVariantId` is null — the pointer
  *  only exists after the variant insert (`seedMessage` owns that dance). */
-export function makeMessage(overrides: Partial<MessageRow> = {}): MessageRow {
+export function makeMessage(overrides: Partial<MessageRow> = {}, source: IdSource = ids): MessageRow {
   return {
-    id: castId<MessageId>(ids.next("message")),
-    chatId: castId<ChatId>(ids.next("chat")),
+    id: source.typeId(ID_PREFIX.message),
+    chatId: source.typeId(ID_PREFIX.chat),
     seq: 1,
     role: "assistant",
     kind: "standard",
@@ -54,13 +54,14 @@ export function makeMessage(overrides: Partial<MessageRow> = {}): MessageRow {
 
 /** The D26 3-step dance over a real db: slot → variant idx 0 → `selectedVariantId` pointer. An absent
  *  `chatId` seeds a bare chat first (FK-clean on an empty db). */
-export async function seedMessage(db: Db, overrides: SeedMessageOptions = {}): Promise<SeededMessage> {
+export async function seedMessage(db: Db, overrides: SeedMessageOptions = {}, source?: IdSource): Promise<SeededMessage> {
   const { content, ...slotOverrides } = overrides;
-  const chatId = slotOverrides.chatId ?? (await seedChat(db)).id;
-  const slot = makeMessage({ ...slotOverrides, chatId });
+  const sequence = source ?? ids;
+  const chatId = slotOverrides.chatId ?? (await seedChat(db, {}, source)).id;
+  const slot = makeMessage({ ...slotOverrides, chatId }, sequence);
   await db.insert(messages).values(slot);
 
-  const variantId = castId<MessageVariantId>(ids.next("message_variant"));
+  const variantId = sequence.typeId(ID_PREFIX.messageVariant);
   const body = content ?? `body-${slot.seq}`;
   await db.insert(messageVariants).values({
     id: variantId,

@@ -6,10 +6,11 @@
 import { z } from "zod";
 import { deadlineSignal } from "../backends/http/abort-flatten.ts";
 import { authHeaders, isRedirect, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
-import type { DetectedServer, DetectionProbe } from "../contract/runtime.ts";
+import type { DetectedServer, DetectionProbe, ScheduleTimeout } from "../contract/runtime.ts";
 
 // @orb-waive no-inline-package-interface(DetectArgs): baselined when the gate landed; burn-down item 952.
 export interface DetectArgs {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
   readonly secret: string | null;
@@ -65,7 +66,7 @@ async function answer(args: DetectArgs, path: string): Promise<unknown> {
  * matched none is `null`, which is cached like a match.
  */
 export async function detectServer(args: DetectArgs): Promise<DetectedServer> {
-  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS);
+  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS, args.scheduleTimeout);
   try {
     for (const probe of PROBES) {
       if (probe.schema.safeParse(await answer({ ...args, signal: deadline.signal }, probe.path)).success) {

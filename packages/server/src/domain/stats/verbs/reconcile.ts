@@ -23,7 +23,7 @@ import { reconcileOwnerStats } from "../substrate/reconcile-owner.ts";
 
 export function createReconcile(ctx: StatsContext, inFlight: ReconcileInFlight): Pick<StatsService, "reconcile"> {
   async function reconcile(ownerId: UserId): Promise<ReconcileStatsResult> {
-    return await inFlight.run(ownerId, () => reconcileOwnerStats(ctx.db, { ownerId, now: ctx.now }));
+    return await inFlight.run(ownerId, () => reconcileOwnerStats(ctx.db, { ownerId, now: ctx.now, idSource: ctx.idSource }));
   }
   return { reconcile };
 }

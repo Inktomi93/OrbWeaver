@@ -17,7 +17,15 @@ import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
-import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginProviderLifecycle, PluginRegistry } from "../contract/service.ts";
+import type {
+  ActivateInput,
+  ActivateOutcome,
+  CrashPolicy,
+  PluginActivationContext,
+  PluginContext,
+  PluginProviderLifecycle,
+  PluginRegistry,
+} from "../contract/service.ts";
 import { getById, setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
 import { invokeFailureKind, logPluginFailure } from "../substrate/failure-log.ts";
@@ -175,7 +183,7 @@ async function failUnreadableBundle(ctx: PluginContext, input: ActivateInput, er
 }
 
 export function createActivate(
-  ctx: PluginContext,
+  ctx: PluginActivationContext,
   registry: PluginRegistry,
   crashPolicy: CrashPolicy,
   providerLifecycle: PluginProviderLifecycle,
@@ -220,23 +228,24 @@ export function createActivate(
     // `ctx.host.invoke` REJECTING → bump the consecutive-crash counter (auto-disable + owner-notify at the
     // threshold) and RE-THROW so the tool-use registrar catches it as `threw` (errors-as-data to the model); a
     // clean run resets the counter. `chat` is the registrar-resolved invocation scope (read admits, host writes).
-    const invoke: PluginInvokeHandler = async (handler, argsJson, chat, signal) => {
-      try {
-        const result = await ctx.host.invoke(instance, handler, argsJson, chat, signal);
-        await crashPolicy.recordCleanRun(input.pluginId);
-        return result;
-      } catch (err) {
-        if (isHostAdmissionRefusal(err)) {
+    const invoke: PluginInvokeHandler = (handler, argsJson, chat, signal) =>
+      ctx.invocations.run(async () => {
+        try {
+          const result = await ctx.host.invoke(instance, handler, argsJson, chat, signal);
+          await crashPolicy.recordCleanRun(input.pluginId);
+          return result;
+        } catch (err) {
+          if (isHostAdmissionRefusal(err)) {
+            throw err;
+          }
+          // A caller that gave up on the call at its deadline already logged the overrun; the rejection still counts.
+          if (signal?.reason !== DEADLINE_ABORT_REASON) {
+            logPluginFailure(slug, invokeFailureKind(err), errorMessage(err));
+          }
+          await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });
           throw err;
         }
-        // A caller that gave up on the call at its deadline already logged the overrun; the rejection still counts.
-        if (signal?.reason !== DEADLINE_ABORT_REASON) {
-          logPluginFailure(slug, invokeFailureKind(err), errorMessage(err));
-        }
-        await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });
-        throw err;
-      }
-    };
+      });
     const scope: PluginActivationScope = { slug, installer: input.caller, matchAutomationEvents };
     let handles: PluginRegistrationHandle[];
     try {

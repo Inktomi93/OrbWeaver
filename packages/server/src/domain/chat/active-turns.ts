@@ -8,16 +8,19 @@
 // is `abortAll`, reserved for the room-gone case (the host deleted the chat) — see its contract note.
 
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { AbortResult, ActiveTurnHandle, ActiveTurns } from "./contract/active-turns.ts";
+import type { AbortResult, ActiveTurnHandle, OwnedActiveTurns } from "./contract/active-turns.ts";
 
 interface Entry {
   readonly controller: AbortController;
   readonly ownerUserId: UserId;
+  readonly released: PromiseWithResolvers<void>;
 }
 
 /** Build the in-memory active-turns registry. Pure process state — no clock, no db, no I/O. */
-export function createActiveTurns(): ActiveTurns {
+export function createActiveTurns(): OwnedActiveTurns {
   const byChat = new Map<ChatId, Set<Entry>>();
+  const unsettled = new Set<Entry>();
+  let closed = false;
 
   const entriesFor = (chatId: ChatId): Set<Entry> => {
     const existing = byChat.get(chatId);
@@ -30,15 +33,21 @@ export function createActiveTurns(): ActiveTurns {
   };
 
   const register = (chatId: ChatId, ownerUserId: UserId): ActiveTurnHandle => {
-    const entry: Entry = { controller: new AbortController(), ownerUserId };
+    if (closed) {
+      throw new Error("cannot register a turn on a closed active-turn registry");
+    }
+    const entry: Entry = { controller: new AbortController(), ownerUserId, released: Promise.withResolvers<void>() };
     const set = entriesFor(chatId);
     set.add(entry);
+    unsettled.add(entry);
     // `release` is idempotent (a second call deletes an already-absent entry — a no-op), which is what lets
     // `[Symbol.dispose]` ALIAS it rather than fork a second implementation: a `using` scope exit and a stray
     // hand `release()` cannot disagree.
     const release = (): void => {
+      unsettled.delete(entry);
+      entry.released.resolve();
       set.delete(entry);
-      if (set.size === 0) {
+      if (set.size === 0 && byChat.get(chatId) === set) {
         byChat.delete(chatId);
       }
     };
@@ -82,5 +91,18 @@ export function createActiveTurns(): ActiveTurns {
 
   const countActive = (chatId: ChatId): number => byChat.get(chatId)?.size ?? 0;
 
-  return { register, abort, abortAll, countActive };
+  return {
+    register,
+    abort,
+    abortAll,
+    countActive,
+    async [Symbol.asyncDispose](): Promise<void> {
+      closed = true;
+      const turns = [...unsettled];
+      for (const turn of turns) {
+        turn.controller.abort();
+      }
+      await Promise.all(turns.map((turn) => turn.released.promise));
+    },
+  };
 }

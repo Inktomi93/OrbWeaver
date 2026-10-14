@@ -30,7 +30,6 @@ import {
   upsertQuestArgsSchema,
 } from "@orb/contracts/rpg";
 import type { ChatTurnId } from "@orb/kit/ids";
-import { newId } from "@orb/kit/ids";
 import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
 import type { ActorRefIndex } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
@@ -48,6 +47,7 @@ import {
   toStagedJournalEntry,
 } from "./apply.ts";
 import { rollNotation } from "./dice.ts";
+import { createExtractionMints } from "./mints.ts";
 
 /** The sanctioned erasure (the imagery/buddy precedent): a typed `ToolDefinition<A>` is unassignable to
  *  `ToolDefinition<unknown>` (handler contravariance), so mint with its own `A` and widen for the array;
@@ -98,6 +98,7 @@ async function participantIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<A
 
 /** Build the 7 rpg tool defs closing over `ctx` (registered at compose, W1c-b). */
 export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
+  const extractionMints = createExtractionMints(ctx.idSource);
   return [
     rpgTool({
       name: "update_party",
@@ -132,7 +133,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
           return resolved.result;
         }
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
-        const patch = applyUpdateInventory(state, args, () => newId(), await participantIndexFor(ctx, resolved.turn.game));
+        const patch = applyUpdateInventory(state, args, ctx.ids.item, await participantIndexFor(ctx, resolved.turn.game));
         ctx.staging.stage(resolved.turn.turnId, patch);
         return { ok: true, value: { targetRef: args.targetRef } };
       },
@@ -183,12 +184,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
           return resolved.result;
         }
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
-        const patch = applyUpsertQuest(
-          state,
-          args,
-          () => ctx.ids.quest(),
-          () => newId(),
-        );
+        const patch = applyUpsertQuest(state, args, () => ctx.ids.quest(), extractionMints.objective);
         ctx.staging.stage(resolved.turn.turnId, patch);
         return { ok: true, value: { name: args.name, action: args.action } };
       },

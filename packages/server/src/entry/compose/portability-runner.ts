@@ -3,7 +3,7 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { Db } from "@orb/db";
 import { optimizeDb } from "@orb/db";
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -33,7 +33,7 @@ import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory, writeImportReportFile } from "#infra/storage";
-import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "#transport/trpc";
+import type { LiveBuses } from "#transport/trpc";
 import { createNodeFsImportPort, importStagedArchive, runBundleImport, runProfileDirImport } from "../import/index.ts";
 import { buildPortabilityRegistry } from "./portability.ts";
 
@@ -42,6 +42,11 @@ const DEFAULT_ST_PROFILE_DIR = ".st-data";
 /** What the portability+import seam needs from the composition root. */
 // @orb-waive no-inline-package-interface(PortabilityRunnerComposeDeps): baselined when the gate landed; burn-down item 952.
 export interface PortabilityRunnerComposeDeps {
+  readonly quiet: LiveBuses["quiet"]["withQuietBulkFanout"];
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
+  readonly publishChatChanged: LiveBuses["user"]["publishChatChanged"];
+
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly tagCtx: TagContext;
@@ -101,7 +106,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
 
   const enqueueImportIndex = createEnqueueImportIndex(workloads);
   const reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"] = async ({ ownerId }) => {
-    await reconcileStats(db, { ownerId, now });
+    await reconcileStats(db, { ownerId, now, idSource: deps.idSource });
   };
   /** The ST profile importer's cross-domain slice — the ONE spelling, shared by both consumers. */
   const profileImport = {
@@ -153,7 +158,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion),
     ...createImportWorkloadDrivers({
       now,
-      quiet: withQuietBulkFanout,
+      quiet: deps.quiet,
       resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
       profile: (principal, { profileRoot, dryRun, signal, personaCollisions }) =>
         runProfileDirImport({
@@ -184,8 +189,8 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     reconcileImportStats,
     refreshPlannerStats: () => optimizeDb(db),
     emitLibraryChanged: createImportLibraryEmitter({
-      charactersChanged: ({ ownerId }) => publishUserEvent(ownerId, { type: "charactersChanged" }),
-      chatsChanged: ({ ownerId }) => publishChatChanged(ownerId, undefined),
+      charactersChanged: ({ ownerId }) => deps.emitUserEvent(ownerId, { type: "charactersChanged" }),
+      chatsChanged: ({ ownerId }) => deps.publishChatChanged(ownerId, undefined),
     }),
   };
 

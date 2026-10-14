@@ -7,8 +7,9 @@
 // NOT re-declared here — their home is `@orb/contracts/rpg` (§7.4). The staging store + its factory come from
 // the feature-root `staging.ts` (W1a); this door re-exports the store for compose to mint the singleton.
 
-export { publishRpgEvent, subscribeRpgEvents } from "./bus.ts";
+export { createRpgEventBus, publishRpgEvent, subscribeRpgEvents } from "./bus.ts";
 export { createRpgChatOps } from "./chat-ops/index.ts";
+export type { RpgEventBus } from "./contract/bus.ts";
 // The cheap-mode tools' two OUTWARD-crossing shapes (`tools/rounds/` names both). Re-homed to the
 // domain's `contract/` on 2026-08-22 (#408) — they were declared in `tools/apply.ts` only because the
 // `no-inline-types` gate's `/tools/` clause exempted that subsystem by string accident.

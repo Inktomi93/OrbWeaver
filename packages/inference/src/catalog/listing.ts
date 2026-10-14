@@ -27,6 +27,7 @@ import { listGoogleModels } from "./google.ts";
 
 // @orb-waive no-inline-package-interface(CatalogListingDeps): baselined when the gate landed; burn-down item 952.
 export interface CatalogListingDeps {
+  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
   readonly registry: ProviderRegistry;
   readonly resolveCredential: InferenceDeps["resolveCredential"];
   readonly fetch: typeof fetch;
@@ -117,6 +118,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
     try {
       // The provider row's reader (a draft has no `declared` block yet), so an Ollama embedder lists as one.
       const rows = await fetchEndpointModels({
+        scheduleTimeout: deps.scheduleTimeout,
         fetch: deps.fetch,
         baseUrl,
         secret,
