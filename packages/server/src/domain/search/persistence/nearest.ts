@@ -8,6 +8,8 @@ import type { ReadOnlyDb } from "@orb/db";
 import { characterEmbeddings, characters, documentChunks, documents, embedGenerations, embedSpaceState } from "@orb/db";
 import type { CharacterId, DocumentChunkId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import type { DocumentSearchParams } from "../contract/params.ts";
+import type { ResolveActiveDocumentScopeOp } from "../contract/service.ts";
 
 interface NearestCharacter {
   readonly characterId: CharacterId;
@@ -76,9 +78,8 @@ interface NearestDocumentChunk {
 }
 
 interface NearestDocumentChunksParams {
-  /** The scope allowlist — applied in SQL BEFORE the cosine rank + before
-   *  content_hash collapse (the vector-scope-derived belt). An empty list is a caller bug (the verb
-   *  short-circuits earlier), never reached with `[]`. */
+  readonly scope: DocumentSearchParams["scope"];
+  /** The preflight candidates only narrow the current databank predicate; they never grant read authority. */
   readonly documentIds: readonly DocumentId[];
   readonly queryVector: Float32Array;
   /** The space tag — same space the chunks were embedded in (invariant 6). */
@@ -88,18 +89,21 @@ interface NearestDocumentChunksParams {
   readonly limit: number;
 }
 
-/** Top-`limit` document chunks (cosine) within the scope allowlist + the active space at the query's width,
- *  ascending distance. Joins `documents` for the provenance name the slot renders. The scope predicate is a
- *  WHERE (never a post-filter), the ONLY belt this table needs — ownership already resolved into the id set. */
-export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocumentChunksParams): Promise<NearestDocumentChunk[]> {
+/** Rank only chunks still admitted by databank's current scope, intersected with preflight candidates. */
+export async function nearestDocumentChunks(
+  db: ReadOnlyDb,
+  resolveActiveDocumentScope: ResolveActiveDocumentScopeOp,
+  params: NearestDocumentChunksParams,
+): Promise<NearestDocumentChunk[]> {
+  const currentScope = await resolveActiveDocumentScope(params.scope);
   const distance = sql<number>`vector_distance_cos(${documentChunks.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
   let generationCondition = params.generationId === undefined ? undefined : eq(documentChunks.generationId, params.generationId);
   if (params.generationFingerprint !== undefined) {
     generationCondition = and(eq(embedGenerations.fingerprint, params.generationFingerprint), eq(embedSpaceState.activeGenerationId, embedGenerations.id));
   }
-  // @orb-waive owner-scoped-reads(documents): satellite chain from `document_chunks`, whose only scope is the document it joins, so the scope is the `documentIds` allowlist the `documents` search verb resolves first through `resolveActiveDocumentIds(scope)` (owned, room-attached and visible documents only). Ends if a caller-supplied document id reaches this read unfiltered.
-  // @orb-waive owner-scoped-reads(embedGenerations): the generation is pinned to the joined document's owner by `eq(documents.ownerId, embedGenerations.ownerId)`, and the documents are the `documentIds` allowlist above; the gate cannot see that pin because the allowlist selects `document_chunks`, not `documents`. Ends if a caller-supplied document id reaches this read unfiltered or the owner match is dropped.
-  // @orb-waive owner-scoped-reads(embedSpaceState): the space row is pinned to the same document owner through `eq(embedSpaceState.ownerId, embedGenerations.ownerId)`, so it is that allowlisted document owner's active generation. Ends if a caller-supplied document id reaches this read unfiltered or either owner match is dropped.
+  // @orb-waive owner-scoped-reads(documents): databank's compose-injected resolveActiveDocumentScope supplies the independent current WHERE after query embedding; its shared junction subqueries preserve D85 room credits, and personal scope binds documents.ownerId. The gate cannot inspect this injected SQL. Ends if currentScope leaves the WHERE or the scope operation no longer comes from databank.
+  // @orb-waive owner-scoped-reads(embedGenerations): the generation is pinned to documents.ownerId, whose independent current databank WHERE admits the row before ranking; room credits may belong to another present member, not the query funder. Ends if currentScope or the owner match is dropped.
+  // @orb-waive owner-scoped-reads(embedSpaceState): the active documents space is pinned to the same admitted document owner through embedGenerations.ownerId. Ends if currentScope or either owner match is dropped.
   const rows = await db
     .select({
       chunkId: documentChunks.id,
@@ -124,6 +128,7 @@ export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocum
     )
     .where(
       and(
+        currentScope,
         inArray(documentChunks.documentId, [...params.documentIds]),
         eq(documentChunks.model, params.model),
         generationCondition,

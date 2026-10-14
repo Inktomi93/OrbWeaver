@@ -1,5 +1,5 @@
 // @subject packages/server/src/domain/connection/verbs/local-light-policy.ts
-// @subject packages/server/src/domain/sessions/persistence/seed-account-ids.ts
+// @subject packages/server/src/domain/sessions/persistence/users.ts
 
 import "@orb/testkit/node/composed-real.ts";
 import { connectionBindings, userConnections, users } from "@orb/db";

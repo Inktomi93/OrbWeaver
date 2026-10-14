@@ -1,53 +1,11 @@
-// Policy: two-class-role-authority — an inline participant-role comparison in an ENFORCEMENT position (its
-// `if` throws) must route through the domain's ONE cited authority chokepoint. Spine invariant #6: `can()`
-// is the only privilege-comparison site.
-//
-// THE TWO CLASSES (ruled 2026-08-03, cross-cited in the code at 751d2a6cf6):
-// (1) ENFORCEMENT — a role comparison that DECIDES whether an operation may proceed. Its home is the
-//     domain's chokepoint (`domain/chat/substrate/auth/decide.ts`, `domain/rpg/guard.ts`), both of which now
-//     route the verdict through the injected `can()` at `domain/admin/guard.ts`. THIS is what the gate bites.
-// (2) DATA PROJECTION — a role read that PRODUCES A PAYLOAD FIELD consumers thread as data
-//     (`substrate/member-visibility.ts::viewerReadsHidden`, `substrate/chat-detail.ts::viewerIsHost`,
-//     D106-F1). Principal-free and I/O-free by design; wiring them through `can()` would thread a Principal
-//     into a pure projection for zero behavior change. The ENFORCEMENT-POSITION test (the comparison must
-//     gate a `throw`) IS the line between the classes, so a projection can never be "fixed" into a violation.
-//
-// IDENTITY, NOT SPELLING, ON BOTH HALVES. The legacy reader hardcoded `"host"` inside the gate and matched
-// the operand by NAME. The literal set is now read from `PARTICIPANT_ROLES`' own declaration through the
-// shared `tupleVocabularyFact`, bound to its home in `packages/contracts/src/identity/` — so a third
-// participant role is judged the day it lands, and a vocabulary that stops resolving takes the receipt to
-// zero and WITHHOLDS the verdict instead of rendering a clean pass. The AXIS is then proven by the read's own
-// TYPE, which is what retires the legacy header's second declared blind spot BY CONSTRUCTION: transport's
-// `authority === "host"` compares a StreamAuthority TIER string that merely shares a lexeme, and its type is
-// not the participant vocabulary.
-//
-// THE `role` NAME REMAINS PART OF THE SUBJECT, and three declared limits carry rows: a comparison hoisted
-// into a boolean CONST used later in a throwing `if`, the GUARD-INVERSION spelling
-// (`if (role === "host") { return; } throw …`) whose throw is outside the `if`, and a `switch (role)` whose
-// CASE CLAUSE throws — the enforcement-position test reads an `if` condition, and a switch is a different
-// statement shape with no comparison node to walk out of. All three are zero-instance on this tree.
-//
-// The AXIS test FAILS CLOSED: a read the checker types `any`, plain `string`, or a strict SUPERSET of the
-// vocabulary is reported, because each MIGHT be the participant axis and the legacy name reader bit the
-// `string` case. Only a closed literal union that provably omits a vocabulary member acquits.
-//
-// AUTHORITY IS reviewed-grant: both legacy tables were recurring repository PERMISSIONS, not per-occurrence
-// mistakes — the `can()` seam's own comparison, and the ONE nominee TARGET-VALIDITY check that is not a
-// caller gate. Each is one exact `(subject, operation)` row in the central reviewed-grant table, and the
-// legacy both-ways stale arms are that table's own liveness: a home that stops carrying an enforcement
-// comparison leaves its row consumed zero times, which is the central STALE alarm.
-//
-// FAMILY `role-vocabulary` — the shared reader is `lib/role-vocabulary.ts` (`readRoleComparison`,
-// `readAxisVerdict`, `vocabularyAtHome`, `vocabularyMembers`) fed by the shared `lib/tuple-vocabulary-fact.ts`
-// provider, consumed identically by this policy and `owner-role-split`. Only the VOCABULARY
-// (`PARTICIPANT_ROLES` vs `USER_ROLES`) and this policy's additional ENFORCEMENT-POSITION test differ; the
-// axis judgement is one computation, which is what keeps the two lattices from drifting apart.
-// POPULATION PORT: byte-identical. The legacy descriptor filtered `p.includes(DOMAIN_ROOT)` where
-// `DOMAIN_ROOT = "packages/server/src/domain/"` (`b5acbf2594^:49,200`); the final population is
-// `{ in: ["@server"], under: ["packages/server/src/domain/**"] }`. The legacy `SANCTIONED_HOMES` entries
-// were scanned and excused, never subtracted.
+// Participant-role enforcement belongs in the injected kernel (D121), including room-effect ceilings.
+// Throwing conditions and canWrite/isInstallerHost fields are enforcement; viewer-byte projections and
+// roster lookups remain separate. Shared role-vocabulary readers prove the axis and vocabulary identity.
+// Population includes domain and entry; exact sanctioned kernel/shape/nominee grants remain centrally judged.
+// Hoisted booleans, guard inversion and switches remain declared limits.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticString, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readAxisVerdict, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
@@ -55,9 +13,10 @@ import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabu
 const VOCABULARY = "PARTICIPANT_ROLES";
 const VOCABULARY_HOME = "/packages/contracts/src/identity/";
 const OPERATION = "enforcement-role-comparison";
+const ENFORCEMENT_FIELDS: ReadonlySet<string> = new Set(["canWrite", "isInstallerHost"]);
 
 const MESSAGE =
-  "inline participant-role comparison in an ENFORCEMENT position — a role comparison that gates a `throw`. " +
+  "inline participant-role comparison in an ENFORCEMENT position — a throwing condition or room-effect authority ceiling. " +
   "Spine invariant #6: the privilege comparison lives at the domain's ONE cited authority chokepoint, so a " +
   "surface that relaxes (or tightens) its gate cannot drift from every other surface. A re-spelled compare " +
   "is also how a refusal's leak-free shape gets lost: the chokepoint owns not-found-vs-forbidden, the verb " +
@@ -105,8 +64,7 @@ function conditionRoot(node: MorphNode): MorphNode {
 }
 
 /** ENFORCEMENT POSITION: the comparison is (through that plumbing) the condition of an `if` whose then/else
- *  branch throws. A payload field, a ternary VALUE, a `.find()` predicate and a behavior branch are class (2)
- *  and are deliberately not this policy's business. */
+ *  branch throws. Room-effect ceiling fields are judged separately; viewer projection and roster lookup are not authority. */
 function isEnforcementPosition(comparison: MorphNode): boolean {
   const root = conditionRoot(comparison);
   const parent = root.getParent();
@@ -116,12 +74,42 @@ function isEnforcementPosition(comparison: MorphNode): boolean {
   return throws(parent.getThenStatement()) || throws(parent.getElseStatement());
 }
 
+function fieldValueRoot(comparison: MorphNode): MorphNode {
+  const root = conditionRoot(comparison);
+  const parent = root.getParent();
+  if (parent !== undefined && Node.isReturnStatement(parent)) {
+    const block = parent.getParent();
+    const callable = block.getParent();
+    if (Node.isBlock(block) && callable !== undefined && (Node.isArrowFunction(callable) || Node.isFunctionExpression(callable))) {
+      return callable;
+    }
+  } else if (parent !== undefined && Node.isArrowFunction(parent) && parent.getBody() === root) {
+    return parent;
+  }
+  return root;
+}
+
+function isEnforcementField(comparison: MorphNode): boolean {
+  const root = fieldValueRoot(comparison);
+  const parent = root.getParent();
+  if (parent !== undefined && Node.isPropertyAssignment(parent) && parent.getInitializer() === root) {
+    const name = parent.getNameNode();
+    const key = Node.isIdentifier(name) ? name.getText() : readStaticString(Node.isComputedPropertyName(name) ? name.getExpression() : name);
+    return typeof key === "string" ? ENFORCEMENT_FIELDS.has(key) : key.kind === "resolved" && ENFORCEMENT_FIELDS.has(key.value);
+  }
+  if (parent !== undefined && Node.isBinaryExpression(parent) && parent.getOperatorToken().getKind() === SyntaxKind.EqualsToken && parent.getRight() === root) {
+    const member = staticMemberAccess(parent.getLeft());
+    return member !== undefined && ENFORCEMENT_FIELDS.has(member.name);
+  }
+  return false;
+}
+
 export const gate = defineGate({
   id: "two-class-role-authority",
   family: "role-vocabulary",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@server"], under: ["packages/server/src/domain/**"] },
+  population: { in: ["@server"], under: ["packages/server/src/domain/**", "packages/server/src/entry/**"] },
   analysis: "types",
   execution: "entire-population",
   facts: [tupleVocabularyFact],
@@ -135,8 +123,9 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.BinaryExpression],
           visit: (node, sourceFile: SourceFile) => {
-            const comparison = readRoleComparison(node);
-            if (comparison === undefined || !isEnforcementPosition(node)) {
+            const field = isEnforcementField(node);
+            const comparison = readRoleComparison(node, field);
+            if (comparison === undefined || !(field || isEnforcementPosition(node))) {
               return;
             }
             candidates.push({ node, read: comparison.read, value: comparison.value, subject: ctx.relativePath(sourceFile) });
@@ -171,6 +160,73 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/plugin/field.ts":
+          'import type { ParticipantRole } from "../../../../contracts/src/identity/index.ts";\nconst KEY = "canWrite";\nexport function authority(member: { role: ParticipantRole }) { return { [KEY]: member["role"] === "host" }; }\n',
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/domain/plugin/field.ts" },
+      why: "computed authority field and computed role read are the same operation ceiling",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/plugin/assigned.ts":
+          'import type { ParticipantRole } from "../../../../contracts/src/identity/index.ts";\nexport function authority(role: ParticipantRole, scope: { canWrite: boolean }) { scope["canWrite"] = role === "host"; }\n',
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/domain/plugin/assigned.ts" },
+      why: "writing an authority field after object creation is the same ceiling as its initializer",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/plugin/callback.ts":
+          'import type { ParticipantRole } from "../../../../contracts/src/identity/index.ts";\nexport function authority(role: ParticipantRole) { return { isInstallerHost: async () => { return role === "host"; } }; }\n',
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/domain/plugin/callback.ts" },
+      why: "a block-bodied installer-host callback cannot evade the expression-bodied field control",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/entry/compose/plugin.ts":
+          'import type { ParticipantRole } from "../../../../contracts/src/identity/index.ts";\nexport function authority(role: ParticipantRole) { if (role !== "host") throw new Error("denied"); }\n',
+        "packages/server/src/domain/anchor.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/entry/compose/plugin.ts" },
+      why: "entry wiring cannot become a second room-authority enforcement home",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/plugin/authority.ts":
+          'import type { ParticipantRole } from "../../../../contracts/src/identity/index.ts";\nexport function authority(role: ParticipantRole) { return { canWrite: role === "host" }; }\n',
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/domain/plugin/authority.ts" },
+      why: "canWrite carries an operation ceiling, not a hidden-content projection, even when the refusal is downstream",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/plugin/registrar.ts":
+          'import type { ParticipantRole } from "../../../../contracts/src/identity/index.ts";\ndeclare function load(): Promise<ParticipantRole | null>;\nexport const registrar = { isInstallerHost: async () => (await load()) === "host" };\n',
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/domain/plugin/registrar.ts" },
+      why: "the current installer-host callback compares a fresh call result, not an identifier spelled role",
+    },
     {
       mode: "types",
       grant: { subject: "packages/server/src/domain/rpg/verbs/patch-actor.ts", operation: "enforcement-role-comparison" },
@@ -273,6 +329,26 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/entry/compose/view.ts":
+          'import type { ParticipantRole } from "../../../../contracts/src/identity/index.ts";\nexport function view(role: ParticipantRole) { return { viewerIsHost: role === "host" }; }\n',
+        "packages/server/src/domain/anchor.ts": "export {};\n",
+      },
+      why: "widening entry must not turn a viewer-byte projection into operation authority",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts": 'export const PARTICIPANT_ROLES = ["host", "member"] as const;\n',
+        "packages/server/src/entry/compose/foreign.ts": 'export function authority(role: "host" | "guest") { return { canWrite: role === "host" }; }\n',
+        "packages/server/src/domain/anchor.ts": "export {};\n",
+      },
+      why: "an enforcement-like field on a provably foreign role axis is not a participant-role comparison",
+    },
     {
       mode: "types",
       files: {

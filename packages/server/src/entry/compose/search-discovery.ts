@@ -24,7 +24,7 @@ import {
   requireAuthorOrHost,
   setParticipantActivePersona,
 } from "#domain/chat";
-import { resolveActiveDocumentIds } from "#domain/databank";
+import { resolveActiveDocumentIds, resolveActiveDocumentScope } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
 import { createDiscoveryService, createDossierNeighbors, distinctCorpusOwners } from "#domain/discovery";
 import type { EmbeddingsContext, EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection } from "#domain/embeddings";
@@ -276,6 +276,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
     now,
     resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
+    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope),
   });
   const discovery = createDiscoveryService({
     resolveDigestSources: createDigestSources({

@@ -9,7 +9,7 @@
 // predicate so the two gates can never answer differently.
 // @subject packages/server/src/domain/tool-use/verbs/is-tool-drivable-by.ts
 
-import type { Can, ParticipantRole } from "@orb/contracts/identity";
+import type { Can } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
@@ -37,7 +37,7 @@ function pluginSpec(name: string, installer: typeof ALICE): PluginToolSpec {
     parameters: { type: "object", properties: {}, additionalProperties: false },
     installer,
     invoke: (): Promise<string> => Promise.resolve("ok"),
-    resolveInstallerRole: (): Promise<ParticipantRole | null> => Promise.resolve("host"),
+    resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }),
   };
 }
 

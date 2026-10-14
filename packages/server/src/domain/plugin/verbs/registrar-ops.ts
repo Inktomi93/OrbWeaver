@@ -23,11 +23,8 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
         parameters: reg.parameters,
         installer: scope.installer,
         invoke: (argsJson, chatScope, signal) => invoke(reg.handler, argsJson, chatScope, signal),
-        // PL-C: the invocation ceiling's principal is the INSTALLER, resolved per chat by ROW READ — the same
-        // `loadPresentRole` op the transform registrar (`isInstallerHost`) and the event fan-out use. Never
-        // the turn caller's membership: that made the read admission a no-op and took `canWrite` from whoever
-        // happened to be host of the room the tool was called in.
-        resolveInstallerRole: (chatId) => deps.loadPresentRole(chatId, scope.installer.userId),
+        // PL-C captures the installer; the turn caller's seat grants this ceiling nothing.
+        resolveInstallerAuthority: (chatId) => deps.resolveChatAuthority(scope.installer, chatId),
       }),
     registerTransform: (reg, invoke, scope): ReturnType<PluginRegistrarOps["registerTransform"]> => {
       const id = `plugin:${scope.slug}:${reg.name}:${pluginTransformSeq}`;
@@ -35,7 +32,7 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
         id,
         slug: scope.slug,
         order: PLUGIN_TRANSFORM_ORDER_BASE + pluginTransformSeq,
-        isInstallerHost: async (chatId) => (await deps.loadPresentRole(chatId, scope.installer.userId)) === "host",
+        isInstallerHost: async (chatId) => (await deps.resolveChatAuthority(scope.installer, chatId)).canWrite,
         invoke: (handler, argsJson, signal) => invoke(handler, argsJson, null, signal),
       });
       pluginTransformSeq += 1;
@@ -59,14 +56,16 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
             return;
           }
           const argsJson = JSON.stringify(capFactContent(fact, PLUGIN_READ_CONTENT_MAX_CHARS));
-          // The event handler runs IN the fact's chat scope. `canWrite` = the installer is HOST; a chat-less
-          // domain fact ⇒ no scope (`null`). The per-delivery host read + guest invokes are fire-and-forget.
+          // Delivery rechecks the installer after fan-out admission; a departure while queued admits no guest.
           superviseDetached(deps.newEventId(), "plugin.event.deliver", { eventType: fact.type, pluginSlug: scope.slug }, async () => {
             let eventChat: InvocationChat | null = null;
             if (fact.chatId !== null) {
               const factChatId = castId<ChatId>(fact.chatId);
-              const role = await deps.loadPresentRole(factChatId, scope.installer.userId);
-              eventChat = { chatId: factChatId, canWrite: role === "host", automationDepth };
+              const authority = await deps.resolveChatAuthority(scope.installer, factChatId);
+              if (!authority.canRead) {
+                return;
+              }
+              eventChat = { chatId: factChatId, canWrite: authority.canWrite, automationDepth };
             }
             // A rejected handler is already logged with its plugin and cause by the resident `invoke`, so it is
             // not rethrown here (that would log the same failure twice).

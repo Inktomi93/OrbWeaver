@@ -103,8 +103,9 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
         throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
       }
 
-      // 3. scope-belted cosine scan (WHERE document_id IN allowlist AND model AND the query's width).
-      const pool = await nearestDocumentChunks(ctx.db, {
+      // Consent may change during physical embedding; the scan resolves databank's scope again before ranking.
+      const pool = await nearestDocumentChunks(ctx.db, ctx.resolveActiveDocumentScope, {
+        scope: params.scope,
         documentIds: allowlist,
         queryVector,
         model: space.model,

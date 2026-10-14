@@ -7,7 +7,6 @@
 // legitimately hold the same namespaced plugin tool name, and each must get THEIR copy.
 // @subject packages/server/src/domain/tool-use/verbs/resolve-tools.ts
 
-import type { ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -29,7 +28,7 @@ function sharedSpec(installer: typeof ALICE, echo: string): PluginToolSpec {
     parameters: { type: "object", properties: {}, additionalProperties: false },
     installer,
     invoke: (): Promise<string> => Promise.resolve(echo),
-    resolveInstallerRole: (): Promise<ParticipantRole | null> => Promise.resolve("host"),
+    resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }),
   };
 }
 

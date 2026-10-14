@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-11
+updated: 2026-10-14
 ---
 
 # Orbweaver — Spine: Testing
@@ -66,7 +66,9 @@ A test lives in the directory that mirrors the source directory it covers, and i
 
 `legacy/` holds every product test not yet rebuilt (`docs/plans/test-foundation/design.md`). The folder is its own ledger and must only shrink; a new test goes in the mirror. `test-layout` compares legacy filename membership with founded Git history through `git-path-history`. It refuses additions, replacements and returned filenames. Retained-file edits and deletions remain allowed. Missing or shallow history refuses admission. A legacy test compiles in its own world programs (`LEGACY_TEST_WORLD_PROGRAMS` in `tooling/src/floor/compiler/project-worlds.ts`) and runs in CI's legacy jobs. It stays out of the inner loop. Compiler and runtime selections drop it; structure selections retain its filename admission subjects. An affected typecheck skips its programs. `pnpm test:scoped` and `pnpm test:ct` refuse it without `--legacy`. The strict gates do not judge it: the `@legacy-tests` population root is nested in `@tests` and carved out of it, and its waiver markers bind nothing. Strict `test-reach` accepts neither legacy tests nor helper paths crossing legacy modules; other test-id and presence policies own their evidence populations. A legacy test reaches package internals through the root `#<package>/*` map without a grant. A domain's legacy folder is deleted when its rebuilt suite carries every case.
 
-`support/` is the test kit, the workspace package `@orb/testkit`. A test imports it through a world subpath, such as `@orb/testkit/node/fixtures.ts`; the kit has no root entry, and its files import each other by relative path. Every kit module lives in exactly one world directory: `iso/` needs neither Node nor DOM declarations, `node/` may use Node and the runners, and `browser/` holds browser and CT helpers. An ambient declaration that the test programs name directly, such as `tests/support/vitest-tags.d.ts`, sits at the kit root instead: it exports nothing, so no world imports it, and the node and browser programs both include it (`AMBIENT_INTENT` in `tooling/src/floor/compiler/type-config-intent.ts`). The kit holds only test-only seams; a harness that wires one domain's internals sits beside that domain's tests. `Core-0-Architecture-and-Structure.md` §5 owns the kit's doors and the two named exceptions.
+`support/` is the test kit, the workspace package `@orb/testkit`. A test imports it through a world subpath, such as `@orb/testkit/node/fixtures.ts`; the kit has no root entry, and its files import each other by relative path. Every kit module lives in exactly one world directory: `iso/` needs neither Node nor DOM declarations, `node/` may use Node and the runners, and `browser/` holds browser and CT helpers. An ambient declaration that the test programs name directly, such as `tests/support/vitest-tags.d.ts`, sits at the kit root instead: it exports nothing, so no world imports it, and the node and browser programs both include it (`AMBIENT_INTENT` in `tooling/src/floor/compiler/type-config-intent.ts`). `Core-0-Architecture-and-Structure.md` §5 owns the kit's doors and the two named exceptions.
+
+`tests/support/node/server.ts` owns the server test composition root and delegates to production composition. Rebuilt server cases use this graph or call pure production functions directly. Builders use deterministic defaults or actual production operations. External-edge adapters and recorders belong in the kit; copied domain rules and alternate domain assemblies do not.
 
 ## 3. Determinism + mock doctrine
 
@@ -77,8 +79,10 @@ A test lives in the directory that mirrors the source directory it covers, and i
 **Mock doctrine — fake at the edges, inject at the root, never mock an internal module.**
 
 - **DB:** real libSQL `:memory:` for `.int` (`freshDb`). Never mocked — the point of the cake is that persistence is real, cheap, in-process.
-- **The model / provider:** the only true external I/O — faked at the `runChatTurn` seam, never below it. Tests script it with the TAPE fixture (`tests/support/node/chat/tape.ts`): `tape()` lists ordered role responses and `scriptedRunner(tape)` presents them as the injected `RunChatTurnOp`, dequeuing FIFO per turn (a group round drives N entries). Under-scripting throws a LOUD exhaustion error, never a silent cycle; a rate-limit/error surfaces as a thrown `ProviderError` (assert with `toThrowProviderError(kind)` — the field lives on the provider `ChatResult` below this seam). The production analogue is the RUNNER_OVERRIDE seam (~~`infra/providers/scripted-override.ts`~~, cycles by design); no such file exists on the tree, and the reference stays as the design record if the replay seam is rebuilt. Provider request *shape* is pinned by `.contract` tests; *behavior* is scripted.
-- **Cross-feature deps:** inject a fake at the composition root, never `vi.mock()` a sibling module. If a collaborator needs stubbing and isn't an injected port, the test just surfaced a design smell.
+- **External execution:** script raw provider transport, SDK subprocess protocol, plugin-host or network inputs through the production root's execution seams. Keep native parsing, admission, funding, accounting and domain orchestration in production. A fake `RunChatTurnOp`, role client, Query or domain service does not replace these paths in rebuilt tests. Exhausted scripts refuse instead of cycling into a fabricated success.
+- **Cross-feature dependencies:** wire actual production owners through the root. Inject only external edges, not a copied rule or a fake collaborator that stands in for business behavior. Never mock an internal module.
+
+Injected clocks model product time. External process, socket and browser completion require their actual lifecycle signals; a frozen clock does not establish physical completion.
 
 `vi.mock` of an internal module is gated (`test-mock-doctrine`); its only legitimate use is an unavoidable third-party node edge, justified in a comment. The same gate flags `vi.spyOn` on an internal module namespace, because the spy replaces that export for every importer. A spy on an object the composition root hands over stays legal.
 
@@ -90,9 +94,12 @@ A test lives in the directory that mirrors the source directory it covers, and i
 
 **Factory contract** (every `support/node/factories/*.ts`; gate: `test-factory-contract`):
 
-- `makeX(overrides?: Partial<X>): X` — pure builder, fully-valid deterministic defaults (seeded ids, frozen clock), never touches the db.
-- `seedX(db, overrides?: Partial<X>): Promise<X>` — `makeX` then insert.
-- Defaults valid + minimal; overrides shallow-merge; relations are ids by default (`seedChat(db, { withCharacter: true })` is explicit). Factories live only in `support/node/factories/`.
+- Pure builders derive valid deterministic defaults from canonical types and schemas. They use seeded ids and the frozen clock, never database or external I/O.
+- Persisted producers call actual production operations, then capture canonical rows and outputs. A database parameter supports readback; it does not authorize copying domain queries or business rules.
+- Database-subject fixtures may construct valid rows from derived defaults and insert them directly. These fixtures do not replace production behavior in composed domain cases.
+- Overrides preserve valid relations and schema constraints. Factories live in `support/node/factories/`; private corpus orchestration calls those homes.
+
+`test-factory-contract` judges the pure/persisted parameter distinction for its declared function forms. A naming signature alone does not prove derivation or production execution.
 
 ## 5. The presence rule — what MUST have a test
 

@@ -31,7 +31,8 @@ import { automationRules, chatParticipants, chats } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
-import { loadPresentRole } from "@orb/server/domain/chat";
+import { can } from "@orb/server/domain/admin";
+import { createPluginChatAuthority } from "@orb/server/domain/chat";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
@@ -62,7 +63,7 @@ interface ToolSpec {
 }
 
 /** Install `installer`'s copy of {@link TOOL} through the REAL runtime registrar, with a marker-prefixed
- *  result so a captured value names which shelf it came off. `resolveInstallerRole` is the production wiring
+ *  result so a captured value names which shelf it came off. `resolveInstallerAuthority` is the production wiring
  *  verbatim (chat's own `loadPresentRole` over the real roster), so the PL-C ceiling is real too. */
 function installTool(app: ServicesResult, db: Db, installer: UserId, definition: string | ToolSpec): ToolProbe {
   const spec: ToolSpec = typeof definition === "string" ? { marker: definition } : definition;
@@ -81,7 +82,7 @@ function installTool(app: ServicesResult, db: Db, installer: UserId, definition:
       calls.push({ argsJson, chat });
       return Promise.resolve(`${spec.marker}:${argsJson}`);
     },
-    resolveInstallerRole: (chatId) => loadPresentRole(db, chatId, installer),
+    resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db, can })(principal(installer), chatId),
   });
   return { calls, handle };
 }

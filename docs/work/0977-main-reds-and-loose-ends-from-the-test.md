@@ -9,7 +9,7 @@ priority: P2
 
 ## What
 
-Findings needing current adjudication: release-please-config's cmdk ignore case; real-corpus-liveness pins; the no-inline-types budget; session-daemon.int T5 under load; gate-spelling-twins.int without a completed verdict; and the use-databank-list-header CT. Earlier node_modules pollution and production Knip findings are leads, not current verdicts after the package-door changes. The production export work item owns native inventory adjudication.
+Adjudicate release-please's cmdk ignore, corpus liveness, type budgets, session-daemon T5 load behavior, gate-spelling-twins verdict and use-databank-list-header CT. Dependency pollution and Knip findings are leads; production export work owns current inventory.
 
 UI exposes node-only token build modules through token-contract and tokens-build doors. Their runtime dependencies and stale token-contract header need review against D318; do not delete supported APIs merely because tooling is their consumer.
 
@@ -39,7 +39,7 @@ Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/c
 
 Citation checks complete without effective findings, tool errors or withheld verdicts; grants exceed their budget. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
 
-The UI export floor reports legacy-node errors in untouched server fixtures: seed-user-content's optional RPG input, profile-directory support's optional name and handle, and run-profile-import's optional tag source. The export batch changes neither those fixtures nor server declarations. Preserve cases for replacement; do not retrofit them to manufacture a green export floor.
+The UI export floor reports untouched legacy fixtures: seed-user-content's optional RPG input, profile-directory's optional name and handle, and run-profile-import's optional tag source. Preserve cases for replacement; do not retrofit them for a green export floor.
 
 Compose integration preserves census equality. Reindex/auth classifications remain unproven; literal removals shrink budgets.
 
@@ -48,3 +48,5 @@ The staged-selection release-promotion cases fail on current qualification gener
 JSON and wire parsing allowances are zero; whole-application qualification remains open.
 
 The suppression work item owns form-data and settled-tracing lint conflicts.
+
+The identity candidate measures `no-inline-package-interface` at 311 findings against budget 328 after its attributable decrement from 329. Type-home work owns the remaining mismatch; do not lower another allowance or regenerate globally to hide it.

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-20
+updated: 2026-10-14
 ---
 
 # Orbweaver — structure & enforcement (the constitution)
@@ -205,15 +205,12 @@ beside tooling (§9). Its exports map has three world subpaths and no root entry
 program (`TEST_WORLD_PROGRAMS` in `tooling/src/floor/compiler/project-worlds.ts`). `test-helper-world-direction`
 keeps the direction: iso imports no other world, node imports iso, browser imports both.
 
-The kit holds only test-only seams: the frozen clock, seeded ids, factories, fixtures and runner doors, fakes,
-in-memory stores and recorders. Product logic a test needs moves down to its owning layer and its public API, and
-production and tests both call it there. A harness that wires one domain's internals lives beside that domain's
-tests, not in the kit.
+The kit holds deterministic inputs, production-derived builders, external-edge adapters and recorders. Product logic stays in its owning layer behind its public API. `Spine-Testing.md` §2 owns the server test composition home; rebuilt tests do not assemble another domain graph.
 
 **Tests enter packages through their doors.** A test or the kit imports a package through its public entry
 (`@orb/<package>` or a subpath its `exports` map declares) or its testing door. A testing door is a package module
 that exports only test-only seams; none is built yet. A raw reach through the root `#<package>/*` imports map
-(`#server/domain/chat/verbs/send.ts`) needs a reviewed grant (`tests-raw-package-reach`). The map lives in the root
+(`#server/domain/chat/verbs/send.ts`) in a maintained test needs a reviewed grant (`tests-raw-package-reach`). Legacy reaches follow `Spine-Testing.md` §2 without grants. The map lives in the root
 `package.json`, so product code and the kit cannot resolve it. A relative climb into a package's `src` or, from
 outside, into the kit is banned (`tests-package-subpath`).
 
