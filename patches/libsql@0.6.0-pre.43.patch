@@ -1,0 +1,49 @@
+diff --git a/compat.js b/compat.js
+--- a/compat.js
++++ b/compat.js
+@@ -60,6 +60,7 @@
+    */
+   constructor(path, opts) {
+     this.db = new NativeDb(path, opts);
++    this.open = true;
+     this.memory = this.db.memory
+     const db = this.db;
+     Object.defineProperties(this, {
+@@ -75,8 +76,9 @@
+     try {
+       const result = databaseSyncSync(this.db);
+       return {
+-        frames_synced: result.frames_synced,
+-        replication_index: result.replication_index
++        frames_synced: result.framesSynced,
++        frame_no: result.replicationIndex,
++        replication_index: result.replicationIndex
+       };
+     } catch (err) {
+       throw convertError(err);
+@@ -279,6 +281,7 @@
+    */
+   close() {
+     this.db.close();
++    this.open = false;
+   }
+ 
+   authorizer(config) {
+diff --git a/compat.d.ts b/compat.d.ts
+--- a/compat.d.ts
++++ b/compat.d.ts
+@@ -11,10 +11,12 @@
+      */
+     constructor(path: string, opts: any);
+     db: NativeDb;
++    open: boolean;
+     memory: boolean;
+     sync(): {
+-        frames_synced: any;
+-        replication_index: any;
++        frames_synced: number;
++        frame_no: number;
++        replication_index: number;
+     };
+     syncUntil(replicationIndex: any): void;
+     /**
