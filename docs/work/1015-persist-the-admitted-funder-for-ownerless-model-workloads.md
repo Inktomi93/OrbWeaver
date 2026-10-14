@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: blocked
+status: doing
 updated: 2026-10-14
 priority: P1
 area: workloads
-blocked: on 984
+lane: codex/bulk-funder-1015
 plan: inference-flow
 ---
 
@@ -25,5 +25,7 @@ Real owner bulk distill and themes use their persisted authorized funder. System
 ## Evidence
 
 The native composed case `codex-every-owner-984-4042021-2026-10-14T05-53-50-725Z` admits a box-owner bulk distill with a saved summarize binding. Its real workload fails with the missing summarize-binding error before another provider request. No summary is produced.
+
+The lane owns survey and design. Source implementation waits for canonical typed-authority integration; preserve its claim and deleted-owner refusal boundaries.
 
 `packages/server/src/domain/workloads/engine/runner.ts` uses the synthetic system actor when the row owner is null. `packages/server/src/domain/discovery/workload-contributions.ts` passes that actor as funder. `packages/db/src/schema/workloads.ts` does not preserve the admitting funder. This is a caller identity defect; the qualified executor correctly refuses unavailable authority.

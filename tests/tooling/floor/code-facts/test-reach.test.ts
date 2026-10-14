@@ -266,3 +266,41 @@ test("a helper that re-exports a product export carries reach to the test that i
 
   expect([...(reached.get(STORE) ?? [])]).toEqual(["unit"]);
 });
+
+test("public root resolution stops before incidental production imports while preserving explicit exercised claims", () => {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: {
+      baseUrl: ROOT,
+      paths: {
+        "@orb/testkit/node/server.ts": ["tests/support/node/server.ts"],
+        "@orb/server/entry/compose": ["packages/server/src/entry/compose/index.ts"],
+      },
+    },
+  });
+  const start = "packages/server/src/domain/chat/verbs/start.ts";
+  const idle = "packages/server/src/domain/chat/verbs/idle.ts";
+  const graph = "packages/server/src/entry/compose/services.ts";
+  const files = {
+    [start]: "export const start = () => 1;",
+    [idle]: "export const idle = () => 2;",
+    [graph]:
+      'import { start } from "../../domain/chat/verbs/start.ts"; import { idle } from "../../domain/chat/verbs/idle.ts"; export const createServices = () => ({ start, idle });',
+    "packages/server/src/entry/compose/index.ts": 'export { createServices } from "./services.ts";',
+    "tests/support/node/server.ts": 'import { createServices } from "@orb/server/entry/compose"; export const root = () => createServices();',
+    "tests/server/domain/chat/composed.int.test.ts": `// @subject ${start}\nimport { root } from "@orb/testkit/node/server.ts"; export const used = root().start();`,
+  };
+  for (const [path, text] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, text);
+  }
+  const result = testReach({
+    files: project.getSourceFiles(),
+    relativePath: (file) => file.getFilePath().slice(ROOT.length + 1),
+    checker: project.getTypeChecker(),
+    isSubject: (path) => [start, idle, graph].includes(path),
+  });
+  expect(result.reachedBy.has(graph)).toBe(true);
+  expect(result.reachedBy.has(start)).toBe(false);
+  expect(result.reachedBy.has(idle)).toBe(false);
+  expect(result.declared).toEqual([{ test: "tests/server/domain/chat/composed.int.test.ts", subject: start, family: "integration" }]);
+});

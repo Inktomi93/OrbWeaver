@@ -1,3 +1,5 @@
+// @subject packages/server/src/domain/import/verbs/portable-imports.ts
+// @subject packages/server/src/domain/import/verbs/import-character.ts
 // The owner binders drive the genuine services and database; foreign arguments cannot replace the authenticated authority.
 import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -5,9 +7,8 @@ import { characters, characterTags, tags } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createImportAvatarStore } from "@orb/server/domain/assets";
 import { createCharacterImportOps } from "@orb/server/domain/character";
-import { buildImportContext, createImportService, createInstallerCharacterImport } from "@orb/server/domain/import";
+import { buildImportContext, createInstallerCharacterImport } from "@orb/server/domain/import";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -18,9 +19,10 @@ test("owner binders retain Principal identity and ignore foreign owner arguments
   db,
   services,
   ownerCaller,
+  harness,
 }): Promise<void> => {
   await ownerCaller.character.list({});
-  const actor = principal(OWNER_USER_ID, { role: "owner", via: "header" });
+  const actor = await harness.principalFor(OWNER_USER_ID);
   const foreignOwner = (await seedUser(db)).id;
   const created = vi.spyOn(services.character, "create");
   const ctx = buildImportContext({
@@ -50,22 +52,28 @@ test("owner binders retain Principal identity and ignore foreign owner arguments
   expect(Object.hasOwn(ctx, "importLorebook")).toBe(false);
 });
 
-test("the real import parser refuses malformed bytes before any owner-bound effect", async ({ services, ownerCaller }): Promise<void> => {
+test("the real import parser refuses malformed bytes before any owner-bound effect", async ({ harness, services, ownerCaller }): Promise<void> => {
   await ownerCaller.character.list({});
-  const actor = principal(OWNER_USER_ID, { role: "owner", via: "header" });
+  const descriptor = harness.app.portability.find((entity) => entity.kind === "character");
+  if (descriptor === undefined) {
+    throw new Error("the real graph omitted its character import operation");
+  }
   const create = vi.spyOn(services.character, "create");
   const store = vi.spyOn(services.assets, "store");
   const attach = vi.spyOn(services.tag, "attachCardTagByName");
-  const ctx = buildImportContext({
-    principal: actor,
-    characterOps: createCharacterImportOps(actor, services.character),
-    storeAsset: createImportAvatarStore(actor, (args) => services.assets.store(args)),
-    attachCardTag: createImportedCardTag(actor.userId, (args) => services.tag.attachCardTagByName(args)),
+  expect(await descriptor.importFile(OWNER_USER_ID, { filename: "malformed.json", bytes: new TextEncoder().encode("not a card") })).toMatchObject({
+    ok: false,
   });
-  await expect(createImportService(ctx).importCharacter({ card: { bytes: new TextEncoder().encode("not a card") } })).rejects.toThrow();
   expect(create).not.toHaveBeenCalled();
   expect(store).not.toHaveBeenCalled();
   expect(attach).not.toHaveBeenCalled();
+  const bytes = new TextEncoder().encode(
+    '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Parser control","description":"Owned card","first_mes":"Hello"}}',
+  );
+  expect(await descriptor.importFile(OWNER_USER_ID, { filename: "control.json", bytes })).toMatchObject({ ok: true, created: true });
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(create.mock.calls[0]?.[0].principal.userId).toBe(OWNER_USER_ID);
+  expect(await services.character.count({ principal: await harness.principalFor(OWNER_USER_ID) })).toBe(1);
 });
 
 test("the installer factory uses the row-resolved role and the real import funnel for provenance and byte-identical reingest", async ({

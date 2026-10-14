@@ -56,7 +56,7 @@ Use a structural gate only for a judgment the compiler and maintained tools cann
 Shared code-facts readers own remaining typed analysis; gates and code commands consume the same facts.
 The test-foundation plan owns reader migration and native replacement qualification.
 
-(337 registered gates)
+(338 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -326,6 +326,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 | `surface-in-a-container-health` | — | hard/error | none | stale shell exemption —… |
 | `table-explicit-primary-key` | drizzle-schema | hard/error | @db\* | a sqliteTable has no PRIMARY KEY —… |
 | `table-scoping-class` | tenancy-scope | hard/error | @db\* | every schema table must declare HOW a… |
+| `test-assembly-home` | test-production-clone | hard/error | @tests | a test constructs a server service… |
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
 | `test-executable-mode` | tooling-os-neutral | hard/error | @tests | an executable Git mode on a test… |
 | `test-factory-contract` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@tooling,@tests,@scripts\* | a test factory violates the… |
@@ -387,7 +388,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 | `warning-workitem-liveness` | policy-soundness | hard/error | @tooling\* | a warning policy's workItem must name… |
 | `windowed-infinite-query` | — | ordinary/error | @client | maxPages WINDOWS an infinite query's… |
 | `windowed-infinite-query-health` | windowed-infinite-query | hard/error | @client | DERIVED NOTHING — no… |
-| `wire-json-parsed-at-consumer` | — | ordinary/error | @client | a response body is cast instead of… |
+| `wire-json-parsed-at-consumer` | — | ordinary/error | @client,@server,@inference | a response body is cast instead of… |
 | `wire-schema-vocab-one-home` | — | reviewed-grant/error | @server,@kit,@inference\* | a JSON-Schema wire keyword vocabulary… |
 | `z-index-tier-health` | ui-z-index-tier | hard/error | @client,@ui | the reviewed z-index home set or… |
 | `z-index-tier-permission` | ui-z-index-tier | reviewed-grant/error | @client,@ui | reviewed z-index implementation home… |

@@ -16,7 +16,7 @@ Implement the planned persisted native-world inventory store and worker lifecycl
 
 ## Why
 
-Complete client extraction returns at the unchanged heap after the reviewed native display correction. Publication then fails because whole-partition JSON exceeds the runtime string limit. Canonical persistence and readers need bounded records without whole-partition decoding. The program requires shared persisted facts, not larger heaps, truncated populations or another detector.
+Native facts need bounded persistence and indexed readers without giant JSON strings or whole-partition decoding. Qualify worker release and complete publication at real scale. The program requires shared persisted facts, not larger heaps, truncated populations or another detector.
 
 ## Done when
 
@@ -28,14 +28,16 @@ Reviewed extraction preserves native resolution, roots, closure, ordering, alias
 
 Extraction shares ts-morph's bundled language-service checker, not the TS7 typechecker. Client and root retain separate browser and Node descriptors. Cached closure paths do not authorize combined worlds or changed membership.
 
-Inspector diagnostics localize native definition-display allocation but force collection and change heap behavior. Preserve those artifacts without claiming fixed-heap qualification. Native kind, group selection and definition flags remain required; flat references alone are not equivalent.
-
 Pinned patch `0450353ca5` skips definition formatting only for opted-in native queries. Independent review confirms native kind, selection, default metadata, lean parity, runtime-byte invalidation and formatter rejection controls. Isolated real-client `TrpcClient` and `useTRPC` queries complete at the fixed heap.
 
-The complete cold client run on that patch returns from native extraction, then fails with `RangeError: Invalid string length` at `JSON.stringify(partition)`. It runs for 55:01 with peak RSS 12,188,660 KiB and no OOM. The closed staging database contains no committed partition or generation. The terminal report is `/tmp/ast-memory-cold-client-1002/result-summary.md`; it does not qualify parent decoding, publication or complete-world replay.
+The whole-partition JSON failure is preserved in `/tmp/ast-memory-cold-client-1002/result-summary.md`. It supplies no publication verdict.
 
 The reviewed correction replaces whole-partition persistence and eager readers with indexed SQLite records. Bounded controls cover native meanings, ordering, multiplicity, input versions, atomic generations, last-good data, overlays and CLI disposal.
 
 The independent review found native scalar UTF-16 loss through SQLite text binding. The accepted correction uses a canonical scalar JSON codec for records and indexed predicates. Its format boundary preserves previous generations without reinterpretation. Native extraction and metadata controls pass, including decoded program ordering and changed-value hashes. Tooling types and scoped lint pass; root retains unrelated errors.
 
-Integrate the corrected source with current main before scheduling frozen replay. Real-client staging, parent import cost and complete-world publication remain unqualified. Bounded controls do not establish resource qualification. No automatic retry is authorized.
+Integrated source `f109dc2abd` completes canonical client extraction, FORMAT3 staging, scalar parent import, input rechecks, publication, lazy read and disposal at frozen revision `77c78fa141`. The post-exit verifier confirms current descriptor, roots and recorded inputs. Worker exit precedes parent import; the closed committed store is reusable at that frozen root.
+
+The run completes in 58:17 with GNU time maximum RSS 11,187,848 KiB at the unchanged 16 GiB heap setting. Parent public high water is 294,456 KiB. These are process high-water measurements, not aggregate memory. Full evidence is `/tmp/ast-memory-format3-client-1002/result-summary.md`.
+
+Complete cross-world publication and original collector replay remain unqualified. Client success is not current-main liveness evidence or complete memory qualification. Preserve the reusable generation; schedule default-demand replay explicitly without rebuilding the client automatically.
