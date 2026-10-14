@@ -1,11 +1,14 @@
 // Callable-origin normalization over the shared module and ambient-global fact readers.
 import type { Identifier, Node as MorphNode } from "ts-morph";
-import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { Node, SyntaxKind, ts, VariableDeclarationKind } from "ts-morph";
+import { readCallReturnProgram } from "./call-supplied.ts";
 import { inspectBindingReassignment, readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin } from "./reference-fact.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import type {
   CallableDeclaration,
   CallableOrigin,
+  CallReturnObservations,
+  ModuleMemberOrigin,
   ReferenceFact,
   ReferenceOrigin,
   ReferenceUnresolvedReason,
@@ -14,6 +17,9 @@ import type {
 } from "./reference-fact-contract.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
+import { sameFileMergedCallableValueOrigin } from "./reference-fact-same-file-merge.ts";
+import { moduleState } from "./reference-fact-state.ts";
+import { readAuthoredCallableSources } from "./value-carrier.ts";
 
 const INVOCATION_WRAPPERS = new Set(["apply", "bind", "call"]);
 
@@ -225,6 +231,106 @@ export function resolveCallableDeclaration(node: MorphNode): ReferenceFact<Calla
   return wrapper === undefined
     ? callableOfExpression(callee, state)
     : refuse(state, "unsupported", wrapper, `${wrapper.getText()} requires checker-proven Function wrapper identity`);
+}
+
+function mergedCallableOrigin(callee: MorphNode, refusal: UnresolvedReferenceFact): ReferenceFact<ModuleMemberOrigin> | undefined {
+  if (refusal.reason !== "ambiguous") {
+    return;
+  }
+  const imports = refusal.trace.declarations.filter(Node.isImportSpecifier).map((specifier) => specifier.getAliasNode() ?? specifier.getNameNode());
+  const candidates = [callee, ...imports].flatMap((reference) => {
+    const fact = sameFileMergedCallableValueOrigin(reference, moduleState(referenceResolutionServices));
+    return fact?.kind === "resolved" && fact.value.canonical.kind === "project" ? [fact] : [];
+  });
+  const first = candidates[0];
+  if (first === undefined || first.value.canonical.kind !== "project") {
+    return;
+  }
+  const home = first.value.canonical.declaration;
+  return candidates.every(
+    (candidate) => candidate.value.canonical.kind === "project" && candidate.value.canonical.declaration.compilerNode === home.compilerNode,
+  )
+    ? first
+    : undefined;
+}
+
+function callableValueMergeClosed(fact: ReferenceFact<CallableDeclaration>): ReferenceFact<CallableDeclaration> {
+  if (fact.kind === "unresolved") {
+    return fact;
+  }
+  const declaration = fact.value.declaration;
+  const symbol = declaration.getSymbol();
+  if (symbol === undefined) {
+    return fact;
+  }
+  const merged = declaration.getProject().getTypeChecker().compilerObject.getMergedSymbol(symbol.compilerSymbol);
+  const declarations = merged.getDeclarations() ?? [];
+  if (!declarations.some(ts.isModuleDeclaration)) {
+    return fact;
+  }
+  const source = declaration.getSourceFile().compilerNode;
+  const functions = declarations.filter(ts.isFunctionDeclaration);
+  const closed = declarations.every((item) => (ts.isFunctionDeclaration(item) || ts.isModuleDeclaration(item)) && item.getSourceFile() === source);
+  return closed && functions.filter((fn) => fn.body !== undefined).length <= 1
+    ? fact
+    : refuse(walk(), "ambiguous", declaration, "the callable value merge has foreign declarations or multiple implementations");
+}
+
+/** The native callable value may be one function plus same-file namespace metadata; declaration multiplicity stays separate. */
+export function resolveCallableValueDeclaration(node: MorphNode, observations?: CallReturnObservations): ReferenceFact<CallableDeclaration> {
+  const captured = observations === undefined ? undefined : readCallReturnProgram(node, observations);
+  if (captured?.kind === "unresolved") {
+    return captured;
+  }
+  const single = resolveCallableDeclaration(node);
+  if (single.kind === "resolved") {
+    return callableValueMergeClosed(single);
+  }
+  const callee = Node.isCallExpression(node) || Node.isNewExpression(node) ? node.getExpression() : node;
+  const origin = mergedCallableOrigin(callee, single);
+  return origin?.kind === "resolved" && origin.value.canonical.kind === "project"
+    ? callableValueMergeClosed(callableHome(origin.value.canonical.declaration, walk()))
+    : single;
+}
+
+/** Callable value origin preserves the authored module door without weakening the module-declaration axis. */
+export function resolveCallableValueOrigin(node: MorphNode, observations?: CallReturnObservations): ReferenceFact<CallableOrigin> {
+  const captured = observations === undefined ? undefined : readCallReturnProgram(node, observations);
+  if (captured?.kind === "unresolved") {
+    return captured;
+  }
+  const value = resolveCallableValueDeclaration(node, observations);
+  if (value.kind === "unresolved" && ["write", "ambiguous", "cycle"].includes(value.reason)) {
+    return value;
+  }
+  const ordinary = resolveCallableOrigin(node);
+  if (ordinary.kind === "resolved") {
+    return ordinary;
+  }
+  if (!(Node.isCallExpression(node) || Node.isNewExpression(node))) {
+    return ordinary;
+  }
+  const callee = node.getExpression();
+  const origin = mergedCallableOrigin(callee, ordinary);
+  return origin?.kind === "resolved"
+    ? { ...origin, value: { invocation: Node.isNewExpression(node) ? "construct" : "call", target: origin.value, callee } }
+    : ordinary;
+}
+
+/** Finite literal callable carriers retain all actual bodies; the single-target reader still refuses ambiguity. */
+export function resolveCallableAlternatives(node: MorphNode, admitted?: ReadonlySet<ts.CallExpression>): ReferenceFact<readonly CallableDeclaration[]> {
+  const single = resolveCallableDeclaration(node);
+  if (single.kind === "resolved") {
+    return { ...single, value: [single.value] };
+  }
+  const callee = Node.isCallExpression(node) ? node.getExpression() : node;
+  const authored = readAuthoredCallableSources(callee, admitted === undefined ? undefined : (call): boolean => admitted.has(call.compilerNode));
+  if (authored.kind === "unresolved") {
+    return authored;
+  }
+  const facts = authored.value.map((source) => resolveCallableDeclaration(source.value));
+  const failed = facts.find((fact) => fact.kind === "unresolved");
+  return failed ?? { kind: "resolved", value: facts.flatMap((fact) => (fact.kind === "resolved" ? [fact.value] : [])), trace: authored.trace };
 }
 
 /** Resolve a direct call/new target. Function call/apply/bind spellings refuse until checker-proven. */

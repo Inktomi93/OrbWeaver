@@ -1,29 +1,42 @@
 // Complete SQL lexical composition is separate from native origins and mutable-carrier use facts.
 import type { Node as MorphNode, SourceFile, TaggedTemplateExpression, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readCallBindings, readCallTarget, readFunctionReturnPaths } from "./call-returns.ts";
+import { readCallBindings, readCallReturnProgram, readCallTargets, readFunctionReturnPaths, readSuppliedParameter } from "./call-returns.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { readPredicateArgument } from "./drizzle-predicate-argument.ts";
 import { innerReadAnchorsOf } from "./drizzle-query.ts";
 import { readDrizzleSelection } from "./drizzle-select.ts";
 import { readNativeSqlConstructor } from "./drizzle-sql-constructors.ts";
-import type { ExecutedSqlInsert, SqlTemplateCarrier } from "./drizzle-sql-contract.ts";
+import type { ExecutedSqlInsert, SqlReadContext, SqlTemplateCarrier } from "./drizzle-sql-contract.ts";
 import { nativeOperatorFragment, runtimeDrizzleOrigin } from "./drizzle-sql-native.ts";
-import { driverParameter, nativeArrayMap, nativeMappedCallback, nativeMappedInput, nativeTableFragment, sqlValue } from "./drizzle-sql-origin.ts";
+import {
+  rawSqlTextIn as authoredSqlText,
+  sqlTemplateText as authoredTemplateText,
+  readExecutedSqlInserts as executedInserts,
+} from "./drizzle-sql-observations.ts";
+import {
+  driverParameter,
+  nativeArrayMap,
+  nativeMappedCallback,
+  nativeMappedInput,
+  nativeTableFragment,
+  readSqlValueSources,
+  sqlValue,
+} from "./drizzle-sql-origin.ts";
 import { readNativeColumnFragments, readSelectedSqlSource } from "./drizzle-sql-projection.ts";
 import { CONTAINED_OPERATORS, sqlBindingStable } from "./drizzle-sql-stability.ts";
 import { readStatementOf } from "./drizzle-statement.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
-import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
+import { readMemberReference, resolveModuleMemberOrigin, staticMemberAccess } from "./reference-fact.ts";
+import type { CallReturnObservations, CallReturnProgram } from "./reference-fact-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import { terminalCall } from "./schema-value.ts";
-import { rawInsertHeaders } from "./sql-insert-header.ts";
 import { sqliteFragmentContained } from "./sqlite-lexical.ts";
 
 /** Const binds native SQL carriers, not frozen queryChunks. */
-export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<object> = new Set()): boolean {
-  return !(Node.isIdentifier(node) && sqlValue(node.getType())) || sqlBindingStable(node, active);
+export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<object> = new Set(), program?: CallReturnProgram): boolean {
+  return !(Node.isIdentifier(node) && sqlValue(node.getType())) || sqlBindingStable(node, active, program);
 }
 
 /** Template carrier provenance; consumers choose the accepted constructor exports and the SQL obligation. */
@@ -42,123 +55,22 @@ export function readSqlTemplateCarrier(node: MorphNode): SqlTemplateCarrier | un
   return Node.isNoSubstitutionTemplateLiteral(node) || Node.isTemplateExpression(node) ? { kind: "bare", template: node } : undefined;
 }
 
-/** Resolve a const-bound expression through symbol identity. An unresolved/dynamic value returns no nodes,
- *  which is the honest result for a producer audit: text construction alone is never execution evidence. */
-function resolvedInitializers(node: MorphNode, seen: Set<MorphNode>): readonly MorphNode[] {
-  if (!Node.isIdentifier(node) || seen.has(node)) {
-    return [];
-  }
-  seen.add(node);
-  const source = resolveStableExpression(node);
-  if (source.kind === "resolved") {
-    return source.value === node ? [] : [source.value];
-  }
-  return source.reason === "dynamic" && (Node.isCallExpression(source.node) || Node.isTaggedTemplateExpression(source.node)) ? [source.node] : [];
+/** Executed INSERT source facts retain their existing public reader. */
+export function readExecutedSqlInserts(call: MorphNode): readonly ExecutedSqlInsert[] {
+  return executedInserts(call);
 }
 
-/** Static raw SQL constructors reachable from one executed statement expression. */
-function rawSqlNodes(node: MorphNode, seen: Set<MorphNode>): readonly { node: MorphNode; text: string }[] {
-  if (Node.isTaggedTemplateExpression(node)) {
-    const tag = node.getTag();
-    return Node.isIdentifier(tag) && tag.getText() === "sql" ? [{ node, text: node.getTemplate().getText() }] : [];
-  }
-  if (Node.isCallExpression(node)) {
-    const expression = node.getExpression();
-    const argument = node.getArguments()[0];
-    return Node.isPropertyAccessExpression(expression) &&
-      expression.getExpression().getText() === "sql" &&
-      expression.getName() === "raw" &&
-      (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument))
-      ? [{ node, text: argument.getLiteralText() }]
-      : [];
-  }
-  return resolvedInitializers(node, seen).flatMap((initializer) => rawSqlNodes(initializer, seen));
-}
-
-/** Statements passed to an executed batch, following the house `batchMany([…])` wrapper and const aliases. */
-function batchStatements(node: MorphNode, seen: Set<MorphNode>): readonly MorphNode[] {
-  if (Node.isArrayLiteralExpression(node)) {
-    return node.getElements();
-  }
-  if (Node.isCallExpression(node) && Node.isIdentifier(node.getExpression()) && node.getExpression().getText() === "batchMany") {
-    const argument = node.getArguments()[0];
-    return argument === undefined ? [] : batchStatements(argument, seen);
-  }
-  const initializers = resolvedInitializers(node, seen);
-  return initializers.length === 0 ? [] : initializers.flatMap((initializer) => batchStatements(initializer, seen));
-}
-
-function isDatabaseReceiver(node: MorphNode): boolean {
-  return (Node.isIdentifier(node) && node.getText() === "db") || (Node.isPropertyAccessExpression(node) && node.getName() === "db");
-}
-
-/** Executed raw INSERT observations; inert constructors never produce a write fact. */
-export function readExecutedSqlInserts(call: Node): readonly ExecutedSqlInsert[] {
-  if (!Node.isCallExpression(call)) {
-    return [];
-  }
-  const expression = call.getExpression();
-  if (!(Node.isPropertyAccessExpression(expression) && isDatabaseReceiver(expression.getExpression()))) {
-    return [];
-  }
-  const argument = call.getArguments()[0];
-  if (argument === undefined) {
-    return [];
-  }
-  const method = expression.getName();
-  let statements: readonly MorphNode[] = [];
-  if (method === "batch") {
-    statements = batchStatements(argument, new Set<MorphNode>());
-  } else if (method === "run" || method === "execute") {
-    statements = [argument];
-  }
-  return statements.flatMap((statement) =>
-    rawSqlNodes(statement, new Set<MorphNode>()).flatMap((raw) => rawInsertHeaders(raw.text).map((header) => ({ ...header, node: raw.node }))),
-  );
-}
-
-/** Raw-SQL construction observations, including inert SQL; a lens decides whether to annotate them. */
+/** Raw construction text is an observation, not executable containment. */
 export function rawSqlTextIn(source: SourceFile): readonly string[] {
-  const texts: string[] = [];
-  for (const tagged of source.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression)) {
-    if (Node.isIdentifier(tagged.getTag()) && tagged.getTag().getText() === "sql") {
-      texts.push(tagged.getTemplate().getText());
-    }
-  }
-  for (const call of source.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const member = staticMemberAccess(call.getExpression());
-    if (member?.name === "raw" && member.receiver.getText() === "sql") {
-      texts.push(
-        call
-          .getArguments()
-          .map((argument) => argument.getText())
-          .join(" "),
-      );
-    }
-  }
-  return texts;
+  return authoredSqlText(source);
 }
 
-/** Authored SQL text with interpolation holes, never interpolated expression text as SQL syntax. */
+/** Template text retains interpolation holes rather than treating expressions as grammar. */
 export function sqlTemplateText(template: TaggedTemplateExpression): string {
-  const value = template.getTemplate();
-  if (Node.isNoSubstitutionTemplateLiteral(value)) {
-    return value.getLiteralText();
-  }
-  return (
-    value.getHead().getLiteralText() +
-    value
-      .getTemplateSpans()
-      .map((span) => `«${span.getExpression().getText()}»${span.getLiteral().getLiteralText()}`)
-      .join("")
-  );
+  return authoredTemplateText(template);
 }
 
-function templateFragments(
-  node: TaggedTemplateExpression,
-  bindings: ReadonlyMap<MorphNode, MorphNode>,
-  active: ReadonlySet<object>,
-): readonly string[] | undefined {
+function templateFragments(node: TaggedTemplateExpression, context: SqlReadContext, active: ReadonlySet<object>): readonly string[] | undefined {
   if (drizzleExportOf(node.getTag()) !== "sql" || !runtimeDrizzleOrigin(node.getTag())) {
     return;
   }
@@ -174,7 +86,7 @@ function templateFragments(
   }
   let texts = [template.getHead().getLiteralText()];
   for (const span of spans) {
-    const fragments = sqlOperandFragments(span.getExpression(), bindings, active);
+    const fragments = sqlOperandFragments(span.getExpression(), context, active);
     if (fragments === undefined) {
       return;
     }
@@ -183,27 +95,23 @@ function templateFragments(
   return [...new Set(texts)];
 }
 
-function templateContained(node: TaggedTemplateExpression, bindings: ReadonlyMap<MorphNode, MorphNode>, active: ReadonlySet<object>): boolean {
-  const fragments = templateFragments(node, bindings, active);
+function templateContained(node: TaggedTemplateExpression, context: SqlReadContext, active: ReadonlySet<object>): boolean {
+  const fragments = templateFragments(node, context, active);
   return fragments !== undefined && fragments.every(sqliteFragmentContained);
 }
 
-function mappedFragments(
-  value: MorphNode,
-  bindings: ReadonlyMap<MorphNode, MorphNode>,
-  active: ReadonlySet<object>,
-): readonly (string | undefined)[] | undefined {
-  const input = readPredicateArgument(value, bindings);
+function mappedFragments(value: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): readonly (string | undefined)[] | undefined {
+  const input = readPredicateArgument(value, context.bindings);
   if (input.kind !== "resolved" || !Node.isCallExpression(input.value) || !nativeArrayMap(input.value)) {
     return;
   }
   const callback = input.value.getArguments()[0];
   const receiver = staticMemberAccess(input.value.getExpression())?.receiver;
-  if (receiver === undefined || !nativeMappedInput(receiver, bindings) || !nativeMappedCallback(callback)) {
+  if (receiver === undefined || !nativeMappedInput(receiver, context.bindings) || !nativeMappedCallback(callback)) {
     return;
   }
   const paths = callback === undefined ? undefined : readFunctionReturnPaths(callback);
-  return paths?.kind === "resolved" ? fragmentsOfAlternatives(paths.value, bindings, active) : undefined;
+  return paths?.kind === "resolved" ? fragmentsOfAlternatives(paths.value, context, active) : undefined;
 }
 
 function optionalNativeOperator(call: import("ts-morph").CallExpression): boolean {
@@ -212,7 +120,7 @@ function optionalNativeOperator(call: import("ts-morph").CallExpression): boolea
 
 function operatorFragments(
   value: import("ts-morph").CallExpression,
-  bindings: ReadonlyMap<MorphNode, MorphNode>,
+  context: SqlReadContext,
   active: ReadonlySet<object>,
 ): readonly (string | undefined)[] | undefined {
   let combinations: readonly (readonly (string | undefined)[])[] = [[]];
@@ -221,7 +129,7 @@ function operatorFragments(
       if (!optionalNativeOperator(value)) {
         return;
       }
-      const mapped = mappedFragments(argument.getExpression(), bindings, active);
+      const mapped = mappedFragments(argument.getExpression(), context, active);
       if (mapped === undefined || !mapped.every((fragment) => fragment !== undefined && sqliteFragmentContained(fragment))) {
         return;
       }
@@ -235,7 +143,7 @@ function operatorFragments(
       ];
       continue;
     }
-    const fragments = sqlOperandFragments(argument, bindings, active);
+    const fragments = sqlOperandFragments(argument, context, active);
     if (fragments === undefined) {
       return;
     }
@@ -248,10 +156,10 @@ function operatorFragments(
 
 function fragmentsOfAlternatives(
   nodes: readonly MorphNode[],
-  bindings: ReadonlyMap<MorphNode, MorphNode>,
+  context: SqlReadContext,
   active: ReadonlySet<object>,
 ): readonly (string | undefined)[] | undefined {
-  const fragments = nodes.map((node) => sqlOperandFragments(node, bindings, active));
+  const fragments = nodes.map((node) => sqlOperandFragments(node, context, active));
   return fragments.length === 0 || fragments.some((fragment) => fragment === undefined) ? undefined : fragments.flatMap((fragment) => fragment ?? []);
 }
 
@@ -260,16 +168,33 @@ function nativeSelectCall(call: import("ts-morph").CallExpression): boolean {
   return member.kind === "resolved" && declaredInDrizzle(member.value.declarations) && innerReadAnchorsOf(call).length > 0;
 }
 
+function authoredCallFragments(
+  value: import("ts-morph").CallExpression,
+  context: SqlReadContext,
+  active: ReadonlySet<object>,
+): readonly (string | undefined)[] | undefined {
+  const target = context.program?.byCall.get(value.compilerNode)?.targets ?? readCallTargets(value);
+  if (target.kind === "unresolved" || target.value.some((fn) => fn.getSourceFile().isDeclarationFile())) {
+    return;
+  }
+  const parts = target.value.map((fn) => {
+    const paths = readFunctionReturnPaths(fn);
+    const supplied = readCallBindings(value, fn, context.bindings);
+    return paths.kind === "resolved" ? fragmentsOfAlternatives(paths.value, { ...context, bindings: supplied }, active) : undefined;
+  });
+  return parts.some((part) => part === undefined) ? undefined : parts.flatMap((part) => part ?? []);
+}
+
 function callFragments(
   value: import("ts-morph").CallExpression,
-  bindings: ReadonlyMap<MorphNode, MorphNode>,
+  context: SqlReadContext,
   active: ReadonlySet<object>,
 ): readonly (string | undefined)[] | undefined {
   const constructed = readNativeSqlConstructor(
     value,
-    bindings,
-    (node) => sqlOperandFragments(node, bindings, active),
-    (node) => mappedFragments(node, bindings, active),
+    context.bindings,
+    (node) => sqlOperandFragments(node, context, active),
+    (node) => mappedFragments(node, context, active),
   );
   if (constructed !== undefined) {
     return constructed;
@@ -277,23 +202,17 @@ function callFragments(
   if (callsDrizzleOperator(value, "exists") || callsDrizzleOperator(value, "notExists")) {
     const select = value.getArguments()[0];
     const prefix = callsDrizzleOperator(value, "exists") ? "exists" : "not exists";
-    return runtimeDrizzleOrigin(value.getExpression()) && select !== undefined && selectContained(select, bindings, active)
+    return runtimeDrizzleOrigin(value.getExpression()) && select !== undefined && selectContained(select, context, active)
       ? [`${prefix} (SELECT ?)`]
       : undefined;
   }
   if (CONTAINED_OPERATORS.some((name) => callsDrizzleOperator(value, name))) {
-    return operatorFragments(value, bindings, active);
+    return operatorFragments(value, context, active);
   }
   if (nativeSelectCall(value)) {
-    return selectContained(value, bindings, active) ? ["(SELECT ?)"] : undefined;
+    return selectContained(value, context, active) ? ["(SELECT ?)"] : undefined;
   }
-  const target = readCallTarget(value);
-  if (target.kind === "unresolved" || target.value.getSourceFile().isDeclarationFile()) {
-    return;
-  }
-  const paths = readFunctionReturnPaths(target.value);
-  const supplied = readCallBindings(value, target.value, bindings);
-  return paths.kind === "resolved" ? fragmentsOfAlternatives(paths.value, supplied, active) : undefined;
+  return authoredCallFragments(value, context, active);
 }
 
 function primitiveFragments(type: Type): readonly (string | undefined)[] {
@@ -306,21 +225,17 @@ function primitiveFragments(type: Type): readonly (string | undefined)[] {
   return type.getArrayElementType() === undefined ? ["?"] : ["(?)"];
 }
 
-function valueFragments(
-  value: MorphNode,
-  bindings: ReadonlyMap<MorphNode, MorphNode>,
-  active: ReadonlySet<object>,
-): readonly (string | undefined)[] | undefined {
+function valueFragments(value: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): readonly (string | undefined)[] | undefined {
   const column = readNativeColumnFragments(
     value,
-    bindings,
-    (node) => sqlOperandFragments(node, bindings, active),
-    (node) => selectContained(node, bindings, active),
+    context,
+    (node, bindings = context.bindings) => sqlOperandFragments(node, { ...context, bindings }, active),
+    (node, bindings = context.bindings) => selectContained(node, { ...context, bindings }, active),
   );
   if (column !== undefined) {
     return column;
   }
-  const table = nativeTableFragment(value, bindings, new Set());
+  const table = nativeTableFragment(value, context.bindings, new Set());
   if (table !== undefined) {
     return [table];
   }
@@ -328,39 +243,68 @@ function valueFragments(
     return primitiveFragments(value.getType());
   }
   if (Node.isTaggedTemplateExpression(value)) {
-    return templateFragments(value, bindings, active);
+    return templateFragments(value, context, active);
   }
   if (Node.isConditionalExpression(value)) {
-    return fragmentsOfAlternatives([value.getWhenTrue(), value.getWhenFalse()], bindings, active);
+    return fragmentsOfAlternatives([value.getWhenTrue(), value.getWhenFalse()], context, active);
   }
   if (Node.isBinaryExpression(value) && [SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken].includes(value.getOperatorToken().getKind())) {
-    return fragmentsOfAlternatives([value.getLeft(), value.getRight()], bindings, active);
+    return fragmentsOfAlternatives([value.getLeft(), value.getRight()], context, active);
   }
-  return Node.isCallExpression(value) ? callFragments(value, bindings, active) : undefined;
+  return Node.isCallExpression(value) ? callFragments(value, context, active) : undefined;
 }
 
-function sqlOperandFragments(
-  node: MorphNode,
-  bindings: ReadonlyMap<MorphNode, MorphNode>,
-  active: ReadonlySet<object>,
-): readonly (string | undefined)[] | undefined {
-  if (!readSqlAliasStability(node)) {
+function suppliedFragments(node: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): readonly (string | undefined)[] | undefined {
+  if (active.has(node.compilerNode) || !(context.program === undefined ? readSqlAliasStability(node) : sqlBindingStable(node, new Set(), context.program))) {
     return;
   }
-  const operand = readPredicateArgument(node, bindings);
+  const supplied = readSuppliedParameter(node, context.bindings, context.program);
+  if (supplied.kind === "unresolved") {
+    return;
+  }
+  const parts = supplied.value.map((source) =>
+    source.present ? sqlOperandFragments(source.value, { ...context, bindings: source.bindings }, new Set(active).add(node.compilerNode)) : [undefined],
+  );
+  return parts.some((part) => part === undefined) ? undefined : parts.flatMap((part) => part ?? []);
+}
+
+function sqlOperandFragments(node: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): readonly (string | undefined)[] | undefined {
+  const declaration = Node.isIdentifier(node) ? node.getSymbol()?.getValueDeclaration() : undefined;
+  if (Node.isParameterDeclaration(declaration) && !driverParameter(node.getType())) {
+    return suppliedFragments(node, context, active);
+  }
+  if (!readSqlAliasStability(node, new Set(), context.program)) {
+    return;
+  }
+  const operand = readPredicateArgument(node, context.bindings);
   if (operand.kind === "unresolved" || active.has(operand.value.compilerNode)) {
     return;
   }
   const terminal = Node.isIdentifier(operand.value) && sqlValue(operand.value.getType()) ? terminalCall(operand.value) : undefined;
   const value = terminal?.kind === "resolved" ? terminal.value : operand.value;
   const receiver = staticMemberAccess(value)?.receiver;
-  if (receiver !== undefined && !readSqlAliasStability(receiver)) {
+  if (receiver !== undefined && !readSqlAliasStability(receiver, new Set(), context.program)) {
     return;
   }
-  return active.has(value.compilerNode) ? undefined : valueFragments(value, bindings, new Set(active).add(value.compilerNode));
+  return active.has(value.compilerNode) ? undefined : valueFragments(value, context, new Set(active).add(value.compilerNode));
 }
 
-function selectContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, MorphNode>, active: ReadonlySet<object>): boolean {
+function selectContained(node: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): boolean {
+  if (readDrizzleSelection(node) === undefined) {
+    const sources = readSqlValueSources(node, context);
+    return (
+      sources.kind === "resolved" &&
+      sources.value.length > 0 &&
+      sources.value.every(
+        (source) =>
+          source.present &&
+          source.path.length === 0 &&
+          source.value.compilerNode !== node.compilerNode &&
+          !active.has(source.value.compilerNode) &&
+          selectContained(source.value, { ...context, bindings: source.bindings }, new Set(active).add(source.value.compilerNode)),
+      )
+    );
+  }
   const anchors = innerReadAnchorsOf(node);
   if (anchors.length === 0) {
     return false;
@@ -376,31 +320,37 @@ function selectContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, Morph
       ) {
         return false;
       }
-      const statement = readStatementOf(anchor.call);
-      const derived = readSqlAliasStability(anchor.table) ? readSelectedSqlSource(anchor.table, bindings) : undefined;
+      const statement = readStatementOf(anchor.call, context.program === undefined ? undefined : { programs: [context.program] });
+      const derived = readSqlAliasStability(anchor.table, new Set(), context.program) ? readSelectedSqlSource(anchor.table, context) : undefined;
       const nativeSource =
-        nativeTableFragment(anchor.table, bindings, new Set()) !== undefined ||
-        (derived !== undefined && !active.has(derived.compilerNode) && selectContained(derived, bindings, new Set(active).add(derived.compilerNode)));
+        nativeTableFragment(anchor.table, context.bindings, new Set()) !== undefined ||
+        (derived !== undefined &&
+          derived.length > 0 &&
+          derived.every(
+            (source) =>
+              !active.has(source.value.compilerNode) &&
+              selectContained(source.value, { ...context, bindings: source.bindings }, new Set(active).add(source.value.compilerNode)),
+          ));
       return (
         nativeSource &&
         !statement.escapes &&
         [anchor.kind === "join" ? anchor.on : undefined, ...statement.innerOns, ...statement.wheres].every(
-          (predicate) => predicate === undefined || sqlOperandContained(predicate, bindings, active),
+          (predicate) => predicate === undefined || sqlOperandContained(predicate, context, active),
         )
       );
     }) &&
-    selectionContained(node, bindings, active) &&
-    node.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression).every((template) => templateContained(template, bindings, active)) &&
-    node.getDescendantsOfKind(SyntaxKind.CallExpression).every((call) => !sqlValue(call.getType()) || sqlOperandContained(call, bindings, active))
+    selectionContained(node, context, active) &&
+    node.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression).every((template) => templateContained(template, context, active)) &&
+    node.getDescendantsOfKind(SyntaxKind.CallExpression).every((call) => !sqlValue(call.getType()) || sqlOperandContained(call, context, active))
   );
 }
 
-function selectionContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, MorphNode>, active: ReadonlySet<object>): boolean {
+function selectionContained(node: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): boolean {
   const selection = readDrizzleSelection(node);
   if (
     selection === undefined ||
     !selection.calls.every((call) => runtimeDrizzleOrigin(call.getExpression())) ||
-    !selection.sqlOperands.every((operand) => sqlOperandContained(operand, bindings, active))
+    !selection.sqlOperands.every((operand) => sqlOperandContained(operand, context, active))
   ) {
     return false;
   }
@@ -408,17 +358,21 @@ function selectionContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, Mo
     return true;
   }
   const fields = readSchemaObjectMembers(selection.projection);
-  return fields.kind === "resolved" && fields.value.entries.every((field) => sqlOperandContained(field.value, bindings, active));
+  return fields.kind === "resolved" && fields.value.entries.every((field) => sqlOperandContained(field.value, context, active));
 }
 
-function sqlOperandContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, MorphNode>, active: ReadonlySet<object>): boolean {
-  const fragments = sqlOperandFragments(node, bindings, active);
+function sqlOperandContained(node: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): boolean {
+  const fragments = sqlOperandFragments(node, context, active);
   return fragments !== undefined && fragments.every((fragment) => fragment === undefined || sqliteFragmentContained(fragment));
 }
 
 /** Complete literal containment plus primitive-driver/column provenance. Unknown SQL-producing values refuse;
  * contained SQL still carries no owner or FK authorization. */
-export function readSqlOperandContainment(node: MorphNode, bindings: ReadonlyMap<MorphNode, MorphNode> = new Map()): boolean {
+export function readSqlOperandContainment(
+  node: MorphNode,
+  bindings: ReadonlyMap<MorphNode, MorphNode> = new Map(),
+  observations?: CallReturnObservations,
+): boolean {
   if (node.wasForgotten()) {
     return false;
   }
@@ -430,5 +384,6 @@ export function readSqlOperandContainment(node: MorphNode, bindings: ReadonlyMap
   ) {
     return false;
   }
-  return sqlOperandContained(node, bindings, new Set());
+  const captured = observations === undefined ? undefined : readCallReturnProgram(node, observations);
+  return captured?.kind !== "unresolved" && sqlOperandContained(node, { bindings, program: captured?.value }, new Set());
 }

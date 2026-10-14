@@ -1,18 +1,21 @@
 // Drizzle predicate source facts retain alternatives, helper argument provenance and cycle refusals.
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readCallBindings, readCallTarget, readFunctionReturnPaths } from "./call-returns.ts";
+import { readCallBindings, readCallReturnProgram, readCallTargets, readFunctionReturnPaths, readSuppliedParameter } from "./call-returns.ts";
+import { runtimeUndefinedValue } from "./call-supplied.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import type { DrizzlePredicate } from "./drizzle-predicate-contract.ts";
 import { readSqlAliasStability, readSqlOperandContainment } from "./drizzle-sql.ts";
+import type { SqlReadContext } from "./drizzle-sql-contract.ts";
+import { driverParameter } from "./drizzle-sql-origin.ts";
+import { sqlBindingStable } from "./drizzle-sql-stability.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { enclosingFn } from "./function-context.ts";
 import { resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
+import type { CallReturnObservations } from "./reference-fact-contract.ts";
 import { isReferenceWriteTarget } from "./reference-fact-writes.ts";
 import { referencesOf } from "./value-carrier.ts";
-
-type Bindings = ReadonlyMap<Node, Node>;
 
 function collection(kind: "and" | "or" | "choice", node: Node, terms: readonly DrizzlePredicate[]): DrizzlePredicate {
   const contained = terms.every((term) => term.contained);
@@ -23,8 +26,13 @@ function collection(kind: "and" | "or" | "choice", node: Node, terms: readonly D
   return { kind, node, terms, contained, presence: guaranteed ? "present" : "optional" };
 }
 
-function opaque(node: Node, bindings: Bindings): DrizzlePredicate {
-  return { kind: "unresolved", node, contained: readSqlOperandContainment(node, bindings), presence: "optional" };
+function opaque(node: Node, context: SqlReadContext): DrizzlePredicate {
+  return {
+    kind: "unresolved",
+    node,
+    contained: readSqlOperandContainment(node, context.bindings, context.program === undefined ? undefined : { programs: [context.program] }),
+    presence: "optional",
+  };
 }
 
 function nativeArrayMember(receiver: Node, name: string): boolean {
@@ -44,32 +52,47 @@ function nativeArrayMethod(call: CallExpression, name: string): boolean {
   return member?.name === name && nativeArrayMember(member.receiver, name);
 }
 
-function boundParameter(node: Node, bindings: Bindings): Node | undefined {
+function boundParameter(node: Node, context: SqlReadContext): Node | undefined {
   const declarations = node.getSymbol()?.getDeclarations() ?? [];
-  return declarations.length === 1 && declarations[0] !== undefined ? bindings.get(declarations[0]) : undefined;
+  return declarations.length === 1 && declarations[0] !== undefined ? context.bindings.get(declarations[0]) : undefined;
 }
 
-function helper(call: CallExpression, bindings: Bindings, active: ReadonlySet<object>): DrizzlePredicate {
-  const target = readCallTarget(call);
+function helper(call: CallExpression, context: SqlReadContext, active: ReadonlySet<object>): DrizzlePredicate {
+  const target = context.program?.byCall.get(call.compilerNode)?.targets ?? readCallTargets(call);
   if (target.kind === "unresolved") {
     const authored = target.trace.declarations.some((declaration) => !(Node.isImportSpecifier(declaration) || declaration.getSourceFile().isDeclarationFile()));
     return authored
-      ? opaque(call, bindings)
-      : { kind: "leaf", node: call, bindings, contained: readSqlOperandContainment(call, bindings), presence: "present" };
+      ? opaque(call, context)
+      : {
+          kind: "leaf",
+          node: call,
+          bindings: context.bindings,
+          contained: readSqlOperandContainment(call, context.bindings, context.program === undefined ? undefined : { programs: [context.program] }),
+          presence: "present",
+        };
   }
-  const fn = target.value;
-  if (fn.getSourceFile().isDeclarationFile()) {
-    return { kind: "leaf", node: call, bindings, contained: readSqlOperandContainment(call, bindings), presence: "present" };
+  if (target.value.some((fn) => fn.getSourceFile().isDeclarationFile())) {
+    return {
+      kind: "leaf",
+      node: call,
+      bindings: context.bindings,
+      contained: readSqlOperandContainment(call, context.bindings, context.program === undefined ? undefined : { programs: [context.program] }),
+      presence: "present",
+    };
   }
-  const paths = readFunctionReturnPaths(fn);
-  if (paths.kind === "unresolved") {
-    return opaque(call, bindings);
-  }
-  const next = readCallBindings(call, fn, bindings);
   return collection(
     "choice",
     call,
-    paths.value.map((value) => readPredicate(value, next, active)),
+    target.value.map((fn) => {
+      const paths = readFunctionReturnPaths(fn);
+      return paths.kind === "unresolved"
+        ? opaque(call, context)
+        : collection(
+            "choice",
+            call,
+            paths.value.map((value) => readPredicate(value, { ...context, bindings: readCallBindings(call, fn, context.bindings) }, active)),
+          );
+    }),
   );
 }
 
@@ -111,10 +134,10 @@ function appendedPredicates(value: Node): readonly Node[] | undefined {
   return pushed;
 }
 
-function spread(node: Node, bindings: Bindings, active: ReadonlySet<object>, kind: "and" | "or"): DrizzlePredicate {
+function spread(node: Node, context: SqlReadContext, active: ReadonlySet<object>, kind: "and" | "or"): DrizzlePredicate {
   const value = unwrapTarget(node);
   if (active.has(value.compilerNode)) {
-    return opaque(value, bindings);
+    return opaque(value, context);
   }
   const next = new Set(active).add(value.compilerNode);
   if (Node.isArrayLiteralExpression(value)) {
@@ -123,11 +146,11 @@ function spread(node: Node, bindings: Bindings, active: ReadonlySet<object>, kin
       value,
       value
         .getElements()
-        .map((element) => (Node.isSpreadElement(element) ? spread(element.getExpression(), bindings, next, kind) : readPredicate(element, bindings, next))),
+        .map((element) => (Node.isSpreadElement(element) ? spread(element.getExpression(), context, next, kind) : readPredicate(element, context, next))),
     );
   }
   if (Node.isConditionalExpression(value)) {
-    return collection("choice", value, [spread(value.getWhenTrue(), bindings, next, kind), spread(value.getWhenFalse(), bindings, next, kind)]);
+    return collection("choice", value, [spread(value.getWhenTrue(), context, next, kind), spread(value.getWhenFalse(), context, next, kind)]);
   }
   if (Node.isCallExpression(value) && nativeArrayMethod(value, "map")) {
     const callback = value.getArguments()[0];
@@ -138,41 +161,67 @@ function spread(node: Node, bindings: Bindings, active: ReadonlySet<object>, kin
           collection(
             kind,
             value,
-            paths.value.map((term) => readPredicate(term, bindings, next)),
+            paths.value.map((term) => readPredicate(term, context, next)),
           ),
         ])
-      : opaque(value, bindings);
+      : opaque(value, context);
   }
   const bindingFact = resolveStableExpression(value);
   if (bindingFact.kind === "unresolved" || bindingFact.value === value) {
-    return opaque(value, bindings);
+    return opaque(value, context);
   }
   const pushed = appendedPredicates(value);
   if (pushed === undefined) {
-    return opaque(value, bindings);
+    return opaque(value, context);
   }
   return collection(kind, value, [
-    spread(bindingFact.value, bindings, next, kind),
+    spread(bindingFact.value, context, next, kind),
     ...pushed.map((term) =>
-      collection("choice", term, [{ kind: "empty", node: term, contained: true, presence: "absent" }, readPredicate(term, bindings, next)]),
+      collection("choice", term, [{ kind: "empty", node: term, contained: true, presence: "absent" }, readPredicate(term, context, next)]),
     ),
   ]);
 }
 
-function identifierPredicate(value: import("ts-morph").Identifier, bindings: Bindings, active: ReadonlySet<object>): DrizzlePredicate {
-  if (value.getText() === "undefined") {
+function identifierPredicate(value: import("ts-morph").Identifier, context: SqlReadContext, active: ReadonlySet<object>): DrizzlePredicate {
+  if (runtimeUndefinedValue(value)) {
     return { kind: "empty", node: value, contained: true, presence: "absent" };
   }
-  const bound = boundParameter(value, bindings);
-  if (bound !== undefined) {
-    return readPredicate(bound, bindings, active);
+  const declaration = value.getSymbol()?.getValueDeclaration();
+  if (
+    Node.isParameterDeclaration(declaration) &&
+    context.program !== undefined &&
+    !driverParameter(value.getType()) &&
+    !sqlBindingStable(value, new Set(), context.program)
+  ) {
+    return opaque(value, context);
   }
-  if (!readSqlAliasStability(value)) {
-    return opaque(value, bindings);
+  if (Node.isParameterDeclaration(declaration)) {
+    const supplied = readSuppliedParameter(value, context.bindings, context.program);
+    if (supplied.kind === "resolved") {
+      return collection(
+        "choice",
+        value,
+        supplied.value.map((source) =>
+          source.present
+            ? readPredicate(source.value, { ...context, bindings: source.bindings }, active)
+            : { kind: "empty", node: value, contained: true, presence: "absent" },
+        ),
+      );
+    }
+    if (declaration.getInitializer() !== undefined) {
+      return opaque(value, context);
+    }
+  }
+  const bound = boundParameter(value, context);
+  if (bound !== undefined) {
+    return readPredicate(bound, context, active);
+  }
+  if (!readSqlAliasStability(value, new Set(), context.program)) {
+    return opaque(value, context);
   }
   const bindingFact = resolveStableExpression(value);
   if (bindingFact.kind === "resolved" && bindingFact.value !== value) {
-    return readPredicate(bindingFact.value, bindings, active);
+    return readPredicate(bindingFact.value, context, active);
   }
   if (
     bindingFact.kind === "unresolved" &&
@@ -181,12 +230,12 @@ function identifierPredicate(value: import("ts-morph").Identifier, bindings: Bin
     !Node.isVariableDeclaration(bindingFact.node) &&
     !Node.isParameterDeclaration(bindingFact.node)
   ) {
-    return readPredicate(bindingFact.node, bindings, active);
+    return readPredicate(bindingFact.node, context, active);
   }
-  return opaque(value, bindings);
+  return opaque(value, context);
 }
 
-function callPredicate(value: CallExpression, bindings: Bindings, active: ReadonlySet<object>): DrizzlePredicate {
+function callPredicate(value: CallExpression, context: SqlReadContext, active: ReadonlySet<object>): DrizzlePredicate {
   for (const kind of ["and", "or"] as const) {
     if (callsDrizzleOperator(value, kind)) {
       return collection(
@@ -195,45 +244,60 @@ function callPredicate(value: CallExpression, bindings: Bindings, active: Readon
         value
           .getArguments()
           .map((argument) =>
-            Node.isSpreadElement(argument) ? spread(argument.getExpression(), bindings, active, kind) : readPredicate(argument, bindings, active),
+            Node.isSpreadElement(argument) ? spread(argument.getExpression(), context, active, kind) : readPredicate(argument, context, active),
           ),
       );
     }
   }
   if (drizzleExportOf(value.getExpression()) === undefined && !["eq", "inArray", "ne", "isNotNull"].some((name) => callsDrizzleOperator(value, name))) {
-    return helper(value, bindings, active);
+    return helper(value, context, active);
   }
-  return { kind: "leaf", node: value, bindings, contained: readSqlOperandContainment(value, bindings), presence: "present" };
+  return {
+    kind: "leaf",
+    node: value,
+    bindings: context.bindings,
+    contained: readSqlOperandContainment(value, context.bindings, context.program === undefined ? undefined : { programs: [context.program] }),
+    presence: "present",
+  };
 }
 
-function readPredicate(node: Node, bindings: Bindings, active: ReadonlySet<object>): DrizzlePredicate {
+function readPredicate(node: Node, context: SqlReadContext, active: ReadonlySet<object>): DrizzlePredicate {
   const value = unwrapTarget(node);
   if (active.has(value.compilerNode)) {
-    return opaque(value, bindings);
+    return opaque(value, context);
   }
   const next = new Set(active).add(value.compilerNode);
   if (Node.isSpreadElement(value)) {
-    return opaque(value, bindings);
+    return opaque(value, context);
   }
   if (Node.isIdentifier(value)) {
-    return identifierPredicate(value, bindings, next);
+    return identifierPredicate(value, context, next);
   }
   if (Node.isConditionalExpression(value)) {
-    return collection("choice", value, [readPredicate(value.getWhenTrue(), bindings, next), readPredicate(value.getWhenFalse(), bindings, next)]);
+    return collection("choice", value, [readPredicate(value.getWhenTrue(), context, next), readPredicate(value.getWhenFalse(), context, next)]);
   }
   if (Node.isBinaryExpression(value) && [SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken].includes(value.getOperatorToken().getKind())) {
-    return collection("choice", value, [readPredicate(value.getLeft(), bindings, next), readPredicate(value.getRight(), bindings, next)]);
+    return collection("choice", value, [readPredicate(value.getLeft(), context, next), readPredicate(value.getRight(), context, next)]);
   }
   if (Node.isTaggedTemplateExpression(value) && drizzleExportOf(value.getTag()) === "sql") {
-    return opaque(value, bindings);
+    return opaque(value, context);
   }
   if (Node.isCallExpression(value)) {
-    return callPredicate(value, bindings, next);
+    return callPredicate(value, context, next);
   }
-  return { kind: "leaf", node: value, bindings, contained: readSqlOperandContainment(value, bindings), presence: "present" };
+  return {
+    kind: "leaf",
+    node: value,
+    bindings: context.bindings,
+    contained: readSqlOperandContainment(value, context.bindings, context.program === undefined ? undefined : { programs: [context.program] }),
+    presence: "present",
+  };
 }
 
 /** Read one predicate without collapsing universal scope and existential selection into the same judgment. */
-export function readDrizzlePredicate(node: Node): DrizzlePredicate {
-  return readPredicate(node, new Map(), new Set());
+export function readDrizzlePredicate(node: Node, observations?: CallReturnObservations): DrizzlePredicate {
+  const captured = observations === undefined ? undefined : readCallReturnProgram(node, observations);
+  return captured?.kind === "unresolved"
+    ? { kind: "unresolved", node, contained: false, presence: "optional" }
+    : readPredicate(node, { bindings: new Map(), program: captured?.value }, new Set());
 }

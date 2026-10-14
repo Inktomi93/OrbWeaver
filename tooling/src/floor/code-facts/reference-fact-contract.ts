@@ -121,6 +121,13 @@ export interface ReferenceResolutionServices {
 export interface CallReturnObservation {
   readonly call: CallExpression;
   readonly target: ReferenceFact<Node>;
+  readonly targets: ReferenceFact<readonly Node[]>;
+  readonly alternatives: ReferenceFact<readonly CallReturnAlternative[]>;
+  readonly returns: ReferenceFact<readonly Node[]>;
+}
+
+export interface CallReturnAlternative {
+  readonly target: Node;
   readonly returns: ReferenceFact<readonly Node[]>;
 }
 
@@ -146,3 +153,12 @@ export interface ReturnedValueSource {
   readonly path: readonly string[];
   readonly bindings: ReadonlyMap<Node, Node>;
 }
+
+/** Returned-value consumers retain bindings already admitted by the same native invocation. */
+export interface ReturnedValueInputs {
+  readonly terminals: ReturnedValueTerminals;
+  readonly bindings: ReadonlyMap<Node, Node>;
+}
+
+/** Consumers identify actual native terminal calls on demand, without an additional call inventory. */
+export type ReturnedValueTerminals = ReadonlySet<ts.CallExpression> | ((call: CallExpression) => boolean);

@@ -1,7 +1,5 @@
-// The STATEMENT half of the tenancy read readers: the predicates one drizzle read applies around a table anchor —
-// its own builder chain up and down, a split builder's binding in the same function, and whether an unexecuted
-// builder escapes the function's view. Synchronous returns continue at supplied native caller observations;
-// async/awaited outputs are rows and never editable continuations.
+// Predicates and physical consumers belong to one native Drizzle statement.
+// Returned builders remain editable; only proved native execution settles rows.
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
@@ -9,6 +7,11 @@ import { readCallReturnProgram, readFunctionReturnPaths } from "./call-returns.t
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { readAnchorOf } from "./drizzle-query.ts";
 import type { DrizzleBuilderChain, ReadAnchor, ReadStatement } from "./drizzle-query-contract.ts";
+import { readDrizzleSelection, readFollowingSelectChain } from "./drizzle-select.ts";
+import { runtimeDrizzleOrigin } from "./drizzle-sql-native.ts";
+import { sqlValue } from "./drizzle-sql-origin.ts";
+import { nativeQueryThenable, sqlCarrierUseStable } from "./drizzle-sql-stability.ts";
+import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { enclosingFn } from "./function-context.ts";
 import { inspectReferenceWrites, resolveStableExpression } from "./reference-fact.ts";
@@ -20,39 +23,11 @@ import { referencesOf } from "./value-carrier.ts";
 const WHERE_VERB = "where";
 const INNER_JOIN_VERB = "innerJoin";
 const DYNAMIC_VERB = "$dynamic";
-const SEALED_VERBS: ReadonlySet<string> = new Set(["as", "all", "get", "run", "execute"]);
-
-/** One step up a read's OWN builder chain: through a member access whose object is the current node, a call
- *  whose callee is, or an `await`. A select passed as an ARGUMENT (an `inArray(col, db.select()…)` subselect)
- *  is its own statement and never inherits the outer statement's predicates. */
-function builderParent(cur: Node): Node | undefined {
-  const parent = cur.getParent();
-  if (parent === undefined) {
-    return;
-  }
-  const continuesChain =
-    parent.isKind(SyntaxKind.AwaitExpression) ||
-    N.isParenthesizedExpression(parent) ||
-    N.isNonNullExpression(parent) ||
-    N.isAsExpression(parent) ||
-    N.isSatisfiesExpression(parent) ||
-    (N.isConditionalExpression(parent) && parent.getCondition() !== cur) ||
-    (parent.isKind(SyntaxKind.CallExpression) && parent.getExpression() === cur) ||
-    (MEMBER_ACCESS_KINDS.some((kind) => parent.isKind(kind)) && parent.getFirstChild() === cur);
-  return continuesChain ? parent : undefined;
-}
+const SEALED_VERBS: ReadonlySet<string> = new Set(["all", "get", "run", "execute"]);
 
 /** The outermost node of a read's own builder chain, and the calls applied along the way. */
 export function readFollowingBuilderChain(start: Node): DrizzleBuilderChain {
-  const calls: CallExpression[] = [];
-  let cur: Node = start;
-  for (let parent = builderParent(cur); parent !== undefined; parent = builderParent(cur)) {
-    if (parent.isKind(SyntaxKind.CallExpression)) {
-      calls.push(parent);
-    }
-    cur = parent;
-  }
-  return { top: cur, calls };
+  return readFollowingSelectChain(start);
 }
 
 /** The binding an UNAWAITED builder chain is stored in (`const q = db.select().from(T)` or `q = q.where(…)`);
@@ -107,23 +82,50 @@ function selfBuilderAssignment(use: Identifier): boolean {
   return N.isIdentifier(receiver) && receiver.getSymbol()?.compilerSymbol === use.getSymbol()?.compilerSymbol;
 }
 
+function nativeSqlCarrier(value: Node): boolean {
+  const parent = value.getParent();
+  if (N.isTemplateSpan(parent) && parent.getExpression() === value) {
+    const template = parent.getParent().getParent();
+    return N.isTaggedTemplateExpression(template) && drizzleExportOf(template.getTag()) === "sql" && runtimeDrizzleOrigin(template.getTag());
+  }
+  if (!(N.isCallExpression(parent) && parent.getArguments().includes(value) && runtimeDrizzleOrigin(parent.getExpression()))) {
+    return false;
+  }
+  return (
+    ["exists", "notExists", "inArray", "notInArray"].some((name) => callsDrizzleOperator(parent, name)) ||
+    staticMemberAccess(parent.getExpression())?.name === "as"
+  );
+}
+
+function closedBuilderUse(top: Node, state: BuilderFilterState, program?: CallReturnProgram): boolean | undefined {
+  if (N.isAwaitExpression(top)) {
+    const value = top.getExpression();
+    const continued = state.origin !== undefined && N.isCallExpression(value) && runtimeDrizzleOrigin(value.getExpression()) && nativeQueryThenable(value);
+    return continued || sqlCarrierUseStable(value, program);
+  }
+  if (N.isCallExpression(top) && SEALED_VERBS.has(staticMemberAccess(top.getExpression())?.name ?? "")) {
+    return true;
+  }
+  if (N.isCallExpression(top) && sqlValue(top.getType()) && runtimeDrizzleOrigin(top.getExpression())) {
+    return sqlCarrierUseStable(top, program);
+  }
+  return nativeSqlCarrier(top) ? sqlCarrierUseStable(top, program) : undefined;
+}
 /** Does this unawaited builder value leave the statement's view: passed as a call argument, returned, or bound
  *  to a name some use reads other than as a method receiver or an `await`? */
-function builderEscapes(top: Node, binding: Identifier | undefined): boolean {
-  if (N.isCallExpression(top) && SEALED_VERBS.has(staticMemberAccess(top.getExpression())?.name ?? "")) {
-    return false;
+function builderEscapes(top: Node, binding: Identifier | undefined, state: BuilderFilterState, program?: CallReturnProgram): boolean {
+  const closed = closedBuilderUse(top, state, program);
+  if (closed !== undefined) {
+    return !closed;
   }
   const parent = top.getParent();
   const fn = enclosingFn(top);
   const asyncReturn =
     fn !== undefined && (N.isFunctionDeclaration(fn) || N.isMethodDeclaration(fn) || N.isFunctionExpression(fn) || N.isArrowFunction(fn)) && fn.isAsync();
-  const sqlCarrier =
-    parent?.isKind(SyntaxKind.CallExpression) === true &&
-    (staticMemberAccess(parent.getExpression())?.name === "as" || callsDrizzleOperator(parent, "inArray"));
   const handedOff =
     !top.isKind(SyntaxKind.AwaitExpression) &&
     ((!asyncReturn && (parent?.isKind(SyntaxKind.ReturnStatement) === true || parent?.isKind(SyntaxKind.ArrowFunction) === true)) ||
-      (!sqlCarrier && parent?.isKind(SyntaxKind.CallExpression) === true && parent.getArguments().includes(top)));
+      (parent?.isKind(SyntaxKind.CallExpression) === true && parent.getArguments().includes(top)));
   if (handedOff || binding === undefined) {
     return handedOff;
   }
@@ -140,6 +142,7 @@ function builderEscapes(top: Node, binding: Identifier | undefined): boolean {
         !methodUses.has(use) &&
         !(N.isVariableDeclaration(use.getParent()) && use.getParent().getFirstChild() === use) &&
         !selfBuilderAssignment(use) &&
+        (!(nativeSqlCarrier(use) && sqlCarrierUseStable(use, program)) || (state.dynamic && methodUses.size > 0)) &&
         !use.getParent().isKind(SyntaxKind.AwaitExpression) &&
         !(asyncReturn && use.getParent().isKind(SyntaxKind.ReturnStatement)),
     );
@@ -154,6 +157,39 @@ interface StatementCalls {
 interface BuilderFilterState {
   readonly filtered: boolean;
   readonly dynamic: boolean;
+  readonly origin: Node | undefined;
+}
+
+function nativeStatementOrigin(node: Node): Node | undefined {
+  const selection = readDrizzleSelection(node);
+  return selection?.calls.every((call) => runtimeDrizzleOrigin(call.getExpression())) === true ? selection.root : undefined;
+}
+
+function nativeBuilderCall(call: CallExpression): boolean {
+  const member = readCalledMember(call);
+  return (
+    member.kind === "resolved" &&
+    member.value.declarations.length > 0 &&
+    declaredInDrizzle(member.value.declarations) &&
+    runtimeDrizzleOrigin(call.getExpression())
+  );
+}
+
+function builderTransition(calls: readonly CallExpression[], state: BuilderFilterState, program?: CallReturnProgram): StatementCalls | undefined {
+  const index = calls.findIndex((call) => SEALED_VERBS.has(staticMemberAccess(call.getExpression())?.name ?? "") || sqlValue(call.getType()));
+  const prefix = index < 0 ? calls : calls.slice(0, index + 1);
+  if (!prefix.every(nativeBuilderCall)) {
+    return { calls, escapes: true, refusals: [] };
+  }
+  const boundary = calls[index];
+  if (boundary === undefined) {
+    return;
+  }
+  if (state.origin === undefined) {
+    return { calls, escapes: true, refusals: [] };
+  }
+  const executed = SEALED_VERBS.has(staticMemberAccess(boundary.getExpression())?.name ?? "");
+  return { calls, escapes: !(executed || sqlCarrierUseStable(boundary, program)), refusals: [] };
 }
 
 function refusal(node: Node, reason: UnresolvedReferenceFact["reason"], detail: string): UnresolvedReferenceFact {
@@ -221,9 +257,11 @@ function statementCalls(anchor: Node, before: BuilderFilterState, traversal: Sta
   const state = {
     filtered: before.filtered || applied.some((call) => staticMemberAccess(call.getExpression())?.name === WHERE_VERB),
     dynamic: before.dynamic || applied.some((call) => staticMemberAccess(call.getExpression())?.name === DYNAMIC_VERB),
+    origin: before.origin ?? nativeStatementOrigin(anchor),
   };
-  if (applied.some((call) => SEALED_VERBS.has(staticMemberAccess(call.getExpression())?.name ?? ""))) {
-    return { calls: chain.calls, escapes: false, refusals: [] };
+  const transition = builderTransition(chain.calls, state, traversal.observations);
+  if (transition !== undefined) {
+    return transition;
   }
   const binding = builderBinding(chain.top);
   const local = (binding === undefined ? [] : builderUses(binding)).map((use) => statementCalls(use, state, traversal));
@@ -231,7 +269,11 @@ function statementCalls(anchor: Node, before: BuilderFilterState, traversal: Sta
   const steps = [...local, ...returns];
   return {
     calls: [...chain.calls, ...steps.flatMap((step) => step.calls)],
-    escapes: (returns.length === 0 && (state.dynamic || !state.filtered) && builderEscapes(chain.top, binding)) || steps.some((step) => step.escapes),
+    escapes:
+      (returns.length === 0 &&
+        (traversal.observations !== undefined || state.dynamic || !state.filtered) &&
+        builderEscapes(chain.top, binding, state, traversal.observations)) ||
+      steps.some((step) => step.escapes),
     refusals: steps.flatMap((step) => step.refusals),
   };
 }
@@ -259,7 +301,11 @@ export function readStatementOf(anchor: Node, observations?: CallReturnObservati
   if (program?.kind === "unresolved") {
     return { wheres: [], innerOns: [], escapes: true, refusals: [program] };
   }
-  const after = statementCalls(anchor, { filtered: false, dynamic: false }, { seen: new Set(), observations: program?.value, returning: new Set() });
+  const after = statementCalls(
+    anchor,
+    { filtered: false, dynamic: false, origin: undefined },
+    { seen: new Set(), observations: program?.value, returning: new Set() },
+  );
   const calls = [...priorCalls(anchor), ...after.calls];
   const argumentsOf = (verb: string, position: number): readonly Node[] =>
     calls.flatMap((call) => {

@@ -1,10 +1,19 @@
 // Value carriers and lexical reference uses; consumers judge whether an observed use is permitted.
 import type { CallExpression, Node, ObjectLiteralExpression, ts } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import { readCallBindings, readCallReturnProgram } from "./call-returns.ts";
+import { readCallBindings, readCallReturnProgram, readSuppliedParameter } from "./call-supplied.ts";
 import { readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
-import type { CallReturnObservations, CallReturnProgram, ReferenceFact, ReturnedValueSource } from "./reference-fact-contract.ts";
+import type {
+  CallReturnObservations,
+  CallReturnProgram,
+  ReferenceFact,
+  ReturnedValueInputs,
+  ReturnedValueSource,
+  ReturnedValueTerminals,
+  UnresolvedReferenceFact,
+} from "./reference-fact-contract.ts";
+import { isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-writes.ts";
 
 /** The value a real object member carries; a method or opaque spread is not a property value. */
 export function propertyValue(property: Node | undefined): Node | undefined {
@@ -77,17 +86,13 @@ export function carryingLiterals(node: Node): readonly { readonly literal: Objec
 }
 
 interface ReturnedValueContext {
-  readonly program: CallReturnProgram;
-  readonly terminals: ReadonlySet<ts.CallExpression>;
+  readonly program: CallReturnProgram | undefined;
+  readonly terminals: ReturnedValueTerminals;
   readonly bindings: ReadonlyMap<Node, Node>;
   readonly active: ReadonlySet<ts.Node>;
 }
 
-function valueRefusal(
-  node: Node,
-  reason: import("./reference-fact-contract.ts").ReferenceUnresolvedReason,
-  detail: string,
-): ReferenceFact<readonly ReturnedValueSource[]> {
+function valueRefusal(node: Node, reason: import("./reference-fact-contract.ts").ReferenceUnresolvedReason, detail: string): UnresolvedReferenceFact {
   return { kind: "unresolved", reason, detail, node, trace: { declarations: [], origin: node } };
 }
 
@@ -98,7 +103,11 @@ function valueLeaf(value: Node, path: readonly string[], context: ReturnedValueC
 function valueAlternatives(node: Node, facts: readonly ReferenceFact<readonly ReturnedValueSource[]>[]): ReferenceFact<readonly ReturnedValueSource[]> {
   const failure = facts.find((fact) => fact.kind === "unresolved");
   return (
-    failure ?? { kind: "resolved", value: facts.flatMap((fact) => (fact.kind === "resolved" ? fact.value : [])), trace: { declarations: [], origin: node } }
+    failure ?? {
+      kind: "resolved",
+      value: facts.flatMap((fact) => (fact.kind === "resolved" ? fact.value : [])),
+      trace: { declarations: facts.flatMap((fact) => fact.trace.declarations), origin: node },
+    }
   );
 }
 
@@ -108,13 +117,11 @@ function returnedPropertyValue(
   rest: readonly string[],
   context: ReturnedValueContext,
 ): ReferenceFact<readonly ReturnedValueSource[]> | undefined {
-  const key = property.getNameNode();
-  const known = N.isComputedPropertyName(key) ? readStaticString(key.getExpression()) : undefined;
-  if (known?.kind === "unresolved") {
-    return valueRefusal(property, known.reason, "a computed returned-object key can overwrite the projected value");
+  const keyName = returnedPropertyName(property);
+  if (keyName.kind === "unresolved") {
+    return keyName;
   }
-  const keyName = known?.kind === "resolved" ? known.value : property.getName();
-  if (keyName !== name) {
+  if (keyName.value !== name) {
     return;
   }
   const value = propertyValue(property);
@@ -124,6 +131,16 @@ function returnedPropertyValue(
   const projected = returnedValue(value, rest, context);
   // The outer key exists even if its nested projection does not; a later `{manifest:{}}` shadows manifest.
   return projected.kind === "unresolved" ? projected : { ...projected, value: projected.value.map((source) => ({ ...source, present: true })) };
+}
+
+function returnedPropertyName(
+  property: Exclude<ReturnType<ObjectLiteralExpression["getProperties"]>[number], import("ts-morph").SpreadAssignment>,
+): ReferenceFact<string> {
+  const key = property.getNameNode();
+  if (N.isComputedPropertyName(key)) {
+    return readStaticString(key.getExpression());
+  }
+  return { kind: "resolved", value: property.getName(), trace: { declarations: [], origin: property } };
 }
 
 function overlayReturnedValue(
@@ -165,24 +182,56 @@ function returnedObjectValue(
 }
 
 function returnedCallValue(call: CallExpression, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
-  if (context.terminals.has(call.compilerNode)) {
+  if (typeof context.terminals === "function" ? context.terminals(call) : context.terminals.has(call.compilerNode)) {
     return valueLeaf(call, path, context);
   }
-  const observed = context.program.byCall.get(call.compilerNode);
+  const observed = context.program?.byCall.get(call.compilerNode);
   if (observed === undefined) {
     return valueRefusal(call, "missing", "the returned call was not supplied in this native invocation");
   }
-  if (observed.target.kind === "unresolved") {
-    return observed.target;
+  if (observed.alternatives.kind === "unresolved") {
+    return observed.alternatives;
   }
-  if (observed.returns.kind === "unresolved") {
-    return observed.returns;
-  }
-  const next = { ...context, bindings: readCallBindings(call, observed.target.value, context.bindings) };
   return valueAlternatives(
     call,
-    observed.returns.value.map((value) => returnedValue(value, path, next)),
+    observed.alternatives.value.map((alternative) =>
+      alternative.returns.kind === "unresolved"
+        ? alternative.returns
+        : valueAlternatives(
+            call,
+            alternative.returns.value.map((value) =>
+              returnedValue(value, path, { ...context, bindings: readCallBindings(call, alternative.target, context.bindings) }),
+            ),
+          ),
+    ),
   );
+}
+
+function returnedDefaultValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
+  const supplied = readSuppliedParameter(node, context.bindings, context.program);
+  return supplied.kind === "unresolved"
+    ? supplied
+    : valueAlternatives(
+        node,
+        supplied.value.map((source) =>
+          source.present
+            ? returnedValue(source.value, [...source.path, ...path], { ...context, bindings: source.bindings })
+            : { kind: "resolved", value: [{ ...source, path }], trace: supplied.trace },
+        ),
+      );
+}
+
+function boundIdentifierValue(
+  node: import("ts-morph").Identifier,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> | undefined {
+  const declaration = lexicalReferenceSymbol(node)?.getValueDeclaration();
+  const bound = declaration === undefined ? undefined : context.bindings.get(declaration);
+  if (N.isParameterDeclaration(declaration) && declaration.getInitializer() !== undefined) {
+    return returnedDefaultValue(node, path, context);
+  }
+  return bound === undefined ? undefined : returnedValue(bound, path, context);
 }
 
 function returnedIdentifierValue(
@@ -190,10 +239,9 @@ function returnedIdentifierValue(
   path: readonly string[],
   context: ReturnedValueContext,
 ): ReferenceFact<readonly ReturnedValueSource[]> {
-  const declaration = lexicalReferenceSymbol(node)?.getValueDeclaration();
-  const bound = declaration === undefined ? undefined : context.bindings.get(declaration);
+  const bound = boundIdentifierValue(node, path, context);
   if (bound !== undefined) {
-    return returnedValue(bound, path, context);
+    return bound;
   }
   const stable = resolveStableExpression(node);
   const value = stable.kind === "resolved" ? stable.value : stable.node;
@@ -201,14 +249,42 @@ function returnedIdentifierValue(
     return stable;
   }
   if (N.isBindingElement(value)) {
-    const parent = value.getParentIfKind(SyntaxKind.ObjectBindingPattern)?.getParentIfKind(SyntaxKind.VariableDeclaration);
+    const pattern = value.getParent();
+    const parent = pattern.getParentIfKind(SyntaxKind.VariableDeclaration);
     const initializer = parent?.getInitializer();
-    if (initializer === undefined || value.getDotDotDotToken() !== undefined || value.getInitializer() !== undefined) {
+    if (
+      initializer === undefined ||
+      value.getDotDotDotToken() !== undefined ||
+      value.getInitializer() !== undefined ||
+      !(N.isArrayBindingPattern(pattern) || N.isObjectBindingPattern(pattern))
+    ) {
       return valueRefusal(value, "unsupported", "the returned destructuring source is opaque");
     }
-    return returnedValue(initializer, [value.getPropertyNameNode()?.getText() ?? value.getName(), ...path], context);
+    const key = N.isArrayBindingPattern(pattern) ? String(pattern.getElements().indexOf(value)) : (value.getPropertyNameNode()?.getText() ?? value.getName());
+    return returnedValue(initializer, [key, ...path], context);
   }
-  return value.compilerNode === node.compilerNode || N.isParameterDeclaration(value) ? valueLeaf(node, path, context) : returnedValue(value, path, context);
+  const result =
+    value.compilerNode === node.compilerNode || N.isParameterDeclaration(value) ? valueLeaf(node, path, context) : returnedValue(value, path, context);
+  return { ...result, trace: { ...result.trace, declarations: [...stable.trace.declarations, ...result.trace.declarations] } };
+}
+
+function returnedArrayValue(
+  array: import("ts-morph").ArrayLiteralExpression,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  const [slot, ...rest] = path;
+  if (slot === undefined) {
+    return valueLeaf(array, path, context);
+  }
+  const index = Number(slot);
+  if (!Number.isSafeInteger(index) || index < 0 || String(index) !== slot || array.getElements().some(N.isSpreadElement)) {
+    return valueRefusal(array, "unsupported", "the returned array slot has no fixed authored position");
+  }
+  const element = array.getElements()[index];
+  return element === undefined || N.isOmittedExpression(element)
+    ? { kind: "resolved", value: [{ value: array, path, bindings: context.bindings, present: false }], trace: { declarations: [], origin: array } }
+    : returnedValue(element, rest, context);
 }
 
 function returnedValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
@@ -229,11 +305,66 @@ function returnedValue(node: Node, path: readonly string[], context: ReturnedVal
   if (N.isObjectLiteralExpression(value)) {
     return returnedObjectValue(value, path, next);
   }
+  if (N.isArrayLiteralExpression(value)) {
+    return returnedArrayValue(value, path, next);
+  }
   if (N.isCallExpression(value)) {
     return returnedCallValue(value, path, next);
   }
   const member = staticMemberAccess(value);
-  return member === undefined ? valueLeaf(value, path, next) : returnedValue(member.receiver, [member.name, ...path], next);
+  if (member !== undefined) {
+    return returnedValue(member.receiver, [member.name, ...path], next);
+  }
+  if (N.isElementAccessExpression(value)) {
+    return returnedComputedValue(value, path, next);
+  }
+  return valueLeaf(value, path, next);
+}
+
+function returnedComputedValue(
+  member: import("ts-morph").ElementAccessExpression,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  const type = member.getArgumentExpression()?.getType();
+  const selectors = type === undefined ? [] : [type];
+  const literalSelectors = selectors.flatMap((selector) => (selector.isUnion() ? selector.getUnionTypes() : [selector]));
+  if (literalSelectors.length === 0 || literalSelectors.some((selector) => !selector.isStringLiteral())) {
+    return valueRefusal(member, "unsupported", "a computed selector has no finite literal key alternatives");
+  }
+  const selected = literalSelectors.map((selector) => selector.getLiteralValue());
+  const objects = returnedValue(member.getExpression(), [], context);
+  if (objects.kind === "unresolved") {
+    return objects;
+  }
+  const alternatives = objects.value.map((source) => {
+    if (!source.present || source.path.length > 0 || !N.isObjectLiteralExpression(source.value)) {
+      return valueRefusal(member, "unsupported", "a computed value selection has no finite authored object");
+    }
+    const keys = source.value
+      .getProperties()
+      .map((property) =>
+        N.isSpreadAssignment(property)
+          ? valueRefusal(property, "unsupported", "computed selection through object spreads is not closed")
+          : returnedPropertyName(property),
+      );
+    const failed = keys.find((key) => key.kind === "unresolved");
+    const missing = selected.some((key) => !keys.some((candidate) => candidate.kind === "resolved" && candidate.value === key));
+    const projected =
+      failed ??
+      (missing
+        ? valueRefusal(member, "missing", "a selector alternative has no authored own property")
+        : valueAlternatives(
+            member,
+            keys.flatMap((key) =>
+              key.kind === "resolved" && selected.includes(key.value)
+                ? [returnedValue(source.value, [key.value, ...path], { ...context, bindings: source.bindings })]
+                : [],
+            ),
+          ));
+    return { ...projected, trace: { ...projected.trace, declarations: [...objects.trace.declarations, ...projected.trace.declarations] } };
+  });
+  return valueAlternatives(member, alternatives);
 }
 
 /** Read-oriented value provenance: terminal declarations are supplied by the consumer, never guessed by name.
@@ -242,8 +373,69 @@ export function readReturnedValue(
   node: Node,
   path: readonly string[],
   observations: CallReturnObservations,
-  terminals: ReadonlySet<ts.CallExpression>,
+  inputs: ReadonlySet<ts.CallExpression> | ReturnedValueInputs,
 ): ReferenceFact<readonly ReturnedValueSource[]> {
   const program = readCallReturnProgram(node, observations);
-  return program.kind === "unresolved" ? program : returnedValue(node, path, { program: program.value, terminals, bindings: new Map(), active: new Set() });
+  if (program.kind === "unresolved") {
+    return program;
+  }
+  const { terminals, bindings } = "terminals" in inputs ? inputs : { terminals: inputs, bindings: new Map<Node, Node>() };
+  if ([...bindings].some((pair) => pair.some((bound) => readCallReturnProgram(bound, observations).kind === "unresolved"))) {
+    return valueRefusal(node, "unsupported", "supplied value bindings are outside the captured native world or source epoch");
+  }
+  return returnedValue(node, path, { program: program.value, terminals, bindings, active: new Set() });
+}
+
+/** Authored value projection uses the same traversal; calls need separately supplied native observations. */
+export function readAuthoredValueSources(
+  node: Node,
+  path: readonly string[],
+  bindings: ReadonlyMap<Node, Node> = new Map(),
+  terminals: ReturnedValueTerminals = new Set(),
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  return returnedValue(node, path, { program: undefined, terminals, bindings, active: new Set() });
+}
+
+function callableValue(node: Node): boolean {
+  return N.isArrowFunction(node) || N.isFunctionExpression(node) || N.isFunctionDeclaration(node);
+}
+
+function callableProjectionUse(use: Node, admits?: (call: CallExpression) => boolean): boolean {
+  if (isReferenceWriteTarget(use)) {
+    return false;
+  }
+  const parent = use.getParent();
+  const member = parent === undefined ? undefined : staticMemberAccess(parent);
+  if (parent === undefined || member?.receiver !== use) {
+    return false;
+  }
+  const projected = readAuthoredValueSources(parent, []);
+  if (projected.kind === "unresolved" || projected.value.some((source) => !source.present || source.path.length > 0)) {
+    return false;
+  }
+  if (projected.value.every((source) => !callableValue(source.value))) {
+    return true;
+  }
+  const call = parent.getParent();
+  return (
+    N.isCallExpression(call) && call.getExpression() === parent && admits?.(call) !== false && projected.value.every((source) => callableValue(source.value))
+  );
+}
+
+/** Finite authored callees retain every literal alternative and refuse escaping containing objects. */
+export function readAuthoredCallableSources(node: Node, admits?: (call: CallExpression) => boolean): ReferenceFact<readonly ReturnedValueSource[]> {
+  const sources = readAuthoredValueSources(node, []);
+  if (sources.kind === "unresolved") {
+    return sources;
+  }
+  if (sources.value.length === 0 || sources.value.some((source) => !source.present || source.path.length > 0 || !callableValue(source.value))) {
+    return valueRefusal(node, "unsupported", "the callee does not close over finite authored function bodies");
+  }
+  for (const declaration of sources.trace.declarations) {
+    const name = N.isVariableDeclaration(declaration) ? declaration.getNameNode() : undefined;
+    if (N.isIdentifier(name) && unprovenReferenceUse(name, (use) => callableProjectionUse(use, admits)) !== undefined) {
+      return valueRefusal(node, "unsupported", "the callable containing value escapes its closed projected uses");
+    }
+  }
+  return sources;
 }
