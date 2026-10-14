@@ -18,6 +18,253 @@ index 5af00c34c0dd35cf9436f09040219463a487033e..c30c63c59bbfd46e6690811bfbc67b7a
          resolveTypeReferenceDirectives: resolutionHost.resolveTypeReferenceDirectives,
          realpath: languageServiceHost.realpath,
      };
+diff --git a/dist/typescript.js b/dist/typescript.js
+index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..bbdb7733f39be99b7f48df836ff36ca98eda0266 100644
+--- a/dist/typescript.js
++++ b/dist/typescript.js
+@@ -154001,9 +154001,9 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+     const sourceFiles = options && options.use === ts_FindAllReferences_exports.FindReferencesUse.Rename ? program.getSourceFiles().filter((sourceFile) => !program.isSourceFileDefaultLibrary(sourceFile)) : program.getSourceFiles();
+     return ts_FindAllReferences_exports.findReferenceOrRenameEntries(program, cancellationToken, sourceFiles, node, position, options, cb);
+   }
+-  function findReferences(fileName, position) {
++  function findReferences(fileName, position, options = void 0) {
+     synchronizeHostData();
+-    return ts_FindAllReferences_exports.findReferencedSymbols(program, cancellationToken, program.getSourceFiles(), getValidSourceFile(fileName), position);
++    return ts_FindAllReferences_exports.findReferencedSymbols(program, cancellationToken, program.getSourceFiles(), getValidSourceFile(fileName), position, options?.includeDefinitionDisplay !== false);
+   }
+   function getFileReferences(fileName) {
+     synchronizeHostData();
+@@ -173237,7 +173237,7 @@ var FindReferencesUse = /* @__PURE__ */ ((FindReferencesUse2) => {
+   FindReferencesUse2[FindReferencesUse2["Rename"] = 2] = "Rename";
+   return FindReferencesUse2;
+ })(FindReferencesUse || {});
+-function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFile, position) {
++function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFile, position, includeDefinitionDisplay = true) {
+   const node = getTouchingPropertyName(sourceFile, position);
+   const options = { use: 1 /* References */ };
+   const referencedSymbols = Core.getReferencedSymbolsForNode(position, node, program, sourceFiles, cancellationToken, options);
+@@ -173247,7 +173247,7 @@ function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFi
+   return !referencedSymbols || !referencedSymbols.length ? void 0 : mapDefined(referencedSymbols, ({ definition, references }) => (
+     // Only include referenced symbols that have a valid definition.
+     definition && {
+-      definition: checker.runWithCancellationToken(cancellationToken, (checker2) => definitionToReferencedSymbolDefinitionInfo(definition, checker2, node)),
++      definition: checker.runWithCancellationToken(cancellationToken, (checker2) => definitionToReferencedSymbolDefinitionInfo(definition, checker2, node, includeDefinitionDisplay)),
+       references: references.map((r) => toReferencedSymbolEntry(r, symbol))
+     }
+   ));
+@@ -173304,12 +173304,12 @@ function getReferenceEntriesForNode(position, node, program, sourceFiles, cancel
+ function flattenEntries(referenceSymbols) {
+   return referenceSymbols && flatMap(referenceSymbols, (r) => r.references);
+ }
+-function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode) {
++function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode, includeDefinitionDisplay = true) {
+   const info = (() => {
+     switch (def.type) {
+       case 0 /* Symbol */: {
+         const { symbol } = def;
+-        const { displayParts: displayParts2, kind: kind2 } = getDefinitionKindAndDisplayParts(symbol, checker, originalNode);
++        const { displayParts: displayParts2, kind: kind2 } = getDefinitionKindAndDisplayParts(symbol, checker, originalNode, includeDefinitionDisplay);
+         const name2 = displayParts2.map((p) => p.text).join("");
+         const declaration = symbol.declarations && firstOrUndefined(symbol.declarations);
+         const node = declaration ? getNameOfDeclaration(declaration) || declaration : originalNode;
+@@ -173333,13 +173333,13 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
+       case 3 /* This */: {
+         const { node } = def;
+         const symbol = checker.getSymbolAtLocation(node);
+-        const displayParts2 = symbol && ts_SymbolDisplay_exports.getSymbolDisplayPartsDocumentationAndSymbolKind(
++        const displayParts2 = includeDefinitionDisplay ? symbol && ts_SymbolDisplay_exports.getSymbolDisplayPartsDocumentationAndSymbolKind(
+           checker,
+           symbol,
+           node.getSourceFile(),
+           getContainerNode(node),
+           node
+-        ).displayParts || [textPart("this")];
++        ).displayParts || [textPart("this")] : [];
+         return { ...getFileAndTextSpanFromNode(node), name: "this", kind: "var" /* variableElement */, displayParts: displayParts2 };
+       }
+       case 4 /* String */: {
+@@ -173370,9 +173370,9 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
+     containerName: "",
+     fileName: sourceFile.fileName,
+     kind,
+-    name,
++    name: includeDefinitionDisplay ? name : "",
+     textSpan,
+-    displayParts,
++    displayParts: includeDefinitionDisplay ? displayParts : [],
+     ...toContextSpan(textSpan, sourceFile, context)
+   };
+ }
+@@ -173383,10 +173383,10 @@ function getFileAndTextSpanFromNode(node) {
+     textSpan: getTextSpan(isComputedPropertyName(node) ? node.expression : node, sourceFile)
+   };
+ }
+-function getDefinitionKindAndDisplayParts(symbol, checker, node) {
++function getDefinitionKindAndDisplayParts(symbol, checker, node, includeDefinitionDisplay) {
+   const meaning = Core.getIntersectingMeaningFromDeclarations(node, symbol);
+   const enclosingDeclaration = symbol.declarations && firstOrUndefined(symbol.declarations) || node;
+-  const { displayParts, symbolKind } = ts_SymbolDisplay_exports.getSymbolDisplayPartsDocumentationAndSymbolKind(checker, symbol, enclosingDeclaration.getSourceFile(), enclosingDeclaration, enclosingDeclaration, meaning);
++  const { displayParts, symbolKind } = ts_SymbolDisplay_exports.getSymbolDisplayPartsDocumentationAndSymbolKind(checker, symbol, enclosingDeclaration.getSourceFile(), enclosingDeclaration, enclosingDeclaration, meaning, void 0, void 0, void 0, includeDefinitionDisplay);
+   return { displayParts, kind: symbolKind };
+ }
+ function toRenameLocation(entry, originalNode, checker, providePrefixAndSuffixText, quotePreference) {
+@@ -179062,9 +179062,13 @@ function getSymbolModifiers(typeChecker, symbol) {
+   }
+   return modifiers.size > 0 ? arrayFrom(modifiers.values()).join(",") : "" /* none */;
+ }
+-function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symbol, sourceFile, enclosingDeclaration, location, type, semanticMeaning, alias, maximumLength, verbosityLevel) {
++function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symbol, sourceFile, enclosingDeclaration, location, type, semanticMeaning, alias, maximumLength, verbosityLevel, includeDefinitionDisplay = true) {
+   var _a;
+   const displayParts = [];
++  const displayType = includeDefinitionDisplay ? typeToDisplayParts : () => [];
++  const displaySymbol = includeDefinitionDisplay ? symbolToDisplayParts : () => [];
++  const displaySignature = includeDefinitionDisplay ? signatureToDisplayParts : () => [];
++  const displayFromWriter = includeDefinitionDisplay ? mapToDisplayParts : () => [];
+   let documentation = [];
+   let tags = [];
+   const symbolFlags = getCombinedLocalAndExportSymbolFlags(symbol);
+@@ -179077,7 +179081,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+   const typeWriterOut = { canIncreaseExpansionDepth: false, truncated: false };
+   let symbolWasExpanded = false;
+   if (location.kind === 110 /* ThisKeyword */ && !isThisExpression) {
+-    return { displayParts: [keywordPart(110 /* ThisKeyword */)], documentation: [], symbolKind: "primitive type" /* primitiveType */, tags: void 0 };
++    return { displayParts: includeDefinitionDisplay ? [keywordPart(110 /* ThisKeyword */)] : [], documentation: [], symbolKind: "primitive type" /* primitiveType */, tags: void 0 };
+   }
+   if (symbolKind !== "" /* unknown */ || symbolFlags & 32 /* Class */ || symbolFlags & 2097152 /* Alias */) {
+     if (symbolKind === "getter" /* memberGetAccessorElement */ || symbolKind === "setter" /* memberSetAccessorElement */) {
+@@ -179157,7 +179161,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+             displayParts.push(punctuationPart(59 /* ColonToken */));
+             displayParts.push(spacePart());
+             if (!(getObjectFlags(type) & 16 /* Anonymous */) && type.symbol) {
+-              addRange(displayParts, symbolToDisplayParts(
++              addRange(displayParts, displaySymbol(
+                 typeChecker,
+                 type.symbol,
+                 enclosingDeclaration,
+@@ -179247,7 +179251,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+     displayParts.push(spacePart());
+     addRange(
+       displayParts,
+-      typeToDisplayParts(
++      displayType(
+         typeChecker,
+         location.parent && isConstTypeReference(location.parent) ? typeChecker.getTypeAtLocation(location.parent) : typeChecker.getDeclaredTypeOfSymbol(symbol),
+         enclosingDeclaration,
+@@ -179309,7 +179313,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+           } else if (declaration.kind !== 180 /* CallSignature */ && declaration.name) {
+             addFullSymbolName(declaration.symbol);
+           }
+-          addRange(displayParts, signatureToDisplayParts(typeChecker, signature, sourceFile, 32 /* WriteTypeArgumentsOfSignature */));
++          addRange(displayParts, displaySignature(typeChecker, signature, sourceFile, 32 /* WriteTypeArgumentsOfSignature */));
+         } else if (isTypeAliasDeclaration(declaration)) {
+           addInPrefix();
+           displayParts.push(keywordPart(156 /* TypeKeyword */));
+@@ -179334,7 +179338,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+       }
+     }
+   }
+-  if (symbol.flags & 2097152 /* Alias */) {
++  if (includeDefinitionDisplay && symbol.flags & 2097152 /* Alias */) {
+     prefixNextMeaning();
+     if (!hasAddedSymbolInfo || documentation.length === 0 && tags.length === 0) {
+       const resolvedSymbol = typeChecker.getAliasedSymbol(symbol);
+@@ -179427,7 +179431,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+           displayParts.push(punctuationPart(59 /* ColonToken */));
+           displayParts.push(spacePart());
+           if (type.symbol && type.symbol.flags & 262144 /* TypeParameter */ && symbolKind !== "index" /* indexSignatureElement */) {
+-            const typeParameterParts = mapToDisplayParts((writer) => {
++            const typeParameterParts = displayFromWriter((writer) => {
+               const param = typeChecker.typeParameterToDeclaration(
+                 type,
+                 enclosingDeclaration,
+@@ -179446,7 +179450,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+           } else {
+             addRange(
+               displayParts,
+-              typeToDisplayParts(
++              displayType(
+                 typeChecker,
+                 type,
+                 enclosingDeclaration,
+@@ -179478,6 +179482,9 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+       symbolKind = getSymbolKind(typeChecker, symbol, location);
+     }
+   }
++  if (!includeDefinitionDisplay) {
++    return { displayParts: [], documentation: [], symbolKind, tags: void 0, canIncreaseVerbosityLevel: void 0 };
++  }
+   if (documentation.length === 0 && !hasMultipleSignatures) {
+     documentation = symbol.getContextualDocumentationComment(enclosingDeclaration, typeChecker);
+   }
+@@ -179584,7 +179591,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+     }
+     if (canExpandSymbol(symbol2, typeWriterOut)) {
+       const symbolMeaning = semanticToSymbolMeaning(meaning);
+-      const expandedDisplayParts = mapToDisplayParts((writer) => {
++      const expandedDisplayParts = displayFromWriter((writer) => {
+         const nodes = typeChecker.getEmitResolver().symbolToDeclarations(
+           symbol2,
+           symbolMeaning,
+@@ -179617,11 +179624,11 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+     let fullSymbolDisplayParts = [];
+     if (symbolToDisplay.flags & 131072 /* Signature */ && indexInfos) {
+       if (symbolToDisplay.parent) {
+-        fullSymbolDisplayParts = symbolToDisplayParts(typeChecker, symbolToDisplay.parent);
++        fullSymbolDisplayParts = displaySymbol(typeChecker, symbolToDisplay.parent);
+       }
+       fullSymbolDisplayParts.push(punctuationPart(23 /* OpenBracketToken */));
+       indexInfos.forEach((info, i) => {
+-        fullSymbolDisplayParts.push(...typeToDisplayParts(typeChecker, info.keyType));
++        fullSymbolDisplayParts.push(...displayType(typeChecker, info.keyType));
+         if (i !== indexInfos.length - 1) {
+           fullSymbolDisplayParts.push(spacePart());
+           fullSymbolDisplayParts.push(punctuationPart(52 /* BarToken */));
+@@ -179630,7 +179637,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+       });
+       fullSymbolDisplayParts.push(punctuationPart(24 /* CloseBracketToken */));
+     } else {
+-      fullSymbolDisplayParts = symbolToDisplayParts(
++      fullSymbolDisplayParts = displaySymbol(
+         typeChecker,
+         symbolToDisplay,
+         enclosingDeclaration2 || sourceFile,
+@@ -179673,7 +179680,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+     }
+   }
+   function addSignatureDisplayParts(signature, allSignatures, flags = 0 /* None */) {
+-    addRange(displayParts, signatureToDisplayParts(typeChecker, signature, enclosingDeclaration, flags | 32 /* WriteTypeArgumentsOfSignature */, maximumLength, verbosityLevel, typeWriterOut));
++    if (!includeDefinitionDisplay) return;
++    addRange(displayParts, displaySignature(typeChecker, signature, enclosingDeclaration, flags | 32 /* WriteTypeArgumentsOfSignature */, maximumLength, verbosityLevel, typeWriterOut));
+     if (allSignatures.length > 1) {
+       displayParts.push(spacePart());
+       displayParts.push(punctuationPart(21 /* OpenParenToken */));
+@@ -179691,14 +179699,14 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+     }
+   }
+   function writeTypeParametersOfSymbol(symbol2, enclosingDeclaration2) {
+-    const typeParameterParts = mapToDisplayParts((writer) => {
++    const typeParameterParts = displayFromWriter((writer) => {
+       const params = typeChecker.symbolToTypeParameterDeclarations(symbol2, enclosingDeclaration2, symbolDisplayNodeBuilderFlags);
+       getPrinter().writeList(53776 /* TypeParameters */, params, getSourceFileOfNode(getParseTreeNode(enclosingDeclaration2)), writer);
+     });
+     addRange(displayParts, typeParameterParts);
+   }
+ }
+-function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, sourceFile, enclosingDeclaration, location, semanticMeaning = getMeaningFromLocation(location), alias, maximumLength, verbosityLevel) {
++function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, sourceFile, enclosingDeclaration, location, semanticMeaning = getMeaningFromLocation(location), alias, maximumLength, verbosityLevel, includeDefinitionDisplay = true) {
+   return getSymbolDisplayPartsDocumentationAndSymbolKindWorker(
+     typeChecker,
+     symbol,
+@@ -179710,7 +179718,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, so
+     semanticMeaning,
+     alias,
+     maximumLength,
+-    verbosityLevel
++    verbosityLevel,
++    includeDefinitionDisplay
+   );
+ }
+ function isLocalVariableOrFunction(symbol) {
 diff --git a/lib/ts-morph-common.d.ts b/lib/ts-morph-common.d.ts
 index fc9c9023b451eb20b214794744abde1a928dee3c..d745ef8409462b2356f9136efd304f0a595dd117 100644
 --- a/lib/ts-morph-common.d.ts
@@ -30,3 +277,30 @@ index fc9c9023b451eb20b214794744abde1a928dee3c..d745ef8409462b2356f9136efd304f0a
      resolveModuleNames?: ts.LanguageServiceHost["resolveModuleNames"];
      getResolvedModuleWithFailedLookupLocationsFromCache?: ts.LanguageServiceHost["getResolvedModuleWithFailedLookupLocationsFromCache"];
      resolveTypeReferenceDirectives?: ts.LanguageServiceHost["resolveTypeReferenceDirectives"];
+diff --git a/lib/typescript.d.ts b/lib/typescript.d.ts
+index 05326adf9d574e7b1ca54f5839471cb17dfd3559..c15fc58bce366a379b1aad87058cbd112ca39f1c 100644
+--- a/lib/typescript.d.ts
++++ b/lib/typescript.d.ts
+@@ -10234,7 +10234,7 @@ declare namespace ts {
+         getTypeDefinitionAtPosition(fileName: string, position: number): readonly DefinitionInfo[] | undefined;
+         getImplementationAtPosition(fileName: string, position: number): readonly ImplementationLocation[] | undefined;
+         getReferencesAtPosition(fileName: string, position: number): ReferenceEntry[] | undefined;
+-        findReferences(fileName: string, position: number): ReferencedSymbol[] | undefined;
++        findReferences(fileName: string, position: number, options?: FindReferencesOptions): ReferencedSymbol[] | undefined;
+         getDocumentHighlights(fileName: string, position: number, filesToSearch: string[]): DocumentHighlights[] | undefined;
+         getFileReferences(fileName: string): ReferenceEntry[];
+         getNavigateToItems(searchValue: string, maxResultCount?: number, fileName?: string, excludeDtsFiles?: boolean, excludeLibFiles?: boolean): NavigateToItem[];
+@@ -10745,6 +10745,13 @@ declare namespace ts {
+         definitions?: readonly DefinitionInfo[];
+         textSpan: TextSpan;
+     }
++    interface FindReferencesOptions {
++        /**
++         * Include human-readable definition names and display parts. Defaults to true.
++         * False leaves those fields empty without changing native groups, kinds or reference flags.
++         */
++        includeDefinitionDisplay?: boolean;
++    }
+     interface ReferencedSymbolDefinitionInfo extends DefinitionInfo {
+         displayParts: SymbolDisplayPart[];
+     }

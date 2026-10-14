@@ -8,13 +8,14 @@ import type { SdkScriptSpawn } from "./contract/sdk-process.ts";
 export type { SdkScriptSpawn } from "./contract/sdk-process.ts";
 
 /** Execute a trusted proof script with the SDK's actual environment, working directory and cancellation. */
-export function createSdkProcessSpawner(scriptModule: URL): SdkScriptSpawn {
+export function createSdkProcessSpawner(scriptModule: URL, args: readonly string[] = []): SdkScriptSpawn {
   const script = fileURLToPath(scriptModule);
   return (options) =>
-    spawn(process.execPath, [script], {
+    spawn(process.execPath, [script, ...args], {
       ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
       env: options.env,
       signal: options.signal,
       stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
     });
 }

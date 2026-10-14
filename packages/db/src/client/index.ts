@@ -9,7 +9,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient, LibsqlError } from "@libsql/client";
 import { isPlainObject } from "@orb/kit/guards";
@@ -81,22 +81,15 @@ function clientOf(db: Db): Client {
   return (db as unknown as WithClient).$client;
 }
 
-// The on-disk path for a `file:` URL (for the backup + the boot-time parent-dir auto-create), or
-// undefined for `:memory:` / non-file URLs. Exported: this is the ONE `file:`-URL→path parser — any
-// other site resolving a DATABASE_URL to a filesystem path (e.g. dev tooling's `--fresh` wipe) must
-// call THIS, never re-derive it (the `fileURLToPath`-on-a-relative-URL mistake this fixed, 2026-07-17).
+/** The native file client's path, retaining bare cwd-relative paths; undefined for non-file URLs. */
 export function localPath(url: string): string | undefined {
   if (!url.startsWith(FILE_SCHEME)) {
     return;
   }
-  // fileURLToPath ONLY for the authority form (`file://…`). The bare forms libSQL accepts must be
-  // scheme-stripped instead: for `file:./data/x.db` fileURLToPath does NOT throw — URL normalization
-  // resolves the dot-segment against ROOT and silently absolutizes to `/data/x.db`, so the parent-dir
-  // auto-create ran `mkdir /data` → EACCES on every fresh full boot with the default url, and the
-  // backup path pointed at a file that doesn't exist (2026-07-17; the old try/catch fallback never
-  // fired for `./`-prefixed urls). `file:/abs.db` scheme-strips to the same path fileURLToPath gives.
+  // Node roots bare file URLs; libSQL retains relative paths and percent-decodes only the URI pathname.
   if (!url.startsWith(`${FILE_SCHEME}//`)) {
-    return url.slice(FILE_SCHEME.length); // file:relative.db · file:./relative.db · file:/abs.db
+    const pathname = url.slice(FILE_SCHEME.length).split(/[?#]/u, 1)[0] ?? "";
+    return decodeURIComponent(pathname);
   }
   return fileURLToPath(url); // file://host-form
 }
@@ -119,29 +112,34 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
     mkdirSync(dirname(path), { recursive: true });
   }
   const base = createClient({ url, timeout: BUSY_TIMEOUT_MS, ...(path === undefined ? {} : { concurrency: LOCAL_CONNECTIONS }) });
-  const client = wrap === undefined ? base : wrap(base);
-  await client.execute("PRAGMA foreign_keys = ON");
-  const readback = await client.execute("PRAGMA foreign_keys");
-  const value = readback.rows[0]?.["foreign_keys"];
-  if (value !== FK_ENABLED) {
-    throw new Error(
-      `@orb/db: PRAGMA foreign_keys did not stick (read back ${JSON.stringify(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`,
-    );
-  }
-  for (const pragma of TUNING_PRAGMAS) {
-    await client.execute(`PRAGMA ${pragma}`);
-  }
-  // WAL is file-only; a `:memory:`/non-file db reports `memory` and that's correct, so only assert on files.
-  if (localPath(url) !== undefined) {
-    const mode = await client.execute("PRAGMA journal_mode");
-    const journalMode = mode.rows[0]?.["journal_mode"];
-    if (journalMode !== WAL) {
+  try {
+    const client = wrap === undefined ? base : wrap(base);
+    await client.execute("PRAGMA foreign_keys = ON");
+    const readback = await client.execute("PRAGMA foreign_keys");
+    const value = readback.rows[0]?.["foreign_keys"];
+    if (value !== FK_ENABLED) {
       throw new Error(
-        `@orb/db: PRAGMA journal_mode did not stick (read back ${JSON.stringify(journalMode)}, expected ${WAL}); refusing to boot — the WAL shutdown checkpoint + busy_timeout wait assume WAL on a file db.`,
+        `@orb/db: PRAGMA foreign_keys did not stick (read back ${JSON.stringify(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`,
       );
     }
+    for (const pragma of TUNING_PRAGMAS) {
+      await client.execute(`PRAGMA ${pragma}`);
+    }
+    // WAL is file-only; a `:memory:`/non-file db reports `memory` and that's correct, so only assert on files.
+    if (localPath(url) !== undefined) {
+      const mode = await client.execute("PRAGMA journal_mode");
+      const journalMode = mode.rows[0]?.["journal_mode"];
+      if (journalMode !== WAL) {
+        throw new Error(
+          `@orb/db: PRAGMA journal_mode did not stick (read back ${JSON.stringify(journalMode)}, expected ${WAL}); refusing to boot — the WAL shutdown checkpoint + busy_timeout wait assume WAL on a file db.`,
+        );
+      }
+    }
+    return drizzle(client, { schema });
+  } catch (err) {
+    base.close();
+    throw err;
   }
-  return drizzle(client, { schema });
 }
 
 /**
@@ -149,7 +147,7 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
  * with a bare client (no pragmas, read-only in effect) and asks SQLite. Any throw ⇒ not usable.
  */
 async function isCompleteBackup(path: string): Promise<boolean> {
-  const client = createClient({ url: `file:${path}` });
+  const client = createClient({ url: pathToFileURL(path).href });
   // @orb-waive caught-failure-ownership(catch): the QUESTION this function asks IS "does this
   // file read as a complete db?" — an unreadable/corrupt/truncated file answers it by throwing, and `false`
   // is that answer, consumed by `backupBeforeMigrate` (which then deletes the file and re-copies). Ends if

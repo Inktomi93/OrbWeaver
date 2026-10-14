@@ -1,9 +1,38 @@
 // Native Query reads these external process bytes; this script owns no SDK session or decoder.
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { once } from "node:events";
 import process from "node:process";
 import { createInterface } from "node:readline";
+import { setImmediate } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 import { writeSdkControlReply } from "./sdk-process-control.mjs";
 
+if (process.argv[2] === "late-diagnostic") {
+  process.stderr.write("sdk-late-diagnostic: café complete\n", () => process.exit(0));
+  await once(process, "exit");
+}
+
+if (process.argv[2] === "owned-descendant") {
+  const work = setInterval(() => {
+    // Simulate owned physical work until the controlling process releases this descendant.
+  }, 1000);
+  const release = once(process, "SIGUSR1");
+  process.stderr.write(`sdk-owned:descendant:${process.pid}\n`);
+  await release;
+  clearInterval(work);
+  process.exit(0);
+}
+
+let descendant;
+let descendantClosed;
+process.once("SIGTERM", () => {
+  if (descendant === undefined) {
+    process.exit(0);
+  }
+});
+// biome-ignore lint/style/noProcessEnv: this external executable consumes the actual prepared subprocess credential to prove split raw/JSON stderr scrubbing, not app configuration.
+const token = process.env.CLAUDE_CODE_OAUTH_TOKEN;
 const sessionId = randomUUID();
 const lines = createInterface({ input: process.stdin });
 function write(value) {
@@ -20,6 +49,60 @@ for await (const line of lines) {
   }
   if (message.type !== "user") {
     throw new Error(`unscripted SDK input ${message.type}`);
+  }
+  const content = message.message.content;
+  const prompt = typeof content === "string" ? content : content.map((block) => block.text).join("\n");
+  if (prompt.includes("SDK_SHAPED_DIAGNOSTIC:")) {
+    const split = prompt.endsWith(":split");
+    if (split) {
+      const release = once(process, "SIGUSR2");
+      process.stderr.write(`sdk-shaped-diagnostic:split: ${token.slice(0, 32)}`);
+      await release;
+      await new Promise((resolve) => process.stderr.write(`${token.slice(32)} complete\n`, resolve));
+    } else {
+      await new Promise((resolve) => process.stderr.write(`sdk-shaped-diagnostic:intact: ${token} complete\n`, resolve));
+    }
+    process.exit(7);
+  }
+  if (prompt.includes("SDK_OVERLAP_DIAGNOSTIC")) {
+    const release = once(process, "SIGUSR2");
+    process.stderr.write(`sdk-overlap-diagnostic: ${token.repeat(63)}${token.slice(0, 8)}`);
+    await release;
+    await new Promise((resolve) => process.stderr.write(`${token.slice(8)} complete\n`, resolve));
+    process.exit(7);
+  }
+  if (prompt.includes("SDK_LATE_DIAGNOSTIC")) {
+    spawn(process.execPath, [fileURLToPath(import.meta.url), "late-diagnostic"], { stdio: ["ignore", "ignore", "inherit"] });
+    process.exit(7);
+  }
+  if (prompt.includes("SDK_OWNED_DESCENDANT")) {
+    descendant = spawn(process.execPath, [fileURLToPath(import.meta.url), "owned-descendant"], { stdio: ["ignore", "ignore", "inherit"] });
+    const owned = descendant;
+    descendantClosed = new Promise((resolve) =>
+      owned.once("close", () => {
+        process.stderr.write(`sdk-owned:descendant-exit:${owned.pid}\n`);
+        resolve();
+      }),
+    );
+  }
+  if (prompt.includes("SDK_DIAGNOSTIC_CRASH")) {
+    const escaped = JSON.stringify(token).slice(1, -1);
+    process.stderr.write("x".repeat(6000));
+    const heading = Buffer.from("sdk-diagnostic: café ");
+    const split = heading.indexOf(Buffer.from("é")) + 1;
+    process.stderr.write(heading.subarray(0, split));
+    await setImmediate();
+    process.stderr.write(heading.subarray(split));
+    process.stderr.write(token.slice(0, 12));
+    await setImmediate();
+    process.stderr.write(`${token.slice(12)} ${escaped.slice(0, 12)}`);
+    await setImmediate();
+    await new Promise((resolve) => process.stderr.write(`${escaped.slice(12)} complete\n`, resolve));
+    process.exit(7);
+  }
+  if (prompt.includes("SDK_HOLD_UNTIL_CANCEL")) {
+    process.stderr.write("sdk-owned:holding\n");
+    continue;
   }
   const common = { ["session_id"]: sessionId, uuid: randomUUID() };
   write({
@@ -59,3 +142,6 @@ for await (const line of lines) {
     ["permission_denials"]: [],
   });
 }
+
+process.stderr.write("sdk-owned:stdin-eof\n");
+await descendantClosed;

@@ -173,3 +173,50 @@ test("an unscripted root refuses model execution before loading its native modul
   const { clients } = await bindReranker(harness);
   await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("server harness: unscripted external model execution");
 });
+
+test.each([
+  { file: "1_Pooling/config.json", body: null, label: "pooling config", refusal: "1_Pooling/config.json is malformed" },
+  {
+    file: "2_Dense/config.json",
+    body: { ["in_features"]: 3, ["out_features"]: 3, ["activation_function"]: ["torch.nn.modules.activation.GELU"] },
+    label: "dense config",
+    refusal: "2_Dense/config.json is malformed",
+  },
+  {
+    file: "2_Dense/config.json",
+    body: { ["in_features"]: 3, ["out_features"]: 3, ["activation_function"]: "constructor" },
+    label: "inherited activation",
+    refusal: "unsupported activation constructor",
+  },
+])("the real reranker refuses malformed $label before a model forward", async ({ file, body, refusal }) => {
+  await using root = await createServerHarness({ modelKernelModule: KERNEL.href });
+  const { clients, directory, metadataDirectory } = await bindReranker(root);
+  await stageTokenizer(directory, metadataDirectory);
+  await stageHead(directory);
+  await writeFile(join(directory, file), JSON.stringify(body));
+  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow(refusal);
+  const events = await readFile(join(root.modelCacheDir, "kernel-execution.jsonl"), "utf8");
+  expect(events).not.toContain('"model-forward"');
+  expect(events).not.toContain('"hub-fetch"');
+});
+
+test("fractional safetensors offsets cannot be truncated into a valid-looking scoring tensor", async () => {
+  await using root = await createServerHarness({ modelKernelModule: KERNEL.href });
+  const { clients, directory, metadataDirectory } = await bindReranker(root);
+  await stageTokenizer(directory, metadataDirectory);
+  await stageHead(directory);
+  const tensor = safetensors({ "linear.weight": [0.5, -1, 0.25, 1.5, 0, -0.5, -0.75, 2, 1] });
+  const length = Number(new DataView(tensor.buffer).getBigUint64(0, true));
+  const header = new TextEncoder().encode(
+    JSON.stringify({
+      "linear.weight": { dtype: "F32", shape: [9], ["data_offsets"]: [0.5, 36.5] },
+    }),
+  );
+  const malformed = new Uint8Array(8 + header.length + 36);
+  new DataView(malformed.buffer).setBigUint64(0, BigInt(header.length), true);
+  malformed.set(header, 8);
+  malformed.set(tensor.subarray(8 + length), 8 + header.length);
+  await writeFile(join(directory, "2_Dense/model.safetensors"), malformed);
+  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("malformed metadata");
+  expect(await readFile(join(root.modelCacheDir, "kernel-execution.jsonl"), "utf8")).not.toContain('"model-forward"');
+});

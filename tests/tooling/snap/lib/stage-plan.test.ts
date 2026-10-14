@@ -85,7 +85,7 @@ test("stagePaths keys every artifact off the short sha under .cache/snap-stage, 
   const paths = stagePaths("/repo", SHA);
   expect(paths.dir).toBe(`/repo/.cache/snap-stage/${SHORT}`);
   expect(paths.dataDir).toBe(`/repo/.cache/snap-stage/${SHORT}/data`);
-  expect(paths.databaseUrl).toBe(`file:/repo/.cache/snap-stage/${SHORT}/data/db/orbweaver.db`);
+  expect(paths.databaseUrl).toBe(`file:///repo/.cache/snap-stage/${SHORT}/data/db/orbweaver.db`);
   expect(paths.assetsDir).toBe(`/repo/.cache/snap-stage/${SHORT}/data/assets`);
   expect(paths.secretsDir).toBe(`/repo/.cache/snap-stage/${SHORT}/data/secrets`);
 });

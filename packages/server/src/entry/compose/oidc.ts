@@ -39,7 +39,11 @@ export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<Oi
   const store = createOidcStore(deps.db, deps.now);
   const execution = deps.built.egress.configuredEndpointFetch;
   const fetchIssuer: CustomFetch = (url, { body, signal, ...options }) =>
-    execution(url, { ...options, ...(body === undefined ? {} : { body }), ...(signal === undefined ? {} : { signal }) });
+    execution(url, {
+      ...options,
+      ...(body === undefined ? {} : { body: body instanceof Uint8Array ? new Uint8Array(body) : body }),
+      ...(signal === undefined ? {} : { signal }),
+    });
   const keys = construction.use(createJwksReader(execution));
   // biome-ignore lint/nursery/useDisposables: construction.move transfers GC to the returned async owner; local disposal would stop it before route use.
   const gc = construction.use(createBackgroundWork());

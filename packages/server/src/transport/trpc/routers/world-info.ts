@@ -4,6 +4,7 @@
 // the verb's own injected chat guard rules — attach/detach are host-gated (room-wide prompt content), list is
 // member-readable (the room's shared pool).
 
+import { portableTextFileSchema } from "@orb/contracts/portability";
 import {
   backfillResultSchema,
   bookAttachmentTargetsSchema,
@@ -79,13 +80,16 @@ export const worldInfoRouter = t.router({
 
   // The two single-book DOORS (F2 — the verbs shipped with none, so sharing one lorebook required a full
   // library-zip round-trip). Both are thin arms over the bundle descriptor's own verbs.
-  exportBook: authedProcedure.input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) })).query(async ({ ctx, input }) => {
-    const file = await ctx.services.worldInfo.exportBook({ principal: ctx.auth, bookId: input.bookId });
-    if (file === null) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "That world-info book doesn't exist." });
-    }
-    return { filename: file.filename, fileText: DEC.decode(file.bytes) };
-  }),
+  exportBook: authedProcedure
+    .output(portableTextFileSchema)
+    .input(z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) }))
+    .query(async ({ ctx, input }) => {
+      const file = await ctx.services.worldInfo.exportBook({ principal: ctx.auth, bookId: input.bookId });
+      if (file === null) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "That world-info book doesn't exist." });
+      }
+      return { filename: file.filename, fileText: DEC.decode(file.bytes) };
+    }),
 
   // `filename` names a raw SillyTavern world file (the book takes its stem); an orb export carries its own.
   importFile: authedProcedure

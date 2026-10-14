@@ -217,6 +217,7 @@ export interface InferenceRuntime {
    *  ACTUALLY resolved, §8.3), the active embed-space tag, and the
    *  bounded close of its inference worker that shutdown runs. */
   readonly localLight: Pick<LocalLightBackend, "prefetch" | "embedSpace" | "close" | "settle">;
+  readonly agentSdk: import("./contract/agent-sdk-execution.ts").AgentSdkLifetime;
 }
 
 /** The kind a row whose model no evidence describes is read as. */
@@ -565,6 +566,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       registerPlugin: registry.registerPlugin,
       dropPlugin: registry.dropPlugin,
     },
+    agentSdk: { cancel: built.cancel, settle: built.settle },
     localLight: {
       prefetch: built.localLight.prefetch,
       embedSpace: built.localLight.embedSpace,

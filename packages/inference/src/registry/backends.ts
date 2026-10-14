@@ -10,6 +10,7 @@ import type { LocalLightBackend } from "../backends/local-light/index.ts";
 import { createLocalLightBackend } from "../backends/local-light/index.ts";
 import type { OpenAiCompatBackend } from "../backends/openai-compat/index.ts";
 import { createOpenAiCompatBackend } from "../backends/openai-compat/index.ts";
+import type { AgentSdkLifetime } from "../contract/agent-sdk-execution.ts";
 import type { BackendRegistry, ProviderBackend } from "../contract/backend.ts";
 import type { InferenceDeps } from "../deps.ts";
 
@@ -58,7 +59,7 @@ export const BACKEND_DEFS: Record<Wire, BackendDef> = {
 /** The constructed backends: the registry the executor dispatches on, plus the per-wire handles the runtime
  *  composes beside it (the endpoint reachability prober, the daemon catalog warm, the in-process tier's
  *  prefetch). A handle is `undefined` exactly when its wire was not built. */
-interface BuiltBackends {
+interface BuiltBackends extends AgentSdkLifetime {
   readonly registry: BackendRegistry;
   readonly openAiCompat: OpenAiCompatBackend;
   readonly agentSdk: AgentSdkBackend | undefined;
@@ -108,9 +109,10 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
       captureWire: deps.captureWire,
       imageToPng: deps.imageToPng,
     });
+  let cancelled = false;
   let agentSdk = skipped.has("agent-sdk") ? undefined : createAgent();
   const refreshAgent = (): void => {
-    if (agentSdk === undefined && BACKEND_DEFS["agent-sdk"].needs(deps) === null) {
+    if (!cancelled && agentSdk === undefined && BACKEND_DEFS["agent-sdk"].needs(deps) === null) {
       agentSdk = createAgent();
       registry.set("agent-sdk", agentSdk.backend);
       skipped.delete("agent-sdk");
@@ -129,7 +131,16 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
       registry.set(wire, backend);
     }
   }
+  const cancel = (): void => {
+    cancelled = true;
+    agentSdk?.cancel();
+  };
   return {
+    cancel,
+    settle: async (): Promise<void> => {
+      cancel();
+      await agentSdk?.settle();
+    },
     registry,
     openAiCompat,
     get agentSdk(): AgentSdkBackend | undefined {

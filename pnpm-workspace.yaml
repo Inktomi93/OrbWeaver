@@ -51,7 +51,7 @@ catalog:
   "@biomejs/biome": 2.5.15
   lefthook: ^2.1.14
   dependency-cruiser: ^18.4.0
-  ts-morph: ^28.0.0
+  ts-morph: 28.0.0
   # @types/node tracks the RUNTIME (Node 26).
   "@types/node": ^26.6.2
   # --- test ---
@@ -417,6 +417,8 @@ catalog:
 # `pnpm --filter @orb/client build` (es2025 target, exit 0). Cost of removal: a third esbuild copy in the
 # store (0.25.12 beside 0.18.20 and tsx's 0.28.1) — disk, not correctness.
 overrides:
+  # Native reference display and resolver patches must follow this exact bundled compiler.
+  "ts-morph@28.0.0>@ts-morph/common": 0.29.0
   # Drizzle's private SQL members require one module identity across every libsql peer resolution.
   "@libsql/client": "catalog:"
   # fast-uri is a pure transitive of ajv (nested under @modelcontextprotocol/sdk, itself under

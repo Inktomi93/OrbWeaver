@@ -8,6 +8,7 @@ import type { AgentSdkModel, ModelCatalogEntry, ModelListing } from "@orb/contra
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { ZodRawShape } from "zod";
 import type {
+  AgentSdkLifetime,
   AgentToolServer,
   AgentTurnRequest,
   ChatRequest,
@@ -31,6 +32,7 @@ import { runAgentTurn } from "./agent-runner.ts";
 import { fetchAgentSdkModels, verifyAuth } from "./catalog.ts";
 import type { ClaudeRuntimeOverrides } from "./env.ts";
 import { buildClaudeSdkEnv } from "./env.ts";
+import { createAgentSdkExecution } from "./execution.ts";
 import { createAgentSdkLog } from "./log.ts";
 import { runChatTurn } from "./runner.ts";
 import { SessionCache } from "./session/index.ts";
@@ -75,7 +77,7 @@ export function agentSdkCatalogEntry(row: AgentSdkModel): ModelCatalogEntry {
 }
 
 // @orb-waive no-inline-package-interface(AgentSdkBackend): baselined when the gate landed; burn-down item 952.
-export interface AgentSdkBackend {
+export interface AgentSdkBackend extends AgentSdkLifetime {
   readonly backend: ProviderBackend;
   /** The daemon catalog under a USER's token — the resolver's `warmAgentSdk` arm (no host credential exists to
    *  run it under, so the scheduled workload dropped this lane; the result is process-wide because the model
@@ -94,18 +96,15 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
       ...(overrides !== undefined ? { overrides } : {}),
     });
   const executeQuery = deps.agentSdk.query ?? query;
-  const spawnClaudeCodeProcess = deps.agentSdk.spawnClaudeCodeProcess;
+  const execution = createAgentSdkExecution({
+    query: executeQuery,
+    log: deps.log,
+    ...(deps.agentSdk.spawnClaudeCodeProcess === undefined ? {} : { spawn: deps.agentSdk.spawnClaudeCodeProcess }),
+  });
   const resolved: AgentSdkDeps = {
     now: deps.now,
     log: deps.log,
-    query:
-      spawnClaudeCodeProcess === undefined
-        ? executeQuery
-        : (input) =>
-            executeQuery({
-              ...input,
-              options: { ...input.options, spawnClaudeCodeProcess },
-            }),
+    execution,
     sessionStore: sessions.store,
     ...(deps.agentSdk.sessionWriter !== undefined ? { sessionWriter: deps.agentSdk.sessionWriter } : {}),
     normalizeImageBytes,
@@ -146,7 +145,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
       }
     },
   };
-  return { backend, catalog: (identity) => fetchAgentSdkModels(identity, resolved, catalogLog) };
+  return { backend, catalog: (identity) => fetchAgentSdkModels(identity, resolved, catalogLog), cancel: execution.cancel, settle: execution.settle };
 }
 
 // ── The SDK-free tool-server seam (agent mode) ─────────────────────────────────────────────────────────

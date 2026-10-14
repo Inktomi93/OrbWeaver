@@ -519,7 +519,7 @@ catalogs:
       specifier: ^4.3.3
       version: 4.3.3
     ts-morph:
-      specifier: ^28.0.0
+      specifier: 28.0.0
       version: 28.0.0
     ts7:
       specifier: npm:typescript@7.0.2
@@ -562,6 +562,7 @@ catalogs:
       version: 5.0.15
 
 overrides:
+  ts-morph@28.0.0>@ts-morph/common: 0.29.0
   '@libsql/client': ^0.18.0
   fast-uri: ^3.1.5
   ip-address: ^10.3.1
@@ -578,7 +579,7 @@ patchedDependencies:
   '@stryker-mutator/core@10.0.0': f00084f08a7438e9b000cccdc037e6aaa88edeb99a271eb6484988e970956ea4
   '@stryker-mutator/typescript-checker@10.0.0': 00e1f1825063580d57d3114d95f0ee9f5bb678c2644558c6c171a408723308c7
   '@stryker-mutator/vitest-runner@10.0.0': 77cdc87d3c09581b4e6542e480877bd9154884d822a7a642f7c3ceccbf62890b
-  '@ts-morph/common@0.29.0': 3dfce2339c755602f60d026b39533d68760eca1b0a2a966b9f0397ddaecd7b5e
+  '@ts-morph/common@0.29.0': f7f01f1b03272de4f812e0fecbed4a3bacfc4d84538cd088a21c755366fcea76
   chrome-devtools-mcp@1.8.0: 67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a
   cmdk@1.1.1: a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420
   isomorphic-git@1.42.2: be8fb8a37b59f0ba20092772c50d4f678b0d6a8c6e0d5556808cdbb8c6297047
@@ -11327,7 +11328,7 @@ snapshots:
       react: 19.3.0
       typescript: 6.0.3
 
-  '@ts-morph/common@0.29.0(patch_hash=3dfce2339c755602f60d026b39533d68760eca1b0a2a966b9f0397ddaecd7b5e)':
+  '@ts-morph/common@0.29.0(patch_hash=f7f01f1b03272de4f812e0fecbed4a3bacfc4d84538cd088a21c755366fcea76)':
     dependencies:
       minimatch: 10.2.5
       path-browserify: 1.0.1
@@ -15497,7 +15498,7 @@ snapshots:
 
   ts-morph@28.0.0(patch_hash=4f99d1111d1538dd0d85eb3a63a13ab431df81c9bafbfd0ddced9d5b7615eb37):
     dependencies:
-      '@ts-morph/common': 0.29.0(patch_hash=3dfce2339c755602f60d026b39533d68760eca1b0a2a966b9f0397ddaecd7b5e)
+      '@ts-morph/common': 0.29.0(patch_hash=f7f01f1b03272de4f812e0fecbed4a3bacfc4d84538cd088a21c755366fcea76)
       code-block-writer: 13.0.3
 
   ts-pattern@5.9.0: {}

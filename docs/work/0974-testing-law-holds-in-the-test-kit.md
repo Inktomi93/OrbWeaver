@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-13
+updated: 2026-10-14
 priority: P2
 plan: test-foundation
 ---
@@ -29,3 +29,5 @@ The server harness owns clock, IDs, randomness and timer seams. The builder and 
 Socket support uses wall-clock polling for attach coordination. Contrast support uses wall-clock and randomness for a DOM marker. Replace these helper mechanisms with deterministic identity and actual lifecycle coordination; a frozen clock must not stand in for a browser or process completion signal.
 
 Judge maintained fake-timer and spy sites against testing law. Preserve legacy regression cases until their replacement deletes the corresponding harness; legacy waiver cleanup is not an independent retrofit assignment. Keep the existing lawful elapsed-time and external-edge distinctions without blanket support exemptions.
+
+Source `9f0c36d476` replaces socket polling and random contrast markers and widens canonical-origin checks. Failed HTTP attaches abort the waiting stream; successful completion releases it. Authored class expressions and declarations reject prototype spies. Independent findings have targeted red/green controls. The support scan separates a legacy-only unseeded mint from lawful elapsed measurements requiring checker classification. Bound-callable origins remain incomplete. Add no fake clock, waiver or budget to hide these limits; this item remains partial.

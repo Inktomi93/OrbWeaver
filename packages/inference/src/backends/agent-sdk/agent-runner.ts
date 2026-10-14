@@ -19,7 +19,7 @@ import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatRe
 import { ProviderError } from "#contract";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
-import { consumeTurnStream, linkAbort, sdkOutputFormatOf } from "./runner.ts";
+import { consumeTurnStream, sdkOutputFormatOf } from "./runner.ts";
 import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { disciplineOptions, MCP_NAMESPACE, observabilityOptions, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 import type { AgentSdkDeps } from "./types.ts";
@@ -104,37 +104,40 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, lo
     maxOutputTokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
     ...(req.maxContextTokens !== undefined ? { maxContextTokens: req.maxContextTokens } : {}),
   };
-  const abortController = linkAbort(req.signal);
   // THE TRUSTED MOUNT IS WRITTEN LAST — the order is the second belt behind the reserved-name refusal (#1405).
   const mcpServers: Record<string, McpServerConfig> = {
     ...toSdkExternalServers(req.externalMcpServers, connection.model),
     [MCP_NAMESPACE]: req.mcpServer as McpSdkServerConfigWithInstance,
   };
   const taskBudget: Pick<Options, "taskBudget"> = req.taskBudget !== undefined ? { taskBudget: { total: req.taskBudget } } : {};
-  const stream = deps.query({
-    prompt: req.prompt,
-    options: {
-      ...disciplineOptions(deps.childEnv(connection, overrides)),
-      ...observabilityOptions(deps.debug, log),
-      mcpServers,
-      allowedTools: [`mcp__${MCP_NAMESPACE}__*`],
-      maxTurns: req.responseFormat !== undefined ? Math.max(req.maxTurns ?? DEFAULT_AGENT_MAX_TURNS, 2) : (req.maxTurns ?? DEFAULT_AGENT_MAX_TURNS),
-      model: connection.model,
-      systemPrompt: req.systemPrompt,
-      title: SDK_TITLE_AGENT,
-      onElicitation: (request: ElicitationRequest): Promise<ElicitationResult> => {
-        log.dialog({ source: "elicitation", kind: request.mode ?? "form" });
-        return Promise.resolve({ action: "decline" });
+  await using lease = deps.execution.open(
+    connection,
+    {
+      prompt: req.prompt,
+      options: {
+        ...disciplineOptions(deps.childEnv(connection, overrides)),
+        ...observabilityOptions(deps.debug, log),
+        mcpServers,
+        allowedTools: [`mcp__${MCP_NAMESPACE}__*`],
+        maxTurns: req.responseFormat !== undefined ? Math.max(req.maxTurns ?? DEFAULT_AGENT_MAX_TURNS, 2) : (req.maxTurns ?? DEFAULT_AGENT_MAX_TURNS),
+        model: connection.model,
+        systemPrompt: req.systemPrompt,
+        title: SDK_TITLE_AGENT,
+        onElicitation: (request: ElicitationRequest): Promise<ElicitationResult> => {
+          log.dialog({ source: "elicitation", kind: request.mode ?? "form" });
+          return Promise.resolve({ action: "decline" });
+        },
+        onUserDialog: (request: UserDialogRequest): Promise<UserDialogResult> => {
+          log.dialog({ source: "user-dialog", kind: request.dialogKind });
+          return Promise.resolve({ behavior: "cancelled" });
+        },
+        ...taskBudget,
+        ...structured.options,
       },
-      onUserDialog: (request: UserDialogRequest): Promise<UserDialogResult> => {
-        log.dialog({ source: "user-dialog", kind: request.dialogKind });
-        return Promise.resolve({ behavior: "cancelled" });
-      },
-      ...taskBudget,
-      ...structured.options,
-      ...(req.signal !== undefined ? { abortController } : {}),
     },
-  });
+    req.signal,
+  );
+  const stream = lease.query;
   // The agent task spells no effort/thinking knob — the runtime's own default ran, which is unrecorded (null).
   const result = await consumeTurnStream(
     stream,
@@ -146,6 +149,9 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, lo
       now: deps.now,
       appliedEffort: null,
       secrets: resolvedScrubSet(connection),
+      stderrTail: lease.stderrTail,
+      settleExecution: () => lease[Symbol.asyncDispose](),
+      signal: lease.signal,
     },
     log,
   );

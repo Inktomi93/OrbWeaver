@@ -21,12 +21,11 @@
 // (`route.fallback()`) to routeTrpc for everything else — including answering the attach mutations, which
 // routeTrpc resolves to `null` exactly as the real void-returning procedure does.
 
-import { setTimeout as sleep } from "node:timers/promises";
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ ref?: StreamRoomRef; sinceSeq?: number | null } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
-import type { Page, Request } from "@playwright/test";
+import type { Page, Request, Route } from "@playwright/test";
 
 /** The typed TERMINAL frame `withSubscriptionErrors` yields when a subscription's source throws a
  *  DomainError (`transport/trpc/subscriptions.ts`). Spelled here rather than imported: the client
@@ -87,7 +86,7 @@ export interface OrbSocketRecorder {
 export interface RouteOrbSocketOptions {
   /** The frames to serve, in order, on EVERY connect. Author them as `{ channel, …, event }`. */
   readonly frames?: readonly ScriptedFrame[];
-  /** Serve the body only once this many attaches have been recorded (the handshake). @defaultValue 0 */
+  /** Serve the body only once this many attach requests have finished with successful HTTP responses (the handshake). @defaultValue 0 */
   readonly awaitAttaches?: number;
   /** Emit the terminal `return` frame so the EventSource closes cleanly. @defaultValue true */
   readonly closeStream?: boolean;
@@ -105,8 +104,6 @@ export interface RouteOrbSocketOptions {
 }
 
 const DEFAULT_SERVER_INSTANCE_ID = "orb-ct-server";
-const HANDSHAKE_TIMEOUT_MS = 5000;
-const HANDSHAKE_POLL_MS = 25;
 
 /** Decode the `stream.attach`/`stream.detach` inputs out of a (possibly batched) tRPC mutation request. */
 function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach"): AttachRequest[] {
@@ -152,6 +149,66 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
   const attached: AttachRequest[] = [];
   const detached: AttachRequest[] = [];
   let connects = 0;
+  let completedAttaches = 0;
+  const handshake = Promise.withResolvers<boolean>();
+  const pendingAttaches = new Map<Request, number>();
+  let settled = false;
+  const settleHandshake = (success: boolean): void => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    page.off("requestfinished", requestFinished);
+    page.off("requestfailed", requestFailed);
+    page.off("close", closeHandshake);
+    pendingAttaches.clear();
+    handshake.resolve(success);
+  };
+  const closeHandshake = (): void => {
+    settleHandshake(false);
+  };
+  const requestFailed = (request: Request): void => {
+    if (pendingAttaches.has(request)) {
+      settleHandshake(false);
+    }
+  };
+  const requestFinished = (request: Request): void => {
+    const count = pendingAttaches.get(request);
+    if (count === undefined) {
+      return;
+    }
+    pendingAttaches.delete(request);
+    void request.response().then(
+      (response) => {
+        if (response === null || !response.ok()) {
+          settleHandshake(false);
+          return;
+        }
+        completedAttaches += count;
+        if (completedAttaches >= awaitAttaches) {
+          settleHandshake(true);
+        }
+      },
+      () => {
+        settleHandshake(false);
+      },
+    );
+  };
+  if (awaitAttaches > 0) {
+    page.on("requestfinished", requestFinished);
+    page.on("requestfailed", requestFailed);
+    page.once("close", closeHandshake);
+  } else {
+    settleHandshake(true);
+  }
+
+  const awaitSuccessfulAttaches = async (route: Route): Promise<boolean> => {
+    const success = await handshake.promise;
+    if (!(success || page.isClosed())) {
+      await route.abort("failed");
+    }
+    return success;
+  };
 
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
@@ -166,9 +223,8 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
       connects += 1;
       // The handshake: hold the stream open until the rooms this script targets have attached. A route
       // handler is async, so "not answering yet" IS a live stream from the client's point of view.
-      const deadline = Date.now() + HANDSHAKE_TIMEOUT_MS;
-      while (attached.length < awaitAttaches && Date.now() < deadline) {
-        await sleep(HANDSHAKE_POLL_MS);
+      if (!(await awaitSuccessfulAttaches(route))) {
+        return;
       }
       // Dropped connections omit `return` → EOF → the link reconnects under the scripted process identity.
       const clean = closeStream && connects > dropConnectionCount;
@@ -190,8 +246,12 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
       return;
     }
 
-    attached.push(...decodeStreamAttaches(req, url, "attach"));
+    const requestAttaches = decodeStreamAttaches(req, url, "attach");
+    attached.push(...requestAttaches);
     detached.push(...decodeStreamAttaches(req, url, "detach"));
+    if (!settled && requestAttaches.length > 0) {
+      pendingAttaches.set(req, requestAttaches.length);
+    }
     await route.fallback();
   });
 

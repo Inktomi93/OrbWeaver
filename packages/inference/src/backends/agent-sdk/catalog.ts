@@ -4,19 +4,20 @@
 // `finally` under its OWN short deadline. Normalizes the SDK's `ModelInfo[]` into the SDK-free `AgentSdkModel[]`.
 // Also the `verifyAuth` diagnostic — ONE trivial prompt through the SAME firewall a real turn uses.
 
-import type { AccountInfo, ModelInfo, Query } from "@anthropic-ai/claude-agent-sdk";
+import type { ModelInfo, Query } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel } from "@orb/contracts/inference";
+import { agentSdkModelSchema } from "@orb/contracts/inference";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
+import { verifyAuthAccountSchema } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ProviderScrubSet, SpawnIdentity, VerifyAuthRequest } from "#contract";
 import { ProviderError } from "#contract";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import type { AgentSdkLog } from "./log.ts";
-import { linkAbort } from "./runner.ts";
 import { disciplineOptions, observabilityOptions } from "./translate.ts";
 import type { AgentSdkDeps } from "./types.ts";
-import { assertInitFrameShape } from "./verify.ts";
+import { assertSdkMessageRead } from "./wire-read.ts";
 
 const DISCOVERY_TIMEOUT_MS = 15_000;
 /** The teardown's own bound: a daemon wedged on `supportedModels()` may never answer `interrupt()` either. */
@@ -80,12 +81,13 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
   // through `buildClaudeSdkEnv`'s token env (`index.ts::childEnv`) — there is no HTTP request here to carry a
   // user-authored auth header or a key-in-body field, which is why `SpawnIdentity` narrows to owner+credential.
   const secrets = resolvedScrubSet({ credential: connection.credential, transport: null });
-  const stream: Query = deps.query({ prompt: heldOpenPrompt(), options: disciplineOptions(deps.childEnv(connection)) });
+  await using lease = deps.execution.open(connection, { prompt: heldOpenPrompt(), options: disciplineOptions(deps.childEnv(connection)) });
+  const stream = lease.query;
   try {
     const models = await withTimeout(stream.supportedModels(), deps, DISCOVERY_TIMEOUT_MS, "model discovery").catch((err: unknown) => {
       throw discoveryError(err, secrets);
     });
-    return models.map(normalize);
+    return agentSdkModelSchema.array().parse(models.map(normalize));
   } finally {
     // Billing cleanup for a turn that never started — best-effort AND BOUNDED; logged, never thrown.
     try {
@@ -104,8 +106,8 @@ async function reduceVerifyStream(
   let ok = false;
   let costUsd = 0;
   for await (const message of stream) {
+    assertSdkMessageRead(message);
     if (message.type === "system" && message.subtype === "init") {
-      assertInitFrameShape(message);
       apiKeySource = message.apiKeySource;
     } else if (message.type === "assistant") {
       for (const block of message.message.content) {
@@ -121,15 +123,6 @@ async function reduceVerifyStream(
   return { apiKeySource, reply, ok, costUsd };
 }
 
-function toVerifyAuthAccount(info: AccountInfo): VerifyAuthAccount {
-  return {
-    ...(info.email !== undefined ? { email: info.email } : {}),
-    ...(info.organization !== undefined ? { organization: info.organization } : {}),
-    ...(info.subscriptionType !== undefined ? { subscriptionType: info.subscriptionType } : {}),
-    ...(info.apiProvider !== undefined ? { apiProvider: info.apiProvider } : {}),
-  };
-}
-
 /** Best-effort account-identity probe against the LIVE query handle — bounded and TOTALLY non-fatal. */
 async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<VerifyAuthAccount | undefined> {
   if (typeof query.accountInfo !== "function") {
@@ -142,7 +135,7 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
   let account: VerifyAuthAccount | undefined;
   try {
     const info = await Promise.race([query.accountInfo(), timeout]);
-    account = info !== undefined ? toVerifyAuthAccount(info) : undefined;
+    account = info !== undefined ? verifyAuthAccountSchema.parse(info) : undefined;
     // @orb-waive caught-failure-ownership(catch): account identity is an optional verify diagnostic and `undefined` is its documented miss result. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if account identity becomes part of the auth verdict.
   } catch {
     // A rejected control call is a diagnostic miss, never a probe failure.
@@ -155,17 +148,20 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
 /** The subscription auth verify: `maxTurns: 1`, no resume, no tools (the firewall base). */
 export async function verifyAuth(req: VerifyAuthRequest, deps: AgentSdkDeps, log: AgentSdkLog): Promise<VerifyAuthResult> {
   const { connection } = req;
-  const abortController = linkAbort(req.signal);
-  const stream = deps.query({
-    prompt: VERIFY_PROMPT,
-    options: {
-      ...disciplineOptions(deps.childEnv(connection)),
-      ...observabilityOptions(deps.debug, log),
-      model: connection.model,
-      maxTurns: 1,
-      ...(req.signal !== undefined ? { abortController } : {}),
+  await using lease = deps.execution.open(
+    connection,
+    {
+      prompt: VERIFY_PROMPT,
+      options: {
+        ...disciplineOptions(deps.childEnv(connection)),
+        ...observabilityOptions(deps.debug, log),
+        model: connection.model,
+        maxTurns: 1,
+      },
     },
-  });
+    req.signal,
+  );
+  const stream = lease.query;
   const { apiKeySource, reply, ok, costUsd } = await reduceVerifyStream(stream);
   const account = await probeAccountInfo(stream, deps);
   return { source: "max-pro-sub", ok, apiKeySource, model: connection.model, reply: reply.trim(), costUsd, ...(account !== undefined ? { account } : {}) };

@@ -37,4 +37,8 @@ Raw issuer protocol cases do not establish physical TLS or real-IdP e2e. Direct 
 
 The shared contract integration preserves canonical ForwardJwtClaims derivation. Affected production compilers and scoped lint pass; root retains known unrelated diagnostics. The suppression assignment owns unresolved tracing and native form-data lint conflicts.
 
-Strong native SDK descendant/diagnostic parity, share and ACME execution, remaining lifecycle cases, assembly enforcement and exercised reach remain unqualified. Whole-domain replacement and corpus adoption remain open. Corpus and native ingress reuse this graph, never another assembly.
+SDK source `e470342ad6` owns native Query leases and supplied real children across stream and probe calls. Controls prove cancellation, child and reaped-descendant joins, diagnostic draining and streaming secret redaction. Independent review corrections pass affected controls; production and DOM compilers pass. Root retains unrelated diagnostics.
+
+The active SDK assignment preserves default spawning through a pinned public child-observation hook. It must join genuine close on normal execution, cancellation and construction failure without replacing native transport behavior. Its source and native controls remain unfinished. Private diagnostic sinks and escaped descendants remain unqualified.
+
+Share, ACME, assembly enforcement, exercised reach and complete domain replacement remain open. Native database statement retention blocks corpus quiescence; logical close does not prove physical release. Corpus and ingress reuse this graph, never another assembly.
