@@ -13,6 +13,6 @@ export function isActiveKindUniqueViolation(err: unknown): boolean {
   return isConstraintViolation(err)?.kind === "unique";
 }
 
-export function isOwnerForeignKeyViolation(err: unknown): boolean {
+export function isWorkloadForeignKeyViolation(err: unknown): boolean {
   return isConstraintViolation(err)?.kind === "foreign-key";
 }

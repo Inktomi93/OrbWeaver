@@ -1,4 +1,11 @@
-import type { EveryOwnerEstimate, EveryOwnerRun, WorkloadEstimateScope, WorkloadRunContext, WorkloadRunScope } from "@orb/contracts/workloads";
+import type {
+  EveryOwnerEstimate,
+  EveryOwnerRun,
+  StartWorkloadParams,
+  WorkloadEstimateScope,
+  WorkloadRunContext,
+  WorkloadRunScope,
+} from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 
@@ -17,4 +24,11 @@ test("count-only authority cannot authorize an execution or emerge from it", () 
   expectTypeOf<WorkloadEstimateScope>().not.toExtend<WorkloadRunScope>();
   expectTypeOf<{ ownerId: null; everyOwnerRun: EveryOwnerEstimate }>().not.toExtend<WorkloadRunScope>();
   expectTypeOf<{ ownerId: null; everyOwnerEstimate: EveryOwnerRun }>().not.toExtend<WorkloadEstimateScope>();
+});
+
+test("trusted admission states nullable funding and request admission cannot override it", () => {
+  expectTypeOf<Extract<StartWorkloadParams, { caller: null }>["funderUserId"]>().toEqualTypeOf<UserId | null>();
+  expectTypeOf<{ caller: null }>().not.toExtend<Pick<Extract<StartWorkloadParams, { caller: null }>, "caller" | "funderUserId">>();
+  expectTypeOf<Extract<StartWorkloadParams, { caller: object }>["funderUserId"]>().toEqualTypeOf<undefined>();
+  expectTypeOf<WorkloadRunContext["funderUserId"]>().toEqualTypeOf<UserId | null>();
 });

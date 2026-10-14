@@ -111,10 +111,13 @@ export const workloads = sqliteTable(
     // is a 60s live-tail smoother; THIS column is the reconnect truth, so a list row renders progress with
     // no subscription open. Null until the run reports (and on every row that never reports).
     progress: text("progress", { mode: "json" }).$type<WorkloadProgress>(),
-    // The acting/triggering user (D23 — KEEP: workloads are top-level single-owned). NULLABLE: a
-    // scheduler/system-triggered row has no user (the runner maps null → a synthetic "system" id). SET
-    // NULL on user delete so the never-deleted audit row outlives the user.
+    // Enumeration and workload-visibility owner (D23). Bulk/system scope is null. SET NULL retains
+    // history after deletion; admissionSystem distinguishes deletion from ownerless admission.
     ownerId: text("owner_id")
+      .$type<UserId>()
+      .references(() => users.id, { onDelete: "set null" }),
+    // Retained liability is not enumeration ownership; deletion never selects a replacement funder.
+    funderUserId: text("funder_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // Immutable ADMISSION identity, distinct from the mutable audit/authorization FK above. True means the
@@ -177,6 +180,7 @@ export const workloads = sqliteTable(
     // PARTIAL (terminal rows excluded), so neither can serve the delete that must touch every row of a
     // never-deleted audit log (`fk-columns-indexed` gate).
     index("workloads_owner_idx").on(table.ownerId),
+    index("workloads_funder_idx").on(table.funderUserId),
     // SQL-side enum enforcement derived from the tuples (mirrors the drizzle `{ enum }` type-side).
     check("workloads_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
     check("workloads_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),

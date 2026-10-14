@@ -78,6 +78,7 @@ export async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promis
     const { id } = await deps.service.start({
       input: REFRESH_INPUT,
       caller: null,
+      funderUserId: null,
       mode: "bulk",
       ownerId: deps.ownerId,
     });

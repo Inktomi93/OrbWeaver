@@ -24,9 +24,9 @@ Read this plan for runtime dependencies and correctness work scheduled by test-f
 
 The [test-foundation plan](../test-foundation/design.md) owns the combined program order. Compose cleanup (964) moves runtime ports and reads to owning domains before the server harness (958) is built. Initial Drizzle facts (953) provide shared tenancy and query judgments.
 
-Typed discovery authority is integrated. Runtime funding, dispatched-material strike-out and identity enforcement are qualified on real composed callers. Ownerless workload funding, remaining owner-read adjudication, settings ownership (967), connection capabilities (968) and law alignment (970) remain production work. Route identity-sensitive changes to the security role.
+Typed discovery authority is integrated. Runtime funding, dispatched-material strike-out and identity enforcement are qualified on real composed callers. Ownerless workload funding is integrated. Remaining owner-read adjudication, settings ownership (967), connection capabilities (968) and law alignment (970) remain production work. Route identity-sensitive changes to the security role.
 
-[Ownerless model funding](../../work/1015-persist-the-admitted-funder-for-ownerless-model-workloads.md) follows the typed authority batch and blocks dependent bulk-model corpus qualification. Preserve the admitting funder separately from enumeration scope and the synthetic audit actor.
+Ownerless model funding follows the typed authority batch. Its caller qualification blocks dependent bulk-model corpus qualification. [Tier-3b section 7](../../law/Tier-3b-Providers.md#7-the-composition-seam) owns the standing funding rule.
 
 Stored connection parsing follows ownership checks without losing owner-mismatch detection. The canonical owner-bearing read is integrated. Remaining runtime and wire qualification stays with its active work items. Preserve refusal and accounting semantics; legacy harness repair is not a prerequisite.
 
@@ -41,6 +41,52 @@ Stored connection parsing follows ownership checks without losing owner-mismatch
 7. **Core-0 section 6 matches Tier-3b.** A connection is a user table; there is no `resolveRole`; roles resolve through the runtime and the role clients.
 8. **Knowledge-Cluster states its own exceptions.** The vector-table set is named once, in one count with one definition; the hand-off restamp and the clear, space-state and image-analysis deletes are named exceptions or move into the persistence home.
 9. **The owner-agnostic connection lookup is stated.** Tier-3b says the runtime's connection port reads by id and the runtime checks the owner, with the test that pins it.
+
+### Ownerless workload funding
+
+The caller and proof maps bound qualification of the persistent funding contract. Keep migration and caller evidence separate from complete corpus qualification.
+
+#### Caller update map
+
+| Caller home | Funding source or required change |
+| - | - |
+| `packages/server/src/transport/trpc/routers/workloads.ts` | Start and estimates derive authenticated funding. Admit no wire override. |
+| `packages/server/src/entry/http/import.ts`, `packages/server/src/entry/http/import-tree.ts` | Preserve the authenticated Principal and owned import target. |
+| `packages/server/src/domain/workloads/engine/schedule-tick.ts` | Supply the schedule owner's standing funding order explicitly. |
+| `packages/server/src/transport/jobs/catalog-refresh-scheduler.ts` | Supply null model funding; provenance does not authorize spend. |
+| `packages/server/src/entry/compose/databank.ts` | Supply null generic funding. Document-owner encoders remain independent. |
+| `packages/server/src/domain/import/verbs/enqueue-import-index.ts`, `packages/server/src/domain/import/verbs/settle-import-memory.ts` | Supply null Utility funding. Preserve text indexing and segment-only work. |
+| `packages/server/src/domain/embeddings/verbs/embedding-reindex-triggers.ts` | Supply owned funding for owned memory work. Supply null for generic system work. Make unfunded bulk memory explicitly segment-only. |
+| `packages/server/src/domain/discovery/workload-contributions.ts` | Pass persisted funding to distill and theme naming. Theme execution and estimation read the same funder's settings. |
+| `packages/server/src/domain/refinery/workload-contributions.ts` | Pass persisted funding to score calls and their retries. |
+| `packages/server/src/domain/chat/workload-contributions.ts`, `packages/server/src/domain/chat/contract/workloads.ts` | Separate digest funding from segment-only execution. Remove the unused group-character funding argument. |
+| `packages/server/src/domain/chat/substrate/backfill.ts`, `packages/server/src/domain/chat/substrate/backfill-estimate.ts` | Keep paid digest funding explicit. Refuse a historical unfunded paid request without changing its scope. |
+| `packages/server/src/domain/chat/memory/generate/segments.ts` | Read the encoder window from the resolved embedding-space owner. |
+| `packages/server/src/domain/workloads/verbs/start.ts`, `packages/server/src/domain/workloads/verbs/retry.ts`, `packages/server/src/domain/workloads/verbs/estimate-model-calls.ts` | Persist admission funding; clone and estimate original funding without fallback. |
+| `packages/server/src/domain/workloads/persistence/queries.ts`, `packages/server/src/domain/workloads/contract/workload-row.ts`, `packages/server/src/domain/workloads/engine/runner.ts` | Carry funding through projection and atomic claim. Keep orphan rejection and capability minting independent. |
+| `packages/server/src/domain/workloads/persistence/constraints.ts`, `packages/contracts/src/workloads/admission.ts` | Classify the additional FK failure accurately. Keep missing-funding refusal canonical across model contributions. |
+| `packages/db/src/schema/workloads.ts`, `packages/contracts/src/workloads/owner-ops.ts`, `packages/contracts/src/workloads/execution.ts`, `packages/contracts/src/workloads/views.ts` | Add the nullable FK, leading index and required nullable funding contracts. Ship the generated forward migration. |
+
+Vector calls keep each producer owner's encoder, generation and accounting identity. Avatar analysis keeps its asset owner's Utility model. These callers do not substitute the generic workload funder. The execution policy remains in each owning domain; composition only forwards it.
+
+#### Proof map
+
+Use the production server root, corpus builders and scripted provider transport. Exercise actual workload admission, queue selection and execution. Keep domain services, authorization, credentials and accounting real.
+
+| Case | Observable result | Failing control |
+| - | - | - |
+| Owner bulk distill and owned control | Targeted summaries persist; only the admitted funder's provider material is used. The owned control excludes foreign cards. | Restore synthetic funding; remove the named owner predicate. |
+| Bulk theme naming | Count-only estimation matches named clusters. Estimation makes no provider request or replacement write. | Restore synthetic funding. |
+| Restart, retry and retry estimate | Persisted funding and original scope survive. Another eligible caller does not acquire liability. | Substitute the retry caller for stored funding. |
+| Migration and missing funding | Owned rows retain funding. Null-owner paid rows refuse without invented funding, including retry and estimation. Non-model work remains runnable. | Substitute the current owner for null funding. |
+| Funder deletion and claim race | Current claim sees cleared funding. No model call uses a captured funder or grants enumeration authority. | Build context from captured queue funding. |
+| Schedule execution | A paid bulk tick uses its saved owner funding. Disable prevents admission. Deletion removes the standing order, not history. | Omit explicit tick funding. |
+| Consent, credentials and replacement | A queued paid job refuses revoked consent or material. It never borrows another owner's connection. | Retain the executor's existing qualified controls. |
+| Mixed-owner memory and segment-only work | Digests use workload funding. Encoder windows, vectors and accounting remain owner-specific. Unfunded segment-only work spends no Utility model. | Read the encoder window from the generic funder. |
+
+Run new cases red before implementation. Apply each named source intervention only in the owned worktree after its positive case passes. Restore it before the next intervention. Retain the typed-authority orphan and count-only controls. Do not replace the corpus or introduce another domain harness.
+
+The standing funding rule lives in [Tier-3b section 7](../../law/Tier-3b-Providers.md#7-the-composition-seam). Keep the caller and proof maps in this plan.
 
 ### Left alone
 

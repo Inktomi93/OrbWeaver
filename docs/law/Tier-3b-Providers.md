@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-06
+updated: 2026-10-14
 ---
 
 # Orbweaver — `@orb/inference`: the provider runtime (wires · providers · resolution · execution)
@@ -111,7 +111,7 @@ This split matters: `ResolvedConnectionView` must stay importable by a bus contr
 
 `packages/server/src/entry/compose/services.ts` constructs the runtime once and exposes `roleClientsFor(funderUserId)` — a PER-CALL bundle, not a boot-time binding. Each callable folds its task at call time, so a re-pointed binding governs the very next call with no restart and no invalidation hook to forget (`packages/inference/src/roles/role-clients.ts`). There is no `createDefaultRoleClients` and no floor default; a missing wire is a `tsc` error.
 
-The caller that owns a workload supplies `funderUserId`. Chat turns derive it from the room host seat and freeze it with `runAsUserId` at the turn boundary (D18/D19); `triggeredBy` never selects a connection. Owner-scoped background workloads keep their explicit owner funder.
+Callers supply the admitted funder. Chat turns freeze the room host as funder and `runAsUserId` at the turn boundary (D18/D19). Workloads persist nullable funding separately from enumeration scope and the synthetic execution actor. Authenticated admission derives funding from its Principal; trusted admission states funding explicitly. Retry and estimation preserve the stored funder. Unfunded workload-wide generation refuses instead of selecting another user. Vector calls and avatar analysis retain each producer owner's bindings and accounting identity. Current connection consent and credential authority remain execution checks.
 
 ## 8. Capability synthesis
 

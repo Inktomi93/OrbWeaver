@@ -82,7 +82,7 @@ export async function countModelCalls<K extends WorkloadKind>(
   contributions: WorkloadContributions,
   kind: K,
   params: WorkloadParamsByKind[K],
-  scope: WorkloadEstimateScope & { readonly funderUserId: UserId },
+  scope: WorkloadEstimateScope & { readonly funderUserId: UserId | null },
 ): Promise<number | null> {
   const estimate = contributions[kind].modelCalls;
   return estimate === undefined ? null : await estimate({ ...scope, params });

@@ -9,9 +9,8 @@ import type { WorkloadRef } from "./views.ts";
 /** mode: "bulk" requires the box owner and either sweeps all owners or mints into targetOwnerId; caller:
  *  null bypasses the gate and stamps the explicit ownerId. */
 
-export interface StartWorkloadParams {
+interface StartWorkloadBase {
   readonly input: StartWorkloadInput;
-  readonly caller: Principal | null;
   readonly mode: WorkloadMode;
   readonly targetOwnerId?: UserId | null;
   readonly ownerId: UserId | null;
@@ -28,5 +27,9 @@ export interface StartWorkloadParams {
    *  necessarily dropped — the adopted row was admitted under its own. Absent ⇒ the conflict throws. */
   readonly adoptActive?: boolean;
 }
+
+/** Request funding is derived; trusted producers must state whether they admit model spending. */
+export type StartWorkloadParams = StartWorkloadBase &
+  ({ readonly caller: Principal; readonly funderUserId?: never } | { readonly caller: null; readonly funderUserId: UserId | null });
 
 export type StartWorkloadOp = (params: StartWorkloadParams) => Promise<WorkloadRef>;

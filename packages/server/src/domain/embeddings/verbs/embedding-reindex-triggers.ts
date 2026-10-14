@@ -21,7 +21,14 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
   const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {
     const vacuous = await deps.vacuousMemoryReceipt(ownerId);
     if (vacuous === null) {
-      return await deps.startWorkload({ input: { kind: "memory-backfill", params }, caller: null, mode: "singular", ownerId, adoptActive: true });
+      return await deps.startWorkload({
+        input: { kind: "memory-backfill", params },
+        caller: null,
+        funderUserId: ownerId,
+        mode: "singular",
+        ownerId,
+        adoptActive: true,
+      });
     }
     return await deps.purgeMemoryVectors({
       ownerId,
@@ -48,6 +55,7 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
         deps.startWorkload({
           input: { kind: "index", params: embedderChanged ? { source: "all", force: true, embedderChanged } : { source: "all" } },
           caller: null,
+          funderUserId: null,
           mode,
           ownerId: scope,
           adoptActive: true,
@@ -57,6 +65,7 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
         deps.startWorkload({
           input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed", ...rebuild } },
           caller: null,
+          funderUserId: null,
           mode,
           ownerId: scope,
           adoptActive: true,
@@ -64,7 +73,14 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
       ),
       sweep("memory-backfill", () =>
         scope === null
-          ? deps.startWorkload({ input: { kind: "memory-backfill", params: rebuild }, caller: null, mode, ownerId: null, adoptActive: true })
+          ? deps.startWorkload({
+              input: { kind: "memory-backfill", params: { ...rebuild, segmentsOnly: true } },
+              caller: null,
+              funderUserId: null,
+              mode,
+              ownerId: null,
+              adoptActive: true,
+            })
           : enqueueOwnerMemory(scope, rebuild),
       ),
     ];
@@ -100,7 +116,7 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
     autoindexEnabled = enabled;
     if (starts) {
       supervise("embeddings.autoindex.catchup", EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
-        deps.startWorkload({ input: { kind: "index", params: { source: "all" } }, caller: null, mode: "bulk", ownerId: null }),
+        deps.startWorkload({ input: { kind: "index", params: { source: "all" } }, caller: null, funderUserId: null, mode: "bulk", ownerId: null }),
       );
     }
   };

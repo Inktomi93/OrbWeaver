@@ -70,5 +70,7 @@ export type WorkloadEstimateScope =
 export type WorkloadRunContext = WorkloadRunScope & {
   /** The acting user — the row's owner, or a synthetic `system` id for an ownerless (scheduler) row. */
   readonly userId: UserId;
+  /** Admitted model liability, independent of enumeration and the synthetic execution actor. */
+  readonly funderUserId: UserId | null;
   readonly now: () => number;
 };

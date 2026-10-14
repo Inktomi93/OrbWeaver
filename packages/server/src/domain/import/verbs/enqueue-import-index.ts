@@ -9,6 +9,13 @@ import type { ImportPostprocessDeps } from "../contract/post-import.ts";
  */
 export function createEnqueueImportIndex(workloads: Pick<ImportPostprocessDeps, "start">): (args: { readonly ownerId: UserId }) => Promise<void> {
   return async ({ ownerId }: { readonly ownerId: UserId }): Promise<void> => {
-    await workloads.start({ input: { kind: "index", params: { source: "text" } }, caller: null, mode: "singular", ownerId, adoptActive: true });
+    await workloads.start({
+      input: { kind: "index", params: { source: "text" } },
+      caller: null,
+      funderUserId: null,
+      mode: "singular",
+      ownerId,
+      adoptActive: true,
+    });
   };
 }

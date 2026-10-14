@@ -21,7 +21,7 @@ const QUEUE_DELAY_MS = 10_000;
 
 async function enqueue(harness: ServerTestHarness, caller: Principal | null): Promise<WorkloadRef> {
   return await harness.services.workloads.start({
-    caller,
+    ...(caller === null ? { caller, funderUserId: null } : { caller }),
     ownerId: caller?.userId ?? null,
     mode: "singular",
     input: { kind: "assets-backfill", params: { dryRun: true } },

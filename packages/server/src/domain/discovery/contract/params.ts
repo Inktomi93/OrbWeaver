@@ -17,7 +17,7 @@ export type ComputeDuplicatesOptions = WorkloadRunScope & {
 export type ComputeThemesOptions = WorkloadRunScope & {
   readonly k?: number;
   readonly seed?: number;
-  /** WHO FUNDS the cluster naming — the workload's acting user (`WorkloadRunContext.userId`). */
+  /** WHO FUNDS the cluster naming — the workload's persisted admitted funder. */
   readonly funderUserId: UserId;
 };
 
@@ -32,7 +32,7 @@ export type ComputeHubScoresOptions = WorkloadRunScope & {
 
 /** Options for the `distillCharacters` pass. `characterId` narrows to one card; absent = whole-library batch. */
 export type DistillCharactersOptions = DistillTargetNarrow & {
-  /** WHO FUNDS the pass — the caller on the on-demand arm, the workload's acting user on the batch arm. */
+  /** WHO FUNDS the pass — the caller on the on-demand arm, the workload's admitted funder on the batch path. */
   readonly funderUserId: UserId;
   readonly signal?: AbortSignal | undefined;
   /** Per-card position for the caller's progress surface (`done`, `total`). The PASS owns the denominator —

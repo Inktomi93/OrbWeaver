@@ -9,7 +9,7 @@ import type { WorkloadKind, WorkloadRef } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { StartWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
-import { isActiveKindUniqueViolation, isOwnerForeignKeyViolation } from "../persistence/constraints.ts";
+import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findActiveAdmittedWorkloadId, findUnavailableWorkloadDependency, insertWorkload } from "../persistence/queries.ts";
 import { resolveRunOwner } from "../substrate/authorize.ts";
 import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey } from "../substrate/params.ts";
@@ -72,10 +72,10 @@ async function insertOnce(ctx: WorkloadServiceContext, row: AdmissionRow): Promi
 }
 
 /** An insert failure as the domain's own error — the single-active collision becomes the conflict sentence a
- *  person can act on, a missing owner becomes the leak-free NOT_FOUND, anything else travels unchanged. */
+ *  person can act on, an unavailable owner or funder becomes leak-free NOT_FOUND, anything else travels unchanged. */
 function translateInsertFailure(err: unknown, row: AdmissionRow): unknown {
-  if (isOwnerForeignKeyViolation(err)) {
-    const notFound = new DomainNotFoundError("user", String(row.ownerId));
+  if (isWorkloadForeignKeyViolation(err)) {
+    const notFound = new DomainNotFoundError("workload admission", "user");
     notFound.cause = err;
     return notFound;
   }
@@ -116,6 +116,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         lane: contributions[input.kind].lane,
         params: input.params as Record<string, unknown>,
         ownerId,
+        funderUserId: params.caller === null ? params.funderUserId : params.caller.userId,
         dependsOn: params.dependsOn ?? null,
         scheduledAt: params.scheduledAt ?? now,
         createdAt: now,

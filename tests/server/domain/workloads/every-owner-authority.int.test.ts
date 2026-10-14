@@ -4,73 +4,17 @@
 // @subject packages/server/src/domain/discovery/persistence/card-reads.ts
 import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { StartWorkloadInput, WorkloadRunnableRow } from "@orb/contracts/workloads";
+import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { characterEmbeddings, characterSummaries, characters, embedGenerations, themeClusters, users, workloads } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { WorkloadId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { nextRunnableWorkload, runWorkload } from "@orb/server/domain/workloads";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
 import { seedCorpusConnections, seedRecallCorpus } from "@orb/testkit/node/corpus-seed.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, inArray, sql } from "drizzle-orm";
 import { vi } from "vitest";
-
-const QUEUE_OBSERVATION_DELAY_MS = 60_000;
-
-function physicalWire(): ReturnType<typeof createCorpusProviderExecution> {
-  return createCorpusProviderExecution({
-    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
-    embedding: [...CORPUS_EMBEDDING_VECTOR],
-    chatText: "The traveller repairs the loom.",
-    structuredReplies: CORPUS_STRUCTURED_REPLIES,
-    images: [],
-  });
-}
-
-async function executeAdmitted(root: ServerTestHarness, id: WorkloadId): Promise<void> {
-  const row = await root.services.workloads.get({ caller: null, id });
-  if (row.poison) {
-    throw new Error("admitted workload has malformed params");
-  }
-  await executeRow(root, row);
-}
-
-async function executeRow(root: ServerTestHarness, row: WorkloadRunnableRow): Promise<void> {
-  await runWorkload(
-    {
-      db: root.db,
-      contributions: root.app.workloadContributions,
-      now: root.clock.now,
-      audit: root.app.audit,
-      emitEvent: root.app.workloadEvents.emitWorkloadEvent,
-      heartbeatMs: 0,
-      cancelPollMs: 0,
-    },
-    row,
-    new AbortController().signal,
-  );
-}
-
-async function observeQueued(root: ServerTestHarness, id: WorkloadId): Promise<WorkloadRunnableRow> {
-  let row = await nextRunnableWorkload(root.db, root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep");
-  while (row !== null && row.id !== id) {
-    await executeRow(root, row);
-    row = await nextRunnableWorkload(root.db, root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep");
-  }
-  if (row === null) {
-    throw new Error("admitted workload is absent from the actual queue");
-  }
-  return row;
-}
+import { executeAdmitted, observeQueued, physicalWire, QUEUE_OBSERVATION_DELAY_MS } from "./funding.fixtures.ts";
 
 test("only actual NULL-owner execution carries every-owner authority, independently of a null caller", async () => {
   const wire = physicalWire();
@@ -102,7 +46,7 @@ test("only actual NULL-owner execution carries every-owner authority, independen
   }
   const run = vi.spyOn(root.app.workloadContributions.csls, "run");
   const input = { kind: "csls", params: {} } satisfies StartWorkloadInput;
-  const owned = await root.services.workloads.start({ caller: null, mode: "singular", ownerId: member.userId, input });
+  const owned = await root.services.workloads.start({ caller: null, funderUserId: null, mode: "singular", ownerId: member.userId, input });
   await executeAdmitted(root, owned.id);
   expect(run.mock.calls.at(-1)?.[0]).toMatchObject({ ownerId: member.userId, userId: member.userId, everyOwnerRun: null });
   const storedOwned = await root.services.workloads.get({ caller: member, id: owned.id });
@@ -140,7 +84,7 @@ test("only actual NULL-owner execution carries every-owner authority, independen
   expect(wire.requests).toEqual(beforeProvider);
   const scores = await root.db.select({ score: characterEmbeddings.hubScore }).from(characterEmbeddings);
   expect(scores.map((row) => row.score)).toEqual([1, 1, 1, 1]);
-  const systemBulk = await root.services.workloads.start({ caller: null, mode: "bulk", ownerId: member.userId, input });
+  const systemBulk = await root.services.workloads.start({ caller: null, funderUserId: null, mode: "bulk", ownerId: member.userId, input });
   await executeAdmitted(root, systemBulk.id);
   expect(run.mock.calls.at(-1)?.[0]).toMatchObject({ ownerId: null });
   expect(run.mock.calls.at(-1)?.[0].everyOwnerRun).not.toBeNull();
@@ -207,7 +151,7 @@ test("exact estimates remain count-only and owner/mode admission refuses ordinar
   await expect(root.services.workloads.estimateRetryModelCalls({ caller: member, id: bulk.id })).rejects.toThrow();
 });
 
-test("a saved owner binding does not silently fund the synthetic actor of an actual bulk distill run", async () => {
+test("an admitted owner binding funds the actual bulk distill independently of its synthetic actor", async () => {
   const wire = physicalWire();
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const owner = await root.principalFor(root.ownerId);
@@ -225,14 +169,14 @@ test("a saved owner binding does not silently fund the synthetic actor of an act
   const before = [...wire.requests];
   await executeAdmitted(root, ref.id);
   const job = await root.services.workloads.get({ caller: owner, id: ref.id });
-  expect(job).toMatchObject({ ownerId: null, status: "failed" });
-  expect(wire.requests).toEqual(before);
+  expect(job).toMatchObject({ ownerId: null, status: "succeeded", result: { scanned: 1, written: 1 } });
+  expect(wire.requests.length).toBeGreaterThan(before.length);
   expect(
     await root.db
       .select()
       .from(characterSummaries)
       .where(inArray(characterSummaries.characterId, [card.id])),
-  ).toEqual([]);
+  ).toMatchObject([{ characterId: card.id }]);
 });
 
 test("theme estimates use the same seeded clustering as real owned execution without writes or provider effects", async () => {
@@ -274,6 +218,11 @@ test("theme estimates use the same seeded clustering as real owned execution wit
   expect(job.status).toBe("succeeded");
   const written = await root.db.select().from(themeClusters).where(eq(themeClusters.ownerId, owner.userId));
   expect(written.filter((row) => row.name !== null).length).toBe(estimate.calls);
+  const bulk = await root.services.workloads.start({ caller: owner, mode: "bulk", ownerId: owner.userId, input });
+  await executeAdmitted(root, bulk.id);
+  expect(await root.services.workloads.get({ caller: owner, id: bulk.id })).toMatchObject({ status: "succeeded", funderUserId: owner.userId });
+  const bulkWritten = await root.db.select().from(themeClusters).where(eq(themeClusters.ownerId, owner.userId));
+  expect(bulkWritten.filter((row) => row.name !== null).length).toBe(estimate.calls);
 });
 
 test("a deleted owner's admitted job never upgrades into every-owner execution or a retry", async () => {

@@ -37,6 +37,7 @@ interface WorkloadRowBase {
   readonly lane: WorkloadLane;
   /** null for a scheduler/system row; SET NULL on user delete so the never-deleted audit row outlives the user. */
   readonly ownerId: UserId | null;
+  readonly funderUserId: UserId | null;
   /** Enforced by the scheduler: a non-empty dependsOn dispatches only once every dep succeeded; a dep hitting
    *  a non-success terminal fails the dependent with dependency_failed instead of running. */
   readonly dependsOn: readonly WorkloadId[] | null;
@@ -85,6 +86,7 @@ export const workloadRowBaseSchema = z.strictObject({
   mode: workloadModeSchema,
   lane: z.enum(WORKLOAD_LANES),
   ownerId: brandedId<UserId>().nullable(),
+  funderUserId: brandedId<UserId>().nullable(),
   dependsOn: z.array(typeIdSchema(ID_PREFIX.workload)).readonly().nullable(),
   error: z.string().nullable(),
   progress: workloadProgressSchema.nullable(),

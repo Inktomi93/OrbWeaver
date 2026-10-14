@@ -118,11 +118,23 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     getDatabankSettings: createGetDatabankSettings(loadUserSettings),
     searchDocuments: search.documents,
     enqueueIngest: async ({ documentId, ownerId }) => {
-      const started = await workloads.start({ input: { kind: "databank-ingest", params: { documentId } }, caller: null, mode: "singular", ownerId });
+      const started = await workloads.start({
+        input: { kind: "databank-ingest", params: { documentId } },
+        caller: null,
+        funderUserId: null,
+        mode: "singular",
+        ownerId,
+      });
       return { workloadId: started.id };
     },
     enqueueReindex: async ({ ownerId, scope, mode }) => {
-      const started = await workloads.start({ input: { kind: "databank-reindex", params: { scope, mode } }, caller: null, mode: "singular", ownerId });
+      const started = await workloads.start({
+        input: { kind: "databank-reindex", params: { scope, mode } },
+        caller: null,
+        funderUserId: null,
+        mode: "singular",
+        ownerId,
+      });
       return { workloadId: started.id };
     },
     ensureChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
