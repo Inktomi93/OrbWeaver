@@ -1,9 +1,10 @@
+import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import type { FileSystemHost, Node, SourceFile } from "ts-morph";
 import { z } from "zod";
 import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compiler-programs-contract.ts";
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 
-export const INVENTORY_FORMAT = 1;
+export const INVENTORY_FORMAT = 3;
 export const INVENTORY_KEY_SEPARATOR = "\0";
 export const INVENTORY_CONSUMER_CLASSES = ["product", "tooling", "test"] as const;
 export type InventoryConsumerClass = (typeof INVENTORY_CONSUMER_CLASSES)[number];
@@ -37,6 +38,31 @@ export const partitionSchema = z.object({
   witnesses: z.array(z.object({ node: spanSchema, name: z.string(), declarations: z.array(spanSchema) })),
 });
 
+export const partitionMetadataSchema = partitionSchema.omit({
+  inputs: true,
+  sources: true,
+  exports: true,
+  modules: true,
+  bindings: true,
+  references: true,
+  witnesses: true,
+});
+export const storedPartitionSchema = partitionMetadataSchema.extend({ id: z.string() });
+export type StoredInventoryPartition = z.infer<typeof storedPartitionSchema>;
+export const INVENTORY_LISTS = ["configPaths", "projectReferences", "roots", "nativeRoots"] as const;
+export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
+export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
+export const INVENTORY_RECORD_TABLES = ["descriptor", "list", "input", "source", "text", "span", "fact", "declaration", "reference"] as const;
+export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
+export interface InventoryRecord {
+  readonly table: InventoryRecordTable;
+  readonly values: readonly SQLInputValue[];
+}
+export const storedSourceSchema = partitionSchema.shape.sources.element
+  .omit({ text: true })
+  .extend({ ordinal: z.number().int(), textVersion: z.string(), textLength: z.number().int(), textParts: z.number().int() });
+export type StoredInventorySource = z.infer<typeof storedSourceSchema>;
+
 export type InventorySpan = z.infer<typeof spanSchema>;
 export type InventoryInput = z.infer<typeof inputSchema>;
 export type InventoryPartition = z.infer<typeof partitionSchema>;
@@ -64,15 +90,22 @@ export interface SemanticInventoryOptions {
   readonly buildPartition?: (request: InventoryBuildRequest) => void;
 }
 
+export type InventorySourceCorpus = SourceCorpus & Disposable;
+
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
   readonly generation: number;
   readonly programs: readonly string[];
   readonly canonicalPath: (path: string) => string;
-  readonly sourceCorpus: () => SourceCorpus;
+  readonly sourceCorpus: () => InventorySourceCorpus;
   readonly exports: (source: SourceFile, importer?: Node) => ReadonlyMap<string, readonly Node[]>;
   readonly moduleTarget: (node: Node) => SourceFile | undefined;
   readonly symbols: (node: Node) => InventorySymbols;
   readonly references: (node: Node) => readonly Node[];
   readonly witnessOrigins: (node: Node) => readonly Node[];
+}
+
+export interface InventoryReaderStorage {
+  readonly db: DatabaseSync;
+  readonly dispose: () => void;
 }

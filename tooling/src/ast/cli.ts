@@ -17,6 +17,7 @@ import { EXIT } from "../floor/cli/exit-contract.ts";
 import { warn } from "../floor/cli/log.ts";
 import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import { SemanticInventoryError } from "../floor/code-facts/semantic-inventory-contract.ts";
+import { semanticInventoryOf } from "../floor/code-facts/semantic-inventory-reader.ts";
 import {
   ANTIPATTERNS_VERB,
   ARGLESS_VERBS,
@@ -146,7 +147,9 @@ async function main(): Promise<number> {
   beginRun(verb, corpusOf(typed, wide, verb), flags);
   // @orb-waive caught-failure-ownership(e): the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean.
   try {
-    VERBS[verb]?.(INVENTORY_VERBS.has(verb) ? loadInventoryProject() : loadProject(typed, wide), invocation.effectiveArg, flags);
+    const corpus = INVENTORY_VERBS.has(verb) ? loadInventoryProject() : loadProject(typed, wide);
+    using _inventory = semanticInventoryOf(corpus);
+    VERBS[verb]?.(corpus, invocation.effectiveArg, flags);
   } catch (e) {
     return mapKnownError(e);
   }

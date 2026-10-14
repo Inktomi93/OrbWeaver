@@ -24,6 +24,7 @@ import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { vi } from "vitest";
 import { declarationsNamed } from "../../../../tooling/src/floor/code-facts/reference-declarations.ts";
+import { readInventoryInputs, readInventoryModules, readInventorySourceMetadata } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 
 function fixtureValue<T>(value: T | undefined): T {
   if (value === undefined) {
@@ -157,7 +158,7 @@ test("stored native collectors preserve aliases, namespace bindings, lazy member
   );
 });
 
-test("partitions retain native options, closure, failed resolution and importing-world package targets", ({ scratch }) => {
+test("partitions retain native options, closure, failed resolution and importing-world package targets", { tags: ["slow"] }, ({ scratch }) => {
   initialize(scratch);
   write(scratch, "packages/client/src/missing.ts", "import { absent } from './absent'; export const read=absent;\n");
   const native = fixtureValue(createSemanticWorkspace({ root: scratch }).program("packages/client/tsconfig.json"));
@@ -199,20 +200,24 @@ test("partitions retain native options, closure, failed resolution and importing
   const partitions = readInventoryGeneration(database, stored.generation);
   const browser = fixtureValue(partitions.find((partition) => partition.program === "packages/client/tsconfig.json"));
   expect(JSON.parse(browser.compilerOptionsJson)).toMatchObject({ customConditions: ["browser"] });
-  expect(browser.sources.some((file) => file.file.endsWith("fixture-platform/browser.ts"))).toBe(true);
+  expect([...readInventorySourceMetadata(database, browser.id)].some((file) => file.file.endsWith("fixture-platform/browser.ts"))).toBe(true);
   expect(browser.nativeRoots.toSorted()).toEqual([join(scratch, "packages/client/src/browser.ts"), join(scratch, "packages/client/src/missing.ts")]);
-  expect(new Set(partitions.flatMap((partition) => partition.sources.filter((file) => file.authored).map((file) => file.consumerClass)))).toEqual(
-    new Set(["product", "tooling", "test"]),
-  );
-  expect(browser.modules.find((module) => module.specifier === "./absent")?.target).toBeNull();
-  expect(browser.inputs.some((input) => input.path.endsWith("/absent.ts") && input.version === "false")).toBe(true);
+  expect(
+    new Set(
+      partitions.flatMap((partition) =>
+        [...readInventorySourceMetadata(database, partition.id)].filter((file) => file.authored).map((file) => file.consumerClass),
+      ),
+    ),
+  ).toEqual(new Set(["product", "tooling", "test"]));
+  expect([...readInventoryModules(database, browser.id)].find((module) => module.specifier === "./absent")?.target).toBeNull();
+  expect([...readInventoryInputs(database, browser.id)].some((input) => input.path.endsWith("/absent.ts") && input.version === "false")).toBe(true);
   expect(latestInventoryGeneration(database)).toBe(stored.generation);
   for (const partition of partitions) {
     expect(pidAlive(fixtureValue(partition.workerPid))).toBe(false);
   }
 });
 
-test("changes, additions, removals, package resolution and failed lookups invalidate without mixing pinned generations", ({ scratch }) => {
+test("changes, additions, removals, package resolution and failed lookups invalidate without mixing pinned generations", { tags: ["slow"] }, ({ scratch }) => {
   initialize(scratch);
   write(scratch, "packages/client/src/missing.ts", "import { absent } from './absent'; export const read=absent;\n");
   using previous = createSemanticInventory({ root: scratch });

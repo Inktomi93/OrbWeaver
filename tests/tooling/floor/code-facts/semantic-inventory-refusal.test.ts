@@ -6,6 +6,7 @@ import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-
 import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { readInventoryModules } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 
 function write(root: string, path: string, text: string): void {
   const absolute = join(root, path);
@@ -56,7 +57,9 @@ test("anonymous default aliases and nonliteral dynamic refusals retain native co
   expect(collectOrphanCandidates(storedCorpus, buildLiveness(storedCorpus), () => true).map(({ name }) => name)).toContain("untouched");
   using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
   const partitions = readInventoryGeneration(db, latestInventoryGeneration(db));
-  expect(partitions.flatMap((partition) => partition.modules).find((module) => module.dynamic && module.specifier === null)).toMatchObject({
+  expect(
+    partitions.flatMap((partition) => [...readInventoryModules(db, partition.id)]).find((module) => module.dynamic && module.specifier === null),
+  ).toMatchObject({
     target: null,
     declarations: [],
   });
