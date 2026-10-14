@@ -5,9 +5,11 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { isAuthoredModuleNamespace } from "../../floor/code-facts/module-namespace.ts";
-import { readMemberReference, readStaticString, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { readStaticString, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { readCallableInvocation } from "../../floor/code-facts/reference-fact-invocation.ts";
 import { defineGate } from "../contract/policy.ts";
-import { originModuleSpecifier, readSealedOrigin } from "../lib/sealed-origin.ts";
+import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
+import { readSealedOrigin } from "../lib/sealed-origin.ts";
 
 const VITEST_MODULE = "vitest";
 /** `mock` is hoisted, `doMock` is not; both replace an internal module with a fake and both are the ban's
@@ -23,13 +25,34 @@ const SPY_MESSAGE =
 
 const FIX =
   "inject the fake at the composition root; vi.mock is legal only for an unavoidable third-party node edge, and vi.spyOn only on an object that is not an internal module namespace. " +
-  "For a genuinely unmockable internal seam, attach `@orb-waive test-mock-doctrine(<mock|doMock|spyOn>): <why the " +
-  "seam cannot be injected, and what would end it>` to that exact call.";
+  "For a genuinely unmockable internal seam, attach `@orb-waive test-mock-doctrine(<position>): <why the " +
+  "seam cannot be injected, and what would end it>` to that exact call. The position is the reported authored member or callee alias.";
 
 const SPY_VITEST = "export const vi = { spyOn: (target: object, name: string): void => { void target; void name; } };\n";
 
 /** Legacy `scanRoot` was `p.includes("tests/")` — every authored `tests/` tree, including the nested ones. */
 const TEST_POPULATION = { in: ["@authored"], under: ["tests/**", "**/tests/**"] } as const;
+
+function replacementInvocation(node: import("ts-morph").CallExpression): { readonly verb: string; readonly argument: MorphNode } | undefined {
+  const invocation = readCallableInvocation(node);
+  if (invocation.kind === "unresolved" && "capture" in invocation) {
+    throw new Error(`test-mock-doctrine cannot prove native bound callable capture: ${invocation.detail}`);
+  }
+  if (invocation.kind !== "resolved" || invocation.value.invocation === "bind") {
+    return;
+  }
+  const native = readPackageExportOrigin(invocation.value.callee, [VITEST_MODULE], new Set([...MOCK_MEMBERS, SPY_MEMBER]));
+  if (native.verdict !== "home" || native.exportedName === null) {
+    return;
+  }
+  const verb = native.exportedName;
+  const arguments_ = invocation.value.arguments;
+  if (arguments_.kind === "unresolved") {
+    throw new Error(`test-mock-doctrine cannot prove replacement arguments: ${arguments_.detail}`);
+  }
+  const argument = arguments_.value[0];
+  return argument === undefined ? undefined : { verb, argument };
+}
 
 function isInternalTarget(specifier: string): boolean {
   return INTERNAL_PREFIXES.some((prefix) => specifier.startsWith(prefix));
@@ -93,22 +116,16 @@ export const gate = defineGate({
           if (!Node.isCallExpression(node)) {
             return;
           }
-          const member = readMemberReference(node.getExpression());
-          // The MEMBER NAME is the candidate gate; the receiver's canonical origin is the verdict.
-          if (member.kind !== "resolved" || !(MOCK_MEMBERS.has(member.value.name) || member.value.name === SPY_MEMBER)) {
+          const replacement = replacementInvocation(node);
+          if (replacement === undefined) {
             return;
           }
-          const origin = resolveModuleMemberOrigin(member.value.receiver);
-          if (origin.kind !== "resolved" || originModuleSpecifier(origin.value) !== VITEST_MODULE) {
-            return;
-          }
-          const argument = node.getArguments()[0];
-          if (argument === undefined) {
-            return;
-          }
-          const message = replacementMessage(member.value.name, argument);
+          const { verb, argument } = replacement;
+          const message = replacementMessage(verb, argument);
           if (message !== undefined) {
-            ctx.report.node(member.value.nameNode, { token: member.value.name, offset: member.value.nameNode.getText().indexOf(member.value.name), message });
+            const expression = node.getExpression();
+            const offset = expression.getText().indexOf(verb);
+            ctx.report.node(expression, { ...(offset < 0 ? {} : { token: verb, offset }), message });
           }
         },
       },

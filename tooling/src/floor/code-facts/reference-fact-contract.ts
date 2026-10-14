@@ -106,6 +106,25 @@ export interface CallableOrigin {
   readonly callee: Node;
 }
 
+/** A native target and arguments captured by immutable bind construction, without claiming execution. */
+export interface CallableBinding {
+  readonly target: ReferenceOrigin;
+  readonly callee: Node;
+  readonly arguments: ReferenceFact<readonly Node[]>;
+}
+
+/** Native Function wrappers retain their target and ordered actual arguments; binding is not execution. */
+export interface CallableInvocation extends CallableBinding {
+  readonly invocation: "call" | "construct" | "bind";
+}
+
+/** A native bind construction was observed, but its captured identity could not close. This is no target grant. */
+export interface CallableCaptureRefusal extends UnresolvedReferenceFact {
+  readonly capture: "native-bind";
+}
+
+export type CallableInvocationFact = ReferenceFact<CallableInvocation> | CallableCaptureRefusal;
+
 /** The binding primitives injected into module-origin traversal to keep one resolver implementation. */
 export interface ReferenceResolutionServices {
   readonly unwrapExpression: (node: Node) => Node;

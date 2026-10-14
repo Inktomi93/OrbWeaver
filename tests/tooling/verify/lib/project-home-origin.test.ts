@@ -138,6 +138,25 @@ test("the PACKAGE-export reader keys on the canonical export, not the local spel
   expect(foreign === undefined ? "missing" : readPackageExportOrigin(foreign, ["vendor-pkg"], names)).toMatchObject({ verdict: "other" });
 });
 
+test("renamed package reexports retain the canonical export and reject the same foreign name", () => {
+  const project = projectOf({
+    "node_modules/vendor-pkg/index.d.ts": "export declare function useForm(): string;",
+    "node_modules/other-pkg/index.d.ts": "export declare function useForm(): string;",
+    "packages/client/src/vendor.ts": "export {useForm as build} from 'vendor-pkg';",
+    "packages/client/src/foreign.ts": "export {useForm as build} from 'other-pkg';",
+    "packages/client/src/use.ts":
+      "import {build as native} from './vendor.js'; import {build as foreign} from './foreign.js'; export const values=[native,foreign];",
+  });
+  const imports = project.getSourceFileOrThrow(`${ROOT}/packages/client/src/use.ts`).getDescendantsOfKind(SyntaxKind.ImportSpecifier);
+  const native = imports[0];
+  const foreign = imports[1];
+  if (native === undefined || foreign === undefined) {
+    throw new Error("the renamed package exports are missing");
+  }
+  expect(readPackageExportOrigin(native, ["vendor-pkg"], new Set(["useForm"]))).toEqual({ verdict: "home", exportedName: "useForm" });
+  expect(readPackageExportOrigin(foreign, ["vendor-pkg"], new Set(["useForm"]))).toEqual({ verdict: "other", exportedName: null });
+});
+
 test("the PACKAGE-member reader separates a vendor method from a project method of the same name", () => {
   const project = projectOf({
     "node_modules/vendor-pkg/index.d.ts":

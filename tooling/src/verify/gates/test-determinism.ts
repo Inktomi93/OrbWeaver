@@ -6,6 +6,8 @@
 import type { CallExpression, Node as MorphNode, NewExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { CallableInvocation, ReferenceFact, ReferenceOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
+import { readCallableBinding, readCallableInvocation } from "../../floor/code-facts/reference-fact-invocation.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SealedOriginVerdict } from "../contract/sealed-origin.ts";
@@ -50,25 +52,37 @@ const KIT_MINTS = new Set(["mintTypeId", "newId", "createIdSource"]);
 const VENDOR_MINTS = new Set(["typeid", "typeidUnboxed"]);
 const CRYPTO_MINTS = new Set(["randomUUID"]);
 
-function ambientToken(node: MorphNode): string | undefined {
-  const origin = resolveGlobalMemberOrigin(node);
-  if (origin.kind !== "resolved") {
+function ambientOriginToken(origin: ReferenceOrigin): string | undefined {
+  if (origin.kind !== "global") {
     return;
   }
-  const { globalName, memberPath } = origin.value;
+  const { globalName, memberPath } = origin;
   const path = [globalName, ...memberPath].join(".");
   return ["Date.now", "Math.random", "crypto.randomUUID", "performance.now", "performance.timeOrigin", "process.hrtime", "process.hrtime.bigint"].includes(path)
     ? path.replace(".bigint", "")
     : undefined;
 }
 
+function ambientToken(node: MorphNode): string | undefined {
+  const origin = resolveGlobalMemberOrigin(node);
+  return origin.kind === "resolved" ? ambientOriginToken(origin.value) : undefined;
+}
+
 function canUseAmbientGenerator(node: MorphNode): boolean {
   const type = node.getType();
+  const binding = readCallableBinding(node);
+  if (binding.kind === "unresolved" && ["write", "cycle", "ambiguous"].includes(binding.reason)) {
+    throw new Error(`test-determinism cannot prove id generator capture: ${binding.detail}`);
+  }
+  const boundAmbient =
+    binding.kind === "resolved" &&
+    (ambientOriginToken(binding.value.target) !== undefined || readPackageExportOrigin(binding.value.callee, ["typeid-js"], VENDOR_MINTS).verdict === "home");
   return (
     type.isUndefined() ||
     type.getUnionTypes().some((part) => part.isUndefined()) ||
     readPackageExportOrigin(node, ["typeid-js"], VENDOR_MINTS).verdict === "home" ||
-    ambientToken(node) !== undefined
+    ambientToken(node) !== undefined ||
+    boundAmbient
   );
 }
 
@@ -82,38 +96,46 @@ function rejectUnreadableMint(callee: MorphNode, kit: SealedOriginVerdict): void
   }
 }
 
-function mintToken(node: import("ts-morph").CallExpression): string | undefined {
-  const callee = node.getExpression();
+function mintToken(invocation: CallableInvocation): string | undefined {
+  const { target, callee } = invocation;
+  if (target.kind !== "module") {
+    return;
+  }
   const kit = readSealedOrigin(callee, { pathInfix: "/packages/kit/src/ids/", exportedNames: KIT_MINTS });
   rejectUnreadableMint(callee, kit);
-  if (kit.kind === "sealed") {
-    const wrapper = kit.origin.memberPath.at(-1);
-    if (wrapper === "bind") {
-      return;
+  const nativeKit =
+    target.canonical.kind === "project" &&
+    target.canonical.sourceFile.getFilePath().includes("/packages/kit/src/ids/") &&
+    KIT_MINTS.has(target.canonical.exportedName) &&
+    target.memberPath.length === 0;
+  if (nativeKit) {
+    if (invocation.arguments.kind === "unresolved") {
+      throw new Error(`test-determinism cannot prove id mint arguments: ${invocation.arguments.detail}`);
     }
-    if (wrapper === "call" || wrapper === "apply") {
-      throw new Error("test-determinism requires checker-proven Function wrapper identity before judging id mint arguments");
-    }
-    const generator = node.getArguments()[kit.exportedName === "mintTypeId" ? 1 : 0];
-    return generator === undefined || canUseAmbientGenerator(generator) ? kit.exportedName : undefined;
+    const name = target.canonical.exportedName;
+    const generator = invocation.arguments.value[name === "mintTypeId" ? 1 : 0];
+    return generator === undefined || canUseAmbientGenerator(generator) ? name : undefined;
   }
   const vendor = readPackageExportOrigin(callee, ["typeid-js"], VENDOR_MINTS);
   if (vendor.verdict === "home") {
     return vendor.exportedName ?? undefined;
   }
-  const crypto = readPackageExportOrigin(callee, ["node:crypto", "crypto"], CRYPTO_MINTS);
-  return crypto.verdict === "home" ? "randomUUID" : undefined;
+  return readPackageExportOrigin(callee, ["node:crypto", "crypto"], CRYPTO_MINTS).verdict === "home" ? "randomUUID" : undefined;
 }
 
 function invocationToken(node: CallExpression | NewExpression): string | undefined {
   const callee = node.getExpression();
-  if (Node.isNewExpression(node)) {
-    const origin = resolveGlobalMemberOrigin(callee);
-    return node.getArguments().length === 0 && origin.kind === "resolved" && origin.value.globalName === "Date" && origin.value.memberPath.length === 0
-      ? "new Date"
-      : undefined;
+  const invocation = readCallableInvocation(node);
+  if (invocation.kind === "unresolved" && "capture" in invocation) {
+    throw new Error(`test-determinism cannot prove native bound callable capture: ${invocation.detail}`);
   }
-  const token = ambientToken(callee) ?? mintToken(node);
+  if (Node.isNewExpression(node)) {
+    return dateClockToken(invocation);
+  }
+  const token =
+    invocation.kind === "resolved" && invocation.value.invocation !== "bind"
+      ? (dateClockToken(invocation) ?? ambientOriginToken(invocation.value.target) ?? mintToken(invocation.value) ?? fakeTimerToken(invocation.value))
+      : undefined;
   if (token !== undefined) {
     return token;
   }
@@ -127,6 +149,28 @@ function invocationToken(node: CallExpression | NewExpression): string | undefin
   return banned !== undefined && (!bindsProvenNonModuleDeclaration(callee) || BANNED.slice(-2).includes(banned))
     ? banned.re.exec(syntax)?.[0].replace(/[()]+$/u, "")
     : undefined;
+}
+
+function dateClockToken(invocation: ReferenceFact<CallableInvocation>): string | undefined {
+  if (invocation.kind !== "resolved") {
+    return;
+  }
+  const origin = invocation.value.target;
+  if (origin.kind !== "global" || origin.globalName !== "Date" || origin.memberPath.length > 0) {
+    return;
+  }
+  if (invocation.value.invocation === "call") {
+    return "Date";
+  }
+  const arguments_ = invocation.value.arguments;
+  if (arguments_.kind === "unresolved") {
+    throw new Error(`test-determinism cannot prove Date constructor arguments: ${arguments_.detail}`);
+  }
+  return arguments_.value.length === 0 ? "new Date" : undefined;
+}
+
+function fakeTimerToken(invocation: CallableInvocation): string | undefined {
+  return readPackageExportOrigin(invocation.callee, ["vitest"], new Set(["useFakeTimers"])).verdict === "home" ? "vi.useFakeTimers" : undefined;
 }
 
 function reportSourceString(node: MorphNode, ctx: GatePolicyContext, reported: Set<string>): void {
@@ -349,10 +393,10 @@ export const gate = defineGate({
       files: {
         "packages/kit/src/ids/index.ts": "export function mintTypeId(prefix: string, generate?: (prefix: string) => string): string { return ''; }",
         "tests/support/iso/wrapper.ts":
-          "import { mintTypeId } from '../../../packages/kit/src/ids/index.ts'; export const value = mintTypeId.call(null, 'chat');",
+          "import { mintTypeId } from '../../../packages/kit/src/ids/index.ts'; declare const args:[string]; export const value = mintTypeId.apply(null, args);",
       },
-      expect: { messageIncludes: "requires checker-proven Function wrapper identity" },
-      why: "shared callable facts explicitly refuse wrapper identity; unreadability withholds rather than accuses or silently passes",
+      expect: { messageIncludes: "test-determinism cannot prove id mint arguments" },
+      why: "native apply identity does not supply an unknown argument tuple; unreadability withholds rather than silently passing",
     },
   ],
   mustPass: [
@@ -381,7 +425,7 @@ export const gate = defineGate({
         "tests/support/iso/bound-seeded.ts":
           "import { mintTypeId } from '../../../packages/kit/src/ids/index.ts'; const mint = mintTypeId.bind(null); const next = (prefix: string): string => prefix; export const value = mint('chat', next);",
       },
-      why: "a later seeded bound invocation remains lawful; shared origin facts do not currently follow a bound callable alias",
+      why: "a later seeded bound invocation retains its native target and effective generator slot",
     },
     {
       mode: "types",
