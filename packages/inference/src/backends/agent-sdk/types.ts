@@ -4,7 +4,7 @@ import type { SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import type {
-  AgentSdkQuery,
+  AgentSdkExecution,
   AgentSdkSessionId,
   AgentSdkSessionTotals,
   ChatDeltaEvent,
@@ -17,6 +17,7 @@ import type {
   SpawnIdentity,
   WireCaptureSink,
 } from "#contract";
+import type { AgentSdkQueryLease } from "#src/contract/agent-sdk-execution.ts";
 import type { InferenceLog } from "#src/deps.ts";
 import type { PlannedResponseFormat } from "#structured";
 import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
@@ -42,7 +43,7 @@ export interface DisciplineOptions {
 export interface AgentSdkDeps {
   readonly now: () => number;
   readonly log: InferenceLog;
-  readonly query: AgentSdkQuery;
+  readonly execution: AgentSdkExecution;
   readonly sessionStore: SessionStore;
   readonly sessionWriter?: SessionEntryWriter | undefined;
   /** The shared outbound-image seam (MA-10): a summarize item's images ride the SDK streaming-input prompt. */
@@ -60,6 +61,8 @@ export interface AgentSdkDeps {
 // @orb-waive no-inline-package-interface(TurnStreamContext): baselined when the gate landed; burn-down item 952.
 /** `consumeTurnStream` parameter shape. */
 export interface TurnStreamContext {
+  readonly settleExecution?: AgentSdkQueryLease[typeof Symbol.asyncDispose];
+  readonly signal?: AbortSignal;
   readonly onObservedResult?: ((result: ChatResult) => Promise<void>) | undefined;
   readonly turnId?: string | undefined;
   readonly model: ModelId;

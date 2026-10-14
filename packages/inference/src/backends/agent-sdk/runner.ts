@@ -84,7 +84,6 @@ function sdkChatTitle(chatId: ChatId | undefined): string {
 }
 const CONTEXT_USAGE_PROBE_TIMEOUT_MS = 2000;
 const ANTHROPIC_PREFIX_RE = /^anthropic\//u;
-const STDERR_TAIL_CHARS = 2048;
 const DEFAULT_CHAT_TOOL_ROUNDS = 4;
 // A structured turn floors at 2: the runtime's own schema-validation retry consumes a turn.
 const STRUCTURED_MIN_TURNS = 2;
@@ -139,17 +138,6 @@ function mergeMountedOptions(...fragments: readonly Partial<MountedOptions>[]): 
     merged.hooks = acc;
   }
   return merged;
-}
-
-class StderrTail {
-  private buf = "";
-  append(chunk: string): void {
-    const next = this.buf + chunk;
-    this.buf = next.length > STDERR_TAIL_CHARS ? next.slice(next.length - STDERR_TAIL_CHARS) : next;
-  }
-  tail(): string {
-    return this.buf;
-  }
 }
 
 function messageOf(error: unknown): string {
@@ -213,32 +201,35 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   const { resume, disposition, savedTotals } = await resolveResume(req, sessions);
   logSessionDecision(req.chatId, resume, disposition, log);
 
-  const stderrTail = new StderrTail();
   using abort = turnAbortOf(req, deps.scheduleIdleTimeout);
   const chatId = req.chatId;
   const terminal = terminalToolOptions(req.terminalTools ?? [], gen.turnId, log);
   const structured = sdkOutputFormatOf(connection, req.responseFormat, `agent-sdk chat (${connection.model})`);
   captureAgentSdkWire(req, deps, { systemPrompt, dynamicHook, resume, gen, terminalMounted: terminal !== null });
-  const stream = deps.query({
-    prompt: await queryPromptOf(req, deps.normalizeImageBytes),
-    options: {
-      ...disciplineOptions(deps.childEnv(connection, gen.envOverrides)),
-      ...observabilityOptions(deps.debug, log),
-      ...gen.options,
-      ...mergeMountedOptions(dynamicHook, chatToolOptions(req, gen.turnId, log), terminal ?? {}),
-      ...structured.options,
-      includePartialMessages: req.onDelta !== undefined,
-      model: connection.model,
-      maxTurns: chatMaxTurns(req),
-      // A chatless turn is never resumed, so its transcript stays out of the session store.
-      ...(chatId !== undefined ? { sessionStore: sessions.store } : {}),
-      stderr: (data: string): void => stderrTail.append(data),
-      ...(resume !== undefined ? { resume } : {}),
-      ...(systemPrompt !== undefined ? { systemPrompt } : {}),
-      ...abort.options,
-      title: sdkChatTitle(chatId),
+  await using lease = deps.execution.open(
+    connection,
+    {
+      prompt: await queryPromptOf(req, deps.normalizeImageBytes),
+      options: {
+        ...disciplineOptions(deps.childEnv(connection, gen.envOverrides)),
+        ...observabilityOptions(deps.debug, log),
+        ...gen.options,
+        ...mergeMountedOptions(dynamicHook, chatToolOptions(req, gen.turnId, log), terminal ?? {}),
+        ...structured.options,
+        includePartialMessages: req.onDelta !== undefined,
+        model: connection.model,
+        maxTurns: chatMaxTurns(req),
+        // A chatless turn is never resumed, so its transcript stays out of the session store.
+        ...(chatId !== undefined ? { sessionStore: sessions.store } : {}),
+        ...(resume !== undefined ? { resume } : {}),
+        ...(systemPrompt !== undefined ? { systemPrompt } : {}),
+        title: sdkChatTitle(chatId),
+      },
     },
-  });
+    abort.signal,
+    true,
+  );
+  const stream = lease.query;
 
   const result = await consumeTurnStream(
     abort.bound(stream),
@@ -255,7 +246,9 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       captureTerminalTools: terminal !== null,
       // What the runtime was TOLD (B1): thinking off is `none`; a set effort is the word; nothing set is unrecorded.
       appliedEffort: gen.options.thinking?.type === "disabled" ? "none" : (gen.options.effort ?? null),
-      stderrTail: () => stderrTail.tail(),
+      stderrTail: lease.stderrTail,
+      settleExecution: () => lease[Symbol.asyncDispose](),
+      signal: lease.signal,
       probeContextUsage: () => probeContextUsage(stream, deps.scheduleTimeout),
       ...(chatId !== undefined ? { chatId } : {}),
       ...(req.onEvent !== undefined ? { onEvent: req.onEvent } : {}),
@@ -277,14 +270,14 @@ function turnAbortOf(
   req: AgentSdkChatRequest,
   scheduleIdleTimeout: AgentSdkDeps["scheduleIdleTimeout"],
 ): {
-  readonly options: Pick<Options, "abortController">;
+  readonly signal: AbortSignal | undefined;
   readonly bound: (stream: AsyncIterable<SDKMessage>) => AsyncIterable<SDKMessage>;
   readonly [Symbol.dispose]: () => void;
 } {
   const idle = req.posture === "side-gen" ? turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs, scheduleIdleTimeout) : undefined;
   const signal = idle?.signal ?? req.signal;
   return {
-    options: signal !== undefined ? { abortController: linkAbort(signal) } : {},
+    signal,
     bound: (stream) => (idle !== undefined ? idleBounded(stream, idle, req.connection.model) : stream),
     [Symbol.dispose]: (): void => idle?.dispose(),
   };
@@ -478,10 +471,14 @@ export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: 
     await captured;
   }
   if (streamFailure !== undefined) {
-    return acc.finishWithError(streamFailure);
+    return finishTurnWithError(acc, streamFailure);
+  }
+  if (!acc.sawTerminalFrame && ctx.signal?.aborted === true) {
+    return finishTurnWithError(acc, new ProviderError({ kind: "aborted", retryable: false, message: "agent-sdk: the turn was cancelled", model: ctx.model }));
   }
   if (!acc.sawTerminalFrame) {
-    return acc.finishWithError(
+    return finishTurnWithError(
+      acc,
       new ProviderError({
         kind: "server",
         retryable: true,
@@ -494,7 +491,8 @@ export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: 
   }
   // A structured turn's payload is the `structured_output` frame; the prose beside it is never read as the payload.
   if (ctx.structured !== undefined && acc.structuredOutput === undefined) {
-    return acc.finishWithError(
+    return finishTurnWithError(
+      acc,
       new ProviderError({
         kind: "invalid",
         retryable: false,
@@ -504,6 +502,11 @@ export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: 
     );
   }
   return acc.finish(await runContextUsageProbe(ctx.probeContextUsage));
+}
+
+async function finishTurnWithError(acc: TurnAccumulator, error: unknown): Promise<never> {
+  await acc.ctx.settleExecution?.();
+  return acc.finishWithError(error);
 }
 
 async function runContextUsageProbe(probe: (() => Promise<ContextUsage | undefined>) | undefined): Promise<ContextUsage | undefined> {
@@ -758,10 +761,10 @@ class TurnAccumulator {
     return new ProviderError({
       kind,
       retryable: kind === "server",
-      message: messageOf(error),
+      message: sanitizeApiError(redactSecretsFromText(messageOf(error), this.ctx.secrets)),
       model: this.ctx.model,
       ...(sessionId !== undefined ? { sessionId } : {}),
-      cause: error,
+      cause: new Error(sanitizeApiError(redactSecretsFromText(messageOf(error), this.ctx.secrets))),
     });
   }
 }

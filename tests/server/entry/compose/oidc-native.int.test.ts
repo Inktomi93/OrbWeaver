@@ -6,6 +6,7 @@ import { chatInvites, chatParticipants, closeDb, oidcPendingSignups, oidcTransac
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { ownerHandles } from "@orb/server/domain/sessions";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
+import { createConfiguredOidc } from "@orb/server/entry/compose";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { createControlledTimers } from "@orb/testkit/iso/timers.ts";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
@@ -14,6 +15,7 @@ import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarnes
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, sql } from "drizzle-orm";
 import type { JWTPayload } from "jose";
+import { customFetch } from "openid-client";
 import { vi } from "vitest";
 import { CALLBACK, CLIENT_ID, CLIENT_SECRET, createNativeIssuer, ISSUER } from "./oidc-issuer.fixtures.ts";
 
@@ -470,4 +472,77 @@ test("failed OIDC GC construction joins its held actual database sweep and retai
   }
   expect(timers.pending()).toBe(0);
   expect(await held.db.all(sql`select 1 as retained`)).toEqual([{ retained: 1 }]);
+});
+
+test("configured native issuer execution preserves offset shared-byte views and streaming cancellation", async () => {
+  const issuer = await createNativeIssuer();
+  const entered = Promise.withResolvers<void>();
+  const bodies: number[][] = [];
+  const execute: typeof fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const path = new URL(request.url).pathname;
+    if (path !== "/byte-body-probe" && path !== "/stream-body-probe") {
+      return await issuer.fetch(request);
+    }
+    expect(request.method).toBe("POST");
+    expect(request.headers.get("content-type")).toBe("application/octet-stream");
+    bodies.push([...new Uint8Array(await request.arrayBuffer())]);
+    if (path === "/stream-body-probe") {
+      entered.resolve();
+      await new Promise<void>((_resolve, reject) => {
+        if (request.signal.aborted) {
+          reject(request.signal.reason);
+        } else {
+          request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+        }
+      });
+    }
+    return new Response("accepted actual issuer bytes");
+  };
+  await using root = await createServerHarness({
+    networkExecution: {
+      resolver: (hostname) =>
+        hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted issuer host")),
+      fetch: execute,
+    },
+  });
+  await using oidc = await createConfiguredOidc({
+    db: root.db,
+    now: root.clock.now,
+    built: root.app,
+    settings: SETTINGS,
+    scheduleInterval: root.timers.interval,
+  });
+  const issuerFetch = (await oidc.getConfig())[customFetch];
+  if (issuerFetch === undefined) {
+    throw new Error("the configured native client omitted its actual issuer execution hook");
+  }
+  const bytes = new Uint8Array(new SharedArrayBuffer(12));
+  bytes.set([99, 98, 97, 96, 1, 2, 3, 4, 5, 6, 95, 94]);
+  const headers = { "content-type": "application/octet-stream" };
+  const response = await issuerFetch(new URL("/byte-body-probe", ISSUER).href, { method: "POST", headers, body: bytes.subarray(4, 10), redirect: "manual" });
+  expect(await response.text()).toBe("accepted actual issuer bytes");
+  expect(bodies).toEqual([[1, 2, 3, 4, 5, 6]]);
+  const controller = new AbortController();
+  const stream = new ReadableStream<Uint8Array>({
+    start: (target) => {
+      target.enqueue(new Uint8Array([7, 8, 9]));
+      target.close();
+    },
+  });
+  const pending = issuerFetch(new URL("/stream-body-probe", ISSUER).href, {
+    method: "POST",
+    headers,
+    body: stream,
+    duplex: "half",
+    redirect: "manual",
+    signal: controller.signal,
+  });
+  await entered.promise;
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  expect(bodies).toEqual([
+    [1, 2, 3, 4, 5, 6],
+    [7, 8, 9],
+  ]);
 });

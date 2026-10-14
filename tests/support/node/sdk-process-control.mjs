@@ -1,6 +1,6 @@
 import process from "node:process";
 
-/** Answer only the two native control requests used by controlled physical subprocess scripts. */
+/** Answer only the native control requests used by controlled physical subprocess scripts. */
 export function writeSdkControlReply(message) {
   if (message.type !== "control_request") {
     return false;
@@ -9,6 +9,9 @@ export function writeSdkControlReply(message) {
   switch (message.request.subtype) {
     case "initialize":
       response = { commands: [], agents: [], ["output_style"]: "default", ["available_output_styles"]: [], models: [], account: {}, ["hooks_applied"]: true };
+      break;
+    case "interrupt":
+      response = {};
       break;
     case "get_context_usage":
       response = {

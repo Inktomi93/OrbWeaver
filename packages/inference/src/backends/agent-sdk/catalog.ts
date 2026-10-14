@@ -13,7 +13,6 @@ import { ProviderError } from "#contract";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import type { AgentSdkLog } from "./log.ts";
-import { linkAbort } from "./runner.ts";
 import { disciplineOptions, observabilityOptions } from "./translate.ts";
 import type { AgentSdkDeps } from "./types.ts";
 import { assertInitFrameShape } from "./verify.ts";
@@ -80,7 +79,8 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
   // through `buildClaudeSdkEnv`'s token env (`index.ts::childEnv`) — there is no HTTP request here to carry a
   // user-authored auth header or a key-in-body field, which is why `SpawnIdentity` narrows to owner+credential.
   const secrets = resolvedScrubSet({ credential: connection.credential, transport: null });
-  const stream: Query = deps.query({ prompt: heldOpenPrompt(), options: disciplineOptions(deps.childEnv(connection)) });
+  await using lease = deps.execution.open(connection, { prompt: heldOpenPrompt(), options: disciplineOptions(deps.childEnv(connection)) });
+  const stream = lease.query;
   try {
     const models = await withTimeout(stream.supportedModels(), deps, DISCOVERY_TIMEOUT_MS, "model discovery").catch((err: unknown) => {
       throw discoveryError(err, secrets);
@@ -155,17 +155,20 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
 /** The subscription auth verify: `maxTurns: 1`, no resume, no tools (the firewall base). */
 export async function verifyAuth(req: VerifyAuthRequest, deps: AgentSdkDeps, log: AgentSdkLog): Promise<VerifyAuthResult> {
   const { connection } = req;
-  const abortController = linkAbort(req.signal);
-  const stream = deps.query({
-    prompt: VERIFY_PROMPT,
-    options: {
-      ...disciplineOptions(deps.childEnv(connection)),
-      ...observabilityOptions(deps.debug, log),
-      model: connection.model,
-      maxTurns: 1,
-      ...(req.signal !== undefined ? { abortController } : {}),
+  await using lease = deps.execution.open(
+    connection,
+    {
+      prompt: VERIFY_PROMPT,
+      options: {
+        ...disciplineOptions(deps.childEnv(connection)),
+        ...observabilityOptions(deps.debug, log),
+        model: connection.model,
+        maxTurns: 1,
+      },
     },
-  });
+    req.signal,
+  );
+  const stream = lease.query;
   const { apiKeySource, reply, ok, costUsd } = await reduceVerifyStream(stream);
   const account = await probeAccountInfo(stream, deps);
   return { source: "max-pro-sub", ok, apiKeySource, model: connection.model, reply: reply.trim(), costUsd, ...(account !== undefined ? { account } : {}) };

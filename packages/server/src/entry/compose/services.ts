@@ -436,6 +436,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   let rpgLifetime: RpgComposeResult | undefined;
   let pluginLifetime: AutomationPluginComposeResult | undefined;
   let localLightLifetime: InferenceRuntime["localLight"] | undefined;
+  let agentSdkLifetime: InferenceRuntime["agentSdk"] | undefined;
   let egressLifetime: ScopedEgress | undefined;
   let jobsLifetime: ServiceJobs | undefined;
   let stopAutomationWatcher: (() => void) | undefined;
@@ -446,6 +447,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       rpgLifetime?.[Symbol.asyncDispose](),
       pluginLifetime?.[Symbol.asyncDispose](),
       localLightLifetime?.close(),
+      agentSdkLifetime?.settle(),
     ]);
     const failures: Error[] = [];
     for (const result of results) {
@@ -460,6 +462,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   construction.defer(() => {
     using cancellation = new DisposableStack();
     cancellation.defer(() => egressLifetime?.cancel());
+    cancellation.defer(() => agentSdkLifetime?.cancel());
     cancellation.defer(() => background.cancel());
     cancellation.defer(() => jobsLifetime?.cancel());
     cancellation.defer(() => liveBuses.chatOpen.setChatOpenTap(null));
@@ -660,6 +663,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
   localLightLifetime = runtime.localLight;
+  agentSdkLifetime = runtime.agentSdk;
   resources.defer(() => runtime.localLight.settle());
   runtimeBinding.bind(runtime);
   const executor = runtime.executor;

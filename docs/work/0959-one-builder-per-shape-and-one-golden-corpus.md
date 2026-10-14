@@ -25,7 +25,7 @@ A builder exists per contract output and table; the corpus is committed and load
 
 The shared production recall preparation passes bounded positive and strike controls. Actual completed workloads produce nonempty digests, segments and query traces, validated through the public `assemblyPreviewSchema` projection. This does not qualify every recall filter or corpus publication. Speaker rows still require a genuine producing turn; invented rows or zero traces cannot close that population.
 
-Inventory tables, live output doors and reusable output components, including server-owned wire projections. Keep their producers Node-owned. Separate inputs, injected operations, primitives and private helper shapes. Derive IDs and content hashes from production; preserve FK relations. The harness owns execution seams, the client door owns mounting, and this item owns builders and corpus.
+Inventory tables and output doors, including server-owned projections. Keep producers Node-owned. Separate inputs, injected operations and private helpers. Derive IDs and hashes from production; preserve FK relations. The harness owns execution seams; this item owns builders and corpus.
 
 Capture HTTP auth outputs through the real application and its resolved request identity. A tRPC caller does not produce anonymous auth configuration. The server root owns HTTP construction; corpus code must not build another app or copy its projection.
 
@@ -41,4 +41,4 @@ Bounded producer cases pass for real seed turns, cookie authentication, ingestio
 
 Reviewed source `dd7d73f2e9` and correction `c7b4a2026e` use the canonical harness. Current seed, wire, recall, imagery-cohort/import and greeting cases pass. Retained builder callers preserve their assertions. Funding and SDK cases remain deferred with their raw-script dependency, preserved in `6e595679a7`; other donor results remain unqualified.
 
-Portable publication uses owner-validated outputs and finite corpus request recipes. Producer capture and hydration share those recipes; mismatched inputs and private envelope fields refuse. A prepared clone is selected before server boot; setup retains its target guard and skips independent seeding only for that selection. Successful capsule generation and adoption remain unqualified.
+Portable publication uses validated outputs and finite request recipes; mismatched inputs and private fields refuse. Clone selection precedes boot and preserves its target guard. Uncommitted native OIDC and capsule controls produce real auth, content and recall. Earlier capsule success does not qualify strengthened quiescence: native statement retention blocks it. The native database disposal assignment owns that defect. Complete publication and adoption remain unqualified.

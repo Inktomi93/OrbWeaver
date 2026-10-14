@@ -16,5 +16,6 @@ export function createSdkProcessSpawner(scriptModule: URL): SdkScriptSpawn {
       env: options.env,
       signal: options.signal,
       stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
     });
 }
