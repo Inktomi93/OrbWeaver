@@ -36,15 +36,9 @@
 // process-local emitter filtered to this one `workloadId` — the filter is the room's scope on the wire, since
 // the emitter carries EVERY owner's events on one channel.
 
-import { on } from "node:events";
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import type { WorkloadEvent } from "@orb/contracts/workloads";
-import { getRecentWorkloadEvents, workloadStreamEmitter } from "#domain/workloads";
-import type { RoomSourceDef } from "../room-source.ts";
 
-/** The (unexported) bus channel `emitWorkloadEvent` publishes on — mirrored here so the live tail listens on
- *  the same channel. The progress bus is single-process (single-replica) by design. */
-const WORKLOAD_EVENT_CHANNEL = "workload";
+import type { RoomSourceDef } from "../room-source.ts";
 
 export const workloadsRoomSource: RoomSourceDef<"workloads"> = {
   // LIVE-ONLY: the durable `progress` column is a snapshot, not a replayable log (see the header).
@@ -56,20 +50,15 @@ export const workloadsRoomSource: RoomSourceDef<"workloads"> = {
     await services.workloads.get({ id: ref.workloadId, caller: principal });
   },
 
-  async *run({ ref, signal }): AsyncGenerator<StreamDataFrame> {
+  async *run({ ref, liveBuses, signal }): AsyncGenerator<StreamDataFrame> {
     // The 60s ring: what was emitted between `start()` returning and this attach. Replayed at EVERY pump
     // start (a reconnect, a re-attach), which is what it did pre-fold on every re-subscribe — overlap is
     // idempotent client-side (a progress snapshot is absolute, a terminal is terminal).
-    for (const event of getRecentWorkloadEvents(ref.workloadId)) {
+    for (const event of liveBuses.workloads.getRecentWorkloadEvents(ref.workloadId)) {
       yield { channel: "workloads", workloadId: ref.workloadId, event };
     }
 
-    for await (const args of on(workloadStreamEmitter, WORKLOAD_EVENT_CHANNEL, { signal })) {
-      const event = args[0] as WorkloadEvent;
-      // ONE emitter carries every owner's runs — this filter IS the room's scope on the wire.
-      if (event.workloadId !== ref.workloadId) {
-        continue;
-      }
+    for await (const event of liveBuses.workloads.subscribeWorkloadEvents(ref.workloadId, signal)) {
       yield { channel: "workloads", workloadId: ref.workloadId, event };
     }
   },

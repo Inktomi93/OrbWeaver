@@ -19,7 +19,6 @@ import { can } from "#server/domain/admin/index.ts";
 import { createResolveViewerVisibility } from "#server/domain/chat/verbs/resolve-viewer-visibility.ts";
 import type { PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
 import { buildPluginBridge } from "#server/domain/plugin/substrate/bridge.ts";
-import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
 import { seedChat, seedParticipant, seedUser } from "../../chat/_support.ts";
 import { makeInertOps, makePluginHarness, principalFor } from "../_support.ts";
 
@@ -33,8 +32,12 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
+let hostResources = new AsyncDisposableStack();
+
 afterEach(async () => {
-  await __terminateManagedPluginBrokerForTest();
+  const owned = hostResources;
+  hostResources = new AsyncDisposableStack();
+  await owned.disposeAsync();
 });
 
 interface RoomOps {
@@ -90,7 +93,7 @@ async function activateWriter(bridge: PluginBridge): Promise<{
   readonly instance: PluginInstance;
   readonly handler: PluginHandlerRef;
 }> {
-  const host = createPluginHost({ nowEpochMs: () => 1_700_000_000_000, nextRandom: () => 0.5, mintId: () => "bridge-revocation-id" });
+  const host = hostResources.use(createPluginHost({ nowEpochMs: () => 1_700_000_000_000, nextRandom: () => 0.5, mintId: () => "bridge-revocation-id" }));
   const outcome = await host.createInstance({
     mainJs: `
       const h = orb.host(1);
@@ -224,7 +227,7 @@ async function exerciseContinuation(effect: (typeof CHAT_EFFECTS)[number], chang
   };
   const harness = makePluginHarness(db);
   const bridge = buildPluginBridge(ops, installer, { id: PLUGIN_ID, name: "Continuation", slug: "continuation" }, harness.ctx.belts);
-  const host = createPluginHost({ nowEpochMs: () => 1_700_000_000_000, nextRandom: () => 0.5, mintId: () => "effect-id" });
+  const host = hostResources.use(createPluginHost({ nowEpochMs: () => 1_700_000_000_000, nextRandom: () => 0.5, mintId: () => "effect-id" }));
   const outcome = await host.createInstance({
     mainJs: `const h = orb.host(1); h.tools.register({ name: "later", description: "test", parameters: { type: "object", properties: {} }, handler: async () => {
           const room = h.chat.current();

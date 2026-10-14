@@ -16,57 +16,53 @@
 // Authz lives outside this module: the channel is keyed by chatId only; the subscription generator gates
 // every yield through the member-scoped chatEventBounds.
 
-import type { ChatBusEvent, ChatLivePublish } from "@orb/contracts/chat";
+import type { ChatLivePublish } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { defineBusChannel } from "./bus-channel.ts";
 
+import type { ChatEventsBus, ChatLiveEvent } from "./contract/live-buses.ts";
+
 const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
 
-// @orb-waive no-inline-package-interface(ChatLiveEvent): baselined when the gate landed; burn-down item 952.
-/** One live-bus entry — the durable per-chat cursor + the room-public event.
- *
- *  TWO ARMS, and the pairing is PHYSICS rather than convention (the entity→room bridge's live-only
- *  lane):
- *    • `seq: number` — the durable arm. The entry was appended to `chat_events` first and this IS its replay
- *      cursor, so the pump dedups on it and the socket cell advances the room's resume cursor from it.
- *    • `seq: null`   — the LIVE-ONLY arm. No `chat_events` row exists, so there is no cursor to carry and
- *      nothing to replay. The pump skips the dedup and yields it at the CURRENT cursor (the attach-synthetic
- *      non-advancement rule), so an undelivered durable row can never be skipped past.
- *  The null-seq arm is narrowed to the live-only members, so "fan a durable event without logging it" is a
- *  compile error here. The converse — appending a live-only member — is closed UPSTREAM of every writer,
- *  at the two `DurableChatBusEvent`-narrowed emit surfaces (`domain/chat/bus::emit`,
- *  `entry/compose/services::emitChatEvent`), which is why the numbered arm keeps the wide type. */
-export interface ChatLiveEvent {
-  readonly seq: number | null;
-  readonly event: ChatBusEvent;
+export type { ChatLiveEvent } from "./contract/live-buses.ts";
+
+/** Create one graph-owned live channel; admission and durable writes remain at their existing callers. */
+export function createChatEventsBus(): ChatEventsBus {
+  // biome-ignore lint/nursery/useDisposables: the returned bus delegates disposal to this channel; local using would close it before graph subscribers start.
+  const bus = defineBusChannel<ChatId, ChatLiveEvent>(channelFor, { firehose: true });
+
+  /** Publish one entry to the room's live channel (+ the all-chats firehose) — either a durably-logged event
+   *  (numbered `seq`) or a live-only one (`seq: null`; see {@link ChatLiveEvent}). */
+  function publish(entry: ChatLivePublish): void {
+    bus.publish(entry.event.chatId, entry);
+  }
+
+  /** Subscribe to the all-chats firehose (the buddy observer's chat source); returns the unsubscribe.
+   *  Callback-style — the observer is a long-lived process supervisor, not a per-request SSE generator. */
+  function subscribeAll(listener: (entry: ChatLiveEvent) => void): () => void {
+    return bus.subscribeAll((entry) => {
+      try {
+        listener(entry);
+      } catch (err) {
+        // The event is already durable. A callback-style observer cannot roll back that truth or make its
+        // producer report failure; isolate and report the observer fault at the subscription boundary.
+        getLog().error({ err, chatId: entry.event.chatId, type: entry.event.type }, "chat live firehose listener failed after durable publish");
+      }
+    });
+  }
+
+  /** The room's live event stream, scoped to one `chatId` and torn down on `signal` abort. `on()` begins
+   *  buffering the instant it is called, so a caller invoking this before the durable replay loses no event
+   *  in the gap (the subscription dedupes the overlap by the monotonic seq). */
+  function subscribe(chatId: ChatId, signal: AbortSignal): AsyncIterable<ChatLiveEvent> {
+    return bus.subscribe(chatId, signal);
+  }
+  return { publishChatEvent: publish, subscribeAllChatEvents: subscribeAll, subscribeChatEvents: subscribe, [Symbol.dispose]: () => bus[Symbol.dispose]() };
 }
 
-const bus = defineBusChannel<ChatId, ChatLiveEvent>(channelFor, { firehose: true });
-
-/** Publish one entry to the room's live channel (+ the all-chats firehose) — either a durably-logged event
- *  (numbered `seq`) or a live-only one (`seq: null`; see {@link ChatLiveEvent}). */
-export function publishChatEvent(entry: ChatLivePublish): void {
-  bus.publish(entry.event.chatId, entry);
-}
-
-/** Subscribe to the all-chats firehose (the buddy observer's chat source); returns the unsubscribe.
- *  Callback-style — the observer is a long-lived process supervisor, not a per-request SSE generator. */
-export function subscribeAllChatEvents(listener: (entry: ChatLiveEvent) => void): () => void {
-  return bus.subscribeAll((entry) => {
-    try {
-      listener(entry);
-    } catch (err) {
-      // The event is already durable. A callback-style observer cannot roll back that truth or make its
-      // producer report failure; isolate and report the observer fault at the subscription boundary.
-      getLog().error({ err, chatId: entry.event.chatId, type: entry.event.type }, "chat live firehose listener failed after durable publish");
-    }
-  });
-}
-
-/** The room's live event stream, scoped to one `chatId` and torn down on `signal` abort. `on()` begins
- *  buffering the instant it is called, so a caller invoking this before the durable replay loses no event
- *  in the gap (the subscription dedupes the overlap by the monotonic seq). */
-export function subscribeChatEvents(chatId: ChatId, signal: AbortSignal): AsyncIterable<ChatLiveEvent> {
-  return bus.subscribe(chatId, signal);
-}
+const processBus = createChatEventsBus();
+export const publishChatEvent: ChatEventsBus["publishChatEvent"] = processBus.publishChatEvent;
+// eslint-disable-next-line orb/firehose-import-allowlist -- Canonical compatibility declaration projects its own producer; this is not a firehose consumer.
+export const subscribeAllChatEvents: ChatEventsBus["subscribeAllChatEvents"] = processBus.subscribeAllChatEvents;
+export const subscribeChatEvents: ChatEventsBus["subscribeChatEvents"] = processBus.subscribeChatEvents;

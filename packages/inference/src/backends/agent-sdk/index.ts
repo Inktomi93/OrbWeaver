@@ -54,6 +54,7 @@ export interface AgentSdkBackendDeps {
   readonly debug?: boolean | undefined;
   /** The bounded-probe/watchdog timer seam; absent ⇒ the real unref'd `setTimeout`. */
   readonly scheduleTimeout?: AgentSdkDeps["scheduleTimeout"];
+  readonly scheduleIdleTimeout?: AgentSdkDeps["scheduleIdleTimeout"];
 }
 
 const realScheduleTimeout: AgentSdkDeps["scheduleTimeout"] = (fn, ms) => {
@@ -63,10 +64,6 @@ const realScheduleTimeout: AgentSdkDeps["scheduleTimeout"] = (fn, ms) => {
     clearTimeout(handle);
   };
 };
-
-function isQuery(value: unknown): value is typeof query {
-  return typeof value === "function";
-}
 
 function isSessionStore(value: unknown): value is AgentSdkDeps["sessionStore"] {
   return value !== null && typeof value === "object" && "append" in value && "load" in value;
@@ -96,14 +93,24 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
       configDir: deps.userRuntimeDir(connection.ownerId, CLAUDE_TOOL),
       ...(overrides !== undefined ? { overrides } : {}),
     });
+  const executeQuery = deps.agentSdk.query ?? query;
+  const spawnClaudeCodeProcess = deps.agentSdk.spawnClaudeCodeProcess;
   const resolved: AgentSdkDeps = {
     now: deps.now,
     log: deps.log,
-    query: isQuery(deps.agentSdk.query) ? deps.agentSdk.query : query,
+    query:
+      spawnClaudeCodeProcess === undefined
+        ? executeQuery
+        : (input) =>
+            executeQuery({
+              ...input,
+              options: { ...input.options, spawnClaudeCodeProcess },
+            }),
     sessionStore: sessions.store,
     ...(deps.agentSdk.sessionWriter !== undefined ? { sessionWriter: deps.agentSdk.sessionWriter } : {}),
     normalizeImageBytes,
-    scheduleTimeout: deps.scheduleTimeout ?? realScheduleTimeout,
+    scheduleTimeout: deps.scheduleTimeout ?? deps.agentSdk.scheduleTimeout ?? realScheduleTimeout,
+    ...(deps.scheduleIdleTimeout === undefined ? {} : { scheduleIdleTimeout: deps.scheduleIdleTimeout }),
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     debug: deps.debug ?? false,
     childEnv,

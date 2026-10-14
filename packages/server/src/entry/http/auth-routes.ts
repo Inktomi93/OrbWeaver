@@ -66,6 +66,7 @@ import {
 import { addressThrottleKey, clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "#src/transport/rate-limit.ts";
 import { createRateLimiter } from "#src/transport/rate-limit.ts";
+import type { LiveBuses } from "#transport/trpc";
 import { publishUserEvent } from "#transport/trpc";
 import { readSessionCookie } from "../auth/index.ts";
 
@@ -559,6 +560,7 @@ interface OidcSignupDeps {
 
 // @orb-waive no-inline-package-interface(AuthRoutesDeps): baselined when the gate landed; burn-down item 952.
 export interface AuthRoutesDeps {
+  readonly emitUserEvent?: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: AuthSessionsPort;
   /** W7a — the live-socket eviction edge, applied wherever this file ends a session. */
   readonly sockets: SessionSocketEviction;
@@ -1155,7 +1157,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
   // inlined so the callback stays under the cognitive-complexity gate (it was at 15 of 15).
   const fanIdentityChange = (provisioned: Extract<ProvisionOutcome, { outcome: "provisioned" }>): void => {
     if (provisioned.identityChanged) {
-      publishUserEvent(provisioned.userId, { type: "identityChanged" });
+      (deps.emitUserEvent ?? publishUserEvent)(provisioned.userId, { type: "identityChanged" });
     }
   };
 

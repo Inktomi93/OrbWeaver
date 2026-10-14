@@ -32,6 +32,7 @@ import type { StatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoService } from "#domain/world-info";
+import type { LiveBuses } from "./contract/live-buses.ts";
 import type { PresenceRegistry } from "./presence-registry.ts";
 import type { SocketRegistry } from "./stream/socket-registry.ts";
 
@@ -92,6 +93,7 @@ export interface RateLimitGate {
 
 // @orb-waive no-inline-package-interface(Context): baselined when the gate landed; burn-down item 952.
 export interface Context {
+  readonly liveBuses: LiveBuses;
   readonly auth: Principal | null;
   /**
    * WHICH cookie session authenticated this request — `null` for every other admission arm (the owner
@@ -119,6 +121,7 @@ export interface Context {
 /** Pure packaging — the typed seam entry/app.ts calls per request after the auth seam has resolved the
  *  Principal. No db, no header parsing, no identity resolution. */
 export function createContext(parts: {
+  readonly liveBuses: LiveBuses;
   readonly auth: Principal | null;
   readonly sessionId: SessionId | null;
   readonly services: Services;
@@ -130,6 +133,7 @@ export function createContext(parts: {
   readonly clientIp: string | null;
 }): Context {
   return {
+    liveBuses: parts.liveBuses,
     auth: parts.auth,
     sessionId: parts.sessionId,
     services: parts.services,

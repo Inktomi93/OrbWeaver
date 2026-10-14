@@ -31,7 +31,7 @@ Each listed check is green on main or has a recorded cause and owner.
 
 ## Evidence
 
-The application check at `4d7b00a6d4` exited 2: `reports/runs/verify/main-4157590-2026-10-12T20-18-49-624Z/verify.json`. Static stages failed. Structure tool errors and withheld policies prevent a whole-tree verdict.
+The application check at `4d7b00a6d4` exited 2: `reports/runs/verify/main-4157590-2026-10-12T20-18-49-624Z/verify.json`. Tool errors and withheld policies prevent qualification.
 
 Remaining findings: legacy disposal and typed-lint errors; maintained classes above; client formatting/import order; caught-failure census differences; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Default application Knip reports unused exports/types and configuration hints, not production-baseline reconciliation. Adjudicate intended consumers before deleting supported doors.
 
@@ -45,4 +45,6 @@ Compose integration preserves census equality. Reindex/auth classifications rema
 
 The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
 
-Compose import-policy defects are corrected in `292d99464e` with native graph evidence. No whole-application import verdict is claimed.
+Compose import controls pass at `292d99464e`; whole-application imports remain unqualified.
+
+The suppression work item owns form-data and settled-tracing lint conflicts.

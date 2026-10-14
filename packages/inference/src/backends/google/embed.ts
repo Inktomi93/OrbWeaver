@@ -77,6 +77,7 @@ function keptInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput | null)[
 }
 
 interface BatchContext {
+  readonly scheduleTimeout: GoogleBackendDeps["scheduleTimeout"];
   readonly vectors: (Float32Array<ArrayBuffer> | null)[];
   readonly dimension: number;
   readonly capability: EmbeddingCapability;
@@ -128,7 +129,7 @@ async function runBatches(model: EmbeddingModelV4, req: EmbedRequest, kept: read
   let promptTokens: number | null = 0;
   for (let start = 0; start < kept.length; start += limit) {
     const batch = kept.slice(start, start + limit);
-    const idle = turnAbortSignal(req.signal, embedRequestTimeoutMs(req.connection.features));
+    const idle = turnAbortSignal(req.signal, embedRequestTimeoutMs(req.connection.features), context.scheduleTimeout);
     const content = batch.some((input) => input.parts !== undefined) ? { content: batch.map((input) => input.parts ?? null) } : {};
     try {
       const result = await model.doEmbed({
@@ -161,7 +162,7 @@ async function embedInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput |
   }
   try {
     const model = googleProviderFor({ connection, deps, label, api: "embed" }).embedding(googleModelId(connection.model));
-    const usage = await runBatches(model, req, kept, { vectors, dimension, capability, label });
+    const usage = await runBatches(model, req, kept, { vectors, dimension, capability, label, scheduleTimeout: deps.scheduleTimeout });
     return { vectors, model: connection.model, usage };
   } catch (err) {
     throw err instanceof ProviderError ? err : providerErrorFromHttp(err, label, resolvedScrubSet(connection));

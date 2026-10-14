@@ -2,6 +2,7 @@
 // Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
+import type { AuthMode } from "@orb/contracts/identity";
 import type { AppSettings, EffectiveAppConfig, RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
 import { DEFAULT_DISCREET_LOGIN, DEFAULT_LOCAL_MULTI_USER, DEFAULT_MAX_IMAGE_BYTES, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
 import { DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
@@ -51,11 +52,11 @@ function resolveBornInDbScalars(o: AppSettings): {
 /** The F12 allowlist's env floor: the operator's `PRIVATE_ENDPOINT_ALLOWLIST` when set; else BORN loopback
  *  under `AUTH_MODE=single-user` (one human, one box — the threat the allowlist exists for does not exist)
  *  and EMPTY on every multi-user mode (hosted providers only until an admin admits a host). */
-function privateEndpointAllowlistFloor(): string[] {
+function privateEndpointAllowlistFloor(authMode: AuthMode): string[] {
   if (env.PRIVATE_ENDPOINT_ALLOWLIST !== undefined) {
     return splitCsv(env.PRIVATE_ENDPOINT_ALLOWLIST);
   }
-  return env.AUTH_MODE === "single-user" ? [...SINGLE_USER_LOOPBACK_ALLOWLIST] : [];
+  return authMode === "single-user" ? [...SINGLE_USER_LOOPBACK_ALLOWLIST] : [];
 }
 
 const SINGLE_USER_LOOPBACK_ALLOWLIST = ["127.0.0.1", "::1"] as const;
@@ -81,7 +82,7 @@ function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits
  * is `override ?? floor`: `undefined` (absent) AND a stored `null` (the CLEAR sentinel) both fall through
  * to the floor — so an admin PATCH `{ field: null }` wipes the override and the floor reads back.
  */
-export function layer(overrides: AppSettings): EffectiveAppConfig {
+export function layer(overrides: AppSettings, authMode: AuthMode = env.AUTH_MODE): EffectiveAppConfig {
   return {
     corpusAutoindex: overrides.corpusAutoindex ?? env.CORPUS_AUTOINDEX,
     importSkipCharacters: overrides.importSkipCharacters ?? splitCsv(env.IMPORT_SKIP_CHARACTERS),
@@ -91,7 +92,7 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     allowInteractiveCards: overrides.allowInteractiveCards ?? ALLOW_INTERACTIVE_CARDS_FLOOR,
     memoryDefaults: overrides.memoryDefaults ?? {},
     rateLimits: resolveRateLimits(overrides.rateLimits),
-    privateEndpointAllowlist: overrides.privateEndpointAllowlist ?? privateEndpointAllowlistFloor(),
+    privateEndpointAllowlist: overrides.privateEndpointAllowlist ?? privateEndpointAllowlistFloor(authMode),
     maxImageBytes: overrides.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES,
     maxDatabankBytes: resolveMaxDatabankBytes(overrides.maxDatabankBytes),
     ...resolveBornInDbScalars(overrides),

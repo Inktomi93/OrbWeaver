@@ -4,8 +4,9 @@
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
 import type { AuthConfig } from "@orb/contracts/auth-config";
+import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { AuthConfigShare, AuthMe, AuthMode, RelayStatus } from "@orb/contracts/identity";
-import { authConfigShareSchema } from "@orb/contracts/identity";
+import { authConfigShareSchema, authMeSchema } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
 import { requestClientScope, requestTransport } from "#infra/auth";
@@ -87,7 +88,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       transport: requestTransport(c),
       clientScope: requestClientScope(c),
     } satisfies AuthConfig;
-    return c.json(config);
+    return c.json(authConfigSchema.parse(config));
   });
 
   app.get("/api/auth/me", (c) => {
@@ -97,6 +98,6 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       handle: principal?.handle ?? null,
       role: principal?.role ?? null,
     } satisfies AuthMe;
-    return c.json(me);
+    return c.json(authMeSchema.parse(me));
   });
 }

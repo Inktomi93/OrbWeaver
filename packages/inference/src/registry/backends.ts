@@ -79,6 +79,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
   const shared = {
     now: deps.now,
     random: deps.random,
+    scheduleTimeout: deps.scheduleTimeout,
     log: deps.log,
     addSpanEvent: deps.addSpanEvent,
     fetch: deps.sdkFetch,
@@ -88,7 +89,13 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
   };
   const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, snapshotStore: deps.snapshotStore });
   const anthropic = createAnthropicBackend(shared);
-  const localLight = createLocalLightBackend({ now: deps.now, log: deps.log, superviseDetached: deps.superviseDetached, config: deps.localLight });
+  const localLight = createLocalLightBackend({
+    now: deps.now,
+    log: deps.log,
+    superviseDetached: deps.superviseDetached,
+    config: deps.localLight,
+    scheduleTimeout: deps.scheduleTimeout,
+  });
   const createAgent = (): AgentSdkBackend =>
     createAgentSdkBackend({
       now: deps.now,
@@ -96,6 +103,8 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
       env: deps.env,
       userRuntimeDir: deps.userRuntimeDir,
       agentSdk: deps.agentSdk,
+      ...(deps.scheduleTimeoutUnref === undefined ? {} : { scheduleTimeout: deps.scheduleTimeoutUnref }),
+      ...(deps.scheduleTimeout === undefined ? {} : { scheduleIdleTimeout: deps.scheduleTimeout }),
       captureWire: deps.captureWire,
       imageToPng: deps.imageToPng,
     });

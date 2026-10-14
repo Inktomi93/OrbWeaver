@@ -2,14 +2,38 @@
 // is loopback/private or explicitly trusted (`FORWARD_AUTH_TRUSTED_PROXIES`) — an untrusted client can
 // never spoof its IP via XFF. Reads env once at module init; sealed executor, never @orb/db or a domain.
 
+import { IncomingMessage } from "node:http";
+import { Http2ServerRequest } from "node:http2";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { parseIp } from "@orb/kit/ip";
 import type { Context, MiddlewareHandler } from "hono";
 import { env } from "#foundation/env";
+import type { PhysicalPeerRead } from "./contract/ingress.ts";
 import { isInRanges, isPrivateOrLoopback } from "./ip-ranges.ts";
 
 const XFF_HEADER = "x-forwarded-for";
 const FORBIDDEN = 403;
+const physicalPeers = new WeakMap<Context, ReturnType<PhysicalPeerRead>>();
+
+function readNativePeer(c: Context): ReturnType<PhysicalPeerRead> {
+  const envBindings: unknown = c.env;
+  const bindings = typeof envBindings === "object" && envBindings !== null && "server" in envBindings ? envBindings.server : envBindings;
+  if (typeof bindings !== "object" || bindings === null || !("incoming" in bindings)) {
+    return undefined;
+  }
+  if (!(bindings.incoming instanceof IncomingMessage || bindings.incoming instanceof Http2ServerRequest)) {
+    return undefined;
+  }
+  return getConnInfo(c).remote.address;
+}
+
+/** Capture one physical fact before ingress and authentication read the request. */
+export function createPhysicalPeerMiddleware(read: PhysicalPeerRead = readNativePeer): MiddlewareHandler {
+  return async (c, next) => {
+    physicalPeers.set(c, read(c));
+    await next();
+  };
+}
 
 /** Parse a comma-separated allowlist env value into trimmed CIDR/IP entries (unset/empty ⇒ belt off). */
 export function parseAllowlist(raw: string | undefined): readonly string[] {
@@ -67,7 +91,7 @@ export function resolveClientIp(args: {
 /** Caller IP for a live request — the per-IP rate-limit key + the allowlist gate's subject. */
 export function clientIp(c: Context): string | null {
   return resolveClientIp({
-    peer: getConnInfo(c).remote.address,
+    peer: peerIp(c),
     forwarded: c.req.header(XFF_HEADER),
     trustedProxies: TRUSTED_PROXIES,
   });
@@ -109,7 +133,7 @@ export function addressThrottleKey(ip: string): string {
  *  unsigned trusted-proxy gate (a client can forge XFF/X-Real-IP but never the socket peer).
  *  `undefined` ⇒ unsigned path fails closed. */
 export function peerIp(c: Context): string | undefined {
-  return getConnInfo(c).remote.address;
+  return physicalPeers.has(c) ? physicalPeers.get(c) : readNativePeer(c);
 }
 
 /** Pure allow decision: loopback/private always allowed; unresolvable ip allowed (belt, not the auth

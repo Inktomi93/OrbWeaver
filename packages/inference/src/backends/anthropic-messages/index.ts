@@ -49,6 +49,7 @@ function isAnthropicChatRequest(req: ChatRequest): req is AnthropicChatRequest {
 export interface AnthropicBackendDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
+  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
   readonly log: InferenceDeps["log"];
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly fetch: typeof fetch;
@@ -124,7 +125,7 @@ export function createAnthropicBackend(deps: AnthropicBackendDeps): ProviderBack
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.captureWireReply !== undefined ? { captureWireReply: deps.captureWireReply } : {}),
   };
-  const chatDeps = { now: deps.now, random: deps.random, log: deps.log, addSpanEvent: deps.addSpanEvent, transport };
+  const chatDeps = { now: deps.now, random: deps.random, scheduleTimeout: deps.scheduleTimeout, log: deps.log, addSpanEvent: deps.addSpanEvent, transport };
   const runChatTurn = (req: ChatRequest): Promise<ChatResult> => {
     if (!isAnthropicChatRequest(req)) {
       return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: `anthropic-messages backend received api="${req.api}"` }));

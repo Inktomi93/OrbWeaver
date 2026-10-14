@@ -28,14 +28,12 @@ Security review of branch wt/agent-a90022c3a8927247c at 0ed29a23d2 against main 
 
 Current `packages/client/src/data/auth-bootstrap.ts` already parses `authMeSchema` and validates optional authentication bodies. Preserve those paths; the retained branch would restore casts for some bodies.
 
-Confirmed blockers in the retained branch:
-
-- `packages/server/src/domain/connection/persistence/connections.ts` parses private JSON before the runtime checks ownership. A real reader and resolver probe on a disposable database produced `NoConnectionError` for absent and valid foreign rows, but `ZodError` for a malformed foreign transport. The malformed case also omitted the owner-mismatch event. Check ownership before private-payload parsing while preserving identical refusal and mismatch detection.
-- `packages/server/src/domain/workloads/persistence/queries.ts` heals malformed progress or result data to `null`; a poison-parameter path returns the raw result. Preserve queue liveness without representing corruption as clean absence.
-- `packages/server/src/domain/plugin/persistence/plugins.ts` parses the management projection, but lifecycle and grant consumers still receive raw stored manifest or grants. Parse owned rows before those effects, preserving bundle revalidation and consent checks.
-- `packages/server/src/domain/character/persistence/handoff-copy-write.ts` parses the carried background but copies the theme override raw. Validate both before minting the recipient copy; preserve reownership and privacy strips.
-- The new authentication-config schema needs an explicit contracts export. Add its genuine public door, not a wildcard or transitional test door.
+Current-tree salvage is frozen at `143c019c10`, based on `f4a25d17dd`, with independent security review. It preserves integrated ownership-before-private-decoding and mismatch detection. Owned workload, plugin, notification and handoff payloads parse before management effects. Authentication and import responses use genuine contracts doors. Native greeting and legacy field healing policies remain explicit rather than becoming invented refusals.
 
 Composed notification controls prove refusal before private timestamp writes and recipient-bus publication. Unchanged source publishes an owner-mismatched payload onto the foreign recipient's real bus; corrected source refuses. Scoped malformed, valid and foreign-row controls pass. Client import-response controls also pass and fail on unchanged readers. These bounded results do not close the remaining population. Legacy harness retrofits remain excluded.
 
-The assigned recovery batch owns remaining stored JSON and import-response boundaries. Credit the active boundary assignment's owner-bearing connection read and completed auth prerequisite without duplicating them. Preserve authorization before private decoding, honest workload corruption and refusal before effects. Current-tree source and malformed-input controls precede the scheduled floor; this item remains incomplete until its whole stated population is repaired.
+Current-tree client import-response and harness-target controls pass. Production compiler configs and scoped lint pass. Shared-reader JSON and wire checks report no findings, errors or withheld results; unchanged budgets remain red. Main-native composed boundary cases still require the coherent harness and canonical asset builders. Donor-native controls do not establish that integration verdict.
+
+Schedule start already validates through its canonical parser. Preserve existing enumeration, per-row error classification and advance behavior; an intermediate type assertion does not establish a runtime bypass. No duplicate parser, poison-row healing or scheduler-policy rewrite is authorized by this salvage.
+
+Complete the integrated malformed, valid and foreign-row population before landing this item. No legacy harness retrofit or wholesale stale-branch merge is part of that acceptance.

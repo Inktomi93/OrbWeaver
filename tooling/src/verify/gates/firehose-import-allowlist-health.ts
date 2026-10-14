@@ -34,12 +34,38 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "the canonical firehose declaration disappeared or moved, so every name-keyed arm must fail loud",
     },
+    {
+      mode: "types",
+      files: { "packages/server/src/transport/trpc/chat-events-bus.ts": `export const ${FIREHOSE_SYMBOL} = 0;\n` },
+      expect: { count: 1 },
+      why: "a same-named non-callable export leaves the operation boundary blind",
+    },
+    {
+      mode: "types",
+      files: { "packages/server/src/transport/trpc/chat-events-bus.ts": `function ${FIREHOSE_SYMBOL}(): void {}\nexport const unrelated = 1;\n` },
+      expect: { count: 1 },
+      why: "a private same-named function cannot be imported through the canonical door",
+    },
   ],
   mustPass: [
     {
       mode: "types",
       files: { "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE_SYMBOL}(): void {}\n` },
       why: "the exact top-level declaration remains at its canonical home",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `function createBus() { return { ${FIREHOSE_SYMBOL}(): void {} }; }\nconst bus = createBus();\nexport const ${FIREHOSE_SYMBOL} = bus.${FIREHOSE_SYMBOL};\n`,
+      },
+      why: "the canonical callable export may project the real factory-owned producer",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `const operation = (): void => {};\nexport { operation as ${FIREHOSE_SYMBOL} };\n`,
+      },
+      why: "the module export table owns the public name, not the local declaration spelling",
     },
   ],
 });

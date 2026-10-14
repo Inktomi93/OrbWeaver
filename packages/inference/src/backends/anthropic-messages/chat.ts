@@ -30,6 +30,7 @@ import type {
   ResolvedChatKnobs,
   ResolvedReasoning,
   ResolvedWarning,
+  ScheduleTimeout,
 } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat } from "#funnel";
@@ -67,6 +68,7 @@ type SdkEffort = (typeof SDK_EFFORTS)[number];
 
 // @orb-waive no-inline-package-interface(AnthropicChatDeps): baselined when the gate landed; burn-down item 952.
 export interface AnthropicChatDeps {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
   readonly log: InferenceLog;
@@ -301,6 +303,7 @@ function appliedEffortOf(options: Pick<LanguageModelV4CallOptions, "providerOpti
 }
 
 interface StreamOnceArgs {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly call: AnthropicCall;
   readonly options: LanguageModelV4CallOptions;
   readonly req: AnthropicChatRequest;
@@ -314,7 +317,7 @@ interface StreamOnceArgs {
 async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   const { call, req, markCommitted } = args;
   const deltaTarget = req.chatId === undefined || req.onDelta === undefined ? undefined : { chatId: req.chatId, onDelta: req.onDelta };
-  const idle = turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs);
+  const idle = turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs, args.scheduleTimeout);
   let first = true;
   const commit = (): void => {
     if (first) {
@@ -457,6 +460,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const drain = await runWithPreCommitRetry(
     (markCommitted) =>
       streamOnce({
+        scheduleTimeout: deps.scheduleTimeout,
         call,
         options: { ...options, prompt },
         req,
@@ -473,6 +477,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     {
       ...(req.signal !== undefined ? { signal: req.signal } : {}),
       now: deps.now,
+      scheduleTimeout: deps.scheduleTimeout,
       ...(deps.random !== undefined ? { random: deps.random } : {}),
       ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
     },

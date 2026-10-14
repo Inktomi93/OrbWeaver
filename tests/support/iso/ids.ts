@@ -6,24 +6,37 @@
 // no error, not a thrown mismatch. The counter goes into the low 4 bytes of an otherwise-zero 16-byte
 // "uuid" (big-endian), so ordering across `next()` calls stays identical to the old zero-padded scheme.
 
-import { fromUUIDBytes } from "typeid-js";
+import { fromUUIDBytes, toUUID } from "typeid-js";
 
 const UUID_BYTE_LENGTH = 16;
 const COUNTER_BYTE_LENGTH = 4;
+const UUID_VERSION_INDEX = 6;
+const UUID_VARIANT_INDEX = 8;
+const UUID_VERSION_4 = 0x40;
+const UUID_RFC_VARIANT = 0x80;
 
 export interface SeededIds {
   readonly next: (prefix?: string) => string;
+  /** Deterministic opaque business UUIDs, never security tokens or cryptographic nonces. */
+  readonly uuid: () => string;
   readonly reset: () => void;
 }
 
 export function createSeededIds(): SeededIds {
   let n = 0;
+  const nextBytes = (): Uint8Array => {
+    n += 1;
+    const bytes = new Uint8Array(UUID_BYTE_LENGTH);
+    new DataView(bytes.buffer).setUint32(UUID_BYTE_LENGTH - COUNTER_BYTE_LENGTH, n, false);
+    return bytes;
+  };
   return {
-    next: (prefix = "id"): string => {
-      n += 1;
-      const bytes = new Uint8Array(UUID_BYTE_LENGTH);
-      new DataView(bytes.buffer).setUint32(UUID_BYTE_LENGTH - COUNTER_BYTE_LENGTH, n, false);
-      return fromUUIDBytes(prefix, bytes);
+    next: (prefix = "id"): string => fromUUIDBytes(prefix, nextBytes()),
+    uuid: (): string => {
+      const bytes = nextBytes();
+      bytes[UUID_VERSION_INDEX] = UUID_VERSION_4;
+      bytes[UUID_VARIANT_INDEX] = UUID_RFC_VARIANT;
+      return toUUID(fromUUIDBytes("", bytes));
     },
     reset: (): void => {
       n = 0;

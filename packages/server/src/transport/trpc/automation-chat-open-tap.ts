@@ -7,19 +7,28 @@
 // no-op (the `tools`/`rpg` null-op precedent). EVERY attach fires (reconnects included); the
 // dispatch budget gates bound the refire.
 
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatOpenTap } from "./contract/live-buses.ts";
 
-/** The injected per-viewer chat-open handler (fire-and-forget; self-safe downstream). */
-type ChatOpenTap = (chatId: ChatId, viewerUserId: UserId) => void;
-
-let sink: ChatOpenTap | null = null;
-
-/** Wire (or clear, on teardown) the automation tap at the composition root. */
-export function setChatOpenTap(tap: ChatOpenTap | null): void {
-  sink = tap;
+/** Bind the D81 chat-open sink to one application graph. */
+export function createChatOpenTap(): ChatOpenTap {
+  let closed = false;
+  let sink: Parameters<ChatOpenTap["setChatOpenTap"]>[0] = null;
+  return {
+    setChatOpenTap(tap): void {
+      if (closed) {
+        throw new Error("chat-open tap is disposed");
+      }
+      sink = tap;
+    },
+    notifyChatOpened: (chatId, viewerUserId) => sink?.(chatId, viewerUserId),
+    [Symbol.dispose](): void {
+      closed = true;
+      sink = null;
+    },
+  };
 }
 
-/** Called by the stream generator as it yields the per-viewer `chatOpened` synthetic. A no-op until wired. */
-export function notifyChatOpened(chatId: ChatId, viewerUserId: UserId): void {
-  sink?.(chatId, viewerUserId);
-}
+// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
+const processTap = createChatOpenTap();
+export const setChatOpenTap: ChatOpenTap["setChatOpenTap"] = processTap.setChatOpenTap;
+export const notifyChatOpened: ChatOpenTap["notifyChatOpened"] = processTap.notifyChatOpened;

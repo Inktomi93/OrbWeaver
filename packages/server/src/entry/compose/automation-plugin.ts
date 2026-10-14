@@ -5,8 +5,9 @@ import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { BindingActor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
-import type { PluginId, UserId } from "@orb/kit/ids";
+import type { IdSource, PluginId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { ScheduleOp } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
 import { can, createPluginDistributionRecipients } from "#domain/admin";
@@ -14,7 +15,6 @@ import type { AssetsService } from "#domain/assets";
 import { createPluginAssetReads } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import {
-  createArmExecutors,
   createAutomationRuntimeOps,
   createAutomationService,
   createEnabledRuleIndex,
@@ -63,9 +63,12 @@ import type { SettingsService } from "#domain/settings";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
 import { createPluginWorldInfoReads } from "#domain/world-info";
-import { fetchPluginBundle, pluginGitSource } from "#infra/network";
+import type { ScopedEgress } from "#infra/network";
+import { createNetworkPluginGitSource, fetchPluginBundle, pluginGitSource } from "#infra/network";
+import type { PluginHostSeamDeps } from "#infra/plugin-host";
 import { createPluginHost } from "#infra/plugin-host";
-import { publishAutomationEvent, publishNotification, publishUserEvent } from "#transport/trpc";
+import type { LiveBuses } from "#transport/trpc";
+
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
@@ -75,6 +78,17 @@ import { loadPluginCharacters, loadPluginMessages } from "./plugin-chat-reads.ts
 
 // @orb-waive no-inline-package-interface(AutomationPluginComposeDeps): baselined when the gate landed; burn-down item 952.
 export interface AutomationPluginComposeDeps {
+  readonly pluginExecution?: Pick<PluginHostSeamDeps, "spawn" | "monotonicNow">;
+  readonly timers?: PluginHostSeamDeps["timers"];
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
+  readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
+  readonly publishAutomationEvent: LiveBuses["automation"]["publishAutomationEvent"];
+
+  readonly egress?: Pick<ScopedEgress, "safeFetch" | "fetchPluginBundle">;
+  readonly scheduleTimeout?: ScheduleOp;
+  readonly random?: (() => number) | undefined;
+  readonly newOpaqueId?: (() => string) | undefined;
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly connection: Pick<ConnectionService, "registerPluginProviders" | "dropPluginProviders">;
@@ -157,7 +171,7 @@ export interface AutomationPluginComposeDeps {
 
 // @orb-waive no-inline-package-interface(AutomationPluginComposeResult): baselined when the gate landed; burn-down item 952.
 /** The automation+plugin compose product. */
-export interface AutomationPluginComposeResult {
+export interface AutomationPluginComposeResult extends AsyncDisposable {
   readonly automation: AutomationService;
   readonly plugin: PluginService;
 }
@@ -165,11 +179,16 @@ export interface AutomationPluginComposeResult {
 export const buildPluginQuietLlm = domainBuildPluginQuietLlm;
 
 export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
+  const hostResources = new AsyncDisposableStack();
+  const pluginResources = new AsyncDisposableStack();
+  await using construction = new AsyncDisposableStack();
+  construction.defer(() => pluginResources.disposeAsync());
+  construction.defer(() => hostResources.disposeAsync());
   const { db, now, connection, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, roleClientsFor, pluginMacros } =
     deps;
   const { service: chat } = chatCompose;
-  const automationNotify = publishAutomationEvent;
-  const emitNotification = createRecordAndPublishNotification((params) => notifications.record(params), publishNotification);
+  const automationNotify = deps.publishAutomationEvent;
+  const emitNotification = createRecordAndPublishNotification((params) => notifications.record(params), deps.publishNotification);
   const automationRuntime = createAutomationRuntimeOps<ResolvedToolSet>({
     resolveOwnerPrincipal,
     requestTurn: (params) => chatCompose.requestTurn(params),
@@ -179,11 +198,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     toolUse: deps.toolUse,
     roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
-    newToolCallId: () => `automation_${randomUUID()}`,
+    newToolCallId: () => `automation_${(deps.newOpaqueId ?? randomUUID)()}`,
   });
   const assetReads = createPluginAssetReads({ assets, resolveOwnerPrincipal });
   const worldInfoReads = createPluginWorldInfoReads({ worldInfo, resolveOwnerPrincipal });
-  const notificationDelivery = createPluginNotificationDelivery({ notifications, publish: publishNotification });
+  const notificationDelivery = createPluginNotificationDelivery({ notifications, publish: deps.publishNotification });
   const pluginFeedback = createPluginFeedbackOps({ db, emit: emitNotification, notify: automationNotify });
   const pluginRuntime = createPluginRuntimeOps({
     db,
@@ -218,7 +237,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const automationEnabled = createEnabledRuleIndex(db);
   // One store backs both automation confirms and plugin suggestions.
   const automationSuggestions = createSuggestionStore();
-  const newSuggestionId = minter(ID_PREFIX.automationSuggestion);
+  const newSuggestionId = minter(ID_PREFIX.automationSuggestion, deps.idSource);
   // Automation confirms are bound after the plugin effect bundle exists.
   const suggestionExecutor = createPluginSuggestionExecutor();
   // The watcher and plugin activation share one registry.
@@ -226,7 +245,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const automationTransforms = createPromptTransformIndex({
     db,
     ops: automationOps,
-    prng: Math.random,
+    prng: deps.random ?? Math.random,
     now,
     register: chatCompose.promptTransforms.register,
     unregister: chatCompose.promptTransforms.unregister,
@@ -234,21 +253,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const automation = createAutomationService({
     db,
     now,
-    prng: Math.random,
-    newRuleId: minter(ID_PREFIX.automationRule),
-    newFireId: minter(ID_PREFIX.automationFire),
+    prng: deps.random ?? Math.random,
+    newRuleId: minter(ID_PREFIX.automationRule, deps.idSource),
+    newFireId: minter(ID_PREFIX.automationFire, deps.idSource),
     newSuggestionId,
     can,
     ops: automationOps,
     listRuleTools: automationRuntime.listRuleTools,
-    runArm: createArmExecutors({
-      db,
-      ops: automationOps,
-      prng: Math.random,
-      notify: automationNotify,
-      suggestions: automationSuggestions,
-      newSuggestionId,
-    }),
     enabled: automationEnabled,
     suggestions: automationSuggestions,
     pluginSubscribers,
@@ -264,7 +275,16 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   });
   await automationEnabled.reload();
   await automationTransforms.reload();
-  const pluginHost: PluginHostPort = createPluginHost({ nowEpochMs: now, nextRandom: Math.random, mintId: () => randomUUID() });
+  const pluginHost: PluginHostPort = hostResources.use(
+    createPluginHost({
+      ...deps.pluginExecution,
+      ...(deps.timers === undefined ? {} : { timers: deps.timers }),
+      nowEpochMs: now,
+      nextRandom: deps.random ?? Math.random,
+      mintId: deps.newOpaqueId ?? randomUUID,
+      ...(deps.egress === undefined ? {} : { safeFetch: deps.egress.safeFetch }),
+    }),
+  );
   // Activation and confirmed acts share the same process-wide belts.
   const pluginBelts: PluginBelts = {
     notify: createNotifyFloor(now),
@@ -282,7 +302,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     promptTransforms: chatCompose.promptTransforms,
     pluginSubscribers,
     loadPresentRole: (chatId, userId) => loadPresentRole(db, chatId, userId),
-    newEventId: () => `plugin-event:${randomUUID()}`,
+    newEventId: () => `plugin-event:${(deps.newOpaqueId ?? randomUUID)()}`,
   });
   const pluginHostOps: PluginHostOps = {
     chat: {
@@ -318,7 +338,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
     },
     ui: {
-      setState: createSurfaceStatePublisher(pluginSurfaceState, publishUserEvent),
+      setState: createSurfaceStatePublisher(pluginSurfaceState, deps.emitUserEvent),
       toast: (identity, level, message) => {
         pluginUiOutbox.pushToast(identity, level, message);
         return Promise.resolve();
@@ -352,46 +372,50 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
   };
   suggestionExecutor.bind(buildConfirmedActRunner(pluginHostOps, pluginBelts));
-  const plugin = createPluginService(
-    {
-      db,
-      now,
-      newPluginId: minter(ID_PREFIX.plugin),
-      assets: {
-        store: (caller, bytes, mime) => assets.store({ principal: caller, bytes, kind: "plugin", mime }),
-        readBytes: assetReads.readBytes,
-        reapOrphans: async (assetIds) => {
-          await assets.reapIfOrphan(assetIds);
+  const plugin: PluginService = pluginResources.use(
+    createPluginService(
+      {
+        db,
+        now,
+        scheduleTimeout: deps.scheduleTimeout,
+        newPluginId: minter(ID_PREFIX.plugin, deps.idSource),
+        assets: {
+          store: (caller, bytes, mime) => assets.store({ principal: caller, bytes, kind: "plugin", mime }),
+          readBytes: assetReads.readBytes,
+          reapOrphans: async (assetIds) => {
+            await assets.reapIfOrphan(assetIds);
+          },
         },
+        host: pluginHost,
+        ops: pluginHostOps,
+        fetchBundle: deps.egress?.fetchPluginBundle ?? fetchPluginBundle,
+        gitSource: deps.egress === undefined ? pluginGitSource : createNetworkPluginGitSource(deps.egress.safeFetch),
+        showcase: {
+          slugs: new Set<string>(SHOWCASE_PLUGIN_SLUGS),
+          bundle: packShowcaseBundle,
+          version: pluginRuntime.showcaseVersion,
+        },
+        surfaceState: pluginSurfaceState,
+        uiOutbox: pluginUiOutbox,
+        belts: pluginBelts,
+        snippetGate: createSnippetGate(),
+        uiHostCallGate: createUiHostCallGate(),
+        resolveChatAuthority: createPluginChatAuthority(db),
       },
-      host: pluginHost,
-      ops: pluginHostOps,
-      fetchBundle: fetchPluginBundle,
-      gitSource: pluginGitSource,
-      showcase: {
-        slugs: new Set<string>(SHOWCASE_PLUGIN_SLUGS),
-        bundle: packShowcaseBundle,
-        version: pluginRuntime.showcaseVersion,
+      {
+        requireAdmin: (caller): void => {
+          can(caller, "admin", { kind: "global" });
+        },
+        listRecipients: createPluginDistributionRecipients(admin, resolveOwnerPrincipal),
+        readPublishedBundle: assetReads.readPublishedBundle,
       },
-      surfaceState: pluginSurfaceState,
-      uiOutbox: pluginUiOutbox,
-      belts: pluginBelts,
-      snippetGate: createSnippetGate(),
-      uiHostCallGate: createUiHostCallGate(),
-      resolveChatAuthority: createPluginChatAuthority(db),
-    },
-    {
-      requireAdmin: (caller): void => {
-        can(caller, "admin", { kind: "global" });
+      {
+        activate: (rows, { pluginId, pluginName }) => connection.registerPluginProviders({ rows, pluginId, pluginName }),
+        deactivate: (pluginId) => connection.dropPluginProviders({ pluginId }),
       },
-      listRecipients: createPluginDistributionRecipients(admin, resolveOwnerPrincipal),
-      readPublishedBundle: assetReads.readPublishedBundle,
-    },
-    {
-      activate: (rows, { pluginId, pluginName }) => connection.registerPluginProviders({ rows, pluginId, pluginName }),
-      deactivate: (pluginId) => connection.dropPluginProviders({ pluginId }),
-    },
+    ),
   );
 
-  return { automation, plugin };
+  const lifetime = construction.move();
+  return { automation, plugin, [Symbol.asyncDispose]: (): Promise<void> => lifetime.disposeAsync() };
 }

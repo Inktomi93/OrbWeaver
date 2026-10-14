@@ -11,7 +11,16 @@ import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/co
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { fetchEndpointModels, fetchOpenRouterCatalog } from "#catalog";
-import type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, ProviderScrubSet, Resolved } from "#contract";
+import type {
+  AccountCreditsRequest,
+  GenerationCostRequest,
+  InspectRequest,
+  ListModelsRequest,
+  ProbeRequest,
+  ProviderScrubSet,
+  Resolved,
+  ScheduleTimeout,
+} from "#contract";
 import { ProviderError } from "#contract";
 import { authHeaders, fetchJson, openAiPath } from "../http/fetch-json.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
@@ -33,6 +42,7 @@ const GENERATION_PATH = "/generation";
 
 // @orb-waive no-inline-package-interface(DiagnosticsDeps): baselined when the gate landed; burn-down item 952.
 export interface DiagnosticsDeps {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly fetch: typeof fetch;
   readonly now: () => number;
 }
@@ -133,6 +143,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
         ? await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, ...(req.signal !== undefined ? { signal: req.signal } : {}) })
         : (
             await fetchEndpointModels({
+              scheduleTimeout: deps.scheduleTimeout,
               fetch: deps.fetch,
               baseUrl,
               secret: connection.credential.secret,
@@ -189,6 +200,7 @@ function inspectionRequest(url: string, headers: Record<string, string>, body: u
 // @orb-waive no-inline-package-interface(InspectDeps): baselined when the gate landed; burn-down item 952.
 /** What the inspector's call needs beyond the diagnostics deps: the app identity the model factory sends. */
 export interface InspectDeps {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly fetch: typeof fetch;
   readonly app: TransportDeps["app"];
 }
@@ -249,7 +261,7 @@ export async function inspectOpenAiCompatEndpoint(req: InspectRequest, deps: Ins
     warnings: [],
   });
   // The row's own idle bound, as chat arms it: a hung endpoint fails the test when it would fail a turn.
-  const idle = turnAbortSignal(req.signal, connection.features.requestTimeoutMs);
+  const idle = turnAbortSignal(req.signal, connection.features.requestTimeoutMs, deps.scheduleTimeout);
   try {
     await model.doGenerate({
       prompt: [{ role: "user", content: [{ type: "text", text: PING_CONTENT }] }],

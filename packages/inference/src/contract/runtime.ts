@@ -13,8 +13,10 @@ import type {
 } from "@orb/contracts/inference";
 import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
 import type { PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
 import type { SessionEntryWriter } from "./agent.ts";
+import type { AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-execution.ts";
 import type { WireCaptureSink } from "./backend.ts";
 import type { ProviderErrorKind } from "./errors.ts";
 import type { Resolved } from "./resolved.ts";
@@ -36,7 +38,7 @@ type SuperviseDetached = (name: string, attrs: SpanAttrs, operation: () => Promi
 export type AddSpanEvent = (name: string, attrs: Readonly<Record<string, string | number | boolean>>) => void;
 
 /** Arm one timeout and return the cancellation operation for that exact window. */
-export type ScheduleTimeout = (fn: () => void, ms: number) => () => void;
+export type ScheduleTimeout = ScheduleOp;
 
 export const ANTH_IMAGE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 export type AnthImageMediaType = (typeof ANTH_IMAGE_MEDIA_TYPES)[number];
@@ -202,6 +204,8 @@ export interface ProviderStore {
 }
 
 export interface InferenceDeps {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeoutUnref?: ScheduleTimeout | undefined;
   readonly beginEmbeddingAccounting: BeginEmbeddingAccounting;
   readonly now: () => number;
   readonly log: InferenceLog;
@@ -236,13 +240,16 @@ export interface InferenceDeps {
   readonly captureWireReply?: boolean | undefined;
   readonly imageToPng?: ((bytes: Uint8Array) => Promise<Uint8Array>) | undefined;
   readonly agentSdk: {
-    readonly query?: unknown;
+    readonly scheduleTimeout?: ScheduleTimeout | undefined;
+    readonly query?: AgentSdkQuery;
+    readonly spawnClaudeCodeProcess?: AgentSdkSpawn;
     readonly sessionStore?: unknown;
     readonly sessionWriter?: SessionEntryWriter | undefined;
   };
   readonly userRuntimeDir: (ownerId: UserId, tool: "claude") => string;
   readonly localLight?:
     | {
+        readonly kernelModule?: string | undefined;
         readonly cpuPercent?: LocalLightCpuPercent | undefined;
         readonly cacheDir?: string | undefined;
         readonly embedDtype?: string | undefined;

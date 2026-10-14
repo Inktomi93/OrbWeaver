@@ -26,8 +26,9 @@
 // 1055ms, `@orb/server/entry/compose` 2677ms, with the top per-module vite transform at 483ms
 // (`packages/db/src/schema/chat.ts`) over ~1500 transformed modules.
 //
-// The three graphs below are exactly what the `db`, `app` and caller fixtures load lazily; keep them in
+// The graphs below are exactly what the `db`, `harness` and caller fixtures load lazily; keep them in
 // sync with `support/node/fixtures.ts` if a fixture grows a fourth heavy dynamic import.
 import "@orb/server/entry/compose";
 import "@orb/server/transport/trpc";
 import "./db.ts";
+import "./server.ts";

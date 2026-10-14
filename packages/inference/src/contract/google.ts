@@ -6,6 +6,7 @@ import type { Resolved } from "./resolved.ts";
 export interface GoogleBackendDeps {
   readonly now: InferenceDeps["now"];
   readonly random?: InferenceDeps["random"];
+  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
   readonly log: InferenceDeps["log"];
   readonly addSpanEvent?: InferenceDeps["addSpanEvent"];
   readonly fetch: typeof fetch;

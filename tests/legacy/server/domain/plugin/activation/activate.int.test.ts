@@ -19,12 +19,16 @@ import type { PluginRegistry } from "#server/domain/plugin/contract/service.ts";
 import type { PluginHandlerRef, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "#server/domain/plugin/index.ts";
 import { PluginCrashedError } from "#server/domain/plugin/index.ts";
 import { getById } from "#server/domain/plugin/persistence/plugins.ts";
+import { createPluginInvocationWork } from "#server/domain/plugin/substrate/invocation-work.ts";
 import { createPluginLifecycleLanes } from "#server/domain/plugin/substrate/lifecycle-lanes.ts";
-import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
+let hostResources = new AsyncDisposableStack();
+
 afterEach(async () => {
-  await __terminateManagedPluginBrokerForTest();
+  const owned = hostResources;
+  hostResources = new AsyncDisposableStack();
+  await owned.disposeAsync();
 });
 
 const HANDLER = castId<PluginHandlerRef>("handler_1");
@@ -295,7 +299,8 @@ test("a failed `enabled` write discards the activation — no resident is publis
     throw new Error("the installed row vanished");
   }
   const registry: PluginRegistry = new Map();
-  const brokenCtx = { ...h.ctx, db: dbWithFailingUpdate(h.ctx.db) };
+  await using invocations = createPluginInvocationWork();
+  const brokenCtx = { ...h.ctx, db: dbWithFailingUpdate(h.ctx.db), invocations };
   const activate = createActivate(
     brokenCtx,
     registry,
@@ -337,7 +342,7 @@ test("a HUNG guest handler is a COUNTED crash (the settlement deadline feeds the
   };
   const h = makePluginHarness(db, {
     ops,
-    port: createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "id-0" }),
+    port: hostResources.use(createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "id-0" })),
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const hangMain = `
@@ -391,7 +396,10 @@ test("enabled installations across owners retain their catalogs and owner bridge
       },
     },
   };
-  const h = makePluginHarness(db, { ops, port: createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "id-residency" }) });
+  const h = makePluginHarness(db, {
+    ops,
+    port: hostResources.use(createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "id-residency" })),
+  });
   const enabled: { readonly owner: UserId; readonly id: Awaited<ReturnType<typeof h.service.install>>["id"] }[] = [];
   try {
     for (let index = 0; index < 100; index += 1) {
@@ -433,6 +441,6 @@ test("enabled installations across owners retain their catalogs and owner bridge
     for (const installed of enabled) {
       await h.service.setEnabled({ caller: principalFor(installed.owner), pluginId: installed.id, enabled: false });
     }
-    await __terminateManagedPluginBrokerForTest();
+    await hostResources.disposeAsync();
   }
 });

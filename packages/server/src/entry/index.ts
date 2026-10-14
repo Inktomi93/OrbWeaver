@@ -9,13 +9,14 @@ const EXIT_BOOT_FAILURE = 1;
 
 // The lifecycle graph parses the environment as it loads, so a refused key surfaces as this import's rejection. It
 // prints as the named refusal alone; any other load failure keeps its stack.
-const { createLifecycle, HANGUP_DRAIN_MS } = await import("./lifecycle.ts").catch((err: unknown) => {
+const { createLifecycle } = await import("./lifecycle.ts").catch((err: unknown) => {
   if (err instanceof EnvRefusedError) {
     process.stderr.write(`${err.message}\n`);
     process.exit(EXIT_BOOT_FAILURE);
   }
   throw err;
 });
+const { HANGUP_DRAIN_MS } = await import("#infra/network");
 const { getLog } = await import("#foundation/observability");
 const { scrubAppSecretsFromProcessEnv } = await import("#foundation/env");
 // The parse above holds every secret in the frozen `env`. Removing them from `process.env` keeps them out of every

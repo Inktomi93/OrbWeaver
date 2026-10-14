@@ -3,15 +3,21 @@ import "@orb/testkit/node/composed-real.ts";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { auditLogs, chatEvents, regexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { authConfigFromEnv } from "@orb/server/entry/auth";
+import type { ServicesResult } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
-import { subscribeAllChatEvents } from "@orb/server/transport/trpc";
 import type { HeldDb } from "@orb/testkit/node/db.ts";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import { test as baseTest, expect, OTHER_USER_ID, OWNER_USER_ID } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { onTestFinished, vi } from "vitest";
+
+const test = baseTest.extend<Pick<Fixtures, "authConfig">>({
+  authConfig: async ({}, use): Promise<void> => {
+    await use({ ...authConfigFromEnv(), mode: "local" });
+  },
+});
 
 const heldDbTest = test.extend<{ heldDb: HeldDb }>({
   heldDb: async ({}, use): Promise<void> => {
@@ -27,15 +33,15 @@ const held = heldDbTest.extend<Pick<Fixtures, "db">>({
 
 held(
   "a raced single regex delete preserves its answer but fans no rooms when its owned DELETE removed nothing",
-  async ({ heldDb, db, ownerCaller }): Promise<void> => {
+  async ({ heldDb, db, ownerCaller, app }): Promise<void> => {
     const script = await ownerCaller.regex.createScript({
       input: createRegexScriptSchema.parse({ name: "race", findRegex: "x", replaceString: "y", placement: [] }),
     });
     const { chat } = await ownerCaller.chat.startChat({ characterIds: [] });
     await ownerCaller.regex.attachToChat({ chatId: chat.id, scriptId: script.id });
-    const frames: Parameters<Parameters<typeof subscribeAllChatEvents>[0]>[0][] = [];
+    const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
     onTestFinished(
-      subscribeAllChatEvents((frame) => {
+      app.liveBuses.chat.subscribeAllChatEvents((frame) => {
         if (frame.event.type === "roomEntityChanged") {
           frames.push(frame);
         }
@@ -68,8 +74,10 @@ held(
 
 test("bulk regex capture fans only confirmed owned scripts, once per room, and never a host-only library tier", async ({
   services,
+  app,
   ownerCaller,
   otherCaller,
+  harness,
 }): Promise<void> => {
   const input = createRegexScriptSchema.parse({ name: "owned", findRegex: "x", replaceString: "y", placement: [] });
   const first = await ownerCaller.regex.createScript({ input });
@@ -82,9 +90,9 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
   await ownerCaller.regex.attachToChat({ chatId: ownedRoom.id, scriptId: second.id });
   await ownerCaller.regex.attachGlobal({ scriptId: global.id });
   await otherCaller.regex.attachToChat({ chatId: foreignRoom.id, scriptId: foreign.id });
-  const frames: Parameters<Parameters<typeof subscribeAllChatEvents>[0]>[0][] = [];
+  const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
   onTestFinished(
-    subscribeAllChatEvents((frame) => {
+    app.liveBuses.chat.subscribeAllChatEvents((frame) => {
       if (frame.event.type === "roomEntityChanged") {
         frames.push(frame);
       }
@@ -93,21 +101,22 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
   expect(await ownerCaller.regex.bulkRemove({ scriptIds: [first.id, second.id, global.id, foreign.id, mintTypeId(ID_PREFIX.regexScript)] })).toEqual({
     affected: 3,
   });
-  expect((await services.regex.getScript({ principal: principal(OTHER_USER_ID), scriptId: foreign.id })).id).toBe(foreign.id);
+  expect((await services.regex.getScript({ principal: await harness.principalFor(OTHER_USER_ID), scriptId: foreign.id })).id).toBe(foreign.id);
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: ownedRoom.id, entity: "regex" } }]);
 });
 
 test("a foreign or missing global book never fans its captured rooms, while an owned delete fans after cascade without a durable event", async ({
   db,
+  app,
   ownerCaller,
   otherCaller,
 }): Promise<void> => {
   const room = (await otherCaller.chat.startChat({ characterIds: [] })).chat;
   const book = await otherCaller.worldInfo.createBook({ input: { name: "private book" } });
-  const frames: Parameters<Parameters<typeof subscribeAllChatEvents>[0]>[0][] = [];
+  const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
   const attached = Promise.withResolvers<void>();
   onTestFinished(
-    subscribeAllChatEvents((frame) => {
+    app.liveBuses.chat.subscribeAllChatEvents((frame) => {
       if (frame.event.type === "roomEntityChanged") {
         frames.push(frame);
         if (frame.event.entity === "world-info" && frame.event.chatId === room.id) {
@@ -130,20 +139,26 @@ test("a foreign or missing global book never fans its captured rooms, while an o
 });
 
 test("global document reach credits a present member rather than only the host, then drops that departed member", async ({
+  app,
   ownerCaller,
   otherCaller,
+  harness,
 }): Promise<void> => {
   const hostRoom = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
-  const invite = await ownerCaller.invites.createInvite({ chatId: hostRoom.id, input: {} });
-  await otherCaller.invites.redeemInvite({ token: invite.token });
+  await ownerCaller.settings.updateAppSettings({ partial: { localMultiUser: true } });
+  // Internal callers capture one request's capability; the changed setting governs the next request.
+  const hostRequest = await harness.internalCallerFor(OWNER_USER_ID);
+  const memberRequest = await harness.internalCallerFor(OTHER_USER_ID);
+  const invite = await hostRequest.invites.createInvite({ chatId: hostRoom.id, input: {} });
+  await memberRequest.invites.redeemInvite({ token: invite.token });
   const ownRoom = (await otherCaller.chat.startChat({ characterIds: [] })).chat;
   const document = await otherCaller.databank.createFromText({ name: "member globals", text: "shared by a real global attachment" });
   await otherCaller.databank.attachGlobal({ documentId: document.document.id });
   const book = await otherCaller.worldInfo.createBook({ input: { name: "host-only global" } });
-  const frames: Parameters<Parameters<typeof subscribeAllChatEvents>[0]>[0][] = [];
+  const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
   const bookRefreshed = Promise.withResolvers<void>();
   onTestFinished(
-    subscribeAllChatEvents((frame) => {
+    app.liveBuses.chat.subscribeAllChatEvents((frame) => {
       if (frame.event.type === "roomEntityChanged") {
         frames.push(frame);
         if (frame.event.entity === "world-info" && frame.event.chatId === ownRoom.id) {
@@ -160,33 +175,34 @@ test("global document reach credits a present member rather than only the host, 
   expect(new Set(frames.map((frame) => frame.event.chatId))).toEqual(new Set([hostRoom.id, ownRoom.id]));
   expect(frames).toHaveLength(2);
   expect(frames.every((frame) => frame.seq === null && frame.event.type === "roomEntityChanged" && frame.event.entity === "databank")).toBe(true);
-  await otherCaller.invites.selfLeave({ chatId: hostRoom.id });
+  await memberRequest.invites.selfLeave({ chatId: hostRoom.id });
   frames.length = 0;
   await otherCaller.databank.rename({ id: document.document.id, name: "departed" });
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: ownRoom.id, entity: "databank" } }]);
 });
 
-test("a failed regex reach capture is logged and cannot fault the confirmed delete", async ({ db, services, ownerCaller }): Promise<void> => {
+test("a failed regex reach capture is logged and cannot fault the confirmed delete", async ({ db, services, ownerCaller, app, harness }): Promise<void> => {
   const script = await ownerCaller.regex.createScript({
     input: createRegexScriptSchema.parse({ name: "capture failure", findRegex: "x", replaceString: "y", placement: [] }),
   });
   const room = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
   await ownerCaller.regex.attachToChat({ chatId: room.id, scriptId: script.id });
-  const frames: Parameters<Parameters<typeof subscribeAllChatEvents>[0]>[0][] = [];
+  const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
   onTestFinished(
-    subscribeAllChatEvents((frame) => {
+    app.liveBuses.chat.subscribeAllChatEvents((frame) => {
       if (frame.event.type === "roomEntityChanged") {
         frames.push(frame);
       }
     }),
   );
   const failure = new Error("controlled reach driver failure");
+  const callerPrincipal = await harness.principalFor(OWNER_USER_ID);
   const warn = vi.spyOn(getLog(), "warn");
   const select = vi.spyOn(db, "select").mockImplementationOnce(() => {
     throw failure;
   });
   try {
-    expect(await services.regex.bulkRemoveScripts({ principal: principal(OWNER_USER_ID, { role: "owner", via: "header" }), scriptIds: [script.id] })).toEqual({
+    expect(await services.regex.bulkRemoveScripts({ principal: callerPrincipal, scriptIds: [script.id] })).toEqual({
       affected: 1,
     });
   } finally {
@@ -204,18 +220,17 @@ test("a failed document reach is logged without rejecting or rolling back its al
   db,
   services,
   ownerCaller,
+  harness,
 }): Promise<void> => {
   const document = await ownerCaller.databank.createFromText({ name: "before", text: "real canon" });
   const failure = new Error("controlled document reach driver failure");
+  const callerPrincipal = await harness.principalFor(OWNER_USER_ID);
   const warn = vi.spyOn(getLog(), "warn");
   const select = vi.spyOn(db, "select").mockImplementationOnce(() => {
     throw failure;
   });
   try {
-    expect(
-      (await services.databank.rename({ principal: principal(OWNER_USER_ID, { role: "owner", via: "header" }), id: document.document.id, name: "committed" }))
-        .name,
-    ).toBe("committed");
+    expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "committed" })).name).toBe("committed");
   } finally {
     select.mockRestore();
   }

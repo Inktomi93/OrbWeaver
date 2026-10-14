@@ -1,10 +1,9 @@
-// domain/automation — COMPOSITION ROOT. Wires the A3 global-var verbs + the A4 rule/budget/fire/lifecycle
-// verbs + the A5 `handleEvent` dispatch front door over the injected `AutomationContext` (db + clock + prng +
-// id minters + the `can()` seam + the A5 ops/runArm/enabled-index/notify seams). ZERO logic — it only
-// calls the factories and assembles the `AutomationService`. The context is built at the entry composition
-// root and passed in; automation sideways-imports nothing. A6 (arms) wires the injected `runArm` dispatcher.
+// Automation owns one ordering engine and arm dispatcher shared by watcher, manual and confirmed entries.
+// Cross-feature operations remain injected; per-call rules stay with their owners.
 
-import type { AutomationContext, AutomationService } from "./contract/service.ts";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
+import type { AutomationContext, AutomationService, AutomationServiceDeps } from "./contract/service.ts";
+import { createArmExecutors } from "./engine/arm-executors.ts";
 import { createHandleEvent } from "./substrate/handle-event.ts";
 import { createConfirmSuggestion } from "./verbs/confirm-suggestion.ts";
 import { createCreateRule, createPlanRule } from "./verbs/create-rule.ts";
@@ -31,7 +30,21 @@ import { createSetRuleSuggestOnRefusal } from "./verbs/set-rule-suggest-on-refus
 import { createTestRule } from "./verbs/test-rule.ts";
 import { createUpdateRule } from "./verbs/update-rule.ts";
 
-export function createAutomationService(ctx: AutomationContext): AutomationService {
+export function createAutomationService(deps: AutomationServiceDeps): AutomationService {
+  const serialLanes = createSerialLanes();
+  const ctx: AutomationContext = {
+    ...deps,
+    serialLanes,
+    runArm: createArmExecutors({
+      serialLanes,
+      db: deps.db,
+      ops: deps.ops,
+      prng: deps.prng,
+      notify: deps.notify,
+      suggestions: deps.suggestions,
+      newSuggestionId: deps.newSuggestionId,
+    }),
+  };
   // Built ONCE and injected into BOTH mints: a preset's rule set is validated and shaped by the SAME planner
   // a hand-authored rule goes through (one validation, one row shape), and the dependency stays visible at
   // the composition root instead of hiding inside a verb→verb import. The two differ only in how they

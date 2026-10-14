@@ -15,9 +15,9 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import type { AssetsContext, AssetsService } from "#domain/assets";
+import type { AssetsContext, AssetsService, MaterializeBackgroundDeps } from "#domain/assets";
 import { createAssetsService, createBackgroundStore, createMaterializeBackground, createSeedPlateStore } from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder } from "#domain/character";
 import {
@@ -54,7 +54,8 @@ import { isAutomatedPersonaSeedEnabled } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
-import { publishUserEvent } from "#transport/trpc";
+import type { LiveBuses } from "#transport/trpc";
+
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
 
@@ -63,6 +64,10 @@ import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
  *  forward-ref getters (those services compose later); `materializeBackground` is the keystone's late-bound holder
  *  (character/seeders reference it, and this seam returns the real op the keystone rebinds onto the holder). */
 export interface AssetsCharacterComposeDeps {
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
+
+  readonly fetchImpl?: MaterializeBackgroundDeps["fetchImpl"];
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly cas: Cas;
@@ -140,8 +145,8 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     imageProbe: imageAdapter.probe,
     emit: deps.emit,
     now,
-    newAssetId: minter(ID_PREFIX.asset),
-    newGalleryItemId: minter(ID_PREFIX.galleryItem),
+    newAssetId: minter(ID_PREFIX.asset, deps.idSource),
+    newGalleryItemId: minter(ID_PREFIX.galleryItem, deps.idSource),
     // The cross-domain avatar-pointer write, delivered as the OWNING domain's op (character owns
     // `characters.avatarAssetId`) — the persona `createBulkImportPersonas` shape. Built from character's
     // own persistence factory, not re-implemented here.
@@ -155,6 +160,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   // public-internet SSRF firewall (ANY_HOST, no ownerConfiguredEndpoint) — this is a user-pasted URL; the
   // image magic-belt + the effective per-image byte cap bound the download (side-eye F-P0-2).
   const materializeBackgroundOp = createMaterializeBackground({
+    ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
     storeBackground: createBackgroundStore({ store: (params) => assets.store(params), maxBytes: () => deps.maxImageBytes() }),
     maxBytes: () => deps.maxImageBytes(),
   });
@@ -163,14 +169,14 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     db,
     bumpStatsCanonVersion,
     now,
-    newCharacterId: minter(ID_PREFIX.character),
-    newSnapshotId: minter(ID_PREFIX.characterSnapshot),
+    newCharacterId: minter(ID_PREFIX.character, deps.idSource),
+    newSnapshotId: minter(ID_PREFIX.characterSnapshot, deps.idSource),
 
     audit: deps.audit,
     emit: deps.emit,
     // Every card write also drops the owner's lexical index, so the next text search rebuilds over the live
     // card set: a deleted card leaves both the hits and the coverage counts.
-    emitUserEvent: createCharacterIndexPublication(publishUserEvent),
+    emitUserEvent: createCharacterIndexPublication(deps.emitUserEvent),
     // F-P0-2: a `kind:"external"` carried card background is materialized into an owned CAS asset at update.
     materializeBackground: deps.materializeBackground,
     // Best-effort: remove/bulk-remove wrap it in try/catch, so a reap failure never fails the delete —

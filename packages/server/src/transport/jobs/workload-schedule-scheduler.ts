@@ -13,6 +13,7 @@ import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { ScheduleTickDeps } from "#domain/workloads";
 import { tickWorkloadSchedules } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
+import type { BackgroundWork } from "#infra/tasks";
 
 const LOG_COMPONENT = "workload-schedule-scheduler";
 
@@ -28,6 +29,7 @@ type ScheduleOp = (fn: () => void, ms: number) => () => void;
 /** The DI bundle the scheduler driver closes over — the tick deps (db + clock + `start`) + the timer, all
  *  injected at entry/. */
 export interface WorkloadScheduleSchedulerDeps {
+  readonly track?: BackgroundWork["track"];
   readonly db: Db;
   readonly now: () => number;
   readonly start: ScheduleTickDeps["start"];
@@ -46,9 +48,10 @@ export function startWorkloadScheduleScheduler(deps: WorkloadScheduleSchedulerDe
   const tickDeps: ScheduleTickDeps = { db: deps.db, now: deps.now, start: deps.start };
 
   const safeTick = (): void => {
-    tickWorkloadSchedules(tickDeps).catch((err: unknown) => {
+    const completion = tickWorkloadSchedules(tickDeps).catch((err: unknown) => {
       log.error({ err }, "schedule-scheduler: tick failed (next tick retries)");
     });
+    deps.track?.(completion);
   };
 
   safeTick();

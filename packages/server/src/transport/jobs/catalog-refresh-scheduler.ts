@@ -13,6 +13,7 @@ import type { UserId } from "@orb/kit/ids";
 import { MS_PER_DAY, MS_PER_HOUR } from "@orb/kit/time";
 import type { WorkloadService } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
+import type { BackgroundWork } from "#infra/tasks";
 
 const LOG_COMPONENT = "catalog-refresh-scheduler";
 
@@ -39,6 +40,7 @@ type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
 // @orb-waive no-inline-package-interface(CatalogRefreshSchedulerDeps): baselined when the gate landed; burn-down item 952.
 export interface CatalogRefreshSchedulerDeps {
+  readonly track?: BackgroundWork["track"];
   readonly service: WorkloadService;
   /** Workload rows are enqueued with this owner (provenance; null = a pure system trigger). */
   readonly ownerId: UserId | null;
@@ -95,9 +97,10 @@ export function startCatalogRefreshScheduler(deps: CatalogRefreshSchedulerDeps):
   const checkMs = deps.checkIntervalMs ?? DEFAULT_CHECK_INTERVAL_MS;
 
   const safeCheck = (): void => {
-    runCatalogCheck(deps).catch((err: unknown) => {
+    const completion = runCatalogCheck(deps).catch((err: unknown) => {
       log.error({ err }, "catalog-refresh: check failed (next tick retries)");
     });
+    deps.track?.(completion);
   };
 
   safeCheck();

@@ -62,6 +62,7 @@ export const streamRouter = t.router({
         cell,
         principal: ctx.auth,
         services: ctx.services,
+        liveBuses: ctx.liveBuses,
         multiHumanCapable: ctx.multiHumanCapable,
         signal: sig,
       }),
@@ -75,6 +76,7 @@ export const streamRouter = t.router({
       ref: input.ref,
       principal: ctx.auth,
       services: ctx.services,
+      liveBuses: ctx.liveBuses,
       multiHumanCapable: ctx.multiHumanCapable,
     });
     ctx.sockets.attach(ctx.auth.userId, input.socketId, input.ref, input.sinceSeq ?? null);

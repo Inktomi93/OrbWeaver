@@ -8,7 +8,7 @@
 
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { BatchStmt } from "@orb/db/query";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import type { RecordParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import type { InboxView } from "../contract/views.ts";
@@ -21,7 +21,7 @@ export function createRecord(ctx: NotificationsContext): Pick<NotificationsServi
     const event = notificationEventSchema.parse(params.event);
 
     const row = {
-      id: mintTypeId(ID_PREFIX.notification),
+      id: (ctx.idSource ?? createIdSource()).typeId(ID_PREFIX.notification),
       recipientUserId: event.recipientUserId,
       type: event.type,
       payload: event,

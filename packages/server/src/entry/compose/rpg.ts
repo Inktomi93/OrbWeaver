@@ -12,7 +12,8 @@
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 
 import { randomInt } from "node:crypto";
-import { ID_PREFIX, newId } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { ScheduleOp } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { isCharacterHandleConflict } from "#domain/character";
 import type { PostNarratorMessage } from "#domain/chat";
@@ -50,6 +51,9 @@ import { minter } from "./minter.ts";
 /** What the rpg seam needs from the composition root: the rounds' own DI bundle (minus the handle-conflict
  *  classifier, wired here off character's front door) plus the ops only `RpgContext` itself consumes. */
 export interface RpgComposeDeps extends Omit<RpgRoundsDeps, "rpgChatOps" | "isHandleConflict"> {
+  readonly emitRpgEvent: RpgContext["emitBus"];
+  readonly scheduleTimeout?: ScheduleOp | undefined;
+  readonly randomInt?: RpgContext["randomInt"] | undefined;
   readonly now: () => number;
   /** chat's rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgParticipants) — off chat's
    *  compose result (chat composes first). rpg closes over these; chat learns nothing rpg-shaped. */
@@ -69,7 +73,7 @@ export interface RpgComposeDeps extends Omit<RpgRoundsDeps, "rpgChatOps" | "isHa
 // @orb-waive no-inline-package-interface(RpgComposeResult): baselined when the gate landed; burn-down item 952.
 /** The rpg compose product: the verb surface (transport consumes it) + the `ChatRpgOps` chat receives by
  *  injection (the `input.rpg ?? null` seam). */
-export interface RpgComposeResult {
+export interface RpgComposeResult extends AsyncDisposable {
   readonly service: RpgService;
   readonly chatOps: ReturnType<typeof createRpgChatOps>;
   /** R6 — the campaign's portability WRITE half, surfaced because it closes over the SAME `ids` bundle every
@@ -85,20 +89,23 @@ export function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarrator
 }
 
 export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
-  const rounds: RpgRoundsDeps = { ...deps, isHandleConflict: isCharacterHandleConflict };
+  const idSource = deps.idSource ?? createIdSource();
+  const rounds: RpgRoundsDeps = { ...deps, idSource, isHandleConflict: isCharacterHandleConflict };
+  const observers = createRpgRoundObservers(deps.trace, deps.scheduleTimeout, deps.emitRpgEvent);
   const ctx: RpgContext = {
+    idSource,
     db: deps.db,
     now: deps.now,
     ids: {
-      game: minter(ID_PREFIX.rpgGame),
-      snapshot: minter(ID_PREFIX.rpgSnapshot),
-      sheet: minter(ID_PREFIX.rpgSheet),
-      journal: minter(ID_PREFIX.rpgJournal),
-      checkpoint: minter(ID_PREFIX.rpgCheckpoint),
-      turnToolCalls: minter(ID_PREFIX.rpgTurnToolCalls),
+      game: minter(ID_PREFIX.rpgGame, idSource),
+      snapshot: minter(ID_PREFIX.rpgSnapshot, idSource),
+      sheet: minter(ID_PREFIX.rpgSheet, idSource),
+      journal: minter(ID_PREFIX.rpgJournal, idSource),
+      checkpoint: minter(ID_PREFIX.rpgCheckpoint, idSource),
+      turnToolCalls: minter(ID_PREFIX.rpgTurnToolCalls, idSource),
       // Quest + inventory-item ids are PLAIN strings minted inside the snapshot blob (no table, no FK — §4.1).
-      quest: () => newId(),
-      item: () => newId(),
+      quest: () => idSource.unprefixed(),
+      item: () => idSource.unprefixed(),
     },
     staging: createRpgStagingStore(),
     // The ONE privilege kernel (spine invariant #6) — rpg's `guard.ts` resolves membership and asks THIS for the
@@ -136,14 +143,19 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveCardCorpus: deps.rpgChatOps.resolveCardCorpus,
     runPopulateExtraction: buildRunPopulateExtraction(rounds),
     // The dice CSPRNG (bake-once, server-authoritative — a client seed is never honored, §4.4).
-    randomInt: (max) => randomInt(max),
+    randomInt: deps.randomInt ?? ((max) => randomInt(max)),
     // The bus emit, the flush observability hooks and the flush barrier.
-    ...createRpgRoundObservers(deps.trace),
+    ...observers,
   };
   const service = createRpgService(ctx);
   // Register the cheap-mode state tools into the ONE registry (additive; the imagery precedent).
   for (const def of rpgToolDefinitions(ctx)) {
     deps.toolUse.register(def);
   }
-  return { service, chatOps: createRpgChatOps(ctx), importGame: createImportRpgGame(ctx) };
+  return {
+    service,
+    chatOps: createRpgChatOps(ctx),
+    importGame: createImportRpgGame(ctx),
+    [Symbol.asyncDispose]: () => observers.flushBarrier[Symbol.asyncDispose](),
+  };
 }

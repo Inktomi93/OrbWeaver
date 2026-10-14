@@ -5,7 +5,7 @@
 // the first four: character, persona, chat, message.
 
 export type { AssetRow } from "./asset.ts";
-export { makeAsset, seedAsset } from "./asset.ts";
+export { makeAsset, makeAssetBytes, seedAsset } from "./asset.ts";
 export type { CharacterRow } from "./character.ts";
 export { makeCharacter, seedCharacter } from "./character.ts";
 export type { ChatRow, SeedChatOptions, SeededChat } from "./chat.ts";

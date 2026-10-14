@@ -83,7 +83,7 @@ import type {
 import type { UserMacroDef } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RegexReplacer } from "@orb/kit/regex";
-import type { IanaTimeZone } from "@orb/kit/time";
+import type { IanaTimeZone, TimerScheduler } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
@@ -1156,6 +1156,9 @@ export type ChatTeachingRegistry = readonly TeachingContribution[];
 export interface ChatContext {
   readonly db: Db;
   readonly now: () => number;
+  readonly timers?: TimerScheduler;
+  readonly backgroundSignal?: AbortSignal;
+  readonly trackBackground?: (settled: Promise<void>) => void;
   /** The privilege-decision seam — every chat-authority verdict routes through this; chat never imports admin. */
   readonly can: Can;
   readonly newChatId: () => ChatId;

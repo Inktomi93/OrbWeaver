@@ -12,7 +12,7 @@ import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/c
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
@@ -27,7 +27,8 @@ import { bumpStatsCanonVersion } from "#domain/stats";
 import type { ImportWorldInfoPort, WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
-import { publishUserEvent } from "#transport/trpc";
+import type { LiveBuses } from "#transport/trpc";
+
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture } from "./room-reach.ts";
@@ -35,6 +36,9 @@ import { createDeleteReachCapture } from "./room-reach.ts";
 // @orb-waive no-inline-package-interface(WorldInfoComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the world-info seam needs from the composition root. */
 export interface WorldInfoComposeDeps {
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
+
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
@@ -44,7 +48,7 @@ export interface WorldInfoComposeDeps {
   /** The in-process domain-event emit. World-info's CONTENT writes raise `world-info.updated`, which the
    *  entity→room reach engine (`room-reach.ts`, subscribed at the search-discovery seam) fans to every room
    *  whose assembly pool reads the book. Distinct plane from both `emitChatBusEvent` (one chat's ATTACHMENT
-   *  view) and `publishUserEvent` (the owner's own library list). */
+   *  view) and `deps.emitUserEvent` (the owner's own library list). */
   readonly emitDomainEvent: EmitDomainEvent;
   /** chat's DURABLE-APPEND-FREE live fan (design §3.4) — the entity→room bridge's emit surface. Threaded here
    *  so `removeBook`'s PRE-WRITE reach capture (§3.6 residual) can fan `roomEntityChanged` to the rooms whose
@@ -74,8 +78,8 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
   const worldInfo = createWorldInfoService({
     db,
     now,
-    newBookId: minter(ID_PREFIX.worldBook),
-    newEntryId: minter(ID_PREFIX.worldEntry),
+    newBookId: minter(ID_PREFIX.worldBook, deps.idSource),
+    newEntryId: minter(ID_PREFIX.worldEntry, deps.idSource),
     audit,
     requireChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
     requireChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
@@ -86,7 +90,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
       resolveUserEnabled: createResolveUserEnabled(deps.sessions),
     }),
     emitWiEvent: deps.emitChatBusEvent,
-    emitUserEvent: publishUserEvent,
+    emitUserEvent: deps.emitUserEvent,
     emit: deps.emitDomainEvent,
     // The DELETE residual (§3.6): `removeBook` snapshots the book's rooms through this BEFORE the delete
     // CASCADEs its four scope junctions, then fans the captured set — a post-write reach would see ∅.
@@ -98,8 +102,8 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     importLorebook: createBulkImportLorebook({
       db,
       now,
-      newBookId: minter(ID_PREFIX.worldBook),
-      newEntryId: minter(ID_PREFIX.worldEntry),
+      newBookId: minter(ID_PREFIX.worldBook, deps.idSource),
+      newEntryId: minter(ID_PREFIX.worldEntry, deps.idSource),
     }),
     // #1598: the seat oracle the card-import verb asks BEFORE the write above — it travels with it so no
     // composition can write the embedded book without being able to check whether that would replace a book
@@ -114,14 +118,14 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     db,
     bumpStatsCanonVersion,
     now,
-    newChatId: minter(ID_PREFIX.chat),
-    newChatTurnId: minter(ID_PREFIX.chatTurn),
-    newMessageId: minter(ID_PREFIX.message),
-    newMessageVariantId: minter(ID_PREFIX.messageVariant),
-    newMessageAssetId: minter(ID_PREFIX.messageAsset),
-    newParticipantId: minter(ID_PREFIX.chatParticipant),
+    newChatId: minter(ID_PREFIX.chat, deps.idSource),
+    newChatTurnId: minter(ID_PREFIX.chatTurn, deps.idSource),
+    newMessageId: minter(ID_PREFIX.message, deps.idSource),
+    newMessageVariantId: minter(ID_PREFIX.messageVariant, deps.idSource),
+    newMessageAssetId: minter(ID_PREFIX.messageAsset, deps.idSource),
+    newParticipantId: minter(ID_PREFIX.chatParticipant, deps.idSource),
     // The ST `note_prompt` lands as a chat injection (the retired room author's-note twin's surviving door).
-    newChatInjectionId: minter(ID_PREFIX.chatInjection),
+    newChatInjectionId: minter(ID_PREFIX.chatInjection, deps.idSource),
     // The bundle's assets entity imports first, so a bundled inline attachment exists by the time chats
     // import; this filters an imported message's asset refs to the ones that landed.
     filterExistingAssetIds: async (ownerId, assetIds) => (await assets.resolveOwnedAssetRefs(ownerId, assetIds)).map((r) => r.assetId),
@@ -130,7 +134,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
   const bulkImportPersonas = createBulkImportPersonas({
     db,
     now,
-    newPersonaId: minter(ID_PREFIX.persona),
+    newPersonaId: minter(ID_PREFIX.persona, deps.idSource),
   });
   const resolveOwnerPrincipal = createHostPrincipalResolver(deps.sessions);
 

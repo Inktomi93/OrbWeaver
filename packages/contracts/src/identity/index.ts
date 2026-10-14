@@ -124,6 +124,18 @@ export function isCookieAuthMode(mode: AuthMode): boolean {
   return (COOKIE_AUTH_MODES as readonly AuthMode[]).includes(mode);
 }
 
+const MULTI_HUMAN_CAPABLE: Record<AuthMode, (localMultiUser: boolean) => boolean> = {
+  "single-user": () => false,
+  local: (localMultiUser) => localMultiUser,
+  "forward-header": () => true,
+  oidc: () => true,
+};
+
+/** Whether this sign-in mode admits multiple humans under the current local-seating setting. */
+export function isMultiHumanCapable(mode: AuthMode, localMultiUser: boolean): boolean {
+  return MULTI_HUMAN_CAPABLE[mode](localMultiUser);
+}
+
 /** How a request reached the box. `https` only when a trusted hop asserts it, the IP certificate's own listener
  *  included: the app's handler never sees TLS.
  *  It picks the session cookie's name and `Secure` attribute, and the OIDC callback scheme. */

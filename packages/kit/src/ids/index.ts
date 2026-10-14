@@ -5,7 +5,7 @@
  * {@link typeIdSchema}`(ID_PREFIX.persona)` (prefix-validating) or {@link brandedId}`<UserId>()`.
  */
 
-import { fromString, typeidUnboxed } from "typeid-js";
+import { fromString, getType, typeidUnboxed } from "typeid-js";
 import { z } from "zod";
 
 declare const brand: unique symbol;
@@ -19,6 +19,15 @@ export type Branded<B extends string> = string & { readonly [brand]: B };
 // The compile-time brand reuses this file's `Branded<…>` phantom, not typeid-js's own object brand —
 // an object-shaped brand trips biome's `noBaseToString` on `${id}` template interpolation.
 export type TypeIdOf<P extends string> = Branded<P>;
+
+/** An untyped ID generator at the mint boundary; injected answers are prefix-validated before branding. */
+export type RawIdGenerator = (prefix: string) => string;
+
+/** Business identity inputs, kept separate from session tokens and cryptographic entropy. */
+export interface IdSource {
+  readonly typeId: <P extends string>(prefix: P) => TypeIdOf<P>;
+  readonly unprefixed: <T extends Branded<string>>() => T;
+}
 
 /** The TypeID prefix for each entity. TypeID prefixes must be lowercase `[a-z_]` — multi-word
  *  entities use snake_case, not the camelCase key; a camelCase prefix throws `InvalidPrefixError`. */
@@ -313,15 +322,32 @@ export function brandedId<T extends Branded<string>>(): z.ZodType<T, string> {
 
 /** Mint a fresh `prefix_<base32 uuidv7>` TypeID, typed as the corresponding brand. The one id-mint
  *  primitive — the `no-mint-via-cast` gate forbids minting through {@link castId}. */
-export function mintTypeId<P extends string>(prefix: P): TypeIdOf<P> {
-  return typeidUnboxed(prefix) as string as TypeIdOf<P>;
+export function mintTypeId<P extends string>(prefix: P, generate?: RawIdGenerator): TypeIdOf<P> {
+  return (generate === undefined ? typeidUnboxed(prefix) : generatedTypeId(prefix, generate)) as string as TypeIdOf<P>;
 }
 
 /** Mint a fresh plain (non-TypeID) branded id — for brands that are deliberately prefix-less
  *  nanoids, not `prefix_…` TypeIDs (today: `UserId`). Mints via `typeid-js` with an empty prefix
  *  (avoids `globalThis.crypto`, which kit's no-DOM/no-node lib does not type). */
-export function newId<T extends Branded<string>>(): T {
-  return typeidUnboxed("") as string as T;
+export function newId<T extends Branded<string>>(generate?: RawIdGenerator): T {
+  return (generate === undefined ? typeidUnboxed("") : generatedTypeId("", generate)) as string as T;
+}
+
+function generatedTypeId(prefix: string, generate: RawIdGenerator): string {
+  const id = fromString(generate(prefix));
+  // typeid-js treats an empty expected prefix as unspecified, so prefixless identities need an exact comparison.
+  if (getType(id) !== prefix) {
+    throw new Error("Generated id does not match the requested prefix");
+  }
+  return id;
+}
+
+/** Bind one generator to the canonical business mints without creating another branding path. */
+export function createIdSource(generate?: RawIdGenerator): IdSource {
+  return {
+    typeId: (prefix) => mintTypeId(prefix, generate),
+    unprefixed: <T extends Branded<string>>(): T => newId<T>(generate),
+  };
 }
 
 /** Zod schema for a STRICT TypeID at a request boundary: validates the `prefix_…` shape AND that

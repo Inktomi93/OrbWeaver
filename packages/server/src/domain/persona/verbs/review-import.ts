@@ -3,7 +3,6 @@
 // review can never list a persona the write would reuse, nor miss one it would split.
 
 import type { PersonaCollision } from "@orb/contracts/import";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import {
   differingPersonaFields,
   findDuplicatePersona,
@@ -42,7 +41,7 @@ export function createReviewImport(ctx: PersonaContext): PersonaService["reviewI
       if (holder === null) {
         const name = mintPersonaName(persona.name.trim(), taken);
         taken.add(foldPersonaName(name));
-        known.push({ ...identity, id: mintTypeId(ID_PREFIX.persona), name });
+        known.push({ ...identity, id: ctx.newPersonaId(), name });
       } else if (!collisions.has(key)) {
         collisions.set(key, {
           key,

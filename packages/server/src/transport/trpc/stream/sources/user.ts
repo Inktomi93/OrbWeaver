@@ -12,15 +12,15 @@
 // it off (its sources address a single human), so `sources/notifications.ts` now holds this same posture.
 
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { subscribeUserEvents } from "#src/transport/trpc/user-events-bus.ts";
+
 import type { RoomSourceDef } from "../room-source.ts";
 
 export const userRoomSource: RoomSourceDef<"user"> = {
   // LIVE-ONLY: no durable log, no cursor — the client's blanket gap-heal is this room's recovery.
   resumable: false,
   authorizeAttach: () => Promise.resolve(),
-  async *run({ principal, signal }): AsyncGenerator<StreamDataFrame> {
-    for await (const event of subscribeUserEvents(principal.userId, signal)) {
+  async *run({ principal, liveBuses, signal }): AsyncGenerator<StreamDataFrame> {
+    for await (const event of liveBuses.user.subscribeUserEvents(principal.userId, signal)) {
       yield { channel: "user", event };
     }
   },

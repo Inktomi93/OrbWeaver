@@ -26,7 +26,7 @@
 // Entry binds the writer/read capabilities; connection owns refusal, notification and sweep settlement.
 
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { createLocalLightUserSeed as createUserSeedPolicy, seedLocalLightAccounts, seedLocalLightConnections } from "#domain/connection";
 import { createListSeedAccountIds } from "#domain/sessions";
@@ -34,6 +34,7 @@ import { minter } from "../compose/minter.ts";
 
 // @orb-waive no-inline-package-interface(SeedLocalLightDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedLocalLightDeps {
+  readonly idSource?: IdSource;
   readonly db: Db;
   readonly now: () => number;
   /** Called with an owner whose seed newly bound a vector task (their embed space changed). */
@@ -42,7 +43,12 @@ export interface SeedLocalLightDeps {
 
 /** Preserve the per-call provider lookup and determinism seams while binding only graph capabilities. */
 function seedDepsFrom(deps: SeedLocalLightDeps): Parameters<typeof seedLocalLightConnections>[0] {
-  return { db: deps.db, now: deps.now, newConnectionId: minter(ID_PREFIX.userConnection), newBindingId: minter(ID_PREFIX.connectionBinding) };
+  return {
+    db: deps.db,
+    now: deps.now,
+    newConnectionId: minter(ID_PREFIX.userConnection, deps.idSource),
+    newBindingId: minter(ID_PREFIX.connectionBinding, deps.idSource),
+  };
 }
 
 export function createLocalLightUserSeed(deps: SeedLocalLightDeps): (userId: UserId) => Promise<void> {

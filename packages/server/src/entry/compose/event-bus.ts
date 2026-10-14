@@ -6,7 +6,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { DomainEvent, EmitDomainEvent } from "@orb/contracts/events";
-import type { PubSubHandler } from "@orb/kit/pubsub";
+import type { OwnedPubSub, PubSubHandler } from "@orb/kit/pubsub";
 import { createPubSub } from "@orb/kit/pubsub";
 import { superviseDetached } from "#foundation/observability";
 
@@ -19,8 +19,11 @@ export interface DomainEventBus {
 }
 
 /** Build the in-process domain-event bus. The subscriber set is closure-scoped (ASSUMES single-replica). */
-export function createDomainEventBus(): DomainEventBus {
+export function createDomainEventBus(
+  supervise: typeof superviseDetached = superviseDetached,
+  newRequestId: () => string = randomUUID,
+): OwnedPubSub<DomainEvent> {
   return createPubSub<DomainEvent>((handler, event) =>
-    superviseDetached(`domain-event:${event.type}:${randomUUID()}`, "domain-event.dispatch", { eventType: event.type }, () => handler(event)),
+    supervise(`domain-event:${event.type}:${newRequestId()}`, "domain-event.dispatch", { eventType: event.type }, () => handler(event)),
   );
 }

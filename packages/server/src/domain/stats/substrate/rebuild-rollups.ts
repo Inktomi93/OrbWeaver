@@ -7,8 +7,8 @@ import { generationUsageLegSchema, modelIdSchema, providerIdSchema } from "@orb/
 import type { SpendDeltaField, StatsDelta } from "@orb/contracts/stats";
 import { SPEND_DELTA_FIELDS, variantUsageLegDelta } from "@orb/contracts/stats";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
+import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import type {
   Accums,
@@ -509,13 +509,13 @@ function censusPopulation(charMap: Map<string, CharAccum>, meta: ChatMeta): stri
 }
 
 /** Census rows include silent seats and retained authorship; activity ordering is canon-derived. */
-function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: number): (typeof characterStats.$inferInsert)[] {
+function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: number, idSource: IdSource): (typeof characterStats.$inferInsert)[] {
   return censusPopulation(charMap, meta).map((characterId) => {
     const c = charMap.get(characterId) ?? freshChar();
     const m = meta.chatByChar.get(characterId);
     const lastActivityAt = Math.max(c.lastMsgAt, m?.maxChatUpdated ?? 0) || null;
     return {
-      id: mintTypeId(ID_PREFIX.characterStat),
+      id: idSource.typeId(ID_PREFIX.characterStat),
       characterId: castId<CharacterId>(characterId),
       chats: m?.chats ?? 0,
       userTurns: c.userTurns,
@@ -589,12 +589,17 @@ function buildOwnerRow(ownerId: UserId, owner: OwnerAccum, meta: ChatMeta, now: 
 }
 
 /** A chat creation without messages still produces a timeline bucket. */
-export function buildBucketRows(ownerId: UserId, bucketMap: Map<number, BucketAccum>, meta: ChatMeta, now: number): (typeof dailyStats.$inferInsert)[] {
+export function buildBucketRows(
+  { ownerId, idSource = createIdSource() }: Pick<OwnerRollupScope, "ownerId" | "idSource">,
+  bucketMap: Map<number, BucketAccum>,
+  meta: ChatMeta,
+  now: number,
+): (typeof dailyStats.$inferInsert)[] {
   const bucketKeys = new Set(bucketMap.keys()).union(meta.chatsCreatedByBucket);
   return [...bucketKeys].map((bucketStart) => {
     const d = bucketMap.get(bucketStart) ?? freshBucket();
     return {
-      id: mintTypeId(ID_PREFIX.dailyStat),
+      id: idSource.typeId(ID_PREFIX.dailyStat),
       ownerId,
       bucketStart,
       chatsCreated: meta.chatsCreatedByBucket.get(bucketStart) ?? 0,
@@ -621,9 +626,9 @@ export function buildBucketRows(ownerId: UserId, bucketMap: Map<number, BucketAc
 }
 
 /** Providers remain part of model identity, including the legacy unknown-provider sentinel. */
-function buildModelRows(ownerId: UserId, modelMap: Map<string, ModelEntry>, now: number): (typeof modelStats.$inferInsert)[] {
+function buildModelRows(ownerId: UserId, modelMap: Map<string, ModelEntry>, now: number, idSource: IdSource): (typeof modelStats.$inferInsert)[] {
   return [...modelMap.values()].map(({ model, provider, acc }) => ({
-    id: mintTypeId(ID_PREFIX.modelStat),
+    id: idSource.typeId(ID_PREFIX.modelStat),
     ownerId,
     model,
     provider: provider ?? MODEL_PROVIDER_UNKNOWN,
@@ -669,13 +674,18 @@ export function buildChatMeta(
 }
 
 /** Character rollups inherit ownership from characters, not from the room's retained accounting cohort. */
-export function buildOwnerRows({ ownerId, ownedCharacterIds }: OwnerRollupScope, a: Accums, meta: ChatMeta, now: number): OwnerRollupRows {
+export function buildOwnerRows(
+  { ownerId, ownedCharacterIds, idSource = createIdSource() }: OwnerRollupScope,
+  a: Accums,
+  meta: ChatMeta,
+  now: number,
+): OwnerRollupRows {
   const ownedCharacters = new Set(ownedCharacterIds);
   return {
     ownerRow: buildOwnerRow(ownerId, a.owner, meta, now),
-    charRows: buildCharRows(a.charMap, meta, now).filter((row) => ownedCharacters.has(row.characterId)),
-    bucketRows: buildBucketRows(ownerId, a.bucketMap, meta, now),
-    modelRows: buildModelRows(ownerId, a.modelMap, now),
+    charRows: buildCharRows(a.charMap, meta, now, idSource).filter((row) => ownedCharacters.has(row.characterId)),
+    bucketRows: buildBucketRows({ ownerId, idSource }, a.bucketMap, meta, now),
+    modelRows: buildModelRows(ownerId, a.modelMap, now, idSource),
   };
 }
 

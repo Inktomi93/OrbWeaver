@@ -21,6 +21,8 @@ interface BufferedEvent<E> {
 }
 
 export interface ReplayBuffer<K, E> {
+  /** Release every retained key and event without changing the clock or TTL policy. */
+  readonly clear: () => void;
   /** Append `event` to `key`'s ring (pruning expired entries first). */
   readonly record: (key: K, event: E) => void;
   /** The still-live events for `key`, in emit order (pruned to the TTL window). */
@@ -103,6 +105,9 @@ export function createReplayBuffer<K, E>(ttlMs: number = DEFAULT_REPLAY_TTL_MS, 
   }
 
   return {
+    clear: (): void => {
+      rings.clear();
+    },
     record(key: K, event: E): void {
       const nowMs = now();
       sweep(nowMs);

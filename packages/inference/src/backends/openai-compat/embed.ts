@@ -19,7 +19,7 @@ import type { EmbeddingCapability } from "@orb/contracts/inference";
 import type { EmbedResult, EmbedUsage } from "@orb/contracts/providers";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
-import type { EmbedRequest, Resolved } from "#contract";
+import type { EmbedRequest, Resolved, ScheduleTimeout } from "#contract";
 import { embedRequestTimeoutMs, ProviderError } from "#contract";
 import type { InferenceLog } from "#src/deps.ts";
 import { deadlineSignal } from "../http/abort-flatten.ts";
@@ -46,6 +46,7 @@ const embeddingResponseSchema = z.object({
 
 // @orb-waive no-inline-package-interface(EmbedDeps): baselined when the gate landed; burn-down item 952.
 export interface EmbedDeps {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly log: InferenceLog;
   readonly transport: TransportDeps;
 }
@@ -141,6 +142,7 @@ function postDeadlineMs(tokens: number, baseMs: number, floorTokensPerSec: numbe
 }
 
 interface BatchRun {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly req: EmbedRequest;
   readonly call: ModelCall;
   readonly model: EmbeddingModelV4;
@@ -177,7 +179,7 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<Emb
   const { req, call, model, label, secrets } = run;
   const { features } = req.connection;
   const tokens = batch.reduce((sum, item) => sum + item.tokens, 0);
-  const post = deadlineSignal(req.signal, postDeadlineMs(tokens, embedRequestTimeoutMs(features), features.embedBatch?.floorTokensPerSec));
+  const post = deadlineSignal(req.signal, postDeadlineMs(tokens, embedRequestTimeoutMs(features), features.embedBatch?.floorTokensPerSec), run.scheduleTimeout);
   try {
     const result = await embedOnce({
       call,
@@ -242,6 +244,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
   const maxPerCall = (await Promise.resolve(model.maxEmbeddingsPerCall)) ?? DEFAULT_CHUNK_ITEMS;
   const batches = packBatches(kept, Math.min(maxPerCall, DEFAULT_CHUNK_ITEMS), connection.features.embedBatch?.maxTokens);
   const run: BatchRun = {
+    scheduleTimeout: deps.scheduleTimeout,
     req,
     call,
     model,

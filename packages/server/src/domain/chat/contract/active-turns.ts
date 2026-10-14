@@ -41,3 +41,5 @@ export interface ActiveTurns {
   /** How many turns are currently in flight for `chatId` (a test/observability hook). */
   readonly countActive: (chatId: ChatId) => number;
 }
+
+export interface OwnedActiveTurns extends ActiveTurns, AsyncDisposable {}

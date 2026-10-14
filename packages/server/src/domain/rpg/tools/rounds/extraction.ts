@@ -3,12 +3,12 @@
 
 import { constrainExtractionSchema, rpgExtractionSchema, salvageExtraction } from "@orb/contracts/rpg";
 import { GenerationObservationPersistenceError } from "@orb/inference";
-import { newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { logger } from "#foundation/observability";
 import type { ExtractCtx, PromptInputs, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgRunExtraction } from "#src/domain/rpg/contract/service.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
+import { createExtractionMints } from "../mints.ts";
 import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs } from "./prompts.ts";
 import { extractStructured } from "./round-connection.ts";
 import { isCancelled, logCancelled, logExtractionOutcome, logStrippedKeys, roundFailure, safeJson } from "./round-log.ts";
@@ -100,12 +100,7 @@ export function buildRunExtraction(deps: RpgRoundsDeps): RpgRunExtraction {
     // The participant index resolves an extracted party/inventory target NAME to its participant ref (F2 — the same
     // first-class resolution the cheap-mode tools use; a structured write on a party member must render too).
     const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(
-      baseState,
-      extraction,
-      { item: () => newId(), quest: () => newId(), objective: () => newId() },
-      { participantIndex, trackerDefs },
-    );
+    const delta = extractionToStateDelta(baseState, extraction, createExtractionMints(deps.idSource), { participantIndex, trackerDefs });
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
     // a dark panel is diagnosable from the provider trail.

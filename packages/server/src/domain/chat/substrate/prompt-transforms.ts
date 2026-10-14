@@ -19,7 +19,9 @@ import type {
 } from "@orb/contracts/chat";
 import { DEADLINE_ABORT_REASON, PROMPT_TRANSFORM_ABORT_REASON_MAX } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
+import type { ScheduleOp } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
+import { systemTimers } from "#infra/timers";
 import type { PromptTransformRegistry } from "../contract/context.ts";
 
 /** The per-call deadline FLOOR each transform apply is bounded by (a LEAN — the plugin bridge is async by
@@ -72,15 +74,20 @@ function applyWithSignal(transform: PromptTransform, draft: string, env: PromptT
 
 /** Run ONE transform under the deadline. The timer is always cleared so a fast render never leaves the event
  *  loop pinned. A timeout and a throw both resolve to `skip` — the deadline can never manufacture an abort. */
-async function applyBounded(transform: PromptTransform, draft: string, env: PromptTransformEnv, deadlineMs: number): Promise<BoundedOutcome> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+async function applyBounded(
+  transform: PromptTransform,
+  draft: string,
+  env: PromptTransformEnv,
+  budget: { readonly ms: number; readonly schedule: ScheduleOp },
+): Promise<BoundedOutcome> {
+  let cancelTimer: (() => void) | undefined;
   const orphan = new AbortController();
   const deadline = new Promise<BoundedOutcome>((resolve) => {
-    timer = setTimeout(() => {
+    cancelTimer = budget.schedule(() => {
       // The SKIPPED warning below reports the overrun; the abort tells the transform not to report it again.
       orphan.abort(DEADLINE_ABORT_REASON);
       resolve({ kind: "skip", cause: "deadline" });
-    }, deadlineMs);
+    }, budget.ms);
   });
   // @orb-waive caught-failure-ownership(catch): D53 — a throw resolves to SKIP exactly like a
   // timeout (the type-level BoundedOutcome comment above), never manufactures an abort; the caller keeps the
@@ -90,9 +97,7 @@ async function applyBounded(transform: PromptTransform, draft: string, env: Prom
   } catch {
     return THREW;
   } finally {
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    cancelTimer?.();
   }
 }
 
@@ -102,6 +107,7 @@ async function applyBounded(transform: PromptTransform, draft: string, env: Prom
 export function createPromptTransformRegistry(
   emit: (event: DurableChatBusEvent) => Promise<void>,
   deadlineMs: () => number = () => PROMPT_TRANSFORM_DEADLINE_MS,
+  scheduleTimeout: ScheduleOp = systemTimers.timeout,
 ): PromptTransformRegistry {
   const byId = new Map<string, PromptTransform>();
 
@@ -124,7 +130,7 @@ export function createPromptTransformRegistry(
       if (transform === undefined) {
         return { aborted: false, text: current };
       }
-      const result = await applyBounded(transform, current, env, deadlineMs());
+      const result = await applyBounded(transform, current, env, { ms: deadlineMs(), schedule: scheduleTimeout });
       if (result.kind === "ok") {
         return foldFrom(index + 1, result.text);
       }

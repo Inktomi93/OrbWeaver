@@ -5,8 +5,20 @@ import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { env, parseTrustedPrivateRanges } from "#foundation/env";
 import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
-import { superviseDetached } from "#src/foundation/observability/tracing.ts";
+import { superviseSettled } from "#src/foundation/observability/tracing.ts";
+import { systemTimers } from "../timers/index.ts";
+import type {
+  EgressBlockReason,
+  EgressResolver,
+  PinnedDownloadLimits,
+  SafeFetchOptions,
+  SafeFetchResult,
+  ScopedEgress,
+  ScopedEgressOptions,
+} from "./contract/egress.ts";
+import { ANY_HOST as ANY_HOST_POLICY, ENDPOINT_ADMISSIONS as ENDPOINT_ADMISSION_VALUES } from "./contract/egress.ts";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
+import { createOwnedResponseBody } from "./response-body.ts";
 
 // SSRF egress firewall via undici.setGlobalDispatcher (swapping http.globalAgent doesn't work — Node's
 // fetch ignores it). Two gates: a DNS lookup override for hostname targets (closes the DNS-rebinding
@@ -50,13 +62,20 @@ const DEFAULT_MAX_REDIRECTS = 3;
 // S5: a total request deadline ALWAYS exists (a forgotten caller signal is no longer an unbounded hang).
 // Bounds connect + headers + the redirect chain; the streamed body read is bounded by maxBytes.
 const DEFAULT_DEADLINE_MS = 15_000;
-let cleanupSequence = 0;
 
-/** Teardown is intentionally unordered with the failing/disposed caller, but it is still owned: start the
- * cleanup inside a detached trace and report rejection instead of throwing it away. */
-function superviseEgressCleanup(reason: string, operation: () => Promise<unknown>): void {
-  cleanupSequence += 1;
-  superviseDetached(`egress-cleanup:${String(cleanupSequence)}`, "egress.cleanup", { reason }, operation);
+function superviseEgressCleanup(context: EgressContext, reason: string, operation: () => Promise<unknown>): void {
+  context.cleanupSequence += 1;
+  const completion = superviseSettled(`egress-cleanup:${String(context.cleanupSequence)}`, "egress.cleanup", { reason }, async () => {
+    try {
+      return await operation();
+    } catch (error) {
+      context.failures.push(error instanceof Error ? error : new Error("egress cleanup failed", { cause: error }));
+      throw error;
+    }
+  }).then(() => {
+    context.pending.delete(completion);
+  });
+  context.pending.add(completion);
 }
 
 const TRAILING_DOT_RE = /\.$/;
@@ -160,14 +179,68 @@ interface PrivateEndpointAllowlist {
   readonly ranges: readonly string[];
 }
 
-/** LIVE module state, EMPTY until the settings domain publishes. ASSUMES(single-replica) — per-process BY
- *  CONSTRUCTION: it gates THIS process's undici dispatcher; a second replica publishes its own copy from the
- *  same AppSettings row at its own boot, and one that has not yet fails CLOSED. */
-let privateEndpointAllowlist: PrivateEndpointAllowlist = { hosts: new Set<string>(), hostPorts: new Map<string, ReadonlySet<number>>(), ranges: [] };
-let firewallAgent: Agent | undefined;
+interface EgressContext {
+  privateEndpointAllowlist: PrivateEndpointAllowlist;
+  firewallAgent: Agent | undefined;
+  firewallLookup: LookupFunction;
+  resolver: EgressResolver;
+  readonly fetch: typeof fetch;
+  readonly timers: NonNullable<ScopedEgressOptions["timers"]>;
+  readonly pending: Set<Promise<void>>;
+  readonly requests: Set<AbortController>;
+  readonly discards: Set<() => void>;
+  readonly agents: Set<Agent>;
+  readonly failures: Error[];
+  readonly global: boolean;
+  cleanupSequence: number;
+  closed: boolean;
+}
 
-function samePrivateEndpointAllowlist(next: PrivateEndpointAllowlist): boolean {
-  const previous = privateEndpointAllowlist;
+function createEgressContext(options: ScopedEgressOptions, global: boolean): EgressContext {
+  return {
+    privateEndpointAllowlist: { hosts: new Set(), hostPorts: new Map(), ranges: [] },
+    firewallAgent: undefined,
+    firewallLookup: options.resolver === undefined ? dnsLookup : resolverLookup(options.resolver),
+    resolver: options.resolver ?? defaultResolver,
+    fetch: options.fetch ?? ((input, init): Promise<Response> => globalThis.fetch(input, init)),
+    timers: options.timers ?? systemTimers,
+    pending: new Set(),
+    requests: new Set(),
+    discards: new Set(),
+    agents: new Set(),
+    failures: [],
+    global,
+    cleanupSequence: 0,
+    closed: false,
+  };
+}
+
+function resolverLookup(resolver: EgressResolver): LookupFunction {
+  return (hostname, options, callback): void => {
+    void resolver(hostname).then(
+      (addresses) => {
+        if (addresses.length === 0) {
+          callback(new Error("egress hostname did not resolve"), [], 0);
+        } else if (options.all === true) {
+          callback(
+            null,
+            addresses.map((address) => ({ address, family: socketFamily(address) })),
+            0,
+          );
+        } else {
+          const first = addresses[0] ?? "";
+          callback(null, first, socketFamily(first));
+        }
+      },
+      (error: unknown) => callback(error instanceof Error ? error : new Error("egress DNS resolution failed", { cause: error }), [], 0),
+    );
+  };
+}
+
+const defaultContext = createEgressContext({}, true);
+
+function samePrivateEndpointAllowlistFor(context: EgressContext, next: PrivateEndpointAllowlist): boolean {
+  const previous = context.privateEndpointAllowlist;
   return (
     previous.hosts.size === next.hosts.size &&
     [...previous.hosts].every((host) => next.hosts.has(host)) &&
@@ -340,7 +413,7 @@ function collectAnyPortEntries(
  *  The log states COUNTS only; an entry list would put the operator's LAN topology in every boot log. It
  *  goes out at WARN when anything was refused, because a refused entry admits NOTHING and the operator has
  *  no other tell that the line they wrote is dead. */
-export function publishPrivateEndpointAllowlist(entries: readonly string[]): void {
+function publishPrivateEndpointAllowlistFor(context: EgressContext, entries: readonly string[]): void {
   const classified: ClassifiedEntry[] = [];
   let refused = 0;
   for (const entry of entries) {
@@ -354,10 +427,10 @@ export function publishPrivateEndpointAllowlist(entries: readonly string[]): voi
   const hostPorts = collectHostPorts(classified);
   const { hosts, ranges, narrowed } = collectAnyPortEntries(classified, hostPorts);
   const next = { hosts, hostPorts, ranges };
-  const changed = !samePrivateEndpointAllowlist(next);
-  privateEndpointAllowlist = next;
-  if (changed && firewallAgent !== undefined && getGlobalDispatcher() === firewallAgent) {
-    replaceFirewallAgent();
+  const changed = !samePrivateEndpointAllowlistFor(context, next);
+  context.privateEndpointAllowlist = next;
+  if (changed && context.firewallAgent !== undefined && getGlobalDispatcher() === context.firewallAgent) {
+    replaceFirewallAgentFor(context);
   }
   const counts = { hosts: hosts.size, hostPorts: hostPorts.size, ranges: ranges.length, narrowed, refused };
   if (refused > 0) {
@@ -373,14 +446,13 @@ export function publishPrivateEndpointAllowlist(entries: readonly string[]): voi
 /** THE ADMISSION AXIS, homed at its producer (§7.5 — one `as const` tuple, every reader derives). The
  *  connection domain's `EndpointAdmission` is `(typeof ENDPOINT_ADMISSIONS)[number]`; nothing re-spells the
  *  four members. The verdicts themselves are documented on {@link endpointAdmission} below. */
-export const ENDPOINT_ADMISSIONS = ["public", "admitted", "refused", "invalid"] as const;
 
 /** The WRITE-TIME admission read the connection domain runs before it saves an endpoint row (the guard above
  *  re-judges every connect): `public` = not a private/loopback literal (a hostname resolves at connect, where
  *  the DNS gate judges it); `admitted` = private and on the allowlist; `refused` = private and not; `invalid`
  *  = not an http(s) URL. `localhost` is folded to loopback so the pane's inline "Admit" affordance fires for
  *  the spelling people actually type. */
-export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)[number] {
+function endpointAdmissionFor(context: EgressContext, baseUrl: string): (typeof ENDPOINT_ADMISSIONS)[number] {
   const url = URL.parse(baseUrl);
   if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
     return "invalid";
@@ -391,7 +463,7 @@ export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)
   const host = unbracket(url.hostname).toLowerCase();
   const literal = host === "localhost" ? "127.0.0.1" : host;
   if (parseIp(literal) === null) {
-    return admittedByAllowlist(host, port) ? "admitted" : "public";
+    return admittedByAllowlistFor(context, host, port) ? "admitted" : "public";
   }
   if (isInRanges(literal, NEVER_ADMISSIBLE_RANGES)) {
     return "refused";
@@ -399,7 +471,7 @@ export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)
   if (!isInRanges(literal, privateEgressRanges())) {
     return "public";
   }
-  return admittedByAllowlist(host, port) || (host === "localhost" && admittedByAllowlist(literal, port)) ? "admitted" : "refused";
+  return admittedByAllowlistFor(context, host, port) || (host === "localhost" && admittedByAllowlistFor(context, literal, port)) ? "admitted" : "refused";
 }
 
 /** The write-time admission the connection domain runs: {@link endpointAdmission}, plus a HOSTNAME resolved
@@ -408,14 +480,14 @@ export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)
  *  saving a row whose every dial fails at the connect gate. The judgement is the connect gate's own: the env
  *  belt and the published ranges admit, `NEVER_ADMISSIBLE_RANGES` subtracts. A name that does not resolve now
  *  stays `public`; the connect gate judges it when it does. */
-export async function resolvedEndpointAdmission(baseUrl: string): Promise<(typeof ENDPOINT_ADMISSIONS)[number]> {
-  const verdict = endpointAdmission(baseUrl);
+async function resolvedEndpointAdmissionFor(context: EgressContext, baseUrl: string): Promise<(typeof ENDPOINT_ADMISSIONS)[number]> {
+  const verdict = endpointAdmissionFor(context, baseUrl);
   const url = URL.parse(baseUrl);
   const host = url === null ? "" : unbracket(url.hostname).toLowerCase();
   if (verdict !== "public" || parseIp(host) !== null) {
     return verdict;
   }
-  const addresses = await lookupAll(host);
+  const addresses = await lookupAllFor(context, host);
   if (addresses.length === 0) {
     return verdict;
   }
@@ -423,15 +495,26 @@ export async function resolvedEndpointAdmission(baseUrl: string): Promise<(typeo
   const ranges = privateEgressRanges();
   const refused = firstRefusedAddress(
     addresses,
-    (address) => isInRanges(address, NEVER_ADMISSIBLE_RANGES) || (shouldBlockEgress(address, host, allowlist, ranges) && !addressInAdmittedRanges(address)),
+    (address) =>
+      isInRanges(address, NEVER_ADMISSIBLE_RANGES) ||
+      refusedResolvedEndpoint(context, address, {
+        hostname: host,
+        port: effectiveHttpPort(url?.protocol ?? "", url?.port ?? ""),
+        declared: admittedByAllowlistFor(context, host, effectiveHttpPort(url?.protocol ?? "", url?.port ?? "")),
+        allowlist,
+        ranges,
+      }),
   );
   return refused === undefined ? verdict : "refused";
 }
 
 /** Every address a hostname resolves to through the firewall's own lookup; none when it does not resolve. */
-function lookupAll(hostname: string): Promise<readonly string[]> {
+function lookupAllFor(context: EgressContext, hostname: string): Promise<readonly string[]> {
+  if (!context.global) {
+    return context.resolver(hostname).catch(() => []);
+  }
   return new Promise((resolve) => {
-    firewallLookup(hostname, { all: true }, (err, address): void => {
+    context.firewallLookup(hostname, { all: true }, (err, address): void => {
       if (err) {
         // An unresolvable name is no verdict at write time: the connect gate judges it once it resolves.
         resolve([]);
@@ -446,8 +529,8 @@ function lookupAll(hostname: string): Promise<readonly string[]> {
  *  HERE, not only at publish: the publish-time check sees the ENTRY, so a broad operator CIDR
  *  (`0.0.0.0/0`, `128.0.0.0/1`) would otherwise swallow the link-local metadata class it can never state
  *  directly. One home for "inside the admitted ranges", used by both gates. */
-function addressInAdmittedRanges(address: string): boolean {
-  return isInRanges(address, privateEndpointAllowlist.ranges) && !isInRanges(address, NEVER_ADMISSIBLE_RANGES);
+function addressInAdmittedRangesFor(context: EgressContext, address: string): boolean {
+  return isInRanges(address, context.privateEndpointAllowlist.ranges) && !isInRanges(address, NEVER_ADMISSIBLE_RANGES);
 }
 
 // The first resolved address a gate refuses, or undefined to admit them all: the ONE resolved-address judgement for
@@ -466,39 +549,39 @@ function firstRefusedAddress(addresses: readonly string[], refused: (address: st
  *  `publish` cannot enforce: a CONTAINING CIDR survives the publish untouched, and this early return is
  *  what keeps it from re-widening a port-scoped host. `port` is `null` when this belt cannot read the
  *  target's port, which a port-scoped entry can never admit. */
-function admittedByAllowlist(hostname: string, port: number | null): boolean {
+function admittedByAllowlistFor(context: EgressContext, hostname: string, port: number | null): boolean {
   const host = unbracket(hostname).toLowerCase();
-  const ports = privateEndpointAllowlist.hostPorts.get(host);
+  const ports = context.privateEndpointAllowlist.hostPorts.get(host);
   if (ports !== undefined) {
     return port !== null && ports.has(port);
   }
-  if (privateEndpointAllowlist.hosts.has(host)) {
+  if (context.privateEndpointAllowlist.hosts.has(host)) {
     return true;
   }
-  return parseIp(host) !== null && addressInAdmittedRanges(host);
+  return parseIp(host) !== null && addressInAdmittedRangesFor(context, host);
 }
 
 /** The DNS lookup both connector gates below judge: real `dns.lookup` in prod. A test injects its answer through
  *  {@link __setFirewallLookupForTest}, since no hostname a URL can carry makes the real resolver return an unreadable
  *  address. Read at call time, so an injection reaches an already-installed firewall. */
-let firewallLookup: LookupFunction = dnsLookup;
 
 export function installEgressFirewall(): void {
   if (!env.EGRESS_FIREWALL) {
     return;
   }
-  const allowlist = replaceFirewallAgent();
+  const allowlist = replaceFirewallAgentFor(defaultContext);
   getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
 }
 
 // Replacing before teardown prevents the next request from bypassing the guard on an already-admitted socket.
-function replaceFirewallAgent(): ReadonlySet<string> {
-  const previous = firewallAgent;
-  const { connect, allowlist } = createFirewallConnect();
-  firewallAgent = new Agent({ connect });
-  setGlobalDispatcher(firewallAgent);
+function replaceFirewallAgentFor(context: EgressContext): ReadonlySet<string> {
+  const previous = context.firewallAgent;
+  const { connect, allowlist } = createFirewallConnectFor(context);
+  context.firewallAgent = new Agent({ connect });
+  context.agents.add(context.firewallAgent);
+  setGlobalDispatcher(context.firewallAgent);
   if (previous !== undefined) {
-    superviseEgressCleanup("firewall-policy-change", () => previous.destroy());
+    closeAgentFor(context, previous);
   }
   return allowlist;
 }
@@ -507,7 +590,7 @@ function replaceFirewallAgent(): ReadonlySet<string> {
  *  present a connect target no URL can carry. Throws outside NODE_ENV=test. */
 export function __firewallConnectForTest(): buildConnector.connector {
   assertTestOnly("__firewallConnectForTest");
-  return createFirewallConnect().connect;
+  return createFirewallConnectFor(defaultContext).connect;
 }
 
 /** The env belt's host set: `EGRESS_ALLOWLIST` plus the OIDC issuer host. One read for the connect gate and
@@ -531,61 +614,47 @@ function envEgressAllowlist(): Set<string> {
   return allowlist;
 }
 
+function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgment): LookupFunction {
+  return (hostname, options, resolved): void => {
+    context.firewallLookup(hostname, options, (err, address, family): void => {
+      if (err) {
+        resolved(err, address as string, family as number);
+        return;
+      }
+      const addresses = Array.isArray(address) ? address.map((one) => one.address) : [address];
+      const blocked = firstRefusedAddress(addresses, (one) =>
+        refusedResolvedEndpoint(context, one, {
+          ...judgment,
+        }),
+      );
+      if (blocked !== undefined) {
+        securityEvent(
+          "egress_blocked",
+          { hostname, address: blocked },
+          judgment.declared
+            ? "security: egress SSRF blocked (allowlisted host resolved link-local/never-admissible or unreadable)"
+            : "security: egress SSRF blocked (private or unreadable address)",
+        );
+        resolved(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
+        return;
+      }
+      resolved(null, address as string, family);
+    });
+  };
+}
+
 /** The global firewall's connect function, over the env belt read now and the published allowlist read live. */
-function createFirewallConnect(): { readonly connect: buildConnector.connector; readonly allowlist: ReadonlySet<string> } {
+function createFirewallConnectFor(context: EgressContext): { readonly connect: buildConnector.connector; readonly allowlist: ReadonlySet<string> } {
   const ranges = privateEgressRanges();
   const allowlist = envEgressAllowlist();
 
-  const baseConnect = buildConnector({
-    lookup(hostname, options, callback): void {
-      firewallLookup(hostname, options, (err, address, family): void => {
-        if (err) {
-          callback(err, address as string, family as number);
-          return;
-        }
-        // node:dns: {all:true} yields LookupAddress[]; the default yields a single address string.
-        const addrs: string[] = Array.isArray(address) ? address.map((a) => a.address) : [address];
-        // A hostname NOT listed by name, whose RESOLVED address lands inside an admitted RANGE, is admitted
-        // here — the one gate where the address is in hand. It is PORT-BLIND by construction (no port
-        // reaches a dns.lookup override), which is exactly why `ranges` only ever holds any-port entries.
-        const blocked = firstRefusedAddress(addrs, (a) => shouldBlockEgress(a, hostname, allowlist, ranges) && !addressInAdmittedRanges(a));
-        if (blocked !== undefined) {
-          securityEvent("egress_blocked", { hostname, address: blocked }, "security: egress SSRF blocked (private or unreadable address)");
-          callback(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
-          return;
-        }
-        callback(null, address as string, family);
-      });
-    },
-  });
-
-  // The allowlisted-endpoint connector. An admitted host's private-range block does not apply — but a
-  // declared HOSTNAME still resolves at connect time, and `NEVER_ADMISSIBLE_RANGES` is exactly the set no
-  // declared name may reach (a `metadata.google.internal` admitted by name would otherwise launder
-  // 169.254.169.254 past the publish-side literal check). An IP-literal target never reaches this lookup
-  // (undici skips it) and was already judged at `admittedByAllowlist`.
-  const allowlistedConnect = buildConnector({
-    lookup(hostname, options, callback): void {
-      firewallLookup(hostname, options, (err, address, family): void => {
-        if (err) {
-          callback(err, address as string, family as number);
-          return;
-        }
-        const addrs: string[] = Array.isArray(address) ? address.map((a) => a.address) : [address];
-        const blocked = firstRefusedAddress(addrs, (a) => isInRanges(a, NEVER_ADMISSIBLE_RANGES));
-        if (blocked !== undefined) {
-          securityEvent(
-            "egress_blocked",
-            { hostname, address: blocked },
-            "security: egress SSRF blocked (allowlisted host resolved link-local/never-admissible or unreadable)",
-          );
-          callback(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
-          return;
-        }
-        callback(null, address as string, family);
-      });
-    },
-  });
+  const connectTarget = (target: buildConnector.Options, callback: buildConnector.Callback, declared: boolean): void => {
+    const port = effectiveHttpPort(target.protocol, target.port);
+    const connector = buildConnector({
+      lookup: createFirewallLookupFor(context, { hostname: target.hostname, port, declared, allowlist, ranges }),
+    });
+    connector(target, callback);
+  };
 
   const connect: buildConnector.connector = (options, callback): void => {
     // SECURITY: a zone-scoped literal (`::1%lo`) is an IP to node, which dials it with no DNS lookup, and no address
@@ -601,8 +670,8 @@ function createFirewallConnect(): { readonly connect: buildConnector.connector; 
     // and a port-scoped entry is therefore keyed on an exact host, never on a range.
     // The deployment's admitted private endpoints (F12) — read LIVE so a Governance edit is honoured on the
     // very next connect.
-    if (admittedByAllowlist(options.hostname, effectiveHttpPort(options.protocol, options.port))) {
-      allowlistedConnect(options, callback);
+    if (admittedByAllowlistFor(context, options.hostname, effectiveHttpPort(options.protocol, options.port))) {
+      connectTarget(options, callback, true);
       return;
     }
     const literal = literalHost(options.hostname);
@@ -611,9 +680,58 @@ function createFirewallConnect(): { readonly connect: buildConnector.connector; 
       callback(new Error(`SSRF_BLOCKED: ${options.hostname} → ${literal}`), null);
       return;
     }
-    baseConnect(options, callback);
+    connectTarget(options, callback, false);
   };
   return { connect, allowlist };
+}
+
+interface ConnectJudgment {
+  readonly hostname: string;
+  readonly declared: boolean;
+  readonly port: number | null;
+  readonly allowlist: ReadonlySet<string>;
+  readonly ranges: readonly string[];
+}
+
+function refusedResolvedEndpoint(context: EgressContext, address: string, judgment: ConnectJudgment): boolean {
+  if (judgment.declared) {
+    return isInRanges(address, NEVER_ADMISSIBLE_RANGES);
+  }
+  if (!shouldBlockEgress(address, judgment.hostname, judgment.allowlist, judgment.ranges)) {
+    return false;
+  }
+  const ports = context.privateEndpointAllowlist.hostPorts.get(unbracket(judgment.hostname).toLowerCase());
+  if (ports !== undefined && (judgment.port === null || !ports.has(judgment.port))) {
+    return true;
+  }
+  return !addressInAdmittedRangesFor(context, address);
+}
+
+// Raw execution receives the same connector verdict and the validated pin, never an admission callback.
+async function configuredEndpointPin(context: EgressContext, url: URL): Promise<Agent | undefined> {
+  if (!env.EGRESS_FIREWALL) {
+    return;
+  }
+  const host = unbracket(url.hostname).toLowerCase();
+  const literal = literalHost(host);
+  const port = effectiveHttpPort(url.protocol, url.port);
+  const allowlist = envEgressAllowlist();
+  const ranges = privateEgressRanges();
+  const declared = admittedByAllowlistFor(context, host, port);
+  if (!declared && literal !== null && shouldBlockEgress(literal, host, allowlist, ranges)) {
+    blockEgress("private-address", host, `host ${host} is a private endpoint this deployment does not admit`);
+  }
+  const addresses = literal === null ? await context.resolver(host) : [literal];
+  if (addresses.length === 0) {
+    blockEgress("unresolvable", host, `host ${host} did not resolve to any address`);
+  }
+  const blocked = firstRefusedAddress(addresses, (address) => refusedResolvedEndpoint(context, address, { hostname: host, port, declared, allowlist, ranges }));
+  if (blocked !== undefined) {
+    blockEgress("private-address", host, `host ${host} resolves to a private, reserved or unreadable address`, { address: blocked });
+  }
+  const agent = pinnedAgent(addresses);
+  context.agents.add(agent);
+  return agent;
 }
 
 // ── safeFetch: the self-enforcing SSRF guard for any user-influenced outbound URL ──────────────────
@@ -631,22 +749,6 @@ function createFirewallConnect(): { readonly connect: buildConnector.connector; 
  *  scrapeWeb). No host is pinned, but the resolve→validate→pin private-range denial STILL runs on every
  *  hop — this can NEVER be spelled by passing `[]`, it must be named. Compose-bound into the ANY-host
  *  op wirings; never wire/caller-suppliable. */
-export const ANY_HOST: unique symbol = Symbol("safeFetch.ANY_HOST");
-
-const EGRESS_BLOCK_REASONS = [
-  "scheme",
-  "credentials",
-  "host-not-allowed",
-  "ip-literal",
-  "private-address",
-  "unresolvable",
-  "too-many-redirects",
-  "deadline",
-  "content-type", // step 6: the terminal response's content-type is not in the allowlist
-  "too-large", // the streamed body exceeded maxBytes (the decompression-bomb bound)
-  "consumed", // the single-use bytes() reader was invoked twice
-] as const;
-type EgressBlockReason = (typeof EGRESS_BLOCK_REASONS)[number];
 
 /** Thrown by {@link safeFetch} on any block; carries a typed reason for branching. The message NEVER
  *  echoes internal addressing (the resolved private IP) — only the caller-supplied host and the reason;
@@ -660,59 +762,8 @@ export class EgressBlockedError extends Error {
   }
 }
 
-// @orb-waive no-inline-package-interface(SafeFetchOptions): baselined when the gate landed; burn-down item 952.
-export interface SafeFetchOptions {
-  /** REQUIRED. A host allowlist (exact "api.chub.ai" or a leading-dot suffix ".chub.ai" that matches
-   *  any subdomain but NEVER the bare apex), checked case-insensitively at the start URL and on EVERY
-   *  redirect hop; OR the {@link ANY_HOST} sentinel (the named no-allowlist escape for the
-   *  provider-returned-URL / arbitrary-URL classes — IP denial still runs). */
-  readonly allowedHosts: readonly string[] | typeof ANY_HOST;
-  readonly method?: "GET" | "POST";
-  /** Forwarded on same-origin hops; credential-class headers + the body are STRIPPED on any cross-origin
-   *  redirect. */
-  readonly headers?: Readonly<Record<string, string>>;
-  readonly body?: string | Uint8Array;
-  /** Hard cap on response bytes read (post-decode — the cap IS the decompression-bomb bound). Default 5 MB. */
-  readonly maxBytes?: number;
-  /** Max redirect hops. Default 3. 0 = a redirect is an error. */
-  readonly maxRedirects?: number;
-  /** If set, the response content-type (major/minor, params ignored) must match one entry. */
-  readonly allowedContentTypes?: readonly string[];
-  /** Total request deadline (connect + headers + redirects). Default 15_000 ms — S5. */
-  readonly deadlineMs?: number;
-  /** Caller cancellation, composed with the deadline. */
-  readonly signal?: AbortSignal;
-  /** Configured-endpoint class ONLY (§0 "configured endpoint" — the user's OWN backend, e.g. the
-   *  credentials `/models` probe against a BYO vLLM). The connection's `baseUrl` is the declared intent,
-   *  legitimately LAN and often plain http/IP-literal. Setting this pins the fetch to its derived host
-   *  yet OPTS OUT of the https-scheme pin, the IP-literal reject, and safeFetch's own private-range
-   *  denial — deferring SSRF to the global egress firewall + operator EGRESS_ALLOWLIST (today's posture,
-   *  preserved). NEVER wire/caller-suppliable — compose binds it only for the models probe. */
-  readonly ownerConfiguredEndpoint?: boolean;
-}
-
-// @orb-waive no-inline-package-interface(SafeFetchResult): baselined when the gate landed; burn-down item 952.
-export interface SafeFetchResult {
-  /** Final response URL after safeFetch's validated redirect chain. Optional only for injected test doubles. */
-  readonly url?: string;
-  readonly status: number;
-  readonly headers: Headers;
-  readonly contentType: string | null;
-  /** Single-use capped reader (throws on reuse; throws the moment maxBytes is exceeded). Reading fully
-   *  releases the socket + closes the pinned Agent — a caller that reads never needs {@link dispose}. */
-  readonly bytes: () => Promise<Uint8Array>;
-  /** Release the response WITHOUT reading it — cancels the body (socket back to the pool) and destroys the
-   *  pinned per-request Agent. Idempotent + no-op once `bytes()` has run. Every early-return/abandon path
-   *  (a non-2xx status the caller drops, a throw before reading) calls this (`res.dispose?.()`) so an
-   *  upstream failure storm can't leak Agents until the deadline timer fires. OPTIONAL because only the real
-   *  network-backed result carries an Agent/socket to release; a test stub has nothing to dispose, so a
-   *  `dispose?.()` call is a correct no-op there rather than forcing every fake to stub it. */
-  readonly dispose?: () => void;
-}
-
 /** The address resolver — real dns.lookup in prod. A test injects a deterministic map via
  *  {@link __setEgressResolverForTest} so the firewall-OFF SSRF suite needs no live DNS. */
-type EgressResolver = (host: string) => Promise<readonly string[]>;
 
 function defaultResolver(host: string): Promise<readonly string[]> {
   return new Promise((resolve, reject) => {
@@ -725,8 +776,6 @@ function defaultResolver(host: string): Promise<readonly string[]> {
     });
   });
 }
-
-let egressResolver: EgressResolver = defaultResolver;
 
 /** Guards the test-only seams: they are prod-reachable through the package front door, so refuse to run
  *  outside the test runner (env.NODE_ENV — the sanctioned reader; VITEST/CI pin it to "test"). */
@@ -741,14 +790,14 @@ function assertTestOnly(name: string): void {
  *  Throws outside NODE_ENV=test — NEVER usable in production. */
 export function __setEgressResolverForTest(resolver: EgressResolver | null): void {
   assertTestOnly("__setEgressResolverForTest");
-  egressResolver = resolver ?? defaultResolver;
+  defaultContext.resolver = resolver ?? defaultResolver;
 }
 
 /** TEST-ONLY seam: inject the DNS lookup the global firewall's two connector gates judge; pass `null` to restore
  *  real dns.lookup. Throws outside NODE_ENV=test — NEVER usable in production. */
 export function __setFirewallLookupForTest(lookup: LookupFunction | null): void {
   assertTestOnly("__setFirewallLookupForTest");
-  firewallLookup = lookup ?? dnsLookup;
+  defaultContext.firewallLookup = lookup ?? dnsLookup;
 }
 
 /** TEST-ONLY seam: build the SAME single-use pinned dispatcher safeFetch pins per request, so an
@@ -770,10 +819,12 @@ interface OpenedFetch {
   readonly discard: () => void;
   /** A body-read failure as the caller sees it: the deadline's own abort is the deadline refusal. */
   readonly bodyError: (err: unknown) => unknown;
+  readonly holdReader: (reader: ReadableStreamDefaultReader<Uint8Array> | undefined) => void;
+  readonly assertActive: () => void;
 }
 
-export async function safeFetch(url: string | URL, options: SafeFetchOptions): Promise<SafeFetchResult> {
-  const opened = await openSafeFetch(url, options);
+async function safeFetchFor(context: EgressContext, url: string | URL, options: SafeFetchOptions): Promise<SafeFetchResult> {
+  const opened = await openSafeFetchFor(context, url, options);
   // ONE settle guard shared by bytes() + dispose(): the response is single-use, so whichever runs first
   // claims it (a second bytes() is the reuse error; a dispose() after a read is a no-op).
   let settled = false;
@@ -800,7 +851,10 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
 }
 
 /** Resolve, validate, pin and send; answer the response with its content type checked and its body unread. */
-async function openSafeFetch(url: string | URL, options: SafeFetchOptions): Promise<OpenedFetch> {
+async function openSafeFetchFor(context: EgressContext, url: string | URL, options: SafeFetchOptions): Promise<OpenedFetch> {
+  if (context.closed) {
+    throw new Error("egress lifetime is closed");
+  }
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
   const deadlineMs = options.deadlineMs ?? DEFAULT_DEADLINE_MS;
@@ -811,17 +865,23 @@ async function openSafeFetch(url: string | URL, options: SafeFetchOptions): Prom
   // URL cannot hang unboundedly (the byte cap bounds SIZE, this bounds TIME). Cleared once the body is
   // consumed; unref'd so an unread response never keeps the event loop alive. Composed with any caller signal.
   const deadlineCtrl = new AbortController();
-  const timer = setTimeout(() => deadlineCtrl.abort(), deadlineMs);
-  timer.unref();
-  const signal = options.signal ? AbortSignal.any([options.signal, deadlineCtrl.signal]) : deadlineCtrl.signal;
+  const lifetimeCtrl = new AbortController();
+  context.requests.add(lifetimeCtrl);
+  const completion = Promise.withResolvers<void>();
+  context.pending.add(completion.promise);
+  const cancelTimer = context.timers.timeoutUnref(() => deadlineCtrl.abort(), deadlineMs);
+  const signal = AbortSignal.any([lifetimeCtrl.signal, deadlineCtrl.signal, ...(options.signal === undefined ? [] : [options.signal])]);
   const deadlineHit = (): boolean => deadlineCtrl.signal.aborted && options.signal?.aborted !== true;
 
   let response: Response;
   let agent: Agent | undefined;
   try {
-    ({ response, agent } = await followRedirects(start, maxRedirects, options, signal));
+    ({ response, agent } = await followRedirectsFor(context, { start, maxRedirects, options, signal }));
   } catch (err) {
-    clearTimeout(timer);
+    cancelTimer();
+    context.requests.delete(lifetimeCtrl);
+    context.pending.delete(completion.promise);
+    completion.resolve();
     if (deadlineHit()) {
       securityEvent("egress_blocked", { reason: "deadline", hostname: start.hostname }, "security: safeFetch egress blocked (deadline)");
       // biome-ignore lint/style/useErrorCause: the cause IS forwarded — EgressBlockedError passes options to super(); biome can't see through the custom class.
@@ -830,19 +890,45 @@ async function openSafeFetch(url: string | URL, options: SafeFetchOptions): Prom
     throw err;
   }
 
+  let released = false;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   const release = (): void => {
-    clearTimeout(timer);
-    closeAgent(agent);
+    if (released) {
+      return;
+    }
+    released = true;
+    cancelTimer();
+    context.requests.delete(lifetimeCtrl);
+    context.discards.delete(discard);
+    signal.removeEventListener("abort", discard);
+    context.pending.delete(completion.promise);
+    completion.resolve();
+    closeAgentFor(context, agent);
   };
   const discard = (): void => {
+    if (released) {
+      return;
+    }
     const body = response.body;
-    if (body !== null) {
-      superviseEgressCleanup("body-discarded", () => body.cancel());
+    if (reader !== undefined) {
+      const held = reader;
+      superviseEgressCleanup(context, "reader-discarded", async () => {
+        try {
+          await held.cancel();
+        } finally {
+          held.releaseLock();
+        }
+      });
+    } else if (body !== null) {
+      superviseEgressCleanup(context, "body-discarded", () => body.cancel());
     }
     release();
   };
+  context.discards.add(discard);
+  signal.addEventListener("abort", discard, { once: true });
   let contentType: string | null;
   try {
+    signal.throwIfAborted();
     contentType = enforceContentType(response, options.allowedContentTypes);
   } catch (err) {
     discard();
@@ -854,6 +940,10 @@ async function openSafeFetch(url: string | URL, options: SafeFetchOptions): Prom
     maxBytes,
     release,
     discard,
+    holdReader: (held): void => {
+      reader = held;
+    },
+    assertActive: () => signal.throwIfAborted(),
     bodyError: (err: unknown): unknown =>
       deadlineHit() ? new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, { cause: err }) : err,
   };
@@ -861,9 +951,10 @@ async function openSafeFetch(url: string | URL, options: SafeFetchOptions): Prom
 
 /** Force-close a per-request pinned dispatcher (spec D — "close the hop's Agent"). No-op for the
  *  owner-configured-endpoint class (no per-request agent; the global dispatcher is shared). */
-function closeAgent(agent: Agent | undefined): void {
+function closeAgentFor(context: EgressContext, agent: Agent | undefined): void {
   if (agent !== undefined) {
-    superviseEgressCleanup("agent-close", () => agent.destroy());
+    context.agents.delete(agent);
+    superviseEgressCleanup(context, "agent-close", () => agent.destroy());
   }
 }
 
@@ -872,10 +963,10 @@ function closeAgent(agent: Agent | undefined): void {
 // read is bounded by the safeFetch total deadline; an optional caller/workload `signal` composes on top
 // (cancels the in-flight download when the initiating turn/workload aborts). Returns null on any
 // block/non-2xx/cap/timeout/network failure; the caller drops that one image.
-export async function fetchImageBytes(url: string, maxBytes?: number, signal?: AbortSignal): Promise<Uint8Array | null> {
+async function fetchImageBytesFor(context: EgressContext, url: string, maxBytes?: number, signal?: AbortSignal): Promise<Uint8Array | null> {
   // @orb-waive caught-failure-ownership(catch): an attacker-influenceable provider image URL where every failure (SSRF egress-block, non-2xx, byte-cap, network) collapses to null and the caller drops the image; the SSRF block is already securityEvent'd at the connector before this catch, so returning null never opens egress or loses the event. Ends if a block reaches here un-logged.
   try {
-    const res = await safeFetch(url, {
+    const res = await safeFetchFor(context, url, {
       allowedHosts: ANY_HOST,
       ...(maxBytes !== undefined ? { maxBytes } : {}),
       ...(signal !== undefined ? { signal } : {}),
@@ -896,8 +987,8 @@ export async function fetchImageBytes(url: string, maxBytes?: number, signal?: A
 // error, so the databank verb can collapse every failure into a leak-free typed ScrapeFailedError (the domain
 // never imports infra to branch — the extraction-error-in-contracts precedent). The byte cap is bound HERE, not
 // caller-suppliable.
-export async function fetchWebDocument(url: string): Promise<Uint8Array> {
-  const res = await safeFetch(url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: DEFAULT_MAX_BYTES });
+async function fetchWebDocumentFor(context: EgressContext, url: string): Promise<Uint8Array> {
+  const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: DEFAULT_MAX_BYTES });
   if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
     res.dispose?.(); // drop the non-2xx body + close the pinned Agent before throwing
     throw new Error(`fetchWebDocument: non-2xx response (HTTP ${res.status})`);
@@ -919,8 +1010,8 @@ const PLUGIN_BUNDLE_FETCH_MAX_BYTES = 1_048_576;
 // non-2xx, the byte cap, or a network error, so the URL verbs collapse every failure into a leak-free
 // `PluginBundleFetchError` (the domain never imports infra to branch — the fetchWebDocument→ScrapeFailedError
 // precedent). The byte cap is bound HERE, not caller-suppliable.
-export async function fetchPluginBundle(url: string): Promise<Uint8Array> {
-  const res = await safeFetch(url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: PLUGIN_BUNDLE_FETCH_MAX_BYTES });
+async function fetchPluginBundleFor(context: EgressContext, url: string): Promise<Uint8Array> {
+  const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: PLUGIN_BUNDLE_FETCH_MAX_BYTES });
   if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
     res.dispose?.(); // drop the non-2xx body + close the pinned Agent before throwing
     throw new Error(`fetchPluginBundle: non-2xx response (HTTP ${res.status})`);
@@ -928,14 +1019,8 @@ export async function fetchPluginBundle(url: string): Promise<Uint8Array> {
   return await res.bytes();
 }
 
-// @orb-waive no-inline-package-interface(PinnedDownloadLimits): baselined when the gate landed; burn-down item 952.
 /** The limits a pinned-release download runs under: the exact hosts the release and its redirect hops may name,
  *  the asset's pinned size as the byte cap, and the whole-download deadline. */
-export interface PinnedDownloadLimits {
-  readonly allowedHosts: readonly string[];
-  readonly maxBytes: number;
-  readonly deadlineMs: number;
-}
 
 /** A pinned-release download (the share relay's cloudflared): safeFetch with an exact host allowlist, so the
  *  https pin, the per-hop private-range denial, the byte cap and the deadline all run. The caller hashes the bytes
@@ -945,8 +1030,13 @@ export interface PinnedDownloadLimits {
  *  The body streams through the cap and the deadline to the caller, which writes it to the partial file as it
  *  hashes it, so the door holds one chunk and never the asset. It reads the first chunk before answering, so a
  *  refusal the first read shows (an answer over the pinned size, a reset) rejects the download itself. */
-export async function fetchPinnedDownload(url: string, limits: PinnedDownloadLimits): Promise<Response> {
-  const opened = await openSafeFetch(url, { allowedHosts: limits.allowedHosts, method: "GET", maxBytes: limits.maxBytes, deadlineMs: limits.deadlineMs });
+async function fetchPinnedDownloadFor(context: EgressContext, url: string, limits: PinnedDownloadLimits): Promise<Response> {
+  const opened = await openSafeFetchFor(context, url, {
+    allowedHosts: limits.allowedHosts,
+    method: "GET",
+    maxBytes: limits.maxBytes,
+    deadlineMs: limits.deadlineMs,
+  });
   const { status } = opened.response;
   if (status < OK_STATUS_MIN || status >= REDIRECT_STATUS_MIN) {
     opened.discard();
@@ -1065,12 +1155,15 @@ function validateUrl(url: URL, options: SafeFetchOptions): void {
  *  validated set into a single-use per-request dispatcher (the name cannot re-resolve between check and
  *  connect — DNS-rebind closed). Returns `undefined` for the owner-configured-endpoint class, which
  *  defers address gating to the global firewall (its LAN endpoint is the declared intent). */
-async function resolveValidatePin(url: URL, options: SafeFetchOptions): Promise<Agent | undefined> {
+async function resolveValidatePinFor(context: EgressContext, url: URL, options: SafeFetchOptions): Promise<Agent | undefined> {
   if (options.ownerConfiguredEndpoint === true) {
-    return;
+    if (context.global) {
+      return;
+    }
+    return await configuredEndpointPin(context, url);
   }
   const host = normalizeHost(url.hostname);
-  const addresses = await egressResolver(host);
+  const addresses = await context.resolver(host);
   if (addresses.length === 0) {
     blockEgress("unresolvable", host, `host ${host} did not resolve to any address`);
   }
@@ -1080,7 +1173,9 @@ async function resolveValidatePin(url: URL, options: SafeFetchOptions): Promise<
     // The address is LOGGED (observability) but never surfaced in the thrown error.
     blockEgress("private-address", host, `host ${host} resolves to a private, reserved or unreadable address`, { address: blocked });
   }
-  return pinnedAgent(addresses);
+  const agent = pinnedAgent(addresses);
+  context.agents.add(agent);
+  return agent;
 }
 
 /** The family of the address's SPELLING, which is what the socket dials. Not `parseIp`'s width: that reduces a
@@ -1147,11 +1242,11 @@ function buildHopInit(args: HopInitArgs): RequestInit {
 }
 
 /** Run one hop's fetch; on any transport error close this hop's pinned agent before rethrowing. */
-async function fetchHop(url: URL, init: RequestInit, agent: Agent | undefined): Promise<Response> {
+async function fetchHopFor(context: EgressContext, url: URL, init: RequestInit, agent: Agent | undefined): Promise<Response> {
   try {
-    return await fetch(url, init);
+    return await context.fetch(url, init);
   } catch (err) {
-    closeAgent(agent);
+    closeAgentFor(context, agent);
     throw err;
   }
 }
@@ -1163,13 +1258,20 @@ interface HopResult {
   readonly agent: Agent | undefined;
 }
 
-async function followRedirects(start: URL, maxRedirects: number, options: SafeFetchOptions, signal: AbortSignal): Promise<HopResult> {
+interface RedirectInput {
+  readonly start: URL;
+  readonly maxRedirects: number;
+  readonly options: SafeFetchOptions;
+  readonly signal: AbortSignal;
+}
+
+async function followRedirectsFor(context: EgressContext, { start, maxRedirects, options, signal }: RedirectInput): Promise<HopResult> {
   let current = start;
   let hopHeaders: Record<string, string> | undefined = options.headers ? { ...options.headers } : undefined;
   for (let hop = 0; ; hop++) {
     validateUrl(current, options);
-    const agent = await resolveValidatePin(current, options);
-    const res = await fetchHop(current, buildHopInit({ options, dispatcher: agent, signal, headers: hopHeaders, hop }), agent);
+    const agent = await resolveValidatePinFor(context, current, options);
+    const res = await fetchHopFor(context, current, buildHopInit({ options, dispatcher: agent, signal, headers: hopHeaders, hop }), agent);
     const isRedirect = res.status >= REDIRECT_STATUS_MIN && res.status < REDIRECT_STATUS_MAX;
     const loc = isRedirect ? res.headers.get("location") : null;
     if (loc === null) {
@@ -1178,9 +1280,9 @@ async function followRedirects(start: URL, maxRedirects: number, options: SafeFe
     // A redirect hop is done — drain its body back to the pool and CLOSE its pinned agent (spec D).
     const body = res.body;
     if (body !== null) {
-      superviseEgressCleanup("redirect-hop", () => body.cancel());
+      superviseEgressCleanup(context, "redirect-hop", () => body.cancel());
     }
-    closeAgent(agent);
+    closeAgentFor(context, agent);
     if (hop >= maxRedirects) {
       blockEgress("too-many-redirects", normalizeHost(current.hostname), `redirect budget (${maxRedirects}) exceeded`);
     }
@@ -1206,23 +1308,29 @@ function enforceContentType(response: Response, allowed: readonly string[] | und
  * it did not finish, and reports the deadline's abort as the deadline refusal.
  */
 async function* cappedChunks(opened: OpenedFetch): AsyncGenerator<Uint8Array, void> {
+  opened.assertActive();
   const reader = opened.response.body?.getReader();
+  opened.holdReader(reader);
   let finished = reader === undefined;
   try {
     let total = 0;
     for (let chunk = await reader?.read(); chunk !== undefined && !chunk.done; chunk = await reader?.read()) {
+      opened.assertActive();
       total += chunk.value.byteLength;
       if (total > opened.maxBytes) {
         throw new EgressBlockedError("too-large", `safeFetch: response exceeded maxBytes=${opened.maxBytes}`);
       }
       yield chunk.value;
     }
+    opened.assertActive();
     finished = true;
   } catch (err) {
     throw opened.bodyError(err);
   } finally {
     if (!finished && reader !== undefined) {
-      superviseEgressCleanup("body-unfinished", () => reader.cancel());
+      opened.discard();
+    } else {
+      reader?.releaseLock();
     }
     opened.release();
   }
@@ -1246,4 +1354,130 @@ function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array 
     off += c.byteLength;
   }
   return out;
+}
+
+export type { PinnedDownloadLimits, SafeFetchOptions, SafeFetchResult } from "./contract/egress.ts";
+export const ANY_HOST: typeof ANY_HOST_POLICY = ANY_HOST_POLICY;
+export const ENDPOINT_ADMISSIONS = ENDPOINT_ADMISSION_VALUES;
+
+/** Publish into the production process firewall's owner. */
+export function publishPrivateEndpointAllowlist(entries: readonly string[]): void {
+  publishPrivateEndpointAllowlistFor(defaultContext, entries);
+}
+
+export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)[number] {
+  return endpointAdmissionFor(defaultContext, baseUrl);
+}
+
+export function resolvedEndpointAdmission(baseUrl: string): Promise<(typeof ENDPOINT_ADMISSIONS)[number]> {
+  return resolvedEndpointAdmissionFor(defaultContext, baseUrl);
+}
+
+export function safeFetch(url: string | URL, options: SafeFetchOptions): Promise<SafeFetchResult> {
+  return safeFetchFor(defaultContext, url, options);
+}
+
+export function fetchImageBytes(url: string, maxBytes?: number, signal?: AbortSignal): Promise<Uint8Array | null> {
+  return fetchImageBytesFor(defaultContext, url, maxBytes, signal);
+}
+
+export function fetchWebDocument(url: string): Promise<Uint8Array> {
+  return fetchWebDocumentFor(defaultContext, url);
+}
+
+export function fetchPluginBundle(url: string): Promise<Uint8Array> {
+  return fetchPluginBundleFor(defaultContext, url);
+}
+
+export function fetchPinnedDownload(url: string, limits: PinnedDownloadLimits): Promise<Response> {
+  return fetchPinnedDownloadFor(defaultContext, url, limits);
+}
+
+async function configuredEndpointFetchFor(context: EgressContext, input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> {
+  if (context.closed) {
+    throw new Error("egress lifetime is closed");
+  }
+  const request = new Request(input, init);
+  const url = new URL(request.url);
+  validateUrl(url, { allowedHosts: ANY_HOST, ownerConfiguredEndpoint: true });
+  const controller = new AbortController();
+  const signal = AbortSignal.any([controller.signal, request.signal]);
+  const completion = Promise.withResolvers<void>();
+  context.requests.add(controller);
+  context.pending.add(completion.promise);
+  let connector: Agent | undefined;
+  const release = (): void => {
+    context.requests.delete(controller);
+    context.pending.delete(completion.promise);
+    completion.resolve();
+    closeAgentFor(context, connector);
+  };
+  let bodyOwned = false;
+  try {
+    const pin = await configuredEndpointPin(context, url);
+    closeAgentFor(context, pin);
+    signal.throwIfAborted();
+    const fetchInit: RequestInit = { signal };
+    if (env.EGRESS_FIREWALL) {
+      connector = new Agent({ connect: createFirewallConnectFor(context).connect });
+      context.agents.add(connector);
+      Reflect.set(fetchInit, "dispatcher", connector);
+    }
+    const response = await context.fetch(request, fetchInit);
+    const body = createOwnedResponseBody(response, signal);
+    superviseEgressCleanup(context, "provider-body", () => body.settled.finally(release));
+    bodyOwned = true;
+    return body.response;
+  } finally {
+    if (!bodyOwned) {
+      release();
+    }
+  }
+}
+
+async function settleEgress(context: EgressContext): Promise<void> {
+  while (context.pending.size > 0) {
+    await Promise.all(context.pending);
+  }
+  for (const agent of context.agents) {
+    closeAgentFor(context, agent);
+  }
+  while (context.pending.size > 0) {
+    await Promise.all(context.pending);
+  }
+  if (context.failures.length > 0) {
+    throw new AggregateError(context.failures, "egress physical cleanup failed");
+  }
+}
+
+/** Own one graph's publication, guarded execution, cancellation and physical network settlement. */
+export function createScopedEgress(options: ScopedEgressOptions = {}): ScopedEgress {
+  const context = createEgressContext(options, false);
+  let disposal: Promise<void> | undefined;
+  const cancel = (): void => {
+    context.closed = true;
+    for (const controller of context.requests) {
+      controller.abort();
+    }
+    for (const discard of context.discards) {
+      discard();
+    }
+  };
+  return {
+    cancel,
+    publishPrivateEndpointAllowlist: (entries) => publishPrivateEndpointAllowlistFor(context, entries),
+    endpointAdmission: (baseUrl) => endpointAdmissionFor(context, baseUrl),
+    resolvedEndpointAdmission: (baseUrl) => resolvedEndpointAdmissionFor(context, baseUrl),
+    safeFetch: (url, fetchOptions) => safeFetchFor(context, url, fetchOptions),
+    fetchImageBytes: (url, maxBytes, signal) => fetchImageBytesFor(context, url, maxBytes, signal),
+    fetchWebDocument: (url) => fetchWebDocumentFor(context, url),
+    fetchPluginBundle: (url) => fetchPluginBundleFor(context, url),
+    fetchPinnedDownload: (url, limits) => fetchPinnedDownloadFor(context, url, limits),
+    configuredEndpointFetch: (input, init) => configuredEndpointFetchFor(context, input, init),
+    [Symbol.asyncDispose]: (): Promise<void> => {
+      cancel();
+      disposal ??= settleEgress(context);
+      return disposal;
+    },
+  };
 }

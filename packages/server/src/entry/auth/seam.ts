@@ -42,6 +42,7 @@ import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
+import type { LiveBuses } from "#transport/trpc";
 import { publishUserEvent } from "#transport/trpc";
 
 // @orb-waive no-inline-package-interface(AuthSeamDeps): baselined when the gate landed; burn-down item 952.
@@ -49,6 +50,7 @@ import { publishUserEvent } from "#transport/trpc";
  *  `authConfigFromEnv()` once at construction. `verifyForwardJwt`/`oidcStore` are the ports the SSO paths
  *  need; absent ⇒ that layer is inert (fail-closed). */
 export interface AuthSeamDeps {
+  readonly emitUserEvent?: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: SessionsService;
   readonly verifyForwardJwt?: ForwardJwtVerifier;
   readonly oidcStore?: OidcTransactionStore;
@@ -188,6 +190,7 @@ async function resolveHeaderOrFallbackPrincipal(
   sessions: SessionsService,
   res: IdentityResolution,
   resolveFallbackPrincipal: (userId: UserId) => Promise<Principal | null>,
+  emitUserEvent: LiveBuses["user"]["publishUserEvent"],
 ): Promise<Principal | null> {
   if (res.identity === null) {
     return null;
@@ -229,7 +232,7 @@ async function resolveHeaderOrFallbackPrincipal(
   // transport. Gated on the flag, never unconditional: this arm runs on EVERY forward-header request, so an
   // unconditional emit would be a per-request storm on the plane W8 exists to keep quiet.
   if (provisioned.identityChanged) {
-    publishUserEvent(provisioned.userId, { type: "identityChanged" });
+    emitUserEvent(provisioned.userId, { type: "identityChanged" });
   }
   return {
     userId: provisioned.userId,
@@ -370,7 +373,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       ...(deps.relayHosts !== undefined && { relayHosts: deps.relayHosts }),
       ...(req.peerIp !== undefined && { peerIp: req.peerIp }),
     });
-    const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal);
+    const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal, deps.emitUserEvent ?? publishUserEvent);
     // No session id on these arms BY CONSTRUCTION: neither the peer-gated owner fallback nor an SSO header
     // mints a `sessions` row, so there is nothing for a per-session logout to end (their sockets are reached
     // by `evictUser` — the admin/disable arm — instead).

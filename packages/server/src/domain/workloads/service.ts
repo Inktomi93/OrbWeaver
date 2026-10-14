@@ -19,7 +19,7 @@ import { createStart } from "./verbs/start.ts";
 import { createUpdateSchedule } from "./verbs/update-schedule.ts";
 
 export function createWorkloadService(deps: WorkloadServiceDeps): WorkloadService {
-  const ctx = createWorkloadServiceContext({ ...deps, emitEvent: emitWorkloadEvent });
+  const ctx = createWorkloadServiceContext({ ...deps, emitEvent: deps.emitEvent ?? emitWorkloadEvent });
   return {
     ...createStart(ctx),
     ...createEstimateModelCalls(ctx),

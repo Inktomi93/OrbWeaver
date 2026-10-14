@@ -1,6 +1,6 @@
 // QUIET MODE — the bulk-fanout coalescer, for BOTH live audience planes (chat rooms, generalized to
 // room pairs by the entity→room member-freshness bridge). One AsyncLocalStorage scope, one pair
-// map, two registration doors.
+// map, two registration doors per application graph.
 //
 // THE STORM. Every per-entity write announces itself, which is right for a single gesture and wrong for a
 // bulk one: an ST profile import calls `character.create` once per CARD
@@ -57,6 +57,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId, UserId } from "@orb/kit/ids";
+import type { QuietFanout } from "./contract/quiet-fanout.ts";
 
 /** The coalescing state one quiet scope carries. `announced` = the pairs whose start marker already went out;
  *  `terminals` = the pairs owed a terminal fan, each with the thunk that fans it (last one wins — the fans of
@@ -66,61 +67,84 @@ interface QuietScope {
   readonly terminals: Map<string, () => void>;
 }
 
-const quietScope = new AsyncLocalStorage<QuietScope>();
+/** Own the existing bulk coalescing policy independently for one production application. */
+export function createQuietFanout(): QuietFanout {
+  let closed = false;
+  const quietScope = new AsyncLocalStorage<QuietScope>();
 
-/** Should this fan be swallowed? Records the terminal debt when it is. Always `false` outside a quiet scope —
- *  which is what keeps a concurrent edit from a different request visible during a bulk run. */
-function silence(key: string, terminal: () => void): boolean {
-  const scope = quietScope.getStore();
-  if (scope === undefined) {
-    return false;
+  /** Should this fan be swallowed? Records the terminal debt when it is. Always `false` outside a quiet scope —
+   *  which is what keeps a concurrent edit from a different request visible during a bulk run. */
+  function silence(key: string, terminal: () => void): boolean {
+    const scope = closed ? undefined : quietScope.getStore();
+    if (scope === undefined) {
+      return false;
+    }
+    if (!scope.announced.has(key)) {
+      scope.announced.add(key);
+      return false;
+    }
+    scope.terminals.set(key, terminal);
+    return true;
   }
-  if (!scope.announced.has(key)) {
-    scope.announced.add(key);
-    return false;
+
+  /** The USER plane's door — pair `(userId, event type)`. `terminal` fans the COARSE (hint-less) form. */
+  function silenceUser(userId: UserId, type: UserBusEvent["type"], terminal: () => void): boolean {
+    return silence(`user::${userId}::${type}`, terminal);
   }
-  scope.terminals.set(key, terminal);
-  return true;
-}
 
-/** The USER plane's door — pair `(userId, event type)`. `terminal` fans the COARSE (hint-less) form. */
-export function silenceUserEvent(userId: UserId, type: UserBusEvent["type"], terminal: () => void): boolean {
-  return silence(`user::${userId}::${type}`, terminal);
-}
-
-/** The ROOM plane's door — pair `(chatId, entity)`. `terminal` re-fans the event, which is already its own
- *  coarse form (a `roomEntityChanged` is id-free: it says WHICH room and WHICH kind, never which row). */
-export function silenceRoomEntityFan(chatId: ChatId, entity: RoomEntityKind, terminal: () => void): boolean {
-  return silence(`room::${chatId}::${entity}`, terminal);
-}
-
-/**
- * Run a BULK operation under quiet mode (see the semantics block above). Entry-tier callers only: the scope
- * is opened where the bulk RUN is composed (`entry/compose/portability-runner.ts`), never inside a verb — a
- * verb cannot know whether it is one gesture or the four-hundredth iteration of one.
- *
- * The terminal fan runs from a `finally`, so a bulk run that THROWS or is ABORTED half-way still announces
- * everything it managed to write. That is the emit-is-total rule this codebase's producers follow, applied to
- * the coalescer itself: silencing an event and then dying would be strictly worse than never silencing it.
- *
- * NESTED scopes join the outer one rather than opening a second — the outer run is the gesture, and an inner
- * scope with its own terminal would re-introduce the per-sub-batch fan this exists to remove.
- *
- * (Named `withQuietUserEvents` until it learned room pairs — a name claiming one plane while
- * silencing two is a lying comment in function form.)
- */
-export async function withQuietBulkFanout<T>(run: () => Promise<T>): Promise<T> {
-  if (quietScope.getStore() !== undefined) {
-    return await run();
+  /** The ROOM plane's door — pair `(chatId, entity)`. `terminal` re-fans the event, which is already its own
+   *  coarse form (a `roomEntityChanged` is id-free: it says WHICH room and WHICH kind, never which row). */
+  function silenceRoom(chatId: ChatId, entity: RoomEntityKind, terminal: () => void): boolean {
+    return silence(`room::${chatId}::${entity}`, terminal);
   }
-  const scope: QuietScope = { announced: new Set(), terminals: new Map() };
-  try {
-    return await quietScope.run(scope, run);
-  } finally {
-    // `finally` is already outside `quietScope.run`, so each thunk publishes straight through: re-entering a
-    // gate that has nothing left to say would only risk re-silencing the terminal itself.
-    for (const terminal of scope.terminals.values()) {
-      terminal();
+
+  /**
+   * Run a BULK operation under quiet mode (see the semantics block above). Entry-tier callers only: the scope
+   * is opened where the bulk RUN is composed (`entry/compose/portability-runner.ts`), never inside a verb — a
+   * verb cannot know whether it is one gesture or the four-hundredth iteration of one.
+   *
+   * The terminal fan runs from a `finally`, so a bulk run that THROWS or is ABORTED half-way still announces
+   * everything it managed to write. That is the emit-is-total rule this codebase's producers follow, applied to
+   * the coalescer itself: silencing an event and then dying would be strictly worse than never silencing it.
+   *
+   * NESTED scopes join the outer one rather than opening a second — the outer run is the gesture, and an inner
+   * scope with its own terminal would re-introduce the per-sub-batch fan this exists to remove.
+   *
+   * (Named `withQuietUserEvents` until it learned room pairs — a name claiming one plane while
+   * silencing two is a lying comment in function form.)
+   */
+  async function runQuiet<T>(run: () => Promise<T>): Promise<T> {
+    if (closed) {
+      throw new Error("quiet fanout is disposed");
+    }
+    if (quietScope.getStore() !== undefined) {
+      return await run();
+    }
+    const scope: QuietScope = { announced: new Set(), terminals: new Map() };
+    try {
+      return await quietScope.run(scope, run);
+    } finally {
+      // `finally` is already outside `quietScope.run`, so each thunk publishes straight through: re-entering a
+      // gate that has nothing left to say would only risk re-silencing the terminal itself.
+      for (const terminal of scope.terminals.values()) {
+        terminal();
+      }
     }
   }
+
+  return {
+    silenceUserEvent: silenceUser,
+    silenceRoomEntityFan: silenceRoom,
+    withQuietBulkFanout: runQuiet,
+    [Symbol.dispose](): void {
+      closed = true;
+      quietScope.disable();
+    },
+  };
 }
+
+// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
+const processQuiet = createQuietFanout();
+export const silenceUserEvent: QuietFanout["silenceUserEvent"] = processQuiet.silenceUserEvent;
+export const silenceRoomEntityFan: QuietFanout["silenceRoomEntityFan"] = processQuiet.silenceRoomEntityFan;
+export const withQuietBulkFanout: QuietFanout["withQuietBulkFanout"] = processQuiet.withQuietBulkFanout;

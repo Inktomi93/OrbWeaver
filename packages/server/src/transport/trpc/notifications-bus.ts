@@ -10,21 +10,27 @@ import type { UserId } from "@orb/kit/ids";
 import type { InboxView } from "#domain/notifications";
 import { defineBusChannel } from "./bus-channel.ts";
 
+import type { NotificationPublication, NotificationsBus } from "./contract/live-buses.ts";
+
 const channelFor = (userId: UserId): string => `notify:${userId}`;
 
-interface NotificationPublication {
-  readonly view: InboxView;
-  readonly inPlace: boolean;
+/** Create one graph-owned live channel; admission and durable writes remain at their existing callers. */
+export function createNotificationsBus(): NotificationsBus {
+  // biome-ignore lint/nursery/useDisposables: the returned bus delegates disposal to this channel; local using would close it before graph subscribers start.
+  const bus = defineBusChannel<UserId, NotificationPublication>(channelFor);
+
+  /** Publish a persisted notification; in-place corrections and settlements retain the row's original seq. */
+  function publish(view: InboxView, inPlace = false): void {
+    bus.publish(view.payload.recipientUserId, { view, inPlace });
+  }
+
+  /** The recipient's live notification stream, scoped to one `userId` and torn down on `signal` abort. */
+  function subscribe(userId: UserId, signal: AbortSignal): AsyncIterable<NotificationPublication> {
+    return bus.subscribe(userId, signal);
+  }
+  return { publishNotification: publish, subscribeNotifications: subscribe, [Symbol.dispose]: () => bus[Symbol.dispose]() };
 }
 
-const bus = defineBusChannel<UserId, NotificationPublication>(channelFor);
-
-/** Publish a persisted notification; in-place corrections and settlements retain the row's original seq. */
-export function publishNotification(view: InboxView, inPlace = false): void {
-  bus.publish(view.payload.recipientUserId, { view, inPlace });
-}
-
-/** The recipient's live notification stream, scoped to one `userId` and torn down on `signal` abort. */
-export function subscribeNotifications(userId: UserId, signal: AbortSignal): AsyncIterable<NotificationPublication> {
-  return bus.subscribe(userId, signal);
-}
+const processBus = createNotificationsBus();
+export const publishNotification: NotificationsBus["publishNotification"] = processBus.publishNotification;
+export const subscribeNotifications: NotificationsBus["subscribeNotifications"] = processBus.subscribeNotifications;

@@ -52,6 +52,7 @@
     "./scroll-mode": "./src/scroll-mode/index.ts",
     "./secret-redaction": "./src/secret-redaction/index.ts",
     "./semver": "./src/semver/index.ts",
+    "./serial-lanes": "./src/serial-lanes/index.ts",
     "./slug": "./src/slug/index.ts",
     "./speaker-label": "./src/speaker-label/index.ts",
     "./stable-stringify": "./src/stable-stringify/index.ts",

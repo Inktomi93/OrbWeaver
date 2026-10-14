@@ -21,6 +21,7 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
+import type { ScheduleOp } from "@orb/kit/time";
 import type { EmbedMoveRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
 import type {
   ClearTableParams,
@@ -104,6 +105,7 @@ export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly As
 
 /** The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface EmbeddingsContext {
+  readonly scheduleTimeout?: ScheduleOp | undefined;
   readonly precomputedEmbedding?:
     | ((
         hash: string,

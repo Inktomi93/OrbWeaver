@@ -46,9 +46,10 @@ import { roomKey, STREAM_ERROR_CODES } from "@orb/contracts/stream";
 import type { SocketId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
-import { getLog, superviseDetached } from "#foundation/observability";
+import { getLog, superviseSettled } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import type { Services } from "../context.ts";
+import type { LiveBuses } from "../contract/live-buses.ts";
 import { classifyDomainError } from "../error-mapping.ts";
 import { createFrameQueue } from "./frame-queue.ts";
 import { roomSourceFor } from "./room-sources.ts";
@@ -81,6 +82,7 @@ function roomFailure(err: unknown): { readonly code: StreamErrorCode; readonly m
 
 // @orb-waive no-inline-package-interface(RunSocketArgs): baselined when the gate landed; burn-down item 952.
 export interface RunSocketArgs {
+  readonly liveBuses: LiveBuses;
   readonly registry: SocketRegistry;
   /** ALREADY ADOPTED by the resolver — so a cross-principal socketId is a real NOT_FOUND rejection of the
    *  subscription rather than a typed frame the client would have to interpret (an async generator's body
@@ -95,7 +97,7 @@ export interface RunSocketArgs {
 }
 
 export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnvelope<StreamFrame>> {
-  const { registry, cell, principal, services, multiHumanCapable, signal } = args;
+  const { registry, cell, principal, services, liveBuses, multiHumanCapable, signal } = args;
   const socketId: SocketId = cell.socketId;
   const queue = createFrameQueue({
     cursorFor: (key) => cell.rooms.get(key)?.cursor ?? null,
@@ -106,6 +108,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   });
   queue.pushControl({ channel: "control", type: "serverReady", serverInstanceId: SERVER_INSTANCE_ID });
   const pumps = new Map<string, AbortController>();
+  const pendingPumps = new Set<Promise<void>>();
 
   async function pumpRoom(ref: StreamRoomRef, cursor: number | null, control: AbortController): Promise<void> {
     // @orb-waive caught-failure-ownership(err): documented below — a non-abort failure is
@@ -113,7 +116,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     // of those three consumption steps is removed.
     try {
       const source = roomSourceFor(ref);
-      for await (const frame of source.run({ ref, principal, services, multiHumanCapable, cursor, signal: control.signal })) {
+      for await (const frame of source.run({ ref, principal, services, liveBuses, multiHumanCapable, cursor, signal: control.signal })) {
         if (control.signal.aborted) {
           return;
         }
@@ -198,9 +201,15 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     const control = new AbortController();
     pumps.set(key, control);
     queue.pushControl({ channel: "control", type: "attached", ref });
-    superviseDetached(`stream-room:${socketId}:${key}:${randomUUID()}`, "stream.room.pump", { channel: ref.channel, userId: principal.userId }, () =>
-      pumpRoom(ref, cursor, control),
-    );
+    const completion = superviseSettled(
+      `stream-room:${socketId}:${key}:${randomUUID()}`,
+      "stream.room.pump",
+      { channel: ref.channel, userId: principal.userId },
+      () => pumpRoom(ref, cursor, control),
+    ).finally(() => {
+      pendingPumps.delete(completion);
+    });
+    pendingPumps.add(completion);
   }
 
   /** An idempotent re-announce (no cursor change) — the barrier's lift signal. A room already pumping is
@@ -267,6 +276,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     // `goDark` no-ops unless this generator is still the owner, so a late teardown cannot dark a live cell.
     signal.removeEventListener("abort", teardown);
     teardown();
+    await Promise.all(pendingPumps);
     registry.goDark(cell, listener);
   }
 }

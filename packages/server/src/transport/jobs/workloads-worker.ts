@@ -47,6 +47,7 @@ import type {
   WorkloadRunnableRow,
   WorkloadRunnerDeps,
 } from "#domain/workloads";
+import type { superviseDetached as Supervise } from "#foundation/observability";
 import { getLog, superviseDetached } from "#foundation/observability";
 
 const LOG_COMPONENT = "workloads-worker";
@@ -88,6 +89,7 @@ type ScheduleOp = (fn: () => void, ms: number) => () => void;
 // @orb-waive no-inline-package-interface(WorkloadsWorkerDeps): baselined when the gate landed; burn-down item 952.
 /** The DI bundle the worker driver closes over — every cross-feature/engine/timer dep injected at entry/. */
 export interface WorkloadsWorkerDeps {
+  readonly supervise?: typeof Supervise;
   /** The per-dispatch runner deps (db + the cross-feature `env` hub + the per-owner binder + the injected
    *  clock + the lease cadences). Built at entry/compose; the worker threads it straight into `run`. */
   readonly runnerDeps: WorkloadRunnerDeps;
@@ -174,7 +176,7 @@ export async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapRe
   const { db, now } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT });
   try {
-    const reaped = await deps.reap({ db, now: now(), reason });
+    const reaped = await deps.reap({ db, now: now(), reason, ...(deps.runnerDeps.emitEvent === undefined ? {} : { emitEvent: deps.runnerDeps.emitEvent }) });
     if (reaped > 0) {
       log.info({ reaped, reason }, "workloads-worker: reaped orphans");
     }
@@ -206,8 +208,11 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
   // are swallowed inside reapOnce; nothing here can kill the poll loops. This worker IS alive here, so a row
   // it finds stale genuinely stopped bumping its lease.
   const clearReap = deps.scheduleInterval(() => {
-    superviseDetached(`workload-reap:${String(deps.runnerDeps.now())}:${randomUUID()}`, "workloads.reap", { reason: "heartbeat_stale" }, () =>
-      reapOnce(deps, "heartbeat_stale"),
+    (deps.supervise ?? superviseDetached)(
+      `workload-reap:${String(deps.runnerDeps.now())}:${randomUUID()}`,
+      "workloads.reap",
+      { reason: "heartbeat_stale" },
+      () => reapOnce(deps, "heartbeat_stale"),
     );
   }, reapMs);
 

@@ -46,7 +46,7 @@ async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget
     const { capability } = move.connection;
     truncatable = capability.kind === "embedding" && capability.embedding.mrl;
     assumed = capability.kind === "embedding" && capability.embedding.dimsEstimated === true;
-    await probeWidth(move.connection, target.via, move.dims);
+    await probeWidth(move.connection, target.via, move.dims, ctx.scheduleTimeout);
     return { kind: "move", generationId: move.id };
   } catch (error) {
     const width = widthMismatchOf(error);

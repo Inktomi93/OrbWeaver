@@ -21,6 +21,7 @@ import {
 import type { GitHttpRequest, GitHttpResponse, HttpClient, TreeEntry } from "isomorphic-git";
 import { clone, listServerRefs, readBlob, readTree, resolveRef } from "isomorphic-git";
 import { packPreparedPluginDir } from "../plugin-source/pack-plugin-dir.ts";
+import type { ScopedEgress } from "./contract/egress.ts";
 import { ANY_HOST, safeFetch } from "./egress.ts";
 
 const GIT_HTTP_MAX_BYTES = 5_000_000;
@@ -72,13 +73,13 @@ function responseBody(bytes: Uint8Array): AsyncIterableIterator<Uint8Array> {
   return Readable.from([bytes])[Symbol.asyncIterator]();
 }
 
-async function requestGitHttp(request: GitHttpRequest): Promise<GitHttpResponse> {
+async function requestGitHttp(request: GitHttpRequest, fetchImpl: ScopedEgress["safeFetch"] = safeFetch): Promise<GitHttpResponse> {
   const method = request.method ?? "GET";
   if (method !== "GET" && method !== "POST") {
     throw new Error(`unsupported Git HTTP method ${method}`);
   }
   const body = await collectRequestBody(request.body);
-  const response = await safeFetch(request.url, {
+  const response = await fetchImpl(request.url, {
     allowedHosts: ANY_HOST,
     method,
     ...(request.headers === undefined ? {} : { headers: request.headers }),
@@ -272,24 +273,30 @@ export function createPluginGitSource(deps: PluginGitSourceDeps): PluginGitSourc
   };
 }
 
-export const pluginGitSource = createPluginGitSource({
-  makeScratch: () => mkdtemp(join(tmpdir(), "orb-plugin-git-")),
-  removeScratch: (directory) => rm(directory, { recursive: true, force: true }),
-  cloneInto: async (directory, url) => {
-    // One cache keeps the patched pack-index resolution budget cumulative across every post-clone admitted
-    // tree/blob read. A fresh cache per call would reset that aggregate resource wall.
-    const cache = {};
-    await clone({ fs, http: guardedGitHttp, dir: directory, url, depth: 1, singleBranch: true, noCheckout: true, noTags: true, cache });
-    await materializePluginGitEntries(directory, cache);
-  },
-  resolveHead: (directory) => resolveRef({ fs, dir: directory, ref: "HEAD" }),
-  packDirectory: packPreparedPluginDir,
-  readRemoteHead: async (url) => {
-    const refs = await listServerRefs({ http: guardedGitHttp, url, prefix: "HEAD", symrefs: true, protocolVersion: 1 });
-    const head = refs.find((ref) => ref.ref === "HEAD");
-    if (head === undefined) {
-      throw new Error("Git remote did not advertise HEAD");
-    }
-    return head.oid;
-  },
-});
+/** Bind the real Git assembly to the same guarded network owner as its graph's downloads. */
+export function createNetworkPluginGitSource(fetchImpl: ScopedEgress["safeFetch"] = safeFetch): PluginGitSource {
+  const http: HttpClient = { request: (request) => requestGitHttp(request, fetchImpl) };
+  return createPluginGitSource({
+    makeScratch: () => mkdtemp(join(tmpdir(), "orb-plugin-git-")),
+    removeScratch: (directory) => rm(directory, { recursive: true, force: true }),
+    cloneInto: async (directory, url) => {
+      // One cache keeps the patched pack-index resolution budget cumulative across every post-clone admitted
+      // tree/blob read. A fresh cache per call would reset that aggregate resource wall.
+      const cache = {};
+      await clone({ fs, http, dir: directory, url, depth: 1, singleBranch: true, noCheckout: true, noTags: true, cache });
+      await materializePluginGitEntries(directory, cache);
+    },
+    resolveHead: (directory) => resolveRef({ fs, dir: directory, ref: "HEAD" }),
+    packDirectory: packPreparedPluginDir,
+    readRemoteHead: async (url) => {
+      const refs = await listServerRefs({ http, url, prefix: "HEAD", symrefs: true, protocolVersion: 1 });
+      const head = refs.find((ref) => ref.ref === "HEAD");
+      if (head === undefined) {
+        throw new Error("Git remote did not advertise HEAD");
+      }
+      return head.oid;
+    },
+  });
+}
+
+export const pluginGitSource = createNetworkPluginGitSource();

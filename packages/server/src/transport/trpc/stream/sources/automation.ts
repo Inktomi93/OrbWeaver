@@ -32,7 +32,7 @@
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { subscribeAutomation } from "#src/transport/trpc/automation-bus.ts";
+
 import type { RoomSourceDef } from "../room-source.ts";
 
 /** The one MEMBER-visible automation-bus event — the transient quick-reply chips. Every OTHER event
@@ -51,11 +51,11 @@ export const automationRoomSource: RoomSourceDef<"automation"> = {
     await services.automation.resolveStreamAuthority({ principal, chatId: ref.chatId });
   },
 
-  async *run({ ref, principal, services, signal }): AsyncGenerator<StreamDataFrame> {
+  async *run({ ref, principal, services, liveBuses, signal }): AsyncGenerator<StreamDataFrame> {
     // The PUMP-START resolve, kept: it is the gate→listen ORDERING (this bus never promised the gap loses
     // nothing) and it fails a broken/kicked attach fast, even in a room that never emits another event.
     await services.automation.resolveStreamAuthority({ principal, chatId: ref.chatId });
-    for await (const event of subscribeAutomation(ref.chatId, signal)) {
+    for await (const event of liveBuses.automation.subscribeAutomation(ref.chatId, signal)) {
       // THE TIER IS RE-RESOLVED PER EVENT, not once per pump. A subscription is open for as long as a tab is,
       // and the host role moves underneath it: `acceptHostHandoff` swaps the roster atomically, a kick removes
       // the seat. A cached `isHost` boolean kept feeding a DEMOTED host every rule fire/error/disable — the

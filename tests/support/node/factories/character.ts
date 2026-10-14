@@ -6,8 +6,8 @@
 
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
-import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterHandle, IdSource, UserId } from "@orb/kit/ids";
+import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 // The card identity hash's ONE home — `@orb/server/primitives` is the server-only-PURE bottom tier
 // (`.dependency-cruiser.cjs`: node:* + db + contracts + kit, reaching up to nothing), so importing it
 // downward from a factory pulls `node:crypto` and two contracts, never a domain graph. D9 names this
@@ -20,7 +20,7 @@ import { seedUser } from "./user.ts";
 /** The full flat `characters` row (derived from the live schema — the factory `X`). */
 export type CharacterRow = typeof characters.$inferSelect;
 
-const ids = createSeededIds();
+const ids = createIdSource(createSeededIds().next);
 
 /** Pure builder: a fully-valid flat card row. `ownerId` defaults to a MINTED (dangling) id — inserting
  *  the bare `makeCharacter()` output needs the owner row to exist; use `seedCharacter` for the chain.
@@ -43,12 +43,12 @@ const ids = createSeededIds();
  *    length-validates `handle` and brands it, with no charset or name-derivation refinement, so a hand-set
  *    handle IS a shape the create verb mints. #517 separately retired the client's "is this handle
  *    derivable?" gate, so nothing downstream reads a derivability signal off this field any more. */
-export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterRow {
-  const id = overrides.id ?? castId<CharacterId>(ids.next("character"));
+export function makeCharacter(overrides: Partial<CharacterRow> = {}, source: IdSource = ids): CharacterRow {
+  const id = overrides.id ?? source.typeId(ID_PREFIX.character);
   const row: CharacterRow = {
     id,
     handle: castId<CharacterHandle>(id),
-    ownerId: castId<UserId>(ids.next("user")),
+    ownerId: source.unprefixed<UserId>(),
     starred: false,
     archived: false,
     synthetic: false,
@@ -93,9 +93,9 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
 
 /** `makeCharacter` then insert, FK-clean on an empty db: when `overrides.ownerId` is absent a fresh
  *  owner user is seeded first (explicit `ownerId` reuses the caller's user — no extra row). */
-export async function seedCharacter(db: Db, overrides: Partial<CharacterRow> = {}): Promise<CharacterRow> {
-  const ownerId = overrides.ownerId ?? (await seedUser(db)).id;
-  const row = makeCharacter({ ...overrides, ownerId });
+export async function seedCharacter(db: Db, overrides: Partial<CharacterRow> = {}, source?: IdSource): Promise<CharacterRow> {
+  const ownerId = overrides.ownerId ?? (await seedUser(db, {}, source)).id;
+  const row = makeCharacter({ ...overrides, ownerId }, source);
   await db.insert(characters).values(row);
   return row;
 }

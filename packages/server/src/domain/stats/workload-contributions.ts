@@ -25,6 +25,7 @@ export function createStatsWorkloadContributions(deps: StatsWorkloadDeps): reado
         report({ message: "reconciling stats from canon" });
         const result = await reconcileStats(deps.db, {
           now: deps.now,
+          idSource: deps.idSource,
           signal,
           ...(ctx.ownerId !== null ? { ownerId: ctx.ownerId } : {}),
         });

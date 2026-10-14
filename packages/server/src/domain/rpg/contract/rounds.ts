@@ -9,12 +9,20 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ExtractionRefs, RpgGameConfig, RpgStateRoundTool, RpgStructuredRoundShape } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ProviderExecutor, Resolved } from "@orb/inference";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import type { CharacterService } from "#domain/character";
 import type { BeginGenerationObservation, ChatService, ResolveCanonWindow, ResolveRpgParticipants } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
+import type { OwnedRpgFlushBarrier, RpgContext } from "./service.ts";
 import type { RpgTraceSink } from "./trace.ts";
+
+export type RpgRoundObservers = Pick<
+  RpgContext,
+  "emitBus" | "onStateRoundPath" | "onFoldBuildFailed" | "onStateRoundCancelled" | "onFlushSettled" | "onFlushDropped"
+> & {
+  readonly flushBarrier: OwnedRpgFlushBarrier;
+};
 
 /** The principal-free chat ops the rounds read: the roster projection, the canon window, the room's preset prose and
  *  params, the present host, and the generation-observation session a host-door call records into. */
@@ -28,6 +36,7 @@ export interface RpgRoundsChatOps {
 }
 
 export interface RpgRoundsDeps {
+  readonly idSource?: IdSource;
   readonly db: Db;
   /** R-OBS — the rpg flight-recorder sink, present only when tracing is enabled. Absent is the default: every emit
    *  site calls `deps.trace?.(…)`, so a traced-off turn never builds an event object. */

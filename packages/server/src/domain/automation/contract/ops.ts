@@ -38,6 +38,7 @@ import type {
   WorldBookId,
 } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import type { SerialLanes } from "@orb/kit/serial-lanes";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { AnalysisConfirmAct } from "./analysis.ts";
 import type { CreateRuleParams } from "./params.ts";
@@ -661,6 +662,7 @@ export type ApplyProseRewrite = (req: {
  *  payload union it executes: the deps name `AutomationOps`, and a home in `contract/analysis.ts` would make
  *  `analysis ⇄ ops` a cycle. */
 export interface AnalysisConfirmDeps {
+  readonly serialLanes: SerialLanes;
   readonly db: Db;
   readonly ops: AutomationOps;
   readonly nowMs: number;
@@ -732,10 +734,9 @@ export interface DispatchOptions {
   readonly manualBy?: UserId;
 }
 
-/** The arm dispatcher's shared deps (a subset of the AutomationContext) — the db, the injected action ops, the
- *  injected PRNG (deterministic template render), and the automation-bus sink (`surface_quick_reply`). Built
- *  at compose and passed to `createArmExecutors`. */
+/** The service-owned arm dispatcher's context slice, including the same ordering engine used by its verbs. */
 export interface ArmExecutorDeps {
+  readonly serialLanes: SerialLanes;
   readonly db: Db;
   readonly ops: AutomationOps;
   readonly prng: () => number;

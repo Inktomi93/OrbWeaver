@@ -34,6 +34,7 @@ import type { Db } from "@orb/db";
 import type { WorkloadId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
+import type { WorkloadProgressBus } from "../contract/progress-bus.ts";
 import type { BootReclaimReport, WorkloadReapReason } from "../contract/service.ts";
 import { findInFlightForBootReclaim, markTerminal, requeueInFlight } from "../persistence/queries.ts";
 import { emitWorkloadEvent } from "./progress-bus.ts";
@@ -50,6 +51,7 @@ type Disposition = (typeof DISPOSITIONS)[number];
 async function reapOrphan(
   db: Db,
   args: { id: WorkloadId; kind: WorkloadKind; now: number; leaseAgeMs: number; reason: WorkloadReapReason },
+  emitEvent: WorkloadProgressBus["emitWorkloadEvent"],
 ): Promise<Disposition> {
   const message = reapedMessage(args.reason, args.leaseAgeMs);
   const moved = await markTerminal(db, { id: args.id, status: "worker_died", error: message, now: args.now });
@@ -57,18 +59,22 @@ async function reapOrphan(
     return "unmoved";
   }
   const error: WorkloadError = { kind: "worker_died", message };
-  emitWorkloadEvent({ type: "failed", workloadId: args.id, kind: args.kind, at: args.now, error });
+  emitEvent({ type: "failed", workloadId: args.id, kind: args.kind, at: args.now, error });
   return "reaped";
 }
 
 /** Put one orphan back in the queue + emit the status transition (the `status` arm of `WorkloadEvent`, whose
  *  first producer this is — a reconnecting client within the replay TTL sees the row go back to `queued`
  *  rather than silently changing under it). */
-async function requeueOrphan(db: Db, args: { id: WorkloadId; kind: WorkloadKind; now: number }): Promise<Disposition> {
+async function requeueOrphan(
+  db: Db,
+  args: { id: WorkloadId; kind: WorkloadKind; now: number },
+  emitEvent: WorkloadProgressBus["emitWorkloadEvent"],
+): Promise<Disposition> {
   if (!(await requeueInFlight(db, { id: args.id, now: args.now }))) {
     return "unmoved";
   }
-  emitWorkloadEvent({ type: "status", workloadId: args.id, kind: args.kind, at: args.now, status: "queued" });
+  emitEvent({ type: "status", workloadId: args.id, kind: args.kind, at: args.now, status: "queued" });
   return "requeued";
 }
 
@@ -76,7 +82,13 @@ async function requeueOrphan(db: Db, args: { id: WorkloadId; kind: WorkloadKind;
  * Dispose of every orphaned in-flight row at boot: re-queue the resumable ones (bounded), reap the rest.
  * There is no lease threshold — see `findInFlightForBootReclaim` for why the heartbeat is not evidence here.
  */
-export async function reclaimInFlightOnBoot(args: { db: Db; contributions: WorkloadContributions; now: number }): Promise<BootReclaimReport> {
+export async function reclaimInFlightOnBoot(args: {
+  db: Db;
+  contributions: WorkloadContributions;
+  now: number;
+  emitEvent?: WorkloadProgressBus["emitWorkloadEvent"];
+}): Promise<BootReclaimReport> {
+  const emitEvent = args.emitEvent ?? emitWorkloadEvent;
   const orphans = await findInFlightForBootReclaim(args.db);
   const dispositions = await Promise.all(
     orphans.map(async (row): Promise<Disposition> => {
@@ -85,15 +97,15 @@ export async function reclaimInFlightOnBoot(args: { db: Db; contributions: Workl
       // believes every lookup hits — only a deploy-skew row (a kind this build dropped) can miss, and it
       // must miss LOUDLY rather than crash on `.resume` of undefined.
       if (!Object.hasOwn(args.contributions, row.kind)) {
-        return await reapOrphan(args.db, { ...reap, reason: "worker_restart" });
+        return await reapOrphan(args.db, { ...reap, reason: "worker_restart" }, emitEvent);
       }
       if (args.contributions[row.kind].resume === "none") {
-        return await reapOrphan(args.db, { ...reap, reason: "worker_restart" });
+        return await reapOrphan(args.db, { ...reap, reason: "worker_restart" }, emitEvent);
       }
       if (row.respawns >= MAX_BOOT_RESPAWNS) {
-        return await reapOrphan(args.db, { ...reap, reason: "respawn_loop" });
+        return await reapOrphan(args.db, { ...reap, reason: "respawn_loop" }, emitEvent);
       }
-      return await requeueOrphan(args.db, { id: row.id, kind: row.kind, now: args.now });
+      return await requeueOrphan(args.db, { id: row.id, kind: row.kind, now: args.now }, emitEvent);
     }),
   );
   const report: BootReclaimReport = {

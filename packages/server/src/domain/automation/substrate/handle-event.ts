@@ -26,7 +26,7 @@ import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rul
 import { holdsChatHostAuthority } from "./authority.ts";
 import { resolveTrigger } from "./fact-resolver.ts";
 import { fanOutToPluginSubscribers } from "./plugin-subscribers.ts";
-import { automationChatLaneKey, automationDomainLaneKey, runInLane } from "./serial-lanes.ts";
+import { automationChatLaneKey, automationDomainLaneKey } from "./serial-lanes.ts";
 
 type BusEvent = ChatBusEvent | DomainEvent;
 
@@ -217,12 +217,14 @@ async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Pr
   }
   await Promise.all(
     Array.from(groupRulesByOwner(rules), ([ownerId, ownerRules]) =>
-      runInLane(automationDomainLaneKey(ownerId), () => dispatchLoadedRules(ctx, ownerRules, resolved)).catch((err: unknown) => {
-        getLog().warn(
-          { err: err instanceof Error ? err.message : String(err), type: event.type, ownerId },
-          "automation handleEvent failed for one domain-rule owner (isolated)",
-        );
-      }),
+      ctx.serialLanes
+        .run(automationDomainLaneKey(ownerId), () => dispatchLoadedRules(ctx, ownerRules, resolved))
+        .catch((err: unknown) => {
+          getLog().warn(
+            { err: err instanceof Error ? err.message : String(err), type: event.type, ownerId },
+            "automation handleEvent failed for one domain-rule owner (isolated)",
+          );
+        }),
     ),
   );
 }
@@ -249,7 +251,7 @@ export function createHandleEvent(ctx: AutomationContext): AutomationService["ha
   return (event: BusEvent): Promise<void> => {
     const chatId: ChatId | null = "chatId" in event ? event.chatId : null;
     if (chatId !== null) {
-      return runInLane(automationChatLaneKey(chatId), async (): Promise<void> => {
+      return ctx.serialLanes.run(automationChatLaneKey(chatId), async (): Promise<void> => {
         try {
           await handleChatEvent(ctx, event, chatId);
         } catch (err) {

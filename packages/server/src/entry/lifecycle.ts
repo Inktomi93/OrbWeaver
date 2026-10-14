@@ -5,28 +5,26 @@
 // the injected `now`; nothing below entry reads ambient time.
 
 import { randomUUID } from "node:crypto";
-import type { ServerOptions } from "node:http";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import type { ServerType } from "@hono/node-server";
-import { serve } from "@hono/node-server";
 import type { AuthMode, Principal } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, optimizeDb, preCloseHousekeeping } from "@orb/db";
-import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
+import type { SessionToken, UserId } from "@orb/kit/ids";
 import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, discovery } from "openid-client";
 import type { ServerRestartPort } from "#domain/admin";
-import { startAutomationWatcher } from "#domain/automation";
-import { createOidcStore, createSessionsService, isReservedSignupHandle, ownerHandles } from "#domain/sessions";
+
+import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import type { CertificateBootOutcome, CertificateController, ShareBootOutcome } from "#domain/share";
 import { createCertificateController, createRelayController } from "#domain/share";
-import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
+
 import { OWNER_CLAIM_URL_FILE_NAME } from "#foundation/data-layout";
 import {
   bindPostureInput,
@@ -37,12 +35,10 @@ import {
   launchedBySupervisor,
   loopbackCompanion,
   loopbackOrigin,
-  ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
   resolveBindPosture,
   resolveDiagnosticsPosture,
-  resolveOwnerFallbackCredential,
   resolveOwnerFallbackPeers,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
@@ -52,28 +48,28 @@ import { ACME_POLLING, createAcmeIssuer, createCertificateStore, LETS_ENCRYPT_DI
 import type { OwnerClaimCode } from "#infra/auth";
 import {
   createBackchannelLogoutVerifier,
-  createForwardJwtVerifier,
   createOidcConfigCache,
   createOidcExchange,
   createOwnerClaimCode,
   createPasswordHasher,
-  createRelayedFallbackNotice,
   createRelayHostRegistry,
-  ownerFallbackAllowed,
 } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import { fetchPinnedDownload, installEgressFirewall, parseAllowlist, startTlsTerminator } from "#infra/network";
+import {
+  drainHttpServer,
+  fetchPinnedDownload,
+  installEgressFirewall,
+  parseAllowlist,
+  SHUTDOWN_DRAIN_MS,
+  serveHttpServer,
+  startTlsTerminator,
+} from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
-import { createCas } from "#infra/storage";
-import { createMemoryRecallInspector, createRpgTraceInspector } from "#transport/debug-recorders";
-import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
+
 import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler.ts";
-import { startWorkloadScheduleScheduler } from "../transport/jobs/workload-schedule-scheduler.ts";
-import { startWorkloadsWorker } from "../transport/jobs/workloads-worker.ts";
-import { setChatOpenTap } from "../transport/trpc/index.ts";
-import { createApp } from "./app.ts";
-import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
+
+import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   announceOwnerClaim,
   backfillPluginProvenanceOnBoot,
@@ -104,69 +100,10 @@ import {
   settleBootSecrets,
 } from "./boot/index.ts";
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
-import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
+
 import type { ServicesResult } from "./compose/index.ts";
-import { createServices } from "./compose/index.ts";
-import type { FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps, SignupRouteDeps } from "./http/index.ts";
-import { createRateLimitGate } from "./rate-limit-gate.ts";
-
-/** The chosen HTTP/1 connection-reuse and inbound-request limits. These do not bound response duration:
- *  `requestTimeout` ends once Node has received the request, so a long-lived SSE response is unaffected. */
-export const HTTP_SERVER_TIMEOUTS = {
-  keepAliveTimeout: 5000,
-  requestTimeout: 300_000,
-  headersTimeout: 60_000,
-} as const satisfies ServerOptions;
-
-/** Start the Node HTTP/1 adapter with the production timeout policy. The final parameters are focused test
- *  seams for proving adapter forwarding and timeout semantics quickly; boot omits both and receives the
- *  real Hono adapter with {@link HTTP_SERVER_TIMEOUTS}.
- */
-export function serveHttpServer(
-  options: Pick<Parameters<typeof serve>[0], "fetch" | "port" | "hostname">,
-  listeningListener: (info: AddressInfo) => void,
-  serverOptions: ServerOptions = HTTP_SERVER_TIMEOUTS,
-  serveAdapter: typeof serve = serve,
-): ServerType {
-  return serveAdapter(
-    {
-      fetch: options.fetch,
-      ...(options.port === undefined ? {} : { port: options.port }),
-      overrideGlobalObjects: false,
-      serverOptions,
-      ...(options.hostname === undefined ? {} : { hostname: options.hostname }),
-    },
-    listeningListener,
-  );
-}
-
-/** How long a shutdown waits for open connections before force-closing them. Bounded on purpose: the app's
- *  own SSE stream never ends, so an unbounded drain lets one open browser tab stall a deploy indefinitely
- *  (measured: ~6 minutes on one tab, until it happened to reconnect). Long enough for a normal in-flight
- *  request to finish, short enough that a restart is always a restart. */
-const SHUTDOWN_DRAIN_MS = 10_000;
-
-/** The drain for a closed terminal (SIGHUP). Windows terminates the process about 10 s after its console window
- *  closes, and the stages after the drain (workers, the database) need the rest of that window. */
-export const HANGUP_DRAIN_MS = 5000;
-
-/** The two node-http connection-closing methods a bounded drain needs. Present on `http.Server` (node 18.2+),
- *  ABSENT on the http2 servers in `ServerType`'s union — so they are probed, never assumed. */
-interface ConnectionCloser {
-  readonly closeIdleConnections: () => void;
-  readonly closeAllConnections: () => void;
-}
-
-/** The probe: the handle iff it carries BOTH methods, else `null` (an http2 server — no forced close available). */
-function connectionCloser(handle: ServerType): ConnectionCloser | null {
-  const candidate = handle as Partial<ConnectionCloser>;
-  return typeof candidate.closeIdleConnections === "function" && typeof candidate.closeAllConnections === "function" ? (candidate as ConnectionCloser) : null;
-}
-
-/** The minimal logger shape {@link drainHttpServer} needs — real `getLog()` in production, a spy in tests. */
-interface DrainLog {
-  readonly warn: (fields: Record<string, unknown>, msg: string) => void;
-}
+import { createHttpApp, createServices } from "./compose/index.ts";
+import type { OidcRoutesDeps } from "./http/index.ts";
 
 /** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
 interface OwnedWorkloadsWorker {
@@ -180,55 +117,6 @@ interface OwnedWorkloadsWorker {
 export async function drainWorkloadsWorker(worker: OwnedWorkloadsWorker): Promise<void> {
   worker.abort();
   await worker.settled;
-}
-
-/** Stop accepting, then drain — WITH A DEADLINE.
- *
- *  `server.close()` alone waits for every open connection to end, and an SSE stream never does: one browser
- *  tab held a prod shutdown for ~6 minutes (measured), because the app's own live-update socket is exactly
- *  the connection that never closes on its own. A client must not be able to hold a deploy hostage.
- *
- *  Idle keep-alive sockets are dropped immediately (they have no in-flight request to lose). Everything
- *  still open at the deadline — SSE, and any genuinely long request — is force-closed so `close()` can
- *  settle. The force is LOUD: a shutdown that had to cut connections says so, since that is the case where
- *  a client saw a truncated stream.
- *
- *  Exported (not a `createLifecycle` closure) so the forced path is directly testable against a real open
- *  socket, rather than only provable live (`DRAIN-UNBOUNDED`).
- */
-export async function drainHttpServer(
-  handle: ServerType,
-  log: DrainLog,
-  drainMs: number = SHUTDOWN_DRAIN_MS,
-  scheduleTimeout: (run: () => void, ms: number) => () => void = (run, ms) => {
-    const timer = setTimeout(run, ms);
-    return () => clearTimeout(timer);
-  },
-): Promise<void> {
-  const closed = new Promise<void>((resolve) => {
-    handle.close(() => {
-      resolve();
-    });
-  });
-  // `ServerType` is a union that includes the http2 servers, which do not carry the connection-closing
-  // pair — hence a capability probe rather than a cast. Absent (http2), the drain degrades to the old
-  // unbounded wait, which is honest: there is no supported way to force those sockets from here.
-  const closer = connectionCloser(handle);
-  // Keep-alive sockets sitting idle between requests: nothing in flight, drop them now rather than wait.
-  closer?.closeIdleConnections();
-  let cancelDeadline: (() => void) | undefined;
-  const deadline = new Promise<"forced">((resolve) => {
-    cancelDeadline = scheduleTimeout(() => {
-      resolve("forced");
-    }, drainMs);
-  });
-  const outcome = await Promise.race([closed.then(() => "drained" as const), deadline]);
-  if (outcome === "forced") {
-    log.warn({ drainMs }, "shutdown: drain deadline hit — force-closing remaining connections (long-lived streams do not end on their own)");
-    closer?.closeAllConnections();
-    await closed;
-  }
-  cancelDeadline?.();
 }
 
 /** One `setInterval` as a stop-function — the `scheduleInterval`/`scheduleTimeout` shape every scheduler and
@@ -305,58 +193,6 @@ function logShareBootOutcome(log: ReturnType<typeof getLog>, outcome: ShareBootO
       throw new Error(`share: unknown boot outcome ${JSON.stringify(_exhaustive)}`);
     }
   }
-}
-
-/** AUTH_MODE=local's route dependencies, built together because they are one feature: the form-login
- *  authenticator plus the B4 first-run owner-password setup. The route and the `localFirstRun` config flag
- *  share ONE gate (`ownerFallbackAllowed`), so the setup screen appears exactly where the setup endpoint
- *  accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client `Host`) on a request with no
- *  relay tell, so a same-host tunnel cannot offer the owner password to its visitors. A proxied or LAN
- *  local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ the owner has a password ⇒ first-run
- *  never triggers).
- *
- *  BOTH CALLS BELOW DELIBERATELY PASS NO TRUSTED-PEER RANGES — they stay LOOPBACK-ONLY while
- *  `AUTH_FALLBACK_TRUSTED_PEERS` widens `resolve`'s fallback arm, and that asymmetry is the point, not an
- *  oversight. This route consults no `AUTH_FALLBACK`: widening it would make the knob admit an
- *  un-credentialed owner-PASSWORD claim on a box whose operator set `AUTH_FALLBACK=deny`, which is the one
- *  property the knob promises it cannot do. A containerized local deploy sets `LOCAL_INITIAL_PASSWORD`
- *  instead (docs/law/container-deployment-security.md). */
-function buildLocalAuthDeps(
-  built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections">,
-  sessionSecret: string | null,
-  onOwnerClaimed: () => void,
-): {
-  authenticate: LocalAuthenticator;
-  firstRun: FirstRunRouteDeps;
-  localFirstRun: (peerIp: string | undefined, headers: Headers) => Promise<boolean>;
-  signup: Omit<SignupRouteDeps, "multiHumanCapable">;
-} {
-  const { sessions } = built;
-  const hasher = createPasswordHasher(sessionSecret);
-  return {
-    authenticate: (handle: Handle, password: string): Promise<UserId | null> => sessions.authenticate(handle, password),
-    firstRun: {
-      setOwnerPassword: async (plain: string): Promise<UserId | null> => {
-        const claimed = await sessions.claimOwnerPassword(await hasher.hash(plain));
-        if (claimed !== null) {
-          onOwnerClaimed();
-        }
-        return claimed;
-      },
-      originAllowed: (peerIp: string | undefined, headers: Headers): boolean => ownerFallbackAllowed(peerIp, headers),
-    },
-    localFirstRun: async (peerIp: string | undefined, headers: Headers): Promise<boolean> =>
-      ownerFallbackAllowed(peerIp, headers) ? await sessions.ownerNeedsPassword() : false,
-    // D259 — the signup-through-invite route. `createApp` adds the per-request multi-human capability.
-    signup: {
-      sessionIsLive: async (token: SessionToken): Promise<boolean> => (await sessions.validate(token)) !== null,
-      invites: built.signupInvites,
-      isReservedHandle: isReservedSignupHandle,
-      handleTaken: (handle: Handle): Promise<boolean> => sessions.signupHandleTaken(handle),
-      hashPassword: (plain: string): Promise<string> => hasher.hash(plain),
-      seedUserConnections: built.seedUserConnections,
-    },
-  };
 }
 
 // The refusal names the keyfile, never DATABASE_URL itself: a remote URL can carry a token.
@@ -467,13 +303,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   // The loopback listener a bind to one named interface adds (`loopbackCompanion`); null on every other bind.
   let loopbackServer: ServerType | null = null;
   let listenerAddress: Readonly<AddressInfo> | null = null;
-  let stopScheduler: (() => void) | null = null;
   let stopPlannerMaintenance: (() => Promise<void>) | null = null;
-  let stopScheduleScheduler: (() => void) | null = null;
   let stopOidcGc: (() => void) | null = null;
-  let stopWorker: OwnedWorkloadsWorker | null = null;
   let stopBuddyObserver: (() => void) | null = null;
-  let stopAutomationWatcher: (() => void) | null = null;
+
   let stopLocalLightPrefetch: (() => void) | null = null;
   let closeLocalLight: (() => Promise<void>) | null = null;
   let stopRelay: (() => void) | null = null;
@@ -485,7 +318,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   // RATIFIED (#596). boot is the ORDERED startup protocol, and its score is the protocol's LENGTH, not tangled
   // control flow: fail-closed guards on the sequence plus one conditional column per optional dependency, each
   // at real nesting depth 0 and each DOUBLED by biome's enclosing-closure nesting penalty. The genuinely nested
-  // wiring HAS been lifted out (buildLocalAuthDeps / buildOidcDeps / scheduleInterval, #596 — 57 → 45); what is
+  // wiring HAS been lifted out (buildOidcDeps / scheduleInterval, #596 — 57 → 45); what is
   // left is the inventory this file exists to state IN ORDER, and splitting it further hides that ordering.
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the ordered boot protocol — ruling above
   async function boot(): Promise<void> {
@@ -738,7 +571,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     });
     certificateController = certificate;
 
+    const authConfig = authConfigFromEnv();
     const built = await createServices({
+      authConfig,
       db,
       now,
       ownerId,
@@ -759,7 +594,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         publicBind: bind.publicBind,
       },
     });
-    closeLocalLight = built.runtime.localLight.close;
+    closeLocalLight = async (): Promise<void> => {
+      await built[Symbol.asyncDispose]();
+    };
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
     if (!credentialsKeyOk) {
@@ -831,7 +668,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     await optimizeDb(db);
     const plannerDb = db;
     stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), scheduleInterval);
-    await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder });
+    await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder, emitWorkloadEvent: built.workloadEvents.emitWorkloadEvent });
 
     // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget
     // re-validated in-lock) or is dropped. Fire-and-forget — the drain does real generation, so it must
@@ -841,130 +678,30 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       .then((report) => log.info(report, "boot: drained deferred turns (pending_turns reclaim)"))
       .catch((err: unknown) => log.error({ err }, "boot: deferred-turn drain failed"));
 
-    stopScheduler = startCatalogRefreshScheduler({
-      service: built.services.workloads,
-      ownerId: ownerId ?? null,
-      now,
-      scheduleInterval,
-      // Item 5: the success-refresh cadence is a live admin knob (catalogRefreshIntervalMs).
-      refreshEveryMs: () => built.services.settings.getEffectiveConfig().catalogRefreshIntervalMs,
-    });
-    stopScheduleScheduler = startWorkloadScheduleScheduler({
-      db,
-      now,
-      start: (params) => built.services.workloads.start(params),
-      scheduleInterval,
-    });
-    // The workloads worker's claim→run poll loop. Boot does not await it, but shutdown OWNS its settlement:
-    // abort first, join the loop, then begin DB pre-close so an unwinding run cannot write into housekeeping.
-    const workerAbort = new AbortController();
-    const workerSettled = startWorkloadsWorker({
-      runnerDeps: {
-        db,
-        contributions: built.workloadContributions,
-        audit: built.audit,
-        now,
-      },
-      signal: workerAbort.signal,
-      nextRunnable: nextRunnableWorkload,
-      run: runWorkload,
-      reap: reapOrphanedWorkloads,
-      load: loadWorkload,
-      subscribeWake: subscribeWorkloadWake,
-      scheduleInterval,
-      scheduleTimeout: scheduleInterval,
-    }).catch((err: unknown) => {
-      log.error({ err: err instanceof Error ? err.message : String(err) }, "workloads worker loop exited");
-    });
-    stopWorker = { abort: (): void => workerAbort.abort(), settled: workerSettled };
-
-    // The automation watcher (A5, D46) — evaluates enabled rules against the chat firehose + the domain-event
-    // bus. The per-viewer `chatOpened` trigger rides the transport-attach synthesis (D81), not the bus, so it
-    // is tapped separately into the same `handleEvent`. Fire-and-forget; SIGTERM stops both.
-    stopAutomationWatcher = startAutomationWatcher(createAutomationWatcherEnv({ automation: built.automation, eventBus: built.eventBus })).stop;
-    setChatOpenTap((chatId) => {
-      superviseDetached(`automation:chat-opened:${chatId}:${randomUUID()}`, "automation.handleEvent", { eventType: "chatOpened", chatId }, () =>
-        built.automation.handleEvent({ type: "chatOpened", chatId }),
-      );
-    });
-
-    // B4 — the in-app first-run owner-password setup rides the same builder (LOCAL_INITIAL_PASSWORD is now
-    // optional); every non-local mode leaves all three route deps absent.
-    // A `SHARE_RELAY` start refused for an unclaimed owner starts right after the claim lands, in this process.
-    const localAuth =
-      env.AUTH_MODE === "local"
-        ? buildLocalAuthDeps(built, sessionSecret, () => {
-            superviseDetached(`share-resume:${randomUUID()}`, "share.resumeAfterOwnerClaim", {}, async () => {
-              logShareBootOutcome(log, await built.services.share.resumeAfterOwnerClaim());
-            });
-          })
-        : undefined;
+    built.startJobs();
 
     const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now, built, ownerClaim) : undefined;
     stopOidcGc = oidcWiring === undefined ? null : oidcWiring.stopOidcGc;
 
-    const app = createApp({
+    const app = createHttpApp({
+      built,
+      authConfig,
       now,
       db,
-      seam: createAuthSeam({
-        sessions: built.sessions,
-        verifyForwardJwt: createForwardJwtVerifier(),
-        // The /api/_debug credential plane's third arm (#1193): on a DEV box the loopback owner fallback IS
-        // the operator's session, so the diagnostics door opens for it; in PRODUCTION — where a same-host
-        // proxy makes every request a loopback peer — it never does, single-user included. The RULE lives in
-        // `foundation/env`, beside the boot-fatality that rules the same hazard.
-        ownerFallbackIsOperatorCredential: resolveOwnerFallbackCredential(ownerFallbackCredentialInput()),
-        relayedFallbackNotice: createRelayedFallbackNotice(now),
-        relayHosts: relayHosts.hosts,
-      }),
-      services: built.services,
-      rateLimit: createRateLimitGate({ db, now, resolveRateLimits: () => built.services.settings.getEffectiveConfig().rateLimits }),
-      presence: built.presence,
-      sockets: built.sockets,
-      // R-OBS: the flight recorder's READ half, present only when `createServices` built one (tracing on).
-      ...(built.rpgTrace === undefined ? {} : { rpgTrace: createRpgTraceInspector(built.rpgTrace) }),
-      // #412: compose's wire-capture request-sink decision, published as `enabled` on the captures probe.
-      wireCapture: built.wireCaptureOn,
-      // #250: the memory-recall ring's read half. Unconditional: the recorder always exists.
-      memoryRecall: createMemoryRecallInspector(built.recallRecorder),
-      assets: built.assets,
-      cas: createCas(env.ASSETS_DIR),
-      character: built.services.character,
-      exportService: built.exportService,
-      portability: built.portability,
-      settleImportMemory: built.settleImportMemory,
-      importWorldInfo: built.importWorldInfo,
-      importCardScripts: built.importCardScripts,
-      sessions: built.sessions,
+      importStagingDir: env.IMPORT_STAGING_DIR,
+      casDir: env.ASSETS_DIR,
+      sessionSecret,
+      onOwnerClaimed: () => {
+        superviseDetached(`share-resume:${randomUUID()}`, "share.resumeAfterOwnerClaim", {}, async () => {
+          logShareBootOutcome(log, await built.services.share.resumeAfterOwnerClaim());
+        });
+      },
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
       inContainer: bindPostureInput().inContainer,
       relayHosts: relayHosts.hosts,
       shareState: relay.status,
-      seedUserCharacters: (principal: Principal): void => {
-        // CHAINED behind the scene plates: the seeded cards dress through the background seeder, so running it
-        // first lands this user's library in pack order (and carries their `kind:"seeded"` data rewrite).
-        // `ensureSeeded` never throws, so the `.then` is unconditional.
-        superviseDetached(`seed-user:${principal.userId}:content:${randomUUID()}`, "seed.user.content", { userId: principal.userId }, () =>
-          built.backgroundSeeder.ensureSeeded(principal).then((): Promise<void> => built.contentSeeder.ensureSeeded(principal)),
-        );
-        // Independent of the character/chat chain — the example plugins attach to nothing, so they race
-        // nobody. Fire-and-forget like its siblings; `ensureSeeded` never throws.
-        superviseDetached(`seed-user:${principal.userId}:example-plugin:${randomUUID()}`, "seed.user.example-plugin", { userId: principal.userId }, () =>
-          built.examplePluginSeeder.ensureSeeded(principal),
-        );
-        // The SERVER-WIDE published plugin set (D147 clause (d)) — the new-user half of the admin fan-out, for
-        // a user created after a publish ran. Independent of everything above (a distributed plugin attaches to
-        // no card and no chat) and latched per user, so a withdrawal by its owner is respected.
-        superviseDetached(
-          `seed-user:${principal.userId}:distributed-plugins:${randomUUID()}`,
-          "seed.user.distributed-plugins",
-          { userId: principal.userId },
-          () => built.distributedPluginApplier.ensureApplied(principal),
-        );
-      },
       oidcProviderName: env.OIDC_PROVIDER_NAME,
-      ...(localAuth ?? {}),
       ...(oidcWiring === undefined ? {} : { oidc: oidcWiring.oidc }),
     });
 
@@ -1079,36 +816,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // an isolated prod instance: 12 ms idle, and exactly 10.001 s with one in-flight request.
       log.info("shutdown: http drained");
     }
-    if (stopScheduler !== null) {
-      stopScheduler();
-      stopScheduler = null;
-    }
-    if (stopScheduleScheduler !== null) {
-      stopScheduleScheduler();
-      stopScheduleScheduler = null;
-    }
     if (stopOidcGc !== null) {
       stopOidcGc();
       stopOidcGc = null;
-    }
-    if (stopWorker !== null) {
-      const worker = stopWorker;
-      stopWorker = null;
-      // STAGE BREADCRUMB (#1936) — announced BEFORE the await, because this join is UNBOUNDED: the abort is
-      // cooperative and `settled` waits for whatever job is mid-run. It is one of the two stages that can
-      // hold the process past the launcher's 15s watch, and the only way an operator can know it did.
-      log.info("shutdown: joining the workloads worker");
-      await drainWorkloadsWorker(worker);
     }
     if (stopBuddyObserver !== null) {
       stopBuddyObserver();
       stopBuddyObserver = null;
     }
-    if (stopAutomationWatcher !== null) {
-      stopAutomationWatcher();
-      stopAutomationWatcher = null;
-    }
-    setChatOpenTap(null);
     // Stops the WALK before its next slot; an ONNX load already in flight has no interrupt and settles into
     // a registry nobody reads again (`local-light/prefetch.ts`). Null when this boot planned nothing.
     if (stopLocalLightPrefetch !== null) {
@@ -1120,7 +835,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       closeLocalLight = null;
       // Bounded: a native ONNX run cannot be interrupted. A close that outlasts its wait is logged, and the
       // process exit then tears the worker down mid-run, which aborts the process (exit 134) after db housekeeping.
-      log.info("shutdown: closing the local-light worker");
+      log.info("shutdown: closing the service graph");
       await close();
     }
     if (db !== null) {

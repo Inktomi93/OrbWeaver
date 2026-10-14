@@ -47,6 +47,7 @@ import type {
   CharacterId,
   ChatId,
   ChatTurnId,
+  IdSource,
   MessageId,
   MessageVariantId,
   PresetId,
@@ -59,6 +60,7 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
+import type { ScheduleOp } from "@orb/kit/time";
 import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext } from "#domain/chat";
 import type {
   AddJournalEntryParams,
@@ -227,7 +229,7 @@ export type FlushBarrierOnTimeout = (info: { readonly chatId: ChatId }) => void;
  *  the same reason the clock is: the bound is then drivable from a test WITHOUT replacing the global clock
  *  (Spine-Testing.md §3 — the `test-determinism` gate bans `vi.useFakeTimers`). Production leaves it
  *  defaulted to the real `setTimeout`. */
-export type FlushBarrierScheduleTimeout = (fn: () => void, ms: number) => () => void;
+export type FlushBarrierScheduleTimeout = ScheduleOp;
 
 /** The per-chat FLUSH BARRIER's public interface (impl: `flush-barrier.ts`). `onTurnCompleted` REGISTERS its
  *  in-flight flush; the gather AWAITS it before assembling the reminder, so a fast re-send reads the
@@ -256,6 +258,8 @@ export interface RpgFlushBarrier {
    *  the barrier exists to close. */
   readonly cancel: (chatId: ChatId, ownerUserId: UserId) => number;
 }
+
+export interface OwnedRpgFlushBarrier extends RpgFlushBarrier, AsyncDisposable {}
 
 /** One flush registration: which chat, whose turn it was (the cancellation owner — D19's `triggeredBy`), the
  *  character turn's own signal to fold in, and the flush body itself, which receives the composed signal.
@@ -646,6 +650,7 @@ export interface RpgIdMints {
  *  + id mints + the staging singleton + the five injected cross-feature ops + the dice CSPRNG. */
 export interface RpgContext {
   readonly db: Db;
+  readonly idSource?: IdSource;
   readonly now: () => number;
   readonly ids: RpgIdMints;
   readonly staging: RpgStagingStore;

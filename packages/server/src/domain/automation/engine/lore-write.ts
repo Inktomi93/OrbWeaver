@@ -11,7 +11,6 @@
 import type { RuleLoreWriteArgs, RuleLoreWriteOutcome } from "../contract/analysis.ts";
 import type { ArmExecutorDeps } from "../contract/ops.ts";
 import { isBookAttachedToChat, isBookOwnedBy, listRuleEntryTitles } from "../persistence/canon-reads.ts";
-import { runInLane } from "../substrate/serial-lanes.ts";
 
 /** A rule's `insert_world_info_entry`/analysis-lore entries are title-namespaced by the ruleId so a
  *  re-upsert with the same key UPDATES its own prior entry and two rules never collide on one title. */
@@ -40,11 +39,11 @@ function ruleLoreTitle(ruleId: string, entryKey: string): string {
  *  THE KEY IS THE CAP'S OWN SCOPE — the cap counts one rule's titles in one book, so a different rule or a
  *  different book is a different lane and runs in parallel. Keying wider would serialize unrelated books
  *  behind a slow world-info write for no correctness gain. */
-export function applyRuleLoreWrite(deps: Pick<ArmExecutorDeps, "db" | "ops">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
-  return runInLane(`lore:${args.ruleId}:${args.bookId}`, () => writeUnderTheBelts(deps, args));
+export function applyRuleLoreWrite(deps: Pick<ArmExecutorDeps, "db" | "ops" | "serialLanes">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
+  return deps.serialLanes.run(`lore:${args.ruleId}:${args.bookId}`, () => writeUnderTheBelts(deps, args));
 }
 
-async function writeUnderTheBelts(deps: Pick<ArmExecutorDeps, "db" | "ops">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
+async function writeUnderTheBelts(deps: Pick<ArmExecutorDeps, "db" | "ops" | "serialLanes">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
   // THE CONSENT GATE, one question answered by the rule's own SCOPE (the RULED book-ownership
   // call). A ROOM's rule asks the room: the attachment IS its consent, and it is
   // re-read HERE (not trusted from the mint) so a book detached between fire and confirm refuses. A GLOBAL
