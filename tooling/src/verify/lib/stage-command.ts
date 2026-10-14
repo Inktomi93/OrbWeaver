@@ -115,8 +115,7 @@ export function unrunnableRegistryRows(root: string, pathEnv: string): readonly 
  *  REFUSED rather than left looking like a stage that merely has not run yet — exit 2, because a registry
  *  the runner cannot execute is a broken instrument, never a finding about the repo. */
 export function refuseUnrunnableRows(root: string): number {
-  // biome-ignore lint/style/noProcessEnv: `--list` has no stage env to inherit, and the PATH this process was given IS the PATH a stage child would get — reading it here is the measurement, not configuration.
-  const rows = unrunnableRegistryRows(root, process.env["PATH"] ?? "");
+  const rows = unrunnableRegistryRows(root, processEnvValue("PATH") ?? "");
   if (rows.length === 0) {
     return EXIT.clean;
   }

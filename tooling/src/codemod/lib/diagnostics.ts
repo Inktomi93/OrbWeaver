@@ -24,8 +24,8 @@ import { print } from "../../floor/artifacts/artifacts.ts";
 import { writeFileSync } from "node:fs";
 import { tmpdir as osTmpdir } from "node:os";
 import { join } from "node:path";
-import process from "node:process";
 import type { Project, SourceFile } from "ts-morph";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import type { CodemodContext, FileSnapshot, Plan } from "../contract/types.ts";
 import { repoRelative } from "./plans.ts";
 
@@ -44,8 +44,7 @@ function resolveMaxOutputLines(override?: number): number {
   if (typeof override === "number" && override > 0) {
     return override;
   }
-  // biome-ignore lint/style/noProcessEnv: NEO_CODEMOD_MAX_LINES is an operator spill-threshold knob — ambient tooling env, not app config; codemods run outside the foundation/env perimeter.
-  const envVal = process.env["NEO_CODEMOD_MAX_LINES"];
+  const envVal = processEnvValue("NEO_CODEMOD_MAX_LINES");
   if (envVal !== undefined) {
     const n = Number.parseInt(envVal, 10);
     if (Number.isFinite(n) && n > 0) {

@@ -12,8 +12,8 @@
 // contradictory env. Dropping the key is
 // the whole fix, and it lives here rather than inline so the claim has a name and a pin
 // (`tests/tooling/verify/ops/run.int.test.ts`, which plants `FORCE_COLOR` in the parent as its control).
-import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify");
 
@@ -22,6 +22,5 @@ const FORCE_COLOR_ENV = "FORCE_COLOR";
 
 /** The parent environment a stage child inherits, with the contradictory colour override removed. */
 export function colourNeutralParentEnv(): Record<string, string | undefined> {
-  // biome-ignore lint/style/noProcessEnv: the parent env IS this function's subject — it composes what a spawned child inherits, not app config.
-  return Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== FORCE_COLOR_ENV));
+  return Object.fromEntries(Object.entries(inheritedProcessEnv()).filter(([key]) => key !== FORCE_COLOR_ENV));
 }

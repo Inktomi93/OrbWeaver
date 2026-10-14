@@ -21,6 +21,7 @@ import type { seedCorpusRpgMembers as produceCorpusRpgMembers } from "./corpus-r
 import type { seedCorpusRpgProvider as produceCorpusRpgProvider } from "./corpus-rpg-provider.ts";
 import type { seedCorpusRpgRecursion as produceCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
 import type { seedCorpusRpgRounds as produceCorpusRpgRounds } from "./corpus-rpg-rounds.ts";
+import type { seedCorpusSdkSessions as produceCorpusSdkSessions } from "./corpus-sdk-sessions.ts";
 import type { seedCorpusSearch as produceCorpusSearch } from "./corpus-search.ts";
 import type {
   seedCorpusAutomation as produceCorpusAutomation,
@@ -50,6 +51,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly sdkSessions: Awaited<ReturnType<typeof produceCorpusSdkSessions>>;
   readonly statsSettings: Awaited<ReturnType<typeof produceCorpusStatsSettings>>;
   readonly libraryViews: Awaited<ReturnType<typeof produceCorpusLibraryViews>>;
   readonly connection: Awaited<ReturnType<typeof produceCorpusConnection>>;
@@ -159,6 +161,8 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusSearch } = await import("./corpus-search.ts");
   const { seedCorpusConnection } = await import("./corpus-connection.ts");
   const { seedCorpusStatsSettings } = await import("./corpus-stats-settings.ts");
+  const { seedCorpusSdkSessions } = await import("./corpus-sdk-sessions.ts");
+  const { createCorpusSdkExecution } = await import("./corpus-sdk-wire.ts");
   const { createCorpusConnectionWire } = await import("./corpus-connection-wire.ts");
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
@@ -174,6 +178,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const rpgFlightTimers = createRpgFlightTimers(createControlledTimers(clock));
   const rpgFlightWire = createRpgFlightWire();
   const connectionWire = createCorpusConnectionWire();
+  const sdkExecution = createCorpusSdkExecution();
   const ids = options.server.ids ?? createSeededIds();
   const issuer = await createNativeIssuer();
   let oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
@@ -209,6 +214,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       clock,
       ids,
       ownerId: oidc.ownerId,
+      sdkSpawn: sdkExecution.spawn,
       providerFetch: connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch))),
       networkExecution: {
         fetch: connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch))),
@@ -262,6 +268,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     personaId: libraries.persona.id,
     foreignUserId: actors.secondUserId,
   });
+  const sdkSessions = await seedCorpusSdkSessions(root, sdkExecution);
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -273,6 +280,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   return {
     wire: hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads }),
     privateCaptures: {
+      sdkSessions,
       oidc,
       credential,
       baseline,

@@ -2,6 +2,7 @@ import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { vi } from "vitest";
 import { flushBuffer } from "../../../../tooling/src/codemod/lib/diagnostics.ts";
 
@@ -34,6 +35,31 @@ test("the overflow file never writes through a path planted at its predictable n
   } finally {
     stdout.mockRestore();
     now.mockRestore();
+    vi.unstubAllEnvs();
+  }
+});
+
+test("spill threshold reads the current environment on every call and explicit limits take precedence", async ({ scratch }) => {
+  vi.stubEnv("TMPDIR", scratch);
+  const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+  try {
+    await withProcessEnv("NEO_CODEMOD_MAX_LINES", String(LIMIT), () => {
+      const spilled = flushBuffer(OVERFLOWING, "env-threshold");
+      expect(spilled).toBeDefined();
+      expect(readFileSync(spilled ?? "", "utf8")).toBe(OVERFLOWING.join("\n"));
+      expect(flushBuffer(OVERFLOWING, "explicit-threshold", OVERFLOWING.length)).toBeUndefined();
+      return Promise.resolve();
+    });
+    await withProcessEnv("NEO_CODEMOD_MAX_LINES", String(OVERFLOWING.length), () => {
+      expect(flushBuffer(OVERFLOWING, "changed-threshold")).toBeUndefined();
+      return Promise.resolve();
+    });
+    await withProcessEnv("NEO_CODEMOD_MAX_LINES", "not-a-number", () => {
+      expect(flushBuffer(OVERFLOWING, "invalid-threshold")).toBeUndefined();
+      return Promise.resolve();
+    });
+  } finally {
+    stdout.mockRestore();
     vi.unstubAllEnvs();
   }
 });
