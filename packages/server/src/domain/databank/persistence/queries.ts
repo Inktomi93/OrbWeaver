@@ -23,21 +23,9 @@ const LIMIT_ONE = 1;
  *  multi-MB text. */
 const CHAR_COUNT = sql<number>`length(${documents.extractedText})`;
 
-// @orb-waive contract-structural-copy(DocumentMetaRow): baselined when the gate widened; burn-down item 904.
-/** The list-safe projection: everything on `DocumentView` EXCEPT the derived chunk counts, with `charCount`
- *  computed in SQL so the canon text never crosses the wire on a list. Persistence-internal (not exported —
- *  the row type has no home outside this file; the verbs consume `toDocumentView`, not this shape). */
-interface DocumentMetaRow {
-  readonly id: DocumentId;
-  readonly name: string;
-  readonly mime: string;
-  readonly origin: DocumentView["origin"];
-  readonly sourceUrl: string | null;
-  readonly byteSize: number;
+type DocumentMetaRow = Pick<typeof documents.$inferSelect, "id" | "name" | "mime" | "origin" | "sourceUrl" | "byteSize" | "createdAt" | "updatedAt"> & {
   readonly charCount: number;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
+};
 
 /** The full canon row (incl. `extractedText` + provenance) — for `get({includeText})` and the ingest/reindex
  *  paths (chunk source, re-extract). Persistence-internal; consumers derive it via

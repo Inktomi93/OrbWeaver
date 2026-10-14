@@ -16,8 +16,8 @@ const ENTITY = "workload";
 
 export function createGet(ctx: WorkloadServiceContext): Pick<WorkloadService, "get"> {
   async function get(params: GetWorkloadParams): Promise<WorkloadRowAnyKind> {
-    const row = await loadWorkload(ctx.db, ctx.getContributions(), params.id);
-    if (row === null || !isVisibleToCaller(ctx.isAdmin, params.caller, row.ownerId)) {
+    const row = await loadWorkload(ctx.db, ctx.getContributions(), params.id, (access) => isVisibleToCaller(ctx.isAdmin, params.caller, access.ownerId));
+    if (row === null) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
     return row;

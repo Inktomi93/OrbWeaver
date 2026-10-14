@@ -7,9 +7,10 @@
 
 import type { RulePresetView } from "@orb/contracts/automation";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
+import type { CharacterMemberSpec } from "@orb/contracts/chat";
 import { TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
-import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
+import type { RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -31,14 +32,7 @@ import { rosterRuleKnobGloss, rulesetLine } from "../lib/roster-copy.ts";
 
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
  *  stay BRANDED end to end (`CharacterId` — brand-in-name-position; the wire's `z.input` accepts them). */
-function memberInputsOf(view: RosterPresetView): {
-  // @orb-waive contract-structural-copy(kind): baselined when the gate widened; burn-down item 904.
-  kind: "character";
-  characterId: CharacterId;
-  position: number;
-  talkativeness?: number;
-  disabled?: boolean;
-}[] {
+function memberInputsOf(view: RosterPresetView): CharacterMemberSpec[] {
   return view.members.map((m) => ({
     kind: "character" as const,
     characterId: m.characterId,

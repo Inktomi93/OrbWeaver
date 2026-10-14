@@ -45,6 +45,6 @@ Compose integration preserves census equality. Reindex/auth classifications rema
 
 The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
 
-Compose import controls pass at `292d99464e`; whole-application imports remain unqualified.
+JSON and wire parsing allowances are zero; whole-application qualification remains open.
 
 The suppression work item owns form-data and settled-tracing lint conflicts.

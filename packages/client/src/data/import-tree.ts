@@ -6,18 +6,22 @@
 // `secrets.json` is dropped here too, whatever the caller planned.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { PersonaCollision, PersonaCollisionChoices } from "@orb/contracts/import";
-import { encodePersonaCollisionChoices, isStSecretsFile, PERSONA_COLLISION_FIELD, personaCollisionReviewSchema, ST_SETTINGS_FILE } from "@orb/contracts/import";
-import type { WorkloadId } from "@orb/kit/ids";
+import type { ImportStarted, PersonaCollision, PersonaCollisionChoices } from "@orb/contracts/import";
+import {
+  encodePersonaCollisionChoices,
+  importStartedSchema,
+  isStSecretsFile,
+  PERSONA_COLLISION_FIELD,
+  personaCollisionReviewSchema,
+  ST_SETTINGS_FILE,
+} from "@orb/contracts/import";
 import { throwHttpError } from "./http-error.ts";
 
 const TREE_URL = "/api/import/tree";
 const TREE_FIELD = "file";
 
 /** The `202` accept body: the id of the enqueued import workload to subscribe for progress + the result. */
-export interface TreeImportStarted {
-  readonly workloadId: WorkloadId;
-}
+export type TreeImportStarted = ImportStarted;
 
 /** `webkitRelativePath` is present on a directory-picked File in a real browser, but it's a non-standard
  *  Chromium extension the DOM lib types as always-`string` — jsdom (and any spec-faithful `File`) doesn't
@@ -58,8 +62,7 @@ export async function importTree(files: readonly File[], personaCollisions: Pers
   if (!response.ok) {
     await throwHttpError("importTree", response);
   }
-  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
-  return (await response.json()) as TreeImportStarted;
+  return importStartedSchema.parse(await response.json());
 }
 
 const REVIEW_URL = "/api/import/tree/review";

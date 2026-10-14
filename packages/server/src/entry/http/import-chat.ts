@@ -12,7 +12,8 @@
 // mutation missing the custom header) → a hono/body-limit total cap (413). Per-file failures are ISOLATED
 // into `failed[]` (one bad transcript never fails the batch), matching POST /api/import's card contract.
 
-import type { ImportWindow } from "@orb/contracts/chat";
+import type { ChatImportResult } from "@orb/contracts/import";
+import { chatImportResultSchema } from "@orb/contracts/import";
 import type { PortabilityRegistry, PortableEntity } from "@orb/contracts/portability";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -45,26 +46,12 @@ export interface ImportChatDeps {
 }
 
 /** One transcript that landed (or deduped). `created:false` = the chat was already present (no write). */
-interface ImportedChat {
-  readonly filename: string;
-  readonly created: boolean;
-}
+type ImportedChat = ChatImportResult["imported"][number];
 
 /** One transcript that could not be imported — the operator-facing reason, isolated rather than thrown. */
-interface FailedChat {
-  readonly filename: string;
-  readonly error: string;
-}
+type FailedChat = ChatImportResult["failed"][number];
 
-// @orb-waive no-inline-package-interface(ChatImportResult): baselined when the gate landed; burn-down item 952.
-/** The `POST /api/import/chat` response body: the REAL per-file outcome (the client summary derives from it). */
-export interface ChatImportResult {
-  readonly imported: readonly ImportedChat[];
-  readonly failed: readonly FailedChat[];
-  /** The span in which the batch wrote real conversations (null = none) — the scope handle of the client's
-   *  "Build memory for imported chats" offer. */
-  readonly memoryScope: ImportWindow | null;
-}
+export type { ChatImportResult } from "@orb/contracts/import";
 
 /**
  * Route every uploaded transcript through the chat descriptor, one at a time, collecting each file's
@@ -125,7 +112,7 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
       if (files.length === 0) {
         return c.json({ error: `no "${UPLOAD_FIELD}" transcript uploads` }, BAD_REQUEST);
       }
-      return c.json(await importAll(chat, principal.userId, files, deps));
+      return c.json(chatImportResultSchema.parse(await importAll(chat, principal.userId, files, deps)));
     },
   );
 }

@@ -12,7 +12,7 @@
 // only see cards the distill pass had already reached. Splitting the two reads is the fix: identity from
 // `characters` (this file), facets from `character_summaries` (that one).
 
-import type { Greeting } from "@orb/contracts/character";
+import { greetingsColumnSchema } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -96,15 +96,10 @@ export async function readCardDistillTargets(db: Db, filter: DistillTargetNarrow
  *  is returned rather than re-derived by the caller so the "is there anything here?" verdict and the text it
  *  is a verdict ABOUT are built in one place — a caller re-checking the raw columns would drift from the
  *  labels actually sent to the summarizer. */
-function composeCardText(card: {
-  // @orb-waive contract-structural-copy(name): baselined when the gate widened; burn-down item 904.
-  readonly name: string;
-  readonly description: string | null;
-  readonly personality: string | null;
-  readonly scenario: string | null;
-  readonly greetings: readonly Greeting[];
-  readonly exampleMessages: string | null;
-}): { readonly text: string; readonly contentParts: number } {
+function composeCardText(card: Pick<typeof characters.$inferSelect, "name" | "description" | "personality" | "scenario" | "greetings" | "exampleMessages">): {
+  readonly text: string;
+  readonly contentParts: number;
+} {
   const parts: string[] = [`Name: ${card.name}`];
   let contentParts = 0;
   const add = (label: string, value: string | null): void => {
@@ -117,8 +112,8 @@ function composeCardText(card: {
   add("Description", card.description);
   add("Personality", card.personality);
   add("Scenario", card.scenario);
-  // @orb-waive json-column-read-parsed(greetings): the unparsed characters.greetings read reaches composeCardText through a hand-typed parameter off the $type cast; burn-down item 905.
-  add("Greeting", card.greetings[0]?.text ?? null);
+  const greetings = greetingsColumnSchema.parse(card.greetings);
+  add("Greeting", greetings[0]?.text ?? null);
   add("Example dialogue", card.exampleMessages);
   return { text: parts.join("\n\n"), contentParts };
 }

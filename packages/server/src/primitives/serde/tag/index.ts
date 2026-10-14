@@ -10,7 +10,7 @@
 // Defined through `#primitives/serde/lib` — envelope, decode, version gate and row loop are the spine's.
 
 import type { PortableParse } from "@orb/contracts/portability";
-import type { TagFolderType, TagSource } from "@orb/contracts/tag";
+import type { TagView } from "@orb/contracts/tag";
 import { tagFolderTypeSchema, tagSourceSchema } from "@orb/contracts/tag";
 import { z } from "zod";
 import type { EmptyJsonHeader } from "#primitives/serde/lib";
@@ -18,19 +18,9 @@ import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#primitives/s
 
 export const TAG_LIBRARY_SCHEMA_KIND = "orb.tag-library";
 export const TAG_LIBRARY_SCHEMA_VERSION = 1;
-
-// @orb-waive contract-structural-copy(CanonicalTag): baselined when the gate widened; burn-down item 904.
 /** One tag as it travels in the library file: display + presentation axes only. No id (minted on
  *  import), no ownerId (stamped at write time), no createdAt (born at insert). */
-export interface CanonicalTag {
-  readonly name: string;
-  readonly color: string | null;
-  readonly color2: string | null;
-  readonly source: TagSource | null;
-  readonly folderType: TagFolderType;
-  readonly sortOrder: number | null;
-  readonly isHiddenOnCard: boolean;
-}
+export type CanonicalTag = Readonly<Omit<TagView, "id">>;
 
 /** An owner's whole tag namespace as a portable set. Just the tag rows — the per-type junctions are not
  *  part of a standalone tag library; re-attachment rides the other entities' imports. */

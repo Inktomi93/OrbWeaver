@@ -1,4 +1,3 @@
-import type { PromptConfig } from "@orb/contracts/preset";
 import { promptConfigConfig } from "@orb/contracts/preset";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
@@ -35,17 +34,7 @@ const PRESET_FORK = "preset.fork";
 const PRESET_ENTITY = "preset";
 
 /** A config edit also re-stamps `schemaVersion` (kept in sync with the blob). */
-function buildPatch(
-  params: UpdatePresetParams,
-  now: number,
-): {
-  // @orb-waive contract-structural-copy(name): baselined when the gate widened; burn-down item 904.
-  name?: string;
-  kind?: string;
-  config?: PromptConfig;
-  schemaVersion?: number;
-  updatedAt: number;
-} {
+function buildPatch(params: UpdatePresetParams, now: number): Parameters<typeof updatePresetRow>[3] {
   return {
     ...(params.name === undefined ? {} : { name: params.name }),
     ...(params.kind === undefined ? {} : { kind: params.kind }),

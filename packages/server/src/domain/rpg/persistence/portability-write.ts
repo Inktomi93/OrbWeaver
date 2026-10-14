@@ -14,6 +14,7 @@
 // therefore cannot make export pair checkpoint rows with a different snapshot set, and a kill mid-import
 // leaves the chat with no game rather than half a campaign.
 
+import { rpgGameConfigSchema, rpgRecordedToolCallSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
@@ -33,31 +34,21 @@ import type {
 
 const LIMIT_ONE = 1;
 
-/** The composed snapshot STATE from one `rpg_snapshots` row's JSON columns. The db splits the state across
- *  columns; the contract's `rpgSnapshotStateSchema` is the composed shape, and `$type` already gives each
- *  column its parsed type — so this is a re-composition, not a re-parse. `?? default` mirrors the schema's
- *  own `.default()`s for the born-nullable planes. */
+/** Validate the snapshot columns against their canonical composed state before exporting them. */
 function composeState(row: typeof rpgSnapshots.$inferSelect): RpgPortableSnapshot["state"] {
-  return {
-    // @orb-waive json-column-read-parsed(clock): baselined when the gate widened; burn-down item 905.
-    clock: row.clock ?? null,
+  return rpgSnapshotStateSchema.parse({
+    clock: row.clock,
     calendarDate: row.calendarDate,
     location: row.location,
-    // @orb-waive json-column-read-parsed(weather): baselined when the gate widened; burn-down item 905.
-    weather: row.weather ?? null,
-    // Spread, not pass-through: the columns are `$type<readonly …[]>` and the composed contract shape is
-    // zod-inferred (mutable). One copy at the read boundary, never a cast.
-    presentCharacters: [...(row.presentCharacters ?? [])],
-    recentEvents: [...(row.recentEvents ?? [])],
-    // @orb-waive json-column-read-parsed(actorState): baselined when the gate widened; burn-down item 905.
-    actorState: [...(row.actorState ?? [])],
-    trackerValues: row.trackerValues ?? {},
-    // @orb-waive json-column-read-parsed(quests): baselined when the gate widened; burn-down item 905.
-    quests: [...(row.quests ?? [])],
-    // @orb-waive json-column-read-parsed(plot): baselined when the gate widened; burn-down item 905.
-    plot: row.plot ?? null,
-    fieldLocks: row.fieldLocks ?? null,
-  };
+    weather: row.weather,
+    presentCharacters: row.presentCharacters ?? undefined,
+    recentEvents: row.recentEvents ?? undefined,
+    actorState: row.actorState ?? undefined,
+    trackerValues: row.trackerValues ?? undefined,
+    quests: row.quests ?? undefined,
+    plot: row.plot,
+    fieldLocks: row.fieldLocks,
+  });
 }
 
 export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): ExportRpgGame {
@@ -90,11 +81,9 @@ export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): Exp
       mode: game.mode,
       status: game.status,
       sessionNumber: game.sessionNumber,
-      // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
-      config: game.config,
+      config: rpgGameConfigSchema.parse(game.config),
       createdAt: game.createdAt,
-      // @orb-waive json-column-read-parsed(sheet): baselined when the gate widened; burn-down item 905.
-      sheets: sheetRows.map((row): RpgPortableSheet => ({ characterId: row.characterId, sheet: row.sheet })),
+      sheets: sheetRows.map((row): RpgPortableSheet => ({ characterId: row.characterId, sheet: rpgSheetSchema.parse(row.sheet) })),
       snapshots: snapshotRows.map(
         (row): RpgPortableSnapshot => ({
           messageId: row.messageId,
@@ -120,7 +109,7 @@ export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): Exp
         (row): RpgPortableTurnToolCalls => ({
           messageId: row.messageId,
           variantId: row.variantId,
-          calls: row.calls,
+          calls: rpgRecordedToolCallSchema.array().parse(row.calls),
           createdAt: row.createdAt,
         }),
       ),

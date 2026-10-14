@@ -1,15 +1,8 @@
 // Dev bridge contracts; the operator HTTP read lives in the data tier.
-import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
+import type { PluginView } from "@orb/contracts/plugin";
+import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 
-// @orb-waive contract-structural-copy(OrbPluginListEntry): baselined when the gate widened; burn-down item 904.
-/** One installed plugin as `__orb.pluginLog()` lists it — the `plugin.list` row's identity + lifecycle columns. */
-export interface OrbPluginListEntry {
-  readonly id: PluginId;
-  readonly slug: string;
-  readonly name: string;
-  readonly version: string;
-  readonly status: string;
-}
+export type OrbPluginListEntry = Pick<PluginView, "id" | "slug" | "name" | "version" | "status">;
 
 /** One line of a plugin's runtime host.log ring, as `plugin.getLog` serves it. */
 interface OrbPluginLogLine {

@@ -13,29 +13,16 @@
 // `archived` spelling, the referential drop of a dead tag id, the deferred chip lens — lives at this one
 // seam, and the two regions cannot disagree about the answer.
 
-import type { TagId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 import { useDebouncedValue } from "#lib";
 import { useCharacterSearch, useFavoritesOnly, useFiltersOpen, useShowArchived, useTagFilter } from "#state";
+import type { LibraryScopeArgs } from "../contract/library.ts";
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
 import { CHARACTER_SEARCH_DEBOUNCE_MS, effectiveTagFilter, knownTagIds, tagVocabulary } from "../lib/character-library-lens.ts";
 import { useLibraryLens } from "./use-library-lens.ts";
 
-// @orb-waive contract-structural-copy(LibraryScopeArgs): baselined when the gate judged by type; burn-down item 904.
-/** The NARROWING half of `character.list`'s input — spread into the pane's paged read and into the band's
- *  `{limit:1}` census, so the number and the rows are answers about the same scope. Every member is
- *  optional-by-absence (`exactOptionalPropertyTypes`): an omitted axis is UNFILTERED, never a predicate
- *  that matches everything. */
-export interface LibraryScopeArgs {
-  readonly search?: string;
-  readonly starred?: boolean;
-  readonly archived?: boolean;
-  /** MUTABLE arrays behind readonly properties: this object is spread straight into `character.list`'s
-   *  zod-inferred input, which takes `TagId[]`, and a `readonly TagId[]` is not assignable to it. */
-  readonly includeTagIds?: TagId[];
-  readonly excludeTagIds?: TagId[];
-}
+export type { LibraryScopeArgs } from "../contract/library.ts";
 
 export interface LibraryScope {
   /** The narrowing arguments, ready to spread into `character.list`. */

@@ -14,6 +14,7 @@
 // stage do I edit?". `lib/` is the shared home — the editor dialog is client-shared and the readout is a
 // feature, and features cannot import each other (the `MESSAGE_ROLE_LABELS` precedent).
 
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { REGEX_PLACEMENTS } from "@orb/kit/regex";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -133,8 +134,7 @@ function patternWhole(findRegex: string): string {
  * projection keeps `patternHead`, because its dialog line has no `truncate` to do the job.
  */
 export function regexRowScent(
-  // @orb-waive contract-structural-copy(enabled): baselined when the gate widened; burn-down item 904.
-  script: { readonly enabled: boolean; readonly findRegex: string; readonly placement: readonly RegexPlacement[]; readonly updatedAt: number },
+  script: Readonly<Pick<RegexScriptRow, "enabled" | "findRegex" | "placement" | "updatedAt">>,
   formatRelative: (epochMs: number) => string,
 ): string {
   const nowhere = script.placement.length === 0 ? `${SCENT_NO_PLACEMENT} · ` : "";
@@ -184,7 +184,7 @@ export function regexRowScent(
  *  own projection ({@link regexRowScent}) keeps its `off ·` — its list has no attach switch to collide with,
  *  and an `off` row's presence in the LIBRARY is otherwise unexplained. */
 export function regexScriptScent(
-  script: { readonly findRegex: string; readonly placement: readonly RegexPlacement[]; readonly updatedAt: number },
+  script: Readonly<Pick<RegexScriptRow, "findRegex" | "placement" | "updatedAt">>,
   formatRelative: (epochMs: number) => string,
 ): string {
   return `${placementPhrase(script.placement)} · ${patternHead(script.findRegex)} · edited ${formatRelative(script.updatedAt)}`;
@@ -195,7 +195,7 @@ export function regexScriptScent(
  *  announce a nameless script, and `components/` cannot import a feature's `lib/`. It moved here from
  *  `features/regex/lib/regex-model.ts` when the order editor became the fourth caller — the picker had
  *  already re-spelled the fallback inline, which is one name for a nameless script per surface. */
-export function regexScriptTitle(script: { readonly name: string }): string {
+export function regexScriptTitle(script: Readonly<Pick<RegexScriptRow, "name">>): string {
   return script.name === "" ? "Unnamed script" : script.name;
 }
 

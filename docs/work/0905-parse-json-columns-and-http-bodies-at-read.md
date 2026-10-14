@@ -20,20 +20,14 @@ A cast at a read boundary trusts stored or wire bytes the type system never chec
 
 ## Done when
 
-No @orb-waive marker naming this item remains; every listed column and response parses through a contracts schema, with a test that a malformed row or body is refused.
+No @orb-waive marker naming this item remains. Every listed column and response validates through its canonical schema or owning codec. Tests prove refusal before effects for strict data and preserve explicit canonical field-healing policies; a cast supplies neither proof.
 
 ## Evidence
 
-Security review of branch wt/agent-a90022c3a8927247c at 0ed29a23d2 against main at 4d7b00a6d4 rejects a whole-branch merge. Preserve useful production schemas and parsing changes through an updated-tree salvage, not a wholesale file port.
+Current-tree salvage at `7248cf4185` repairs every original marker and listed HTTP response boundary. Independent security review confirms the production changes and full auth-config and auth-me producer parsing. Canonical ownership checks precede private decoding; malformed strict payloads refuse before management writes, queue effects or recipient publication.
 
-Current `packages/client/src/data/auth-bootstrap.ts` already parses `authMeSchema` and validates optional authentication bodies. Preserve those paths; the retained branch would restore casts for some bodies.
+Current native malformed, valid and foreign-row cases pass on the canonical root, including stored connections, notifications, plugin management, workloads, handoff and portable data. Required cross-tenant and notification compatibility cases pass. Real HTTP auth and existing malformed-body consumer cases pass. The complete original site map distinguishes runtime evidence from erased-type proof.
 
-Current-tree salvage is frozen at `143c019c10`, based on `f4a25d17dd`, with independent security review. It preserves integrated ownership-before-private-decoding and mismatch detection. Owned workload, plugin, notification and handoff payloads parse before management effects. Authentication and import responses use genuine contracts doors. Native greeting and legacy field healing policies remain explicit rather than becoming invented refusals.
+Canonical greeting and legacy field heals remain intentional owner policies. Scheduler start already validates through its canonical parser; existing enumeration, error classification and advance behavior remain unchanged. No duplicate parser or poison-row policy is introduced.
 
-Composed notification controls prove refusal before private timestamp writes and recipient-bus publication. Unchanged source publishes an owner-mismatched payload onto the foreign recipient's real bus; corrected source refuses. Scoped malformed, valid and foreign-row controls pass. Client import-response controls also pass and fail on unchanged readers. These bounded results do not close the remaining population. Legacy harness retrofits remain excluded.
-
-Current-tree client import-response and harness-target controls pass. Production compiler configs and scoped lint pass. Shared-reader JSON and wire checks report no findings, errors or withheld results; unchanged budgets remain red. Main-native composed boundary cases still require the coherent harness and canonical asset builders. Donor-native controls do not establish that integration verdict.
-
-Schedule start already validates through its canonical parser. Preserve existing enumeration, per-row error classification and advance behavior; an intermediate type assertion does not establish a runtime bypass. No duplicate parser, poison-row healing or scheduler-policy rewrite is authorized by this salvage.
-
-Complete the integrated malformed, valid and foreign-row population before landing this item. No legacy harness retrofit or wholesale stale-branch merge is part of that acceptance.
+The latest shared reader reports no JSON or wire findings, consumed waivers, errors or withheld owners. Unused application allowances are removed and the application selection passes. Root diagnostics and whole-application qualification remain separate. The persona export wrapper belongs to the broader boundary inventory, not this original population.

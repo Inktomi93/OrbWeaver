@@ -39,15 +39,7 @@ interface ConvergedPresetInsert extends PresetInsert {
   forkedFrom: PresetId;
 }
 
-// @orb-waive contract-structural-copy(PresetPatch): baselined when the gate widened; burn-down item 904.
-/** A partial patch over an owned row — only the present keys are written; `updatedAt` is always bumped. */
-interface PresetPatch {
-  name?: string;
-  kind?: string;
-  config?: PromptConfig;
-  schemaVersion?: number;
-  updatedAt: number;
-}
+type PresetPatch = Partial<Pick<PresetRow, "name" | "kind" | "schemaVersion">> & Pick<PresetRow, "updatedAt"> & { config?: PromptConfig };
 
 export async function insertPreset(db: Db, row: PresetInsert): Promise<void> {
   await db.insert(presets).values(row);

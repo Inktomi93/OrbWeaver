@@ -278,8 +278,7 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
  *  short-circuit never compares against a different model's row. */
 export async function existingSegmentHash(
   db: Db,
-  // @orb-waive contract-structural-copy(chatId): baselined when the gate widened; burn-down item 904.
-  key: { chatId: ChatId; blockIdx: number; chunkIdx: number; generationId: EmbedGenerationId },
+  key: Pick<typeof chatSegments.$inferSelect, "chatId" | "blockIdx" | "chunkIdx" | "generationId">,
 ): Promise<string | undefined> {
   const rows = await db
     .select({ hash: chatSegments.contentHash })
@@ -301,14 +300,7 @@ export async function existingSegmentHash(
  *  folds into the hash — §4); `model` is in the key so the read scopes to the active space. */
 export async function existingDigestHash(
   db: Db,
-  // @orb-waive contract-structural-copy(chatId): baselined when the gate judged by type; burn-down item 904.
-  key: {
-    chatId: ChatId;
-    scopedCharacterId: CharacterId;
-    tier: number;
-    blockIdx: number;
-    generationId: EmbedGenerationId;
-  },
+  key: Pick<typeof chatDigests.$inferSelect, "chatId" | "scopedCharacterId" | "tier" | "blockIdx" | "generationId">,
 ): Promise<string | undefined> {
   const rows = await db
     .select({ hash: chatDigests.contentHash })

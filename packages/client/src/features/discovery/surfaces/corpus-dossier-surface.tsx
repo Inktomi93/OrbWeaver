@@ -11,6 +11,7 @@
 // server couldn't parse. Merging degraded into "Speculative" blamed the model for our parse failure and hid
 // that the text below was never validated at all.
 
+import type { AskCardAnswer } from "@orb/contracts/discovery";
 import { SCORE_MAX } from "@orb/contracts/refinery";
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -378,13 +379,7 @@ function AskAnswer({
   readonly isPending: boolean;
   readonly hasQuestion: boolean;
   readonly error: unknown | null;
-  readonly data: {
-    // @orb-waive contract-structural-copy(answer): baselined when the gate widened; burn-down item 904.
-    readonly answer: string;
-    readonly grounded: boolean;
-    readonly degraded: boolean;
-    readonly sampledMessages: number;
-  } | null;
+  readonly data: AskCardAnswer | null;
 }): ReactElement | null {
   if (!hasQuestion) {
     return null;
@@ -417,7 +412,7 @@ function AskAnswer({
 /** THREE states, not two — `degraded` is OUR parse failing, `grounded` is the MODEL'S claim about its own
  *  answer (contract/results.ts). Showing "Speculative" for a degraded reply attributes our failure to the
  *  model and hides that the text below is unparsed raw output, so degraded wins the badge outright. */
-function answerState(data: { readonly grounded: boolean; readonly degraded: boolean }): {
+function answerState(data: Readonly<Pick<AskCardAnswer, "grounded" | "degraded">>): {
   readonly key: string;
   readonly label: string;
   readonly intent: "success" | "warning";

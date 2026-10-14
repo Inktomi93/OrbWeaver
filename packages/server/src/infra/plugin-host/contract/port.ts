@@ -1,9 +1,18 @@
 import type { spawn } from "node:child_process";
-import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs, PluginLogLevel } from "@orb/contracts/plugin";
+import type {
+  InvocationChat,
+  PluginBridge,
+  PluginCapability,
+  PluginHandlerRef,
+  PluginInstance,
+  PluginInstanceCreateData,
+  PluginInvokeArgs,
+  PluginLogLevel,
+  SnippetResult,
+} from "@orb/contracts/plugin";
 import type { TimerScheduler } from "@orb/kit/time";
 import type { ScopedEgress } from "#infra/network";
 import type { PluginNetEgress } from "../net-egress.ts";
-import type { SandboxLimits } from "../sandbox.ts";
 
 /** The determinism seams every instance's realm binds. */
 export interface PluginHostSeamDeps {
@@ -20,16 +29,9 @@ export interface PluginHostSeamDeps {
   readonly netEgress?: PluginNetEgress;
 }
 
-// @orb-waive contract-structural-copy(CreateInstanceInputIn): baselined when the gate widened; burn-down item 904.
-/** The serializable half of a Worker create command plus its app-owned bridge. */
-export interface CreateInstanceInputIn {
-  readonly mainJs: string;
-  readonly grants: readonly PluginCapability[];
+/** Instance data plus the app-owned operation bridge; no domain import crosses the infra boundary. */
+export interface CreateInstanceInputIn extends PluginInstanceCreateData {
   readonly bridge: PluginBridge;
-  readonly chat: InvocationChat | null;
-  readonly netHosts?: readonly string[];
-  readonly budgets?: SandboxLimits;
-  readonly label?: string;
 }
 
 export interface CreateLogicalInstanceInputIn extends CreateInstanceInputIn {
@@ -68,11 +70,4 @@ export type CreateInstanceOutcomeOut =
   | { readonly ok: true; readonly instance: PluginInstance }
   | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogLineOut[] };
 
-// @orb-waive contract-structural-copy(SnippetRunOut): baselined when the gate widened; burn-down item 904.
-/** The inline-snippet run's outcome. */
-export interface SnippetRunOut {
-  readonly logLines: readonly string[];
-  readonly error?: string;
-  readonly errorKind?: "parse" | "runtime";
-  readonly errorLine?: number;
-}
+export type SnippetRunOut = SnippetResult;

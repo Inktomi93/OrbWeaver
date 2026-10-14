@@ -16,7 +16,9 @@ import {
   connectionExtrasSchema,
   connectionRefSchema,
   connectionTransportSchema,
+  connectionViewSchema,
   declaredCapabilitySchema,
+  embedSpaceChangePreviewSchema,
   modelCheckSchema,
   modelIdSchema,
   modelListingSchema,
@@ -32,13 +34,7 @@ import {
 import { accountCreditsSchema, endpointInspectionSchema, generationCostSchema, verifyAuthResultSchema } from "@orb/contracts/providers";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import {
-  bindingViewSchema,
-  catalogRefreshOutcomeSchema,
-  connectionCapabilityViewSchema,
-  connectionViewSchema,
-  embedSpaceChangePreviewSchema,
-} from "#domain/connection";
+import { bindingViewSchema, catalogRefreshOutcomeSchema, connectionCapabilityViewSchema } from "#domain/connection";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 const connectionId = connectionRefSchema.shape.connectionId;

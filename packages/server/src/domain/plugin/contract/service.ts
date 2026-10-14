@@ -13,15 +13,19 @@ import type {
   ListPluginRecipients,
   PluginBridge,
   PluginCapability,
+  PluginCommandView,
   PluginFrameBody,
   PluginHandlerRef,
   PluginInstance,
+  PluginInstanceCreateData,
   PluginInvokeArgs,
   PluginToastLevel,
   PluginUiOutcome,
+  PluginView,
   ReadPluginBundleBytes,
   ReadPublishedPluginBundle,
   ResolvePluginChatAuthority,
+  SnippetResult,
 } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
@@ -76,7 +80,6 @@ import type {
   DistributedPluginApplication,
   DistributedPluginView,
   PluginBundleAssetView,
-  PluginCommandView,
   PluginDisplayTransformResult,
   PluginDisplayTransformView,
   PluginFanoutResult,
@@ -88,18 +91,9 @@ import type {
   PluginUiHostCallResult,
   PluginUpdateCheck,
   PluginUrlPreview,
-  PluginView,
-  SnippetResult,
 } from "./results.ts";
 
-/** Per-instance DoS budget (structural twin of `infra/plugin-host`'s `SandboxLimits` — the domain never imports
- *  `#infra`; the port defaults these from `budgets.ts` when omitted). A snippet passes the wider wall. */
-
-export interface PluginBudgets {
-  readonly cpuDeadlineMs: number;
-  readonly memoryLimitBytes: number;
-  readonly settleGraceMs: number;
-}
+export type { PluginBudgets } from "@orb/contracts/plugin";
 
 /** The input to `createInstance`: the guest source + its durable re-reader + the confirmed grants + the
  *  authority-agnostic membrane BRIDGE the domain built (per-installer: `substrate/bridge.ts` closes global-vars over the installer
@@ -108,24 +102,9 @@ export interface PluginBudgets {
  *  `chat.canWrite` BEFORE this call — infra is authority-blind (a plugin can never exceed its installer).
  *  `chat` is `null` for an installed plugin's registration-only `main.js`; set for a snippet run. Constructed
  *  ONCE at the trust boundary, never guest-supplied. */
-export interface CreateInstanceInput {
-  readonly mainJs: string;
-  /** Re-read and re-validate this plugin's durable bundle, returning only its executable source. The process
-   *  host retains this operation instead of retaining `mainJs`, so a sleeping logical plugin carries no bundle
-   *  bytes in the app heap. Required by type: every installed runtime must have a cold-wake source. */
+export interface CreateInstanceInput extends PluginInstanceCreateData {
   readonly reloadMainJs: () => Promise<string>;
-  readonly grants: readonly PluginCapability[];
   readonly bridge: PluginBridge;
-  readonly chat: InvocationChat | null;
-  /** The manifest's declared `net.fetch` allowlist — plain-string DATA forwarded from the RE-VALIDATED manifest
-   *  (never guest-runtime-supplied, never `ANY_HOST`). The infra `net.fetch` host-fn pins `safeFetch` to this
-   *  list (the SSRF wall); omitted/absent ⇒ `[]` fail-closed (no host reachable). */
-  readonly netHosts?: readonly string[];
-  readonly budgets?: PluginBudgets;
-  /** The tag the runtime stamps on every guest log line it mirrors into the CENTRAL log stream (the file log +
-   *  `/api/_debug/logs`): the manifest slug, plain-string DATA forwarded from the RE-VALIDATED manifest exactly
-   *  like `netHosts` (never guest-runtime-supplied). Absent ⇒ the runtime mirrors nothing (a snippet run). */
-  readonly label?: string;
 }
 
 /** The outcome of an activation run: a healthy resident instance, OR a contained activation failure

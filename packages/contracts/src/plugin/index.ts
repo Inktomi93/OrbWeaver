@@ -12,6 +12,8 @@
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
+export type { PluginCommandView } from "./command-view.ts";
+export { pluginCommandViewSchema } from "./command-view.ts";
 export { HostVersionError, PluginCapabilityError, PluginHostDeadlineError, PluginSuggestedError } from "./errors.ts";
 export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse, PluginFrameResult } from "./frame.ts";
 export {
@@ -122,6 +124,9 @@ export {
   pluginCardStateKey,
   pluginToolWireName,
 } from "./registrations.ts";
+export type { PluginBudgets, PluginInstanceCreateData } from "./runtime-input.ts";
+export type { SnippetResult } from "./snippet.ts";
+export { SNIPPET_ERROR_KINDS, snippetResultSchema } from "./snippet.ts";
 export type { PluginSuggestedAct, PluginSuggestedActKind } from "./suggestion.ts";
 export { PLUGIN_SUGGESTED_ACT_KINDS, summarizePluginAct } from "./suggestion.ts";
 export type {
@@ -262,3 +267,5 @@ export {
   resolvePluginBoundTiles,
   resolvePluginPrimaryButton,
 } from "./ui.ts";
+export type { PluginUpdateSource, PluginView } from "./view.ts";
+export { PLUGIN_UPDATE_SOURCES, pluginViewSchema } from "./view.ts";

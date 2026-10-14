@@ -37,7 +37,6 @@ import {
   messageViewSchema,
   messageWindowSchema,
   nextTurnConnectionViewSchema,
-  openingPolicySchema,
   participantViewSchema,
   REACTION_SPEAKER_NAME_MAX,
   reactionEmojiSchema,
@@ -48,6 +47,7 @@ import {
   seatKnobsSchema,
   shapeTraceSchema,
   startChatResultSchema,
+  startChatSchema,
   TOOL_CALL_EDIT_ACTIONS,
   turnOutcomeSchema,
   userMacroPicksViewSchema,
@@ -58,7 +58,6 @@ import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { sendAvailabilitySchema } from "@orb/contracts/inference";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
-import { rpgGameTemplateSchema } from "@orb/contracts/rpg";
 import { messageWindowCursorSchema, messageWindowTargetSchema } from "@orb/contracts/search";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -70,29 +69,6 @@ import type { ImpersonateStreamDelta } from "#domain/chat";
 import { toolRecurseLimitSchema } from "#domain/chat";
 import { withSubscriptionErrors } from "../subscriptions.ts";
 import { authedProcedure, t } from "../trpc.ts";
-
-// `startChat` — CREATION-INTENT inputs only (D166). The former
-// nine-field "draft carry" (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided, plus the
-// `generate` opening arm + its `openingFailure` degrade) is GONE: R1 made every client caller create the
-// real room before mounting, so those creation-time payloads were unreachable product surface. Post-create
-// roster tuning, group config, room overrides and greeting edits ride their own already-built verbs
-// (`setSeatKnobs`/`setGroupConfig`/`setRoomOverrides`/`editMessage`/`setSeededGreeting`) against the real
-// room instead. `opening` EXCLUDES `"generate"` — "guide the opening" is now an ordinary post-creation
-// `chat.generate` action against the real room, never a creation-fused turn.
-const startChatSchema = z.object({
-  characterIds: z.array(typeIdSchema(ID_PREFIX.character)),
-  anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullish(),
-  title: z.string().nullish(),
-  opening: openingPolicySchema.exclude(["generate"]).optional(),
-  injections: z.array(chatInjectionInputSchema).optional(),
-  // ST "Temporary Chat" — born ephemeral: persisted so turns can run, hidden from `listChats`
-  // ALWAYS, swept by `reapTemporaryChats` once past the caller's own TTL. Creation-only BY DESIGN (a fork
-  // is born non-temporary; no verb updates the column), so this is the ONE place the flag can be set.
-  temporary: z.boolean().optional(),
-  // #40 DRAFT-TIME game start — mints the lite game right after chat creation, BEFORE the opening turn
-  // (turn 1 in-game). `ruleset` rides rpg's own setting schema (the trust boundary); omit = `freeform`.
-  startAsGame: rpgGameTemplateSchema.optional(),
-});
 
 // `getMemberCard` (D22) — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`.
 // Member-gated + roster-scoped INSIDE the verb (`requireParticipant` + a present-character-seat check on

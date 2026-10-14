@@ -2,8 +2,8 @@
 // membership gestures (invite/kick/nominate/leave) and the per-character roster controls. The `chat`
 // slice + gates arrive already-resolved from the section's `ChatContextState` projection (no re-fetch).
 
-import type { ChatIdentity, ParticipantView, SeatKnobs } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { ChatDetail, SeatKnobs } from "@orb/contracts/chat";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, Users } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -27,15 +27,7 @@ import { MembersPanel } from "./members-panel.tsx";
  *  (`toMembersTabProps` in `chats-section.tsx` builds this from `CommittedChatContext`). */
 export interface CommittedMembersTabProps {
   readonly chatId: ChatId;
-  readonly chat: {
-    // @orb-waive contract-structural-copy(participants): baselined when the gate widened; burn-down item 904.
-    readonly participants: readonly ParticipantView[];
-    /** The room's member-gated CHAT IDENTITY producer (`ChatDetail.identities`) — how a human seat's
-     *  `activePersonaId` becomes the name and portrait the row renders (see `toPersonRows`). */
-    readonly identities: readonly ChatIdentity[];
-    readonly viewerUserId: UserId;
-    readonly pendingHostUserId: UserId | null;
-  };
+  readonly chat: Pick<ChatDetail, "participants" | "identities" | "viewerUserId" | "pendingHostUserId">;
   readonly isHost: boolean;
   readonly multiHumanCapable: boolean;
 }

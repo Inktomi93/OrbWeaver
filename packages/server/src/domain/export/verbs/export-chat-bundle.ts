@@ -27,7 +27,7 @@ import {
 } from "@orb/contracts/inference";
 import { characters, chatGenerationObservations, chatInjections, chatParticipants, chats, chatTags, messages, messageVariants, personas, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
-import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { RpgPortableGame } from "#domain/rpg";
 import type { PortableChat, PortableChatInjection, PortableChatMessage, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
@@ -310,17 +310,22 @@ function portableObservations(args: {
 /** The host gate — the caller must be the present `role='host'` row. A non-host caller and a missing chat
  *  collapse to the same `null` (the leak-free posture `export-chat.ts` established). */
 async function loadHostedChat(ctx: ExportContext, params: ExportChatBundleParams): Promise<ChatRow | null> {
-  const [chat] = await ctx.db.select().from(chats).where(eq(chats.id, params.chatId)).limit(LIMIT_ONE);
-  if (chat === undefined) {
-    return null;
-  }
-  const hostRows = await ctx.db
-    .select({ userId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(
-      and(eq(chatParticipants.chatId, params.chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq), isNotNull(chatParticipants.userId)),
-    );
-  return hostRows.some((r) => r.userId === params.principal.userId) ? chat : null;
+  const [chat] = await ctx.db
+    .select(getTableColumns(chats))
+    .from(chats)
+    .innerJoin(
+      chatParticipants,
+      and(
+        eq(chatParticipants.chatId, chats.id),
+        eq(chatParticipants.kind, "human"),
+        eq(chatParticipants.role, "host"),
+        eq(chatParticipants.userId, params.principal.userId),
+        isNull(chatParticipants.leftSeq),
+      ),
+    )
+    .where(eq(chats.id, params.chatId))
+    .limit(LIMIT_ONE);
+  return chat ?? null;
 }
 
 export function createExportChatBundle(ctx: ExportContext): ExportService["exportChatBundle"] {

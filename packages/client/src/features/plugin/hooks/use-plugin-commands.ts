@@ -6,8 +6,8 @@
 // twice they drift: one grows a toast the other does not, one forgets to pass the room. So the hook below IS
 // the behaviour, and each surface only decides how it is triggered.
 
-import type { PluginCommandArgSpec, PluginCommandArgValue, PluginCommandPlacement } from "@orb/contracts/plugin";
-import type { ChatId, PluginId } from "@orb/kit/ids";
+import type { PluginCommandArgValue, PluginCommandView } from "@orb/contracts/plugin";
+import type { ChatId } from "@orb/kit/ids";
 import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
@@ -20,22 +20,7 @@ import { sharedPluginNames } from "../lib/plugin-command-copy.ts";
 import { useInvokeUiCommand } from "../lib/plugin-mutations.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
 
-// @orb-waive no-inline-wire-interface(PluginCommandView): baselined when the gate widened; burn-down item 904.
-// @orb-waive contract-structural-copy(PluginCommandView): baselined when the gate widened; burn-down item 904.
-/** One registered plugin command as both surfaces read it — the wire projection, unchanged. `args` is the #791
- *  DECLARED typed-arg grammar (empty when the command declared none), read by the palette to build its typed
- *  input strip and by the composer to parse/complete `name=value`. */
-export interface PluginCommandView {
-  readonly pluginId: PluginId;
-  readonly slug: string;
-  readonly pluginName: string;
-  readonly name: string;
-  readonly describe: string;
-  readonly args: readonly PluginCommandArgSpec[];
-  readonly group: string | null;
-  readonly placements: readonly PluginCommandPlacement[];
-  readonly composerDraft?: true;
-}
+export type { PluginCommandView } from "@orb/contracts/plugin";
 
 interface PluginCommandRunner {
   readonly isPending: boolean;

@@ -13,7 +13,6 @@
 
 import type {
   AssembledPrompt,
-  ConnectionAttributionProvenance,
   MacroFreezeRecord,
   MessageAssetOrigin,
   MessageKind,
@@ -172,37 +171,35 @@ interface InsertCanonMessageParams extends CanonSlotAttribution {
   readonly variant: CanonVariantInput;
 }
 
-// @orb-waive contract-structural-copy(VariantEconomics): baselined when the gate widened; burn-down item 904.
 /** The economics fields shared by the `message_variants` insert AND the `MessageView` read-model — one
  *  home so the committed view can't drift from the persisted row. */
-interface VariantEconomics {
-  readonly content: string;
-  readonly reasoning: string | null;
-  readonly model: ModelId | null;
-  readonly provider: ProviderId | null;
-  readonly connectionId: UserConnectionId | null;
-  readonly connectionAttributionProvenance: ConnectionAttributionProvenance;
-  readonly tokensIn: number | null;
-  readonly tokensOut: number | null;
-  readonly tokenProvenance: TokenProvenance;
-  readonly costProvenance: TokenProvenance;
-  readonly cacheReadTokens: number | null;
-  readonly cacheWriteTokens: number | null;
-  readonly costUsd: number | null;
-  readonly contextWindow: number | null;
-  readonly contextBoundaryMessageId: MessageId | null;
-  readonly ttftMs: number | null;
-  readonly finishReason: NormalizedFinishReason | null;
-  readonly stopReason: string | null;
-  readonly terminalReason: string | null;
-  /** Gen-window bounds (epoch-ms) — the stats gen-time axis and the `showGenerationTimer` chip
-   *  both read `gf − gs`. A continue re-stamps them to the continuation's window. */
-  readonly genStartedAt: number | null;
-  readonly genFinishedAt: number | null;
-  /** The provider's response id (OpenRouter `gen-…` — the per-message cost key; Anthropic `msg_…`). On both
-   *  the insert columns and the read `MessageView` (one home; the committed view can't drift from the row). */
-  readonly generationId: string | null;
-}
+type VariantEconomics = Readonly<
+  Pick<
+    typeof messageVariants.$inferSelect,
+    | "content"
+    | "reasoning"
+    | "model"
+    | "provider"
+    | "connectionId"
+    | "connectionAttributionProvenance"
+    | "tokensIn"
+    | "tokensOut"
+    | "tokenProvenance"
+    | "costProvenance"
+    | "cacheReadTokens"
+    | "cacheWriteTokens"
+    | "costUsd"
+    | "contextWindow"
+    | "contextBoundaryMessageId"
+    | "ttftMs"
+    | "finishReason"
+    | "stopReason"
+    | "terminalReason"
+    | "genStartedAt"
+    | "genFinishedAt"
+    | "generationId"
+  >
+>;
 
 /** Normalize a {@link CanonVariantInput}'s economics to the read-seam null contract. */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat one-field-per-column `?? null` normalize — every operator is one independent coalesce, zero nesting/branching; splitting it would scatter the one-home economics shape (same posture as `canonMessageDelta` above).

@@ -24,7 +24,7 @@
 // `component-size` split, on this file's own `render-hint-picker` precedent. This module keeps the four
 // panes that AUTHOR, the save press, and the close guard.
 
-import type { RefineryForgeArm, RefinerySchemaStage } from "@orb/contracts/refinery";
+import type { RefineryForgeArm, RefinerySchemaStage, RefinerySchemaSummary } from "@orb/contracts/refinery";
 import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS } from "@orb/contracts/refinery";
 import type { RefinerySchemaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -52,8 +52,7 @@ export interface SchemaEditorDialogProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly stage: RefinerySchemaStage;
   /** Editing an existing row, or null = authoring a new one. */
-  // @orb-waive contract-structural-copy(id): baselined when the gate judged by type; burn-down item 904.
-  readonly editing: { readonly id: RefinerySchemaId; readonly name: string; readonly description: string; readonly schema: Record<string, unknown> } | null;
+  readonly editing: Pick<RefinerySchemaSummary, "id" | "name" | "description" | "schema"> | null;
   /** Fired with the saved row's id so the caller can point the session at it. */
   readonly onSaved: (schemaId: RefinerySchemaId) => void;
 }

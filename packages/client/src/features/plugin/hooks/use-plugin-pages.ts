@@ -13,12 +13,12 @@
 // prevent. `listSurfaces` only ever returns the caller's own enabled plugins, so this arm is a race (a disable
 // between the two reads settling), not a state.
 
-import type { PluginCapability, PluginSurfaceSpec, PluginSurfaceTier } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 import type { PluginPageKey } from "#state";
 import { pluginPageKey } from "#state";
+import type { PluginPageView } from "../contract/extension-views.ts";
 
 /** Not a surface id: `PLUGIN_SURFACE_ID_RE` refuses `#` at registration, so no page key can equal a review key. */
 const REVIEW_SURFACE = "#review";
@@ -26,30 +26,6 @@ const REVIEW_SURFACE = "#review";
 /** The Plugin pages drill key for reviewing ONE waiting plugin's ask in place, beside its pages' keys. */
 export function pluginReviewKey(pluginId: PluginId): PluginPageKey {
   return pluginPageKey(pluginId, REVIEW_SURFACE);
-}
-
-// @orb-waive no-inline-wire-interface(PluginPageView): baselined when the gate widened; burn-down item 904.
-/** One registered extension page as the switcher + the content pane read it. */
-export interface PluginPageView {
-  /** The drill key the selection store holds (`<pluginId>:<surfaceId>`) — minted through the ONE seam. */
-  readonly key: PluginPageKey;
-  readonly pluginId: PluginId;
-  readonly surfaceId: string;
-  /** The plugin's display name — the attribution band's first line. */
-  readonly pluginName: string;
-  /** The surface's own `title` — the switcher row and the band's second line. */
-  readonly title: string;
-  /** WHO computes the surface (#787). `static`/`scripted` render a declarative tree through the shell; `frame`
-   *  (U7) draws the plugin's own document in an isolated iframe and carries no `spec` at all — the content pane
-   *  branches on this to mount a `PluginFrame` instead of the renderer. */
-  readonly tier: PluginSurfaceTier;
-  /** The plugin's current grants, exposed to a scripted guest for feature detection only. */
-  readonly grants: readonly PluginCapability[];
-  /** Every scripted id owned by this plugin; the guest rejects publications outside this allow-list. */
-  readonly scriptedIds: readonly string[];
-  /** The declarative tree, absent for a scripted-tier surface whose client guest computes it (and for every
-   *  `frame`-tier surface, which produces a document, not a tree). */
-  readonly spec: PluginSurfaceSpec | undefined;
 }
 
 export interface PluginPagesState {
@@ -110,3 +86,5 @@ export function usePluginPagesState(): PluginPagesState {
 export function usePluginPages(): readonly PluginPageView[] {
   return usePluginPagesState().pages;
 }
+
+export type { PluginPageView } from "../contract/extension-views.ts";

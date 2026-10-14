@@ -4,6 +4,8 @@ import type {
   ChatInjection,
   DurableChatBusEvent,
   GroupConfig,
+  HandoffCardPair,
+  HandoffHealArgs,
   HistoryFloorSeq,
   InvitePreview,
   LiveOnlyChatBusEvent,
@@ -853,14 +855,7 @@ export interface ChatRpgGameBirthPlan {
   readonly statements: readonly BatchStmt[];
 }
 
-/** One source→copy card pairing an accepted handoff offer minted: `sourceCharacterId` is the DEPARTING host's
- *  card (the id this room's seats, canon stamps and rpg rows pointed at), `characterId` is the incoming host's
- *  point-in-time copy. Chat OWNS this shape — every consumer of the copy plan (rpg's re-key, the digest
- *  re-stamp, world-info's lore copy) satisfies it structurally rather than importing a sibling's type. */
-export interface HandoffCardCopy {
-  readonly sourceCharacterId: CharacterId;
-  readonly characterId: CharacterId;
-}
+export type HandoffCardCopy = HandoffCardPair;
 
 /** Durable post-swap work owned by the accepted host. The persistence seam parses this exact shape before
  *  the roster resumes the idempotent actor/event tail. */
@@ -890,17 +885,7 @@ export interface HandoffCopyPlan {
   readonly regexRepoint: readonly BatchStmt[];
 }
 
-/** The `handoffHealStatements` call args. Chat OWNS this shape (rpg satisfies it — the {@link ForkGameArgs}
- *  front-door type-import precedent). `oldHostUserId` is the resolved DEPARTING host — the ownership axis any
- *  copy reads from, `null` when they already left the room (in which case nothing can be copied and the heal's
- *  clear arm stands, which is the correct answer: there is no one left to give anything). */
-export interface HandoffHealArgs {
-  readonly chatId: ChatId;
-  readonly newHostUserId: UserId;
-  readonly oldHostUserId: UserId | null;
-  readonly copyGmPreset: boolean;
-  readonly cardCopies: readonly HandoffCardCopy[];
-}
+export type { HandoffHealArgs } from "@orb/contracts/chat";
 
 /** {@link ChatRpgOps.gatherTurnContext}'s call args. Chat OWNS this shape (rpg satisfies it, the same
  *  front-door type-import precedent as {@link ForkGameArgs}). `pendingUserText`/`respondsToLatestUserTurn`

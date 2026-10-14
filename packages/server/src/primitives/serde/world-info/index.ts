@@ -168,19 +168,12 @@ export function parseWorldBookFile(bytes: Uint8Array, fallbackName: string): Por
 // writer's column does, and only the SEMANTIC metadata keys count (`loreEntryIdentity`): the lossless
 // residue of a source entry is not identity, so an exported book re-imports as itself.
 
-// @orb-waive contract-structural-copy(DedupLoreEntry): baselined when the gate widened; burn-down item 904.
 /** One lore entry reduced to the fields that decide book identity (write-time stamps and ids dropped).
  *  `keys` is the NULL-vs-[] axis the writer collapses; `metadata` is the schema-parsed blob on both sides. */
-export interface DedupLoreEntry {
-  readonly title: string;
-  readonly description: string | null;
-  readonly content: string;
-  readonly keys: readonly string[] | null;
-  readonly enabled: boolean;
-  readonly priority: number;
-  readonly ignoreBudget: boolean;
+export type DedupLoreEntry = Readonly<Omit<BulkImportLoreEntryInput, "keys" | "metadata">> & {
+  readonly keys: BulkImportLoreEntryInput["keys"] | null;
   readonly metadata: EntryMetadata | null;
-}
+};
 
 /** A book reduced to its content identity: its entries, order-independent. `name` rides along for the
  *  caller's outcome (the name a matched book carries), not for the key. */

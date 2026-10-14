@@ -158,6 +158,7 @@ export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { ANCHOR_STATES, chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
+export type { HandoffCardCopy, HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
 export type { ChatLibraryLens } from "./library.ts";
 export { chatCensusInputSchema } from "./library.ts";
 export type { ChatListCursor } from "./listing.ts";
@@ -440,6 +441,8 @@ export {
   stepFromRenderPolicyOverride,
   TALKATIVENESS_DEFAULT,
 } from "./roster.ts";
+export type { StartChatInput } from "./start.ts";
+export { startChatSchema } from "./start.ts";
 export type {
   CompareAndSetImportedTokenUsage,
   ImportedTokenUsageCandidate,

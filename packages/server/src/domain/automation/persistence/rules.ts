@@ -8,14 +8,13 @@
 // rule's scope, and `applyReorder` admits the exact set and rewrites it in one UPDATE. There is no exported way to hand a
 // position in: a caller that could would be a caller that can duplicate one.
 
-import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationTrigger } from "@orb/contracts/automation";
 import { AUTOMATION_CONSECUTIVE_ERROR_CEILING, automationActionsSchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type { AutomationRuleCreationId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
-import type { IanaTimeZone } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { SQLiteInsertValue } from "drizzle-orm/sqlite-core";
@@ -24,27 +23,11 @@ import type { RuleView } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
 
-// @orb-waive contract-structural-copy(RuleUpdate): baselined when the gate widened; burn-down item 904.
-/** The editable columns `updateRule` replaces (a PUT — the id/chat/owner are immutable). Resets the error
- *  ledger (a fresh authoring pass clears the auto-disable countdown — 04 §2). */
-interface RuleUpdate {
-  readonly name: string;
-  readonly description: string | null;
-  readonly triggerBus: AutomationTrigger["bus"];
-  readonly triggerType: AutomationTrigger["type"];
-  readonly predicateCel: string | null;
-  readonly actions: readonly AutomationAction[];
-  /** ALWAYS null on an update — an edit clears the mint provenance (the row is no longer exactly what
-   *  the preset mints; v1 knob-edit stays re-mint, §3-S3). Spelled here rather than defaulted inside
-   *  `applyRuleUpdate` so the clearing is part of the verb's stated patch, not a hidden side effect. */
-  readonly rulePresetId: null;
-  readonly rulePresetKnobs: null;
-  readonly matchAutomationEvents: boolean;
-  readonly cooldownSeconds: number;
-  readonly maxFiresPerHour: number;
-  readonly timeZone: IanaTimeZone;
-  readonly updatedAt: number;
-}
+type RuleUpdate = Pick<
+  RuleRow,
+  "name" | "description" | "triggerBus" | "triggerType" | "predicateCel" | "matchAutomationEvents" | "cooldownSeconds" | "maxFiresPerHour" | "updatedAt"
+> &
+  Pick<PlannedRuleInsert, "actions" | "timeZone"> & { readonly rulePresetId: null; readonly rulePresetKnobs: null };
 
 /** Recompose the stored `{bus, type}` columns into the closed `AutomationTrigger`. The db CHECK guarantees
  *  the pair is a valid tuple member, so the cast is sound. */

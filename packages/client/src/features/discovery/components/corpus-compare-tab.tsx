@@ -17,8 +17,10 @@ import type { SelectOption } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
+import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import {
@@ -206,13 +208,7 @@ function DeepNarrative({
 }: {
   readonly isPending: boolean;
   readonly error: unknown | null;
-  readonly narrative: {
-    // @orb-waive contract-structural-copy(summary): baselined when the gate widened; burn-down item 904.
-    readonly summary: string;
-    readonly overlap: string;
-    readonly distinction: string;
-    readonly degraded: boolean;
-  } | null;
+  readonly narrative: NonNullable<inferOutput<Trpc["discovery"]["compareCharactersDeep"]>>["narrative"] | null;
 }): ReactElement {
   if (isPending) {
     return <Text>Reading both characters…</Text>;

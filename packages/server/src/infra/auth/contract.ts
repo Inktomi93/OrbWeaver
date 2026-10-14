@@ -3,7 +3,6 @@
 // a Principal (those are domain/sessions + entry/auth/seam.ts). Reaches down only — never @orb/db, never a domain.
 
 import type { AuthMode, ResolvedIdentity } from "@orb/contracts/identity";
-import type { ExternalId, Handle } from "@orb/kit/ids";
 // `authorizationCodeGrant` is imported TYPE-ONLY (it is named solely in a `typeof` position for
 // {@link OidcCodeGrant}) so this contract module stays value-free and pulls no library code into a type import.
 import type { authorizationCodeGrant, Configuration } from "openid-client";
@@ -105,12 +104,8 @@ export type OidcExchange = (config: Configuration, callbackUrl: URL, tx: OidcTra
  *  already uses for discovery. */
 export type OidcCodeGrant = typeof authorizationCodeGrant;
 
-// @orb-waive contract-structural-copy(ForwardJwtClaims): baselined when the gate widened; burn-down item 904.
-export interface ForwardJwtClaims {
-  handle: Handle | undefined;
-  externalId: ExternalId | null;
-  groups: string[];
-  email: string | null;
+export interface ForwardJwtClaims extends Pick<ResolvedIdentity, "externalId" | "groups" | "email"> {
+  handle: ResolvedIdentity["handle"] | undefined;
 }
 
 export interface ForwardJwtVerifyArgs {

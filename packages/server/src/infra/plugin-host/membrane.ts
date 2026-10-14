@@ -39,6 +39,7 @@ import type {
   PluginSuggestedAct,
   PluginSurfaceRegistrationMeta,
   PluginToastLevel,
+  PluginToolRegistration,
   PluginTransformRegistration,
   PluginWorldEntryUpsert,
 } from "@orb/contracts/plugin";
@@ -130,17 +131,7 @@ export interface MembraneRuntime {
    *  the escape suite's multi-pending dispose-drain test + port.test's fire-and-forget cases are its regression
    *  floor (a static gate cannot verify the dataflow — flagged for a review-time follow-up). */
   readonly pending: Set<QuickJSDeferredPromise>;
-  readonly collectTool: (
-    reg: {
-      // @orb-waive contract-structural-copy(name): baselined when the gate widened; burn-down item 904.
-      readonly name: string;
-      readonly displayName?: string;
-      readonly replayHistory?: boolean;
-      readonly description: string;
-      readonly parameters: Record<string, unknown>;
-    },
-    handler: QuickJSHandle,
-  ) => void;
+  readonly collectTool: (reg: Omit<PluginToolRegistration, "handler">, handler: QuickJSHandle) => void;
   /** Collect a D50 transform registration — the SYNC activation-time mirror of `collectTool`. The
    *  Sandbox keeps the guest `apply` HANDLE alive (keyed by a minted ref) + records a
    *  `PluginTransformRegistration` on the instance. The DOMAIN wires each into the shared prompt-transform

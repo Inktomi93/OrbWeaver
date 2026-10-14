@@ -48,16 +48,9 @@ const currentDigest = currentGeneration(chatDigests.generationId, chatParticipan
 const currentSegment = currentGeneration(chatSegments.generationId, chatParticipants.userId, "memory");
 const currentImage = currentGeneration(imageEmbeddings.generationId, assets.ownerId, "images");
 
-// @orb-waive contract-structural-copy(DigestKeywordRow): baselined when the gate widened; burn-down item 904.
-interface DigestKeywordRow {
-  readonly ownerId: UserId;
-  readonly scopedCharacterId: CharacterId;
-  /** A GROUP-room digest is scoped to the synthetic group bucket, not to a character who was in the scene —
-   *  the cooccurrence pass drops these before crediting keywords, exactly as the theme pass does. */
-  readonly isGroup: boolean;
-  readonly contentHash: string;
-  readonly keywords: string[];
-}
+type DigestKeywordRow = Readonly<Pick<typeof chatDigests.$inferSelect, "scopedCharacterId" | "isGroup" | "contentHash" | "keywords">> & {
+  readonly ownerId: NonNullable<(typeof chatParticipants.$inferSelect)["userId"]>;
+};
 
 interface OwnedCharacterVector {
   readonly generationId: EmbedGenerationId;
@@ -497,13 +490,7 @@ export async function readTierKDigestSpans(db: Db, ownerId?: UserId | null): Pro
     .where(gt(chatDigests.tier, 0));
 }
 
-// @orb-waive contract-structural-copy(SegmentBlockSpan): baselined when the gate widened; burn-down item 904.
-interface SegmentBlockSpan {
-  readonly chatId: ChatId;
-  readonly blockIdx: number;
-  readonly seqStart: number;
-  readonly seqEnd: number;
-}
+type SegmentBlockSpan = Readonly<Pick<typeof chatSegments.$inferSelect, "chatId" | "blockIdx" | "seqStart" | "seqEnd">>;
 
 /** The verbatim block grid of the given chats — each tier-0 block's seq-span. The tier-k backfill folds a
  *  digest's covered blockIdx range over these to derive its whole-span `[min(seqStart), max(seqEnd)]`.

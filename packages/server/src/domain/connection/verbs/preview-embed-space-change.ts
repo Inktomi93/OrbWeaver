@@ -6,13 +6,13 @@
 import type { VectorScope } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
-import type { UserConnection } from "@orb/contracts/inference";
+import type { EmbedSpaceChangePreview, UserConnection } from "@orb/contracts/inference";
 import { EMBED_SPACE_FIELDS } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { EmbedSpaceChange } from "../contract/params.ts";
-import type { EmbedSpaceChangePreview } from "../contract/results.ts";
+
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { lookupBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";

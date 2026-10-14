@@ -12,8 +12,10 @@ import type { Principal } from "@orb/contracts/identity";
 import type { SessionId, UserId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { Hono } from "hono";
-import type { AssetMetadata } from "#domain/assets";
 import { getLog } from "#foundation/observability";
+import type { BlobAssetsPort } from "./contract/assets.ts";
+
+export type { BlobAssetsPort } from "./contract/assets.ts";
 
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
@@ -45,20 +47,6 @@ function isInlineServable(mime: string): boolean {
     return false;
   }
   return INLINE_MEDIA_PREFIXES.some((prefix) => base.startsWith(prefix));
-}
-
-// @orb-waive no-inline-package-interface(BlobAssetsPort): baselined when the gate landed; burn-down item 952.
-/** The `assets` front-door slice the blob route consumes. `getMetadata` may include `ownerId` for the
- *  roster-avatar path. */
-export interface BlobAssetsPort {
-  readonly getMetadata: (params: { readonly principal: Principal; readonly hash: string }) => Promise<AssetMetadata | undefined>;
-  readonly resolveVariant: (params: {
-    // @orb-waive contract-structural-copy(principal): baselined when the gate widened; burn-down item 904.
-    readonly principal: Principal;
-    readonly hash: string;
-    readonly width: number;
-    readonly kind: VariantKind;
-  }) => Promise<Uint8Array | undefined>;
 }
 
 // @orb-waive no-inline-package-interface(BlobCasPort): baselined when the gate landed; burn-down item 952.

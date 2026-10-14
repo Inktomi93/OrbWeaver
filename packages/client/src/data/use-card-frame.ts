@@ -10,25 +10,14 @@
 // `undefined`, and `SandboxFrame` renders the srcdoc FLOOR — a strictly TIGHTER frame (it inherits the app
 // document's policy on top of its own). A card is never blank because the door was shut.
 
-import type { CardFrameMintRequest, CardFrameMintResponse } from "@orb/contracts/chat";
+import type { CardFrameMintRequest, CardFrameMintResponse, cardFrameMintRequestSchema } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
+import type { z } from "zod";
 import { forgetIfCurrent, rememberBounded } from "./bounded-memo.ts";
 
-// @orb-waive contract-structural-copy(CardFrameRequest): baselined when the gate judged by type; burn-down item 904.
-// @orb-waive no-inline-wire-interface(CardFrameRequest): baselined when the gate widened; burn-down item 904.
-/** What a caller knows about ONE card. The bytes are the same ones the srcdoc floor would render. */
-export interface CardFrameRequest {
-  readonly chatId: ChatId;
-  /** The authoring participant — the policy SELECTOR. `null` (user/system-authored) ⇒ the server's floor. */
-  readonly characterId: CharacterId | null;
-  readonly html: string;
-  readonly css: string | undefined;
-  readonly themeTokens: Readonly<Record<string, string>>;
-  readonly fontFamily: string | undefined;
-}
+export type CardFrameRequest = Readonly<z.input<typeof cardFrameMintRequestSchema>> & Pick<CardFrameMintRequest, "chatId" | "characterId">;
 
 /** Per-tab memo so a re-render, a collapse/expand, or a lightbox open re-uses one handle instead of minting
  *  a fresh document per paint. Keyed on the SERIALIZED REQUEST BODY, which is both the natural cache key

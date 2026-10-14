@@ -20,14 +20,12 @@ A respelled contract drifts silently from the schema it copies; the law says con
 
 ## Done when
 
-No @orb-waive marker naming this item remains for either gate in product code; each former site imports or derives its type from packages/contracts.
+No @orb-waive marker naming this item remains for either gate in product code. Each former site derives from its canonical owner under [the type-home law](../law/Spine-TypeScript-and-Patterns.md). Actual wire shapes derive from contracts; database projections and genuine client-only views retain their lawful homes.
 
 ## Evidence
 
-Security review of branch wt/agent-a90022c3a8927247c at 0ed29a23d2 against main at 4d7b00a6d4 rejects a whole-branch merge. Preserve coherent production schema and derivation changes on the current tree. Do not port legacy harness, fixture, or waiver-budget retrofits as deliverables.
+Current-tree salvage at `7248cf4185` repairs the complete original marker population. Independent security review confirms production changes and the additional auth producer correction. Each former site has an explicit canonical-home decision; erased types use compiler and review evidence rather than invented runtime tests. Genuine client views, operation inputs, row projections and native codec data follow their lawful owners.
 
-Current-tree salvage is frozen at `143c019c10`, based on `f4a25d17dd`. Independent security review confirms its production boundary changes. The complete owned delta includes canonical contracts, database projections, producers, consumers and explicit package doors. It excludes inherited harness ancestry and preserves integrated funding and owner-bearing connection reads.
+Current production scans cover the complete TypeScript-family population and find no markers naming this item, confirmed by a second literal search. Affected production compilers, scoped lint and formatting pass. Matching native boundary and required compatibility cases pass on the canonical root.
 
-Each original marker has a mapped source decision. The candidate production census contains no markers naming this item; that census does not establish integrated acceptance. Affected production compiler configs, scoped lint and formatting pass. Shared-reader JSON and wire checks report no findings, errors or withheld results; unchanged budgets remain red.
-
-The coherent harness and canonical asset builders remain integration prerequisites. Main owns the combined-tree acceptance and landing; the reviewed source commit does not close this item by itself.
+The latest shared reader reports no JSON or wire findings, consumed waivers, errors or withheld owners. Their unused application allowances are removed; the application selection passes. Unrelated root diagnostics, global authority work and whole-application qualification remain separate.

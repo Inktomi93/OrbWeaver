@@ -11,21 +11,12 @@
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { EmptySendInput } from "../contract/presentation.ts";
+
+export type { EmptySendInput } from "../contract/presentation.ts";
 
 export function isContinueEligible(tailRole: MessageRole | null): boolean {
   return tailRole === "assistant";
-}
-
-// @orb-waive no-inline-wire-interface(EmptySendInput): baselined when the gate widened; burn-down item 904.
-export interface EmptySendInput {
-  readonly continueOnSend: boolean;
-  /** W-E — the `UserSettings.chat.generateOnEmptySend` pref; the generate arm is off when false. */
-  readonly generateOnEmptySend: boolean;
-  readonly tailRole: MessageRole | null;
-  /** True when the composer has sendable text — a non-empty send is a normal send, never continue/generate. */
-  readonly hasText: boolean;
-  readonly chatId: ChatId | null;
-  readonly tailAssistantMessageId: MessageId | null;
 }
 
 /** What a bare Enter on an empty composer should do. `continue` targets the tail assistant reply;

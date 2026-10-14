@@ -1,3 +1,4 @@
+import type { CharacterCard, CharacterSummary } from "@orb/contracts/character";
 // domain/search/substrate/field-index — the lexical BM25 engine internals. A per-owner in-memory MiniSearch
 // index over character-card text fields, fuzzy + prefix, with per-field boosts. Cache is TTL + LRU capped,
 // module-scope per-process (single-replica assumption); nowMs is always the caller's injected clock.
@@ -22,16 +23,7 @@ const FIELD_BOOSTS: Readonly<Record<string, number>> = {
 
 const INDEX_FIELDS = ["name", "description", "personality", "scenario", "creatorNotes"] as const;
 
-// @orb-waive contract-structural-copy(CardDoc): baselined when the gate widened; burn-down item 904.
-interface CardDoc {
-  readonly id: CharacterId;
-  readonly name: string;
-  readonly description: string | null;
-  readonly personality: string | null;
-  readonly scenario: string | null;
-  readonly creatorNotes: string | null;
-}
-
+type CardDoc = Pick<CharacterCard, "name" | "description" | "personality" | "scenario" | "creatorNotes"> & Pick<CharacterSummary, "id">;
 interface IndexCacheEntry {
   readonly index: MiniSearch<CardDoc>;
   readonly builtAtMs: number;

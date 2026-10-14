@@ -9,12 +9,12 @@
 //
 // The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
 
-import type { AssetKind, AssetUploadRefusal, StoredAsset } from "@orb/contracts/assets";
+import type { AssetUploadRefusal } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";
 import { DOCUMENT_DESTINATION_FORM_FIELD, documentDestinationSchema } from "@orb/contracts/databank";
 import { docUploadMime } from "@orb/contracts/extraction";
-import type { Principal } from "@orb/contracts/identity";
 import type { CardImportResult } from "@orb/contracts/import";
+import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { DomainOperationError } from "@orb/kit/errors";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
@@ -33,6 +33,9 @@ import { classifyDomainError } from "#transport/trpc";
 import type { ImportFile } from "../import/index.ts";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
 import type { PrincipalEnv } from "./blob.ts";
+import type { UploadAssetsPort } from "./contract/assets.ts";
+
+export type { UploadAssetsPort } from "./contract/assets.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
@@ -70,21 +73,6 @@ const destinationFormSchema = z.string().transform((value, ctx) => {
 });
 
 const IMAGE_MIME_PREFIX = "image/";
-
-// @orb-waive no-inline-package-interface(UploadAssetsPort): baselined when the gate landed; burn-down item 952.
-/** The `assets` front-door slice the asset-upload route consumes (the full {@link StoredAsset} result —
- *  a superset of {@link ImportAssetPort}'s `{assetId}`, so one handle serves both routes). */
-export interface UploadAssetsPort {
-  readonly store: (params: {
-    // @orb-waive contract-structural-copy(principal): baselined when the gate widened; burn-down item 904.
-    readonly principal: Principal;
-    readonly bytes: Uint8Array;
-    readonly kind: AssetKind;
-    readonly mime: string;
-    readonly enforceMagic?: boolean;
-    readonly maxBytes?: number;
-  }) => Promise<StoredAsset>;
-}
 
 // @orb-waive no-inline-package-interface(UploadDeps): baselined when the gate landed; burn-down item 952.
 export interface UploadDeps {
@@ -260,16 +248,18 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     const form = await c.req.formData();
     const file = form.get(UPLOAD_FIELD);
     if (!(file instanceof File)) {
-      return c.json({ error: `missing "${UPLOAD_FIELD}" card upload` }, BAD_REQUEST);
+      return c.json(cardLorebookRestoreResultSchema.parse({ ok: false, error: `missing "${UPLOAD_FIELD}" card upload` }), BAD_REQUEST);
     }
-    const outcome = await runCardLorebookRestore({
-      principal,
-      character: deps.character,
-      assets: deps.assets,
-      tag: deps.tag,
-      worldInfo: deps.worldInfo,
-      file: { bytes: await fileBytes(file), filename: file.name },
-    });
+    const outcome = cardLorebookRestoreResultSchema.parse(
+      await runCardLorebookRestore({
+        principal,
+        character: deps.character,
+        assets: deps.assets,
+        tag: deps.tag,
+        worldInfo: deps.worldInfo,
+        file: { bytes: await fileBytes(file), filename: file.name },
+      }),
+    );
     return outcome.ok ? c.json(outcome) : c.json(outcome, BAD_REQUEST);
   });
 

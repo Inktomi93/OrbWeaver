@@ -11,6 +11,7 @@
 
 import { groupConfigInputSchema } from "@orb/contracts/chat";
 import type { RosterPresetMemberView, RosterPresetRuleView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
+import { rpgGameTemplateSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { assets, characters, rosterPresetMembers, rosterPresetRules, rosterPresets } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -199,8 +200,7 @@ export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[
     description: row.description,
     anchorPersonaId: row.anchorPersonaId,
     groupConfig: row.groupConfig === null ? null : groupConfigInputSchema.parse(row.groupConfig),
-    // @orb-waive json-column-read-parsed(gameTemplate): baselined when the gate widened; burn-down item 905.
-    game: row.gameTemplate ?? null,
+    game: rpgGameTemplateSchema.nullable().parse(row.gameTemplate),
     members,
     rules,
     createdAt: row.createdAt,
@@ -218,8 +218,7 @@ export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberVi
     members,
     anchorPersonaId: row.anchorPersonaId,
     hasGroupConfig: row.groupConfig !== null,
-    // @orb-waive json-column-read-parsed(gameTemplate): baselined when the gate widened; burn-down item 905.
-    game: row.gameTemplate ?? null,
+    game: rpgGameTemplateSchema.nullable().parse(row.gameTemplate),
     rules,
     updatedAt: row.updatedAt,
   };

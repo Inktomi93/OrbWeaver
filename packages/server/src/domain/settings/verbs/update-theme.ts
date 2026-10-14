@@ -3,7 +3,7 @@
 // "cannot edit a seed" guard to forget). Runs the same write-boundary validation
 // as `createTheme` for any field actually present.
 
-import type { ThemeOverride, UpdateThemeInput } from "@orb/contracts/theme";
+import type { UpdateThemeInput } from "@orb/contracts/theme";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
@@ -18,16 +18,7 @@ const THEME_UPDATE = "theme.update";
 const THEME_ENTITY = "theme";
 
 /** Validate the present fields + build the patch (only present keys are written; `updatedAt` always). */
-function buildThemePatch(
-  input: UpdateThemeInput,
-  now: number,
-): {
-  // @orb-waive contract-structural-copy(name): baselined when the gate widened; burn-down item 904.
-  name?: string;
-  override?: ThemeOverride;
-  css?: string | null;
-  updatedAt: number;
-} {
+function buildThemePatch(input: UpdateThemeInput, now: number): Parameters<typeof updateOwnedTheme>[3] {
   const override = input.override === undefined ? undefined : themeOverrideSchema.parse(input.override);
   if (input.css !== undefined && input.css !== null) {
     const { errors } = validateThemeCss(input.css);

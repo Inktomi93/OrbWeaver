@@ -63,3 +63,9 @@ export interface ScheduleTickDeps {
   readonly now: () => number;
   readonly start: (params: StartWorkloadParams) => Promise<WorkloadRef>;
 }
+
+/** The stored columns a schedule update can change; persistence and its mutable draft derive this home. */
+export type SchedulePatch = Partial<Pick<WorkloadScheduleRow, "kind" | "mode" | "params" | "cadence" | "nextRunAt">>;
+
+/** Scalar ownership is authorized before private stored schedule params are decoded. */
+export type AuthorizeScheduleRead = (ownerId: WorkloadScheduleRow["ownerId"]) => boolean;

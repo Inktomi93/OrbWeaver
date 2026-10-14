@@ -1,3 +1,4 @@
+import type { PluginCommandView } from "@orb/contracts/plugin";
 // verb: listCommands — the caller's OWN enabled plugins' registered UI COMMANDS (U5,
 // §4.5). The `listSurfaces` twin in every respect, deliberately: owner-scoped by construction (`listOwned`
 // filters `WHERE owner_id = caller.userId`, so a command can only reach the result if the caller OWNS the
@@ -13,7 +14,7 @@
 import type { PluginCommandRegistration } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import type { ListCommandsParams } from "../contract/params.ts";
-import type { PluginCommandView } from "../contract/results.ts";
+
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
 

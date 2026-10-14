@@ -49,7 +49,6 @@ import {
   tokenProvenanceSchema,
   varOpSchema,
 } from "@orb/contracts/chat";
-import type { GenerationUsage } from "@orb/contracts/inference";
 import { generationUsageSchema } from "@orb/contracts/inference";
 import type { PortableParse } from "@orb/contracts/portability";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
@@ -87,27 +86,15 @@ export const CHAT_BUNDLE_EXT = ".orb.json";
 
 // ── the canonical shape (POSITIONAL refs, NAME-level re-links) ────────────────────────────────────────────
 
-// @orb-waive contract-structural-copy(PortableChatVariant): baselined when the gate widened; burn-down item 904.
 /** One swipe of a message, with the orb-only economics + `variableDelta` the ST arm cannot carry. */
-export interface PortableChatVariant {
-  readonly idx: number;
-  readonly content: string;
-  readonly model: string | null;
-  readonly provider: string | null;
-  readonly tokensIn: number | null;
-  readonly tokensOut: number | null;
-  readonly tokenProvenance: TokenProvenance;
-  readonly reasoning: string | null;
-  readonly ttftMs: number | null;
-  readonly genStartedAt: number | null;
-  readonly genFinishedAt: number | null;
-  /** The per-variant runtime-variable ops. Carrying THESE (not the folded cache) is what lets the restore
-   *  re-derive `chats.runtimeVariables` instead of shipping a snapshot of it. */
-  readonly variableDelta: readonly z.infer<typeof varOpSchema>[] | null;
-  readonly metadata: Record<string, unknown> | null;
-  /** Canonical normalized economics; legacy token fields must agree when this snapshot is present. */
-  readonly usage?: GenerationUsage;
-}
+export type PortableChatVariant = Readonly<{
+  [K in Exclude<keyof z.output<typeof wireVariantSchema>, "tokenProvenance" | "usage">]-?: K extends "variableDelta"
+    ? readonly z.output<typeof varOpSchema>[] | null
+    : Exclude<z.output<typeof wireVariantSchema>[K], undefined> | (undefined extends z.output<typeof wireVariantSchema>[K] ? null : never);
+}> & {
+  readonly tokenProvenance: NonNullable<z.output<typeof wireVariantSchema>["tokenProvenance"]>;
+  readonly usage?: NonNullable<z.output<typeof wireVariantSchema>["usage"]>;
+};
 
 /** One message slot. `speakerHandle` re-links an assistant turn's voice by the character HANDLE it was
  *  exported under; `personaName` re-links a user turn's authoring persona. Both degrade to the room's
@@ -122,17 +109,11 @@ export interface PortableChatMessage {
   readonly variants: readonly PortableChatVariant[];
 }
 
-// @orb-waive contract-structural-copy(PortableChatInjection): baselined when the gate widened; burn-down item 904.
 /** One `chat_injections` row — the per-chat prose plane that replaced the room-override author's-note twin
  *  (owner ruling 2026-08-01) and that the ST arm can only carry ONE of, one-way. */
-export interface PortableChatInjection {
-  readonly position: (typeof CHAT_INJECTION_POSITIONS)[number];
-  readonly depth: number;
-  readonly role: MessageRole;
-  readonly content: string;
-  readonly order: number | null;
-  readonly createdAt: number;
-}
+export type PortableChatInjection = Readonly<Omit<z.output<typeof wireInjectionSchema>, "order">> & {
+  readonly order: Exclude<z.output<typeof wireInjectionSchema>["order"], undefined>;
+};
 
 /** One `rpg_sheets` row. The actor is a character (by handle) XOR the HOST human — `characterHandle: null`
  *  means the user seat, which on restore is the importer (the only human the room has). */

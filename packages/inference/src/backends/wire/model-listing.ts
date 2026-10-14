@@ -4,7 +4,7 @@
 // list yields (an id, maybe a display name and a window, nothing else). Shared by every backend's `listModels`
 // and the runtime's catalog read.
 
-import type { ModelCatalogEntry, ModelKind, ModelListing } from "@orb/contracts/inference";
+import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ProviderScrubSet } from "#contract";
 import { sanitizeApiError } from "../http/sanitize.ts";
@@ -14,13 +14,13 @@ const NO_MODELS_LISTED = "the provider listed no models";
 
 /** A catalog row from a list that carries only an id (plus, on some wires, a display name, a window, or the
  *  kind a server's native model info states): pricing, modalities and reasoning are unknown, never guessed. */
-export function bareCatalogEntry(args: {
-  // @orb-waive contract-structural-copy(id): baselined when the gate widened; burn-down item 904.
-  readonly id: string;
-  readonly name?: string | undefined;
-  readonly contextLength?: number | null;
-  readonly kind?: ModelKind | undefined;
-}): ModelCatalogEntry {
+export function bareCatalogEntry(
+  args: Pick<ModelCatalogEntry, "id"> & {
+    readonly name?: ModelCatalogEntry["name"] | undefined;
+    readonly contextLength?: ModelCatalogEntry["contextLength"];
+    readonly kind?: ModelCatalogEntry["kind"];
+  },
+): ModelCatalogEntry {
   return {
     id: args.id,
     name: args.name ?? args.id,

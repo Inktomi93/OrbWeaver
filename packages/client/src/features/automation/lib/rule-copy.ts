@@ -29,8 +29,10 @@ import {
   SPEND_ARM_TYPES,
 } from "@orb/contracts/automation";
 import type { RoutableTask } from "@orb/contracts/inference";
-import type { BadgeProps } from "@orb/ui/badge";
 import { timeLib } from "#lib";
+import type { FireOutcomeView } from "../contract/fire-outcome.ts";
+
+export type { FireOutcomeView } from "../contract/fire-outcome.ts";
 
 /** The plain-English phrase for a CHAT-bus trigger — "when this rule looks", in the room's own terms. */
 function chatTriggerLabel(type: ChatTriggerType): string {
@@ -401,13 +403,6 @@ export function runOutcomeNotice(name: string, outcome: AutomationRunOutcome): {
       throw new Error(`unhandled automation run outcome: ${JSON.stringify(exhaustive)}`);
     }
   }
-}
-
-// @orb-waive no-inline-wire-interface(FireOutcomeView): baselined when the gate widened; burn-down item 904.
-/** One fire outcome as a badge label + tone. */
-export interface FireOutcomeView {
-  readonly label: string;
-  readonly intent: BadgeProps["intent"];
 }
 
 /** One fire outcome's host-facing copy + badge tone, dispatched EXHAUSTIVELY (§5.5 — a new

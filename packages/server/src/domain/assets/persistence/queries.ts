@@ -33,14 +33,7 @@ interface AssetMetadataRow {
   readonly size: number;
 }
 
-// @orb-waive contract-structural-copy(AssetCasRef): baselined when the gate widened; burn-down item 904.
-interface AssetCasRef {
-  readonly kind: AssetKind;
-  readonly ownerId: UserId;
-  readonly hash: string;
-  readonly mime: string;
-}
-
+type AssetCasRef = Pick<typeof assets.$inferSelect, "kind" | "ownerId" | "hash" | "mime">;
 /** An asset's `(ownerId, hash, mime)` by id alone — no owner scope, un-principal. Not a user-facing surface. */
 // @orb-waive owner-scoped-reads(assets): the D20 un-principal CAS resolver — it exists to RESOLVE the owner (it projects `ownerId` for `purgeAsset`'s per-owner blob path), so scoping it on an owner it does not yet know is circular. Consumers are the reap/GC/indexer ports; the owner-gated byte-read has its own resolver (`ownedAssetCasRef`, directly below). Ends if a user-facing door ever calls this.
 export async function loadAssetCasRefById(db: Db, assetId: AssetId): Promise<AssetCasRef | undefined> {

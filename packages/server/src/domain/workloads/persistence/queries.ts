@@ -13,17 +13,26 @@
 // unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
 // of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s.
 
-import type { WorkloadError, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
-import { ACTIVE_WORKLOAD_STATUSES, WORKLOAD_KINDS, WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
+import type { WorkloadError, WorkloadKind, WorkloadLane, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
+import { ACTIVE_WORKLOAD_STATUSES, WORKLOAD_KINDS, WORKLOAD_LIST_MAX_LIMIT, workloadResultSchemaOf, workloadRowBaseSchema } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { z } from "zod";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
-import type { CancelWorkloadResult } from "../contract/params.ts";
-import type { WorkloadInFlightRow, WorkloadQueueFailureSink, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
+import type { CancelWorkloadResult, ListWorkloadsParams } from "../contract/params.ts";
+import type {
+  AuthorizeWorkloadRead,
+  WorkloadDecodedRow,
+  WorkloadInFlightRow,
+  WorkloadQueueFailureSink,
+  WorkloadRowAnyKind,
+  WorkloadRunnableRow,
+  WorkloadTextRow,
+} from "../contract/workload-row.ts";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
 const TERMINAL_STATUSES = ["succeeded", "failed", "cancelled", "worker_died"] as const satisfies readonly WorkloadStatus[];
@@ -89,20 +98,11 @@ const QUEUE_SCAN_PAGE_SIZE = 10;
 // The internal-caller backstop; the shared ceiling `WORKLOAD_LIST_MAX_LIMIT` (`@orb/contracts/workloads`) is
 // also the transport `.max()` trust boundary, so the wire refusal and this hard cap never drift.
 
-interface WorkloadInsert {
-  readonly id: WorkloadId;
-  readonly kind: WorkloadKind;
-  readonly mode: WorkloadMode;
-  /** The lock sub-partition, resolved at the enqueue door from the kind's contribution (never client input). */
-  readonly admissionKey: string;
-  /** The execution lane, resolved at the enqueue door from the kind's contribution (never client input). */
-  readonly lane: WorkloadLane;
-  readonly params: Record<string, unknown>;
-  readonly ownerId: UserId | null;
-  readonly dependsOn: readonly WorkloadId[] | null;
-  readonly scheduledAt: number;
-  readonly createdAt: number;
-}
+type WorkloadInsert = Readonly<
+  Pick<WorkloadSelectRow, "id" | "kind" | "mode" | "admissionKey" | "lane" | "params" | "ownerId" | "scheduledAt" | "createdAt">
+> & {
+  readonly dependsOn: readonly NonNullable<WorkloadSelectRow["dependsOn"]>[number][] | null;
+};
 
 type WorkloadSelectRow = typeof workloads.$inferSelect;
 
@@ -116,22 +116,14 @@ interface QueueScanInput {
 
 type QueueCursor = Pick<WorkloadSelectRow, "scheduledAt" | "createdAt" | "id">;
 
-// @orb-waive contract-structural-copy(WorkloadListFilter): baselined when the gate widened; burn-down item 904.
 /** `ownerId: null` filters to system/scheduler rows; `undefined` = no owner filter. */
-interface WorkloadListFilter {
-  readonly kind?: WorkloadKind;
-  readonly status?: WorkloadStatus;
-  readonly ownerId?: UserId | null;
-
-  readonly since?: number;
-  readonly limit?: number;
-}
+type WorkloadListFilter = Pick<ListWorkloadsParams, "kind" | "status" | "ownerId" | "since" | "limit">;
 
 const isKnownKind = (kind: string): kind is WorkloadKind => (WORKLOAD_KINDS as readonly string[]).includes(kind);
 
 /** The lifecycle/queue fields shared by both arms of the view — kind-independent, so they are projected once. */
-function toRowBase(row: WorkloadSelectRow): Omit<WorkloadRowAnyKind, "kind" | "params" | "result" | "poison"> {
-  return {
+function toRowBase(row: WorkloadDecodedRow): Omit<WorkloadRowAnyKind, "kind" | "params" | "result" | "poison"> {
+  return workloadRowBaseSchema.parse({
     id: row.id,
     status: row.status,
     mode: row.mode,
@@ -139,11 +131,11 @@ function toRowBase(row: WorkloadSelectRow): Omit<WorkloadRowAnyKind, "kind" | "p
     ownerId: row.ownerId,
     dependsOn: row.dependsOn ?? null,
     error: row.error,
-    progress: row.progress ?? null,
+    progress: row.progress,
     scheduledAt: row.scheduledAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-  };
+  });
 }
 
 /** Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` when the KIND itself isn't in this build (a
@@ -153,11 +145,12 @@ function toRowBase(row: WorkloadSelectRow): Omit<WorkloadRowAnyKind, "kind" | "p
  *  per-kind validator is the OWNING domain's contribution schema — the queue spells no domain's vocabulary.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function toView(contributions: WorkloadContributions, row: WorkloadSelectRow): WorkloadRowAnyKind | null {
+export function toView(contributions: WorkloadContributions, row: WorkloadDecodedRow): WorkloadRowAnyKind | null {
   if (!isKnownKind(row.kind)) {
     return null;
   }
   const base = toRowBase(row);
+  const result = workloadResultSchemaOf(row.kind).nullable().parse(row.result);
   let params: Record<string, unknown>;
   // @orb-waive caught-failure-ownership(catch): documented above — a params-schema failure
   // surfaces as a visible POISON row (`params: null, poison: true`) rather than vanishing from list/get,
@@ -165,16 +158,35 @@ export function toView(contributions: WorkloadContributions, row: WorkloadSelect
   try {
     params = contributions[row.kind].params.parse(row.params) as Record<string, unknown>;
   } catch {
-    return { ...base, kind: row.kind, params: null, result: row.result ?? null, poison: true };
+    return { ...base, kind: row.kind, params: null, result, poison: true };
   }
   // TS can't correlate the widened `row.kind` union with the per-kind params/result — sanctioned cast.
   return {
     ...base,
     kind: row.kind,
     params,
-    result: row.result ?? null,
+    result,
     poison: false,
   } as WorkloadRunnableRow;
+}
+
+// SQL expressions bypass Drizzle's JSON decoder so a foreign row is never privately parsed before its owner check.
+const WORKLOAD_READ_COLUMNS = {
+  ...getTableColumns(workloads),
+  params: sql<string>`${workloads.params}`,
+  result: sql<string | null>`${workloads.result}`,
+  progress: sql<string | null>`${workloads.progress}`,
+  dependsOn: sql<string | null>`${workloads.dependsOn}`,
+};
+
+function decodeWorkloadRow(row: WorkloadTextRow): WorkloadDecodedRow {
+  return {
+    ...row,
+    params: row.params === null ? null : JSON.parse(row.params),
+    result: row.result === null ? null : JSON.parse(row.result),
+    progress: row.progress === null ? null : JSON.parse(row.progress),
+    dependsOn: row.dependsOn === null ? null : JSON.parse(row.dependsOn),
+  };
 }
 
 /** Insert a fresh `queued` row. The single-active partial unique index may reject it — the caller
@@ -210,7 +222,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
  */
 export async function findActiveAdmittedWorkloadId(
   db: Db,
-  slot: { readonly kind: WorkloadKind; readonly mode: WorkloadMode; readonly ownerId: UserId | null; readonly admissionKey: string },
+  slot: Readonly<Pick<WorkloadSelectRow, "kind" | "mode" | "ownerId" | "admissionKey">>,
 ): Promise<WorkloadId | undefined> {
   const admissionSystem = slot.ownerId === null;
   const partition =
@@ -335,10 +347,18 @@ export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: 
 /** Load one typed row by id, or `null` (absent, or a kind this build doesn't ship). A row with unparseable
  *  params comes back POISON — visible, not vanished. */
 // @orb-waive owner-scoped-reads(workloads): THE F3-AUTHZ POST-FETCH ARM. The owner predicate deliberately lives at the verb (`verbs/get.ts`/`cancel.ts`/`retry.ts`: `isVisibleToCaller(isAdmin, caller, row.ownerId)` collapsing a foreign row to the SAME leak-free NOT_FOUND as an absent one) because the ADMIN and system-caller arms must see any row — an ownerId in this WHERE would make them unrepresentable. Ends if the admin arm goes.
-export async function loadWorkload(db: Db, contributions: WorkloadContributions, id: WorkloadId): Promise<WorkloadRowAnyKind | null> {
-  const rows = await db.select().from(workloads).where(eq(workloads.id, id)).limit(1);
+export async function loadWorkload(
+  db: Db,
+  contributions: WorkloadContributions,
+  id: WorkloadId,
+  authorize?: AuthorizeWorkloadRead,
+): Promise<WorkloadRowAnyKind | null> {
+  const rows = await db.select(WORKLOAD_READ_COLUMNS).from(workloads).where(eq(workloads.id, id)).limit(1);
   const row = rows[0];
-  return row === undefined ? null : toView(contributions, row);
+  if (row === undefined || (authorize !== undefined && !authorize({ ownerId: row.ownerId, mode: row.mode }))) {
+    return null;
+  }
+  return isKnownKind(row.kind) ? toView(contributions, decodeWorkloadRow(row)) : null;
 }
 
 /** The RAW (unparsed) params blob of one row — what `retry` clones for a POISON row, whose typed view carries
@@ -376,13 +396,13 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
   }
   const limit = Math.min(params.limit ?? WORKLOAD_LIST_MAX_LIMIT, WORKLOAD_LIST_MAX_LIMIT);
   const rows = await db
-    .select()
+    .select(WORKLOAD_READ_COLUMNS)
     .from(workloads)
     .where(filters.length > 0 ? and(...filters) : undefined)
     .orderBy(desc(workloads.createdAt), desc(workloads.id))
     .limit(limit);
   return rows.flatMap((row) => {
-    const view = toView(contributions, row);
+    const view = isKnownKind(row.kind) ? toView(contributions, decodeWorkloadRow(row)) : null;
     return view === null ? [] : [view];
   });
 }
@@ -397,12 +417,20 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
  *  dispatch door. It is a WHERE, not a skip, so a deferred row never enters the due scan:
  *  a row scheduled for tomorrow cannot starve a row queued (and due) a minute from now. The column is NOT
  *  NULL (it defaults to the enqueue instant), so "no deferral" is `scheduledAt === createdAt`, never null. */
-async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadSelectRow): Promise<WorkloadRunnableRow | null> {
-  const view = toView(input.contributions, row);
+async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): Promise<WorkloadRunnableRow | null> {
+  let view: WorkloadRowAnyKind | null;
+  try {
+    view = toView(input.contributions, decodeWorkloadRow(row));
+  } catch (parseError) {
+    if (!(parseError instanceof z.ZodError || parseError instanceof SyntaxError)) {
+      throw parseError;
+    }
+    view = null;
+  }
   if (view === null || view.poison) {
     const error: WorkloadError = {
       kind: "runtime",
-      message: `unrecognized or malformed workload kind: ${row.kind}`,
+      message: `unrecognized or malformed workload data: ${row.kind}`,
     };
     if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
       input.onFailure({ workloadId: row.id, kind: row.kind, error });
@@ -442,7 +470,7 @@ async function scanRunnablePage(input: QueueScanInput, cursor: QueueCursor | nul
         );
   // @orb-waive owner-scoped-reads(workloads): the queue runner's lane scan over every owner's queued rows — a trusted system read with no Principal (D20), whose rows feed only the engine's dispatch. The `workloads.id` term is the keyset cursor's tie-break, not a selection by a caller's id. Ends if a Principal-bearing caller reaches this scan.
   const page = await input.db
-    .select()
+    .select(WORKLOAD_READ_COLUMNS)
     .from(workloads)
     .where(
       and(

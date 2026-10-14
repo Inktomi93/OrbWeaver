@@ -485,20 +485,12 @@ export function computeHistoryBreakpoint(
   return { offsetFromEnd, decision: "placed" };
 }
 
-// @orb-waive contract-structural-copy(RowFacts): baselined when the gate widened; burn-down item 904.
 /** What ONE pre-squash row contributes to the delivered-row trace: where its bytes came from, and whose voice
  *  it is in. The VOICE is read here rather than off the delivered row because the name-stamp INLINES the
  *  speaker into content on every mode but `completion` — by the time a row is delivered, `name` is usually
  *  gone and the author is only recoverable from the pre-name row. File-local: a builder input, not a domain
  *  type (the wire shape is `@orb/contracts/chat`'s `ShapeTraceRow`). */
-interface RowFacts {
-  readonly source: ShapeRowSource;
-  readonly name?: string;
-  /** The contributing canon row's DECLARED purpose; absent for an assembled row (no slot, no purpose). */
-  readonly kind?: MessageKind;
-  /** Why a system-role row folded into this one, if one did. */
-  readonly folded?: ShapeFoldReason;
-}
+type RowFacts = Readonly<Pick<ShapeTraceRow, "source" | "name" | "kind" | "folded">>;
 
 /** Collapse a delivered row's contributing rows into one fact. Uniform provenance ⇒ that arm; MIXED ⇒
  *  `merged`, never the head's arm — a squash that folded an injected note into an adjacent canon turn is the

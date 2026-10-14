@@ -17,17 +17,9 @@
 // The one case the first rule cannot save: a SINGLE face too wide for the pane it lives in (`visible: 0,
 // hidden: 1`). There is no slot to squeeze into, so the picker is the only door left.
 
-// @orb-waive no-inline-wire-interface(FaceFoldInput): baselined when the gate widened; burn-down item 904.
-export interface FaceFoldInput {
-  /** Measured width of every candidate face, in render order. */
-  readonly widths: readonly number[];
-  /** Measured width of the overflow tile — the reserve the fold spends when it folds. */
-  readonly triggerWidth: number;
-  /** The row's resolved column gap. */
-  readonly gap: number;
-  /** The row's available inline size. */
-  readonly available: number;
-}
+import type { FaceFoldInput } from "./contract/face-strip.ts";
+
+export type { FaceFoldInput } from "./contract/face-strip.ts";
 
 export interface FaceFold {
   /** How many leading faces render. */

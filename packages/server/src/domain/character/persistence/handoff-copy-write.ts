@@ -25,7 +25,7 @@
 
 import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import { canonicalBackgroundSource } from "@orb/contracts/theme";
+import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#primitives/serde/card";
@@ -105,23 +105,27 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
     // goes — two copies in one accept can never race onto the same per-owner unique handle. Only once every
     // name is claimed does the I/O run, and then it runs in PARALLEL: the writes are independent by
     // construction (distinct fresh ids, distinct reserved handles), so there is nothing left to serialize.
-    const plan = sources.flatMap((source) => {
+    const validated = sources.map((source) => ({
+      source,
+      card: cardOf(source),
+      themeOverride: themeOverrideSchema.nullable().parse(source.themeOverride),
+      backgroundOverride: themeBackgroundSchema.nullable().parse(source.backgroundOverride),
+    }));
+    const plan = validated.flatMap(({ source, card, themeOverride, backgroundOverride }) => {
       const handle = freeHandle(source.handle, taken);
       if (handle === null) {
         return [];
       }
       taken.add(handle);
-      return [{ source, handle, newId: ctx.newCharacterId() }];
+      return [{ source, card, themeOverride, backgroundOverride, handle, newId: ctx.newCharacterId() }];
     });
 
     const minted = await Promise.all(
-      plan.map(async ({ source, handle, newId }): Promise<readonly HandoffCardCopy[]> => {
-        const card = cardOf(source);
+      plan.map(async ({ source, card, themeOverride, backgroundOverride: carriedBackground, handle, newId }): Promise<readonly HandoffCardCopy[]> => {
         const provenance = handoffProvenance(chatId, source.id);
         const [avatarAssetId, backgroundOverride] = await Promise.all([
           source.avatarAssetId === null ? null : ctx.copyAsset({ fromOwnerId, toOwnerId, assetId: source.avatarAssetId, kind: "avatar" }),
-          // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
-          reownBackground(ctx, { fromOwnerId, toOwnerId }, source.backgroundOverride),
+          reownBackground(ctx, { fromOwnerId, toOwnerId }, carriedBackground),
         ]);
         const claimed = await insertCharacterClaimingProvenance(
           db,
@@ -151,7 +155,7 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
             // source on "Inherit default" stays inheriting, so its copy follows the deployment default like
             // every other card the nominee owns; only an explicit opt-in is held back.
             interactiveHtml: null,
-            themeOverride: source.themeOverride,
+            themeOverride,
             // …but the BACKGROUND is re-owned, not carried by id (step 3 / #1426).
             backgroundOverride,
             // The provenance stamp IS the idempotency key (`duplicate` deliberately clears provenance; a

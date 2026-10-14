@@ -12,22 +12,10 @@
 // (`verbs/reactions.ts::groupReactions` drops a token the vocabulary no longer knows), which is what keeps
 // this from being a cast dressed as a type.
 
-import type { ReactionEmoji } from "@orb/contracts/chat";
-import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
+import type { ToggleReactionVars } from "../contract/presentation.ts";
 
-// @orb-waive contract-structural-copy(ToggleReactionVars): baselined when the gate widened; burn-down item 904.
-export interface ToggleReactionVars {
-  readonly chatId: ChatId;
-  readonly variantId: MessageVariantId;
-  readonly emoji: ReactionEmoji;
-  /** B7/MR3 — the segment CLAIM (absent = whole-message): the picker's parsed span index + that span's
-   *  speaker. The server re-parses the canon itself and stores its OWN speaker/snippet; the claim is only
-   *  compared (a race refuses `invalid_segment`), so nothing typed here can land in another reader's
-   *  transcript. */
-  readonly segmentIndex?: number | undefined;
-  readonly segmentSpeaker?: string | null | undefined;
-}
+export type { ToggleReactionVars } from "../contract/presentation.ts";
 
 export const useToggleReactionMutation = createEntityMutation<ToggleReactionVars, unknown>({
   options: (trpc) => trpc.chat.toggleReaction.mutationOptions(),

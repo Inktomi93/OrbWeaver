@@ -19,25 +19,10 @@
 // `character.listTagGroups` now — one census over the same scope the page pages — and this file's job
 // shrank to what only the client can do: put the rows it HAS under the headers the server named.
 
-import type { TagFolderType } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
+import type { FilterableRow, RowTag, TagGroupCensus } from "../contract/library.ts";
 
-// @orb-waive contract-structural-copy(RowTag): baselined when the gate widened; burn-down item 904.
-/** The tag shape the categorized fold reads (a structural subset of `TagView`). */
-export interface RowTag {
-  readonly id: TagId;
-  readonly name: string;
-  readonly isHiddenOnCard: boolean;
-  /** C9-1d: the tags-as-folders axis. Read HERE (`groupStartsOpen`) — this is the column's one live
-   *  consumer; before it, `folderType` was written by the tag editor and read by nothing. */
-  readonly folderType: TagFolderType;
-}
-
-// @orb-waive no-inline-wire-interface(FilterableRow): baselined when the gate widened; burn-down item 904.
-/** The character shape the categorized fold reads (a structural subset of `CharacterSummary`). */
-export interface FilterableRow {
-  readonly tags: readonly RowTag[];
-}
+export type { FilterableRow, RowTag, TagGroupCensus } from "../contract/library.ts";
 
 /** A categorized bucket: a visible tag (or the null "Uncategorized" catch-all), the members this pane has
  *  PAGED IN, and how big the bucket is in the library. */
@@ -50,14 +35,6 @@ export interface TagGroup<T> {
    *  is in flight: a count the client derived from `items` is precisely the number #1696 removed, so the
    *  absent case is stated as absent rather than filled in from the page. */
   readonly total: number | null;
-}
-
-/** The server's group census, structurally (the client mirrors `ListCharacterTagGroupsResult`'s shape
- *  without importing a server type — the tRPC output is inferred at the hook). */
-export interface TagGroupCensus {
-  // @orb-waive contract-structural-copy(id): baselined when the gate widened; burn-down item 904.
-  readonly groups: readonly { readonly id: TagId; readonly name: string; readonly folderType: TagFolderType; readonly characters: number }[];
-  readonly uncategorized: number;
 }
 
 /** Every VISIBLE tag id one row carries. */

@@ -3,7 +3,6 @@
 // load-bearing: null means "clear it", distinct from "not provided". List columns treat null as "clear to []".
 
 import type { CharacterCard, UpdateCharacterInput } from "@orb/contracts/character";
-import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 
 function keep<T>(edit: T | undefined, current: T): T {
@@ -80,14 +79,10 @@ export function changedCardFields(before: CharacterCard, after: CharacterCard): 
 }
 
 export function flagEdits(input: UpdateCharacterInput): {
-  // @orb-waive contract-structural-copy(starred): baselined when the gate widened; burn-down item 904.
-  starred?: boolean;
-  archived?: boolean;
-  forbidExternalMedia?: boolean | null;
-  trustHtml?: boolean | null;
-  interactiveHtml?: boolean | null;
-  themeOverride?: ThemeOverride | null;
-  backgroundOverride?: ThemeBackground | null;
+  [K in keyof Pick<
+    UpdateCharacterInput,
+    "starred" | "archived" | "forbidExternalMedia" | "trustHtml" | "interactiveHtml" | "themeOverride" | "backgroundOverride"
+  >]?: Exclude<UpdateCharacterInput[K], undefined>;
 } {
   return {
     ...(input.starred === undefined ? {} : { starred: input.starred }),

@@ -26,7 +26,7 @@ import type { AttachedBookRef, CardDepthPrompt, CardSpec, CharacterCard, Charact
 import { ATTACHED_BOOKS_WIRE_KEY, CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
 import type { AttachedRegexScriptRef, RegexScriptCard } from "@orb/contracts/regex";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema, toRegexScriptCardWire } from "@orb/contracts/regex";
-import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
+import type { BulkImportLorebookInput, BulkImportLoreEntryInput } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
@@ -469,19 +469,10 @@ export interface ExportCardFields {
   readonly spec?: CardSpec;
 }
 
-// @orb-waive contract-structural-copy(ExportWorldEntry): baselined when the gate widened; burn-down item 904.
 /** One attached lore entry projected for the OUT mapper. Carries the full round-trip payload — typed
  *  columns PLUS the preserved `metadata` blob — so import → export → reimport doesn't strip
  *  `constant` / `position` / vendor extensions. */
-export interface ExportWorldEntry {
-  readonly keys: string[];
-  readonly content: string;
-  readonly enabled: boolean;
-  readonly priority: number;
-  readonly title: string;
-  readonly ignoreBudget: boolean;
-  readonly metadata: Record<string, unknown> | null;
-}
+export type ExportWorldEntry = Readonly<Omit<BulkImportLoreEntryInput, "description" | "keys">> & { readonly keys: string[] };
 
 // ST's at-depth directive lives under `extensions.position = 4` with a sibling `depth`/`role` (the
 // world-info-at-depth encoding). 4 is ST's WORLD_INFO_POSITION.atDepth.
@@ -498,18 +489,11 @@ const SPEC_VERSION_BY_SPEC = { [CHARA_CARD_V2_SPEC]: "2.0", [CHARA_CARD_V3_SPEC]
  * heuristic vanilla ST needs to fire a keyless entry). This is the ONE place the at-depth encoding is
  * written (load-bearing — preserve it).
  */
-// @orb-waive contract-structural-copy(LoreEntryIdentityInput): baselined when the gate widened; burn-down item 904.
 /** The typed columns of one lore entry, as every identity reads them. */
-export interface LoreEntryIdentityInput {
-  readonly title: string;
-  readonly description: string | null;
-  readonly content: string;
-  readonly keys: readonly string[] | null;
-  readonly enabled: boolean;
-  readonly priority: number;
-  readonly ignoreBudget: boolean;
+export type LoreEntryIdentityInput = Readonly<Omit<BulkImportLoreEntryInput, "keys" | "metadata">> & {
+  readonly keys: BulkImportLoreEntryInput["keys"] | null;
   readonly metadata: unknown;
-}
+};
 
 /** The metadata keys that are identity on their own: the engine's, never the lossless residue of the source. */
 const ENTRY_IDENTITY_METADATA_KEYS = ["scopeMode", "keyMode", "position", "inject"] as const;
@@ -579,20 +563,11 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
 // The lorebook IN half — the byte-identical inverse of exportBookEntry, co-located here. Pure — no DB, no
 // domain types.
 
-// @orb-waive contract-structural-copy(LoreEntryColumns): baselined when the gate widened; burn-down item 904.
 /** The `world_entries` column projection derived from ONE ST `character_book` entry (everything but the
  *  `metadata` blob, which {@link loreEntryMetadata} builds). `keys` is filtered to strings (ST keys are
  *  free-form JSON); the writer null-collapses an empty list to honor the `world_entries.keys` NULL-vs-`[]`
  *  asymmetry. `title`/`description`/`content`/`enabled`/`priority`/`ignoreBudget` mirror the typed columns. */
-export interface LoreEntryColumns {
-  readonly title: string;
-  readonly description: string | null;
-  readonly content: string;
-  readonly keys: string[];
-  readonly enabled: boolean;
-  readonly priority: number;
-  readonly ignoreBudget: boolean;
-}
+export type LoreEntryColumns = Readonly<Omit<BulkImportLoreEntryInput, "metadata" | "keys">> & { readonly keys: string[] };
 
 /** `character_book.entries` is a dict OR a list in the wild (ST V2 used a keyed object, V3 a list) — return
  *  every entry OBJECT, order-preserving, dropping non-object junk. */
