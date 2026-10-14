@@ -13,9 +13,10 @@ import type { CallExpression, Node as MorphNode, Type, VariableDeclaration } fro
 import { Node } from "ts-morph";
 import { canonicalIdBrand } from "./id-brand.ts";
 import type { SchemaColumn, SchemaColumnIdentity, SchemaJsonShape, SchemaQueryOptions, SchemaTable, SchemaTableIdentity } from "./schema-model-contract.ts";
+import { SCHEMA_COLUMN_DEFAULT_OPERATIONS } from "./schema-model-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import type { SchemaObjectEntry } from "./schema-object-contract.ts";
-import { readAuthoredCompositeEffects, readStaticAuthoredScalar } from "./static-authored-value.ts";
+import { readAuthoredCompositeEffects, readStaticAuthoredScalar, resolveAuthoredComposite } from "./static-authored-value.ts";
 
 export const DRIZZLE_SQLITE = "drizzle-orm/sqlite-core";
 export const SQLITE_TABLE = "sqliteTable";
@@ -205,8 +206,11 @@ function jsonShape(typeNode: MorphNode, options: SchemaQueryOptions): SchemaJson
   return { kind: "closed", keys: [...new Set(keyed.flatMap((arm) => arm.getProperties().map((property) => property.getName())))].toSorted(), typeNode };
 }
 
-function jsonColumn(root: CallExpression, operations: ReadonlyMap<string, readonly CallExpression[]>, options: SchemaQueryOptions): SchemaColumn["json"] {
-  const config = root.getArguments()[1];
+function jsonColumn(
+  config: MorphNode | undefined,
+  operations: ReadonlyMap<string, readonly CallExpression[]>,
+  options: SchemaQueryOptions,
+): SchemaColumn["json"] {
   if (config === undefined) {
     return null;
   }
@@ -224,6 +228,29 @@ function jsonColumn(root: CallExpression, operations: ReadonlyMap<string, readon
     return refuse(unresolved("ambiguous", typeCall, "JSON column must carry exactly one $type<T>() operation and one type argument"));
   }
   return { mode: "json", shape: jsonShape(typeNode, options) };
+}
+
+function columnNameAndConfig(
+  root: CallExpression,
+  propertyName: string,
+  options: SchemaQueryOptions,
+): { readonly sqlName: string; readonly config: MorphNode | undefined } {
+  const first = root.getArguments()[0];
+  const config = root.getArguments()[1];
+  if (first === undefined || options.checker().getTypeAtLocation(first).isUndefined()) {
+    return { sqlName: propertyName, config };
+  }
+  const scalar = readStaticAuthoredScalar(first);
+  if (scalar.kind === "resolved" && typeof scalar.value === "string") {
+    return { sqlName: scalar.value.length === 0 ? propertyName : scalar.value, config };
+  }
+  const composite = resolveAuthoredComposite(first);
+  if (composite.kind === "resolved" && Node.isObjectLiteralExpression(composite.value)) {
+    return { sqlName: propertyName, config: first };
+  }
+  return refuse(
+    scalar.kind === "unresolved" ? scalar : unresolved("unsupported", first, `schema column ${propertyName} SQL name is not a string or configuration object`),
+  );
 }
 
 function columnTypeOverride(operations: ReadonlyMap<string, readonly CallExpression[]>, options: SchemaQueryOptions): SchemaColumn["typeOverride"] {
@@ -254,22 +281,20 @@ function columnDraft(
   if (builder.kind === "unresolved") {
     return refuse({ ...builder, detail: `schema column ${table.key}.${entry.name}: ${builder.detail}` });
   }
-  const sqlArg = chain.root.getArguments()[0];
-  if (sqlArg === undefined) {
-    return refuse(unresolved("missing", chain.root, `schema column ${table.key}.${entry.name} has no SQL name`));
-  }
+  const { sqlName, config } = columnNameAndConfig(chain.root, entry.name, options);
   const identity: SchemaColumnIdentity = { table, propertyName: entry.name, key: `${table.key}.${entry.name}` };
   return {
     identity,
     declaration: entry.node,
     expression: entry.value,
-    sqlName: staticString(sqlArg, `schema column ${identity.key} SQL name`),
+    sqlName,
     builder: { ...builder.value, call: chain.root },
+    defaultOperations: SCHEMA_COLUMN_DEFAULT_OPERATIONS.filter((method) => chain.operations.has(method)),
     typeOverride: columnTypeOverride(chain.operations, options),
     primaryKey: chain.operations.has("primaryKey"),
     unique: chain.operations.has("unique"),
     notNull: chain.operations.has("notNull"),
-    json: jsonColumn(chain.root, chain.operations, options),
+    json: jsonColumn(config, chain.operations, options),
     operations: chain.operations,
   };
 }

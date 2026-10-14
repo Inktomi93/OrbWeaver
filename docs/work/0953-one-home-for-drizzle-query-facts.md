@@ -23,14 +23,16 @@ One drizzle reader in the floor; the old readers are deleted; `pnpm ast columns`
 
 ## Evidence
 
-AST column consumers call shared column-reference, row-shape, selection and SQL readers. Preserve consumer-specific classification and reporting rather than treating every remaining adapter as duplicate extraction. Statement, predicate, join and parser provenance still require complete acceptance coverage. A bounded walk does not justify another program.
+AST consumers share column, row-shape, selection and SQL readers. Keep classification consumer-owned. Statement, predicate, join and parser provenance still require complete acceptance.
 
 Preserve native program identity, complete schema populations, unresolved outcomes and the foundation plan's persisted store contract. The precise security-case coverage matrix remains an implementation prerequisite; reconnaissance is not proof that a named case is missing or covered. The compose boundary is established. The native inventory store item owns persisted inventory construction; this assignment owns Drizzle extraction and its consumer judgments.
 
-Gate-owned conformance fixtures remain maintained proof. Native controls must exercise the exact required spelling, not only a nearby pattern. Preserve existing cases and avoid duplicate controls. A fixed traversal limit does not satisfy arbitrary-depth acceptance.
+Preserve gate conformance cases and exact native spellings. Fixed traversal limits do not satisfy arbitrary-depth acceptance.
 
-Bounded consumer controls use virtual native-shaped programs. They do not establish repository-native output or finding equivalence. The existing native emit suite checks schema presence, not complete table identity; the grant suite covers broader owner populations. Keep those checks deferred and intact until main adjudicates their actual coupling and required native proof. Scoped typechecks and import graphs do not replace that verdict.
+Bounded programs do not establish repository-native equivalence. Existing emit checks prove schema presence, not complete identity; grants cover broader owner populations. Preserve both deferred suites. Scoped compilation does not replace their verdict.
 
 Reviewed source is integrated with the store and shape readers. Combined tooling/root types and the affected CT composition-policy suite pass. Full-row subquery and CTE provenance uses one admitted table and declared column; red-first controls and the corrected family pass. Unresolved, ambiguous and joined-source refusal remain. Native repository equivalence is pending.
 
 Reviewed integration extends canonical caller observations, editable-builder continuations and returned parser provenance. Conditional spreads preserve alternative presence through ordered overrides. Relevant unresolved callable uses remain unproven alongside admitted calls. Native controls cover both unsafe orderings, safe alternatives, installed Drizzle behavior, stale worlds and cycles. Focused security review confirms the corrections; affected tests, lint and tooling types pass. Root types retain unrelated probe and legacy errors. Complete repository output and finding equivalence remain unqualified.
+
+The reviewed schema adapter uses canonical SQL names and authored default-operation kinds. Installed Drizzle controls distinguish physical names from defaults and preserve omitted, empty and explicit-undefined name fallback. Native owner identity is required; ambiguous worlds, foreign source objects and dynamic names refuse. The corrected bounded case union passes with affected lint and tooling types; root retains unrelated diagnostics. Full repository equivalence remains pending.

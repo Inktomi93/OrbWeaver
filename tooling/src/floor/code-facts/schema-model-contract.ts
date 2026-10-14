@@ -29,6 +29,8 @@ export type SchemaFact<T> =
 
 export type ReadySchemaFact<T> = Extract<SchemaFact<T>, { readonly status: "ready" }>;
 
+export const SCHEMA_COLUMN_DEFAULT_OPERATIONS = ["default", "$defaultFn", "$default", "$onUpdate", "$onUpdateFn"] as const;
+
 export interface SchemaTableIdentity {
   readonly sourcePath: string;
   readonly declarationName: string;
@@ -102,6 +104,8 @@ export interface SchemaColumn {
   readonly identity: SchemaColumnIdentity;
   readonly declaration: Node;
   readonly expression: Node;
+  /** SQL defaults and runtime callbacks remain distinct; implicit generated values are not authored operations. */
+  readonly defaultOperations: readonly (typeof SCHEMA_COLUMN_DEFAULT_OPERATIONS)[number][];
   readonly sqlName: string;
   readonly builder: SchemaColumnBuilder;
   readonly typeOverride: SchemaColumnTypeOverride | null;

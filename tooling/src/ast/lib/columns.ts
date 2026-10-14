@@ -1,10 +1,11 @@
-// drizzle column defs + the STRUCTURAL write scan (schema tables ride floor/code-facts/schema-read).
+// Canonical native schema facts projected for the column lens and its structural write scan.
 
 import { drizzleWriteOf, writeKeysOf } from "@orb/tooling/floor/code-facts/drizzle-columns";
 import { resolveDrizzleTableRefs } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
-import type { SchemaTable } from "@orb/tooling/floor/code-facts/schema-read";
-import { schemaTables } from "@orb/tooling/floor/code-facts/schema-read";
-import { Node, SyntaxKind } from "ts-morph";
+import type { SchemaTable } from "@orb/tooling/floor/code-facts/schema-model-contract";
+import { schemaFromCorpus } from "@orb/tooling/floor/code-facts/schema-query";
+import type { Node } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import { readExecutedSqlInserts } from "../../floor/code-facts/drizzle-sql.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { TableDef, WriteScan } from "../contract/types.ts";
@@ -116,67 +117,39 @@ export function isColumnExempt(decl: Node): boolean {
   return decl.getLeadingCommentRanges().some((range) => COLUMN_OK_RE.test(range.getText()));
 }
 
-/** The SQL name a drizzle column builder was given: the innermost call of the property's initializer chain
- *  (`text("chat_id").$type<ChatId>().notNull().references(…)` → `chat_id`). Falls back to the JS property
- *  name when the chain carries no string literal (a shape this repo does not currently use). */
-function sqlColumnName(init: Node | undefined, jsProp: string): string {
-  let cur = init;
-  while (cur !== undefined && Node.isCallExpression(cur)) {
-    const arg = cur.getArguments()[0];
-    if (arg !== undefined && Node.isStringLiteral(arg)) {
-      return arg.getLiteralText();
-    }
-    const expr = cur.getExpression();
-    cur = Node.isPropertyAccessExpression(expr) ? expr.getExpression() : undefined;
-  }
-  return jsProp;
-}
-
-/** Every `sqliteTable("<sql>", { … })` under `packages/db/src/schema/`, as the lens's TableDef. The
- *  "what does this `sqliteTable(...)` declare" READER is NOT re-spelled here — it is
- *  `tooling/src/verify/schema-read.ts`, the ONE home the db gates (`fk-columns-indexed`, `fk-ondelete-stated`,
- *  `table-explicit-primary-key`) already read through. This function adds only what those gates have no use
- *  for and this lens cannot work without: the SQL column NAME (the migration's spelling, so a reader can
- *  grep the baseline) and the table's declaration KEY (so a writer's identifier resolves to one table
- *  through an alias or a `schema.<table>` hop). A table whose SQL name is not a plain literal is skipped —
- *  there is nothing to report it under. */
+/** Canonical schema facts retain native declaration identity; enumeration remains in source order. */
 export function collectSchemaTables(project: SourceCorpus): TableDef[] {
-  const out: TableDef[] = [];
-  for (const sf of project.getSourceFiles()) {
-    // Path test by SUBSTRING, not schema-read's `isSchemaFile` — that predicate anchors on a REPO-RELATIVE
-    // path, and every lens in this file must stay root-agnostic so the self-test can drive it over an
-    // in-memory project rooted anywhere. (The barrel matches too; it declares no table, so it yields none.)
-    if (!sf.getFilePath().includes(SCHEMA_DIR)) {
-      continue;
-    }
-    for (const table of schemaTables(sf)) {
-      const def = tableDefOf(table);
-      if (def !== undefined) {
-        out.push(def);
-      }
-    }
+  const sources = project.getSourceFiles().filter((source) => source.getFilePath().includes(SCHEMA_DIR));
+  const schema = schemaFromCorpus(project, sources);
+  if (schema.status === "unresolved") {
+    throw new Error(`ast columns: unresolved schema: ${schema.reason}`);
   }
-  return out;
+  if (schema.status !== "ready") {
+    return [];
+  }
+  const order = new Map(sources.map((source, index) => [source.getFilePath(), index]));
+  return schema.value.tables
+    .toSorted(
+      (left, right) =>
+        (order.get(left.declaration.getSourceFile().getFilePath()) ?? 0) - (order.get(right.declaration.getSourceFile().getFilePath()) ?? 0) ||
+        left.declaration.getStart() - right.declaration.getStart(),
+    )
+    .map(tableDefOf);
 }
 
-/** ONE `SchemaTable` as a TableDef, or undefined when it carries no literal SQL name / no binding to key on. */
-function tableDefOf(table: SchemaTable): TableDef | undefined {
-  const sqlName = table.sqlName;
-  const binding = table.call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-  if (sqlName === undefined || binding === undefined) {
-    return;
-  }
-  const varName = table.variableName;
-  const key = declKey(binding);
+function tableDefOf(table: SchemaTable): TableDef {
+  const varName = table.identity.declarationName;
+  const key = declKey(table.declaration);
   const columns = table.columns.map((column) => ({
     tableKey: key,
     tableVar: varName,
-    sqlTable: sqlName,
-    jsProp: column.name,
-    sqlColumn: sqlColumnName(column.initializer, column.name),
-    decl: column.node as Node,
+    sqlTable: table.sqlName,
+    jsProp: column.identity.propertyName,
+    sqlColumn: column.sqlName,
+    hasDefault: column.defaultOperations.length > 0,
+    decl: column.declaration,
   }));
-  return { varName, sqlName, key, columns };
+  return { varName, sqlName: table.sqlName, key, columns };
 }
 
 /** `<table declaration key>\0<jsProp>` — the canonical identity every read/write/grouping arm shares. */

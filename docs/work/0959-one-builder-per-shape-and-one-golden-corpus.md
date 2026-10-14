@@ -1,9 +1,9 @@
 ---
 kind: work
 status: doing
-updated: 2026-10-13
+updated: 2026-10-14
 priority: P1
-lane: codex/compose-import-998
+lane: codex/corpus-integration-959
 plan: test-foundation
 ---
 
@@ -25,9 +25,7 @@ A builder exists per contract output and table; the corpus is committed and load
 
 The shared production recall preparation passes bounded positive and strike controls. Actual completed workloads produce nonempty digests, segments and query traces, validated through the public `assemblyPreviewSchema` projection. This does not qualify every recall filter or corpus publication. Speaker rows still require a genuine producing turn; invented rows or zero traces cannot close that population.
 
-Close the logical table/output inventory. Exported declarations alone do not distinguish outputs from inputs, operations and primitives. Qualified user and asset defaults consume production ID and content-hash generation. Preserve FK relations and coupled consumers. The harness owns graph, time and ID seams; the client door owns mounting; this item owns data builders, corpus and responders.
-
-Inventory data returned or serialized by live production doors and their reusable output components. Include server-owned wire projections; keep their producers in the node world. Classify request schemas, injected operations, primitive vocabulary and private helper shapes separately. Exported-name counts do not establish the builder denominator.
+Inventory tables, live output doors and reusable output components, including server-owned wire projections. Keep their producers Node-owned. Separate inputs, injected operations, primitives and private helper shapes. Derive IDs and content hashes from production; preserve FK relations. The harness owns execution seams, the client door owns mounting, and this item owns builders and corpus.
 
 Capture HTTP auth outputs through the real application and its resolved request identity. A tRPC caller does not produce anonymous auth configuration. The server root owns HTTP construction; corpus code must not build another app or copy its projection.
 
@@ -35,8 +33,12 @@ The canonical auth-configuration schema and consumer parsing are integrated thro
 
 Browser responders select actual captured route inputs and outputs. Preserve absent versus explicit null input, reject conflicting captures, and refuse unmatched input without a fabricated success. This lookup does not establish generated corpus adoption.
 
-The pure/default builder floor passes its scoped runtime, compiler, lint and selected-policy checks. Owner-schema drift fails an executed test; replacing production token calculation with zero also fails. Exact source restoration returns the baseline to green. Helpers derive private service types through the public compose result, not undeclared package doors. Derived token size is not an override. Legacy override scaffolds remain replacement debt. Producer-row runtime proof, recall and corpus adoption still require the qualified server root.
+Pure/default builder controls pass affected checks. Owner-schema drift and zeroed production token calculation fail; restoration passes. Helpers derive service types through public compose. Derived token size is not an override. Legacy scaffolds remain replacement debt. Complete producer and adoption proof requires the canonical root.
 
 The selected fabrication policy still consumes waivers in `tests/support/node/factories/resolved-connection.ts`. New corpus inputs use actual admission and credential resolution. Waiver budgets remain unjudged.
 
 Bounded producer cases pass for real seed turns, cookie authentication, ingestion, imagery and discovery. An imagery timestamp-only control merges distinct calls and fails; exact restoration passes. Complete row/output coverage, native lifecycle captures, corpus publication and each-layer loading remain unfinished.
+
+Checkpoint `6e595679a7` preserves the complete owned producer and fixture work. Current-tree integration selects those changes over the canonical harness, not inherited donor ancestry. Runtime-funding consumer edits and the coupled SDK-session case remain deferred with their absent raw-script dependency. Existing donor-native results do not qualify the current candidate.
+
+Portable publication uses owner-validated outputs and finite corpus request recipes. Producer capture and hydration share those recipes; mismatched inputs and private envelope fields refuse. A prepared clone is selected before server boot; setup retains its target guard and skips independent seeding only for that selection. Successful capsule generation and adoption remain unqualified.
