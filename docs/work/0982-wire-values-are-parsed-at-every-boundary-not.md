@@ -24,7 +24,7 @@ Every server and inference wire read parses through a schema; the check covers e
 
 The complete bootstrap wire schema lives at `packages/contracts/src/auth-config/index.ts`. Both client reads parse the full response. The server projection preserves request-specific transport, client scope, first-run admission and signed-in share privacy. The unused login flag is removed.
 
-The reviewed bootstrap prerequisite is integrated. Server and inference wire inventory and checker population widening remain required. Installed JOSE validates local key-set structure; remote responses enter the same validator. Inspect its key selection, import and application claim boundaries before declaring missing auth validation. The [corpus assignment](0959-one-builder-per-shape-and-one-golden-corpus.md) captures configuration through real HTTP, not a replacement shape or success default.
+The reviewed bootstrap prerequisite is integrated. Installed JOSE validates key-set structure and configured signature claims. The [corpus assignment](0959-one-builder-per-shape-and-one-golden-corpus.md) captures configuration through real HTTP, not a replacement shape or success default.
 
 Legacy success stubs omit required auth-config fields in persona-panel-surface, character-appearance-tab, character-editor-surface, chats-section, reauth-modal and app-shell CTs. Chat and shell also use `single`, outside the canonical auth-mode tuple. Complete production parsing must reject these inputs. Preserve their behavior cases for corpus-builder replacement; do not fabricate missing fields or weaken the schema. This source finding is not a completed CT verdict.
 
@@ -32,6 +32,8 @@ The remaining boundary batch covers Ollama responses, local-light model files, M
 
 Stored connections require owner comparison before JSON decoding or schema refusal. Project JSON columns as raw text and return an explicit owner-bearing parse envelope through the runtime port. Owned reads parse after their owner predicate. Preserve summarize compatibility through a derived input schema and validate canonical output. Corrupt owned bytes must refuse before read-derived writes or rollback, never become persisted null stand-ins. Composed boundary proof depends on genuine runtime and testkit seams, not test-only exports.
 
-The listed contract and stored-value recovery is integrated. The active boundary lane classifies remaining server and inference wire reads and widens the existing policy where required. Canonical owner-bearing reads remain prerequisites, not complete wire qualification. The harness owns separate SDK, kernel and timer execution. Preserve native parsing and refusal before effects; do not repeat completed recovery or repair disposable fixtures.
+The listed contract and stored-value recovery is integrated. The uncommitted boundary candidate classifies direct server and inference reads, traces native decoders and widens the existing policy. Scoped cases and the complete selected policy population pass without grants. Canonical owner-bearing reads remain prerequisites, not complete wire qualification.
 
-The persona export router returns a filename and decoded file text. Classify that wire wrapper separately from its persona-backup contents before adding corpus validation; a backup schema does not validate the wrapper.
+Independent security review confirms logout admission before revocation and SDK admission before consumed effects. It requires corrections for raw validation causes disclosing echoed credentials and inherited activation registry keys bypassing refusal. The author owns both corrections in the final batch. Context usage remains an unqualified optional post-terminal miss. No application or complete wire verdict is claimed.
+
+The candidate uses one canonical filename-and-file-text schema for the persona, regex and world-info wrappers. Their decoded contents remain separate contracts.
