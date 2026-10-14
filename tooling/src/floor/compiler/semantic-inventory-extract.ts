@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import type { FileSystemHost, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, ts } from "ts-morph";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import type { InventoryBuildRequest, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
@@ -30,16 +30,30 @@ interface InventorySources {
   readonly nativeSources: ReadonlyMap<string, ts.SourceFile>;
 }
 
-function inventorySpans(): InventorySpans {
+function inventorySpans(fileSystem: FileSystemHost): InventorySpans {
   const files = new Map<string, InventoryFileSpans>();
+  const observe = (path: string): void => {
+    if (!fileSystem.fileExistsSync(path)) {
+      fileSystem.directoryExistsSync(path);
+    }
+  };
   const file = (path: string): InventoryFileSpans => {
-    // Intern resolved values, not lookup results: a symlink change must still be observed.
+    const existing = files.get(path);
+    if (existing !== undefined) {
+      return existing;
+    }
+    // The tracked filesystem pins alias identities; publication rejects retargets before exposing these spans.
+    observe(path);
     const canonical = canonicalInventoryPath(path);
     let entry = files.get(canonical);
     if (entry === undefined) {
+      if (canonical !== path) {
+        observe(canonical);
+      }
       entry = { path: canonical, spans: new Map() };
       files.set(canonical, entry);
     }
+    files.set(path, entry);
     return entry;
   };
   const span = (path: string, start: number, end: number, kind: number): InventorySpan => {
@@ -127,10 +141,10 @@ function witnessFacts(sf: SourceFile, spans: InventorySpans): InventoryPartition
 
 /** Extract primitive compiler facts without running any consumer classification. */
 export function extractInventoryPartition(request: InventoryBuildRequest): InventoryPartition {
-  const spans = inventorySpans();
   const inputs = new Map<string, InventoryInput>();
   const base = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
   const fileSystem = inventoryFileSystem(base, request.overlay, inputs);
+  const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
     ts.sys.getExecutingFilePath(),
@@ -181,7 +195,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     throw new Error("native inventory language service has no Program");
   }
   const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, spans);
-  const facts = { ...sourceFacts, references: extractReferenceFacts(service, referenceDeclarations, spans) };
+  const facts = { ...sourceFacts, references: extractReferenceFacts(service, program, referenceDeclarations, spans) };
   return {
     format: INVENTORY_FORMAT,
     program: request.descriptor.id,
@@ -309,45 +323,54 @@ function extractSourceFacts(
 
 function extractReferenceFacts(
   service: ts.LanguageService,
+  program: ts.Program,
   referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration>,
   spans: InventorySpans,
 ): InventoryPartition["references"] {
   const references: InventoryPartition["references"] = [];
-  // Use the native language service, not an approximation based on equal-spelled identifiers.
-  for (const declaration of referenceDeclarations.values()) {
-    const nativeReferences = nativeReferenceFacts(service, declaration.query, spans);
-    for (const reference of nativeReferences) {
-      references.push({
-        declaration: declaration.declaration,
-        ...reference,
-      });
+  const pass = service.createReadonlyReferencePass();
+  try {
+    if (service.getProgram() !== program) {
+      throw new Error("native inventory Program changed before its reference pass");
     }
-    if (declaration.name !== undefined) {
+    // The native pass shares only its immutable import map, never query meaning or reference groups.
+    for (const declaration of referenceDeclarations.values()) {
+      const nativeReferences = nativeReferenceFacts(pass, program, declaration.query, spans);
       for (const reference of nativeReferences) {
         references.push({
-          declaration: declaration.name,
+          declaration: declaration.declaration,
           ...reference,
         });
       }
+      if (declaration.name !== undefined) {
+        for (const reference of nativeReferences) {
+          references.push({
+            declaration: declaration.name,
+            ...reference,
+          });
+        }
+      }
     }
+  } finally {
+    pass.dispose();
   }
   return references;
 }
 
 function nativeReferenceFacts(
-  service: ts.LanguageService,
+  pass: ts.ReadonlyReferencePass,
+  program: ts.Program,
   query: ReferenceDeclaration["query"],
   spans: InventorySpans,
 ): Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] {
   // DocumentSpan wrappers subscribe to source modifications and retain every result in this read-only worker.
-  const groups = service.findReferences(query.file, query.start, { includeDefinitionDisplay: false }) ?? [];
-  const program = service.getProgram();
+  const groups = pass.findReferences(query.file, query.start, { includeDefinitionDisplay: false }) ?? [];
   const references: Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] = [];
   for (const group of groups) {
     const alias = group.definition.kind === ts.ScriptElementKind.alias;
     for (const [index, reference] of group.references.entries()) {
       if (alias || reference.isDefinition !== true || index > 0) {
-        const source = program?.getSourceFile(reference.fileName);
+        const source = program.getSourceFile(reference.fileName);
         if (source === undefined) {
           throw new Error(`native reference source is outside its language-service program: ${reference.fileName}`);
         }

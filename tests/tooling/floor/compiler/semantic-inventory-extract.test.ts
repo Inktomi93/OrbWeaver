@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest, InventorySpan } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { openInventoryDatabase, publishInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
+import { latestInventoryGeneration, openInventoryDatabase, publishInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import { canonicalInventoryPath, inputsCurrent, inputVersion } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
@@ -250,6 +250,7 @@ test.for(["separate-parse", "statements", "eof", "text", "filename", "missing"] 
 function extractWithoutReferenceWrappers(
   request: InventoryBuildRequest,
   beforeQuery?: (service: ts.LanguageService) => void,
+  observePass?: (pass: ts.ReadonlyReferencePass) => void,
 ): { partition: ReturnType<typeof extractInventoryPartition>; queries: string[] } {
   const queries: string[] = [];
   const restoreQueries: (() => void)[] = [];
@@ -259,14 +260,21 @@ function extractWithoutReferenceWrappers(
     const service = getLanguageService.call(this);
     if (!observed.has(service)) {
       observed.add(service);
-      const nativeFind = service.compilerObject.findReferences;
-      const query = vi.spyOn(service.compilerObject, "findReferences").mockImplementation((file, position, options) => {
-        expect(options).toEqual({ includeDefinitionDisplay: false });
-        beforeQuery?.(service.compilerObject);
-        queries.push(JSON.stringify([file, position]));
-        return nativeFind.call(service.compilerObject, file, position, options);
+      const createPass = service.compilerObject.createReadonlyReferencePass.bind(service.compilerObject);
+      const passCreation = vi.spyOn(service.compilerObject, "createReadonlyReferencePass").mockImplementation(() => {
+        const pass = createPass();
+        observePass?.(pass);
+        const nativeFind = pass.findReferences.bind(pass);
+        const query = vi.spyOn(pass, "findReferences").mockImplementation((file, position, options) => {
+          expect(options).toEqual({ includeDefinitionDisplay: false });
+          beforeQuery?.(service.compilerObject);
+          queries.push(JSON.stringify([file, position]));
+          return nativeFind(file, position, options);
+        });
+        restoreQueries.push(() => query.mockRestore());
+        return pass;
       });
-      restoreQueries.push(() => query.mockRestore());
+      restoreQueries.push(() => passCreation.mockRestore());
     }
     return service;
   });
@@ -757,27 +765,404 @@ test("physical span reuse observes symlink retargeting and changed bytes between
   expect(JSON.stringify(first)).toBe(original);
 });
 
+test("physical filename resolution is bounded by distinct paths rather than repeated native spans", async ({ scratch }) => {
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+  );
+  writeFileSync(join(scratch, "base.ts"), "export const value=1; export interface Shape {value:number}\n");
+  writeFileSync(join(scratch, "consumer.ts"), "import {value,type Shape} from './base'; export const use:Shape={value:value+value};\n");
+  writeFileSync(join(scratch, "unloaded.txt"), "This authored path is never read by the native compiler.\n");
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const inventoryInputs = await import("@orb/tooling/floor/code-facts/semantic-inventory-inputs");
+  const canonical = vi.spyOn(inventoryInputs, "canonicalInventoryPath");
+  try {
+    const partition = extractInventoryPartition({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") });
+    expect(partition.bindings.length).toBeGreaterThan(5);
+    expect(partition.references.length).toBeGreaterThan(5);
+    expect(canonical).toHaveBeenCalled();
+    const paths = canonical.mock.calls.map(([path]) => path);
+    expect(paths.length).toBe(new Set(paths).size);
+    for (const path of paths) {
+      expect(partition.inputs.some((input) => input.path === path)).toBe(true);
+    }
+    expect(inputsCurrent(partition.inputs)).toBe(true);
+  } finally {
+    canonical.mockRestore();
+  }
+});
+
+test.for(["file-retarget", "directory-retarget", "dangling", "disappear", "appear", "authored-alias-retarget"] as const)(
+  "physical identity changes during native queries refuse publication without replacing the pinned generation: %s",
+  (change, { scratch }) => {
+    const authoredAlias = change === "authored-alias-retarget";
+    writeFileSync(join(scratch, ".gitignore"), `.cache/\nmissing.ts\n${authoredAlias ? "first/\nsecond/\n" : ""}`);
+    writeFileSync(
+      join(scratch, "tsconfig.json"),
+      JSON.stringify({
+        files: ["consumer.ts"],
+        compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler", preserveSymlinks: true },
+      }),
+    );
+    for (const directory of ["first", "second"]) {
+      mkdirSync(join(scratch, directory));
+      writeFileSync(join(scratch, directory, "dep.ts"), "export const value=1; export const use=value;\n");
+    }
+    const directoryLink = change === "directory-retarget";
+    let linkName = directoryLink ? "linked" : "dep.ts";
+    let stem = directoryLink ? "linked/dep" : "dep";
+    if (change === "appear") {
+      stem = "missing";
+    }
+    if (authoredAlias) {
+      linkName = "authored-alias.txt";
+      stem = "first/dep";
+    }
+    const link = join(scratch, linkName);
+    symlinkSync(directoryLink ? "first" : "first/dep.ts", link);
+    const specifier = `./${stem}`;
+    const dependency = authoredAlias ? link : join(scratch, `${stem}.ts`);
+    const secondTarget = directoryLink ? "second" : "second/dep.ts";
+    const text = `import {value} from '${specifier}'; export const read=value;\n`;
+    writeFileSync(join(scratch, "consumer.ts"), text);
+    execFixtureGit(scratch, ["init", "-q"]);
+    const stage = (request: InventoryBuildRequest): void => {
+      const partition = extractInventoryPartition(request);
+      using database = openInventoryDatabase(request.destination);
+      publishInventoryGeneration(database, [partition]);
+    };
+    using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
+    const firstIdentity = inputVersion(dependency, "exists");
+    writeFileSync(join(scratch, "consumer.ts"), `${text}// changed input selects a fresh worker\n`);
+    let changed = false;
+    let captured: ReturnType<typeof extractInventoryPartition> | undefined;
+    const duringQuery = (): void => {
+      if (changed) {
+        return;
+      }
+      changed = true;
+      if (change === "appear") {
+        writeFileSync(dependency, "export const value=1;\n");
+        return;
+      }
+      unlinkSync(link);
+      if (change !== "disappear") {
+        symlinkSync(change === "dangling" ? "missing-target.ts" : secondTarget, link);
+      }
+    };
+    expect((): number => {
+      using current = createSemanticInventory({
+        root: scratch,
+        buildPartition: (request) => {
+          const { partition } = extractWithoutReferenceWrappers(request, duringQuery);
+          captured = partition;
+          using database = openInventoryDatabase(request.destination);
+          publishInventoryGeneration(database, [partition]);
+        },
+      });
+      return current.generation;
+    }).toThrow(change === "dangling" ? "repository inventory symlink cannot be resolved: dep.ts" : "inputs changed during extraction");
+    expect(changed).toBe(true);
+    expect(inputsCurrent(fixtureValue(captured).inputs)).toBe(false);
+    expect(fixtureValue(captured).inputs).toContainEqual({ path: dependency, kind: "exists", version: firstIdentity });
+    using committed = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    expect(latestInventoryGeneration(committed)).toBe(previous.generation);
+    expect(previous.sourceCorpus().getSourceFile("consumer.ts")?.getFullText()).toBe(text);
+  },
+);
+
+test("readonly native reference pass reuses only the complete invariant import scan", () => {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: { noLib: true, types: [], module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler },
+  });
+  const base = project.createSourceFile("/base.ts", "export const first=1; export const second=2;\n");
+  project.createSourceFile("/consumer.ts", "import {first,second} from './base'; export const use=first+second;\n");
+  project.createSourceFile("/unrelated-base.ts", "export const untouched=3;\n");
+  project.createSourceFile("/unrelated.ts", "import {untouched} from './unrelated-base'; export const other=untouched;\n");
+  const service = project.getLanguageService().compilerObject;
+  const program = fixtureValue(service.getProgram());
+  const checker = program.getTypeChecker();
+  const unrelated = fixtureValue(program.getSourceFile("/unrelated.ts"));
+  const declaration = fixtureValue(unrelated.statements.find(ts.isImportDeclaration));
+  const getSymbol = checker.getSymbolAtLocation.bind(checker);
+  let importScans = 0;
+  const lookup = vi.spyOn(checker, "getSymbolAtLocation").mockImplementation((node) => {
+    if (node === declaration.moduleSpecifier) {
+      importScans++;
+    }
+    return getSymbol(node);
+  });
+  const pass = service.createReadonlyReferencePass();
+  try {
+    const first = pass.findReferences(base.getFilePath(), base.getFullText().indexOf("first"));
+    const second = pass.findReferences(base.getFilePath(), base.getFullText().indexOf("second"));
+    expect(first?.flatMap((group) => group.references).some((reference) => reference.fileName === "/consumer.ts")).toBe(true);
+    expect(second?.flatMap((group) => group.references).some((reference) => reference.fileName === "/consumer.ts")).toBe(true);
+    expect(importScans).toBe(1);
+    importScans = 0;
+    expect(service.findReferences(base.getFilePath(), base.getFullText().indexOf("first"))).toEqual(first);
+    expect(service.findReferences(base.getFilePath(), base.getFullText().indexOf("second"))).toEqual(second);
+    expect(importScans).toBe(2);
+  } finally {
+    pass.dispose();
+    lookup.mockRestore();
+    service.dispose();
+  }
+});
+
+function nativeReferenceFixture(mode: ts.LanguageServiceMode = ts.LanguageServiceMode.Semantic): {
+  service: ts.LanguageService;
+  cancel: (value: boolean) => void;
+  update: (file: string, text: string) => void;
+  reverseRoots: () => void;
+  strict: () => void;
+} {
+  const files = new Map([
+    ["/base.ts", "export const first=1; export const second=2;\n"],
+    ["/consumer.ts", "import {first,second} from './base'; export const use=first+second;\n"],
+    ["/unrelated-base.ts", "export const untouched=3;\n"],
+    ["/unrelated.ts", "import {untouched} from './unrelated-base'; export const other=untouched;\n"],
+  ]);
+  let version = 0;
+  let cancelled = false;
+  let reversed = false;
+  let options: ts.CompilerOptions = { noLib: true, types: [], module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler };
+  const host: ts.LanguageServiceHost = {
+    getCompilationSettings: () => options,
+    getCurrentDirectory: () => "/",
+    getDefaultLibFileName: () => "/lib.d.ts",
+    getProjectVersion: () => String(version),
+    getScriptFileNames: () => (reversed ? [...files.keys()].toReversed() : [...files.keys()]),
+    getScriptVersion: () => String(version),
+    getScriptSnapshot: (file) => {
+      const text = files.get(file);
+      return text === undefined ? undefined : ts.ScriptSnapshot.fromString(text);
+    },
+    readFile: (file) => files.get(file),
+    fileExists: (file) => files.has(file),
+    getCancellationToken: () => ({ isCancellationRequested: () => cancelled }),
+  };
+  return {
+    service: ts.createLanguageService(host, undefined, mode),
+    cancel: (value): void => {
+      cancelled = value;
+    },
+    update: (file, text): void => {
+      files.set(file, text);
+      version++;
+    },
+    reverseRoots: (): void => {
+      reversed = !reversed;
+      version++;
+    },
+    strict: (): void => {
+      options = { ...options, strict: true };
+      version++;
+    },
+  };
+}
+
+test("cancelled native import-map construction never survives into a later query", () => {
+  const fixture = nativeReferenceFixture();
+  const service = fixture.service;
+  const program = fixtureValue(service.getProgram());
+  const checker = program.getTypeChecker();
+  const consumer = fixtureValue(program.getSourceFile("/consumer.ts"));
+  const trigger = fixtureValue(consumer.statements.find(ts.isImportDeclaration)).moduleSpecifier;
+  const unrelated = fixtureValue(program.getSourceFile("/unrelated.ts"));
+  const sentinel = fixtureValue(unrelated.statements.find(ts.isImportDeclaration)).moduleSpecifier;
+  const getSymbol = checker.getSymbolAtLocation.bind(checker);
+  let armed = true;
+  let completedScans = 0;
+  let firstImports = 0;
+  const lookup = vi.spyOn(checker, "getSymbolAtLocation").mockImplementation((node) => {
+    if (node === trigger) {
+      firstImports++;
+      if (armed) {
+        armed = false;
+        fixture.cancel(true);
+      }
+    }
+    if (node === sentinel) {
+      completedScans++;
+    }
+    return getSymbol(node);
+  });
+  const pass = service.createReadonlyReferencePass();
+  const position = fixtureValue(program.getSourceFile("/base.ts")).text.indexOf("first");
+  try {
+    expect(() => pass.findReferences("/base.ts", position)).toThrow(ts.OperationCanceledException);
+    expect(firstImports).toBe(1);
+    expect(completedScans).toBe(0);
+    fixture.cancel(false);
+    const recovered = pass.findReferences("/base.ts", position);
+    expect(firstImports).toBe(2);
+    expect(completedScans).toBe(1);
+    fixture.cancel(true);
+    expect(() => pass.findReferences("/base.ts", position)).toThrow(ts.OperationCanceledException);
+    fixture.cancel(false);
+    expect(pass.findReferences("/base.ts", position)).toEqual(recovered);
+    expect(completedScans).toBe(1);
+    expect(service.findReferences("/base.ts", position)).toEqual(recovered);
+  } finally {
+    lookup.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test.for(["text", "roots", "order", "options"] as const)("readonly reference passes refuse changed native snapshots: %s", (change) => {
+  const fixture = nativeReferenceFixture();
+  const service = fixture.service;
+  const program = fixtureValue(service.getProgram());
+  const position = fixtureValue(program.getSourceFile("/base.ts")).text.indexOf("first");
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(pass.findReferences("/base.ts", position)).toEqual(service.findReferences("/base.ts", position));
+    if (change === "text") {
+      fixture.update("/consumer.ts", "import {second} from './base'; export const use=second;\n");
+    } else if (change === "roots") {
+      fixture.update("/added.ts", "import {first} from './base'; export const added=first;\n");
+    } else if (change === "order") {
+      fixture.reverseRoots();
+    } else {
+      fixture.strict();
+    }
+    expect(() => pass.findReferences("/base.ts", position)).toThrow("invalidated");
+    expect(service.getProgram()).not.toBe(program);
+    expect(() => pass.findReferences("/base.ts", position)).toThrow("disposed");
+    const fresh = service.createReadonlyReferencePass();
+    try {
+      const expected = service.findReferences("/base.ts", position);
+      expect(fresh.findReferences("/base.ts", position)).toEqual(expected);
+      expect(expected?.some((group) => group.references.some((reference) => reference.fileName === "/added.ts"))).toBe(change === "roots");
+    } finally {
+      fresh.dispose();
+    }
+  } finally {
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test.for(["pass", "service", "semantic-cleanup"] as const)("readonly native reference handles release with their owner: %s", (owner) => {
+  const { service } = nativeReferenceFixture();
+  const position = fixtureValue(service.getProgram()?.getSourceFile("/base.ts")).text.indexOf("first");
+  const pass = service.createReadonlyReferencePass();
+  expect(pass.findReferences("/base.ts", position)).toBeDefined();
+  if (owner === "pass") {
+    pass.dispose();
+    pass.dispose();
+  } else if (owner === "service") {
+    service.dispose();
+  } else {
+    service.cleanupSemanticCache();
+  }
+  expect(() => pass.findReferences("/base.ts", position)).toThrow("disposed");
+  pass.dispose();
+  service.dispose();
+});
+
+test("readonly native reference passes retain the language-service mode restriction", () => {
+  const { service } = nativeReferenceFixture(ts.LanguageServiceMode.Syntactic);
+  try {
+    expect(() => service.createReadonlyReferencePass()).toThrow("not allowed in LanguageServiceMode.Syntactic");
+    expect(() => service.findReferences("/base.ts", 13)).toThrow("not allowed in LanguageServiceMode.Syntactic");
+  } finally {
+    service.dispose();
+  }
+});
+
+test.for([false, true])("inventory releases its native reference pass after query failure: %s", (fail, { scratch }) => {
+  writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["base.ts"], compilerOptions: { noLib: true, types: [] } }));
+  writeFileSync(join(scratch, "base.ts"), "export const value=1; export const use=value;\n");
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const failure = new Error("native reference query failed");
+  let pass: ts.ReadonlyReferencePass | undefined;
+  const extract = (): ReturnType<typeof extractWithoutReferenceWrappers> =>
+    extractWithoutReferenceWrappers(
+      { root: scratch, descriptor, destination: join(scratch, "unused.sqlite") },
+      () => {
+        if (fail) {
+          throw failure;
+        }
+      },
+      (observed) => {
+        pass = observed;
+      },
+    );
+  let thrown: Error | undefined;
+  let referenceCount = 0;
+  try {
+    referenceCount = extract().partition.references.length;
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      throw error;
+    }
+    thrown = error;
+  }
+  expect(thrown).toBe(fail ? failure : undefined);
+  expect(referenceCount > 0).toBe(!fail);
+  expect(() => fixtureValue(pass).findReferences(join(scratch, "base.ts"), 13)).toThrow("disposed");
+});
+
+test("inventory refuses a Program replacement between source facts and its reference pass", ({ scratch }) => {
+  writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["base.ts"], compilerOptions: { noLib: true, types: [] } }));
+  writeFileSync(join(scratch, "base.ts"), "export const value=1; export const use=value;\n");
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  let host: Project | undefined;
+  let pass: ts.ReadonlyReferencePass | undefined;
+  const resolve = Project.prototype.resolveSourceFileDependencies;
+  const observation = vi.spyOn(Project.prototype, "resolveSourceFileDependencies").mockImplementation(function (this: Project) {
+    host = this;
+    return resolve.call(this);
+  });
+  try {
+    expect(() =>
+      extractWithoutReferenceWrappers({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") }, undefined, (created) => {
+        pass = created;
+        fixtureValue(host).createSourceFile(join(scratch, "added.ts"), "export const added=2;\n");
+      }),
+    ).toThrow("native inventory Program changed before its reference pass");
+    expect(() => fixtureValue(pass).findReferences(join(scratch, "base.ts"), 13)).toThrow("disposed");
+  } finally {
+    observation.mockRestore();
+  }
+});
+
 test("lean native references bypass display-node materialization on fresh checkers", () => {
-  const query = (omitDisplay: boolean): { groups: ts.ReferencedSymbol[]; materializations: number } => {
+  const query = (omitDisplay: boolean, throughPass = false): { groups: ts.ReferencedSymbol[]; materializations: number } => {
     const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
     const source = project.createSourceFile("/fixture.ts", "export const value={outer:{nested:1}, method(){return {result:1};}}; export const use=value;\n");
     const service = project.getLanguageService().compilerObject;
     fixtureValue(service.getProgram()).getTypeChecker();
     const factory = vi.spyOn(ts.factory, "createTypeLiteralNode");
+    const pass = throughPass ? service.createReadonlyReferencePass() : undefined;
     try {
       const groups = fixtureValue(
-        service.findReferences(source.getFilePath(), source.getFullText().indexOf("value"), { includeDefinitionDisplay: !omitDisplay }),
+        (pass ?? service).findReferences(source.getFilePath(), source.getFullText().indexOf("value"), { includeDefinitionDisplay: !omitDisplay }),
       );
       return { groups, materializations: factory.mock.calls.length };
     } finally {
+      pass?.dispose();
       factory.mockRestore();
       service.dispose();
     }
   };
   const rich = query(false);
   const lean = query(true);
+  const richPass = query(false, true);
+  const leanPass = query(true, true);
   expect(rich.materializations).toBeGreaterThan(0);
   expect(lean.materializations).toBe(0);
+  expect(richPass.materializations).toBeGreaterThan(0);
+  expect(leanPass.materializations).toBe(0);
+  expect(richPass.groups).toEqual(rich.groups);
+  expect(leanPass.groups).toEqual(lean.groups);
   expect(lean.groups).toEqual(
     rich.groups.map(({ definition, references }) => ({
       definition: { ...definition, name: "", displayParts: [] },
@@ -810,7 +1195,14 @@ test("native reference display opt-out preserves all grouped metadata except pre
       "export const read=shape['tag']+new Child(1).method(2)+Choice.Two+overloaded(1)+overloaded.extra;",
       "export const object={binding}; export const use=[alias,all.value,Group.held,fallback()];",
       "export type Copy=Mapped<typeof object>; /** {@link binding} */ export const doc=binding;",
+      "import {renamed,everything} from './barrel'; export const indirect=[renamed,everything.value];",
+      "export type Imported=import('./base').Shape<number>; export type Module=typeof import('./base');",
+      "export const later=()=>import('./base'); import {missing} from './absent'; export const unresolved=missing;",
     ].join("\n"),
+    "/barrel.ts": "export {value as renamed} from './base'; export * as everything from './base';\n",
+    "/augmentation.d.ts": "import './base'; declare module './base' {interface Shape<T> {extra?:T}}\n",
+    "/export-equals.ts": "const exported={value:1}; export = exported;\n",
+    "/import-equals.ts": "import imported=require('./export-equals'); export const use=imported.value;\n",
   };
   const create = (): Project => {
     const project = new Project({
@@ -826,6 +1218,8 @@ test("native reference display opt-out preserves all grouped metadata except pre
   };
   const original = create().getLanguageService().compilerObject;
   const leanFirst = create().getLanguageService().compilerObject;
+  const richPass = original.createReadonlyReferencePass();
+  const leanPass = leanFirst.createReadonlyReferencePass();
   const kinds = new Set<ts.ScriptElementKind>();
   let laterDefinitions = 0;
   const queries: { file: string; position: number }[] = [];
@@ -847,6 +1241,9 @@ test("native reference display opt-out preserves all grouped metadata except pre
     for (const { file, position } of queries) {
       const rich = original.findReferences(file, position);
       const lean = leanFirst.findReferences(file, position, { includeDefinitionDisplay: false });
+      expect(richPass.findReferences(file, position)).toEqual(rich);
+      expect(richPass.findReferences(file, position, { includeDefinitionDisplay: true })).toEqual(rich);
+      expect(leanPass.findReferences(file, position, { includeDefinitionDisplay: false })).toEqual(lean);
       expect(lean).toEqual(rich?.map(({ definition, references }) => ({ definition: { ...definition, name: "", displayParts: [] }, references })));
       expect(leanFirst.findReferences(file, position)).toEqual(rich);
       expect(leanFirst.findReferences(file, position, { includeDefinitionDisplay: true })).toEqual(rich);
@@ -872,6 +1269,8 @@ test("native reference display opt-out preserves all grouped metadata except pre
       expect(kinds.has(kind)).toBe(true);
     }
   } finally {
+    richPass.dispose();
+    leanPass.dispose();
     original.dispose();
     leanFirst.dispose();
   }
