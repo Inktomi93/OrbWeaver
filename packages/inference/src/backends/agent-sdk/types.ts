@@ -81,6 +81,7 @@ export interface TurnStreamContext {
   readonly configuredMaxContextTokens?: number | null | undefined;
   readonly probeContextUsage?: (() => Promise<ContextUsage | undefined>) | undefined;
   readonly stderrTail?: (() => string) | undefined;
+  readonly safeErrorMessage?: AgentSdkQueryLease["safeErrorMessage"];
   /** The planned payload when the request carried a `responseFormat` (`outputFormat: json_schema` mounted). */
   readonly structured?: PlannedResponseFormat | undefined;
   /** True when the request's TERMINAL tools actually MOUNTED (D112 R1). */

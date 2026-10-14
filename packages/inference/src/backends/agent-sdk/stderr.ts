@@ -33,7 +33,7 @@ export class SdkStderr {
   }
 
   end(): void {
-    this.publish(this.pending);
+    this.publish(this.pending.length === 0 ? "" : redactKnownSecrets(this.pending, [this.pending]));
     this.pending = "";
   }
   tail(): string {

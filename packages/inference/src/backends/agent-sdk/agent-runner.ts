@@ -150,6 +150,7 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, lo
       appliedEffort: null,
       secrets: resolvedScrubSet(connection),
       stderrTail: lease.stderrTail,
+      safeErrorMessage: lease.safeErrorMessage,
       settleExecution: () => lease[Symbol.asyncDispose](),
       signal: lease.signal,
     },

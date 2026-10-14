@@ -94,7 +94,7 @@ export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } fro
 export { detectModelFamily } from "./capability/families.ts";
 export { curatedKind, curatedRows } from "./capability/sources/curated/loader.ts";
 export { synthesizeCapability } from "./capability/synthesize.ts";
-export type { AgentSdkQuery, AgentSdkSpawn } from "./contract/agent-sdk-execution.ts";
+export type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./contract/agent-sdk-execution.ts";
 export * from "./contract/index.ts";
 export type { LoadTransformersKernel, LocalLightKernelModule } from "./contract/local-light-kernel.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";

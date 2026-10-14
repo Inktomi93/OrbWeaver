@@ -100,6 +100,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     query: executeQuery,
     log: deps.log,
     ...(deps.agentSdk.spawnClaudeCodeProcess === undefined ? {} : { spawn: deps.agentSdk.spawnClaudeCodeProcess }),
+    ...(deps.agentSdk.native === undefined ? {} : { native: deps.agentSdk.native }),
   });
   const resolved: AgentSdkDeps = {
     now: deps.now,

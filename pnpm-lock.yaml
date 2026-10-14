@@ -177,7 +177,7 @@ catalogs:
       specifier: 4.0.21
       version: 4.0.21
     '@anthropic-ai/claude-agent-sdk':
-      specifier: ^0.3.280
+      specifier: 0.3.280
       version: 0.3.280
     '@anthropic-ai/sdk':
       specifier: ^0.128.0
@@ -579,6 +579,7 @@ overrides:
   katex: ^0.18.10
 
 patchedDependencies:
+  '@anthropic-ai/claude-agent-sdk@0.3.280': 40656f43e14ce9be6e77711a7e60c8d71f7bb2155ae86562f71be9e0f912c548
   '@stryker-mutator/core@10.0.0': f00084f08a7438e9b000cccdc037e6aaa88edeb99a271eb6484988e970956ea4
   '@stryker-mutator/typescript-checker@10.0.0': 00e1f1825063580d57d3114d95f0ee9f5bb678c2644558c6c171a408723308c7
   '@stryker-mutator/vitest-runner@10.0.0': 77cdc87d3c09581b4e6542e480877bd9154884d822a7a642f7c3ceccbf62890b
@@ -967,7 +968,7 @@ importers:
         version: 4.0.21
       '@anthropic-ai/claude-agent-sdk':
         specifier: 'catalog:'
-        version: 0.3.280(@anthropic-ai/sdk@0.128.0(zod@4.6.5))(@modelcontextprotocol/sdk@1.32.1(supports-color@7.2.0)(zod@4.6.5))(zod@4.6.5)
+        version: 0.3.280(patch_hash=40656f43e14ce9be6e77711a7e60c8d71f7bb2155ae86562f71be9e0f912c548)(@anthropic-ai/sdk@0.128.0(zod@4.6.5))(@modelcontextprotocol/sdk@1.32.1(supports-color@7.2.0)(zod@4.6.5))(zod@4.6.5)
       '@huggingface/transformers':
         specifier: 'catalog:'
         version: 4.3.0(@types/node@26.6.2)
@@ -8744,7 +8745,7 @@ snapshots:
   '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.280':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk@0.3.280(@anthropic-ai/sdk@0.128.0(zod@4.6.5))(@modelcontextprotocol/sdk@1.32.1(supports-color@7.2.0)(zod@4.6.5))(zod@4.6.5)':
+  '@anthropic-ai/claude-agent-sdk@0.3.280(patch_hash=40656f43e14ce9be6e77711a7e60c8d71f7bb2155ae86562f71be9e0f912c548)(@anthropic-ai/sdk@0.128.0(zod@4.6.5))(@modelcontextprotocol/sdk@1.32.1(supports-color@7.2.0)(zod@4.6.5))(zod@4.6.5)':
     dependencies:
       '@anthropic-ai/sdk': 0.128.0(zod@4.6.5)
       '@modelcontextprotocol/sdk': 1.32.1(supports-color@7.2.0)(zod@4.6.5)

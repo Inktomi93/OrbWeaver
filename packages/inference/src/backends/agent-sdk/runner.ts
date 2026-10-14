@@ -228,7 +228,6 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       },
     },
     abort.signal,
-    true,
   );
   const stream = lease.query;
 
@@ -248,6 +247,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       // What the runtime was TOLD (B1): thinking off is `none`; a set effort is the word; nothing set is unrecorded.
       appliedEffort: gen.options.thinking?.type === "disabled" ? "none" : (gen.options.effort ?? null),
       stderrTail: lease.stderrTail,
+      safeErrorMessage: lease.safeErrorMessage,
       settleExecution: () => lease[Symbol.asyncDispose](),
       signal: lease.signal,
       probeContextUsage: () => probeContextUsage(stream, deps.scheduleTimeout),
@@ -760,13 +760,14 @@ class TurnAccumulator {
     }
     const sessionId = this.errorSessionId;
     const kind = isAbortError(error) ? "aborted" : "server";
+    const safe = this.ctx.safeErrorMessage?.(error) ?? sanitizeApiError(redactSecretsFromText(messageOf(error), this.ctx.secrets));
     return new ProviderError({
       kind,
       retryable: kind === "server",
-      message: sanitizeApiError(redactSecretsFromText(messageOf(error), this.ctx.secrets)),
+      message: safe,
       model: this.ctx.model,
       ...(sessionId !== undefined ? { sessionId } : {}),
-      cause: new Error(sanitizeApiError(redactSecretsFromText(messageOf(error), this.ctx.secrets))),
+      cause: new Error(safe),
     });
   }
 }

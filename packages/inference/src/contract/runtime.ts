@@ -16,7 +16,7 @@ import type { PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
 import type { SessionEntryWriter } from "./agent.ts";
-import type { AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-execution.ts";
+import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-execution.ts";
 import type { WireCaptureSink } from "./backend.ts";
 import type { ProviderErrorKind } from "./errors.ts";
 import type { Resolved } from "./resolved.ts";
@@ -243,6 +243,7 @@ export interface InferenceDeps {
     readonly scheduleTimeout?: ScheduleTimeout | undefined;
     readonly query?: AgentSdkQuery;
     readonly spawnClaudeCodeProcess?: AgentSdkSpawn;
+    readonly native?: AgentSdkNativeOptions;
     readonly sessionStore?: unknown;
     readonly sessionWriter?: SessionEntryWriter | undefined;
   };
