@@ -1,9 +1,10 @@
 // @subject tests/support/node/corpus.ts
 import "@orb/testkit/node/composed-real.ts";
 import { randomBytes } from "node:crypto";
-import { access, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 import { assertReferentialIntegrity, closeDb, createDb, detachWal, sessions, userCredentials, users } from "@orb/db";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -49,6 +50,23 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.privateCaptures.oidc.ownerId).toBe(capsule.privateCaptures.baseline.ownerId);
   expect(capsule.privateCaptures.recall.traces.some((trace) => trace.queryEmbedded && trace.poolSize > 0)).toBe(true);
   expect(capsule.privateCaptures.recall.memory.speakers.length).toBeGreaterThan(0);
+  if (process.platform === "linux") {
+    const ownedRoot = await realpath(capsule.layout.root);
+    const descriptors = await Promise.all(
+      (await readdir("/proc/self/fd")).map(async (descriptor) => {
+        try {
+          return await readlink(`/proc/self/fd/${descriptor}`);
+        } catch (error) {
+          if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+            return null;
+          }
+          throw error;
+        }
+      }),
+    );
+    // biome-ignore lint/nursery/noConditionalExpect: /proc is Linux-only; portable capsule assertions run on every platform.
+    expect(descriptors.filter((path) => path?.startsWith(`${ownedRoot}/`))).toEqual([]);
+  }
   const source = await createDb(capsule.layout.databaseUrl);
   let sourceMarker: Awaited<ReturnType<typeof source.all>>;
   try {
