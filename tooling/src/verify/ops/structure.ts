@@ -53,6 +53,7 @@ import { checkoutName, closeRunSlot, openRunSlot, publishRunSlot, reportsPath } 
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import type { GateCorpus, SelectedGateCorpus } from "../contract/gate-corpus.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { PolicyCommandRequest, PolicyInspectionPlan, PolicyRunPlan } from "../contract/policy-plan.ts";
@@ -199,8 +200,7 @@ function announceRacing(slot: RunSlot): void {
 // Probe-artifact findings are stripped UNLESS this run is the check-gates conformance suite's own child (it plants
 // __g_ fixtures and MUST see them fire — it sets ORB_GATE_FIXTURES=1). One knob, both contracts.
 function keepProbeFindings(): boolean {
-  // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
-  return process.env["ORB_GATE_FIXTURES"] === "1";
+  return processEnvValue("ORB_GATE_FIXTURES") === "1";
 }
 
 /** THE EXPLICIT VOID (#2167 clause 2). The operator knows a published slot is not evidence — it overlapped a

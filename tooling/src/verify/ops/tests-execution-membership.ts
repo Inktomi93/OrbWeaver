@@ -22,6 +22,7 @@ import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { looksLikeTestFilename, TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/floor/testing/test-kinds";
 import { isApplicationTest } from "@orb/tooling/floor/testing/test-population";
 import { z } from "zod";
@@ -149,8 +150,7 @@ export function playwrightFiles(root: string, config: string, extraEnv?: Readonl
   const res = runNicedSync(join(root, "node_modules", ".bin", "playwright"), ["test", "--list", "--reporter=json", "-c", config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
-    // biome-ignore lint/style/noProcessEnv: E2E_LIVE passthrough to the child (the @live-spec reachability probe) — greppable plain env, not config.
-    env: { ...process.env, ...extraEnv },
+    env: inheritedProcessEnv(extraEnv),
   });
   if (res.status !== 0) {
     return { error: `playwright collection failed for ${config} (status ${String(res.status)}): ${res.stderr || res.stdout}` };

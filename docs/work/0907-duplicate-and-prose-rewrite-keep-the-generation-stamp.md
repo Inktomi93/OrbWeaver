@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-14
 priority: P2
 area: chat
+lane: codex/owner-read-provenance-1016
 ---
 
 # Duplicate and prose rewrite keep the generation stamp so a greeting never overwrites them
@@ -22,4 +23,4 @@ Int tests in tests/legacy/server/domain/chat/verbs/seeded-greeting.suite.int.tes
 
 ## Evidence
 
-Recovery material remains in `wt/agent-a4fd81354ff8efecd`: committed greeting preservation and uncommitted generation-stamp changes. No active lane owns this draft. Inspect and reproduce the production defect on current main before salvage; do not merge or discard it wholesale. Legacy fixture repair is not its deliverable.
+Recovery material remains in `wt/agent-a4fd81354ff8efecd`: committed greeting preservation and uncommitted generation-stamp changes. Current-tree salvage preserves this donor unchanged. Reproduce the defect through production composition before implementation. Preserve current repair economics and retained accounting; stale timestamp copies do not establish generation provenance. Legacy fixture repair is not its deliverable.

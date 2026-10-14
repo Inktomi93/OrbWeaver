@@ -14,6 +14,7 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import type { SourceFile } from "ts-morph";
 import { isLegacyTestPath, LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import type { GatePolicy } from "../contract/policy.ts";
@@ -254,8 +255,7 @@ function runScopedPolicyPass(
     waiverBudget: WAIVER_BUDGET,
     failOnWarnings: options.failOnWarnings,
   });
-  // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
-  const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? raw : stripProbePolicyFindings(raw);
+  const pass = processEnvValue("ORB_GATE_FIXTURES") === "1" ? raw : stripProbePolicyFindings(raw);
   const declined = new Set(pass.policies.filter(({ owner }) => owner.status === "not-applicable").map(({ id }) => id));
   return { pass, deferred: policies.filter(({ id }) => declined.has(id)) };
 }
