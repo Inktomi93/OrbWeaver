@@ -3,7 +3,7 @@ kind: work
 status: doing
 updated: 2026-10-14
 priority: P1
-lane: codex/corpus-integration-959
+lane: lane/959-rpg-variants
 plan: test-foundation
 ---
 
@@ -27,9 +27,9 @@ Canonical recall workloads produce digests, segments and query traces through pu
 
 Auth configuration uses its canonical schema. Complete builder qualification requires real request-specific capture, not fabricated defaults.
 
-Browser responders select actual captured route inputs and outputs. Preserve absent versus explicit null input, reject conflicting captures, and refuse unmatched input without a fabricated success. This lookup does not establish generated corpus adoption.
+Browser responders use captured route inputs and outputs. They preserve absent versus null input and refuse conflicting or unmatched captures. Corpus adoption remains open.
 
-Pure/default builder controls pass. Owner-schema drift and zeroed production token calculation fail; restoration passes. Helpers derive service types through public compose. Complete producer and adoption proof requires the canonical root.
+Builder controls reject owner-schema drift and zeroed production token calculation. Helpers derive service types through public compose. Complete adoption remains open.
 
 `tests/support/node/factories/resolved-connection.ts` consumes fabrication waivers. New corpus inputs use actual admission; budgets remain unjudged.
 
@@ -47,4 +47,6 @@ Reviewed source `800bd9d45a` captures plugin/provider families through real inst
 
 Reviewed source `aea5f56d54` produces refinery and discovery rows through real admission, transcript history and memory backfill. Scoped cases and the expanded native capsule pass; independent review confirms the batch.
 
-Remaining recipes include arc themes, swipe re-rolls, raw-image geometry/facets, RPG, schedule and transient variants. Committed corpus publication and every-layer adoption remain open.
+Persisted workload funding is integrated. The expanded native capsule passes with the funder FK, producer completion, secret stripping and independent database and asset clones.
+
+The active batch adds native RPG, schedule and transient variants through the same graph. Remaining recipes include arc themes, swipe re-rolls and raw-image geometry/facets. Committed corpus publication and every-layer adoption remain open.

@@ -37,7 +37,7 @@ Remaining findings: legacy disposal and typed-lint errors; maintained classes ab
 
 Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Findings and authority alarms remain unresolved. Repair product, security or checker defects, not disposable legacy suites.
 
-Citation checks complete without effective findings, tool errors or withheld verdicts; grants exceed their budget. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
+Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-638409-2026-10-14T09-03-57-578Z/check-structure.json`. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
 
 The UI export floor reports untouched legacy fixtures: seed-user-content's optional RPG input, profile-directory's optional name and handle, and run-profile-import's optional tag source. Preserve cases for replacement; do not retrofit them for a green export floor.
 
