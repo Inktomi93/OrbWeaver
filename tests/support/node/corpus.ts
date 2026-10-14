@@ -10,6 +10,7 @@ import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
+import type { seedCorpusConnection as produceCorpusConnection } from "./corpus-connection.ts";
 import type { seedCorpusImagery as produceCorpusImagery } from "./corpus-imagery.ts";
 import type { seedCorpusKnowledge as produceCorpusKnowledge } from "./corpus-knowledge.ts";
 import type { seedCorpusKnowledgeVariants as produceCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
@@ -47,6 +48,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly connection: Awaited<ReturnType<typeof produceCorpusConnection>>;
   readonly search: Awaited<ReturnType<typeof produceCorpusSearch>>;
   readonly rpgRecursion: Awaited<ReturnType<typeof produceCorpusRpgRecursion>>;
   readonly rpgMembers: Awaited<ReturnType<typeof produceCorpusRpgMembers>>;
@@ -150,6 +152,8 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusRpgMembers } = await import("./corpus-rpg-members.ts");
   const { seedCorpusRpgRounds } = await import("./corpus-rpg-rounds.ts");
   const { seedCorpusSearch } = await import("./corpus-search.ts");
+  const { seedCorpusConnection } = await import("./corpus-connection.ts");
+  const { createCorpusConnectionWire } = await import("./corpus-connection-wire.ts");
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
     await import("./corpus-seed.ts");
@@ -163,6 +167,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const clock = options.server.clock ?? createFrozenClock();
   const rpgFlightTimers = createRpgFlightTimers(createControlledTimers(clock));
   const rpgFlightWire = createRpgFlightWire();
+  const connectionWire = createCorpusConnectionWire();
   const ids = options.server.ids ?? createSeededIds();
   const issuer = await createNativeIssuer();
   let oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
@@ -198,7 +203,16 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       clock,
       ids,
       ownerId: oidc.ownerId,
-      providerFetch: rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch)),
+      providerFetch: connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch))),
+      networkExecution: {
+        fetch: connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch))),
+        resolver: (hostname) => {
+          if (hostname === connectionWire.hostname) {
+            return connectionWire.resolver(hostname);
+          }
+          return options.server.networkExecution?.resolver?.(hostname) ?? Promise.reject(new Error("unscripted corpus connection address resolution"));
+        },
+      },
       timers: rpgFlightTimers.timers,
       rpgTrace: true,
       casDir: layout.assets,
@@ -232,6 +246,10 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const rpgMembers = await seedCorpusRpgMembers(root, rpgRecursion, actors.secondUserId);
   const rpgRounds = await seedCorpusRpgRounds(root, rpgFlightWire, rpgFlightTimers, actors.secondUserId);
   const search = await seedCorpusSearch(root, { actors, libraries, recall, images: knowledgeVariants.images });
+  const connection = await seedCorpusConnection(root, actors, connectionWire);
+  if (connectionWire.remaining() !== 0) {
+    throw new Error("completed native connection corpus left unspent physical recipes");
+  }
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -260,6 +278,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       rpgMembers,
       rpgRounds,
       search,
+      connection,
     },
   };
 }

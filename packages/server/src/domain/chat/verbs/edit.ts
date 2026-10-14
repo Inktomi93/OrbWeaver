@@ -51,6 +51,7 @@ import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
+import type { RetainedCanonCapturedView } from "../contract/generation-observation.ts";
 import type {
   ApplyProseRewriteParams,
   ClearReasoningParams,
@@ -94,18 +95,16 @@ import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadAuthoredUserMessageIds,
-  loadCanonStatRows,
   loadHasUserMessage,
   loadMaxMessageSeq,
   loadMessageSeqs,
   loadMessageView,
   loadSlotTarget,
-  loadSwipeStatRows,
   loadVariableDeltas,
   loadVariantDelta,
   loadVariantMessageId,
-  loadVariantsByMessageIds,
   normalizeToolOrdinals,
+  readRetainedCanonContributions,
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats, prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
@@ -178,6 +177,15 @@ async function loadSlotInChat(ctx: ChatContext, chatId: ChatId, messageId: Messa
     throw new ChatNotFoundError(chatId);
   }
   return view;
+}
+
+async function loadRetainedSlotInChat(ctx: ChatContext, chatId: ChatId, messageId: MessageId): Promise<RetainedCanonCapturedView> {
+  const contributions = await readRetainedCanonContributions(ctx.db, chatId, [messageId]);
+  const view = contributions.views[0];
+  if (view === undefined) {
+    throw new ChatNotFoundError(chatId);
+  }
+  return { ...view, contributions };
 }
 
 /** Re-reads a slot's MessageView after a write. A racing delete surfaces as a leak-free NOT_FOUND. */
@@ -295,7 +303,7 @@ async function applyRunOnEditRegex(
 }
 
 /** One raw message_variants row (a slot's stored variant — the selected one or a swipe). */
-type VariantRow = Awaited<ReturnType<typeof loadVariantsByMessageIds>>[number];
+type VariantRow = RetainedCanonCapturedView["contributions"]["variants"][number];
 
 /** The variant row an APPEND-from-content-alone actually writes, as the stats builders read it. A rewrite's
  *  new variant is inserted from `{ content }` (`appendVariantStatements` → `variantEconomics`), so every
@@ -358,7 +366,7 @@ async function freezeSelectedVariant(
   args: {
     readonly chatId: ChatId;
     readonly slot: MessageView;
-    readonly variant: Awaited<ReturnType<typeof loadVariantsByMessageIds>>[number];
+    readonly variant: VariantRow;
     readonly participants: Awaited<ReturnType<typeof loadParticipants>>;
     readonly anchorPersonaId: PersonaId | null;
     readonly selectorUserId: UserId;
@@ -435,7 +443,7 @@ async function freezeSelectedVariant(
 function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["selectVariant"] {
   const emit = deps.emit;
   return async ({ principal, chatId, messageId, variantId, timeZone }: SelectVariantParams) => {
-    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const owner = await loadVariantMessageId(ctx.db, variantId);
     if (owner !== messageId) {
@@ -451,7 +459,7 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
     // append-variant arm proves (-old-as-message, +old-as-swipe, -new-as-swipe, +new-as-message).
     const now = ctx.now();
     const ownerId = principal.userId;
-    const variants = await loadVariantsByMessageIds(ctx.db, [messageId]);
+    const variants = slot.contributions.variants;
     const oldVariant = variants.find((v) => v.id === slot.selectedVariantId);
     const selected = variants.find((v) => v.id === variantId);
     const participants = await loadParticipants(ctx.db, chatId);
@@ -497,7 +505,7 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
         statsDeltas.push(delta);
       }
     }
-    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
+    await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "variantSelected", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
@@ -509,7 +517,7 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
  *  Emits messageEdited. */
 function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editMessage"] {
   return async ({ principal, chatId, messageId, content, timeZone }: EditMessageParams) => {
-    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const participants = await loadParticipants(ctx.db, chatId);
     const hostUserId = hostUserIdOf(participants);
@@ -547,7 +555,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
         now,
       }),
     );
-    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
+    await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     await deps.emit({ type: "messageEdited", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
@@ -580,7 +588,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
 function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatService["setSeededGreeting"] {
   return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams) => {
     const membership = await requireHost(ctx, principal, chatId);
-    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     if (!isSeededGreetingRow(slot)) {
       throw new ChatOperationError(CHAT_OP_CODES.notGreetingRow, `chat ${chatId}: only a seeded greeting row has alternates to step`);
     }
@@ -617,7 +625,7 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         now,
       }),
     );
-    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
+    await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "messageEdited", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
@@ -650,11 +658,11 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
 function createApplyProseRewrite(ctx: ChatContext, emit: EmitChatEvent): ChatService["applyProseRewrite"] {
   return async ({ principal, chatId, messageId, variantId, expectedContentHash, content }: ApplyProseRewriteParams) => {
     const membership = await requireHost(ctx, principal, chatId);
-    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     if (slot.selectedVariantId !== variantId) {
       throw new ChatOperationError(CHAT_OP_CODES.rewriteSuperseded, `chat ${chatId}: the audited variant is no longer the selected one`);
     }
-    const variants = await loadVariantsByMessageIds(ctx.db, [messageId]);
+    const variants = slot.contributions.variants;
     const audited = variants.find((v) => v.id === variantId);
     if (audited === undefined) {
       throw new ChatNotFoundError(chatId);
@@ -680,7 +688,7 @@ function createApplyProseRewrite(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     for (const delta of swap) {
       statsDeltas.push(delta);
     }
-    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
+    await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     // `variantSelected` is the honest event: the slot gained a swipe AND its selection moved to it, which is
     // exactly what a manual swipe emits — so every live consumer already knows how to fold it.
@@ -826,7 +834,7 @@ async function writeReasoning(
   emit: EmitChatEvent,
   args: {
     readonly chatId: ChatId;
-    readonly slot: MessageView;
+    readonly slot: RetainedCanonCapturedView;
     readonly ownerId: UserId;
     readonly reasoning: string | null;
     readonly event: "reasoningEdited" | "reasoningCleared";
@@ -855,7 +863,7 @@ async function writeReasoning(
       now,
     }),
   );
-  await commitRetainedCanonStats(ctx, args.chatId, statements, statsDeltas);
+  await commitRetainedCanonStats(ctx, args.chatId, statements, { deltas: statsDeltas, sources: [args.slot], contributions: [args.slot.contributions] });
   const view = await reloadSlot(ctx, args.chatId, args.slot.id);
   await emit({ type: args.event, chatId: args.chatId, messageId: args.slot.id, view });
   return await projectEditReturn(ctx, view, args.viewer);
@@ -864,7 +872,7 @@ async function writeReasoning(
 /** `editReasoning` — author-or-host. Overwrites the selected variant's reasoning text. Emits reasoningEdited. */
 function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService["editReasoning"] {
   return async ({ principal, chatId, messageId, reasoning }: EditReasoningParams) => {
-    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const ownerId = principal.userId;
     return await writeReasoning(ctx, emit, {
@@ -881,7 +889,7 @@ function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService
 /** `clearReasoning` — author-or-host. Nulls the selected variant's reasoning. Emits reasoningCleared. */
 function createClearReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService["clearReasoning"] {
   return async ({ principal, chatId, messageId }: ClearReasoningParams) => {
-    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const ownerId = principal.userId;
     return await writeReasoning(ctx, emit, {
@@ -914,24 +922,28 @@ function createDeleteMessages(ctx: ChatContext, emit: EmitChatEvent): ChatServic
     // same batch as the delete. Rows are read before the delete lands.
     const now = ctx.now();
     const ownerId = principal.userId;
-    const statRows = await loadCanonStatRows(ctx.db, chatId, messageIds);
-    const swipeRows = await loadSwipeStatRows(ctx.db, chatId, messageIds);
+    const contributions = await readRetainedCanonContributions(ctx.db, chatId, messageIds);
     const scope = { chatIds: [chatId], messageIds };
     const groups = await loadGenerationObservationsForRemoval(ctx, scope);
     const statements: BatchStmt[] = [];
     const statsDeltas: StatsDelta[] = [];
     statements.push(deleteMessagesStatement(ctx.db, chatId, messageIds));
-    for (const row of statRows) {
-      statsDeltas.push(...canonMessageDelta({ ownerId, row, sign: -1, now }));
-    }
-    for (const row of swipeRows) {
-      statsDeltas.push(...swipeVariantDelta({ ownerId, row, sign: -1, now }));
+    for (const slot of contributions.slots) {
+      const variants = contributions.variants.filter((variant) => variant.messageId === slot.id);
+      const selected = variants.find((variant) => variant.id === slot.selectedVariantId) ?? null;
+      statsDeltas.push(...canonMessageDelta({ ownerId, row: canonRowOf(slot, selected, variants.length), sign: -1, now }));
+      for (const variant of variants.filter((candidate) => candidate.id !== slot.selectedVariantId)) {
+        statsDeltas.push(...swipeVariantDelta({ ownerId, row: swipeRowOf(slot, variant), sign: -1, now }));
+      }
     }
     // Re-folds chats.runtime_variables over the chain minus the deleted slots, in the same batch as the delete.
     // A standalone (out-of-turn) delta entry carries `messageId === null` — never a deleted slot, so it survives.
     const remainingDeltas = (await loadVariableDeltas(ctx.db, chatId)).filter((e) => e.messageId === null || !messageIds.includes(e.messageId));
     statements.push(runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(remainingDeltas)));
-    const prepared = await prepareRetainedCanonStats(ctx, chatId, statsDeltas);
+    const prepared = await prepareRetainedCanonStats(ctx, chatId, statsDeltas, {
+      sources: slots.filter((slot) => slot !== undefined),
+      contributions: [contributions],
+    });
     const retainedScope = { ...scope, chatPredicate: prepared.predicate };
     statements.unshift(...generationObservationRemovalStatements(ctx, retainedScope, groups));
     appendStatsDeltas(ctx, statements, prepared.deltas);
@@ -1036,9 +1048,9 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
  *  economics to a fresh tail slot. Emits messageCommitted. */
 function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["duplicateMessage"] {
   return async ({ principal, chatId, messageId }: DuplicateMessageParams) => {
-    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
-    const source = (await loadVariantsByMessageIds(ctx.db, [messageId])).find((variant) => variant.id === slot.selectedVariantId);
+    const source = slot.contributions.variants.find((variant) => variant.id === slot.selectedVariantId);
     if (source === undefined) {
       throw new ChatNotFoundError(chatId);
     }
@@ -1119,7 +1131,7 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
         },
       }),
     );
-    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
+    await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = buildCommittedMessageView(params);
     await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
     await ctx.emitChatChanged(chatId);
@@ -1141,8 +1153,13 @@ function createReattributeMessages(ctx: ChatContext, emit: EmitChatEvent): ChatS
         throw new ChatNotFoundError(chatId);
       }
     }
+    const contributions = await readRetainedCanonContributions(ctx.db, chatId, messageIds);
     const statements = [reattributeMessagesStatement(ctx.db, chatId, messageIds, characterId)];
-    await commitRetainedCanonStats(ctx, chatId, statements, []);
+    await commitRetainedCanonStats(ctx, chatId, statements, {
+      deltas: [],
+      sources: slots.filter((slot) => slot !== undefined),
+      contributions: [contributions],
+    });
     const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
     await Promise.all(views.flatMap((view) => (view !== undefined ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })] : [])));
   };

@@ -30,10 +30,14 @@ Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, p
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
 
-The complete selected run `codex-owner-read-provenance-1016-1125988-2026-10-14T11-16-56-109Z` still reports character and chat helper judgments, refinery and accounting scope, and asset, automation, databank, discovery and workload findings. It completes without tool errors or withheld policies; dead-position and budget authority alarms remain. Survey its full current population before assigning corrections.
+The complete selected run `main-2484266-2026-10-14T17-18-54-772Z` reports helper, accounting, asset, automation, databank, discovery and imagery findings. It completes without tool errors or withheld policies. Dead-position and budget authority alarms remain. Unlanded accounting corrections are outside this result.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 
 Reviewed source `0b778e7a97` preserves distinct refinery Run and Estimate authority through executing target reads and scalar counting. Shared domain readiness preserves candidate semantics. Native runtime, nominal and owned-predicate controls pass.
 
-Reviewed source `702430c3d9` adds stable native observations and compact predicate presence. Owner and FK proofs preserve absent operands and unsafe alternatives without Cartesian expansion. Native and retained policy controls pass. Finite gallery callees, further SQL origins, helper correlation, retained accounting and complete qualification remain open. The owner lane now handles required checkpoint preservation.
+Reviewed source `702430c3d9` adds stable native observations and compact predicate presence. Owner and FK proofs preserve absent operands and unsafe alternatives without Cartesian expansion. Native and retained policy controls pass.
+
+Reviewed source `2277119888` proves native SQL origins and complete emitted-operand containment through shared facts. Native mutation, containing-result escape and unknown-order controls pass. Containment supplies no ownership authority. Supplied formals, returned and imported helper lifetimes, finite gallery callees and complete qualification remain open.
+
+Reviewed source `a2356621ba` shares retained-owner projections and captures raw economic contributions with their signed deltas. The first atomic write refuses stale selected and nonselected usage. Native paid-race refusal, unchanged accounting and current-state retries pass. Reader qualification remains open.

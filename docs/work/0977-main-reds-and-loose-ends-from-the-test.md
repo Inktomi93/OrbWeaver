@@ -33,7 +33,7 @@ Each listed check is green on main or has a recorded cause and owner.
 
 Remaining findings: legacy disposal and typed-lint errors; maintained classes above; client formatting/import order; caught-failure census differences; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Default application Knip reports unused exports/types and configuration hints, not production-baseline reconciliation. Adjudicate intended consumers before deleting supported doors.
 
-Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-638409-2026-10-14T09-03-57-578Z/check-structure.json`. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
+Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-2512260-2026-10-14T17-27-19-351Z/check-structure.json`. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
 
 Legacy export-floor findings concern optional RPG, profile and tag inputs in seed-user-content, profile-directory and run-profile-import. Preserve cases for replacement, not fixture retrofits.
 
@@ -45,6 +45,6 @@ JSON and wire parsing allowances are zero; whole-application qualification remai
 
 The suppression work item owns form-data and settled-tracing lint conflicts.
 
-The identity candidate measures `no-inline-package-interface` at 311 findings against budget 328 after its attributable decrement from 329. Type-home work owns the remaining mismatch; do not lower another allowance or regenerate globally to hide it.
+Complete owner evidence supports the package-interface shrink after inference relocation. `SandboxLimits` remains unwaived and belongs to type-home repairs. Other allowances are unchanged; native coverage does not establish complete placement qualification.
 
 Native ESLint parser requests separate untyped files from compiler-owned partitions. Red/green and real CLI controls pass. The [hosted artifact](https://github.com/Inktomi93/OrbWeaver/actions/runs/38544900781) retains the earlier shared-declaration failure and an incomplete `contract-verb-presence` native-library boundary. Full qualification and that boundary correction remain open; arbitrary owner selection and legacy fixture repairs are not remedies.

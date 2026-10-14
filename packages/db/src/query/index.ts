@@ -9,6 +9,7 @@ export { checkList } from "./check-list.ts";
 export { isConstraintViolation } from "./db-errors.ts";
 export type { OwnedTable } from "./fetch-owned.ts";
 export { fetchOwned } from "./fetch-owned.ts";
+export { immutableCollection, ROW_TUPLE_ALIAS, rowTuple } from "./immutable-rows.ts";
 export { chunkRows, rowsPerInsert } from "./insert-chunk.ts";
 export { escapeLikeTerm } from "./like.ts";
 export { parseRecord, parseStringArray, parseStringArrayColumn } from "./parsers.ts";

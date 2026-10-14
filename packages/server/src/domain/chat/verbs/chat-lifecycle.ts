@@ -220,7 +220,9 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent, claim
 // Husks have no retained-canon cohort; pin that state so a racing claim cannot escape owner invalidation.
 async function prepareRoomRemovalStats(ctx: ChatContext, chatId: ChatId): Promise<PreparedRetainedCanonStats> {
   const [room] = await ctx.db.select({ startedAt: chats.startedAt }).from(chats).where(eq(chats.id, chatId)).limit(1);
-  return room?.startedAt === null ? { ownerIds: [], predicate: isNull(chats.startedAt), deltas: [] } : await prepareRetainedCanonStats(ctx, chatId, []);
+  return room?.startedAt === null
+    ? { ownerIds: [], predicate: isNull(chats.startedAt), deltas: [] }
+    : await prepareRetainedCanonStats(ctx, chatId, [], { sources: [], contributions: [] });
 }
 
 // Preserve the historical caller fence while advancing every additional retained-data owner's token once.

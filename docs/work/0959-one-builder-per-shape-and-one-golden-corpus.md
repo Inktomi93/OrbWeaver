@@ -27,15 +27,13 @@ Canonical recall workloads produce digests, segments and query traces; native tu
 
 Auth uses its canonical schema. Builders require request-specific capture, not fabricated defaults.
 
-Reviewed source `f787a21337` adds native chat import, compaction, held stream and handoff captures with owner-scoped copied-seat identity. Imagery controls reject timestamp-only cohort merging. Runtime and static controls pass; publication and adoption remain open.
+Reviewed source `f787a21337` captures native chat import, compaction, held streams and owner-scoped handoff. Imagery rejects timestamp-only merging. Scoped controls pass.
 
 Browser responders preserve captured input/output, absent versus null input and conflicting or unmatched capture refusal. Adoption remains open.
 
-Builder controls reject owner-schema drift and zeroed production token calculation. Helpers derive service types through public compose. Adoption remains open.
+Builders reject schema drift and zeroed production tokens; helpers derive public compose types.
 
 `tests/support/node/factories/resolved-connection.ts` consumes fabrication waivers. New corpus inputs use actual admission; budgets remain unjudged.
-
-Real seed, auth, ingestion, imagery and discovery controls pass. Timestamp-only imagery merging fails. Complete row/output coverage and each-layer adoption remain open.
 
 Reviewed source `505c900fb5` produces native OIDC claim, pending and session captures. Its capsule proves physical disposal, sole WAL ownership on reopen, secret stripping and independent DB/CAS clones. Matching auth controls pass. Portable assertions run everywhere; descriptor observations are Linux-specific.
 
@@ -54,3 +52,5 @@ Reviewed sources `3303ed4825`, `5cef750b0d` and `80bd8e5102` produce native RPG 
 Reviewed source `fa0badf99b` preserves immutable checkpoints. Reviewed source `69c196ed8f` produces native RPG recursion, cancellation, visibility, fork, handoff and intake captures. Defect controls and capsule assertions preserve original turn lineage. Complete coverage, publication and adoption remain open.
 
 Reviewed source `7feb12bdf2` captures native routed search outputs, provenance and scopes. A capped-denominator defect control fails. Enabled empty-owner completion remains separately owned; publication and adoption remain open.
+
+Reviewed source `68e71302cf` captures native connection, catalog, capability, diagnostic and admitted-turn cost outputs. Finite physical HTTP and DNS preserve native ownership, admission, funding and parsers. Capsule holds and secret exclusion pass; the task-projection control fails. HTTP admission, complete coverage, publication and adoption remain open.

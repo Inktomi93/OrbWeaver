@@ -19,7 +19,7 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **domain-internal** | that domain's `contract/` (params/results/views/errors) | only that domain |
 | **package-internal API** | sanctioned `src/contract/` in inference, default-content and plugin-toolchain | the owning package and its public API consumers |
 | **client-only view** | client | client |
-| **component-owned props and render API** | the owning UI or client component module | component callers and tests |
+| **component or sealed UI primitive API** | the owning component, hook, factory or renderer | primitive callers and tests |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
 **The rule:** exported types, interfaces and schemas belong in the homes above. Domain, wire and database shapes never move into a component.
@@ -27,6 +27,8 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 Standalone package contracts preserve package direction and distribution. They do not move application wire shapes out of contracts or create new public package doors.
 
 Component-owned prop and render APIs may stay beside their component. Derive native props, callbacks and variants from the installed library types. Derive domain, wire and database data from their canonical owners. A name ending in `Props` does not establish component ownership. Tests use the owning component's exported API type. Otherwise, derive its props through React's type-only `ComponentProps` helper against that component. Neither path bypasses the sealed UI package. Tests never maintain a parallel prop contract. Package direction still applies: UI imports no application contracts. Ledger-sanctioned UI structural mirrors retain their existing cross-package conformance checks.
+
+D42 and D54 place domain-agnostic component, DOM and string-math primitives in UI; [UI-Primitives section 13.9](UI-Primitives-and-Reuse.md#139-homing--the-parked-list) owns that boundary. Their options, handles and supporting shapes stay with the actual primitive API. Establish ownership from its production signature and dependency graph, not a package path or shape name. Unrelated pure engines stay in kit. Generated vocabulary and Node build APIs require their own owner; browser component evidence does not qualify them.
 
 Inline application shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. Existing placement gates do not yet establish this complete home table.
 

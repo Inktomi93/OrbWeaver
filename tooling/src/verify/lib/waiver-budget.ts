@@ -40,7 +40,7 @@ const APPLICATION = Object.freeze({
   "no-floorless-control-in-wrap": 2,
   "no-hardcoded-model-prose": 17,
   "no-inline-invalidate-outside-seam": 1,
-  "no-inline-package-interface": 328,
+  "no-inline-package-interface": 206,
   "no-inline-types": 5,
   "no-inline-wire-interface": 31,
   "no-loose-id-cast": 6,

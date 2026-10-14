@@ -41,6 +41,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import { eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { CORPUS_CHAT_MODEL, corpusImageryPhysicalBytes, createCorpusChatWire } from "./corpus-chat-wire.ts";
+import { CORPUS_CONNECTION_FOREIGN_KEY, CORPUS_CONNECTION_HOSTED_KEY, CORPUS_CONNECTION_KEY, CORPUS_CONNECTION_MODEL } from "./corpus-connection-wire.ts";
 import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
 import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
@@ -158,6 +159,18 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(rpgFlight.rpgRounds.foreignStop.signalAborted).toBe(false);
   expect(rpgFlightWire.remaining()).toEqual({ recursion: 0, rounds: 0 });
   const search = capsule.privateCaptures.search;
+  const connections = capsule.privateCaptures.connection;
+  expect(connections.capabilities.summary).toMatchObject({ task: "summarize", connectionId: connections.own.row.id, model: CORPUS_CONNECTION_MODEL });
+  expect(connections.list.some((row) => row.id === connections.foreign.row.id)).toBe(false);
+  expect(connections.catalogs.afterRawDraft).toEqual(connections.catalogs.beforeRawDraft);
+  expect(connections.refusals.after).toEqual(connections.refusals.before);
+  expect(connections.refusals.requestsAfter).toBe(connections.refusals.requestsBefore);
+  expect(connections.account.afterMalformed).toEqual(connections.account.beforeMalformed);
+  expect(connections.account.credits).toEqual({ total: 25, used: 4 });
+  expect(connections.account.cost).toEqual({ totalCost: 0.000_011, tokensPrompt: 5, tokensCompletion: 3 });
+  expect(connections.diagnostics.ok.ok).toBe(true);
+  expect(connections.diagnostics.throttled.status).toBe("throttled");
+  expect(connections.diagnostics.unavailable.response).toBeNull();
   expect(new Set(search.reads.outputs.map((output) => output.over))).toEqual(
     new Set(["entities", "characters", "discover", "segments", "digests", "corpus", "images", "documents"]),
   );
@@ -227,6 +240,17 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const loaded = loadCorpusFixture(fixture.layout.root);
   expect(loaded.wire).toEqual(capsule.wire);
   const published = await readFile(join(fixture.layout.root, "corpus.json"), "utf8");
+  for (const privateMaterial of [
+    CORPUS_CONNECTION_KEY,
+    CORPUS_CONNECTION_FOREIGN_KEY,
+    CORPUS_CONNECTION_HOSTED_KEY,
+    connections.own.credential.row.ciphertext,
+    connections.own.credential.row.iv,
+    connections.own.credential.row.tag,
+  ]) {
+    expect(published).not.toContain(privateMaterial);
+    expect(JSON.stringify(connections.diagnostics)).not.toContain(privateMaterial);
+  }
   const portable = parseCorpusWire(published);
   expect(portable.reads["chat.getChat"].map(({ output }) => output.id)).toEqual([
     capsule.privateCaptures.baseline.identities.soloChatId,
