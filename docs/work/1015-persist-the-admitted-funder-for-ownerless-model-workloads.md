@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: blocked
+status: doing
 updated: 2026-10-14
 priority: P1
 area: workloads
-blocked: on 984
+lane: codex/bulk-funder-1015
 plan: inference-flow
 ---
 
@@ -28,6 +28,6 @@ The native composed case `codex-every-owner-984-4042021-2026-10-14T05-53-50-725Z
 
 The design preserves one nullable persisted funder, separate from scope and audit identity. Trusted admissions state funding explicitly; human admissions derive it from the Principal. Automatic unfunded bulk memory produces segments without inventing digest funding. Retry preserves stored funding, including absence.
 
-Source implementation waits for canonical typed-authority integration; preserve its claim and deleted-owner refusal boundaries.
+Implementation consumes canonical typed-authority source at `fea4624eff`. Preserve its claim and deleted-owner refusal boundaries. The prepared caller map and proof matrix guide the active funding batch.
 
 `packages/server/src/domain/workloads/engine/runner.ts` uses the synthetic system actor when the row owner is null. `packages/server/src/domain/discovery/workload-contributions.ts` passes that actor as funder. `packages/db/src/schema/workloads.ts` does not preserve the admitting funder. This is a caller identity defect; the qualified executor correctly refuses unavailable authority.
