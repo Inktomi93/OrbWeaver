@@ -1,27 +1,16 @@
-// support/factories/resolved-connection — typed builders for the resolved-connection value objects tests
-// used to fabricate via `as unknown as X`. The point of these factories
-// is the TYPED RETURN: a new required field on `GenerationCapability` / `Resolved` becomes a compile error
-// HERE (one place) instead of silently passing every fabricated literal.
-//
-//   • makeGenerationCapability — parsed through the real `generationCapabilitySchema`, so a new required
-//     schema key errors at the default literal below (not silently absent in 30 test files).
-//   • makeCapability — the KIND union over a generation descriptor (what `Resolved.capability` carries).
-//   • makeResolvedSecret — `ResolvedSecret` is BRAND-PROTECTED (contracts/credentials: the only legit producer
-//     is the credentials domain's resolve factory), so it is UN-buildable without a cast. The cast is
-//     encapsulated here ONCE; the typed input keeps the shape honest.
-//   • makeResolved — a server-side `Resolved<T>` over a BUILT-IN provider row (default: `custom-openai`, the
-//     open BYO endpoint, keyless — the closest thing to the retired keyless vLLM marker every chat harness
-//     used to default to). `generation` is the convenience override for the chat-shaped capability.
-//   • makeResolvedView — the credential-free `ResolvedConnectionView` (`connection.resolveChatCapability`).
+// Resolved-connection fixtures; reusable capability defaults live in the ISO builder home.
 
 // @orb-waive-file no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
 import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
 import type { CachePolicy, Capability, GenerationCapability, ResolvedCacheConnectionView, ResolvedConnectionView, Task } from "@orb/contracts/inference";
-import { builtinProvider, foldFeatures, generationCapabilitySchema, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
+import { builtinProvider, foldFeatures, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeCapability, makeGenerationCapability } from "../../iso/inference-capability.ts";
 import type { TrpcWireOutput } from "../route-trpc.ts";
+
+export { makeCapability, makeGenerationCapability } from "../../iso/inference-capability.ts";
 
 /** The default keyless endpoint provider a test connection resolves through. */
 export const TEST_PROVIDER_ID = "custom-openai";
@@ -60,25 +49,6 @@ export function makeApiKeySecret(
   credentialId: UserCredentialId | null = castId<UserCredentialId>("user_credential_test0001"),
 ): ResolvedSecret {
   return makeResolvedSecret("apiKey", secret, credentialId);
-}
-
-const DEFAULT_GENERATION: GenerationCapability = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  input: ["text"],
-  output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
-  context: { window: 200_000 },
-};
-
-/** A fully-valid `GenerationCapability`, parsed through the real schema so the return is provably in-shape
- *  and a new required schema field breaks the default literal above (the one-place error W1h buys). */
-export function makeGenerationCapability(overrides: Partial<GenerationCapability> = {}): GenerationCapability {
-  return generationCapabilitySchema.parse({ ...DEFAULT_GENERATION, ...overrides });
-}
-
-/** The kind union over a generation descriptor. */
-export function makeCapability(generation: GenerationCapability = makeGenerationCapability()): Capability {
-  return { kind: "generation", generation };
 }
 
 export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Resolved<T>, "task" | "capability" | "providerId">> {

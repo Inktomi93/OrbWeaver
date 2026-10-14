@@ -39,6 +39,6 @@ The selected fabrication policy still consumes waivers in `tests/support/node/fa
 
 Bounded producer cases pass for real seed turns, cookie authentication, ingestion, imagery and discovery. An imagery timestamp-only control merges distinct calls and fails; exact restoration passes. Complete row/output coverage, native lifecycle captures, corpus publication and each-layer loading remain unfinished.
 
-Checkpoint `6e595679a7` preserves the complete owned producer and fixture work. Current-tree integration selects those changes over the canonical harness, not inherited donor ancestry. Runtime-funding consumer edits and the coupled SDK-session case remain deferred with their absent raw-script dependency. Existing donor-native results do not qualify the current candidate.
+Reviewed source `dd7d73f2e9` and correction `c7b4a2026e` use the canonical harness. Current seed, wire, recall, imagery-cohort/import and greeting cases pass. Retained builder callers preserve their assertions. Funding and SDK cases remain deferred with their raw-script dependency, preserved in `6e595679a7`; other donor results remain unqualified.
 
 Portable publication uses owner-validated outputs and finite corpus request recipes. Producer capture and hydration share those recipes; mismatched inputs and private envelope fields refuse. A prepared clone is selected before server boot; setup retains its target guard and skips independent seeding only for that selection. Successful capsule generation and adoption remain unqualified.

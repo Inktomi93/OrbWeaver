@@ -85,6 +85,7 @@ export async function findReusableGeneration(db: Db, input: ReuseLookupInput): P
       prompt: imageryGenerations.prompt,
       model: imageryGenerations.model,
       createdAt: imageryGenerations.createdAt,
+      callId: imageryGenerations.callId,
     })
     .from(imageryGenerations)
     .innerJoin(assets, eq(assets.id, imageryGenerations.assetId))
@@ -101,10 +102,9 @@ export async function findReusableGeneration(db: Db, input: ReuseLookupInput): P
   if (newest === undefined) {
     return [];
   }
-  // A generation writes all its images under ONE `createdAt` (the verb captures the clock once) — the leading
-  // equal-`createdAt` run is exactly that generation's image set; newer generations sort ahead.
+  // Tied timestamps can belong to different calls; only historical rows lack a real call identity.
   return rows
-    .filter((row) => row.createdAt === newest.createdAt)
+    .filter((row) => (newest.callId === null ? row.callId === null && row.createdAt === newest.createdAt : row.callId === newest.callId))
     .map((row) => ({ generationId: row.generationId, assetId: row.assetId, prompt: row.prompt, model: row.model }));
 }
 

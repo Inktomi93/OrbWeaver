@@ -47,6 +47,7 @@ import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids"
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
+import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import {
   createLocalLightUserSeed,
   DB_LAUNCHED,
@@ -64,7 +65,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { warn } from "../../floor/cli/log.ts";
-import type { Db, RunFullSeedDeps, RunFullSeedResult, SeedDemoDeps } from "../contract/types.ts";
+import type { Db, RunFullSeedDeps, RunFullSeedResult, SeedDemoDeps, SeedDemoResult, Services } from "../contract/types.ts";
 import { fakeLocalLightCache } from "../lib/fake-local-light.ts";
 import {
   DEMO_DOCUMENT_NAME,
@@ -74,7 +75,6 @@ import {
   GROUP_CAST_HANDLES,
   GROUP_CAST_SIZE,
   GROUP_CHAT_TITLE,
-  principalOf,
   SECOND_HUMAN_HANDLE,
   SEED_SESSION_SECRET,
   SOLO_CHAT_TITLE,
@@ -141,27 +141,34 @@ async function countRows(db: Db): Promise<Record<string, number>> {
 
 /** Run a best-effort seeded chat turn: on offline-model failure, log the honest limitation and continue —
  *  the greeting transcript is already committed, so a demo db is valid either way. */
-async function tryTurn(run: () => Promise<unknown>, log: (msg: string) => void, label: string): Promise<void> {
+async function tryTurn(
+  run: () => ReturnType<Services["chat"]["send"]>,
+  log: (msg: string) => void,
+  label: string,
+): Promise<Awaited<ReturnType<Services["chat"]["send"]>> | null> {
   // @orb-waive caught-failure-ownership(err): the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.
   try {
-    await run();
+    const result = await run();
     log(`${label}: seeded a scripted assistant turn`);
+    return result;
   } catch (err) {
     log(`${label}: skipped live turn (${err instanceof Error ? err.message : String(err)}) — greeting transcript kept`);
+    return null;
   }
 }
 
-async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
-  const { services, built, owner, ownerId, log } = deps;
+/** Populate the demo through the supplied production graph; its caller owns send failure policy. */
+export async function seedDemoContent(deps: SeedDemoDeps): Promise<SeedDemoResult> {
+  const { services, built, owner, ownerId, principalFor, runTurn, log } = deps;
 
   // A second human (idempotent: ensureUser upserts by handle). Passwordless — a demo participant, not a
   // login; sidesteps the AUTH_MODE=local password-hash SESSION_SECRET requirement.
   const secondId = await built.sessions.ensureUser(castId<Handle>(SECOND_HUMAN_HANDLE));
-  const second = principalOf(secondId, SECOND_HUMAN_HANDLE, "user");
+  const second = await principalFor(secondId);
   log(`second human ready: ${SECOND_HUMAN_HANDLE}`);
 
   // A persona for the second human (the owner already has the default "You" persona from boot).
-  await services.persona.create({
+  const secondPersona = await services.persona.create({
     principal: second,
     input: { name: "Companion", description: "A curious co-pilot exploring the Loom alongside you.", starred: true },
   });
@@ -176,18 +183,28 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
   }
   const assistantId = handleToId.get(WELCOME_ASSISTANT_HANDLE);
   const groupCharIds = GROUP_CAST_HANDLES.map((h) => handleToId.get(h)).filter((id): id is CharacterId => id !== undefined);
+  let solo: SeedDemoResult["solo"] = null;
+  let group: SeedDemoResult["group"] = null;
+  let soloTurn: SeedDemoResult["soloTurn"] = null;
+  let groupTurn: SeedDemoResult["groupTurn"] = null;
+  let worldBook: SeedDemoResult["worldBook"] = null;
+  const seededWorldEntries: SeedDemoResult["worldEntries"][number][] = [];
+  let regexTiers: SeedDemoResult["regexTiers"] = null;
+  let rosters: SeedDemoResult["rosters"] = [];
 
-  // Solo chat — seeds the primary's greeting (verbatim, no model), then one best-effort scripted turn.
+  // The greeting is verbatim; the caller owns whether a refused subsequent send aborts the seed.
   if (assistantId !== undefined) {
-    const solo = await services.chat.startChat({ principal: owner, characterIds: [assistantId], opening: "first-message", title: SOLO_CHAT_TITLE });
-    await tryTurn(() => services.chat.send({ principal: owner, chatId: solo.chat.id, content: "Hi! Can you show me what this app can do?" }), log, "solo");
+    solo = await services.chat.startChat({ principal: owner, characterIds: [assistantId], opening: "first-message", title: SOLO_CHAT_TITLE });
+    const soloChatId = solo.chat.id;
+    soloTurn = await runTurn(() => services.chat.send({ principal: owner, chatId: soloChatId, content: "Hi! Can you show me what this app can do?" }), "solo");
     log(`solo chat created: ${SOLO_CHAT_TITLE}`);
   }
 
   // Group chat — 3 characters greet-all, both humans, varied roster knobs. The second human joins via the
   // real invite→accept chokepoint (the only public human-join path).
   if (groupCharIds.length >= GROUP_CAST_SIZE) {
-    const group = await services.chat.startChat({ principal: owner, characterIds: groupCharIds, opening: "greet-all", title: GROUP_CHAT_TITLE });
+    group = await services.chat.startChat({ principal: owner, characterIds: groupCharIds, opening: "greet-all", title: GROUP_CHAT_TITLE });
+    const groupChatId = group.chat.id;
     // Group config + per-seat roster tuning are POST-CREATE writes now (R2 retired the creation-time draft
     // carry) — apply them against the real room the same way the group-config/roster panels do.
     await services.chat.setGroupConfig({
@@ -206,35 +223,43 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
     }
     const invite = await services.chat.createInvite({ principal: owner, chatId: group.chat.id, input: { invitedHandle: castId<Handle>(SECOND_HUMAN_HANDLE) } });
     await services.chat.acceptInvite({ principal: second, inviteId: invite.invite.id });
-    await tryTurn(() => services.chat.send({ principal: owner, chatId: group.chat.id, content: "Everyone here? Let's plan the next splice." }), log, "group");
+    groupTurn = await runTurn(
+      () => services.chat.send({ principal: owner, chatId: groupChatId, content: "Everyone here? Let's plan the next splice." }),
+      "group",
+    );
     log(`group chat created: ${GROUP_CHAT_TITLE} (+${SECOND_HUMAN_HANDLE} joined)`);
 
     // A world book with entries, attached to the group chat.
     const book = await services.worldInfo.createBook({ principal: owner, input: { name: WORLD_BOOK_NAME, description: "Lore for the demo group chat." } });
-    await services.worldInfo.createEntry({
-      principal: owner,
-      bookId: book.id,
-      input: {
-        title: "The Loom",
-        content: "The great orbital engine binding the habitats into one turning wheel.",
-        keys: ["loom", "wheel"],
-        priority: LOOM_ENTRY_PRIORITY,
-      },
-    });
-    await services.worldInfo.createEntry({
-      principal: owner,
-      bookId: book.id,
-      input: {
-        title: "The Weavers",
-        content: "Keepers who re-splice frayed threads by hand, singing the counting songs.",
-        keys: ["weaver", "weavers", "splice"],
-      },
-    });
+    worldBook = book;
+    seededWorldEntries.push(
+      await services.worldInfo.createEntry({
+        principal: owner,
+        bookId: book.id,
+        input: {
+          title: "The Loom",
+          content: "The great orbital engine binding the habitats into one turning wheel.",
+          keys: ["loom", "wheel"],
+          priority: LOOM_ENTRY_PRIORITY,
+        },
+      }),
+    );
+    seededWorldEntries.push(
+      await services.worldInfo.createEntry({
+        principal: owner,
+        bookId: book.id,
+        input: {
+          title: "The Weavers",
+          content: "Keepers who re-splice frayed threads by hand, singing the counting songs.",
+          keys: ["weaver", "weavers", "splice"],
+        },
+      }),
+    );
     await services.worldInfo.attachToChat({ principal: owner, chatId: group.chat.id, bookId: book.id });
     log(`world book created + attached: ${WORLD_BOOK_NAME}`);
 
-    await seedDemoRegexTiers({ services, owner, log }, { assistantId, chatId: group.chat.id });
-    await seedDemoRosters({ services, owner, log }, { assistantId, groupCharIds });
+    regexTiers = await seedDemoRegexTiers({ services, owner, log }, { assistantId, chatId: group.chat.id });
+    rosters = await seedDemoRosters({ services, owner, log }, { assistantId, groupCharIds });
   }
 
   // A databank document (paste-origin) + a synchronous ingest so document_chunks + embeddings exist.
@@ -246,7 +271,7 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
   const preset = await services.preset.create({ userId: ownerId, name: DEMO_PRESET_NAME, kind: "chat" });
   log(`preset created: ${DEMO_PRESET_NAME}`);
 
-  await seedDemoPresetRegexTier({ services, owner, log }, preset.id);
+  const presetRegex = await seedDemoPresetRegexTier({ services, owner, log }, preset.id);
 
   // A tag, attached to the assistant character.
   const tag = await services.tag.createTag({ principal: owner, input: { name: DEMO_TAG_NAME } });
@@ -254,10 +279,27 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
     await services.tag.attachTag({ principal: owner, tagId: tag.id, targetType: "character", targetId: assistantId });
   }
   log(`tag created + attached: ${DEMO_TAG_NAME}`);
+  return {
+    secondUserId: secondId,
+    secondPersona,
+    solo,
+    group,
+    soloTurn,
+    groupTurn,
+    worldBook,
+    worldEntries: seededWorldEntries,
+    regexTiers,
+    presetRegex,
+    rosters,
+    document: upload,
+    ingest,
+    preset,
+    tag,
+  };
 }
 
-/** The reusable seed core (shared by the CLI + the tooling int test): seed the owner, compose the service
- *  graph with the deterministic offline vLLM client, run the idempotent boot seeds, then — unless the demo
+/** The reusable seed core (shared by the CLI + the tooling int test): seed the owner, compose the production
+ *  service graph, run the idempotent boot seeds, then — unless the demo
  *  sentinel is already present and `force` is off — augment with the demo content. Assumes `db` is already
  *  migrated. */
 export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedResult> {
@@ -281,7 +323,8 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   if (ownerId === undefined) {
     throw new Error("seed demo: seedOwner returned no owner id");
   }
-  const owner = principalOf(ownerId, handles[0] ?? env.DEFAULT_USER_HANDLE, "owner");
+  const principalFor = createHostPrincipalResolver(bootSessions);
+  const owner = await principalFor(ownerId);
 
   const built = await createServices({
     db,
@@ -318,7 +361,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
     return { built, ownerId, augmented: false };
   }
 
-  await seedDemoContent({ services: built.services, built, owner, ownerId, log });
+  await seedDemoContent({ services: built.services, built, owner, ownerId, principalFor, runTurn: (run, label) => tryTurn(run, log, label), log });
   return { built, ownerId, augmented: true };
 }
 

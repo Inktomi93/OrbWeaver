@@ -1253,6 +1253,9 @@ importers:
       '@orb/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@orb/default-content':
+        specifier: workspace:*
+        version: link:../../packages/default-content
       '@orb/inference':
         specifier: workspace:*
         version: link:../../packages/inference

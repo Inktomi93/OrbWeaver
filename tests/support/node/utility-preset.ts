@@ -5,13 +5,11 @@
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS, ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { PresetDetail } from "@orb/server/domain/preset";
-import { buildSideGenParams } from "@orb/server/domain/preset";
+import type { IdSource } from "@orb/kit/ids";
+import { buildSideGenParams, presetDetailSchema } from "@orb/server/domain/preset";
+import { makePresetDetail } from "./factories/preset-view.ts";
 
 export const CUSTOM_SYSTEM_TEMPLATE = "CUSTOM PRESET SYSTEM TEMPLATE — never a background prompt";
-
-const FROZEN_AT = 1_700_000_000_000;
 
 /** The built-in arrangement with its main prompt replaced, carrying `params`. */
 export function presetWithPromptStructure(params: UserIntent): PromptConfig {
@@ -24,25 +22,19 @@ export function presetWithPromptStructure(params: UserIntent): PromptConfig {
   };
 }
 
-/** A readable preset row carrying `config`. */
-export function presetDetail(config: PromptConfig): PresetDetail {
-  return {
-    id: mintTypeId(ID_PREFIX.preset),
-    name: "Structured utility",
-    kind: "chat",
-    isSystemDefault: false,
-    forkedFrom: null,
-    configUnreadable: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
-    config,
-    schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
-  };
-}
-
 /** The resolver a user whose Utility role names that preset gets. */
-export function utilityPresetResolver(params: UserIntent): ReturnType<typeof buildSideGenParams>["resolveUtilityPresetParams"] {
-  const detail = presetDetail(presetWithPromptStructure(params));
+export function utilityPresetResolver(params: UserIntent, source?: IdSource): ReturnType<typeof buildSideGenParams>["resolveUtilityPresetParams"] {
+  const detail = presetDetailSchema.parse(
+    makePresetDetail(
+      {
+        name: "Structured utility",
+        kind: "chat",
+        config: presetWithPromptStructure(params),
+        schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
+      },
+      source,
+    ),
+  );
   const id = detail.id;
   return buildSideGenParams({
     preset: { get: () => Promise.resolve(detail) },

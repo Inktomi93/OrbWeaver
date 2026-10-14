@@ -5,20 +5,28 @@
 // the caller didn't hand one in (the neo FK-chain lesson, minus the dead version tier).
 
 import type { Db } from "@orb/db";
-import { characters } from "@orb/db";
+import { characterPersonas, characterSnapshots, characters } from "@orb/db";
 import type { CharacterHandle, IdSource, UserId } from "@orb/kit/ids";
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { CharacterService } from "@orb/server/domain/character";
+import { cardTokenSize } from "@orb/server/domain/character";
+import type { PersonaService } from "@orb/server/domain/persona";
 // The card identity hash's ONE home — `@orb/server/primitives` is the server-only-PURE bottom tier
 // (`.dependency-cruiser.cjs`: node:* + db + contracts + kit, reaching up to nothing), so importing it
 // downward from a factory pulls `node:crypto` and two contracts, never a domain graph. D9 names this
 // subpath family canonical and 19 of them are already imported across `tests/legacy/server/**`.
 import { cardContentHash } from "@orb/server/primitives/serde/card";
+import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import { seedUser } from "./user.ts";
 
 /** The full flat `characters` row (derived from the live schema — the factory `X`). */
 export type CharacterRow = typeof characters.$inferSelect;
+export type CharacterSnapshotRow = typeof characterSnapshots.$inferSelect;
+export type CharacterPersonaRow = typeof characterPersonas.$inferSelect;
+
+type CharacterOverrides = Partial<Omit<CharacterRow, "tokenSize">>;
 
 const ids = createIdSource(createSeededIds().next);
 
@@ -43,9 +51,9 @@ const ids = createIdSource(createSeededIds().next);
  *    length-validates `handle` and brands it, with no charset or name-derivation refinement, so a hand-set
  *    handle IS a shape the create verb mints. #517 separately retired the client's "is this handle
  *    derivable?" gate, so nothing downstream reads a derivability signal off this field any more. */
-export function makeCharacter(overrides: Partial<CharacterRow> = {}, source: IdSource = ids): CharacterRow {
+export function makeCharacter(overrides: CharacterOverrides = {}, source: IdSource = ids): CharacterRow {
   const id = overrides.id ?? source.typeId(ID_PREFIX.character);
-  const row: CharacterRow = {
+  const row: Omit<CharacterRow, "tokenSize"> = {
     id,
     handle: castId<CharacterHandle>(id),
     ownerId: source.unprefixed<UserId>(),
@@ -60,7 +68,6 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}, source: IdS
     importedFrom: null,
     importHash: null,
     importTextHash: null,
-    tokenSize: 0,
     name: "Test Character",
     description: null,
     personality: null,
@@ -86,16 +93,48 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}, source: IdS
     contentHash: "",
     ...overrides,
   };
-  // The write-side stamp, over the row this factory actually built (`verbs/create.ts:98`). An explicit
-  // override wins — a suite pinning a specific basis/stale-hash arm states it and keeps it.
-  return { ...row, contentHash: overrides.contentHash ?? cardContentHash(row) };
+  // Both denorms follow the finished card. A deliberately stale contentHash remains an explicit basis
+  // input; tokenSize is always producer-derived so normal fixtures retain truthful library ordering.
+  return { ...row, contentHash: overrides.contentHash ?? cardContentHash(row), tokenSize: cardTokenSize(row) };
 }
 
 /** `makeCharacter` then insert, FK-clean on an empty db: when `overrides.ownerId` is absent a fresh
  *  owner user is seeded first (explicit `ownerId` reuses the caller's user — no extra row). */
-export async function seedCharacter(db: Db, overrides: Partial<CharacterRow> = {}, source?: IdSource): Promise<CharacterRow> {
+export async function seedCharacter(db: Db, overrides: CharacterOverrides = {}, source?: IdSource): Promise<CharacterRow> {
   const ownerId = overrides.ownerId ?? (await seedUser(db, {}, source)).id;
   const row = makeCharacter({ ...overrides, ownerId }, source);
   await db.insert(characters).values(row);
+  return row;
+}
+
+/** The owner operation captures the live card; a fixture never assembles its own snapshot blob. */
+export async function seedCharacterSnapshot(
+  db: Db,
+  snapshot: CharacterService["snapshot"],
+  params: Parameters<CharacterService["snapshot"]>[0],
+): Promise<CharacterSnapshotRow> {
+  const ref = await snapshot(params);
+  const row = await db.select().from(characterSnapshots).where(eq(characterSnapshots.id, ref.id)).get();
+  if (row === undefined) {
+    throw new Error("production character snapshot left no canonical history row");
+  }
+  return row;
+}
+
+/** Both real ownership gates run before capturing the junction's exact composite key. */
+export async function seedCharacterPersona(
+  db: Db,
+  connectToCharacter: PersonaService["connectToCharacter"],
+  params: Parameters<PersonaService["connectToCharacter"]>[0],
+): Promise<CharacterPersonaRow> {
+  await connectToCharacter(params);
+  const row = await db
+    .select()
+    .from(characterPersonas)
+    .where(and(eq(characterPersonas.characterId, params.characterId), eq(characterPersonas.personaId, params.personaId)))
+    .get();
+  if (row === undefined) {
+    throw new Error("production persona connection left no canonical character-persona row");
+  }
   return row;
 }

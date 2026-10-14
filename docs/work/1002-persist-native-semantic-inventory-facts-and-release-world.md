@@ -24,11 +24,9 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Reviewed descriptor and query corrections preserve configuration mutation refusal, native resolution, selected subsets and overlays. Native declaration/name keys share results. Primitive query spans and wrapper-free projection preserve ordering, alias filtering and physical spans. Lifecycle and ancestor controls fail before correction; affected extraction, inventory parity, lint and configs pass. Complete memory qualification remains pending.
+Reviewed descriptor, query, path-interning and span corrections preserve native resolution, overlays, ordering, alias filtering and physical spans. Configuration mutation and lifecycle controls distinguish failures. Bounded extraction, inventory parity, lint and tooling types pass; root retains unrelated errors. Complete memory qualification remains pending.
 
 The integrated extractor shares the language-service checker and preserves bootstrap roots, closure, order and native source identity. Ownership and cleanup controls pass. Complete frozen replay still fails with client-worker heap OOM at the unchanged limit. No complete partition, inventory or current production usage verdict exists. Frozen Knip bytes and root identities remain preserved. GNU time reports command-and-descendant high water, not simultaneous aggregate memory.
-
-Independent review confirms extraction-local resolved-path interning and frozen span reuse. Complete bounded facts, native query order and roots remain equal. Scoped controls, lint and tooling types pass; root types retain unrelated probe and legacy errors. No measured memory saving or complete replay qualification is established.
 
 Samples expose path strings, checker instantiations and native reference token trees. Allocation sites are not dominators or proof of unique OOM ownership. Wrapper release does not remove these costs.
 
@@ -36,4 +34,6 @@ Extraction uses the compiler bundled with ts-morph, not the native TS7 typecheck
 
 The complete-root client diagnostic records a native reference query entering definition-display serialization and recursive synthesized type-node cloning while extracted row counts stay fixed. The spike precedes projection, partition JSON and publication. This localizes an allocation mechanism, not an ordinary-runtime terminal OOM verdict.
 
-Inspector sampling forces collection during profile reads. Its debugger registers a near-heap callback that expands the limit during an OOM pause. The owned diagnostic is stopped without a retry; fixed-heap and undisturbed-memory claims are invalid. Preserve its artifacts. A public reference-API replacement must retain alias kinds, group selection and definition flags; flat references alone are not equivalent. No private cache clearing, heap increase or population reduction is allowed. Instrumented client results do not qualify all worlds or clean timing.
+Inspector sampling forces collection during profile reads. Its debugger registers a near-heap callback that expands the limit during an OOM pause. The owned diagnostic is stopped without a retry; fixed-heap and undisturbed-memory claims are invalid. Preserve its artifacts. Any replacement must retain alias kinds, group selection and definition flags; flat references alone are not equivalent. No private cache clearing, heap increase or population reduction is allowed. Instrumented client results do not qualify all worlds or clean timing.
+
+A bounded native differential preserves raw reference order but does not yet admit the tRPC-like case. Evaluate an opt-in pinned dependency patch that skips unused definition formatting while retaining native search and selection. Default callers must remain unchanged; no patch or complete-client replay is qualified yet.

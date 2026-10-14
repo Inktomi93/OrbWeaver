@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Tests on one harness and one code-facts engine
@@ -32,7 +32,7 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 Production funding (969), identity (972), every-owner tokens (984), type homes (981) and boundary parsing (982) remain production work. Schedule their owner-specific batches after the compose and initial Drizzle work, without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
 
-Contract derivation (904) and stored-value parsing (905) require current-tree recovery. Complete their required fixes before dependent corpus qualification. Auth and connection prerequisites do not close their remaining production population. These assignments take priority over new follow-up investigations once their shared reader prerequisites are integrated.
+Contract derivation and the listed stored-value and HTTP boundary recovery are integrated with their required native evidence. The broader wire inventory and remaining runtime qualification stay open. A completed prerequisite does not close its parent program. Complete required production fixes before dependent corpus qualification.
 
 ### Foundation boundaries
 

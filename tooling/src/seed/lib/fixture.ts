@@ -1,8 +1,4 @@
-// The demo corpus + the shared principal/arg helpers. Content lives here (data), the write sequence lives
-// in ops/ — so changing what the demo CONTAINS never touches the code that proves the write paths.
-import type { Principal } from "@orb/contracts/identity";
-import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+// Demo content lives here; the write sequence and row-derived authority belong to the real seed callers.
 
 export const SECOND_HUMAN_HANDLE = "companion";
 // A fixed dev pepper for invite/session token hashing against the THROWAWAY demo db (real env wins if set).
@@ -45,7 +41,3 @@ export const DEMO_DOCUMENT_TEXT = [
   "The Assistant speaks for the Loom itself, translating its slow machine-thoughts into human words.",
   "Together they hold the wheel against the long dark, one thread and one turn at a time.",
 ].join("\n");
-
-export function principalOf(userId: UserId, handle: string, role: "owner" | "user"): Principal {
-  return { userId, role, handle: castId<Handle>(handle), externalId: null, via: "fallback" };
-}

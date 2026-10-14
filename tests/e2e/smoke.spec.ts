@@ -14,9 +14,13 @@
 //     `chat.listChats` resolved. The chats-LIST surface (`aria-label="Chats list"`) moved OFF `/` in the #102
 //     rework; it now lives on the Chats SECTION (reached via the Primary rail), not the landing.
 
+import { chatDetailSchema } from "@orb/contracts/chat";
+import { documentDetailViewSchema } from "@orb/contracts/databank";
+import { corpusReadInput } from "@orb/testkit/iso/corpus.ts";
 import { expect, test } from "@playwright/test";
-import { SINGLE_USER } from "./support/modes.ts";
+import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
+import { trpcQuery } from "./support/trpc.ts";
 
 // The backend origin — healthz is server-only (not proxied through vite), so it is hit on the single-user
 // project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and
@@ -116,4 +120,29 @@ test("the home page renders the home surface (tRPC query works)", {
   await expect(page.locator(APP_READY)).toBeAttached({ timeout: WAIT_SETTLE_MS });
   await expect(page.getByRole("main", { name: "Home content" })).toBeVisible({ timeout: WAIT_UI_MS });
   await expect(page.getByText("Couldn't load your chats")).toHaveCount(0);
+});
+
+test("the selected corpus clone serves the captured room identity, content and visible title", { tag: "@smoke" }, async ({ page }) => {
+  test.skip(SELECTED_CORPUS_FIXTURE === undefined, "No prepared corpus fixture selected");
+  const capture = SELECTED_CORPUS_FIXTURE?.wire.reads["chat.getChat"].find(({ output }) => output.title !== null);
+  if (capture === undefined) {
+    throw new Error("Selected corpus has no captured titled room");
+  }
+  const expected = chatDetailSchema.parse(capture.output);
+  const actual = chatDetailSchema.parse(await trpcQuery("chat.getChat", corpusReadInput.chat(expected)));
+  expect(actual).toEqual(expected);
+  const documentCapture = SELECTED_CORPUS_FIXTURE?.wire.reads["databank.get"][0];
+  if (documentCapture === undefined) {
+    throw new Error("Selected corpus has no captured document");
+  }
+  const expectedDocument = documentDetailViewSchema.parse(documentCapture.output);
+  expect(expectedDocument.extractedText).toBeTruthy();
+  const actualDocument = documentDetailViewSchema.parse(await trpcQuery("databank.get", corpusReadInput.document(expectedDocument)));
+  expect(actualDocument).toEqual(expectedDocument);
+  const title = expected.title;
+  if (title === null) {
+    throw new Error("Selected corpus room has no visible title");
+  }
+  await page.goto("/chats");
+  await expect(page.getByRole("list", { name: "Chats list", exact: true }).getByText(title, { exact: true })).toBeVisible();
 });

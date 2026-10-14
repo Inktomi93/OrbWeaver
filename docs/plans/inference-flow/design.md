@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Inference flow: owners, ports and callers
@@ -26,7 +26,7 @@ The [test-foundation plan](../test-foundation/design.md) owns the combined progr
 
 After those batches, prioritize runtime funding and strike-out (969), identity enforcement (972), then typed every-owner authority (984). Settings ownership (967), connection capabilities (968) and law alignment (970) remain tracked production work. Route identity-sensitive changes to the security role.
 
-Stored connection parsing must follow ownership checks without losing owner-mismatch detection. The stored-value parsing work item owns the salvage blockers. Preserve runtime refusal and accounting semantics during relocation; legacy harness repair is not a prerequisite.
+Stored connection parsing follows ownership checks without losing owner-mismatch detection. The canonical owner-bearing read is integrated. Remaining runtime and wire qualification stays with its active work items. Preserve refusal and accounting semantics; legacy harness repair is not a prerequisite.
 
 ### Rulings
 

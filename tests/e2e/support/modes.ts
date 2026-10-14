@@ -1,7 +1,7 @@
 // The auth-mode Playwright-project axis — the ONE source of truth for each mode's ports, base URL, DB/assets
 // isolation, and seeded credentials. `playwright.config.ts` builds one project + one webServer per entry
 // here; `global-setup.ts` seeds each; the specs read the credentials. Kept in the e2e-support tree (not a
-// package) so it stays import-free of the app trees, exactly like `trpc.ts`.
+// package); selected corpus loading reads validated data and layout only, never an application graph.
 //
 // WHY a project per mode: the harness must boot the stack in a CHOSEN `AUTH_MODE` to exercise login /
 // sessions / cross-user visibility. EVERY mode (single-user included, since 2026-08-01) gets an ISOLATED
@@ -28,7 +28,9 @@
 // the stack tool's dev pins and fixture recipe. `SESSION_SECRET` is ≥32 chars (the local-mode
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
+import { join } from "node:path";
 import process from "node:process";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { DEV_PORTS, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { devTargetAllowed } from "./target-guard.ts";
@@ -205,6 +207,12 @@ export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as
 // playwright.config.ts). That is the supervised-live-drive escape hatch, and it waives the target guard. ──
 /** Is the single-user project deliberately aimed at the operator's dev stack (`E2E_ALLOW_DEV_TARGET=1`)? Read by `playwright.config.ts` (reuse the running stack instead of booting one) and by `global-setup.ts` (waive the target guard). */
 export const DEV_TARGET_ALLOWED = devTargetAllowed(process.env);
+const corpusDirectory = process.env["E2E_CORPUS_FIXTURE"];
+if (corpusDirectory !== undefined && (DEV_TARGET_ALLOWED || process.env["E2E_LIVE"] === "1")) {
+  throw new Error("E2E_CORPUS_FIXTURE cannot target the dev stack or live engines");
+}
+/** A caller-prepared clone selected before Playwright starts its webServers; ordinary modes do not load it. */
+export const SELECTED_CORPUS_FIXTURE = corpusDirectory === undefined ? undefined : loadCorpusFixture(corpusDirectory);
 const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
 const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {
@@ -212,7 +220,7 @@ export const SINGLE_USER: ModeProject = {
   baseUrl: `http://localhost:${SINGLE_VITE_PORT}`,
   backendUrl: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
   // Every spec EXCEPT the mode-specific ones (`*.local.spec.ts` / `*.forward.spec.ts`) — the existing 22.
-  testMatch: new RegExp(`(?<!\\.(?:local|forward))${E2E_TEST_END_PATTERN}`, "u"),
+  testMatch: SELECTED_CORPUS_FIXTURE === undefined ? new RegExp(`(?<!\\.(?:local|forward))${E2E_TEST_END_PATTERN}`, "u") : /\/smoke\.spec\.ts$/u,
   webServerEnv: {
     AUTH_MODE: "single-user",
     SESSION_SECRET: "orbweaver-dev-only-session-secret-insecure",
@@ -243,6 +251,14 @@ export const SINGLE_USER: ModeProject = {
           PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
           EGRESS_ALLOWLIST: "127.0.0.1",
           ORB_ENV_NO_FILE: "1",
+          ...(SELECTED_CORPUS_FIXTURE === undefined
+            ? {}
+            : {
+                DATA_DIR: SELECTED_CORPUS_FIXTURE.layout.root,
+                DATABASE_URL: SELECTED_CORPUS_FIXTURE.layout.databaseUrl,
+                ASSETS_DIR: SELECTED_CORPUS_FIXTURE.layout.assets,
+                STACK_RUN_DIR: join(SELECTED_CORPUS_FIXTURE.layout.root, STACK_RUN_SUBDIR),
+              }),
         }),
   },
   seedMultiUser: false,
@@ -344,7 +360,7 @@ const FORWARD_HEADER: ModeProject = {
 // until a mock IdP exists that the real grant can actually talk to.
 
 /** Every mode project the config builds a project + webServer for (oidc excluded — deferred). */
-export const MODE_PROJECTS: readonly ModeProject[] = [SINGLE_USER, LOCAL, FORWARD_HEADER];
+export const MODE_PROJECTS: readonly ModeProject[] = SELECTED_CORPUS_FIXTURE === undefined ? [SINGLE_USER, LOCAL, FORWARD_HEADER] : [SINGLE_USER];
 
 const PROJECT_OPTION = "--project";
 const PROJECT_OPTION_PREFIX = `${PROJECT_OPTION}=`;

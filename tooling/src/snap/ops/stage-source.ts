@@ -142,7 +142,7 @@ const SECRET_BOUND_ROWS = [
  *  resolves; the stage's own boot renames that row onto the stage's `OWNER_HANDLES` key
  *  (`entry/boot/seed-owner.ts`), which is how the stage signs in as the owner of the copied rows.
  *  The caller has removed any older stage dir, so an existing stage db is a bug, not a cache. */
-export function cloneStageDb(sourceDb: string, paths: StagePaths): StageDbProvenance {
+export function cloneStageDb(sourceDb: string, paths: Pick<StagePaths, "databaseUrl" | "assetsDir">): StageDbProvenance {
   const source = resolve(sourceDb);
   const stageDb = localPath(paths.databaseUrl) ?? "";
   if (!(existsSync(source) && statSync(source).isFile())) {

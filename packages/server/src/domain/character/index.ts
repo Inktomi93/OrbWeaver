@@ -79,6 +79,7 @@ export { createLoadSeatCards } from "./persistence/seat-cards.ts";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";
 export { createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, matchesAuthoredContent, WELCOME_ASSISTANT_HANDLE } from "./seeder/index.ts";
 export { createCharacterService } from "./service.ts";
+export { cardTokenSize } from "./substrate/card-tokens.ts";
 export { buildCardEmbedText } from "./substrate/embed-text.ts";
 // rpg promotion recovers from a handle-uniqueness refusal through this, injected at the composition root.
 export { isCharacterHandleConflict } from "./substrate/handle-conflict.ts";
