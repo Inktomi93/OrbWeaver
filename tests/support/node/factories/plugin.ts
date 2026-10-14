@@ -1,9 +1,13 @@
 // Plugin canon is captured after the real lifecycle operation; guest storage and consent remain production-owned.
+import type { PluginManifest } from "@orb/contracts/plugin";
+import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { adminDistributedPlugins, pluginAssets, pluginKv, plugins } from "@orb/db";
 import type { PluginId, UserId } from "@orb/kit/ids";
+import { MS_PER_SECOND } from "@orb/kit/time";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
+import { strToU8, zipSync } from "fflate";
 
 type PluginService = ServicesResult["services"]["plugin"];
 
@@ -26,6 +30,31 @@ export interface SeededDistributedPlugin {
   readonly outcome: Awaited<ReturnType<PluginService["installForAllUsers"]>>;
   readonly distribution: AdminDistributedPluginRow;
   readonly installs: readonly CapturedPluginRows[];
+}
+
+const ZIP_DOS_FALLBACK = "1980-07-01T12:00:00";
+const ZIP_UTC_MTIME_FIELD = 0x54_55;
+const ZIP_UTC_MTIME_PRESENT = 1;
+export const PLUGIN_ZIP_MTIME_SECONDS_RANGE = [-2_147_483_648, 2_147_483_647] as const;
+
+/** Pack raw install inputs with whole-second UTC mtime, limited to the standard signed32 Unix range.
+ *  Milliseconds are not retained; the native install funnel still owns admission.
+ *  @throws RangeError when the supplied epoch cannot be represented by the standard UTC extra field.
+ */
+export function makePluginBundle(manifest: PluginManifest, source: string, mtime: number, assets: Readonly<Record<string, Uint8Array>> = {}): Uint8Array {
+  const seconds = Math.floor(mtime / MS_PER_SECOND);
+  const [min, max] = PLUGIN_ZIP_MTIME_SECONDS_RANGE;
+  if (!Number.isInteger(seconds) || seconds < min || seconds > max) {
+    throw new RangeError(`Plugin ZIP mtime ${String(mtime)} cannot fit signed 32-bit Unix seconds (${String(min)}..${String(max)})`);
+  }
+  const utcTime = new Uint8Array(5);
+  utcTime[0] = ZIP_UTC_MTIME_PRESENT;
+  new DataView(utcTime.buffer).setInt32(1, seconds, true);
+  // fflate's DOS encoder uses local getters; the civil fallback is fixed and the actual time rides the supported UTC extra field.
+  return zipSync(
+    { [PLUGIN_MANIFEST_ENTRY]: strToU8(JSON.stringify(manifest)), [PLUGIN_MAIN_ENTRY]: strToU8(source), ...assets },
+    { mtime: ZIP_DOS_FALLBACK, extra: { [ZIP_UTC_MTIME_FIELD]: utcTime } },
+  );
 }
 
 /** Store validated bundle bytes through the actual install funnel, then capture its returned identity. */

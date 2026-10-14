@@ -62,30 +62,38 @@ test("a valid-shaped payload cannot redirect its owned row to another recipient"
   expect(await disposition(harness.db, raised.id)).toEqual({ readAt: null, dismissedAt: null });
 });
 
-test("the stored discriminator must agree with its parsed payload before a disposition", async ({ harness, notificationActors: actors }) => {
+test("the stored discriminator must agree with its parsed payload before a disposition", async ({
+  harness,
+  notificationActors: actors,
+  notificationDecisions: decisions,
+}) => {
   const raised = await harness.services.notifications.record({ event: actors.aliceInvite });
-  await corruptPayload(harness.db, raised.id, JSON.stringify({ type: "kicked", recipientUserId: actors.alice.userId, chatId: actors.room.id }));
+  await corruptPayload(harness.db, raised.id, JSON.stringify(decisions.kicked));
   await expect(harness.services.notifications.dismiss({ principal: actors.alice, notificationId: raised.id })).rejects.toBeInstanceOf(z.ZodError);
   expect(await disposition(harness.db, raised.id)).toEqual({ readAt: null, dismissedAt: null });
 });
 
-test("a raced valid refresh is dismissed as its newest payload without inventing absence", async ({ harness, heldDb, clock, notificationActors: actors }) => {
-  const raised = await harness.services.notifications.record({
-    event: { type: "plugins-awaiting-consent", recipientUserId: actors.alice.userId, pendingCount: 9 },
-  });
+test("a raced valid refresh is dismissed as its newest payload without inventing absence", async ({
+  harness,
+  heldDb,
+  clock,
+  notificationActors: actors,
+  consentSnapshots: consent,
+}) => {
+  const raised = await harness.services.notifications.record({ event: consent.large });
   const gate = heldDb.hold(/update "notifications" set "dismissed_at"/u);
   const dismissed = harness.services.notifications.dismiss({ principal: actors.alice, notificationId: raised.id });
   try {
     await gate.reached;
     gate.disarm();
     await harness.services.notifications.refreshStanding({
-      event: { type: "plugins-awaiting-consent", recipientUserId: actors.alice.userId, pendingCount: 8 },
+      event: consent.corrected,
     });
   } finally {
     gate.release();
   }
   const result = await dismissed;
-  expect(result.payload).toEqual({ type: "plugins-awaiting-consent", recipientUserId: actors.alice.userId, pendingCount: 8 });
+  expect(result.payload).toEqual(consent.corrected);
   expect(result.dismissedAt).toBe(clock.frozenAt);
   clock.advance(1000);
   expect((await harness.services.notifications.dismiss({ principal: actors.alice, notificationId: raised.id })).dismissedAt).toBe(result.dismissedAt);

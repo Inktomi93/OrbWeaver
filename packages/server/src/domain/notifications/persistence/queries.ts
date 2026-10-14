@@ -214,40 +214,6 @@ export async function selectInboxSince(
   return rows.map(decodeNotificationRow);
 }
 
-/** Idempotent recipient-scoped read-flip: set `readAt` only if currently null, pinned to the caller. Returns
- *  the row, or `undefined` when no row of the caller's matches the id.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function markReadScoped(
-  db: Db,
-  recipientUserId: NotificationEvent["recipientUserId"],
-  notificationId: NotificationId,
-  now: number,
-): Promise<NotificationRow | undefined> {
-  for (;;) {
-    const snapshot = await loadRecipientSnapshot(db, recipientUserId, notificationId);
-    if (snapshot === undefined) {
-      return undefined;
-    }
-    const updated = await db
-      .update(notifications)
-      .set({ readAt: sql`coalesce(${notifications.readAt}, ${now})` })
-      .where(
-        and(
-          eq(notifications.id, notificationId),
-          eq(notifications.recipientUserId, recipientUserId),
-          eq(sql<string>`${notifications.payload}`, snapshot.stored.payload),
-          eq(notifications.type, snapshot.stored.type),
-        ),
-      )
-      .returning({ readAt: notifications.readAt, dismissedAt: notifications.dismissedAt });
-    const row = updated[0];
-    if (row !== undefined) {
-      return { ...snapshot.parsed, ...row };
-    }
-  }
-}
-
 /** Bulk recipient-scoped read-flip: set `readAt` on every one of the caller's unread rows in one UPDATE.
  *  Dismissed rows are included (dismissing doesn't imply read). Returns the count of rows touched. */
 export async function markAllReadScoped(db: Db, recipientUserId: NotificationEvent["recipientUserId"], now: number): Promise<number> {
@@ -259,7 +225,7 @@ export async function markAllReadScoped(db: Db, recipientUserId: NotificationEve
   return updated.length;
 }
 
-/** Idempotent recipient-scoped dismiss-flip — `dismissedAt` set once; same scope/return as {@link markReadScoped}. */
+/** Idempotent recipient-scoped dismiss: `dismissedAt` is set once; a foreign or gone row returns undefined. */
 export async function dismissScoped(
   db: Db,
   recipientUserId: NotificationEvent["recipientUserId"],

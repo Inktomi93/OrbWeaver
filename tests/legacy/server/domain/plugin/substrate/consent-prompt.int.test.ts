@@ -10,7 +10,7 @@
 //
 // The ops are RECORDED rather than wired to the real notifications service on purpose: this file pins what
 // the PRODUCER decides (which move, for whom, with what count). What the moves do to the durable inbox is
-// `tests/legacy/server/domain/notifications/verbs/standing.int.test.ts`, and the two ends are joined for real —
+// `tests/server/domain/notifications/verbs/standing-ask-lifetime.int.test.ts`, and the two ends are joined for real —
 // real verbs, real notifications service, the nine real bundles — in
 // `tests/legacy/server/entry/boot/seed-example-plugins.int.test.ts`.
 
