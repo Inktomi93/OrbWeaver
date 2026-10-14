@@ -16,6 +16,7 @@ import {
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
 
@@ -165,7 +166,13 @@ export async function switchTargetGeneration(
  *  @returns Whether THIS call promoted the target: false when a scope is still missing or a move won the race. */
 export async function markGenerationComplete(
   db: Db,
-  input: { readonly ownerId: UserId; readonly scope: VectorScope; readonly generation: GenerationReceipt; readonly now: number },
+  input: {
+    readonly ownerId: UserId;
+    readonly scope: VectorScope;
+    readonly generation: GenerationReceipt;
+    readonly now: number;
+    readonly onlyIf?: SQL | undefined;
+  },
 ): Promise<boolean> {
   if (taskOf(input.scope) !== input.generation.task) {
     throw new Error(`scope ${input.scope} does not belong to ${input.generation.task}`);
@@ -180,7 +187,7 @@ export async function markGenerationComplete(
     return false;
   }
 
-  await db
+  const candidate = db
     .insert(embedSpaceState)
     .select(
       db
@@ -199,6 +206,7 @@ export async function markGenerationComplete(
             eq(embedGenerationTargets.task, input.generation.task),
             eq(embedGenerationTargets.generationId, input.generation.id),
             eq(embedGenerationTargets.epoch, input.generation.epoch),
+            input.onlyIf,
           ),
         ),
     )
@@ -206,6 +214,22 @@ export async function markGenerationComplete(
       target: [embedSpaceState.ownerId, embedSpaceState.scope],
       set: { candidateGenerationId: input.generation.id, candidateEpoch: input.generation.epoch, completedAt: input.now },
     });
+  const required = VECTOR_SCOPES_BY_TASK[input.generation.task];
+  if (input.onlyIf !== undefined) {
+    const active = await db
+      .select({ scope: embedSpaceState.scope, id: embedSpaceState.activeGenerationId })
+      .from(embedSpaceState)
+      .where(eq(embedSpaceState.ownerId, input.ownerId));
+    const alreadyActive = required.every((scope) => active.some((row) => row.scope === scope && row.id === input.generation.id));
+    const promotionGuard = sql`${guard(input.ownerId, input.generation)} and ${input.onlyIf}`;
+    // A refused empty claim must not leave a candidate for an unrelated later scope to promote.
+    const results = await db.batch(batchMany([batchStmt(candidate), ...generationPromotionStatements(db, input, promotionGuard)]));
+    if ((results[0]?.rowsAffected ?? 0) === 0) {
+      throw new Error("empty owner memory scope or target changed before completion");
+    }
+    return !alreadyActive && (results.at(-1)?.rowsAffected ?? 0) > 0;
+  }
+  await candidate;
 
   const rows = await db
     .select({
@@ -216,14 +240,22 @@ export async function markGenerationComplete(
     })
     .from(embedSpaceState)
     .where(eq(embedSpaceState.ownerId, input.ownerId));
-  const required = VECTOR_SCOPES_BY_TASK[input.generation.task];
   if (!required.every((scope) => rows.some((row) => row.scope === scope && row.generationId === input.generation.id && row.epoch === input.generation.epoch))) {
     return false;
   }
   // A single-scope task re-proves its active target on every pass; that re-completion is not a promotion.
   const alreadyActive = required.every((scope) => rows.some((row) => row.scope === scope && row.activeGenerationId === input.generation.id));
 
-  const promotionGuard = guard(input.ownerId, input.generation);
+  const results = await db.batch(batchMany(generationPromotionStatements(db, input, guard(input.ownerId, input.generation))));
+  return !alreadyActive && (results.at(-1)?.rowsAffected ?? 0) > 0;
+}
+
+function generationPromotionStatements(
+  db: Db,
+  input: Pick<Parameters<typeof markGenerationComplete>[1], "ownerId" | "generation" | "now">,
+  promotionGuard: SQL,
+): BatchStmt[] {
+  const required = VECTOR_SCOPES_BY_TASK[input.generation.task];
   const statements: BatchStmt[] = retiredVectorStatements(db, {
     ownerId: input.ownerId,
     task: input.generation.task,
@@ -238,8 +270,7 @@ export async function markGenerationComplete(
         .where(and(eq(embedSpaceState.ownerId, input.ownerId), inArray(embedSpaceState.scope, [...required]), promotionGuard)),
     ),
   );
-  const results = await db.batch(batchMany(statements));
-  return !alreadyActive && (results.at(-1)?.rowsAffected ?? 0) > 0;
+  return statements;
 }
 
 /** Every logical row present in an older generation has a replacement in this generation. */

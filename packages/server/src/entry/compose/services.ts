@@ -519,6 +519,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   };
   // chat's memory-enabled read for the search-discovery seam, which composes before chat. Bound once chat exists.
   let isMemoryEnabled: (ownerId: UserId) => Promise<boolean> = () => Promise.reject(new Error("compose: isMemoryEnabled invoked before chat wiring"));
+  let emptyMemoryScope: ChatComposeResult["emptyMemoryScope"] = () => Promise.reject(new Error("compose: emptyMemoryScope invoked before chat wiring"));
   // The connection pane's embedder-change preview counts the embeddings domain's rows, which compose after it.
   let countOwnedVectors: ConnectionContext["countOwnedVectors"] = () =>
     Promise.reject(new Error("compose: countOwnedVectors invoked before search-discovery wiring"));
@@ -802,6 +803,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
     getContributions: getWorkloadContributions,
     isMemoryEnabled: (ownerId) => isMemoryEnabled(ownerId),
+    emptyMemoryScope: (ownerId) => emptyMemoryScope(ownerId),
   });
   const {
     embeddings,
@@ -1044,6 +1046,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   chatLifetime = chatCompose;
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
   isMemoryEnabled = chatCompose.isMemoryEnabled;
+  emptyMemoryScope = chatCompose.emptyMemoryScope;
 
   // The preset-ownership gate (fork-clones-the-game §3.2) — `forkGame` asks whether a source game's `gmPresetId`
   // is SAFE for the forker to carry (readable BY them). Off the preset front door `get` (the ONLY legal preset

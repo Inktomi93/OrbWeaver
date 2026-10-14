@@ -6,6 +6,7 @@ export { createActiveTurns } from "./active-turns.ts";
 export { activePersonaIdFor, createTurnPersonaResolver, voicePersonaFor } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
 export type { ChatContext, ChatServiceDeps } from "./context.ts";
+export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 // `ChatRpgGatherResult` + `ChatRpgOps` are PREBUILT[for: rpg push-2] — the injected rpg turn-ops seam +
 // its structural gather result (docs/plans/rpg/design.md). `ChatContext.rpg` binds a real value only when domain/rpg
 // lands (chat.ts `input.rpg`); until then the field is null and the names have no by-name consumer, so the

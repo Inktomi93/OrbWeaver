@@ -7,6 +7,7 @@ import type { VectorWidthMismatch } from "@orb/inference";
 import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
 import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
+import type { SQL } from "drizzle-orm";
 import { and, eq } from "drizzle-orm";
 import { systemTimers } from "#infra/timers";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
@@ -21,7 +22,7 @@ type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbedding
 /** Record one scope of `generation` complete for its owner, and announce the promotion when this completion made it. */
 export async function completeGenerationScope(
   ctx: Pick<EmbeddingsContext, "db" | "now" | "onTargetPromoted">,
-  input: { readonly ownerId: UserId; readonly scope: VectorScope; readonly generation: GenerationReceipt },
+  input: { readonly ownerId: UserId; readonly scope: VectorScope; readonly generation: GenerationReceipt; readonly onlyIf?: SQL | undefined },
 ): Promise<void> {
   if (await markGenerationComplete(ctx.db, { ...input, now: ctx.now() })) {
     ctx.onTargetPromoted(input.ownerId);

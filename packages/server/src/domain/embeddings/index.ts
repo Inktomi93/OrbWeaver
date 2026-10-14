@@ -12,6 +12,7 @@ export type { EmbeddingsHandoffRestampContext, HandoffRestampPair, HandoffRestam
 // Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params.ts";
 export { VECTOR_TABLES } from "./contract/params.ts";
+export type { VacuousMemoryReceipt } from "./contract/reindex.ts";
 export type {
   EmbeddingConnectionSnapshot,
   EmbeddingsIndexer,

@@ -13,7 +13,7 @@ import type { AssetsService } from "#domain/assets";
 import { createAssetEmbeddingReads } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createEmbeddableCardText, createLoadCharacterEmbeddingOwner } from "#domain/character";
-import type { MemoryEmbedSpace } from "#domain/chat";
+import type { ChatBoundBackfillOps } from "#domain/chat";
 import {
   consolidationHash,
   createCapturePersonaSeatsForDelete,
@@ -27,7 +27,7 @@ import {
 import { resolveActiveDocumentIds, resolveActiveDocumentScope } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
 import { createDiscoveryService, createDossierNeighbors, distinctCorpusOwners } from "#domain/discovery";
-import type { EmbeddingsContext, EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection } from "#domain/embeddings";
+import type { EmbeddingsContext, EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection, VacuousMemoryReceipt } from "#domain/embeddings";
 import {
   createEmbeddingReindexTriggers,
   createEmbeddingsIndexer,
@@ -106,6 +106,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly getContributions: () => WorkloadContributions;
   /** chat's memory-enabled read (LATE-BOUND: chat composes after this seam), for the memory-off receipt. */
   readonly isMemoryEnabled: (ownerId: UserId) => Promise<boolean>;
+  readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
 }
 
 // @orb-waive no-inline-package-interface(SearchDiscoveryComposeResult): baselined when the gate landed; burn-down item 952.
@@ -137,9 +138,8 @@ export interface SearchDiscoveryComposeResult {
   /** Boot's catch-up: the same sweeps for every owner whose stored generation is no longer the one their
    *  binding resolves to, started detached. No user action raised the trigger, so autoindex does not gate it. */
   readonly detachStaleSpaceReindex: () => void;
-  /** A memory-off owner's vacuous memory receipt against their current target, or `null` (memory on, or no
-   *  target). The memory sweep's terminal records it for an owner the sweep covered but built nothing for. */
-  readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<MemoryEmbedSpace | null>;
+  /** An off or empty owner's current target receipt, including the empty present-host write fence. */
+  readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<VacuousMemoryReceipt | null>;
   /** The bulk-pass announce audience — every owner with corpus rows, bound over this seam's `db`. Threaded
    *  into BOTH discovery's five analytics contributions and embeddings' `index` sweep as their
    *  `listCorpusOwners` op, so the box-wide arm's `corpusRecomputed` fan reaches every owner it touched
@@ -334,7 +334,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   });
 
   // The memory receipt for an owner a sweep covers but builds no space for.
-  const vacuousMemoryReceipt = createVacuousMemoryReceipt({ isMemoryEnabled: deps.isMemoryEnabled, embeddings });
+  const vacuousMemoryReceipt = createVacuousMemoryReceipt({ isMemoryEnabled: deps.isMemoryEnabled, emptyMemoryScope: deps.emptyMemoryScope, embeddings });
 
   const reindex = createEmbeddingReindexTriggers({
     supervise: deps.supervise,
