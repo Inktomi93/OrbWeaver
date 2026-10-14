@@ -3,6 +3,7 @@
 // the injected `embeddings.writeHubScores` seam — discovery computes the values, embeddings owns the write.
 // OWNER-SCOPED always: csls never compares one owner's vectors against another's.
 
+import type { EveryOwnerRun, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { VectorTable } from "#domain/embeddings";
@@ -50,11 +51,11 @@ function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, 
   return groups;
 }
 
-async function hubOwners(db: Db, ownerId: UserId | null | undefined, distinct: (db: Db) => Promise<UserId[]>): Promise<UserId[]> {
-  if (ownerId === undefined || ownerId === null) {
-    return await distinct(db);
+async function hubOwners(db: Db, scope: WorkloadRunScope, distinct: (db: Db, run: EveryOwnerRun) => Promise<UserId[]>): Promise<UserId[]> {
+  if (scope.ownerId === null) {
+    return await distinct(db, scope.everyOwnerRun);
   }
-  return [ownerId];
+  return [scope.ownerId];
 }
 
 async function fanOutHubPass<T extends HubRow>(
@@ -114,8 +115,8 @@ async function runHubPass<T extends HubRow>(
 }
 
 /** Card hub scores, grouped per embedding space (`model`). */
-export async function computeCharacterHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions = {}): Promise<HubStats> {
-  const owners = await hubOwners(db, opts.ownerId, distinctCharacterHubOwners);
+export async function computeCharacterHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<HubStats> {
+  const owners = await hubOwners(db, opts, distinctCharacterHubOwners);
   return await fanOutHubPass(owners, (owner) => readCharacterHubVectors(db, owner), {
     table: "character_embeddings",
     groupKeyOf: (r) => r.model,
@@ -125,8 +126,8 @@ export async function computeCharacterHubScores(db: Db, deps: ComputeHubScoresDe
 }
 
 /** Digest hub scores, grouped per `(tier, model)`. */
-export async function computeDigestHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions = {}): Promise<number> {
-  const owners = await hubOwners(db, opts.ownerId, distinctDigestHubOwners);
+export async function computeDigestHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
+  const owners = await hubOwners(db, opts, distinctDigestHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readDigestHubVectors(db, owner), {
     table: "chat_digests",
     groupKeyOf: (r) => `${r.tier} ${r.model}`,
@@ -137,8 +138,8 @@ export async function computeDigestHubScores(db: Db, deps: ComputeHubScoresDeps,
 }
 
 /** Segment hub scores, grouped per embedding space (`model`). */
-export async function computeSegmentHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions = {}): Promise<number> {
-  const owners = await hubOwners(db, opts.ownerId, distinctSegmentHubOwners);
+export async function computeSegmentHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
+  const owners = await hubOwners(db, opts, distinctSegmentHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readSegmentHubVectors(db, owner), {
     table: "chat_segments",
     groupKeyOf: (r) => r.model,
@@ -149,8 +150,8 @@ export async function computeSegmentHubScores(db: Db, deps: ComputeHubScoresDeps
 }
 
 /** Image hub scores, grouped per embedding space (`model`); image↔image only. */
-export async function computeImageHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions = {}): Promise<number> {
-  const owners = await hubOwners(db, opts.ownerId, distinctImageHubOwners);
+export async function computeImageHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
+  const owners = await hubOwners(db, opts, distinctImageHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readImageHubVectors(db, owner), {
     table: "image_embeddings",
     groupKeyOf: (r) => r.model,

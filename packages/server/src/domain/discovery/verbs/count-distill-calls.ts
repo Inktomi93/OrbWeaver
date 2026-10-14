@@ -3,11 +3,10 @@
 
 import type { DiscoveryContext } from "../context.ts";
 import type { DiscoveryService } from "../contract/service.ts";
-import { readCardDistillTargets } from "../persistence/card-reads.ts";
+import { countCardDistillTargets } from "../persistence/card-reads.ts";
 
 export function createCountDistillCalls(ctx: DiscoveryContext): Pick<DiscoveryService, "countDistillCalls"> {
   return {
-    countDistillCalls: async (ownerId) =>
-      (await readCardDistillTargets(ctx.db, ownerId === null ? {} : { ownerId })).filter((target) => target.hasContent).length,
+    countDistillCalls: (scope) => countCardDistillTargets(ctx.db, scope),
   };
 }

@@ -8,6 +8,7 @@
 // and a client that reconnects after the 60s replay ring expired still reads the last known progress.
 
 import type {
+  EveryOwnerRun,
   ReportProgress,
   WorkloadError,
   WorkloadEvent,
@@ -21,7 +22,7 @@ import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WorkloadContribution } from "../contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../contract/service.ts";
-import type { WorkloadRunnableRow } from "../contract/workload-row.ts";
+import type { WorkloadClaim, WorkloadRunnableRow } from "../contract/workload-row.ts";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
 import { emitWorkloadEvent } from "./progress-bus.ts";
 
@@ -49,9 +50,11 @@ function dispatchAndRun(
 
 /** Build the per-dispatch run context — identity + clock ONLY. Anything else a job needs is a dep of its
  *  owning domain's contribution factory, closed over at compose (never a shared per-dispatch bundle). */
-function buildRunContext(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow): WorkloadRunContext {
+function buildRunContext(deps: WorkloadRunnerDeps, row: WorkloadClaim): WorkloadRunContext {
   const userId: UserId = row.ownerId ?? SYSTEM_OWNER_ID;
-  return { userId, ownerId: row.ownerId, now: deps.now };
+  return row.ownerId === null
+    ? { userId, ownerId: null, everyOwnerRun: Object.freeze({}) as EveryOwnerRun, now: deps.now }
+    : { userId, ownerId: row.ownerId, everyOwnerRun: null, now: deps.now };
 }
 
 /**
@@ -272,12 +275,13 @@ async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
  */
 export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, signal: AbortSignal): Promise<void> {
   // Idempotent claim: the loser of a two-worker race updates 0 rows → bail.
-  if (!(await markStarted(deps.db, row.id, deps.now()))) {
+  const claim = await markStarted(deps.db, row.id, deps.now());
+  if (claim === null) {
     return;
   }
   (deps.emitEvent ?? emitWorkloadEvent)({ type: "started", workloadId: row.id, kind: row.kind, at: deps.now() });
 
-  const ctx = buildRunContext(deps, row);
+  const ctx = buildRunContext(deps, claim);
 
   // NOT `AbortSignal.any([signal, …])` (Node-26 program §4.12, deliberate KEEP): `signal` is the WORKER's
   // long-lived shutdown signal and this function runs once per dispatched ROW, so the link's lifetime is the

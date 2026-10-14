@@ -41,15 +41,34 @@ export interface WorkloadProgress {
 /** The callback a contribution closes over to report a progress snapshot (engine-bound per dispatch). */
 export type ReportProgress = (progress: WorkloadProgress) => void;
 
+declare const everyOwnerRunBrand: unique symbol;
+declare const everyOwnerEstimateBrand: unique symbol;
+
+/** Authority carried only by an executing, claimed NULL-owner workload row. */
+export interface EveryOwnerRun {
+  readonly [everyOwnerRunBrand]: true;
+}
+
+/** Count-only authority admitted by the workload estimate door, never execution authority. */
+export interface EveryOwnerEstimate {
+  readonly [everyOwnerEstimateBrand]: true;
+}
+
+/** A singular owner or the runner's explicit every-owner authority; null alone grants nothing. */
+export type WorkloadRunScope = { readonly ownerId: UserId; readonly everyOwnerRun?: null } | { readonly ownerId: null; readonly everyOwnerRun: EveryOwnerRun };
+
+/** Estimates preserve the admitted enumeration scope without acquiring run authority. */
+export type WorkloadEstimateScope =
+  | { readonly ownerId: UserId; readonly everyOwnerEstimate?: null }
+  | { readonly ownerId: null; readonly everyOwnerEstimate: EveryOwnerEstimate };
+
 /**
  * What the engine hands a contribution per dispatch. Deliberately minimal: identity + clock. Anything else a
  * job needs (role clients, user settings, db handles) is a dep of the OWNING domain's contribution factory,
  * closed over at compose — never a shared per-dispatch bundle the next job can quietly grow.
  */
-export interface WorkloadRunContext {
+export type WorkloadRunContext = WorkloadRunScope & {
   /** The acting user — the row's owner, or a synthetic `system` id for an ownerless (scheduler) row. */
   readonly userId: UserId;
-  /** The ENUMERATION scope: a `UserId` = this one owner's data; `null` = the bulk all-owners pass. */
-  readonly ownerId: UserId | null;
   readonly now: () => number;
-}
+};

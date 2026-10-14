@@ -9,7 +9,7 @@
 
 import type { WorkloadError, WorkloadKind } from "@orb/contracts/workloads";
 import type { workloads } from "@orb/db";
-import type { WorkloadId } from "@orb/kit/ids";
+import type { UserId, WorkloadId } from "@orb/kit/ids";
 
 /** A queued row terminalized while the persistence scan searched for runnable work. The engine emits the
  * canonical event only after the scan's guarded UPDATE has settled, keeping persistence bus-free. */
@@ -57,5 +57,11 @@ export type WorkloadDecodedRow = {
   readonly [Field in keyof StoredWorkloadRow]: Field extends WorkloadJsonField ? unknown : StoredWorkloadRow[Field];
 };
 
+/** The immutable admission origin keeps a deleted owner's audit row distinct from an originally ownerless run. */
+export type WorkloadReadAccess = Pick<StoredWorkloadRow, "ownerId" | "mode" | "admissionSystem">;
+
 /** The user-facing authority check runs on scalar row metadata before any private JSON is decoded. */
-export type AuthorizeWorkloadRead = (row: Pick<StoredWorkloadRow, "ownerId" | "mode">) => boolean;
+export type AuthorizeWorkloadRead = (row: WorkloadReadAccess) => boolean;
+
+/** Atomic claim output: null ownership is admitted only when the stored original admission was ownerless. */
+export type WorkloadClaim = { readonly ownerId: UserId } | { readonly ownerId: null; readonly admissionSystem: true };

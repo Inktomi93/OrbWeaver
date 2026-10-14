@@ -1,3 +1,4 @@
+import type { WorkloadRunScope } from "@orb/contracts/workloads";
 // The databank and memory sweeps' completion ops: which owners a sweep covered, and the per-owner receipt each
 // records. Kept apart from the keystone so the completion suites run these exact ops instead of copies.
 
@@ -14,8 +15,8 @@ import type { VectorSweepDeps, VectorSweepOps } from "../contract/vector-sweep-o
  */
 export function createVectorSweepOps(deps: VectorSweepDeps): VectorSweepOps {
   const { embeddings } = deps;
-  const sweptOwners = async (enumerationScope: UserId | null): Promise<readonly UserId[]> =>
-    enumerationScope === null ? await deps.listCorpusOwners() : [enumerationScope];
+  const sweptOwners = async (enumerationScope: WorkloadRunScope): Promise<readonly UserId[]> =>
+    enumerationScope.ownerId === null ? await deps.listCorpusOwners(enumerationScope.everyOwnerRun) : [enumerationScope.ownerId];
   return {
     beginDocumentVectorSweep: async (enumerationScope): Promise<readonly DocumentVectorSweepReceipt[]> => {
       const receipts: DocumentVectorSweepReceipt[] = [];

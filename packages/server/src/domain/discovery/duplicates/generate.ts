@@ -22,7 +22,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { ComputeChatDuplicatesOptions, ComputeDuplicatesOptions } from "../contract/params.ts";
 import type { DuplicateChatComputeStats, DuplicateComputeStats } from "../contract/results.ts";
 import type { ComputeChatDuplicatesDeps, ComputeDuplicatesDeps } from "../contract/service.ts";
-import { readOwnedCharacterVectors, readOwnedChatLineage, readOwnedChatSegmentHashes } from "../persistence/embed-store-reads.ts";
+import { readRunCharacterVectors, readRunChatLineage, readRunChatSegmentHashes } from "../persistence/embed-store-reads.ts";
 import { collapseByHash } from "../substrate/collapse.ts";
 import { forkRoots } from "../substrate/fork-roots.ts";
 import { computeGroupHubs, HUBNESS_DENSE_MAX } from "../substrate/hub-math.ts";
@@ -71,9 +71,9 @@ function canonical(a: CharacterId, b: CharacterId): { readonly a: CharacterId; r
  * `duplicate_character_pairs`. Standalone `(db, deps, opts?)` so the `find-duplicates` runner drives it
  * without the whole service (the compute* passes stay standalone-exportable).
  */
-export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps, opts: ComputeDuplicatesOptions = {}): Promise<DuplicateComputeStats> {
+export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps, opts: ComputeDuplicatesOptions): Promise<DuplicateComputeStats> {
   const threshold = opts.threshold ?? DEFAULT_DUP_THRESHOLD;
-  const rows = await readOwnedCharacterVectors(db, opts.ownerId ?? null);
+  const rows = await readRunCharacterVectors(db, opts);
   const computedAt = deps.now();
 
   const owners = new Set<string>();
@@ -166,8 +166,8 @@ const CHAT_JACCARD_MODEL = "content-hash-jaccard";
 const CHAT_DUP_COLS = 8;
 
 type ChatDupInsert = typeof duplicateChatPairs.$inferInsert;
-type ChatHashRow = Awaited<ReturnType<typeof readOwnedChatSegmentHashes>>[number];
-type ChatLineageRow = Awaited<ReturnType<typeof readOwnedChatLineage>>[number];
+type ChatHashRow = Awaited<ReturnType<typeof readRunChatSegmentHashes>>[number];
+type ChatLineageRow = Awaited<ReturnType<typeof readRunChatLineage>>[number];
 
 function canonicalChat(a: ChatId, b: ChatId): { readonly a: ChatId; readonly b: ChatId } {
   return a < b ? { a, b } : { a: b, b: a };
@@ -283,10 +283,10 @@ function groupHashRowsByOwner(rows: readonly ChatHashRow[]): Map<UserId, ChatHas
 export async function computeChatDuplicatePairs(
   db: Db,
   deps: ComputeChatDuplicatesDeps,
-  opts: ComputeChatDuplicatesOptions = {},
+  opts: ComputeChatDuplicatesOptions,
 ): Promise<DuplicateChatComputeStats> {
   const threshold = opts.threshold ?? DEFAULT_CHAT_JACCARD;
-  const [hashRows, lineage] = await Promise.all([readOwnedChatSegmentHashes(db, opts.ownerId), readOwnedChatLineage(db, opts.ownerId)]);
+  const [hashRows, lineage] = await Promise.all([readRunChatSegmentHashes(db, opts), readRunChatLineage(db, opts)]);
   const computedAt = deps.now();
   const hashByOwner = groupHashRowsByOwner(hashRows);
   const lineageByOwner = new Map<UserId, ChatLineageRow[]>();

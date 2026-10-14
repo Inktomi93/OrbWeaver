@@ -3,6 +3,7 @@
 
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
+import type { EveryOwnerRun } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { IdSource, UserId } from "@orb/kit/ids";
@@ -144,7 +145,7 @@ export interface SearchDiscoveryComposeResult {
    *  `listCorpusOwners` op, so the box-wide arm's `corpusRecomputed` fan reaches every owner it touched
    *  (event-bus coverage survey §2.5/F6). Bound HERE, not at the caller, so the domain's own query stays
    *  behind the seam that owns discovery. */
-  readonly listCorpusOwners: () => Promise<UserId[]>;
+  readonly listCorpusOwners: (run: EveryOwnerRun) => Promise<UserId[]>;
 }
 
 export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDiscoveryComposeResult {
@@ -361,6 +362,6 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     detachEmbedReindex: reindex.detachEmbedReindex,
     detachStaleSpaceReindex: reindex.detachStaleSpaceReindex,
     vacuousMemoryReceipt,
-    listCorpusOwners: () => distinctCorpusOwners(db),
+    listCorpusOwners: (run) => distinctCorpusOwners(db, run),
   };
 }

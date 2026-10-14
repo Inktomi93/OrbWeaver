@@ -12,10 +12,11 @@ import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ComputeThemesOptions, ThemeLevel } from "../contract/params.ts";
+import type { ComputeThemesOptions, ThemeLevel, ThemeNameEstimateOptions } from "../contract/params.ts";
 import type { ThemeComputeStats } from "../contract/results.ts";
 import type { ComputeThemesDeps } from "../contract/service.ts";
-import { readOwnedDigestVectors } from "../persistence/embed-store-reads.ts";
+import type { readOwnedDigestVectors } from "../persistence/embed-store-reads.ts";
+import { readEstimateDigestVectors, readRunDigestVectors } from "../persistence/embed-store-reads.ts";
 import { collapseByHash } from "../substrate/collapse.ts";
 import { kmeans } from "../substrate/kmeans.ts";
 import { backfillMsgMidAt } from "./backfill.ts";
@@ -179,8 +180,8 @@ async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, samp
 
 /** The naming calls a recompute would make: one per name-worthy cluster, from the same seeded clustering the pass
  *  runs over the same solo digests. Reads only; the clustering is CPU work, never a model call. */
-export async function countThemeNameCalls(db: Db, opts: Omit<ComputeThemesOptions, "funderUserId">): Promise<number> {
-  const solo = (await readOwnedDigestVectors(db, opts.ownerId)).filter((r) => !r.isGroup);
+export async function countThemeNameCalls(db: Db, opts: ThemeNameEstimateOptions): Promise<number> {
+  const solo = (await readEstimateDigestVectors(db, opts)).filter((r) => !r.isGroup);
   if (solo.length === 0) {
     return 0;
   }
@@ -194,7 +195,7 @@ export async function countThemeNameCalls(db: Db, opts: Omit<ComputeThemesOption
  */
 export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: ComputeThemesOptions): Promise<ThemeComputeStats> {
   const seed = opts.seed ?? DEFAULT_SEED;
-  const all = await readOwnedDigestVectors(db, opts.ownerId);
+  const all = await readRunDigestVectors(db, opts);
   const solo = all.filter((r) => !r.isGroup);
   // NO INPUT ⇒ REFUSE BEFORE THE REPLACE (issue #166). This pass is an ATOMIC REPLACE: `replaceAll` deletes
   // the scope's `theme_clusters` (CASCADE takes the assignments) and reinserts what it just computed. With an
@@ -242,7 +243,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   await replaceAll(db, clusterRows, assignRows, opts.ownerId);
   // Stamps `msgMidAt` on the fresh assignments (written null in the replace batch) — tier-0 via the exact
   // segment span, tier-k via the injected memory tier-grid (deps.tier0RangeOf).
-  await backfillMsgMidAt(db, deps.tier0RangeOf, opts.ownerId);
+  await backfillMsgMidAt(db, deps.tier0RangeOf, opts);
   return {
     ownersProcessed: owners.size,
     clustersWritten: clusterRows.length,

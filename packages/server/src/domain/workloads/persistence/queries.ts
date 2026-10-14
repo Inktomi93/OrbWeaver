@@ -19,13 +19,14 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { CancelWorkloadResult, ListWorkloadsParams } from "../contract/params.ts";
 import type {
   AuthorizeWorkloadRead,
+  WorkloadClaim,
   WorkloadDecodedRow,
   WorkloadInFlightRow,
   WorkloadQueueFailureSink,
@@ -245,15 +246,20 @@ export async function findActiveAdmittedWorkloadId(
   return rows[0]?.id;
 }
 
-/** The idempotent claim: `queued → running`. Returns `false` (0 rows) for the loser of a two-worker race. */
+/** Claim `queued → running` with persisted ownership; a lost race or deleted original owner returns null. */
 // @orb-waive owner-scoped-writes(workloads): THE ENGINE PLANE (D20 un-principal) — the idempotent queued→running claim. The id is one the engine itself polled/enumerated (`scanRunnableWorkloads`), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
-export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<boolean> {
+export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<WorkloadClaim | null> {
   const moved = await db
     .update(workloads)
     .set({ status: "running", updatedAt: now })
-    .where(and(eq(workloads.id, id), eq(workloads.status, "queued")))
-    .returning({ id: workloads.id });
-  return moved.length > 0;
+    .where(and(eq(workloads.id, id), eq(workloads.status, "queued"), or(isNotNull(workloads.ownerId), eq(workloads.admissionSystem, true))))
+    .returning({ ownerId: workloads.ownerId });
+  const claimed = moved[0];
+  if (claimed === undefined) {
+    return null;
+  }
+  // The claim predicate establishes that a null owner originated in an ownerless admission, never FK deletion.
+  return claimed.ownerId === null ? { ownerId: null, admissionSystem: true } : { ownerId: claimed.ownerId };
 }
 
 /** The lease tick: bump `updatedAt` for the in-flight statuses (the reaper's stale key), and — when the run
@@ -355,7 +361,7 @@ export async function loadWorkload(
 ): Promise<WorkloadRowAnyKind | null> {
   const rows = await db.select(WORKLOAD_READ_COLUMNS).from(workloads).where(eq(workloads.id, id)).limit(1);
   const row = rows[0];
-  if (row === undefined || (authorize !== undefined && !authorize({ ownerId: row.ownerId, mode: row.mode }))) {
+  if (row === undefined || (authorize !== undefined && !authorize({ ownerId: row.ownerId, mode: row.mode, admissionSystem: row.admissionSystem }))) {
     return null;
   }
   return isKnownKind(row.kind) ? toView(contributions, decodeWorkloadRow(row)) : null;
@@ -407,6 +413,17 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
   });
 }
 
+async function failOrphanedQueuedRow(input: QueueScanInput, row: WorkloadTextRow): Promise<boolean> {
+  if (row.ownerId !== null || row.admissionSystem) {
+    return false;
+  }
+  const error: WorkloadError = { kind: "runtime", message: "the workload's owner no longer exists" };
+  if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
+    input.onFailure({ workloadId: row.id, kind: row.kind, error });
+  }
+  return true;
+}
+
 /** The next runnable row IN ONE LANE, or `null`. Cursor-pages through that lane's complete DUE queue and returns the first
  *  dispatchable row: a poison row (unknown kind, or params that no longer parse — it has nothing runnable to
  *  run) is failed in place (never thrown, to avoid starving the queue on the same head row); a row whose
@@ -418,6 +435,9 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
  *  a row scheduled for tomorrow cannot starve a row queued (and due) a minute from now. The column is NOT
  *  NULL (it defaults to the enqueue instant), so "no deferral" is `scheduledAt === createdAt`, never null. */
 async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): Promise<WorkloadRunnableRow | null> {
+  if (await failOrphanedQueuedRow(input, row)) {
+    return null;
+  }
   let view: WorkloadRowAnyKind | null;
   try {
     view = toView(input.contributions, decodeWorkloadRow(row));

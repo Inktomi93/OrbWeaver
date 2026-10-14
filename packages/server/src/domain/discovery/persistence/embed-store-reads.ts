@@ -7,6 +7,7 @@
 
 import type { ThemeTimelineBucket } from "@orb/contracts/discovery";
 import type { ImageCaptionMeta, VectorScope } from "@orb/contracts/embeddings";
+import type { EveryOwnerEstimate, EveryOwnerRun, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import {
   assets,
@@ -108,10 +109,8 @@ export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise
 // ── duplicate-character pass ──────────────────────────────────────────────────
 /** Every card embedding with its owner, excluding synthetic (per-room group) characters. No owner is the
  *  every-owner duplicate pass (`computeDuplicatePairs`), which runs with no Principal. */
-export async function readOwnedCharacterVectors(db: Db, ownerId: UserId | null): Promise<OwnedCharacterVector[]> {
-  const scope = ownerId === null ? realCharactersOfEveryOwner() : ownedRealCharacters(ownerId);
-  // @orb-waive owner-scoped-reads(characters): a non-null `ownerId` pins `characters.ownerId` through `ownedRealCharacters`; the `null` arm is the every-owner duplicate pass (`computeDuplicatePairs` from the find-duplicates workload), reachable only from a null-owner workload run (system or box-owner bulk); rows never egress — the pass writes only derived same-owner pair rows. The verbs (similarity graph, projection, archetypes) always pass the principal's id. Ends if a request-scoped caller can reach the null arm.
-  // @orb-waive owner-scoped-reads(embedGenerations): the generation joins through the card embedding, whose card is pinned to `ownerId` on the owned arm; the `null` arm is the every-owner duplicate pass, reachable only from a null-owner workload run (system or box-owner bulk); rows never egress; the read projects only the generation's fingerprint for the embedding row that names it. Ends if a request-scoped caller can reach the null arm.
+export async function readOwnedCharacterVectors(db: Db, ownerId: UserId): Promise<OwnedCharacterVector[]> {
+  const scope = ownedRealCharacters(ownerId);
   return await db
     .select({
       generationId: characterEmbeddings.generationId,
@@ -126,6 +125,29 @@ export async function readOwnedCharacterVectors(db: Db, ownerId: UserId | null):
     .leftJoin(embedGenerations, eq(embedGenerations.id, characterEmbeddings.generationId))
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
     .where(and(scope, currentCard));
+}
+
+async function readEveryOwnerCharacterVectors(db: Db, _run: EveryOwnerRun): Promise<OwnedCharacterVector[]> {
+  const scope = realCharactersOfEveryOwner();
+  return await db
+    .select({
+      generationId: characterEmbeddings.generationId,
+      fingerprint: embedGenerations.fingerprint,
+      characterId: characterEmbeddings.characterId,
+      ownerId: characters.ownerId,
+      model: characterEmbeddings.model,
+      embedding: characterEmbeddings.embedding,
+      contentHash: characterEmbeddings.contentHash,
+    })
+    .from(characterEmbeddings)
+    .leftJoin(embedGenerations, eq(embedGenerations.id, characterEmbeddings.generationId))
+    .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
+    .where(and(scope, currentCard));
+}
+
+/** Execute the caller's typed enumeration scope; null requires its actual run. */
+export function readRunCharacterVectors(db: Db, scope: WorkloadRunScope): Promise<OwnedCharacterVector[]> {
+  return scope.ownerId === null ? readEveryOwnerCharacterVectors(db, scope.everyOwnerRun) : readOwnedCharacterVectors(db, scope.ownerId);
 }
 
 // ── hub passes (always owner-scoped — csls analyzes YOUR OWN library only, no cross-tenant read) ──
@@ -209,8 +231,7 @@ export async function readImageHubVectors(db: Db, ownerId: UserId): Promise<HubV
 
 // ── distinct-owner enumerations (the BULK csls fan-out universe — the owners who HAVE rows in each table) ──
 /** Distinct owners with card embeddings (via `characters.ownerId`). */
-export async function distinctCharacterHubOwners(db: Db): Promise<UserId[]> {
-  // @orb-waive owner-scoped-reads(characters): the bulk passes' owner enumeration (`distinctCorpusOwners`, and `compute-hub-scores`' owner universe when no owner is given), reachable only from a null-owner workload run (system or box-owner bulk); rows never egress — it returns owner ids only, used to pick whose rows the pass recomputes and whom it notifies. Ends if a request-scoped caller reaches it or it projects a card column.
+export async function distinctCharacterHubOwners(db: Db, _run: EveryOwnerRun): Promise<UserId[]> {
   const rows = await db
     .selectDistinct({ ownerId: characters.ownerId })
     .from(characterEmbeddings)
@@ -222,7 +243,7 @@ export async function distinctCharacterHubOwners(db: Db): Promise<UserId[]> {
 }
 
 /** Distinct present-host owners with digest embeddings. */
-export async function distinctDigestHubOwners(db: Db): Promise<UserId[]> {
+export async function distinctDigestHubOwners(db: Db, _run: EveryOwnerRun): Promise<UserId[]> {
   const rows = await db
     .selectDistinct({ ownerId: chatParticipants.userId })
     .from(chatDigests)
@@ -239,7 +260,7 @@ export async function distinctDigestHubOwners(db: Db): Promise<UserId[]> {
 }
 
 /** Distinct present-host owners with segment embeddings. */
-export async function distinctSegmentHubOwners(db: Db): Promise<UserId[]> {
+export async function distinctSegmentHubOwners(db: Db, _run: EveryOwnerRun): Promise<UserId[]> {
   const rows = await db
     .selectDistinct({ ownerId: chatParticipants.userId })
     .from(chatSegments)
@@ -256,8 +277,7 @@ export async function distinctSegmentHubOwners(db: Db): Promise<UserId[]> {
 }
 
 /** Distinct owners with image embeddings (via `assets.ownerId`). */
-export async function distinctImageHubOwners(db: Db): Promise<UserId[]> {
-  // @orb-waive owner-scoped-reads(assets): the bulk passes' owner enumeration (`distinctCorpusOwners`, and `compute-hub-scores`' owner universe when no owner is given), reachable only from a null-owner workload run (system or box-owner bulk); rows never egress — it returns owner ids only, used to pick whose rows the pass recomputes and whom it notifies. Ends if a request-scoped caller reaches it or it projects an asset column.
+export async function distinctImageHubOwners(db: Db, _run: EveryOwnerRun): Promise<UserId[]> {
   const rows = await db.selectDistinct({ ownerId: assets.ownerId }).from(imageEmbeddings).innerJoin(assets, eq(imageEmbeddings.assetId, assets.id));
   return rows.map((r) => r.ownerId);
 }
@@ -277,8 +297,13 @@ export async function distinctImageHubOwners(db: Db): Promise<UserId[]> {
  * failure that matters is the other direction — an owner NOT told is frozen at `staleTime: Infinity` until
  * gcTime evicts, which is the defect this member exists to close.
  */
-export async function distinctCorpusOwners(db: Db): Promise<UserId[]> {
-  const perKind = await Promise.all([distinctCharacterHubOwners(db), distinctDigestHubOwners(db), distinctSegmentHubOwners(db), distinctImageHubOwners(db)]);
+export async function distinctCorpusOwners(db: Db, run: EveryOwnerRun): Promise<UserId[]> {
+  const perKind = await Promise.all([
+    distinctCharacterHubOwners(db, run),
+    distinctDigestHubOwners(db, run),
+    distinctSegmentHubOwners(db, run),
+    distinctImageHubOwners(db, run),
+  ]);
   // `indexOf` rather than a Set: `persistence-no-in-memory-state` bans a constructed Set in this layer, and
   // the rule is right even though this one would be query-local — the union is over the box's USER count,
   // so the quadratic is a handful of comparisons and there is no reason to spend an exemption on it.
@@ -288,38 +313,72 @@ export async function distinctCorpusOwners(db: Db): Promise<UserId[]> {
 // ── theme pass ────────────────────────────────────────────────────────────────
 /** Every digest embedding tagged with its owner (present chat host) + isGroup + tier + space — the theme
  *  clustering inputs. Present-host join only — a departed ex-host must not re-attribute the digest. */
-export async function readOwnedDigestVectors(db: Db, ownerId?: UserId | null): Promise<OwnedDigestVector[]> {
-  const hostJoin =
-    ownerId === undefined || ownerId === null
-      ? and(
-          eq(chatParticipants.chatId, chatDigests.chatId),
-          eq(chatParticipants.kind, "human"),
-          eq(chatParticipants.role, "host"),
-          isNull(chatParticipants.leftSeq),
-        )
-      : and(
-          eq(chatParticipants.chatId, chatDigests.chatId),
-          eq(chatParticipants.kind, "human"),
-          eq(chatParticipants.role, "host"),
-          eq(chatParticipants.userId, ownerId),
-          isNull(chatParticipants.leftSeq),
-        );
+const digestVectorFields = {
+  digestId: chatDigests.id,
+  ownerId: chatParticipants.userId,
+  isGroup: chatDigests.isGroup,
+  tier: chatDigests.tier,
+  model: chatDigests.model,
+  embedding: chatDigests.embedding,
+  contentHash: chatDigests.contentHash,
+  keywords: chatDigests.keywords,
+  topicAnchor: chatDigests.topicAnchor,
+};
+
+export async function readOwnedDigestVectors(db: Db, ownerId: UserId): Promise<OwnedDigestVector[]> {
+  const hostJoin = and(
+    eq(chatParticipants.chatId, chatDigests.chatId),
+    eq(chatParticipants.kind, "human"),
+    eq(chatParticipants.role, "host"),
+    eq(chatParticipants.userId, ownerId),
+    isNull(chatParticipants.leftSeq),
+  );
   return await db
-    .select({
-      digestId: chatDigests.id,
-      ownerId: chatParticipants.userId,
-      isGroup: chatDigests.isGroup,
-      tier: chatDigests.tier,
-      model: chatDigests.model,
-      embedding: chatDigests.embedding,
-      contentHash: chatDigests.contentHash,
-      keywords: chatDigests.keywords,
-      topicAnchor: chatDigests.topicAnchor,
-    })
+    .select(digestVectorFields)
     .from(chatDigests)
     .innerJoin(chatParticipants, hostJoin)
     .where(currentDigest)
-    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+async function readEveryOwnerDigestVectors(db: Db, _run: EveryOwnerRun): Promise<OwnedDigestVector[]> {
+  const hostJoin = and(
+    eq(chatParticipants.chatId, chatDigests.chatId),
+    eq(chatParticipants.kind, "human"),
+    eq(chatParticipants.role, "host"),
+    isNull(chatParticipants.leftSeq),
+  );
+  return await db
+    .select(digestVectorFields)
+    .from(chatDigests)
+    .innerJoin(chatParticipants, hostJoin)
+    .where(currentDigest)
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+async function readEveryOwnerEstimateDigestVectors(db: Db, _estimate: EveryOwnerEstimate): Promise<OwnedDigestVector[]> {
+  const hostJoin = and(
+    eq(chatParticipants.chatId, chatDigests.chatId),
+    eq(chatParticipants.kind, "human"),
+    eq(chatParticipants.role, "host"),
+    isNull(chatParticipants.leftSeq),
+  );
+  return await db
+    .select(digestVectorFields)
+    .from(chatDigests)
+    .innerJoin(chatParticipants, hostJoin)
+    .where(currentDigest)
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+/** Exact estimate inputs have count-only authority, separate from the run scope. */
+export function readEstimateDigestVectors(db: Db, scope: WorkloadEstimateScope): Promise<OwnedDigestVector[]> {
+  return scope.ownerId === null ? readEveryOwnerEstimateDigestVectors(db, scope.everyOwnerEstimate) : readOwnedDigestVectors(db, scope.ownerId);
+}
+
+/** Read only the explicitly selected execution scope. */
+export function readRunDigestVectors(db: Db, scope: WorkloadRunScope): Promise<OwnedDigestVector[]> {
+  return scope.ownerId === null ? readEveryOwnerDigestVectors(db, scope.everyOwnerRun) : readOwnedDigestVectors(db, scope.ownerId);
 }
 
 // ── cooccurrence pass ───────────────────────────────────────────────────────
@@ -327,43 +386,55 @@ export async function readOwnedDigestVectors(db: Db, ownerId?: UserId | null): P
  *  + isGroup + contentHash — the cooccurrence + per-character keyword-profile inputs. Tier-0 leaves only.
  *  `isGroup` rides the row rather than the predicate (the sibling {@link readOwnedDigestVectors} shape) so the
  *  pass can report the read plane and its solo sub-plane as separate counts. */
-export async function readOwnedDigestKeywords(db: Db, ownerId?: UserId | null): Promise<DigestKeywordRow[]> {
-  const hostJoin =
-    ownerId === undefined || ownerId === null
-      ? and(
-          eq(chatParticipants.chatId, chatDigests.chatId),
-          eq(chatParticipants.kind, "human"),
-          eq(chatParticipants.role, "host"),
-          isNull(chatParticipants.leftSeq),
-        )
-      : and(
-          eq(chatParticipants.chatId, chatDigests.chatId),
-          eq(chatParticipants.kind, "human"),
-          eq(chatParticipants.role, "host"),
-          eq(chatParticipants.userId, ownerId),
-          isNull(chatParticipants.leftSeq),
-        );
+const digestKeywordFields = {
+  ownerId: chatParticipants.userId,
+  scopedCharacterId: chatDigests.scopedCharacterId,
+  isGroup: chatDigests.isGroup,
+  contentHash: chatDigests.contentHash,
+  keywords: chatDigests.keywords,
+};
+
+async function readOwnedDigestKeywords(db: Db, ownerId: UserId): Promise<DigestKeywordRow[]> {
+  const hostJoin = and(
+    eq(chatParticipants.chatId, chatDigests.chatId),
+    eq(chatParticipants.kind, "human"),
+    eq(chatParticipants.role, "host"),
+    eq(chatParticipants.userId, ownerId),
+    isNull(chatParticipants.leftSeq),
+  );
   return await db
-    .select({
-      ownerId: chatParticipants.userId,
-      scopedCharacterId: chatDigests.scopedCharacterId,
-      isGroup: chatDigests.isGroup,
-      contentHash: chatDigests.contentHash,
-      keywords: chatDigests.keywords,
-    })
+    .select(digestKeywordFields)
     .from(chatDigests)
     .innerJoin(chatParticipants, hostJoin)
     .where(and(eq(chatDigests.tier, 0), currentDigest))
-    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+async function readEveryOwnerDigestKeywords(db: Db, _run: EveryOwnerRun): Promise<DigestKeywordRow[]> {
+  const hostJoin = and(
+    eq(chatParticipants.chatId, chatDigests.chatId),
+    eq(chatParticipants.kind, "human"),
+    eq(chatParticipants.role, "host"),
+    isNull(chatParticipants.leftSeq),
+  );
+  return await db
+    .select(digestKeywordFields)
+    .from(chatDigests)
+    .innerJoin(chatParticipants, hostJoin)
+    .where(and(eq(chatDigests.tier, 0), currentDigest))
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+/** Read only the explicitly selected execution scope. */
+export function readRunDigestKeywords(db: Db, scope: WorkloadRunScope): Promise<DigestKeywordRow[]> {
+  return scope.ownerId === null ? readEveryOwnerDigestKeywords(db, scope.everyOwnerRun) : readOwnedDigestKeywords(db, scope.ownerId);
 }
 
 // ── chat near-dup arm (Jaccard of segment content-hashes + fork lineage) ─────
 // A present-host predicate factory for the owner-scope join (a departed ex-host must not re-attribute).
-function segmentHostJoin(chatIdCol: typeof chatSegments.chatId, ownerId?: UserId | null): ReturnType<typeof and> {
+function segmentHostJoin(chatIdCol: typeof chatSegments.chatId, ownerId: UserId): ReturnType<typeof and> {
   const common = [eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)];
-  return ownerId === undefined || ownerId === null
-    ? and(eq(chatParticipants.chatId, chatIdCol), ...common)
-    : and(eq(chatParticipants.chatId, chatIdCol), eq(chatParticipants.userId, ownerId), ...common);
+  return and(eq(chatParticipants.chatId, chatIdCol), eq(chatParticipants.userId, ownerId), ...common);
 }
 
 interface ChatSegmentHash {
@@ -374,7 +445,7 @@ interface ChatSegmentHash {
 
 /** Every verbatim segment content-hash of the owner's hosted chats — the Jaccard set elements for the chat
  *  near-dup arm. */
-export async function readOwnedChatSegmentHashes(db: Db, ownerId?: UserId | null): Promise<ChatSegmentHash[]> {
+async function readOwnedChatSegmentHashes(db: Db, ownerId: UserId): Promise<ChatSegmentHash[]> {
   return await db
     .select({
       ownerId: chatParticipants.userId,
@@ -384,7 +455,33 @@ export async function readOwnedChatSegmentHashes(db: Db, ownerId?: UserId | null
     .from(chatSegments)
     .innerJoin(chatParticipants, segmentHostJoin(chatSegments.chatId, ownerId))
     .where(currentSegment)
-    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+async function readEveryOwnerChatSegmentHashes(db: Db, _run: EveryOwnerRun): Promise<ChatSegmentHash[]> {
+  return await db
+    .select({
+      ownerId: chatParticipants.userId,
+      chatId: chatSegments.chatId,
+      contentHash: chatSegments.contentHash,
+    })
+    .from(chatSegments)
+    .innerJoin(
+      chatParticipants,
+      and(
+        eq(chatParticipants.chatId, chatSegments.chatId),
+        eq(chatParticipants.kind, "human"),
+        eq(chatParticipants.role, "host"),
+        isNull(chatParticipants.leftSeq),
+      ),
+    )
+    .where(currentSegment)
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+/** Read only the explicitly selected execution scope. */
+export function readRunChatSegmentHashes(db: Db, scope: WorkloadRunScope): Promise<ChatSegmentHash[]> {
+  return scope.ownerId === null ? readEveryOwnerChatSegmentHashes(db, scope.everyOwnerRun) : readOwnedChatSegmentHashes(db, scope.ownerId);
 }
 
 interface ChatLineageEdge {
@@ -395,12 +492,9 @@ interface ChatLineageEdge {
 
 /** Every hosted chat of the owner with its fork parent — the lineage the near-dup arm walks to label a
  *  pair `forked` vs `duplicate`. */
-export async function readOwnedChatLineage(db: Db, ownerId?: UserId | null): Promise<ChatLineageEdge[]> {
+async function readOwnedChatLineage(db: Db, ownerId: UserId): Promise<ChatLineageEdge[]> {
   const common = [eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)];
-  const hostJoin =
-    ownerId === undefined || ownerId === null
-      ? and(eq(chatParticipants.chatId, chats.id), ...common)
-      : and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, ownerId), ...common);
+  const hostJoin = and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, ownerId), ...common);
   return await db
     .select({
       ownerId: chatParticipants.userId,
@@ -409,7 +503,26 @@ export async function readOwnedChatLineage(db: Db, ownerId?: UserId | null): Pro
     })
     .from(chats)
     .innerJoin(chatParticipants, hostJoin)
-    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+async function readEveryOwnerChatLineage(db: Db, _run: EveryOwnerRun): Promise<ChatLineageEdge[]> {
+  const common = [eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)];
+  const hostJoin = and(eq(chatParticipants.chatId, chats.id), ...common);
+  return await db
+    .select({
+      ownerId: chatParticipants.userId,
+      chatId: chats.id,
+      parentChatId: chats.parentChatId,
+    })
+    .from(chats)
+    .innerJoin(chatParticipants, hostJoin)
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId }])));
+}
+
+/** Read only the explicitly selected execution scope. */
+export function readRunChatLineage(db: Db, scope: WorkloadRunScope): Promise<ChatLineageEdge[]> {
+  return scope.ownerId === null ? readEveryOwnerChatLineage(db, scope.everyOwnerRun) : readOwnedChatLineage(db, scope.ownerId);
 }
 
 interface Tier0DigestSpan {
@@ -426,7 +539,7 @@ interface Tier0DigestSpan {
  *  backfill several partial spans for ONE digest. `backfillMsgMidAt` UPDATEs by `digestId`, so the last row in
  *  an unordered result won — a chunked scene's story-time stamp was whichever chunk the planner emitted last,
  *  never the whole block's `[min(seqStart), max(seqEnd)]`. */
-export async function readTier0DigestSpans(db: Db, ownerId?: UserId | null): Promise<Tier0DigestSpan[]> {
+async function readOwnedTier0DigestSpans(db: Db, ownerId: UserId): Promise<Tier0DigestSpan[]> {
   const base = db
     .select({
       digestId: chatDigests.id,
@@ -437,21 +550,39 @@ export async function readTier0DigestSpans(db: Db, ownerId?: UserId | null): Pro
     .from(digestThemeAssignments)
     .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId))
     .innerJoin(chatSegments, and(eq(chatSegments.chatId, chatDigests.chatId), eq(chatSegments.blockIdx, chatDigests.blockIdx)));
-  const scoped =
-    ownerId === undefined || ownerId === null
-      ? base
-      : base.innerJoin(
-          chatParticipants,
-          and(
-            eq(chatParticipants.chatId, chatDigests.chatId),
-            eq(chatParticipants.kind, "human"),
-            eq(chatParticipants.role, "host"),
-            eq(chatParticipants.userId, ownerId),
-            isNull(chatParticipants.leftSeq),
-          ),
-        );
+  const scoped = base.innerJoin(
+    chatParticipants,
+    and(
+      eq(chatParticipants.chatId, chatDigests.chatId),
+      eq(chatParticipants.kind, "human"),
+      eq(chatParticipants.role, "host"),
+      eq(chatParticipants.userId, ownerId),
+      isNull(chatParticipants.leftSeq),
+    ),
+  );
   const rows = await scoped.where(eq(chatDigests.tier, 0)).groupBy(chatDigests.id, chatDigests.chatId);
   return rows.flatMap((r) => (r.seqStart === null || r.seqEnd === null ? [] : [{ ...r, seqStart: r.seqStart, seqEnd: r.seqEnd }]));
+}
+
+async function readEveryOwnerTier0DigestSpans(db: Db, _run: EveryOwnerRun): Promise<Tier0DigestSpan[]> {
+  const base = db
+    .select({
+      digestId: chatDigests.id,
+      chatId: chatDigests.chatId,
+      seqStart: min(chatSegments.seqStart),
+      seqEnd: max(chatSegments.seqEnd),
+    })
+    .from(digestThemeAssignments)
+    .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId))
+    .innerJoin(chatSegments, and(eq(chatSegments.chatId, chatDigests.chatId), eq(chatSegments.blockIdx, chatDigests.blockIdx)));
+  const scoped = base;
+  const rows = await scoped.where(eq(chatDigests.tier, 0)).groupBy(chatDigests.id, chatDigests.chatId);
+  return rows.flatMap((r) => (r.seqStart === null || r.seqEnd === null ? [] : [{ ...r, seqStart: r.seqStart, seqEnd: r.seqEnd }]));
+}
+
+/** Read only the explicitly selected execution scope. */
+export function readTier0DigestSpans(db: Db, scope: WorkloadRunScope): Promise<Tier0DigestSpan[]> {
+  return scope.ownerId === null ? readEveryOwnerTier0DigestSpans(db, scope.everyOwnerRun) : readOwnedTier0DigestSpans(db, scope.ownerId);
 }
 
 interface TierKDigestRow {
@@ -463,7 +594,7 @@ interface TierKDigestRow {
 
 /** Every tier-k (tier \> 0) digest with a theme assignment — no 1:1 segment sibling, so the seq-span is
  *  derived from the injected memory tier-grid (`Tier0RangeOp`) over {@link readSegmentBlockSpans}. */
-export async function readTierKDigestSpans(db: Db, ownerId?: UserId | null): Promise<TierKDigestRow[]> {
+async function readOwnedTierKDigestSpans(db: Db, ownerId: UserId): Promise<TierKDigestRow[]> {
   const base = db
     .selectDistinct({
       digestId: chatDigests.id,
@@ -473,9 +604,6 @@ export async function readTierKDigestSpans(db: Db, ownerId?: UserId | null): Pro
     })
     .from(digestThemeAssignments)
     .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId));
-  if (ownerId === undefined || ownerId === null) {
-    return await base.where(gt(chatDigests.tier, 0));
-  }
   return await base
     .innerJoin(
       chatParticipants,
@@ -488,6 +616,24 @@ export async function readTierKDigestSpans(db: Db, ownerId?: UserId | null): Pro
       ),
     )
     .where(gt(chatDigests.tier, 0));
+}
+
+async function readEveryOwnerTierKDigestSpans(db: Db, _run: EveryOwnerRun): Promise<TierKDigestRow[]> {
+  const base = db
+    .selectDistinct({
+      digestId: chatDigests.id,
+      chatId: chatDigests.chatId,
+      tier: chatDigests.tier,
+      blockIdx: chatDigests.blockIdx,
+    })
+    .from(digestThemeAssignments)
+    .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId));
+  return await base.where(gt(chatDigests.tier, 0));
+}
+
+/** Read only the explicitly selected execution scope. */
+export function readTierKDigestSpans(db: Db, scope: WorkloadRunScope): Promise<TierKDigestRow[]> {
+  return scope.ownerId === null ? readEveryOwnerTierKDigestSpans(db, scope.everyOwnerRun) : readOwnedTierKDigestSpans(db, scope.ownerId);
 }
 
 type SegmentBlockSpan = Readonly<Pick<typeof chatSegments.$inferSelect, "chatId" | "blockIdx" | "seqStart" | "seqEnd">>;

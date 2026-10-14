@@ -30,7 +30,7 @@ async function reindexOnce(deps: DatabankWorkloadDeps, { ctx, params, report, si
   // Only an OWNER-WIDE pass re-derives a whole `documents` scope, so only it may claim one (#2517) —
   // a single-document repair covers one row and says nothing about the rest of the corpus.
   const corpusWide = params.scope.kind === "owner";
-  const generationReceipts = corpusWide ? await deps.beginDocumentVectorSweep(ctx.ownerId) : [];
+  const generationReceipts = corpusWide ? await deps.beginDocumentVectorSweep(ctx) : [];
   const mode = params.mode ?? DEFAULT_REINDEX_MODE;
   const label = `databank-reindex: ${mode} (${params.scope.kind} scope)`;
   report({ message: label });

@@ -12,6 +12,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
 import type { StartWorkloadParams } from "../contract/params.ts";
+import type { WorkloadReadAccess } from "../contract/workload-row.ts";
 
 /**
  * Assert a kind supports the requested run mode (the shared MODE-support gate `start`, the call estimate and the
@@ -74,12 +75,12 @@ export function isVisibleToCaller(isAdmin: IsAdmin, caller: Principal | null, ow
  * BULK row is the box owner's alone. An admin who is not the box owner is therefore answered exactly as a caller
  * who cannot see the row, so the refusal is no oracle for whether a bulk row exists.
  */
-export function canCloneRow(
-  seams: { readonly isAdmin: IsAdmin; readonly isOwner: IsOwner },
-  caller: Principal | null,
-  row: { readonly ownerId: UserId | null; readonly mode: WorkloadMode },
-): boolean {
-  return isVisibleToCaller(seams.isAdmin, caller, row.ownerId) && (caller === null || row.mode !== "bulk" || seams.isOwner(caller));
+export function canCloneRow(seams: { readonly isAdmin: IsAdmin; readonly isOwner: IsOwner }, caller: Principal | null, row: WorkloadReadAccess): boolean {
+  return (
+    !(row.ownerId === null && !row.admissionSystem) &&
+    isVisibleToCaller(seams.isAdmin, caller, row.ownerId) &&
+    (caller === null || row.mode !== "bulk" || seams.isOwner(caller))
+  );
 }
 
 /**

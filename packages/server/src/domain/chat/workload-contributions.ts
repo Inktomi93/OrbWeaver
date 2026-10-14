@@ -81,7 +81,7 @@ async function sweepMemoryOnce(deps: ChatWorkloadDeps, { ctx, params, report, si
   // (`embeddings/persistence/space-state.ts switchTargetGeneration`). The op enumerates the scope it is
   // handed, so a singular run reaches only its own owner (`enumerationScope` is the WORKLOAD ROW's scope,
   // not a chat owner — chats stay membership-scoped, D18).
-  const enumerationScope = ctx.ownerId;
+  const enumerationScope = ctx;
   // A sweep that skipped chats or was cancelled did not re-derive the corpus (#165), so it may not claim
   // the scope; the new index stays partial and the rerun completes it.
   //

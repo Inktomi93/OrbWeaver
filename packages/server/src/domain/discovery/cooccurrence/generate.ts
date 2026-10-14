@@ -12,7 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { ComputeCooccurrenceOptions } from "../contract/params.ts";
 import type { CooccurrenceStats } from "../contract/results.ts";
 import type { ComputeCooccurrenceDeps } from "../contract/service.ts";
-import { readOwnedDigestKeywords } from "../persistence/embed-store-reads.ts";
+import { readRunDigestKeywords } from "../persistence/embed-store-reads.ts";
 import { collapseByHash } from "../substrate/collapse.ts";
 import { normalizeKeyword } from "./utils.ts";
 
@@ -26,7 +26,7 @@ const PROFILE_COLS = 5;
 
 type CoocInsert = typeof keywordCooccurrence.$inferInsert;
 type ProfileInsert = typeof characterKeywordProfiles.$inferInsert;
-type DigestKeywords = Awaited<ReturnType<typeof readOwnedDigestKeywords>>[number];
+type DigestKeywords = Awaited<ReturnType<typeof readRunDigestKeywords>>[number];
 
 interface NormalizedDigest {
   readonly characterId: CharacterId;
@@ -155,13 +155,13 @@ function groupByOwner(rows: readonly DigestKeywords[]): Map<UserId, DigestKeywor
  * owner when `opts.ownerId` is set). Idempotent atomic per-owner replace. Standalone `(db, deps, opts?)` so the
  * `compute-cooccurrence` runner drives it without the whole service.
  */
-export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps, opts: ComputeCooccurrenceOptions = {}): Promise<CooccurrenceStats> {
+export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps, opts: ComputeCooccurrenceOptions): Promise<CooccurrenceStats> {
   const maxPairs = opts.maxPairs ?? DEFAULT_MAX_PAIRS;
   const hubFraction = opts.hubFraction ?? DEFAULT_HUB_FRACTION;
   const { signal } = opts;
   signal?.throwIfAborted();
   const now = deps.now();
-  const all = await readOwnedDigestKeywords(db, opts.ownerId);
+  const all = await readRunDigestKeywords(db, opts);
   // GROUP-ROOM DIGESTS ARE NOT ONE CHARACTER'S KEYWORDS (#1467). A group digest is scoped to the synthetic
   // per-room group bucket, so every keyword of a whole room's scene landed in ONE synthetic character's
   // `character_keyword_profiles` row, and the pair tally counted a room's vocabulary as a character's. The

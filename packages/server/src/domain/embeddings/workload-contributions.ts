@@ -23,7 +23,7 @@ import type { EmbeddingsWorkloadDeps } from "./contract/service.ts";
  * Called from a `finally`, so an aborted sweep still announces the rows it already embedded.
  */
 async function announceCorpus(deps: EmbeddingsWorkloadDeps, ctx: WorkloadRunContext): Promise<void> {
-  const owners = ctx.ownerId === null ? await deps.listCorpusOwners() : [ctx.ownerId];
+  const owners = ctx.ownerId === null ? await deps.listCorpusOwners(ctx.everyOwnerRun) : [ctx.ownerId];
   for (const owner of owners) {
     deps.emitUserEvent(owner, { type: "corpusRecomputed" });
   }

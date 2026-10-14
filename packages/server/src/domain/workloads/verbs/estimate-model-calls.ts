@@ -3,7 +3,7 @@
 // check) and asks the owning domain to count; it writes nothing and enqueues nothing. Its retry twin counts the
 // row a retry would clone, under that row's owner, because a retry re-runs the original scope, not the caller's.
 
-import type { ModelCallEstimate } from "@orb/contracts/workloads";
+import type { EveryOwnerEstimate, ModelCallEstimate } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { EstimateModelCallsParams, EstimateRetryModelCallsParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
@@ -22,7 +22,16 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
     if (params.assumeAdmitted !== true && (await admissionRefusal(contributions, input.kind, input.params, ownerId)) !== null) {
       return { calls: 0 };
     }
-    return { calls: await countModelCalls(contributions, input.kind, input.params, { ownerId, funderUserId: params.caller.userId }) };
+    return {
+      calls: await countModelCalls(
+        contributions,
+        input.kind,
+        input.params,
+        ownerId === null
+          ? { ownerId: null, everyOwnerEstimate: Object.freeze({}) as EveryOwnerEstimate, funderUserId: params.caller.userId }
+          : { ownerId, funderUserId: params.caller.userId },
+      ),
+    };
   }
 
   // The same gates `retry` applies before it clones: a row the caller cannot see is leak-free NOT_FOUND, and a bulk
@@ -43,10 +52,14 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
       return { calls: 0 };
     }
     return {
-      calls: await countModelCalls(contributions, original.kind, original.params, {
-        ownerId: original.ownerId,
-        funderUserId: original.ownerId ?? params.caller.userId,
-      }),
+      calls: await countModelCalls(
+        contributions,
+        original.kind,
+        original.params,
+        original.ownerId === null
+          ? { ownerId: null, everyOwnerEstimate: Object.freeze({}) as EveryOwnerEstimate, funderUserId: params.caller.userId }
+          : { ownerId: original.ownerId, funderUserId: original.ownerId },
+      ),
     };
   }
 
