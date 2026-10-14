@@ -8,10 +8,11 @@
 // needs a wider population, a type graph and ordinary authority. Both read `DOMAIN_CONTRACT_RE` for the domain home.
 import type { InterfaceDeclaration, Node, SourceFile, TypeLiteralNode } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { indexByField } from "../../floor/code-facts/shape-copy.ts";
+import type { ShapeCopySource as ContractFieldShape, ShapeCopyCandidate as CopyCandidate } from "../../floor/code-facts/shape-copy-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { DOMAIN_CONTRACT_RE } from "../lib/contract-derives-not-respells.ts";
-import type { ContractFieldShape, CopyCandidate } from "../lib/contract-structural-copy.ts";
-import { bestCopyMatch, candidateFields, contractFields, createFieldAgreement, indexByField, isAliasBody } from "../lib/contract-structural-copy.ts";
+import { bestCopyMatch, candidateFields, contractFields, createFieldAgreement, isAliasBody } from "../lib/contract-structural-copy.ts";
 
 const CONTRACTS_SRC = "packages/contracts/src/";
 const INFERENCE_CONTRACT = "packages/inference/src/contract/";
