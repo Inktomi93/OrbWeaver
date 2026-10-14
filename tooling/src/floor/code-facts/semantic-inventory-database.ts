@@ -1,20 +1,29 @@
 // Immutable partitions are reachable only through a complete committed generation.
+import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { waitSync } from "../process/sync-sleep.ts";
-import type { InventoryPartition } from "./semantic-inventory-contract.ts";
-import { INVENTORY_FORMAT, partitionSchema } from "./semantic-inventory-contract.ts";
-import { contentVersion } from "./semantic-inventory-inputs.ts";
+import type { InventoryPartition, StoredInventoryPartition } from "./semantic-inventory-contract.ts";
+import { INVENTORY_FORMAT, INVENTORY_LISTS, INVENTORY_RECORD_TABLES, storedPartitionSchema } from "./semantic-inventory-contract.ts";
+import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInventoryRecords } from "./semantic-inventory-records.ts";
 
-const partitionRow = z.object({ id: z.string(), payload: z.string() });
 const generationRow = z.object({ generation: z.number() });
-const memberRow = z.object({ program: z.string(), partition: z.string() });
+const memberRow = z.object({ program: inventoryStringSchema, partition: z.string() });
+const stringRow = z.object({ value: inventoryStringSchema });
+const descriptorRow = z.object({
+  id: z.string(),
+  format: z.literal(INVENTORY_FORMAT),
+  program: inventoryStringSchema,
+  descriptorVersion: inventoryStringSchema,
+  compilerOptionsJson: inventoryStringSchema,
+  workerPid: z.number().int().nullable(),
+});
 const SQLITE_BUSY = 5;
 const WRITER_RETRY_MS = 50;
 
-/** Open the committed store without racing its initial schema or an active writer. */
+/** Keep legacy committed generations intact; new facts use normalized rows, never the legacy payload column. */
 export function openInventoryDatabase(path: string): DatabaseSync {
   mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
@@ -24,9 +33,13 @@ export function openInventoryDatabase(path: string): DatabaseSync {
     execWithBusyRetry(
       db,
       `
-    CREATE TABLE IF NOT EXISTS inventory_partition(id TEXT PRIMARY KEY, program TEXT NOT NULL, format INTEGER NOT NULL, payload TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS inventory_generation(id INTEGER PRIMARY KEY, format INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS inventory_member(generation INTEGER NOT NULL REFERENCES inventory_generation(id), program TEXT NOT NULL, partition TEXT NOT NULL REFERENCES inventory_partition(id), PRIMARY KEY(generation,program));
+      CREATE TABLE IF NOT EXISTS inventory_partition(id TEXT PRIMARY KEY, program TEXT NOT NULL, format INTEGER NOT NULL, payload TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS inventory_generation(id INTEGER PRIMARY KEY, format INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS inventory_member(generation INTEGER NOT NULL REFERENCES inventory_generation(id), program TEXT NOT NULL, partition TEXT NOT NULL REFERENCES inventory_partition(id), PRIMARY KEY(generation,program));
+      ${INVENTORY_RECORD_TABLES.map((table) => `CREATE TABLE IF NOT EXISTS ${inventoryRecordTables[table].name}(${inventoryRecordTables[table].definition}) STRICT;`).join("\n")}
+      CREATE INDEX IF NOT EXISTS inventory_fact_file ON inventory_fact(partition,kind,file,ordinal);
+      CREATE INDEX IF NOT EXISTS inventory_fact_node ON inventory_fact(partition,kind,node,ordinal);
+      CREATE INDEX IF NOT EXISTS inventory_reference_origin ON inventory_reference(partition,declaration,ordinal);
     `,
     );
     return db;
@@ -55,47 +68,122 @@ function execWithBusyRetry(db: DatabaseSync, sql: string): void {
   }
 }
 
-/** Reuse the newest partition for each program, including programs outside the latest demand set. */
-export function latestInventoryPartitions(db: DatabaseSync): ReadonlyMap<string, InventoryPartition> {
+function readPartition(db: DatabaseSync, id: string): StoredInventoryPartition {
+  const row = descriptorRow.parse(
+    db
+      .prepare(
+        "SELECT p.id,p.format,d.program,d.descriptorVersion,d.compilerOptionsJson,d.workerPid FROM inventory_partition p JOIN inventory_descriptor d ON d.partition=p.id WHERE p.id=?",
+      )
+      .get(id),
+  );
+  const lists = Object.fromEntries(
+    INVENTORY_LISTS.map((kind) => [
+      kind,
+      db
+        .prepare("SELECT value FROM inventory_list WHERE partition=? AND kind=? ORDER BY ordinal")
+        .all(id, kind)
+        .map((value) => stringRow.parse(value).value),
+    ]),
+  );
+  const { workerPid, ...metadata } = row;
+  return storedPartitionSchema.parse({ ...metadata, ...lists, ...(workerPid === null ? {} : { workerPid }) });
+}
+
+/** Return identities and native metadata only; facts stay indexed in SQLite. */
+export function latestInventoryPartitions(db: DatabaseSync): ReadonlyMap<string, StoredInventoryPartition> {
   const rows = db
-    .prepare(`SELECT p.id,p.payload FROM inventory_partition p JOIN inventory_member m ON m.partition=p.id
-    WHERE p.format=? AND m.generation=(SELECT MAX(n.generation) FROM inventory_member n WHERE n.program=m.program)`)
-    .all(INVENTORY_FORMAT);
+    .prepare(`SELECT p.program,p.id AS partition FROM inventory_partition p JOIN inventory_member m ON m.partition=p.id
+    WHERE p.format=? AND m.generation=(SELECT MAX(n.generation) FROM inventory_member n JOIN inventory_partition q ON q.id=n.partition WHERE n.program=m.program AND q.format=?)`)
+    .all(INVENTORY_FORMAT, INVENTORY_FORMAT);
   return new Map(
-    rows.map((row) => {
-      const parsed = partitionRow.parse(row);
-      const partition = partitionSchema.parse(JSON.parse(parsed.payload));
-      return [partition.program, partition];
+    rows.map((value) => {
+      const row = memberRow.parse(value);
+      return [row.program, readPartition(db, row.partition)];
     }),
   );
 }
 
-/** Write a complete generation inside the caller-owned publication transaction. */
-export function publishInventoryGeneration(db: DatabaseSync, partitions: readonly InventoryPartition[]): number {
+function storePartition(db: DatabaseSync, partition: InventoryPartition): string {
+  const hash = createHash("sha256").update(`inventory:${String(INVENTORY_FORMAT)}\n`);
+  visitInventoryRecords(partition, (record) => hash.update(JSON.stringify([record.table, ...record.values])).update("\n"));
+  const id = hash.digest("hex");
+  const inserted = db
+    .prepare("INSERT OR IGNORE INTO inventory_partition(id,program,format,payload) VALUES(?,?,?,'')")
+    .run(id, inventoryString(partition.program), INVENTORY_FORMAT);
+  if (inserted.changes === 0) {
+    return id;
+  }
+  const statements = new Map(
+    INVENTORY_RECORD_TABLES.map((table) => {
+      const columns = inventoryRecordTables[table].columns;
+      return [
+        table,
+        db.prepare(
+          `INSERT INTO ${inventoryRecordTables[table].name}(partition,${columns}) VALUES(${Array.from({ length: columns.split(",").length + 1 }, () => "?").join(",")})`,
+        ),
+      ];
+    }),
+  );
+  visitInventoryRecords(partition, (record) => {
+    const statement = statements.get(record.table);
+    if (statement === undefined) {
+      throw new Error(`native inventory record table missing: ${record.table}`);
+    }
+    statement.run(id, ...record.values);
+  });
+  return id;
+}
+
+/** Both exited-worker records and already stored identities use the same atomic generation publisher. */
+export function publishInventoryGeneration(db: DatabaseSync, partitions: readonly (InventoryPartition | StoredInventoryPartition)[]): number {
   const latest = generationRow.parse(db.prepare("SELECT COALESCE(MAX(id),0) AS generation FROM inventory_generation").get()).generation;
   const generation = latest + 1;
   db.prepare("INSERT INTO inventory_generation(id,format) VALUES(?,?)").run(generation, INVENTORY_FORMAT);
-  const insert = db.prepare("INSERT OR IGNORE INTO inventory_partition(id,program,format,payload) VALUES(?,?,?,?)");
   const member = db.prepare("INSERT INTO inventory_member(generation,program,partition) VALUES(?,?,?)");
   for (const partition of partitions) {
-    const payload = JSON.stringify(partition);
-    const id = contentVersion(payload);
-    insert.run(id, partition.program, INVENTORY_FORMAT, payload);
-    member.run(generation, partition.program, id);
+    const id = "id" in partition ? partition.id : storePartition(db, partition);
+    member.run(generation, inventoryString(partition.program), id);
   }
   return generation;
 }
 
-/** Read only the immutable partitions selected by one committed generation. */
-export function readInventoryGeneration(db: DatabaseSync, generation: number): readonly InventoryPartition[] {
-  const members = db
+/** Stream exited-worker rows under the parent's writer transaction without a whole-payload decode. */
+export function importInventoryPartition(db: DatabaseSync, path: string, id: string): void {
+  if (db.prepare("SELECT id FROM inventory_partition WHERE id=?").get(id) !== undefined) {
+    return;
+  }
+  using staging = openInventoryDatabase(path);
+  const partition = readPartition(staging, id);
+  db.prepare("INSERT INTO inventory_partition(id,program,format,payload) VALUES(?,?,?,'')").run(id, inventoryString(partition.program), INVENTORY_FORMAT);
+  for (const table of INVENTORY_RECORD_TABLES) {
+    const { name, columns } = inventoryRecordTables[table];
+    const names = columns.split(",");
+    const insert = db.prepare(`INSERT INTO ${name}(partition,${columns}) VALUES(${Array.from({ length: names.length + 1 }, () => "?").join(",")})`);
+    for (const row of staging.prepare(`SELECT ${columns} FROM ${name} WHERE partition=?`).iterate(id)) {
+      const values = names.map((column) => {
+        const value = row[column];
+        if (value === undefined) {
+          throw new Error(`native inventory missing record column: ${name}.${column}`);
+        }
+        return value;
+      });
+      insert.run(id, ...values);
+    }
+  }
+}
+
+/** Read pinned identities, never concatenate or parse a complete partition payload. */
+export function readInventoryGeneration(db: DatabaseSync, generation: number): readonly StoredInventoryPartition[] {
+  return db
     .prepare("SELECT program,partition FROM inventory_member WHERE generation=? ORDER BY program")
     .all(generation)
-    .map((row) => memberRow.parse(row));
-  return members.map((member) => {
-    const row = partitionRow.parse(db.prepare("SELECT id,payload FROM inventory_partition WHERE id=?").get(member.partition));
-    return partitionSchema.parse(JSON.parse(row.payload));
-  });
+    .map((value) => readPartition(db, memberRow.parse(value).partition))
+    .toSorted((a, b) => {
+      if (a.program === b.program) {
+        return 0;
+      }
+      return a.program < b.program ? -1 : 1;
+    });
 }
 
 /** Select the committed generation for the current extraction format. */
@@ -108,5 +196,6 @@ export function inventoryGenerationPrograms(db: DatabaseSync, generation: number
   return db
     .prepare("SELECT program,partition FROM inventory_member WHERE generation=? ORDER BY program")
     .all(generation)
-    .map((row) => memberRow.parse(row).program);
+    .map((row) => memberRow.parse(row).program)
+    .toSorted();
 }

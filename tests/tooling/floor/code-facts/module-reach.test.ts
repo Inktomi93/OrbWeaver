@@ -6,6 +6,11 @@ import { modulePositionSpecifier } from "../../../../tooling/src/floor/code-fact
 import { reachableDeclarations } from "../../../../tooling/src/floor/code-facts/production-reach.ts";
 import type { InventoryPartition } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT, SemanticInventoryError } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import {
+  openInventoryDatabase,
+  publishInventoryGeneration,
+  readInventoryGeneration,
+} from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { testReach } from "../../../../tooling/src/floor/code-facts/test-reach.ts";
 
@@ -100,7 +105,7 @@ test("native importer identity includes alias peers and literal dynamic imports 
   expect([...exact.targetPaths]).toEqual([]);
 });
 
-test("unqualified syntax carriers refuse native importer, test and runtime reach rather than claiming empty facts", () => {
+test("unqualified syntax carriers refuse native importer, test and runtime reach rather than claiming empty facts", ({ scratch }) => {
   const native = new Project({ useInMemoryFileSystem: true });
   const target = native.createSourceFile(`${ROOT}/packages/kit/src/target.ts`, "export function real(): number { return 1; }");
   const spec = native.createSourceFile(`${ROOT}/tests/kit/real.test.ts`, 'import { real } from "../../packages/kit/src/target.ts"; real();');
@@ -144,7 +149,9 @@ test("unqualified syntax carriers refuse native importer, test and runtime reach
     references: [],
     witnesses: [],
   };
-  using stored = inventoryReader(ROOT, 1, [partition], () => undefined);
+  using database = openInventoryDatabase(`${scratch}/inventory.sqlite`);
+  const generation = publishInventoryGeneration(database, [partition]);
+  using stored = inventoryReader(ROOT, generation, readInventoryGeneration(database, generation), { db: database, dispose: () => undefined });
   const syntaxFiles = stored.sourceCorpus().getSourceFiles();
   const syntaxRuntime = stored.sourceCorpus().getSourceFile(runtime.getFilePath());
   if (syntaxRuntime === undefined) {

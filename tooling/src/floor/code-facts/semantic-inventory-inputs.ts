@@ -49,8 +49,13 @@ const VERSION_READERS = { file: fileVersion, directory: directoryVersion, exists
 >;
 
 /** A failed lookup becomes stale when its candidate or containing directory changes. */
-export function inputsCurrent(inputs: readonly InventoryInput[], fileSystem?: FileSystemHost): boolean {
-  return inputs.every((input) => inputVersion(input.path, input.kind, fileSystem) === input.version);
+export function inputsCurrent(inputs: Iterable<InventoryInput>, fileSystem?: FileSystemHost): boolean {
+  for (const input of inputs) {
+    if (inputVersion(input.path, input.kind, fileSystem) !== input.version) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** Preserve physical identity for existing paths and absolute identity for missing candidates. */

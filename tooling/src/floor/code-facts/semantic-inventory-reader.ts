@@ -1,11 +1,28 @@
 import { resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, Node as TsNode } from "ts-morph";
 import { predictedProgram } from "../compiler/project-worlds.ts";
-import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
-import type { InventoryPartition, InventorySpan, InventorySymbols, SemanticInventory } from "./semantic-inventory-contract.ts";
+import type {
+  InventoryReaderStorage,
+  InventorySourceCorpus,
+  InventorySpan,
+  InventorySymbols,
+  SemanticInventory,
+  StoredInventoryPartition,
+  StoredInventorySource,
+} from "./semantic-inventory-contract.ts";
 import { INVENTORY_KEY_SEPARATOR, SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
+import {
+  readInventoryBindings,
+  readInventoryExports,
+  readInventoryModules,
+  readInventoryReferences,
+  readInventorySourceMetadata,
+  readInventorySourceText,
+  readInventoryWitnesses,
+} from "./semantic-inventory-queries.ts";
 
 const inventories = new WeakMap<object, SemanticInventory>();
 
@@ -24,48 +41,21 @@ function nodeSpan(node: Node): InventorySpan {
 
 function agreed<T>(values: readonly T[], label: string): T | undefined {
   const first = values[0];
-  if (values.some((value) => JSON.stringify(value) !== JSON.stringify(first))) {
+  if (values.some((value) => !isDeepStrictEqual(value, first))) {
     throw new SemanticInventoryError(`native semantic inventory ambiguity: ${label}`);
   }
   return first;
 }
 
-interface PartitionIndex {
-  readonly partition: InventoryPartition;
-  readonly exports: ReadonlyMap<string, InventoryPartition["exports"]>;
-  readonly modules: ReadonlyMap<string, InventoryPartition["modules"][number]>;
-  readonly bindings: ReadonlyMap<string, InventorySymbols>;
-  readonly witnesses: ReadonlyMap<string, readonly InventorySpan[]>;
-  readonly references: ReadonlyMap<string, readonly InventorySpan[]>;
-}
-
-function indexPartition(partition: InventoryPartition): PartitionIndex {
-  const exports = new Map<string, InventoryPartition["exports"]>();
-  for (const entry of partition.exports) {
-    const entries = exports.get(entry.file) ?? [];
-    entries.push(entry);
-    exports.set(entry.file, entries);
-  }
-  const references = new Map<string, InventorySpan[]>();
-  for (const entry of partition.references) {
-    const key = spanKey(entry.declaration);
-    const spans = references.get(key) ?? [];
-    spans.push(entry.reference);
-    references.set(key, spans);
-  }
-  return {
-    partition,
-    exports,
-    references,
-    modules: new Map(partition.modules.map((entry) => [spanKey(entry.node), entry])),
-    bindings: new Map(partition.bindings.map((entry) => [spanKey(entry.node), entry.symbols])),
-    witnesses: new Map(partition.witnesses.map((entry) => [spanKey(entry.node), entry.declarations])),
-  };
-}
-
 /** Materialize source syntax only; all typed questions select immutable native facts explicitly. */
-export function inventoryReader(root: string, generation: number, partitions: readonly InventoryPartition[], dispose: () => void): SemanticInventory {
-  let indexes = partitions.map(indexPartition);
+export function inventoryReader(
+  root: string,
+  generation: number,
+  partitions: readonly StoredInventoryPartition[],
+  storage: InventoryReaderStorage,
+): SemanticInventory {
+  const { db, dispose } = storage;
+  let indexes = [...partitions];
   let open = true;
   const assertOpen = (): void => {
     if (!open) {
@@ -75,17 +65,20 @@ export function inventoryReader(root: string, generation: number, partitions: re
   const project = new Project({ skipAddingFilesFromTsConfig: true, skipFileDependencyResolution: true, useInMemoryFileSystem: true });
   const contextProjects = new Map<string, Project>();
   const contextWorlds = new WeakMap<Project, readonly string[]>();
-  const texts = new Map<string, string>();
+  const texts = new Map<string, { partition: string; source: StoredInventorySource }>();
   const aliases = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
-  const authored = new Set(partitions.flatMap((partition) => partition.sources.filter((source) => source.authored).map((source) => source.file)));
+  const authored = new Set<string>();
   for (const partition of partitions) {
-    for (const source of partition.sources) {
+    for (const source of readInventorySourceMetadata(db, partition.id)) {
       const previous = texts.get(source.file);
-      if (previous !== undefined && previous !== source.text) {
+      if (previous !== undefined && previous.source.textVersion !== source.textVersion) {
         throw new SemanticInventoryError(`native semantic inventory mixed source versions: ${source.file}`);
       }
-      texts.set(source.file, source.text);
+      texts.set(source.file, { partition: partition.id, source });
+      if (source.authored) {
+        authored.add(source.file);
+      }
       aliases.set(source.path, source.file);
       aliases.set(source.file, source.file);
     }
@@ -113,7 +106,7 @@ export function inventoryReader(root: string, generation: number, partitions: re
     const carrier = contextProject(context);
     const existing = carrier.getSourceFile(file);
     const text = texts.get(file);
-    return existing ?? (text === undefined ? undefined : carrier.createSourceFile(file, text));
+    return existing ?? (text === undefined ? undefined : carrier.createSourceFile(file, readInventorySourceText(db, text.partition, text.source)));
   };
   const nodeOf = (span: InventorySpan, context?: readonly string[]): Node => {
     const sf = sourceFile(span.file, context);
@@ -126,19 +119,20 @@ export function inventoryReader(root: string, generation: number, partitions: re
     }
     return node;
   };
-  const worlds = (node: Node): readonly PartitionIndex[] => {
+  const worlds = (node: Node): readonly StoredInventoryPartition[] => {
     const file = canonicalPath(node.getSourceFile().getFilePath());
     assertOpen();
     const context = contextWorlds.get(node.getProject());
     if (context !== undefined) {
-      return indexes.filter(({ partition }) => context.includes(partition.program));
+      return indexes.filter((partition) => context.includes(partition.program));
     }
-    const owners = indexes.filter(({ partition }) => partition.roots.includes(file));
+    const owners = indexes.filter((partition) => partition.roots.includes(file));
     const predicted = predictedProgram(file.slice(root.length + 1));
-    const primary = owners.find(({ partition }) => partition.program === predicted);
+    const primary = owners.find((partition) => partition.program === predicted);
     return primary === undefined ? owners : [primary];
   };
-  const corpus: SourceCorpus = {
+  // biome-ignore lint/nursery/useDisposables: the returned corpus delegates ownership to the same caller-owned inventory.
+  const corpus: InventorySourceCorpus = {
     getSourceFiles: () =>
       [...roots].toSorted().map((file) => {
         const sf = sourceFile(file);
@@ -148,6 +142,7 @@ export function inventoryReader(root: string, generation: number, partitions: re
         return sf;
       }),
     getSourceFile: sourceFile,
+    [Symbol.dispose]: () => inventory[Symbol.dispose](),
   };
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
@@ -158,30 +153,30 @@ export function inventoryReader(root: string, generation: number, partitions: re
     exports: (source, importer) => {
       const file = canonicalPath(source.getFilePath());
       const selected = worlds(importer ?? source);
-      const sets = selected.map((partition) => (partition.exports.get(file) ?? []).map(({ name, declarations }) => ({ name, declarations })));
+      const sets = selected.map((partition) => [...readInventoryExports(db, partition.id, file)].map(({ name, declarations }) => ({ name, declarations })));
       const exports = agreed(sets, `exports of ${file}`) ?? [];
-      const context = selected.map(({ partition }) => partition.program);
+      const context = selected.map((partition) => partition.program);
       return new Map(exports.map((entry) => [entry.name, entry.declarations.map((span) => nodeOf(span, context))]));
     },
     moduleTarget: (node) => {
       const key = spanKey(capturedSpan(node));
       const selected = worlds(node);
       const target = agreed(
-        selected.map((partition) => partition.modules.get(key)?.target ?? null),
+        selected.map((partition) => [...readInventoryModules(db, partition.id, capturedSpan(node))].at(-1)?.target ?? null),
         `module target at ${key}`,
       );
       return target === undefined || target === null
         ? undefined
         : sourceFile(
             target,
-            selected.map(({ partition }) => partition.program),
+            selected.map((partition) => partition.program),
           );
     },
     symbols: (node): InventorySymbols => {
       const key = spanKey(capturedSpan(node));
       return (
         agreed(
-          worlds(node).map((partition) => partition.bindings.get(key) ?? { lexical: [], origins: [] }),
+          worlds(node).map((partition) => [...readInventoryBindings(db, partition.id, capturedSpan(node))].at(-1)?.symbols ?? { lexical: [], origins: [] }),
           `binding at ${key}`,
         ) ?? { lexical: [], origins: [] }
       );
@@ -194,11 +189,10 @@ export function inventoryReader(root: string, generation: number, partitions: re
           `native semantic inventory references unsupported for non-authored origin: ${origin.file}:${String(origin.start)}-${String(origin.end)}; dependency-origin references are not indexed; use a native semantic view`,
         );
       }
-      const key = spanKey(origin);
       const found = new Map<string, InventorySpan>();
       for (const partition of indexes) {
-        for (const span of partition.references.get(key) ?? []) {
-          found.set(spanKey(span), span);
+        for (const { reference } of readInventoryReferences(db, partition.id, origin)) {
+          found.set(spanKey(reference), reference);
         }
       }
       return [...found.values()].toSorted((a, b) => a.file.localeCompare(b.file) || a.start - b.start).map((span) => nodeOf(span));
@@ -207,12 +201,15 @@ export function inventoryReader(root: string, generation: number, partitions: re
       const key = spanKey(capturedSpan(node));
       const spans =
         agreed(
-          worlds(node).map((partition) => partition.witnesses.get(key) ?? []),
+          worlds(node).map((partition) => [...readInventoryWitnesses(db, partition.id, capturedSpan(node))].at(-1)?.declarations ?? []),
           `witness at ${key}`,
         ) ?? [];
       return spans.map((span) => nodeOf(span));
     },
     [Symbol.dispose]: () => {
+      if (!open) {
+        return;
+      }
       open = false;
       indexes = [];
       texts.clear();

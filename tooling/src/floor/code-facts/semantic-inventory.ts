@@ -8,13 +8,14 @@ import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-work
 import type {
   InventoryBuildRequest,
   InventoryOverlay,
-  InventoryPartition,
   SemanticInventory,
   SemanticInventoryOptions,
+  StoredInventoryPartition,
 } from "./semantic-inventory-contract.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import {
   beginInventoryWrite,
+  importInventoryPartition,
   inventoryGenerationPrograms,
   latestInventoryGeneration,
   latestInventoryPartitions,
@@ -23,6 +24,7 @@ import {
   readInventoryGeneration,
 } from "./semantic-inventory-database.ts";
 import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurrent } from "./semantic-inventory-inputs.ts";
+import { readInventoryInputs } from "./semantic-inventory-queries.ts";
 import { inventoryReader } from "./semantic-inventory-reader.ts";
 
 function authoredVersion(root: string): string {
@@ -56,6 +58,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
   const databasePath = overlay === undefined ? (options.databasePath ?? join(root, ".cache", "semantic-inventory.sqlite")) : join(scratch, "overlay.sqlite");
   const db = openInventoryDatabase(databasePath);
   let retained = false;
+  let reader: SemanticInventory | undefined;
   try {
     // Holding the writer transaction across extraction makes a racing writer recheck before its first worker.
     beginInventoryWrite(db);
@@ -65,16 +68,21 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
       throw new Error(`native semantic inventory found no runnable TypeScript programs under ${root}`);
     }
     const previous = latestInventoryPartitions(db);
-    const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { scratch, overlay });
-    assertSnapshotCurrent({ ...options, root }, initialAuthored, descriptors, partitions);
+    const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
+    assertSnapshotCurrent({ db, options: { ...options, root } }, initialAuthored, descriptors, partitions);
     const samePopulation =
       JSON.stringify(inventoryGenerationPrograms(db, latestInventoryGeneration(db))) ===
       JSON.stringify(partitions.map((partition) => partition.program).toSorted());
     const generation = rebuilt || !samePopulation ? publishInventoryGeneration(db, partitions) : latestInventoryGeneration(db);
-    const reader = inventoryReader(root, generation, partitions, () => rmSync(scratch, { recursive: true, force: true }));
-    assertSnapshotCurrent({ ...options, root }, initialAuthored, descriptors, partitions);
+    reader = inventoryReader(root, generation, partitions, {
+      db,
+      dispose: () => {
+        db.close();
+        rmSync(scratch, { recursive: true, force: true });
+      },
+    });
+    assertSnapshotCurrent({ db, options: { ...options, root } }, initialAuthored, descriptors, partitions);
     db.exec("COMMIT");
-    db.close();
     if (overlay === undefined) {
       rmSync(scratch, { recursive: true, force: true });
     }
@@ -84,7 +92,11 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     if (db.isTransaction) {
       db.exec("ROLLBACK");
     }
-    db.close();
+    if (reader === undefined) {
+      db.close();
+    } else {
+      reader[Symbol.dispose]();
+    }
     throw new SemanticInventoryError(error instanceof Error ? error.message : String(error), { cause: error });
   } finally {
     if (!retained) {
@@ -108,36 +120,50 @@ function currentDemandDescriptors(options: SemanticInventoryOptions): readonly I
   });
 }
 
-function buildPartition(request: InventoryBuildRequest, options: SemanticInventoryOptions): InventoryPartition {
+function buildPartition(
+  db: ReturnType<typeof openInventoryDatabase>,
+  request: InventoryBuildRequest,
+  options: SemanticInventoryOptions,
+): StoredInventoryPartition {
   (options.buildPartition ?? runInventoryPartitionWorker)(request);
-  using staging = openInventoryDatabase(request.destination);
-  const extracted = readInventoryGeneration(staging, latestInventoryGeneration(staging));
-  const partition = extracted[0];
-  if (extracted.length !== 1 || partition?.program !== request.descriptor.id || partition.descriptorVersion !== descriptorVersion(request.descriptor)) {
-    throw new Error(`native inventory worker supplied the wrong partition: ${request.descriptor.id}`);
+  let partition: StoredInventoryPartition;
+  {
+    using staging = openInventoryDatabase(request.destination);
+    const extracted = readInventoryGeneration(staging, latestInventoryGeneration(staging));
+    const candidate = extracted[0];
+    if (extracted.length !== 1 || candidate?.program !== request.descriptor.id || candidate.descriptorVersion !== descriptorVersion(request.descriptor)) {
+      throw new Error(`native inventory worker supplied the wrong partition: ${request.descriptor.id}`);
+    }
+    partition = candidate;
   }
+  importInventoryPartition(db, request.destination, partition.id);
   return partition;
 }
 
 function demandPartitions(
   options: SemanticInventoryOptions,
   descriptors: readonly InventoryBuildRequest["descriptor"][],
-  previous: ReadonlyMap<string, InventoryPartition>,
-  projection: { readonly scratch: string; readonly overlay: InventoryOverlay | undefined },
-): { partitions: InventoryPartition[]; rebuilt: boolean } {
+  previous: ReadonlyMap<string, StoredInventoryPartition>,
+  projection: { readonly db: ReturnType<typeof openInventoryDatabase>; readonly scratch: string; readonly overlay: InventoryOverlay | undefined },
+): { partitions: StoredInventoryPartition[]; rebuilt: boolean } {
   const root = options.root;
-  const { scratch, overlay } = projection;
-  const partitions: InventoryPartition[] = [];
+  const { db, scratch, overlay } = projection;
+  const partitions: StoredInventoryPartition[] = [];
   let rebuilt = false;
   for (const descriptor of descriptors) {
     const existing = previous.get(descriptor.id);
-    if (existing !== undefined && existing.descriptorVersion === descriptorVersion(descriptor) && inputsCurrent(existing.inputs, options.fileSystem)) {
+    if (
+      existing !== undefined &&
+      existing.descriptorVersion === descriptorVersion(descriptor) &&
+      inputsCurrent(readInventoryInputs(db, existing.id), options.fileSystem)
+    ) {
       partitions.push(existing);
       continue;
     }
     rebuilt = true;
     partitions.push(
       buildPartition(
+        db,
         { root, descriptor, destination: join(scratch, `partition-${String(partitions.length)}.sqlite`), ...(overlay === undefined ? {} : { overlay }) },
         options,
       ),
@@ -147,12 +173,13 @@ function demandPartitions(
 }
 
 function assertSnapshotCurrent(
-  options: SemanticInventoryOptions,
+  context: { readonly db: ReturnType<typeof openInventoryDatabase>; readonly options: SemanticInventoryOptions },
   authored: string,
   descriptors: readonly InventoryBuildRequest["descriptor"][],
-  partitions: readonly InventoryPartition[],
+  partitions: readonly StoredInventoryPartition[],
 ): void {
-  if (authoredVersion(options.root) !== authored || partitions.some((partition) => !inputsCurrent(partition.inputs, options.fileSystem))) {
+  const { db, options } = context;
+  if (authoredVersion(options.root) !== authored || partitions.some((partition) => !inputsCurrent(readInventoryInputs(db, partition.id), options.fileSystem))) {
     throw new Error("native semantic inventory inputs changed during extraction; no current verdict");
   }
   if (JSON.stringify(currentDemandDescriptors(options).map(descriptorVersion)) !== JSON.stringify(descriptors.map(descriptorVersion))) {

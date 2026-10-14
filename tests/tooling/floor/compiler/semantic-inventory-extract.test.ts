@@ -653,17 +653,17 @@ test("native reference display opt-out preserves all grouped metadata except pre
   }
 });
 
-test("actual bundled compiler bytes are versioned and changed runtime input refuses publication", ({ scratch }) => {
+test("compiler and store implementation bytes are versioned and changed runtime input refuses publication", ({ scratch }) => {
   writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["base.ts"], compilerOptions: { noLib: true, types: [] } }));
   writeFileSync(join(scratch, "base.ts"), "export const value=1; export const use=value;\n");
   execFixtureGit(scratch, ["init", "-q"]);
   const runtime = ts.sys.getExecutingFilePath();
   const fileSystem = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
   const read = fileSystem.readFileSync.bind(fileSystem);
-  let changed = false;
+  let changed: string | undefined;
   const runtimeRead = vi.spyOn(fileSystem, "readFileSync").mockImplementation((path, encoding) => {
     const text = read(path, encoding);
-    return changed && path === runtime ? `${text}\n` : text;
+    return path === changed ? `${text}\n` : text;
   });
   try {
     expect(() =>
@@ -674,7 +674,20 @@ test("actual bundled compiler bytes are versioned and changed runtime input refu
           const partition = extractInventoryPartition(request);
           expect(partition.inputs).toContainEqual({ path: runtime, kind: "file", version: inputVersion(runtime, "file") });
           expect(inputsCurrent(partition.inputs, fileSystem)).toBe(true);
-          changed = true;
+          for (const name of [
+            "semantic-inventory-database.ts",
+            "semantic-inventory-records.ts",
+            "semantic-inventory-queries.ts",
+            "semantic-inventory-reader.ts",
+            "semantic-inventory.ts",
+          ]) {
+            const implementation = fixtureValue(partition.inputs.find((input) => input.kind === "file" && input.path.endsWith(`/${name}`)));
+            expect(implementation.version).toBe(inputVersion(implementation.path, "file"));
+            changed = implementation.path;
+            expect(inputsCurrent(partition.inputs, fileSystem)).toBe(false);
+            changed = undefined;
+          }
+          changed = runtime;
           expect(inputsCurrent(partition.inputs, fileSystem)).toBe(false);
           using staging = openInventoryDatabase(request.destination);
           publishInventoryGeneration(staging, [partition]);
