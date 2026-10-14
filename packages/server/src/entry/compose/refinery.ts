@@ -5,9 +5,15 @@ import type { RoleClientsWithSignal } from "@orb/inference";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { CharacterService } from "#domain/character";
-import { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
+import {
+  createCountRefineryScoreTargets,
+  createDeleteSnapshot,
+  createListRefineryScoreTargets,
+  createLoadOwnedCard,
+  createStampRefinerySignals,
+} from "#domain/character";
 import type { RefineryContext, RefineryService, RefineryWorkloadDeps, ResolveStructuredBinding } from "#domain/refinery";
-import { createPlanSchema, createRefineryService } from "#domain/refinery";
+import { createPlanSchema, createRefineryService, isScoreSweepReady } from "#domain/refinery";
 import type { SettingsService } from "#domain/settings";
 import { createResolveUserProse } from "#domain/settings";
 import type { LiveBuses } from "#transport/trpc";
@@ -66,6 +72,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
       resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
       resolveUserProse,
       listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),
+      countRefineryScoreTargets: createCountRefineryScoreTargets({ db: deps.db, isReady: isScoreSweepReady }),
       stampRefinerySignals,
       emitUserEvent: deps.emitUserEvent,
     },

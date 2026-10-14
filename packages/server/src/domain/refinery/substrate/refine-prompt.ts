@@ -188,6 +188,16 @@ export function defaultSelectionOf(card: CharacterCard): RefinerySelection {
   return { fields };
 }
 
+/** The run and count share exactly the session's populated-field meaning, including greeting/depth text. */
+export function scoreSweepSelectionOf(card: CharacterCard): RefinerySelection | undefined {
+  const selection = defaultSelectionOf(card);
+  return selection.fields.length === 0 ? undefined : selection;
+}
+
+export function isScoreSweepReady(card: CharacterCard): boolean {
+  return scoreSweepSelectionOf(card) !== undefined;
+}
+
 /** Render a score payload as rewrite-context text (per-field critique + priorities) — OUR OWN prior
  *  output, not card bytes; rendered compactly so the rewrite grounds on it. */
 function renderScoreContext(score: RefineryScorePayload): string {

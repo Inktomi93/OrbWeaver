@@ -33,9 +33,9 @@ export function createRefineryWorkloadContributions(deps: RefineryWorkloadDeps):
     {
       kind: "refine-score-sweep",
       params: refineScoreSweepWorkloadParams,
-      modelCalls: ({ ownerId, funderUserId, params }): Promise<number> => {
-        requireWorkloadFunder(funderUserId);
-        return countCalls({ ownerId, rescoreAll: params.rescoreAll ?? false });
+      modelCalls: ({ params, ...scope }): Promise<number> => {
+        requireWorkloadFunder(scope.funderUserId);
+        return countCalls({ ...scope, rescoreAll: params.rescoreAll ?? false });
       },
       // One model call per card — long by construction, exactly like `distill-characters`.
       lane: "sweep",
@@ -43,7 +43,7 @@ export function createRefineryWorkloadContributions(deps: RefineryWorkloadDeps):
       resume: "idempotent-restart",
       run: async (ctx, params, report, signal): Promise<RefineryScoreSweepResult> => {
         const rescoreAll = params.rescoreAll ?? false;
-        const result = await scoreSweep({ ownerId: ctx.ownerId, funderUserId: requireWorkloadFunder(ctx.funderUserId), rescoreAll, report, signal });
+        const result = await scoreSweep({ ...ctx, funderUserId: requireWorkloadFunder(ctx.funderUserId), rescoreAll, report, signal });
         report({ message: sweepProgressMessage(result, rescoreAll) });
         return result;
       },

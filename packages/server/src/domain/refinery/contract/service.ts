@@ -24,7 +24,14 @@ import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from 
 import type { WireReady } from "@orb/kit/json-schema";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime ops are wired at the entry composition root).
-import type { CharacterService, DeleteSnapshotOp, ListRefineryScoreTargetsOp, LoadOwnedCardOp, StampRefinerySignalsOp } from "#domain/character";
+import type {
+  CharacterService,
+  CountRefineryScoreTargetsOp,
+  DeleteSnapshotOp,
+  ListRefineryScoreTargetsOp,
+  LoadOwnedCardOp,
+  StampRefinerySignalsOp,
+} from "#domain/character";
 import type {
   ApplyAsCopyParams,
   ApplyFieldsParams,
@@ -127,6 +134,8 @@ export interface RefineryWorkloadDeps {
   readonly resolveUserProse: ResolveUserProse;
   /** The sweep's enumeration (injected character op — refinery reads no `characters` row itself). */
   readonly listRefineryScoreTargets: ListRefineryScoreTargetsOp;
+  /** Scalar-only admitted estimate boundary; no raw target or execution capability escapes. */
+  readonly countRefineryScoreTargets: CountRefineryScoreTargetsOp;
   /** The F6 stamp — the sweep's ONE write, the same op every other score run stamps through. */
   readonly stampRefinerySignals: StampRefinerySignalsOp;
   /**

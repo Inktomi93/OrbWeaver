@@ -44,11 +44,11 @@ import type { UserId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RefineryScoreTarget } from "#domain/character";
 import { getLog, traceStructuredRetry } from "#foundation/observability";
-import type { ScoreSweepOptions } from "../contract/params.ts";
+import type { ScoreSweepEstimateOptions, ScoreSweepOptions } from "../contract/params.ts";
 import type { StageEstimateSubject } from "../contract/prompts.ts";
 import type { RefineryWorkloadDeps, ScoreSweep } from "../contract/service.ts";
 import { outputEstimateOf, resolveStageSampling } from "../substrate/output-budget.ts";
-import { buildScorePrompt, defaultSelectionOf } from "../substrate/refine-prompt.ts";
+import { buildScorePrompt, scoreSweepSelectionOf } from "../substrate/refine-prompt.ts";
 import { REFINERY_RESPONSE_FORMATS } from "../substrate/stage-resolution.ts";
 import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
@@ -107,9 +107,9 @@ export function createScoreSweep(deps: RefineryWorkloadDeps): ScoreSweep {
  *  read and content floor the sweep runs. A card whose batch reply fails costs one retry more, which no read can
  *  know in advance. */
 export function createCountScoreSweepCalls(
-  deps: Pick<RefineryWorkloadDeps, "listRefineryScoreTargets">,
-): (opts: Pick<ScoreSweepOptions, "ownerId" | "rescoreAll">) => Promise<number> {
-  return async ({ ownerId, rescoreAll }) => readyTargetsOf((await deps.listRefineryScoreTargets({ ownerId, unscoredOnly: !rescoreAll })).targets).length;
+  deps: Pick<RefineryWorkloadDeps, "countRefineryScoreTargets">,
+): (opts: ScoreSweepEstimateOptions) => Promise<number> {
+  return (opts) => deps.countRefineryScoreTargets({ ...opts, unscoredOnly: !opts.rescoreAll });
 }
 
 async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions): Promise<RefineryScoreSweepResult> {
@@ -117,7 +117,7 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   signal?.throwIfAborted();
   // The FILL arm pushes "already scored" into SQL — a re-run over a scored library must not pay one model
   // call per card it already knows (`rescoreAll` is the explicit refresh opt-in).
-  const { targets, inScope } = await deps.listRefineryScoreTargets({ ownerId, unscoredOnly: !rescoreAll });
+  const { targets, inScope } = await deps.listRefineryScoreTargets({ ...opts, unscoredOnly: !rescoreAll });
   const ready = readyTargetsOf(targets);
   // `scanned` is the CANDIDATE set, not the fetched subset: a fill run over a fully-scored library must
   // report "500 cards, 500 skipped", never "0 cards" (which reads as an empty library). Everything the pass
@@ -195,8 +195,8 @@ function announceSweep(deps: RefineryWorkloadDeps, stampedOwners: ReadonlySet<Us
  *  the difference. */
 function readyTargetsOf(targets: readonly RefineryScoreTarget[]): { target: RefineryScoreTarget; selection: RefinerySelection }[] {
   return targets.flatMap((target) => {
-    const selection = defaultSelectionOf(target.card);
-    return selection.fields.length === 0 ? [] : [{ target, selection }];
+    const selection = scoreSweepSelectionOf(target.card);
+    return selection === undefined ? [] : [{ target, selection }];
   });
 }
 

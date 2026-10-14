@@ -1,16 +1,21 @@
-// domain/character/contract/refinery-ops — the TYPES of the two character-owned ops the refinery domain
-// consumes. Cross-feature dependency is never a sideways import
-// (Constitution.md §2): refinery declares these shapes type-only and the runtime ops are wired at `entry/compose`
-// from THIS domain's persistence factories — `characters.*` keeps exactly one writer (F6).
+// Character-owned refinery read/count/write contracts; cross-feature implementations are injected at compose.
+// Characters remain the only writer; estimates retain scalar output and read-only dependencies.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RefineryAnalyzePayload } from "@orb/contracts/refinery";
-import type { Db } from "@orb/db";
+import type { WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
+import type { Db, ReadOnlyDb } from "@orb/db";
 import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 
 /** The context both refinery-op factories close over. */
 export interface CharacterRefineryOpsContext {
   readonly db: Db;
+}
+
+/** The count boundary can read and classify privately, but cannot write or return a card payload. */
+export interface RefineryScoreCountContext {
+  readonly db: ReadOnlyDb;
+  readonly isReady: (card: CharacterCard) => boolean;
 }
 
 /** Load one OWNED character's canonical card (the full `cardOf` projection — the one home for the card's
@@ -37,14 +42,16 @@ interface RefineryScoreTargets {
   readonly inScope: number;
 }
 
-/** Enumerate the cards a `refine-score-sweep` run should consider (R4 / port study I3). `ownerId: null` is
- *  the box-wide bulk pass (every owner's library); a `UserId` narrows to that one owner — the SAME
- *  enumeration-scope contract the workload engine's `WorkloadRunContext.ownerId` carries. `unscoredOnly`
+/** Enumerate the cards a claimed `refine-score-sweep` run should consider. Every-owner reads require
+ *  the existing run authority; an owned read requires its UserId. `unscoredOnly`
  *  pushes the sweep's FILL arm into SQL rather than reading the whole library to discard most of it.
  *
  *  Synthetic (`__group__`) characters are excluded: they are chat plumbing, never authored cards, so a
  *  quality score about one is meaningless — the same fence `list` applies to the library. */
-export type ListRefineryScoreTargetsOp = (args: { readonly ownerId: UserId | null; readonly unscoredOnly: boolean }) => Promise<RefineryScoreTargets>;
+export type ListRefineryScoreTargetsOp = (args: WorkloadRunScope & { readonly unscoredOnly: boolean }) => Promise<RefineryScoreTargets>;
+
+/** Exact ready cardinality under admitted estimate scope; no execution authority or private-card output. */
+export type CountRefineryScoreTargetsOp = (args: WorkloadEstimateScope & { readonly unscoredOnly: boolean }) => Promise<number>;
 
 /** One half of the derived signals — the two halves have INDEPENDENT producers (a score run stamps
  *  `score`, an analyze run stamps `analysis`; security pass §1 gap 2), so the patch is one arm, never
