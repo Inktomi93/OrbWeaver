@@ -1,5 +1,6 @@
 // @subject tests/support/node/corpus.ts
 import "@orb/testkit/node/composed-real.ts";
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -41,7 +42,13 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const capsule = ownership.use(
     await createCorpusCapsule({
       directory: join(parent, "capsule root"),
-      server: { authConfig: { ...authConfigFromEnv(), mode: "local" }, providerFetch: execution.execute, secretBoxKey: key, temporaryParentDir: parent },
+      server: {
+        authConfig: { ...authConfigFromEnv(), mode: "local" },
+        providerFetch: execution.execute,
+        secretBoxKey: key,
+        temporaryParentDir: parent,
+        pluginSpawn: spawn,
+      },
       seed: { ownerPassword: OWNER_PASSWORD, log: () => undefined },
       privateCredential: { provider: "custom-openai", key: PROVIDER_KEY, metadata: { auth: "endpoint" } },
     }),
@@ -50,6 +57,9 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.privateCaptures.oidc.ownerId).toBe(capsule.privateCaptures.baseline.ownerId);
   expect(capsule.privateCaptures.recall.traces.some((trace) => trace.queryEmbedded && trace.poolSize > 0)).toBe(true);
   expect(capsule.privateCaptures.recall.memory.speakers.length).toBeGreaterThan(0);
+  expect(capsule.privateCaptures.plugins.recipient.plugin).toMatchObject({ ownerId: capsule.privateCaptures.oidc.joiner.id, status: "enabled" });
+  expect(capsule.privateCaptures.plugins.tombstones.map((row) => row.pluginId)).toEqual([null]);
+  expect(capsule.privateCaptures.plugins.refused.outcome.status).toBe("errored");
   if (process.platform === "linux") {
     const ownedRoot = await realpath(capsule.layout.root);
     const descriptors = await Promise.all(
@@ -136,4 +146,4 @@ test("a completed migrated capsule closes its real producers before cloning scru
   await access(capsule.layout.root);
   await capsule[Symbol.asyncDispose]();
   await expect(access(capsule.layout.root)).rejects.toMatchObject({ code: "ENOENT" });
-});
+}, 15_000);

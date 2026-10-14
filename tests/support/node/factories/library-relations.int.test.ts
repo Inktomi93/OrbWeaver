@@ -4,6 +4,8 @@
 // @subject tests/support/node/factories/databank.ts
 // @subject tests/support/node/factories/character.ts
 // @subject tests/support/node/factories/gallery.ts
+// @subject packages/server/src/domain/world-info/verbs/books/create.ts
+// @subject packages/server/src/domain/world-info/verbs/entries/create.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createTagSchema } from "@orb/contracts/tag";
@@ -11,14 +13,40 @@ import { createBookSchema } from "@orb/contracts/world-info";
 import { characterBooks, characterTags, chatTags } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { createCorpusReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { captureCorpusReads, seedCorpusLibraries } from "@orb/testkit/node/corpus-seed.ts";
 import { seedChatInvite, seedInvitedChatParticipant } from "@orb/testkit/node/factories/chat.ts";
 import { seedGalleryItem } from "@orb/testkit/node/factories/gallery.ts";
 import { seedCharacterTag, seedChatTag, seedTag } from "@orb/testkit/node/factories/tag.ts";
-import { seedCharacterBook, seedWorldBook } from "@orb/testkit/node/factories/world-info.ts";
+import { captureWorldBookRows, seedCharacterBook, seedWorldBook } from "@orb/testkit/node/factories/world-info.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq } from "drizzle-orm";
+
+test("world-info creation and first edits persist one injected clock rather than reversing a database wall-clock stamp", async () => {
+  const clock = createFrozenClock(1_100_000_000_123);
+  await using root = await createServerHarness({ clock });
+  const library = await seedCorpusLibraries(root);
+  const principal = await root.principalFor(root.ownerId);
+  const bornAt = clock.now();
+  expect([
+    [library.world.book.createdAt, library.world.book.updatedAt],
+    ...library.world.entries.map((created) => [created.createdAt, created.updatedAt]),
+  ]).toEqual([
+    [bornAt, bornAt],
+    [bornAt, bornAt],
+  ]);
+  const entry = library.world.entries[0];
+  if (entry === undefined) {
+    throw new Error("actual library creation omitted its required world entry");
+  }
+  clock.advance(2000);
+  await root.services.worldInfo.updateBook({ principal, bookId: library.world.book.id, input: { description: "Edited orbital ledger" } });
+  await root.services.worldInfo.updateEntry({ principal, entryId: entry.id, input: { content: "The edited loom preserves the original witness." } });
+  const edited = await captureWorldBookRows(root.db, library.world.book.id);
+  expect(edited.book).toMatchObject({ id: library.world.book.id, createdAt: bornAt, updatedAt: clock.now() });
+  expect(edited.entries).toMatchObject([{ id: entry.id, createdAt: bornAt, updatedAt: clock.now() }]);
+});
 
 test("shared library producers preserve every real relation and pending acceptance plus primary-book demotion", async () => {
   await using root = await createServerHarness();
