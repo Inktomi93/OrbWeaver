@@ -2,10 +2,39 @@
 
 import { appendFile } from "node:fs/promises";
 import { join } from "node:path";
+import { BroadcastChannel } from "node:worker_threads";
 import type { LoadTransformersKernel, LocalLightKernelModule } from "@orb/inference";
 
 let nativeKernel: Awaited<ReturnType<LoadTransformersKernel>> | undefined;
 const HUB_REFUSAL = new URL(import.meta.url).searchParams.has("hub-refusal");
+
+export const KERNEL_HOLD = { parameter: "hold-channel", ready: "ready", blocked: "blocked" } as const;
+const HOLD_CHANNEL = new URL(import.meta.url).searchParams.get(KERNEL_HOLD.parameter);
+
+async function holdSynchronousExecution(): Promise<void> {
+  if (HOLD_CHANNEL === null) {
+    return;
+  }
+  const channel = new BroadcastChannel(HOLD_CHANNEL);
+  try {
+    const shared = await new Promise<SharedArrayBuffer>((resolve, reject) => {
+      channel.onmessage = ({ data }): void => {
+        if (data instanceof SharedArrayBuffer) {
+          resolve(data);
+        } else {
+          reject(new Error("kernel hold requires shared native memory"));
+        }
+      };
+      channel.onmessageerror = (): void => reject(new Error("kernel hold could not receive shared native memory"));
+      channel.postMessage(KERNEL_HOLD.ready);
+    });
+    channel.postMessage(KERNEL_HOLD.blocked);
+    // A native model call blocks this thread; an async promise would let the queued close run early.
+    Atomics.wait(new Int32Array(shared), 0, 0);
+  } finally {
+    channel.close();
+  }
+}
 
 async function record(event: object): Promise<void> {
   const directory = nativeKernel?.env.cacheDir;
@@ -34,6 +63,7 @@ export const loadTransformers: LocalLightKernelModule["loadTransformers"] = asyn
       if (ids === undefined || ids.dims.length !== 2) {
         throw new Error("reference encoder requires real tokenized input IDs");
       }
+      await holdSynchronousExecution();
       const rows = ids.dims[0] ?? 0;
       const width = ids.dims[1] ?? 0;
       const values = new Float32Array(rows * width * 3).fill(9);

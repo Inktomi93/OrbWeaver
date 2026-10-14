@@ -1,8 +1,15 @@
 import "@orb/testkit/node/composed-real.ts";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { BroadcastChannel } from "node:worker_threads";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { sql } from "drizzle-orm";
+import { vi } from "vitest";
+import { createFrozenClock } from "../iso/clock.ts";
+import { createControlledTimers } from "../iso/timers.ts";
+import { KERNEL_HOLD } from "./reference-head-kernel.ts";
 
 const MODEL = "cross-encoder/ettin-reranker-17m-v1";
 const KERNEL = new URL("./reference-head-kernel.ts", import.meta.url);
@@ -147,6 +154,90 @@ test("independent roots run native tokenizer/cache/head scoring without sessions
   const again = await secondModel.clients.rerank("query", DOCUMENTS);
   expect(again.hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
   expect((await readFile(join(second.modelCacheDir, "kernel-execution.jsonl"), "utf8")).match(/"model-forward"/g)).toHaveLength(2);
+});
+
+test("root disposal joins a synchronous native kernel after its close deadline before removing the database and cache", async () => {
+  await using resources = new AsyncDisposableStack();
+  const parent = await mkdtemp(join(tmpdir(), "orb-kernel-hold-"));
+  resources.defer(() => rm(parent, { recursive: true, force: true }));
+  const channel = new BroadcastChannel(parent);
+  resources.defer(() => channel.close());
+  const shared = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
+  const state = new Int32Array(shared);
+  const blocked = Promise.withResolvers<void>();
+  channel.onmessage = ({ data }): void => {
+    if (data === KERNEL_HOLD.ready) {
+      channel.postMessage(shared);
+    } else if (data === KERNEL_HOLD.blocked) {
+      blocked.resolve();
+    }
+  };
+  const kernel = new URL(KERNEL);
+  kernel.searchParams.set(KERNEL_HOLD.parameter, parent);
+  const clock = createFrozenClock();
+  // biome-ignore lint/nursery/useDisposables: the root adopts this scheduler; the case observes its actual shutdown deadline.
+  const timers = createControlledTimers(clock);
+  await using first = await createServerHarness({ modelKernelModule: kernel.href, temporaryParentDir: parent, clock, timers });
+  await using second = await createServerHarness({ modelKernelModule: KERNEL.href });
+  const firstModel = await bindReranker(first);
+  const secondModel = await bindReranker(second);
+  for (const model of [firstModel, secondModel]) {
+    await stageTokenizer(model.directory, model.metadataDirectory);
+    await stageHead(model.directory);
+  }
+  const bounded = Promise.withResolvers<number>();
+  const joining = Promise.withResolvers<void>();
+  const originalTimeout = timers.timeout;
+  let closing = false;
+  const timerObserver = vi.spyOn(timers, "timeout").mockImplementation((callback, ms) => {
+    const cancel = originalTimeout(callback, ms);
+    if (closing) {
+      bounded.resolve(ms);
+    }
+    return cancel;
+  });
+  const settle = first.app.runtime.localLight.settle;
+  let physicallySettled = false;
+  const settleObserver = vi.spyOn(first.app.runtime.localLight, "settle").mockImplementation(() => {
+    const completion = settle().then(() => {
+      physicallySettled = true;
+    });
+    joining.resolve();
+    return completion;
+  });
+  const result = firstModel.clients.rerank("query", DOCUMENTS).catch((error: Error) => error);
+  let disposed = false;
+  let disposal: Promise<void> | undefined;
+  {
+    await using release = new AsyncDisposableStack();
+    release.defer(() => timerObserver.mockRestore());
+    release.defer(() => settleObserver.mockRestore());
+    release.defer(() => settle());
+    release.defer(() => disposal ?? first[Symbol.asyncDispose]());
+    release.defer(() => {
+      Atomics.store(state, 0, 1);
+      Atomics.notify(state, 0);
+    });
+    await blocked.promise;
+    closing = true;
+    disposal = Promise.resolve(first[Symbol.asyncDispose]()).then(() => {
+      disposed = true;
+    });
+    timers.advance(await bounded.promise);
+    expect(await Promise.race([joining.promise.then(() => "joining"), disposal.then(() => "disposed")])).toBe("joining");
+    expect((await secondModel.clients.rerank("query", DOCUMENTS)).hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
+    expect(disposed).toBe(false);
+    expect(physicallySettled).toBe(false);
+    expect(await first.db.all(sql`select 1 as live`)).toEqual([{ live: 1 }]);
+    await access(first.modelCacheDir);
+  }
+  expect(await result).toMatchObject({ kind: "server", retryable: true });
+  expect(disposed).toBe(true);
+  expect(physicallySettled).toBe(true);
+  await expect(first.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(access(first.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
+  expect(first.timers.pending()).toBe(0);
+  expect((await secondModel.clients.rerank("query", DOCUMENTS)).hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
 });
 
 test("the actual native Hub and missing head-file reads hit the worker-owned refusal hook before external execution", async () => {
