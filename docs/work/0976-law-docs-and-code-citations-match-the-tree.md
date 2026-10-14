@@ -13,6 +13,8 @@ Core-0 section 4 lists fewer feature-root names than the feature-structure gate 
 
 ## Why
 
+The feature-shape card at `packages/client/src/features/README.md` directs new tests into legacy and uses stale settings registry vocabulary. Align it with the current testing law and client composition door. Keep plan task indexes generated from work items; remove a plan only after its work finishes and its lasting knowledge moves into law or an ADR.
+
 A cold author reads the law literally; a stale citation sends them to a rule that is gone.
 
 ## Done when
