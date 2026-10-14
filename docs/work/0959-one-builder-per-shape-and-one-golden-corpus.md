@@ -51,4 +51,6 @@ Reviewed source `aea5f56d54` produces refinery and discovery rows through real a
 
 Persisted workload funding is integrated. The expanded native capsule passes with the funder FK, producer completion, secret stripping and independent database and asset clones.
 
-Reviewed source `3303ed4825` adds native RPG hand state and schedule variants. Atomic journal normalization passes held-driver races. The clone retains a real disabled recurring row. Reviewed source `5cef750b0d` captures native population, resync and changed folded RPG turns. The normalized model journal label persists through a compiler-closed row; native defect and capsule controls pass. Reviewed source `80bd8e5102` adds native arcs, swipe selection and GIF raw/captioned geometry and facets. Invalid multimodal requests refuse; conversion assertions inspect decoded PNG bytes. Complete builder coverage, committed corpus and every-layer adoption remain open.
+Reviewed sources `3303ed4825`, `5cef750b0d` and `80bd8e5102` produce native RPG hand, population, resync, journal and schedule state, plus knowledge arcs, swipes and GIF geometry. Native cuts and scoped controls pass. Complete builder coverage, committed corpus and every-layer adoption remain open.
+
+Native RPG recovery exposes checkpoint-state loss after later host edits to a mutable turn snapshot. Item 1018 owns the production correction; dependent RPG qualification waits for it. Retain the failing case instead of changing its expected restored state.
