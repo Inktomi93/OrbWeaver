@@ -25,6 +25,11 @@ interface InventoryFileSpans {
   readonly spans: Map<string, InventorySpan>;
 }
 
+interface InventorySources {
+  readonly files: readonly SourceFile[];
+  readonly nativeSources: ReadonlyMap<string, ts.SourceFile>;
+}
+
 function inventorySpans(): InventorySpans {
   const files = new Map<string, InventoryFileSpans>();
   const file = (path: string): InventoryFileSpans => {
@@ -146,15 +151,22 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     inputs.set(`file\0${absolute}`, { path: absolute, kind: "file", version: inputVersion(absolute, "file", fileSystem) });
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true, compilerOptions: request.descriptor.commandLine.options, fileSystem });
-  const files = project.forgetNodesCreatedInBlock(() => {
+  const sources = project.forgetNodesCreatedInBlock(() => {
     for (const path of request.descriptor.files) {
       project.addSourceFileAtPath(resolve(request.root, path));
     }
     project.resolveSourceFileDependencies();
-    return nativeCompilerSourceFiles(project);
+    // Project wrappers can cache unredirected parses; capture the Program's admitted nodes before wrapping.
+    const nativeSources = new Map(
+      project
+        .getProgram()
+        .compilerObject.getSourceFiles()
+        .map((source) => [source.fileName, source]),
+    );
+    return { files: nativeCompilerSourceFiles(project), nativeSources };
   });
   // Bootstrap forgetting can recreate ancestors; retain the native SourceFiles, not their incidental wrappers.
-  for (const sf of files) {
+  for (const sf of sources.files) {
     sf.forgetDescendants();
   }
   const roots = request.descriptor.files.map((path) => spans.path(resolve(request.root, path)));
@@ -168,7 +180,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   if (program === undefined) {
     throw new Error("native inventory language service has no Program");
   }
-  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, files, authored, spans);
+  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, spans);
   const facts = { ...sourceFacts, references: extractReferenceFacts(service, referenceDeclarations, spans) };
   return {
     format: INVENTORY_FORMAT,
@@ -181,7 +193,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     roots,
     nativeRoots: [...project.getProgram().compilerObject.getRootFileNames()],
     inputs: [...inputs.values()].toSorted((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind)),
-    sources: files.map((sf) => ({
+    sources: sources.files.map((sf) => ({
       file: spans.path(sf.getFilePath()),
       path: sf.getFilePath(),
       consumerClass: inventoryConsumerClass(sf.getFilePath()),
@@ -218,9 +230,37 @@ function registerReferenceDeclarations(
   }
 }
 
+function sharedSourceFile(program: ts.Program, native: ts.SourceFile | undefined, wrappers: ReadonlyMap<ts.SourceFile, SourceFile>): SourceFile | undefined {
+  if (native === undefined) {
+    return undefined;
+  }
+  const exact = wrappers.get(native);
+  if (exact !== undefined) {
+    return exact;
+  }
+  const admitted = program.getSourceFile(native.fileName);
+  // Recreated package redirects share native syntax; equal filenames or bytes alone prove nothing.
+  return admitted !== undefined &&
+    admitted.fileName === native.fileName &&
+    admitted.text === native.text &&
+    admitted.statements === native.statements &&
+    admitted.endOfFileToken === native.endOfFileToken
+    ? wrappers.get(admitted)
+    : undefined;
+}
+
+function assertAuthoredSyntax(original: SourceFile, admitted: SourceFile, spans: InventorySpans): void {
+  if (
+    original.getFullText() !== admitted.getFullText() ||
+    spans.path(admitted.compilerNode.endOfFileToken.getSourceFile().fileName) !== spans.path(original.getFilePath())
+  ) {
+    throw new Error(`native inventory authored source selects a different syntax origin: ${original.getFilePath()}`);
+  }
+}
+
 function extractSourceFacts(
   program: ts.Program,
-  files: readonly SourceFile[],
+  sources: InventorySources,
   authored: ReadonlySet<string>,
   spans: InventorySpans,
 ): Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses"> & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
@@ -232,12 +272,15 @@ function extractSourceFacts(
   const standaloneSources = nativeCompilerSourceFiles(program);
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
   try {
-    for (const original of files) {
-      const sf = byCompilerSource.get(original.compilerNode);
+    for (const original of sources.files) {
+      const sf = sharedSourceFile(program, sources.nativeSources.get(original.getFilePath()), byCompilerSource);
       if (sf === undefined) {
         throw new Error(`native inventory source is not shared with its language-service Program: ${original.getFilePath()}`);
       }
       const file = spans.path(sf.getFilePath());
+      if (authored.has(file)) {
+        assertAuthoredSyntax(original, sf, spans);
+      }
       // Dependency exports are required because importing worlds can resolve a package to a distinct closure.
       for (const [name, declarations] of sf.getExportedDeclarations()) {
         exports.push({ file, name, declarations: declarations.map(spans.node) });

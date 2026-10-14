@@ -32,12 +32,14 @@ Pinned patch `0450353ca5` skips definition formatting only for opted-in native q
 
 The reviewed correction replaces whole-partition persistence and eager readers with indexed SQLite records. Bounded controls cover native meanings, ordering, multiplicity, input versions, atomic generations, last-good data, overlays and CLI disposal.
 
-The independent review found native scalar UTF-16 loss through SQLite text binding. The accepted correction uses a canonical scalar JSON codec for records and indexed predicates. Its format boundary preserves previous generations without reinterpretation. Native extraction and metadata controls pass, including decoded program ordering and changed-value hashes. Tooling types and scoped lint pass; root retains unrelated errors.
+Canonical scalar JSON records and indexed predicates preserve native UTF-16 strings. Format boundaries preserve old generations. Native extraction and metadata controls pass; tooling types and scoped lint pass.
 
 Integrated source `f109dc2abd` completes canonical client extraction, FORMAT3 staging, scalar parent import, input rechecks, publication, lazy read and disposal at frozen revision `77c78fa141`. The post-exit verifier confirms current descriptor, roots and recorded inputs. Worker exit precedes parent import; the closed committed store is reusable at that frozen root.
 
 The run completes in 58:17 with GNU time maximum RSS 11,187,848 KiB at the unchanged 16 GiB heap setting. Parent public high water is 294,456 KiB. These are process high-water measurements, not aggregate memory. Full evidence is `/tmp/ast-memory-format3-client-1002/result-summary.md`.
 
-Default-demand replay fails in root-world extraction: the installed Playwright CT declaration is not shared with its native language-service Program. This is not OOM or timeout. Workers exit; complete publication and collectors remain unqualified. Evidence: `/tmp/ast-memory-full-replay-1002/replay-77c78fa141-once`. Diagnose native identity before another replay.
+Full replay fails on cached unredirected wrappers, not OOM or timeout. Evidence: `/tmp/ast-memory-full-replay-1002/replay-77c78fa141-once`.
+
+Reviewed source `53a485a41c` uses checker-admitted nodes and exact public syntax identity. Authored redirects to different physical syntax refuse. The actual root-bootstrap guard passes; full extraction, publication and collectors remain unqualified. The correction invalidates historical client reuse for a new generation.
 
 Closed-store inspection confirms the qualified client generation survives without partial publication. Client success is not current-main liveness or complete memory qualification.

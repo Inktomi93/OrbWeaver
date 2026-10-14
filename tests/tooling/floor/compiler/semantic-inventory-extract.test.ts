@@ -1,10 +1,10 @@
-import { symlinkSync, unlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest, InventorySpan } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { openInventoryDatabase, publishInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
-import { inputsCurrent, inputVersion } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
+import { canonicalInventoryPath, inputsCurrent, inputVersion } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
@@ -22,6 +22,230 @@ function fixtureValue<T>(value: T | undefined): T {
   }
   return value;
 }
+
+function redirectFixture(root: string, variant: "identical" | "different" | "symlink"): InventoryBuildRequest {
+  const write = (path: string, text: string): void => {
+    const absolute = join(root, path);
+    mkdirSync(dirname(absolute), { recursive: true });
+    writeFileSync(absolute, text);
+  };
+  write(".gitignore", "node_modules/\n.cache/\n");
+  write(
+    "tsconfig.json",
+    JSON.stringify({
+      files: ["consumer.ts"],
+      compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler", preserveSymlinks: variant === "symlink" },
+    }),
+  );
+  for (const side of ["left", "right", "other"]) {
+    write(`node_modules/${side}/package.json`, JSON.stringify({ name: side, version: "1.0.0", types: "index.d.ts" }));
+    write(`node_modules/${side}/index.d.ts`, "export {value as value, inner} from 'shared';\n");
+    const shared = `node_modules/${side}/node_modules/shared`;
+    write(`${shared}/package.json`, JSON.stringify({ name: "shared", version: side === "other" ? "2.0.0" : "1.0.0", types: "index.d.ts" }));
+    write(
+      `${shared}/index.d.ts`,
+      `${variant === "different" && side === "right" ? "export declare const unrelated: string;\n" : ""}export declare const value: ${side === "other" ? "2" : "1"}; export {inner} from './inner';\n`,
+    );
+    write(`${shared}/inner.d.ts`, "export declare const inner: number;\n");
+  }
+  if (variant === "symlink") {
+    symlinkSync("left/node_modules/shared", join(root, "node_modules/linked"));
+  }
+  write(
+    "consumer.ts",
+    [
+      "import {value as left} from 'left'; import {value as right} from 'right'; import {value as other} from 'other';",
+      "import {absent} from './absent'; export const missing=absent;",
+      "export const use=left+right+other; export const witness='value' satisfies keyof typeof import('right');",
+      variant === "symlink" ? "import {inner} from 'linked'; export const linked=inner;" : "",
+    ].join("\n"),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  return { root, descriptor: fixtureValue(readCompilerPrograms(root)[0]), destination: join(root, "unused.sqlite") };
+}
+
+function nativeSpan(node: ts.Node): InventorySpan {
+  return { file: canonicalInventoryPath(node.getSourceFile().fileName), start: node.getStart(), end: node.getEnd(), kind: node.kind };
+}
+
+test.for(["identical", "different", "symlink"] as const)(
+  "native package redirects preserve admitted origins and physical metadata: %s",
+  (variant, { scratch }) => {
+    const request = redirectFixture(scratch, variant);
+    const left = join(scratch, "node_modules/left/node_modules/shared/index.d.ts");
+    const right = join(scratch, "node_modules/right/node_modules/shared/index.d.ts");
+    const other = join(scratch, "node_modules/other/node_modules/shared/index.d.ts");
+    let host: Project | undefined;
+    let bootstrap: ts.Program | undefined;
+    const sourceReads: string[] = [];
+    const wrappers = new Set<SourceFile>();
+    const released = new Map<string, SourceFile>();
+    const forget = SourceFile.prototype.forget;
+    const cleanup = vi.spyOn(SourceFile.prototype, "forget").mockImplementation(function (this: SourceFile) {
+      released.set(this.getFilePath(), this);
+      forget.call(this);
+    });
+    const resolveDependencies = Project.prototype.resolveSourceFileDependencies;
+    const resolution = vi.spyOn(Project.prototype, "resolveSourceFileDependencies").mockImplementation(function (this: Project) {
+      const result = resolveDependencies.call(this);
+      host = this;
+      bootstrap = this.getProgram().compilerObject;
+      const admitted = fixtureValue(bootstrap.getSourceFile(right));
+      const cached = this.getSourceFileOrThrow(right);
+      expect(admitted).not.toBe(cached.compilerNode);
+      expect(admitted.endOfFileToken).toBe(fixtureValue(bootstrap.getSourceFile(left)).endOfFileToken);
+      expect(cached.getFullText()).toBe(readFileSync(right, "utf8"));
+      return result;
+    });
+    const readExports = SourceFile.prototype.getExportedDeclarations;
+    const exports = vi.spyOn(SourceFile.prototype, "getExportedDeclarations").mockImplementation(function (this: SourceFile) {
+      const program = fixtureValue(fixtureValue(host).getLanguageService().compilerObject.getProgram());
+      expect(this.compilerNode).toBe(program.getSourceFile(this.getFilePath()));
+      sourceReads.push(this.getFilePath());
+      wrappers.add(this);
+      return readExports.call(this);
+    });
+    const bootstrapChecker = vi.spyOn(Program.prototype, "getTypeChecker").mockImplementation(() => {
+      throw new Error("redirect mapping hydrated the bootstrap checker");
+    });
+    try {
+      const { partition, queries } = extractWithoutReferenceWrappers(request, () => {
+        expect([...wrappers].every((source) => source.wasForgotten())).toBe(true);
+      });
+      const program = fixtureValue(fixtureValue(host).getLanguageService().compilerObject.getProgram());
+      const checker = program.getTypeChecker();
+      const admitted = fixtureValue(program.getSourceFile(right));
+      const original = fixtureValue(fixtureValue(bootstrap).getSourceFile(right));
+      expect(admitted).not.toBe(original);
+      expect(admitted.statements).toBe(original.statements);
+      expect(admitted.endOfFileToken).toBe(original.endOfFileToken);
+      expect(program.getCompilerOptions()).toEqual(request.descriptor.commandLine.options);
+      expect(partition.nativeRoots).toEqual([join(scratch, "consumer.ts")]);
+      expect(partition.roots).toEqual(partition.nativeRoots);
+      expect(partition.sources.map((source) => source.path)).toEqual(
+        fixtureValue(bootstrap)
+          .getSourceFiles()
+          .map((source) => source.fileName),
+      );
+      expect(sourceReads).toEqual(partition.sources.map((source) => source.path));
+      expect(new Set(program.getRootFileNames())).toEqual(new Set(partition.sources.map((source) => source.path)));
+      for (const path of [left, right, other]) {
+        const source = fixtureValue(program.getSourceFile(path));
+        const symbol = fixtureValue(checker.getSymbolAtLocation(source));
+        const value = fixtureValue(checker.getExportsOfModule(symbol).find((entry) => entry.getName() === "value"));
+        const declarations = fixtureValue(value.getDeclarations()).map(nativeSpan);
+        expect(partition.exports.find((entry) => entry.file === path && entry.name === "value")?.declarations).toEqual(declarations);
+        expect(declarations[0]?.file).toBe(path === other ? other : left);
+        expect(partition.sources.find((entry) => entry.path === path)?.text).toBe(readFileSync(path, "utf8"));
+        expect(partition.inputs).toContainEqual({ path, kind: "file", version: inputVersion(path, "file") });
+      }
+      expect(partition.exports.some((entry) => entry.file === right && entry.name === "unrelated")).toBe(false);
+      const origin = fixtureValue(partition.exports.find((entry) => entry.file === right && entry.name === "value")?.declarations[0]);
+      expect(partition.witnesses[0]?.declarations).toEqual([origin]);
+      expect(partition.bindings.some((entry) => entry.symbols.origins.some((declaration) => JSON.stringify(declaration) === JSON.stringify(origin)))).toBe(
+        true,
+      );
+      expect(partition.modules.find((entry) => entry.specifier === "./absent")).toMatchObject({ target: null, declarations: [] });
+      expect(partition.inputs.some((input) => input.path === join(scratch, "absent.ts") && input.version === "false")).toBe(true);
+      expect(queries.every((query) => query.startsWith(`[${JSON.stringify(join(scratch, "consumer.ts"))},`))).toBe(true);
+      expect(partition.references.every((entry) => entry.declaration.file === join(scratch, "consumer.ts"))).toBe(true);
+      const extra = program.getSourceFiles().filter((source) => !sourceReads.includes(source.fileName));
+      expect(extra.some((source) => source.fileName === join(scratch, "node_modules/linked/inner.d.ts"))).toBe(variant === "symlink");
+      for (const source of extra) {
+        expect(fixtureValue(bootstrap).getSourceFiles()).toContain(source.endOfFileToken.getSourceFile());
+      }
+      expect(new Set(released.keys())).toEqual(new Set(program.getSourceFiles().map((source) => source.fileName)));
+      expect([...released.values()].every((source) => source.wasForgotten())).toBe(true);
+      expect(bootstrapChecker).not.toHaveBeenCalled();
+    } finally {
+      cleanup.mockRestore();
+      bootstrapChecker.mockRestore();
+      exports.mockRestore();
+      resolution.mockRestore();
+    }
+  },
+);
+
+test.for(["identical", "different"] as const)("authored package copies refuse another physical syntax origin: %s", (variant, { scratch }) => {
+  const request = redirectFixture(scratch, variant);
+  const path = "node_modules/right/node_modules/shared/index.d.ts";
+  execFixtureGit(scratch, ["add", "-f", path]);
+  expect(() => extractInventoryPartition(request)).toThrow(`native inventory authored source selects a different syntax origin: ${join(scratch, path)}`);
+});
+
+test.for(["separate-parse", "statements", "eof", "text", "filename", "missing"] as const)(
+  "native source mapping refuses non-equivalent admission and releases standalone wrappers: %s",
+  (difference, { scratch }) => {
+    writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["base.ts", "other.ts"], compilerOptions: { noLib: true, types: [] } }));
+    writeFileSync(join(scratch, "base.ts"), "export const value=1; export const use=value;\n");
+    writeFileSync(join(scratch, "other.ts"), "export const other=2;\n");
+    execFixtureGit(scratch, ["init", "-q"]);
+    const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+    const path = join(scratch, "base.ts");
+    const restores: (() => void)[] = [];
+    const hostSources = new Set<SourceFile>();
+    const forgotten = new Set<SourceFile>();
+    const resolveDependencies = Project.prototype.resolveSourceFileDependencies;
+    const resolution = vi.spyOn(Project.prototype, "resolveSourceFileDependencies").mockImplementation(function (this: Project) {
+      const result = resolveDependencies.call(this);
+      for (const source of this.getSourceFiles()) {
+        hostSources.add(source);
+      }
+      const program = this.getProgram().compilerObject;
+      const original = fixtureValue(program.getSourceFile(path));
+      const detached = ts.createSourceFile(path, original.text, ts.ScriptTarget.Latest, true);
+      if (difference !== "separate-parse" && difference !== "statements") {
+        Object.defineProperty(detached, "statements", { value: original.statements });
+      }
+      if (difference !== "separate-parse" && difference !== "eof") {
+        Object.defineProperty(detached, "endOfFileToken", { value: original.endOfFileToken });
+      }
+      if (difference === "text") {
+        Object.defineProperty(detached, "text", { value: `${original.text}\n` });
+      }
+      const sources = program.getSourceFiles().map((source) => (source === original ? detached : source));
+      const observation = vi.spyOn(program, "getSourceFiles").mockReturnValue(sources);
+      restores.push(() => observation.mockRestore());
+      return result;
+    });
+    const getLanguageService = Project.prototype.getLanguageService;
+    const service = vi.spyOn(Project.prototype, "getLanguageService").mockImplementation(function (this: Project) {
+      const result = getLanguageService.call(this);
+      if (difference === "missing" || difference === "filename") {
+        const program = fixtureValue(result.compilerObject.getProgram());
+        const getSourceFile = program.getSourceFile.bind(program);
+        const observation = vi.spyOn(program, "getSourceFile").mockImplementation((file) => {
+          if (file === path) {
+            return difference === "missing" ? undefined : getSourceFile(join(scratch, "other.ts"));
+          }
+          return getSourceFile(file);
+        });
+        restores.push(() => observation.mockRestore());
+      }
+      return result;
+    });
+    const forget = SourceFile.prototype.forget;
+    const cleanup = vi.spyOn(SourceFile.prototype, "forget").mockImplementation(function (this: SourceFile) {
+      forgotten.add(this);
+      forget.call(this);
+    });
+    try {
+      expect(() => extractInventoryPartition({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") })).toThrow(
+        `native inventory source is not shared with its language-service Program: ${path}`,
+      );
+      expect(forgotten.size).toBe(2);
+      expect([...forgotten].every((source) => source.wasForgotten())).toBe(true);
+      expect([...hostSources].every((source) => !source.wasForgotten())).toBe(true);
+    } finally {
+      cleanup.mockRestore();
+      service.mockRestore();
+      resolution.mockRestore();
+      for (const restore of restores) {
+        restore();
+      }
+    }
+  },
+);
 
 function extractWithoutReferenceWrappers(
   request: InventoryBuildRequest,
