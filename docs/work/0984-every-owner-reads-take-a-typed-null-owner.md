@@ -1,15 +1,18 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-14
 priority: P2
+lane: codex/every-owner-authority-984
 ---
 
 # Every-owner reads take a typed null-owner run token
 
 ## What
 
-Discovery and card-reads every-owner reads carry waivers whose reasons drift. Add a branded EveryOwnerRun token, minted only by the workloads runner for a null-owner row (system or box-owner bulk). Every-owner reads take it as a parameter, and owner-scoped-reads recognises that parameter type, so tsc proves who reaches the read and the waivers go away.
+Replace drifting discovery read waivers with typed authority. Mint opaque `EveryOwnerRun` only in the workloads runner after claiming an actual null-owner row. Execution reads require that authority; owned reads retain required owner predicates.
+
+Preserve exact bulk model-call estimates through separate typed estimate authority after existing owner, mode and retry admission. Estimate authority permits count computation, not execution, writes or raw-row egress. Reuse production clustering and content predicates.
 
 ## Why
 
@@ -17,8 +20,10 @@ A prose waiver for a system read is already false in five places; a type the com
 
 ## Done when
 
-Every every-owner read takes the token; only the runner mints it; the gate accepts the token instead of a waiver; the five discovery and card-reads waivers are deleted.
+Every execution-wide read requires runner-minted authority. Estimate-wide reads require separately admitted estimate authority and return counts only. Neither authority can replace the other. The gate resolves required canonical identities, rejects lookalike or optional tokens, and preserves owned-query checks. Remove superseded waivers without grants or budget inflation. Prove actual null-owner runs, authorized exact estimates and ordinary-owner refusals through production.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`packages/server/src/domain/workloads/verbs/estimate-model-calls.ts` admits bulk estimates before any workload executes. Theme estimates use actual vectors and seeded clustering, so metadata counts cannot preserve the existing result. Keep this legitimate estimate path distinct from runner authority; do not report it as an execution-only caller or degrade its answer to null.
+
+The contribution, digest, segment and lineage census owns complete scope. Include the embeddings terminal-freshness fan where it enumerates owners. Existing waiver counts are leads, not the population boundary.
