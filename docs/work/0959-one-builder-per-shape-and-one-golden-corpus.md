@@ -53,4 +53,4 @@ Persisted workload funding is integrated. The expanded native capsule passes wit
 
 Reviewed sources `3303ed4825`, `5cef750b0d` and `80bd8e5102` produce native RPG hand, population, resync, journal and schedule state, plus knowledge arcs, swipes and GIF geometry. Native cuts and scoped controls pass. Complete builder coverage, committed corpus and every-layer adoption remain open.
 
-Native RPG recovery exposes checkpoint-state loss after later host edits to a mutable turn snapshot. Item 1018 owns the production correction; dependent RPG qualification waits for it. Retain the failing case instead of changing its expected restored state.
+Reviewed source `fa0badf99b` preserves immutable checkpoints. Reviewed source `69c196ed8f` produces native RPG recursion, cancellation, visibility, fork, handoff and intake captures. Defect controls and capsule assertions preserve original turn lineage. Complete coverage, publication and adoption remain open.

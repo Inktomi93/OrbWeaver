@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-14
 priority: P1
 area: tenancy
+lane: codex/share-acme-harness-958
 plan: test-foundation
 ---
 
