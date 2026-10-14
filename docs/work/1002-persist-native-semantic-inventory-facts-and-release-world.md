@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-14
 priority: P1
 area: tooling
-lane: codex/tests-dom-profile-1002
+lane: codex/ast-wrapper-lifetime-1002
 plan: test-foundation
 ---
 
@@ -38,4 +38,6 @@ Frozen `4de2122c1a` full replay reaches its fixed deadline without an OOM or sou
 
 The terminal report preserves exact populations, timings, per-process RSS and swap observations: `/tmp/ast-native-full-current-1002/result-summary.md`. All owned processes are absent. Source, dependency and workspace-link guards pass. Staged input currency is not revalidated, so reuse is not yet authorized.
 
-Bounded native profiling identifies repeated physical-path resolution and per-query native import-map reconstruction. Capture stops after profile flush; no partition is produced. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-profile-diagnosis.md`. Reviewed source `49d607fd3c` reuses extraction-local physical identities and completed native import maps through a typed readonly reference pass. Bounded native parity, cancellation, invalidation, publication-refusal and disposal controls pass. Root types retain off-wave failures. Current-scale replay, collector equivalence, publication, concurrent reuse and hosted memory remain open.
+Reviewed `49d607fd3c` reuses extraction-local physical identities and completed native import maps through a typed readonly reference pass. Bounded parity, cancellation, invalidation and refusal controls pass. Complete tests-DOM cold extraction, staging, worker release, import, generation publication, lazy reading and disposal pass at frozen `7394d01aaf`; recorded inputs revalidate. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. This qualifies that native world, not complete demand. Multi-world replay, collector equivalence, concurrent reuse and hosted memory remain open.
+
+Reuse acquires the committed generation, but library-reference consumption fails on syntax-carrier virtual file collision. Preserve input fingerprints during repair.

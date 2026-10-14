@@ -29,7 +29,7 @@ Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, p
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
 
-The complete selected run `main-2484266-2026-10-14T17-18-54-772Z` reports helper, accounting, asset, automation, databank, discovery and imagery findings. It completes without tool errors or withheld policies. Dead-position and budget authority alarms remain. Unlanded accounting corrections are outside this result.
+Current selected run `main-3681378-2026-10-14T22-06-43-010Z` judges complete owner-read source at `0309b345df`. Effective findings and dead-position/budget alarms remain; tool errors and withheld policies are absent. Direct owner predicates and retained projections require reader regression investigation before query edits. A finding does not establish an exploit.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 

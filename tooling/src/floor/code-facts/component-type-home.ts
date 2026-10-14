@@ -1,20 +1,21 @@
 // Component API origins in a delivered native browser view; copy policy and population admission remain separate.
 import type { FunctionDeclaration, Identifier, Node as MorphNode, ParameterDeclaration, SourceFile, VariableDeclaration } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node, SymbolFlags, SyntaxKind } from "ts-morph";
 import { worldOf } from "../compiler/project-worlds.ts";
 import { canonicalCompilerPath, descendantsOfKind, registeredSemanticSourceView, semanticWorkspaceOf } from "../compiler/ts-workspace.ts";
 import type { SemanticSourceView } from "../compiler/ts-workspace-contract.ts";
-import { readFunctionReturnPaths } from "./call-returns.ts";
+import { observeCallReturns, readFunctionReturnPaths } from "./call-returns.ts";
 import type {
   ComponentLowerDataEvidence,
   ComponentRenderEvidence,
   ComponentTypeHomeInput,
   ComponentTypeHomeResult,
   ComponentTypeHomeView,
+  NativeComponentRenderContribution,
 } from "./component-type-home-contract.ts";
 import { ComponentTypeHomeComparisonError } from "./component-type-home-contract.ts";
 import { referenceResolutionServices, resolveStableExpression } from "./reference-fact.ts";
-import { resolveCallableDeclaration } from "./reference-fact-call.ts";
+import { resolveCallableValueDeclaration, resolveCallableValueOrigin } from "./reference-fact-call.ts";
 import { declarationBindingKeys, inventoryDeclarationKey, inventoryExports } from "./semantic-inventory-reader.ts";
 import { agreeingCount, createShapeFieldAgreement, indexByField, sharedFieldCounts } from "./shape-copy.ts";
 import type { ShapeCopyComparison, ShapeCopySource } from "./shape-copy-contract.ts";
@@ -22,7 +23,10 @@ import { exportedShapeDeclarations } from "./shape-declaration.ts";
 import { directDerivationTargetKeys, readNativeGenericArgumentContribution } from "./shape-derivation.ts";
 import { ownDataFieldNames, resolvedShapeProperties } from "./shape-fields.ts";
 import { packageTypeHome } from "./type-home.ts";
-import { resolveTypeIdentityChain } from "./type-member-origin.ts";
+import { declaredByPackage, resolveTypeIdentityChain } from "./type-member-origin.ts";
+import { resolveTypePropertyOrigin } from "./type-member-origin-core.ts";
+import { readReturnedValue } from "./value-carrier.ts";
+import { readValueDependencyContribution } from "./value-dependency.ts";
 
 /** Capture the delivered native owner's program/source epoch without opening another compiler world. */
 export function captureComponentTypeHomeView(view: SemanticSourceView): ComponentTypeHomeView {
@@ -114,13 +118,10 @@ interface ComponentTypeGraph {
 
 function supportedGenericReference(identifier: Identifier, view: ComponentTypeHomeView): boolean {
   const ancestors = identifier.getAncestors();
-  if (
-    ancestors.some(Node.isTypeParameterDeclaration) ||
-    ancestors.filter(Node.isExpressionWithTypeArguments).some((reference) => reference.getTypeArguments().some((argument) => ancestors.includes(argument)))
-  ) {
+  if (ancestors.some(Node.isTypeParameterDeclaration)) {
     return false;
   }
-  for (const reference of ancestors.filter(Node.isTypeReference)) {
+  for (const reference of ancestors.filter((node) => Node.isTypeReference(node) || Node.isExpressionWithTypeArguments(node))) {
     const argument = reference.getTypeArguments().find((type) => ancestors.includes(type));
     if (argument === undefined) {
       continue;
@@ -174,7 +175,7 @@ function exportedCallable(exported: FunctionDeclaration | VariableDeclaration): 
   if (name === undefined) {
     return exported;
   }
-  const fact = resolveCallableDeclaration(name);
+  const fact = resolveCallableValueDeclaration(name);
   return fact.kind === "resolved" ? fact.value.declaration : undefined;
 }
 
@@ -192,6 +193,9 @@ function renderLeaves(raw: MorphNode, sources: ReadonlySet<SourceFile>, seen: Re
   const visited = new Set([...seen, value]);
   if (Node.isJsxElement(value) || Node.isJsxSelfClosingElement(value) || Node.isJsxFragment(value) || value.getKind() === SyntaxKind.NullKeyword) {
     return [value];
+  }
+  if (Node.isCallExpression(value)) {
+    return nativeRenderContribution(value) === undefined ? undefined : [value];
   }
   if (Node.isConditionalExpression(value)) {
     const yes = renderLeaves(value.getWhenTrue(), sources, visited);
@@ -263,7 +267,16 @@ function componentEvidence(input: ComponentTypeHomeInput): ComponentOriginRead {
     const { callable, parameter, returns, view } = rendered;
     const visited = supportingTypeKeys(parameter, graph, view);
     if (visited.has(target)) {
-      evidence = { callable, parameter, returns, supportingDeclarations: graph.declarations.filter((type) => visited.has(inventoryDeclarationKey(type))) };
+      evidence = {
+        callable,
+        parameter,
+        returns,
+        nativeRenders: returns.flatMap((value) => {
+          const contribution = Node.isCallExpression(value) ? nativeRenderContribution(value) : undefined;
+          return contribution === undefined ? [] : [contribution];
+        }),
+        supportingDeclarations: graph.declarations.filter((type) => visited.has(inventoryDeclarationKey(type))),
+      };
       break;
     }
   }
@@ -358,4 +371,59 @@ export function componentTypeHome(input: ComponentTypeHomeInput): ComponentTypeH
     };
   }
   return { kind: "owned", component, lowerData: data };
+}
+
+function nativeRenderContribution(call: import("ts-morph").CallExpression): NativeComponentRenderContribution | undefined {
+  const target = nativeRenderTarget(call);
+  if (target === undefined) {
+    return;
+  }
+  const program = call.getProject().getProgram().compilerObject;
+  const argument = call.getArguments()[0];
+  if (argument === undefined) {
+    return;
+  }
+  const observations = observeCallReturns([call]);
+  const terminals = new Set([call.compilerNode]);
+  const contribution = readValueDependencyContribution({ value: call, observations, terminals });
+  if (contribution.kind !== "qualified") {
+    return;
+  }
+  const tags = readReturnedValue(argument, ["defaultTagName"], observations, terminals);
+  const enabled = readReturnedValue(argument, ["enabled"], observations, terminals);
+  if (tags.kind !== "resolved" || tags.value.length !== 1 || enabled.kind !== "resolved") {
+    return;
+  }
+  if (enabled.value.some((alternative) => alternative.present && alternative.value.getKind() !== SyntaxKind.TrueKeyword)) {
+    return;
+  }
+  const tag = tags.value[0];
+  if (tag === undefined || !tag.present || tag.path.length > 0 || !Node.isStringLiteral(tag.value)) {
+    return;
+  }
+  const map = call.getSymbolsInScope(SymbolFlags.Type).find((symbol) => symbol.getName() === "HTMLElementTagNameMap");
+  const declaration = map?.getDeclarations()[0];
+  if (declaration === undefined || !program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode)) {
+    return;
+  }
+  const property = resolveTypePropertyOrigin(declaration, tag.value.getLiteralValue());
+  const domTag = property.kind === "resolved" ? property.value[0] : undefined;
+  return domTag === undefined ? undefined : { call, callee: target.declaration, domTag, dependency: contribution };
+}
+
+function nativeRenderTarget(
+  call: import("ts-morph").CallExpression,
+): Extract<import("./reference-fact-contract.ts").ModuleMemberOrigin["canonical"], { kind: "project" }> | undefined {
+  const origin = resolveCallableValueOrigin(call);
+  if (origin.kind !== "resolved" || origin.value.target.kind !== "module" || origin.value.target.canonical.kind !== "project") {
+    return;
+  }
+  const target = origin.value.target.canonical;
+  const program = call.getProject().getProgram().compilerObject;
+  return target.exportedName !== "useRender" ||
+    !Node.isFunctionDeclaration(target.declaration) ||
+    !declaredByPackage([target.declaration], "@base-ui/react") ||
+    program.getSourceFile(target.sourceFile.getFilePath()) !== target.sourceFile.compilerNode
+    ? undefined
+    : target;
 }

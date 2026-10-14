@@ -1,9 +1,8 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-14
 priority: P1
-lane: codex/type-homes-981
 plan: test-foundation
 ---
 
@@ -27,4 +26,4 @@ The component-home ruling preserves co-located UI and client prop APIs with cano
 
 Reviewed source `f8dadcb165` consolidates ordinary declaration ownership without changing findings or authority. Source `409ce2229e` proves native component and supporting origins; unrelated utility members remain unqualified. Source `582da2c7d1` relocates inference contracts without changing runtime statements or public names. Effective native syntax replaces only covered direct declarations; local exports, schemas and generated omissions retain custom ownership. Source `185e81b083` preserves complete finding assertions with typed sorting. Complete-owner evidence supports the attributable package-interface budget shrink; SandboxLimits remains a real unwaived finding. Generated admission, complete package coverage, lower-data derivation and production repairs remain open. Preserve hard non-placement claims.
 
-Reviewed source `cc8afb0622` delivers registered native component context, stable render origins and same-owner supporting imports. Erased generics and forged foreign views refuse. Native and coupled controls pass. Ordinary callers retain their findings; UI activation remains off. Substituted members, schema effects, external render calls and non-render API owners remain unqualified.
+Reviewed `cc8afb0622` delivers native component context, stable render origins and same-owner supporting imports. Reviewed `86feee842e` adds substituted members, schema output and installed Base UI returned rendering. Captured contributions preserve lower-data uncertainty; projected methods and nonexecuting collectors refuse. Native controls and targeted review corrections pass. Ordinary findings remain and UI activation stays off. Non-render APIs, opaque generics, generated/Node homes and lower-owned overlap remain unqualified.

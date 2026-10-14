@@ -2,10 +2,16 @@
 import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, SourceFile, Type } from "ts-morph";
-import { Node } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableDeclaration } from "./reference-fact-call.ts";
-import type { ContextualMemberOrigin, TypeIdentityOrigin, TypeMemberOrigin } from "./type-member-origin-contract.ts";
-import { normalizedPath, resolved, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
+import type {
+  ContextualMemberOrigin,
+  NativeSubstitutedTypeInput,
+  NativeSubstitutedTypeSlot,
+  TypeIdentityOrigin,
+  TypeMemberOrigin,
+} from "./type-member-origin-contract.ts";
+import { annotationReferenceOrigin, normalizedPath, resolved, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
 
 /** Resolve one property read to the declarations of the property symbol the checker found on the receiver's
  *  type. Dotted, optional, and computed-literal spellings normalize through the shared member reader, so a
@@ -257,4 +263,148 @@ export function declaredByFile(declarations: readonly MorphNode[], sourceFile: S
  *  a project lookalike when the vendor ships its own `@types` package rather than inline declarations. */
 export function declaredByAnyPackage(declarations: readonly MorphNode[], packageNames: readonly string[]): boolean {
   return packageNames.some((packageName) => declaredByPackage(declarations, packageName));
+}
+
+function sameTypeDeclaration(left: Type, right: Type): boolean {
+  const origins = (left.getAliasSymbol() ?? left.getSymbol())?.getDeclarations() ?? [];
+  const targets = new Set(((right.getAliasSymbol() ?? right.getSymbol())?.getDeclarations() ?? []).map((node) => node.compilerNode));
+  return origins.length > 0 && origins.some((node) => targets.has(node.compilerNode));
+}
+
+interface NativeSlotPair {
+  readonly template: Type;
+  readonly actual: Type;
+  readonly declarations: readonly MorphNode[];
+}
+
+function nativeUnionSlots(pair: NativeSlotPair, formal: Type): readonly NativeSlotPair[] | undefined {
+  const templates = [...pair.template.getUnionTypes(), ...pair.template.getIntersectionTypes()];
+  const actuals = [...pair.actual.getUnionTypes(), ...pair.actual.getIntersectionTypes()];
+  if (templates.length === 0 && actuals.length === 0) {
+    return;
+  }
+  return (templates.length === 0 ? [pair.template] : templates).flatMap((left) =>
+    (actuals.length === 0 ? [pair.actual] : actuals)
+      .filter((right) => left.compilerType === formal.compilerType || sameTypeDeclaration(left, right))
+      .map((right) => ({ template: left, actual: right, declarations: pair.declarations })),
+  );
+}
+
+// Candidate arguments prune irrelevant instantiation; only the actual declaration-paired slots below prove contribution.
+function nativeFormalCandidate(type: Type, input: NativeSubstitutedTypeInput, visited = new Set<object>()): boolean {
+  if (type.compilerType === input.parameter.getType().compilerType) {
+    return true;
+  }
+  if (visited.has(type.compilerType) || type.isAny() || type.isUnknown() || type.isTypeParameter()) {
+    return false;
+  }
+  visited.add(type.compilerType);
+  const arguments_ = [...type.getAliasTypeArguments(), ...type.getTypeArguments(), ...type.getUnionTypes(), ...type.getIntersectionTypes()];
+  if (arguments_.length > 0) {
+    return arguments_.some((argument) => nativeFormalCandidate(argument, input, visited));
+  }
+  const declarations = (type.getAliasSymbol() ?? type.getSymbol())?.getDeclarations() ?? [];
+  return declarations.some((declaration) =>
+    declaration.getDescendantsOfKind(SyntaxKind.Identifier).some((identifier) => {
+      const origin = annotationReferenceOrigin(identifier);
+      return origin.kind === "resolved" && origin.value.declarations.some((node) => node.compilerNode === input.parameter.compilerNode);
+    }),
+  );
+}
+
+function nativePropertySlots(pair: NativeSlotPair, input: NativeSubstitutedTypeInput): readonly NativeSlotPair[] {
+  return pair.template.getProperties().flatMap((property) => {
+    const template = property.getTypeAtLocation(input.templateLocation);
+    if (!nativeFormalCandidate(template, input)) {
+      return [];
+    }
+    const target = pair.actual.getProperty(property.getName());
+    const declarations = property.getDeclarations();
+    const targetNodes = new Set(target?.getDeclarations().map((node) => node.compilerNode));
+    return target !== undefined && declarations.length > 0 && declarations.every((node) => targetNodes.has(node.compilerNode))
+      ? [{ template, actual: target.getTypeAtLocation(input.actualLocation), declarations }]
+      : [];
+  });
+}
+
+function nativeSignatureSlots(pair: NativeSlotPair, input: NativeSubstitutedTypeInput): readonly NativeSlotPair[] {
+  const slots: NativeSlotPair[] = [];
+  for (const signature of [...pair.template.getCallSignatures(), ...pair.template.getConstructSignatures()]) {
+    const declaration = signature.getDeclaration();
+    for (const target of [...pair.actual.getCallSignatures(), ...pair.actual.getConstructSignatures()]) {
+      if (target.getDeclaration().compilerNode !== declaration.compilerNode) {
+        continue;
+      }
+      const targets = target.getParameters();
+      slots.push(
+        ...signature.getParameters().flatMap((parameter, index) => {
+          const supplied = targets[index];
+          const declarations = parameter.getDeclarations();
+          const targetNodes = new Set(supplied?.getDeclarations().map((node) => node.compilerNode));
+          return supplied !== undefined && declarations.length > 0 && declarations.every((node) => targetNodes.has(node.compilerNode))
+            ? [{ template: parameter.getTypeAtLocation(input.templateLocation), actual: supplied.getTypeAtLocation(input.actualLocation), declarations }]
+            : [];
+        }),
+      );
+      slots.push({ template: signature.getReturnType(), actual: target.getReturnType(), declarations: [declaration] });
+    }
+  }
+  return slots;
+}
+
+function concreteNativeSlotType(type: Type): boolean {
+  return type.isObject() || type.isUnion() || type.isIntersection();
+}
+
+function collectNativeSubstitutedSlots(input: NativeSubstitutedTypeInput): readonly NativeSubstitutedTypeSlot[] {
+  const formal = input.parameter.getType();
+  const pending: NativeSlotPair[] = [
+    { template: input.templateLocation.getType(), actual: input.actualLocation.getType(), declarations: [input.templateLocation] },
+  ];
+  const visited = new Map<object, Set<object>>();
+  const slots: NativeSubstitutedTypeSlot[] = [];
+  for (const pair of pending) {
+    const seen = visited.get(pair.template.compilerType) ?? new Set<object>();
+    if (seen.has(pair.actual.compilerType)) {
+      continue;
+    }
+    seen.add(pair.actual.compilerType);
+    visited.set(pair.template.compilerType, seen);
+    if (pair.actual.isAny() || pair.actual.isUnknown() || pair.actual.isNever() || pair.actual.isTypeParameter()) {
+      continue;
+    }
+    if (pair.template.compilerType === formal.compilerType) {
+      slots.push({ formal, actual: pair.actual, declarations: pair.declarations });
+      continue;
+    }
+    if (!concreteNativeSlotType(pair.template) || pair.template.compilerType === pair.actual.compilerType || !nativeFormalCandidate(pair.template, input)) {
+      continue;
+    }
+    pending.push(...(nativeUnionSlots(pair, formal) ?? [...nativePropertySlots(pair, input), ...nativeSignatureSlots(pair, input)]));
+  }
+  return slots;
+}
+
+/** Pair concrete template and instantiated slots by native declarations; unresolved template grammars do not expand. */
+export function readNativeSubstitutedTypeSlots(input: NativeSubstitutedTypeInput): ReferenceFact<readonly NativeSubstitutedTypeSlot[]> {
+  const { parameter, templateLocation, actualLocation, program, source } = input;
+  const nodes = [parameter, templateLocation, actualLocation];
+  if (nodes.some((node) => node.wasForgotten())) {
+    return unresolved("unsupported", actualLocation, "native substitution received a forgotten declaration");
+  }
+  const project = actualLocation.getProject();
+  if (
+    project.getProgram().compilerObject !== program ||
+    actualLocation.getSourceFile().compilerNode !== source ||
+    parameter.getParent() !== templateLocation ||
+    nodes.some((node) => node.getProject() !== project || program.getSourceFile(node.getSourceFile().getFilePath()) !== node.getSourceFile().compilerNode)
+  ) {
+    return unresolved("unsupported", actualLocation, "native substitution belongs to a foreign or stale declaration/program epoch");
+  }
+  const slots = collectNativeSubstitutedSlots(input);
+  return resolved(
+    slots,
+    actualLocation,
+    slots.flatMap((slot) => slot.declarations),
+  );
 }

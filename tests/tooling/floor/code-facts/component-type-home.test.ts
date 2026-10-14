@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { captureComponentTypeHomeView, componentTypeHome, registeredComponentTypeHomeView } from "@orb/tooling/floor/code-facts/component-type-home";
 import type { ComponentTypeHomeResult, ComponentTypeHomeView } from "@orb/tooling/floor/code-facts/component-type-home-contract";
+import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
 import { readNativeGenericArgumentContribution } from "@orb/tooling/floor/code-facts/shape-derivation";
 import { judgeTypeHomeDeclaration } from "@orb/tooling/floor/code-facts/type-home-declaration";
 import type { SourceFile } from "ts-morph";
@@ -36,10 +37,14 @@ function fixture(root: string, repoRoot: string): ComponentHomeFixture {
   write(".gitignore", "node_modules\n");
   symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
   const path = "packages/client/src/panel.tsx";
+  mkdirSync(join(root, "packages/client"), { recursive: true });
+  symlinkSync(join(repoRoot, "packages/ui/node_modules"), join(root, "packages/client/node_modules"), "dir");
   write("packages/contracts/src/wire.ts", "export interface Wire { id: string; label: string; enabled: boolean; order: number; }");
   write(
     path,
-    `import type { ReactNode } from "react";
+    `import { z } from "zod";
+import { useRender as nativeUseRender } from "@base-ui/react/use-render";
+import type { ReactNode, Ref } from "react";
 import type { Wire } from "../../contracts/src/wire.ts";
 export type Dimension = "small" | "large";
 export type Renderer = (value: Dimension) => ReactNode;
@@ -92,6 +97,39 @@ export type ErasedHeritage = { ignored: string };
 interface EmptyBase<T> { caption: string; }
 export interface HeritageCarrier extends EmptyBase<ErasedHeritage> {}
 export function Heritage(props: HeritageCarrier) { return <div>{props.caption}</div>; }
+export interface Handle { focus(): void; }
+export interface RefApi { ref?: Ref<Handle>; }
+export function RefSurface(props: RefApi) { return <div />; }
+export interface Box<T> { value: T; }
+export interface Payload { payloadText: string; }
+export interface BoxApi { box: Box<Payload>; }
+export function BoxSurface(props: BoxApi) { return <div />; }
+export interface HeritagePayload { heritageCaption: string; }
+export interface HeritageApi extends Box<HeritagePayload> {}
+export function HeritageSurface(props: HeritageApi) { return <div />; }
+export interface MappedPayload { title: string; }
+export interface MappedApi { value: Readonly<MappedPayload>; }
+export function MappedSurface(props: MappedApi) { return <div />; }
+export interface NestedErased { ignored: string; }
+export interface NestedApi { value: Readonly<Box<Ignore<NestedErased>>>; }
+export function NestedSurface(props: NestedApi) { return <div />; }
+export const nativeSchema = z.object({ nativeCaption: z.string() });
+export type NativeSchemaOutput = z.infer<typeof nativeSchema>;
+const nativeAnySchema = z.any();
+const nativeNeverSchema = z.never();
+export type NativeAnySchemaOutput = z.infer<typeof nativeAnySchema>;
+export type NativeNeverSchemaOutput = z.infer<typeof nativeNeverSchema>;
+type ErasedOutput<T> = string;
+export type NativeErasedSchemaOutput = ErasedOutput<typeof nativeSchema>;
+export interface NativeRenderApi { message: string; }
+export function NativeRender(props: NativeRenderApi) { return nativeUseRender({ defaultTagName: "div", props: { children: <span>{props.message}</span> } }); }
+export interface FakeRenderApi { message: string; }
+function useRender(value: object) { return "no DOM"; }
+export function FakeRender(props: FakeRenderApi) { return useRender({ defaultTagName: "div", props }); }
+export interface DisabledRenderApi { message: string; }
+export function DisabledRender(props: DisabledRenderApi) { return nativeUseRender({ defaultTagName: "div", enabled: false, props }); }
+export interface UnusedRenderApi { message: string; }
+export function UnusedRender(props: UnusedRenderApi) { nativeUseRender({ defaultTagName: "div", props }); return "unused"; }
 export type ConstrainedOnly = { ignored: string };
 export interface Phantom<T extends ConstrainedOnly> { caption: string; }
 export function Constraint(props: Phantom<ConstrainedOnly>) { return <div>{props.caption}</div>; }
@@ -173,7 +211,11 @@ export type Custom = Ignore<Cut>;
     throw new Error("missing browser fixture");
   }
   const view = captureComponentTypeHomeView({ program: owner, sourceFile, canonicalPath: canonicalCompilerPath(root, path) });
-  const lower = sourceFile.getImportDeclarations()[1]?.getModuleSpecifierSourceFile()?.getInterfaceOrThrow("Wire");
+  const lower = sourceFile
+    .getImportDeclarations()
+    .find((imported) => imported.getModuleSpecifierValue().endsWith("/wire.ts"))
+    ?.getModuleSpecifierSourceFile()
+    ?.getInterfaceOrThrow("Wire");
   if (lower === undefined) {
     throw new Error("wire fixture did not resolve");
   }
@@ -267,19 +309,24 @@ function readRealComponentHome(
   if (input.supportPath !== undefined && support === undefined) {
     throw new Error(`missing native supporting source ${input.supportPath}`);
   }
-  return componentTypeHome({
-    declaration: sourceFile.getInterface(input.name) ?? sourceFile.getTypeAliasOrThrow(input.name),
-    path: input.path,
-    view: captureComponentTypeHomeView({ program: owner, sourceFile, canonicalPath: canonicalCompilerPath(root, input.path) }),
-    lowerDeclarations: [],
-    ...(support === undefined
-      ? {}
-      : {
-          supportingViews: [
-            captureComponentTypeHomeView({ program: owner, sourceFile: support, canonicalPath: canonicalCompilerPath(root, support.getFilePath()) }),
-          ],
-        }),
-  });
+  beginReferencePass();
+  try {
+    return componentTypeHome({
+      declaration: sourceFile.getInterface(input.name) ?? sourceFile.getTypeAliasOrThrow(input.name),
+      path: input.path,
+      view: captureComponentTypeHomeView({ program: owner, sourceFile, canonicalPath: canonicalCompilerPath(root, input.path) }),
+      lowerDeclarations: [],
+      ...(support === undefined
+        ? {}
+        : {
+            supportingViews: [
+              captureComponentTypeHomeView({ program: owner, sourceFile: support, canonicalPath: canonicalCompilerPath(root, support.getFilePath()) }),
+            ],
+          }),
+    });
+  } finally {
+    endReferencePass();
+  }
 }
 
 test(
@@ -292,6 +339,8 @@ test(
     });
     for (const [config, path, name, supportPath] of [
       [configs[0], "packages/ui/src/primitives/button/button.tsx", "IconOnlyButtonSize"],
+      [configs[0], "packages/ui/src/primitives/media-grid/media-grid.tsx", "MediaGridHandle"],
+      [configs[0], "packages/ui/src/layout/action-bar.tsx", "ActionBarProps"],
       [configs[0], "packages/ui/src/primitives/autocomplete/autocomplete.tsx", "AutocompleteGroup"],
       [configs[0], "packages/ui/src/content/message-media/message-media.tsx", "MessageMediaProps"],
       [configs[0], "packages/ui/src/primitives/field/field.tsx", "FieldAlign"],
@@ -597,4 +646,66 @@ test("ordinary reporting accepts only delivered component ownership and preserve
   };
   expect(run(unqualified)).toEqual(["Actual", "Copy", "UnusedProps"]);
   expect(run(delivered)).toEqual(["Copy", "UnusedProps"]);
+});
+
+test("native substituted members and callable slots prove binding-specific Ref, authored and mapped support without erased grants", ({ scratch, repoRoot }) => {
+  const { read } = fixture(scratch, repoRoot);
+  for (const name of ["Handle", "Payload", "MappedPayload", "HeritagePayload"]) {
+    expect(read(name), name).toMatchObject({ kind: "owned" });
+  }
+  for (const name of ["NestedErased", "ErasedVocabulary", "ConstrainedOnly", "ErasedHeritage"]) {
+    expect(read(name), name).toMatchObject({ kind: "unqualified" });
+  }
+});
+
+test("actual returned installed BaseUI rendering contributes a native DOM root, unlike shadow, disabled or unused calls", ({ scratch, repoRoot }) => {
+  const { read } = fixture(scratch, repoRoot);
+  expect(read("NativeRenderApi").kind).toBe("owned");
+  for (const name of ["FakeRenderApi", "DisabledRenderApi", "UnusedRenderApi"]) {
+    expect(read(name).kind, name).toBe("unqualified");
+  }
+});
+
+test("schema generic output effect follows the actual selected native formal property projection", ({ scratch, repoRoot }) => {
+  const { sourceFile, view } = fixture(scratch, repoRoot);
+  const reference = sourceFile.getTypeAliasOrThrow("NativeSchemaOutput").getTypeNodeOrThrow();
+  if (!Node.isTypeReference(reference)) {
+    throw new Error("missing schema generic");
+  }
+  const argument = reference.getTypeArguments()[0];
+  if (argument === undefined || !Node.isTypeQuery(argument)) {
+    throw new Error("missing schema query");
+  }
+  const fact = readNativeGenericArgumentContribution({
+    reference,
+    argument,
+    binding: argument.getExprName(),
+    program: view.nativeProgram,
+    source: view.nativeSource,
+  });
+  expect(fact.kind, fact.kind === "unresolved" ? fact.detail : "native output effect").toBe("resolved");
+  if (fact.kind !== "resolved") {
+    throw new Error("missing actual native output effect");
+  }
+  expect(fact.value.contributes).toBe(true);
+  expect(fact.trace.declarations).toContain(sourceFile.getVariableDeclarationOrThrow("nativeSchema"));
+});
+
+test("schema output projection refuses opaque any, never and an erased generic instead of manufacturing ownership", ({ scratch, repoRoot }) => {
+  const { sourceFile, view } = fixture(scratch, repoRoot);
+  for (const name of ["NativeAnySchemaOutput", "NativeNeverSchemaOutput", "NativeErasedSchemaOutput"]) {
+    const reference = sourceFile.getTypeAliasOrThrow(name).getTypeNodeOrThrow();
+    if (!Node.isTypeReference(reference)) {
+      throw new Error("missing schema generic");
+    }
+    const argument = reference.getTypeArguments()[0];
+    if (argument === undefined || !Node.isTypeQuery(argument)) {
+      throw new Error("missing schema query");
+    }
+    expect(
+      readNativeGenericArgumentContribution({ reference, argument, binding: argument.getExprName(), program: view.nativeProgram, source: view.nativeSource })
+        .kind,
+      name,
+    ).toBe("unresolved");
+  }
 });

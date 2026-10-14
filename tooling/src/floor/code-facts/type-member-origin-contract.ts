@@ -1,5 +1,15 @@
 // Native declaration identities shared by tooling readers; no containment judgments.
-import type { Symbol as MorphSymbol, Node } from "ts-morph";
+import type {
+  ExpressionWithTypeArguments,
+  InterfaceDeclaration,
+  Symbol as MorphSymbol,
+  Node,
+  Type,
+  TypeAliasDeclaration,
+  TypeParameterDeclaration,
+  TypeReferenceNode,
+  ts,
+} from "ts-morph";
 
 /** One property read whose property SYMBOL the checker resolved off the receiver's type. */
 export interface TypeMemberOrigin {
@@ -38,4 +48,20 @@ export interface TypeIdentityOrigin {
    *  Value-type query's authored provenance: the resolved symbol declares a type alias. */
   readonly aliased: boolean;
   readonly declarations: readonly Node[];
+}
+
+/** A native formal substituted in an actual member/signature slot, paired by declaration identity. */
+export interface NativeSubstitutedTypeSlot {
+  readonly formal: Type;
+  readonly actual: Type;
+  readonly declarations: readonly Node[];
+}
+
+/** Captured template and actual native types; locations determine the checker’s instantiated symbols. */
+export interface NativeSubstitutedTypeInput {
+  readonly parameter: TypeParameterDeclaration;
+  readonly templateLocation: TypeAliasDeclaration | InterfaceDeclaration;
+  readonly actualLocation: TypeReferenceNode | ExpressionWithTypeArguments;
+  readonly program: ts.Program;
+  readonly source: ts.SourceFile;
 }
