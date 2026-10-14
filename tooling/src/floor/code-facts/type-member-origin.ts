@@ -1,8 +1,9 @@
 // Native member and type declaration facts; receiver and member refusal anchors remain distinct.
 import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import type { Node as MorphNode, SourceFile, Type } from "ts-morph";
 import { Node } from "ts-morph";
+import { resolveCallableDeclaration } from "./reference-fact-call.ts";
 import type { ContextualMemberOrigin, TypeIdentityOrigin, TypeMemberOrigin } from "./type-member-origin-contract.ts";
 import { normalizedPath, resolved, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
 
@@ -58,10 +59,8 @@ export function resolveContextualMemberOrigin(node: MorphNode): ReferenceFact<Co
     : resolved({ name, assignment: node, nameNode, literal, symbol, declarations: declarations.value }, nameNode, declarations.value);
 }
 
-/** Resolve a node's own TYPE to the declarations of the symbol that names it — the alias symbol when the
- *  checker kept one (`GatedStoreHook<T>`), otherwise the structural symbol. */
-export function resolveTypeIdentityOrigin(node: MorphNode): ReferenceFact<TypeIdentityOrigin> {
-  const type = node.getType();
+// Node and callable-result queries retain the same compiler alias and declaration identity.
+function typeIdentityOrigin(type: Type, node: MorphNode): ReferenceFact<TypeIdentityOrigin> {
   const alias = type.getAliasSymbol();
   const symbol = alias ?? type.getSymbol();
   if (symbol === undefined) {
@@ -71,6 +70,98 @@ export function resolveTypeIdentityOrigin(node: MorphNode): ReferenceFact<TypeId
   return declarations.kind === "unresolved"
     ? declarations
     : resolved({ name: symbol.getName(), node, aliased: alias !== undefined, declarations: declarations.value }, node, declarations.value);
+}
+
+/** Resolve a node's own TYPE to the declarations of the symbol that names it — the alias symbol when the
+ *  checker kept one (`GatedStoreHook<T>`), otherwise the structural symbol. */
+export function resolveTypeIdentityOrigin(node: MorphNode): ReferenceFact<TypeIdentityOrigin> {
+  return typeIdentityOrigin(node.getType(), node);
+}
+
+// The callable owner, not a selected overload guess, supplies both result queries.
+function callableReturnType(node: MorphNode): ReferenceFact<Type> {
+  const callable = resolveCallableDeclaration(node);
+  if (callable.kind === "unresolved") {
+    return callable;
+  }
+  const declaration = callable.value.declaration;
+  if (
+    !(
+      Node.isFunctionDeclaration(declaration) ||
+      Node.isArrowFunction(declaration) ||
+      Node.isFunctionExpression(declaration) ||
+      Node.isMethodDeclaration(declaration)
+    )
+  ) {
+    return unresolved("unsupported", node, "the callable has no native return-type signature");
+  }
+  const result = declaration.getReturnType().getAwaitedType();
+  return result === undefined
+    ? unresolved("missing", node, "the checker resolved no awaited callable result")
+    : resolved(result, node, callable.trace.declarations);
+}
+
+/** Resolve the native awaited result of the same callable declaration the origin reader admits. */
+export function resolveReturnTypeIdentityOrigin(node: MorphNode): ReferenceFact<TypeIdentityOrigin> {
+  const result = callableReturnType(node);
+  return result.kind === "unresolved" ? result : typeIdentityOrigin(result.value, node);
+}
+
+// Only actual data members carry a nested value; function signatures and phantom type arguments do not.
+function returnedDataChildren(type: Type, node: MorphNode): readonly Type[] {
+  const parts = [...type.getUnionTypes(), ...type.getIntersectionTypes()];
+  if (parts.length > 0) {
+    return parts;
+  }
+  if (type.isTuple()) {
+    return type.getTupleElements();
+  }
+  const element = type.getArrayElementType();
+  if (element !== undefined) {
+    return [element];
+  }
+  if (!type.isObject()) {
+    return [];
+  }
+  const indexed = [type.getStringIndexType(), type.getNumberIndexType()].filter((member) => member !== undefined);
+  return [...type.getProperties().map((property) => property.getTypeAtLocation(node)), ...indexed];
+}
+
+/** Named identities physically carried by the callable's returned data, including wrappers and containers.
+ * Callable parameters/results and erased generic arguments are not carried data. An optional declaration
+ * home ends the query when that identity is proven, without expanding the service's remaining type universe. */
+export function resolveReturnTypeIdentityGraph(node: MorphNode, stopAtDeclarationHome?: string): ReferenceFact<readonly TypeIdentityOrigin[]> {
+  const result = callableReturnType(node);
+  if (result.kind === "unresolved") {
+    return result;
+  }
+  const pending = [result.value];
+  const visited = new Set<object>();
+  const identities: TypeIdentityOrigin[] = [];
+  for (const current of pending) {
+    if (visited.has(current.compilerType)) {
+      continue;
+    }
+    visited.add(current.compilerType);
+    if (current.getCallSignatures().length > 0 || current.getConstructSignatures().length > 0) {
+      continue;
+    }
+    const identity = typeIdentityOrigin(current, node);
+    const chain = identity.kind === "resolved" ? identityChain(identity.value) : [];
+    identities.push(...chain);
+    if (
+      stopAtDeclarationHome !== undefined &&
+      chain.some((origin) => origin.declarations.some((declaration) => normalizedPath(declaration) === stopAtDeclarationHome))
+    ) {
+      break;
+    }
+    pending.push(...returnedDataChildren(current, node));
+  }
+  return resolved(
+    identities,
+    node,
+    identities.flatMap((identity) => identity.declarations),
+  );
 }
 
 /** Resolve the direct array element's named identity, never a type nested inside that element. */
@@ -122,9 +213,18 @@ export function resolveTypeIdentityChain(node: MorphNode): ReferenceFact<readonl
   if (first.kind === "unresolved") {
     return first;
   }
-  const chain: TypeIdentityOrigin[] = [first.value];
-  const visited = new Set<object>(first.value.declarations.map((declaration) => declaration.compilerNode));
-  let current: TypeIdentityOrigin = first.value;
+  const chain = identityChain(first.value);
+  return resolved(
+    chain,
+    node,
+    chain.flatMap((origin) => origin.declarations),
+  );
+}
+
+function identityChain(first: TypeIdentityOrigin): readonly TypeIdentityOrigin[] {
+  const chain: TypeIdentityOrigin[] = [first];
+  const visited = new Set<object>(first.declarations.map((declaration) => declaration.compilerNode));
+  let current: TypeIdentityOrigin = first;
   for (;;) {
     const next: TypeIdentityOrigin | undefined = aliasStep(current);
     if (next === undefined || next.declarations.some((declaration) => visited.has(declaration.compilerNode))) {
@@ -136,11 +236,7 @@ export function resolveTypeIdentityChain(node: MorphNode): ReferenceFact<readonl
     chain.push(next);
     current = next;
   }
-  return resolved(
-    chain,
-    node,
-    chain.flatMap((origin) => origin.declarations),
-  );
+  return chain;
 }
 
 /** Is EVERY declaration in this fact declared by the named npm package's own type surface? The fragment is

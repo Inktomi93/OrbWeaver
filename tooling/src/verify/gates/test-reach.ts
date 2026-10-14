@@ -544,6 +544,20 @@ const SIGHTED: Readonly<Record<string, string>> = {
   [SIGHTED_UI_TEST]: 'import { build } from "../../../packages/ui/src/markdown/policy.ts";\nexport const t = build();\n',
 };
 
+const COMPOSED_START = "packages/server/src/domain/chat/verbs/start-chat.ts";
+const COMPOSED_END = "packages/server/src/domain/chat/verbs/end-chat.ts";
+const COMPOSED = {
+  ...TOOLING_PAIR,
+  [COMPOSED_START]: "export const start = () => 1;",
+  [COMPOSED_END]: "export const end = () => 2;",
+  "packages/server/src/entry/compose/services.ts":
+    'import { start } from "../../domain/chat/verbs/start-chat.ts"; import { end } from "../../domain/chat/verbs/end-chat.ts"; export const createServices = () => ({ start, end });',
+  "packages/server/src/entry/compose/index.ts": 'export { createServices } from "./services.ts";',
+  "tests/support/node/server.ts":
+    'import { createServices } from "../../../packages/server/src/entry/compose/index.ts"; export const root = () => createServices();',
+};
+const COMPOSED_USE = 'import { root } from "../../../support/node/server.ts"; export const used = root().start();';
+
 export const gate = defineGate({
   id: "test-reach",
   family: "mirror-index",
@@ -592,6 +606,19 @@ export const gate = defineGate({
     },
   }),
   mustFlag: [
+    {
+      mode: "resource",
+      files: { ...COMPOSED, "tests/server/domain/chat/composed.int.test.ts": `// @subject ${COMPOSED_START}\n${COMPOSED_USE}` },
+      expect: { count: 1, messageIncludes: "verb is reached by no unit or integration test" },
+      grant: { subject: COMPOSED_END, operation: "unreached:verb" },
+      why: "the exercised public-root verb earns its explicit subject credit, not the undriven sibling imported by the composed graph",
+    },
+    {
+      mode: "resource",
+      files: { ...COMPOSED, "tests/server/domain/chat/composed.int.test.ts": COMPOSED_USE },
+      expect: { count: 2, messageIncludes: "verb is reached by no unit or integration test" },
+      why: "without an explicit exercised subject, importing the root does not magically credit either child verb",
+    },
     {
       mode: "resource",
       files: {
@@ -1017,6 +1044,15 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "resource",
+      files: {
+        ...COMPOSED,
+        "tests/server/domain/chat/composed.int.test.ts": `// @subject ${COMPOSED_START}\n${COMPOSED_USE}`,
+        "tests/server/domain/chat/ending.int.test.ts": `// @subject ${COMPOSED_END}\nimport { root } from "../../../support/node/server.ts"; export const used = root().end();`,
+      },
+      why: "both behaviors are explicitly driven through the same root, with no automatic whole-graph credit",
+    },
     {
       mode: "resource",
       files: SIGHTED,

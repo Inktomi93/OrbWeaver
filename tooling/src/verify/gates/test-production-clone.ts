@@ -1,13 +1,12 @@
-// Policy: test-production-clone (docs/law/Spine-Testing.md §10, "Call production; never copy it") — a function in
-// the test tree whose body has the shape of a function a production module exports is a copy: it keeps passing when
-// the production rule changes. The shape is `floor/code-facts/function-shape.ts` (locals renamed, free names kept).
-// A singleton: the reader is that floor module, which no other policy consumes. Existing copies are reviewed-grant
-// rows in `lib/reviewed-grants-test-production-clone.ts` under their burn-down item.
+// Test-side copies of exported production functions or the canonical test assembly retain a second rule body.
+// Function shape is floor/function-shape; test-assembly-home shares the canonical Node assembly vocabulary.
+// Existing body copies retain their reviewed-grant accounting; new graph construction is the hard sibling.
 import type { Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import type { FunctionShape } from "../../floor/code-facts/function-shape.ts";
 import { functionShape, ownExportedFunctions } from "../../floor/code-facts/function-shape.ts";
 import { defineGate } from "../contract/policy.ts";
+import { SERVER_TEST_ASSEMBLY_HOME } from "../lib/test-assembly-home.ts";
 
 const TESTS = "tests/";
 const ANONYMOUS = "<anonymous>";
@@ -80,7 +79,7 @@ export const gate = defineGate({
     return {
       visitFile: (sourceFile) => {
         const file = ctx.relativePath(sourceFile);
-        if (file.startsWith(TESTS)) {
+        if (file.startsWith(TESTS) && file !== SERVER_TEST_ASSEMBLY_HOME) {
           return;
         }
         for (const { name, node } of ownExportedFunctions(sourceFile)) {
@@ -109,7 +108,10 @@ export const gate = defineGate({
       evaluate: () => {
         for (const candidate of candidates) {
           // One finding per copy: production can hold twins of its own, and the copy is one defect whichever it calls.
-          const twins = (production.get(candidate.shape.key) ?? []).map(({ file, name }) => `${file}#${name}`).toSorted();
+          const twins = (production.get(candidate.shape.key) ?? [])
+            .filter(({ file }) => file !== candidate.file)
+            .map(({ file, name }) => `${file}#${name}`)
+            .toSorted();
           const [first] = twins;
           if (first === undefined) {
             continue;
@@ -129,6 +131,25 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        [SERVER_TEST_ASSEMBLY_HOME]: "export async function root(db: Db) { const graph = await compose(db); start(graph); return graph; }",
+        "tests/server/domain/notifications/_support.ts":
+          "export async function copied(database: Db) { const app = await compose(database); start(app); return app; }",
+      },
+      expect: { count: 1, messageIncludes: `${SERVER_TEST_ASSEMBLY_HOME}#root` },
+      why: "copying the canonical test assembly is still a second assembly, even though its source itself lives under tests",
+    },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]: `export function requireGeneration(capability: Capability): Generation {\n${GENERATION_BODY("capability", "generation", "input")}}\n`,
+        [SERVER_TEST_ASSEMBLY_HOME]: `export function copied(cap: Capability): Generation {\n${GENERATION_BODY("cap", "gen", "entry")}}\n`,
+      },
+      expect: { count: 1, messageIncludes: "#requireGeneration`" },
+      why: "the canonical assembly home is not permission to copy a domain rule",
+    },
     {
       mode: "types",
       files: {
@@ -218,6 +239,11 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: { [SERVER_TEST_ASSEMBLY_HOME]: "export async function root(db: Db) { const graph = await compose(db); start(graph); return graph; }" },
+      why: "indexing the canonical assembly as a source must not accuse the root of copying itself",
+    },
     {
       mode: "types",
       files: {
