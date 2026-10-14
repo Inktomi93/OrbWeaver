@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-14
 priority: P1
 area: tooling
-lane: codex/native-source-identity-1002
+lane: codex/tests-dom-profile-1002
 plan: test-foundation
 ---
 
@@ -24,22 +24,18 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Reviewed extraction preserves native resolution, roots, closure, ordering, aliases, physical spans and overlay isolation. Frozen Knip bytes and root identities remain preserved. GNU time reports descendant high water, not simultaneous aggregate memory.
+Native extraction uses ts-morph's bundled checker. Root, client and test programs retain their own descriptors, roots and closure. Cached paths never authorize combined worlds.
 
-Extraction shares ts-morph's bundled language-service checker, not the TS7 typechecker. Client and root retain separate browser and Node descriptors. Cached closure paths do not authorize combined worlds or changed membership.
+Pinned patch `0450353ca5` skips unused definition formatting only for opted-in native queries. Independent controls preserve reference kinds, selection, metadata, aliases and lean parity. The fixed-heap client queries pass.
 
-Pinned patch `0450353ca5` skips definition formatting only for opted-in native queries. Independent review confirms native kind, selection, default metadata, lean parity, runtime-byte invalidation and formatter rejection controls. Isolated real-client `TrpcClient` and `useTRPC` queries complete at the fixed heap.
+Reviewed indexed SQLite persistence preserves native UTF-16 scalars, ordering, multiplicity, input versions, atomic generations, last-good data and overlay isolation. Bounded native controls, tooling types and scoped lint pass.
 
-The reviewed correction replaces whole-partition persistence and eager readers with indexed SQLite records. Bounded controls cover native meanings, ordering, multiplicity, input versions, atomic generations, last-good data, overlays and CLI disposal.
+Source `f109dc2abd` qualifies client extraction, FORMAT3 staging, parent import, input rechecks, publication and disposal at frozen `77c78fa141`. The run completes in 58:17; GNU time maximum RSS is 11,187,848 KiB. Parent high water is 294,456 KiB. These are process measurements, not aggregate memory. Evidence: `/tmp/ast-memory-format3-client-1002/result-summary.md`.
 
-Canonical scalar JSON records and indexed predicates preserve native UTF-16 strings. Format boundaries preserve old generations. Native extraction and metadata controls pass; tooling types and scoped lint pass.
+Source `53a485a41c`, integrated by `4de2122c1a`, corrects cached unredirected wrappers through checker-admitted source identity. Different physical syntax refuses. This invalidates historical client reuse for a new generation.
 
-Integrated source `f109dc2abd` completes canonical client extraction, FORMAT3 staging, scalar parent import, input rechecks, publication, lazy read and disposal at frozen revision `77c78fa141`. The post-exit verifier confirms current descriptor, roots and recorded inputs. Worker exit precedes parent import; the closed committed store is reusable at that frozen root.
+Frozen `4de2122c1a` full replay reaches its fixed deadline without an OOM or source-identity diagnostic. Worker staging and parent import complete for the preceding worlds; the tests-DOM worker does not finish. Remaining worlds and collectors never start. The target generation stays zero; staged partitions are not published facts.
 
-The run completes in 58:17 with GNU time maximum RSS 11,187,848 KiB at the unchanged 16 GiB heap setting. Parent public high water is 294,456 KiB. These are process high-water measurements, not aggregate memory. Full evidence is `/tmp/ast-memory-format3-client-1002/result-summary.md`.
+The terminal report preserves exact populations, timings, per-process RSS and swap observations: `/tmp/ast-native-full-current-1002/result-summary.md`. All owned processes are absent. Source, dependency and workspace-link guards pass. Staged input currency is not revalidated, so reuse is not yet authorized.
 
-Full replay fails on cached unredirected wrappers, not OOM or timeout. Evidence: `/tmp/ast-memory-full-replay-1002/replay-77c78fa141-once`.
-
-Reviewed source `53a485a41c` uses checker-admitted nodes and exact public syntax identity. Authored redirects to different physical syntax refuse. The actual root-bootstrap guard passes; full extraction, publication and collectors remain unqualified. The correction invalidates historical client reuse for a new generation.
-
-Closed-store inspection confirms the qualified client generation survives without partial publication. Client success is not current-main liveness or complete memory qualification.
+Profile the failed native world before another replay. Preserve its complete descriptor and inputs. Complete extraction, collector equivalence, input rechecks, publication, concurrent reuse and hosted-runner memory qualification remain open.

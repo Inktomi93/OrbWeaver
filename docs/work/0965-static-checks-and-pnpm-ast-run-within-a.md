@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-13
+updated: 2026-10-14
 priority: P1
 plan: test-foundation
 ---
@@ -32,8 +32,8 @@ The sequential native UI export projection completes on managed Node with a rele
 
 The supported composite diagnostic on `a5c7f1e3d1` terminates at API-surface entry with V8 heap exhaustion: exit 134, elapsed 5:42.32, peak 17,438,568 KiB without swaps. Managed Node 26.10.0 retains the unchanged heap setting. Corpus enumeration observes one native Project per descriptor; shared liveness completes with no identity changes or further world demand. No complete inventory verdict exists.
 
-This identifies the custom sequence's aborting operation, not an internal allocation cause or shipped-command failure. Later collectors, barrel sweep and serialization are not reached. Main and inputs remain unchanged. Existing logs and the parsed result remain under the diagnostic scratch directory; no second run is needed to identify this phase.
+This locates the custom sequence's aborting operation, not its allocation cause or a shipped-command failure. Later collectors do not run. Preserve existing logs instead of repeating this phase.
 
-Default persisted replay fails on source identity, not OOM or timeout. The native inventory correction qualifies admitted package redirects and the actual root-bootstrap guard. Complete extraction, generation and memory qualification remain open.
+The corrected frozen replay reaches its fixed deadline in the tests-DOM native world, without an OOM or source-identity diagnostic. Prior worlds finish staging and parent import; remaining worlds and collectors do not run. Generation stays zero. The terminal report records per-process RSS, swap and exact scope: `/tmp/ast-native-full-current-1002/result-summary.md`. Profile the failed world before another complete replay; staged input currency remains unqualified.
 
 Export adjudication remains separate. Native inventory store construction and consumer migration are implemented; complete cold replay and memory qualification remain pending. Full hosted-runner measurements and concurrent-store qualification remain required. Do not replace complete native worlds with a synthetic program, raise heaps or infer duplicate program construction from memory size.

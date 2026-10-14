@@ -45,12 +45,12 @@ Reviewed source `aea5f56d54` produces refinery and discovery rows through real a
 
 Persisted workload funding is integrated. The expanded native capsule passes with the funder FK, producer completion, secret stripping and independent database and asset clones.
 
-Reviewed sources `3303ed4825`, `5cef750b0d` and `80bd8e5102` produce native RPG hand, population, resync, journal and schedule state, plus knowledge arcs, swipes and GIF geometry. Native cuts and scoped controls pass. Complete builder coverage, committed corpus and every-layer adoption remain open.
+Reviewed sources `3303ed4825`, `5cef750b0d` and `80bd8e5102` produce native RPG, schedule, knowledge, swipe and GIF state. Native cuts and scoped controls pass.
 
-Reviewed source `fa0badf99b` preserves immutable checkpoints. Reviewed source `69c196ed8f` produces native RPG recursion, cancellation, visibility, fork, handoff and intake captures. Defect controls and capsule assertions preserve original turn lineage. Complete coverage, publication and adoption remain open.
+Reviewed sources `fa0badf99b` and `69c196ed8f` preserve immutable checkpoints and native RPG recursion, cancellation, visibility, fork, handoff and intake. Defect controls preserve turn lineage.
 
 Reviewed source `7feb12bdf2` captures native routed search outputs, provenance and scopes. A capped-denominator defect control fails. Enabled empty-owner completion remains separately owned; publication and adoption remain open.
 
 Reviewed source `68e71302cf` captures native connection, catalog, capability, diagnostic and admitted-turn cost outputs. Finite physical HTTP and DNS preserve native ownership, admission, funding and parsers. Capsule holds and secret exclusion pass; the task-projection control fails. HTTP admission, complete coverage, publication and adoption remain open.
 
-Reviewed source `4c5ae5c652` captures native library lifecycles and ingestion chunks. Native, seed and order controls pass. Aggregate capsule/clone remains unqualified; timeout precedes the new producer.
+Reviewed source `4c5ae5c652` captures native library lifecycles and ingestion chunks. Native, seed and order controls pass. Source `fa98caa7a5` loads the required clone module before the timed case. Aggregate `2968548` passes with disposal, independent DB/CAS clones and secret exclusion. The deadline and assertions are unchanged; whole-run cost is not reduced. Complete coverage, publication and adoption remain open.
