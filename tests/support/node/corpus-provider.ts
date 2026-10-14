@@ -125,6 +125,7 @@ interface CorpusProviderScript {
 export interface CorpusProviderCompletion {
   readonly text: string;
   readonly toolCalls: readonly NonNullable<CorpusProviderScript["toolCall"]>[];
+  readonly usage?: TerminalFrameOptions["usage"];
 }
 
 const requestSchema = z.object({
@@ -222,6 +223,7 @@ function chatReply(script: CorpusProviderScript, fields: ProviderRequest, reques
   const text = completion?.text ?? completionText(script, fields, requestBody);
   const calls = completionCalls(script, fields, completion);
   if (fields.stream === true) {
+    const usage = completion?.usage ?? script.usage;
     const tools = calls.map((call, index) => ({
       index,
       id: `corpus-tool-call-${index}`,
@@ -230,7 +232,7 @@ function chatReply(script: CorpusProviderScript, fields: ProviderRequest, reques
     }));
     const delta = calls.length === 0 ? `{"content":${JSON.stringify(text)}}` : `{"content":${JSON.stringify(text)},"tool_calls":${JSON.stringify(tools)}}`;
     return new Response(
-      `data: {"choices":[{"delta":${delta}}]}\n\n${terminalSseLine({ finishReason: calls.length === 0 ? "stop" : "tool_calls", ...(script.usage === undefined ? {} : { usage: script.usage }) })}\n\ndata: [DONE]\n\n`,
+      `data: {"choices":[{"delta":${delta}}]}\n\n${terminalSseLine({ finishReason: calls.length === 0 ? "stop" : "tool_calls", ...(usage === undefined ? {} : { usage }) })}\n\ndata: [DONE]\n\n`,
       {
         headers: { "content-type": "text/event-stream" },
       },

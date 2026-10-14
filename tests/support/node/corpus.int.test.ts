@@ -6,7 +6,24 @@ import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { assertReferentialIntegrity, closeDb, createDb, detachWal, sessions, userCredentials, users, workloadSchedules } from "@orb/db";
+import {
+  assertReferentialIntegrity,
+  chatHandoffResumptions,
+  chatImportClaims,
+  chatLocks,
+  closeDb,
+  compactionSpend,
+  createDb,
+  detachWal,
+  imageryGenerations,
+  imageryImportCalls,
+  messageReactions,
+  pendingTurns,
+  sessions,
+  userCredentials,
+  users,
+  workloadSchedules,
+} from "@orb/db";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { parseCorpusWire } from "@orb/testkit/iso/corpus.ts";
@@ -20,7 +37,9 @@ import {
 } from "@orb/testkit/node/corpus-provider.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
-import { eq, isNotNull, sql } from "drizzle-orm";
+import { eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { CORPUS_CHAT_MODEL, corpusImageryPhysicalBytes, createCorpusChatWire } from "./corpus-chat-wire.ts";
+import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 
@@ -34,14 +53,15 @@ test("a completed migrated capsule closes its real producers before cloning scru
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
   const rpgWire = createCorpusRpgWire();
   const swipes = createKnowledgeSwipeWire();
+  const lifecycleWire = createCorpusChatWire();
   const execution = createCorpusProviderExecution({
-    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, CORPUS_CHAT_MODEL, CORPUS_IMAGE_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: corpusKnowledgeVariantsText,
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
-    images: [],
+    images: await corpusImageryPhysicalBytes(),
     usage: { promptTokens: 40, completionTokens: 15 },
-    completion: (body) => rpgWire.completion(body) ?? swipes.completion(body),
+    completion: (body) => rpgWire.completion(body) ?? swipes.completion(body) ?? lifecycleWire.completion(body),
   });
   const key = randomBytes(32);
   const capsule = ownership.use(
@@ -92,6 +112,24 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(variants.images.indexed.every((capture) => capture.vectors.length === 2 && capture.analysis?.captionMeta.artStyle === "illustration")).toBe(true);
   expect(variants.images.members.map((member) => member.characterId)).toEqual(expect.arrayContaining(variants.images.cards.map((card) => card.id)));
   expect(swipes.remaining()).toBe(0);
+  const lifecycle = capsule.privateCaptures.chatLifecycle;
+  expect(lifecycle.imported.imported.claims).toHaveLength(1);
+  expect(lifecycle.handoff.marker?.acceptedByUserId).toBe(lifecycle.handoff.participant.userId);
+  expect(lifecycle.handoff.finalMarker).toBeUndefined();
+  expect(lifecycle.handoff.accepted?.participants.filter((seat) => seat.role === "host").map((seat) => seat.userId)).toEqual([
+    lifecycle.handoff.participant.userId,
+  ]);
+  expect(lifecycle.handoff.final.participants.filter((seat) => seat.role === "host").map((seat) => seat.userId)).toEqual([
+    lifecycle.handoff.participant.userId,
+  ]);
+  expect(lifecycle.handoff.finalSeat.characterId).toBe(lifecycle.handoff.copiedCharacter.id);
+  expect(lifecycle.handoff.copiedCharacter.id).not.toBe(lifecycle.handoff.character.id);
+  expect(lifecycle.aborted.turn.aborted).toBe(true);
+  expect(lifecycle.held.completed.locks).toEqual([]);
+  expect(lifecycle.handoff.completed.pending).toEqual([]);
+  expect(capsule.privateCaptures.imagery.newerReuse.generations).toEqual(capsule.privateCaptures.imagery.newest.generations);
+  expect(capsule.privateCaptures.imagery.rows).toHaveLength(6);
+  expect(lifecycleWire.remaining()).toBe(0);
   if (process.platform === "linux") {
     const ownedRoot = await realpath(capsule.layout.root);
     const descriptors = await Promise.all(
@@ -117,6 +155,9 @@ test("a completed migrated capsule closes its real producers before cloning scru
     expect((await source.select({ id: sessions.id }).from(sessions)).length).toBeGreaterThan(0);
     expect((await source.select({ id: userCredentials.id }).from(userCredentials)).length).toBeGreaterThan(0);
     expect((await source.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash))).length).toBeGreaterThan(0);
+    expect(await source.select().from(chatLocks)).toEqual([]);
+    expect(await source.select().from(pendingTurns)).toEqual([]);
+    expect(await source.select().from(chatHandoffResumptions)).toEqual([]);
     expect((await detachWal(source)).sole).toBe(true);
   } finally {
     closeDb(source);
@@ -148,6 +189,44 @@ test("a completed migrated capsule closes its real producers before cloning scru
   try {
     await assertReferentialIntegrity(clone);
     const schedules = capsule.privateCaptures.rpg.schedules;
+    const imagery = capsule.privateCaptures.imagery;
+    expect(
+      await clone
+        .select()
+        .from(imageryGenerations)
+        .where(
+          inArray(
+            imageryGenerations.id,
+            imagery.rows.map((row) => row.id),
+          ),
+        )
+        .orderBy(imageryGenerations.id),
+    ).toEqual(imagery.rows);
+    expect(await clone.select().from(imageryImportCalls).where(eq(imageryImportCalls.id, imagery.imported.claim.id))).toEqual([imagery.imported.claim]);
+    expect(
+      await clone
+        .select()
+        .from(chatImportClaims)
+        .where(
+          inArray(
+            chatImportClaims.chatId,
+            lifecycle.imported.imported.claims.map((row) => row.chatId),
+          ),
+        ),
+    ).toEqual(lifecycle.imported.imported.claims);
+    expect(await clone.select().from(messageReactions).where(eq(messageReactions.id, lifecycle.imported.segment.id))).toEqual([lifecycle.imported.segment]);
+    expect(
+      await clone
+        .select()
+        .from(compactionSpend)
+        .where(
+          inArray(
+            compactionSpend.id,
+            lifecycle.compacted.spend.map((row) => row.id),
+          ),
+        )
+        .orderBy(compactionSpend.createdAt, compactionSpend.id),
+    ).toEqual(lifecycle.compacted.spend);
     expect(await clone.select().from(workloadSchedules).where(eq(workloadSchedules.id, schedules.stopped.id))).toEqual([schedules.stopped]);
     expect(await clone.select({ id: workloadSchedules.id }).from(workloadSchedules).where(eq(workloadSchedules.id, schedules.deletedSchedule.id))).toEqual([]);
     expect((await clone.select({ id: sessions.id }).from(sessions)).length).toBe(0);
