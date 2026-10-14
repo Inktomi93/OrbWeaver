@@ -27,3 +27,7 @@ Every execution-wide read requires runner-minted authority. Estimate-wide reads 
 `packages/server/src/domain/workloads/verbs/estimate-model-calls.ts` admits bulk estimates before any workload executes. Theme estimates use actual vectors and seeded clustering, so metadata counts cannot preserve the existing result. Keep this legitimate estimate path distinct from runner authority; do not report it as an execution-only caller or degrade its answer to null.
 
 The contribution, digest, segment and lineage census owns complete scope. Include the embeddings terminal-freshness fan where it enumerates owners. Existing waiver counts are leads, not the population boundary.
+
+Reviewed source `4495cfba7c` implements claim-derived execution authority and separate exact estimate authority. Deleted-owner rows cannot become system work. The single review's containing-type mint bypass is corrected through the canonical type-origin reader; bounded authority and product controls pass.
+
+Integration updates required testkit scopes and readback narrowing. The maintained vector-sweep case still needs real-root adaptation before closure. Unchanged owner-read verdicts and ownerless model funding remain separate work; no whole-policy clean verdict is claimed.

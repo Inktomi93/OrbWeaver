@@ -2,34 +2,33 @@
 
 import type { BrowseCursor, BrowseSort, DuplicateRelation } from "@orb/contracts/discovery";
 import type { ImageFacetMetaKey } from "@orb/contracts/embeddings";
+import type { WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
 export type { ThemeLevel } from "@orb/contracts/discovery";
 
-// ── compute-pass option bags (workload-driven; all fields optional with built-in defaults) ────────────
+// ── compute-pass option bags (workload-driven; required authority, optional tunables) ────────────
 /** Options for the `computeDuplicatePairs` recompute. `threshold` is the raw-cosine floor a pair must clear. */
-export interface ComputeDuplicatesOptions {
+export type ComputeDuplicatesOptions = WorkloadRunScope & {
   readonly threshold?: number;
-  /** Scope to one owner (singular); omitted/null = every owner (bulk). */
-  readonly ownerId?: UserId | null;
-}
+};
 
 /** Options for the `computeThemes` recompute. `seed` pins the k-means++ seeding PRNG for determinism. */
-export interface ComputeThemesOptions {
+export type ComputeThemesOptions = WorkloadRunScope & {
   readonly k?: number;
   readonly seed?: number;
-  readonly ownerId?: UserId | null;
   /** WHO FUNDS the cluster naming — the workload's acting user (`WorkloadRunContext.userId`). */
   readonly funderUserId: UserId;
-}
+};
+
+/** Count-only clustering inputs; cannot be supplied to the executing theme pass. */
+export type ThemeNameEstimateOptions = WorkloadEstimateScope & Pick<ComputeThemesOptions, "k" | "seed">;
 
 /** Options for the `compute*HubScores` passes. `denseMax` forces the streaming branch on a small fixture. */
-export interface ComputeHubScoresOptions {
+export type ComputeHubScoresOptions = WorkloadRunScope & {
   readonly k?: number;
   readonly denseMax?: number;
-  /** csls is always owner-scoped — never against another owner's vectors. */
-  readonly ownerId?: UserId | null;
-}
+};
 
 /** Options for the `distillCharacters` pass. `characterId` narrows to one card; absent = whole-library batch. */
 export type DistillCharactersOptions = DistillTargetNarrow & {
@@ -51,15 +50,12 @@ export type DistillCharactersOptions = DistillTargetNarrow & {
  * physics: an on-demand narrow structurally cannot arrive without saying whose card it is.
  * ENFORCER: `tsc`, at this type and at `readCardDistillTargets`' signature.
  */
-export type DistillTargetNarrow =
-  | { readonly characterId: CharacterId; readonly ownerId: UserId }
-  | { readonly characterId?: undefined; readonly ownerId?: UserId };
+export type DistillTargetNarrow = { readonly characterId: CharacterId; readonly ownerId: UserId } | (WorkloadRunScope & { readonly characterId?: undefined });
 
 /** Options for the `computeChatDuplicatePairs` recompute (the chat near-dup arm). */
-export interface ComputeChatDuplicatesOptions {
+export type ComputeChatDuplicatesOptions = WorkloadRunScope & {
   readonly threshold?: number;
-  readonly ownerId?: UserId | null;
-}
+};
 
 // ── read option bags ──────────────────────────────────────────────────────────
 /** Options for the owner-scoped `duplicateCharacters` read, CSLS-ranked. */
@@ -145,12 +141,11 @@ export const IMAGE_FACET_KEYS: readonly ImageFacetKey[] = Object.values(IMAGE_FA
 // ── cooccurrence (keyword×keyword co-occurrence within a tier-0 digest's keywords[]) ────────────────────
 /** Options for the `computeCooccurrence` recompute. `hubFraction` drops a keyword present in more than this
  *  fraction of an owner's digests (a hub token). */
-export interface ComputeCooccurrenceOptions {
+export type ComputeCooccurrenceOptions = WorkloadRunScope & {
   readonly maxPairs?: number;
   readonly hubFraction?: number;
-  readonly ownerId?: UserId | null;
   readonly signal?: AbortSignal | undefined;
-}
+};
 
 /** Options for the owner-scoped `topKeywords` read, count-descending. */
 export interface TopKeywordsOptions {

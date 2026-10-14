@@ -19,6 +19,7 @@ import type { DocumentVectorSweepReceipt, MemoryEmbedSpace } from "@orb/contract
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
+import type { WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "#domain/embeddings";
@@ -280,7 +281,7 @@ export interface DatabankWorkloadDeps {
   /** Pin the target generation of every owner the pass is about to cover, BEFORE it re-embeds anything.
    *  The ENUMERATION SCOPE is the argument (#2517): `null` = every corpus owner (the bulk arm), a `UserId` =
    *  exactly that owner — which is what keeps a per-owner catch-up's completion off a neighbour's space. */
-  readonly beginDocumentVectorSweep: (enumerationScope: UserId | null) => Promise<readonly DocumentVectorSweepReceipt[]>;
+  readonly beginDocumentVectorSweep: (enumerationScope: WorkloadRunScope) => Promise<readonly DocumentVectorSweepReceipt[]>;
   readonly purgeDocumentVectors: (receipts: readonly DocumentVectorSweepReceipt[]) => Promise<void>;
   /** Every stored embedding target in the enumeration scope, as one comparable string (`EmbeddingsService.targetSnapshot`). */
   readonly targetSnapshot: EmbeddingsService["targetSnapshot"];

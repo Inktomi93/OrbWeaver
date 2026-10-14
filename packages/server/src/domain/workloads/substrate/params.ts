@@ -4,7 +4,7 @@
 // so this file only routes a blob to the right contribution and translates a parse failure into a domain
 // error.
 
-import type { StartWorkloadInput, WorkloadKind, WorkloadParamsByKind } from "@orb/contracts/workloads";
+import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadParamsByKind } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY, startWorkloadEnvelope, WORKLOAD_NOT_ADMISSIBLE } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
@@ -82,7 +82,7 @@ export async function countModelCalls<K extends WorkloadKind>(
   contributions: WorkloadContributions,
   kind: K,
   params: WorkloadParamsByKind[K],
-  scope: { readonly ownerId: UserId | null; readonly funderUserId: UserId },
+  scope: WorkloadEstimateScope & { readonly funderUserId: UserId },
 ): Promise<number | null> {
   const estimate = contributions[kind].modelCalls;
   return estimate === undefined ? null : await estimate({ ...scope, params });

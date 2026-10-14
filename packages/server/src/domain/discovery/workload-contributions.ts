@@ -51,7 +51,7 @@ function distillProgressMessage(stats: DistillStats): string {
  * these passes writes incrementally and none of them rolls back).
  */
 async function announceCorpus(deps: DiscoveryWorkloadDeps, ctx: WorkloadRunContext): Promise<void> {
-  const owners = ctx.ownerId === null ? await deps.listCorpusOwners() : [ctx.ownerId];
+  const owners = ctx.ownerId === null ? await deps.listCorpusOwners(ctx.everyOwnerRun) : [ctx.ownerId];
   for (const owner of owners) {
     deps.emitUserEvent(owner, { type: "corpusRecomputed" });
   }
@@ -79,12 +79,12 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       // Seconds-to-tens-of-seconds k-means over the digests — a bulk pass, not a user-facing wait.
       lane: "sweep",
       resume: "idempotent-restart",
-      modelCalls: async ({ ownerId, funderUserId, params }) => deps.discovery.countThemeNameCalls({ ownerId, k: await themeK(deps, funderUserId, params.k) }),
+      modelCalls: async (scope) => deps.discovery.countThemeNameCalls({ ...scope, k: await themeK(deps, scope.funderUserId, scope.params.k) }),
       run: async (ctx, params, report, _signal): Promise<AnalyticsResult> => {
         try {
           const k = await themeK(deps, ctx.userId, params.k);
           report({ message: `computing ${k} themes` });
-          const stats = await deps.discovery.computeThemes({ k, ownerId: ctx.ownerId, funderUserId: ctx.userId });
+          const stats = await deps.discovery.computeThemes({ k, ...ctx, funderUserId: ctx.userId });
           // THE INPUT PLANE IS MEMORY DIGESTS, NOT DISTILLED CARDS — and a digest-less run must SAY so
           // (issue #166). It used to return a bare `{scanned: 0, written: 0}`, which the runs console renders
           // as "0 rows · 0 written" under a green Succeeded: a pass that could not run reported as one that
@@ -112,7 +112,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
     {
       kind: "distill-characters",
       params: emptyWorkloadParams,
-      modelCalls: ({ ownerId }) => deps.discovery.countDistillCalls(ownerId),
+      modelCalls: (scope) => deps.discovery.countDistillCalls(scope),
       // One LLM call per character — long by construction.
       lane: "sweep",
       resume: "idempotent-restart",
@@ -122,7 +122,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           const stats = await deps.discovery.distillCharacters({
             funderUserId: ctx.userId,
             signal,
-            ...(ctx.ownerId !== null ? { ownerId: ctx.ownerId } : {}),
+            ...ctx,
             // N-of-M (issue #166 rider 3) — the pass counts the cards, this turns each position into a row.
             onProgress: (done, total) => {
               report({ message: `distilling character summaries — ${done} of ${total}`, current: done, total });
@@ -153,13 +153,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           report({ message: "computing keyword cooccurrence" });
           const stats = await deps.discovery.computeCooccurrence({
             signal,
-            // THE OWNER BELT (#1397), forwarded exactly as compute-themes/find-duplicates/csls do. An ABSENT
-            // owner is `computeCooccurrence`'s documented ALL-OWNERS mode: it drops the host predicate from
-            // `readOwnedDigestKeywords` and then DELETE-and-REINSERTs `keyword_cooccurrence` +
-            // `character_keyword_profiles` per owner found. Omitting it here made a per-user SCOPED run read
-            // every tenant's digests and destructively recompute every tenant's derived rows. A BULK row
-            // (`ctx.ownerId === null`) still reaches that mode — on purpose, which is the only way it should.
-            ownerId: ctx.ownerId,
+            ...ctx,
             ...(workloads.maxPairs !== undefined ? { maxPairs: workloads.maxPairs } : {}),
             ...(workloads.hubFraction !== undefined ? { hubFraction: workloads.hubFraction } : {}),
           });
@@ -198,8 +192,8 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           const threshold = params.threshold ?? settings.workloads.dupThreshold;
           report({ message: "finding duplicate pairs" });
           const [chars, chatPairs] = await Promise.all([
-            deps.discovery.computeDuplicatePairs({ ownerId: ctx.ownerId, ...(threshold !== undefined ? { threshold } : {}) }),
-            deps.discovery.computeChatDuplicatePairs({ ownerId: ctx.ownerId }),
+            deps.discovery.computeDuplicatePairs({ ...ctx, ...(threshold !== undefined ? { threshold } : {}) }),
+            deps.discovery.computeChatDuplicatePairs(ctx),
           ]);
           const scanned = chars.charactersScanned + chatPairs.chatsScanned;
           // THE EMBEDDINGS PLANE, SAME HONESTY (issue #561). Both arms read what the INDEX pass writes — card
@@ -230,7 +224,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       run: async (ctx, _params, report, _signal): Promise<AnalyticsResult> => {
         try {
           report({ message: "computing hub scores (CSLS)" });
-          const stats = await deps.discovery.computeCharacterHubScores({ ownerId: ctx.ownerId });
+          const stats = await deps.discovery.computeCharacterHubScores(ctx);
           // `rowsScored` IS the read census (every vector the pass loads gets exactly one hub update), so zero
           // means the character-embedding table was empty — never that the calibration found nothing to say.
           // Rendered as "0 rows · 0 written" the two were the same sentence (issue #561).

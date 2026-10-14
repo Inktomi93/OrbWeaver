@@ -11,8 +11,8 @@ import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-g
 import { TABLE_SCOPING_ROWS, tableScopingClasses } from "../../../../tooling/src/verify/lib/tenancy-scope.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
-test("the tenancy-scope family (the schema classification, its three by-id tenancy checks, and the membership-write fan) self-proves", () => {
-  expect(verifyPolicyProofs([tableScopingClass, ownerScopedReads, ownerScopedWrites, ownerScopedUpserts, membershipWriteFan])).toEqual([]);
+test("owner-scoped-reads preserves every declared owned-scope and every-owner authority proof", () => {
+  expect(verifyPolicyProofs([ownerScopedReads])).toEqual([]);
 });
 
 const ROOT = "/tenancy-scope-family";

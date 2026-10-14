@@ -162,7 +162,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   // guided decode). The whole-library batch has no single owner (a mixed-owner run), so the preset applies ONLY
   // to a per-owner narrow (`opts.ownerId`); the batch stays on the posture. The structured-output
   // `responseFormat` is orthogonal to sampling and always rides.
-  const presetParams = opts.ownerId !== undefined ? await deps.resolveUtilityPresetParams(opts.ownerId) : undefined;
+  const presetParams = opts.ownerId !== null ? await deps.resolveUtilityPresetParams(opts.ownerId) : undefined;
   const rc = await deps.roleClientsFor(opts.funderUserId);
   const resolved = await rc.resolved("structured");
   if (resolved === null) {
@@ -174,7 +174,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   };
   // The system prompt is a PROSE-1 slot on the SAME owner rung as the sampling above: an owner-narrowed run
   // reads that host's override, the mixed-owner library batch reads `{}` ⇒ the shipped prompt.
-  const distillSystem = resolveProseText("discovery.distill.system", opts.ownerId !== undefined ? await deps.resolveUserProse(opts.ownerId) : {});
+  const distillSystem = resolveProseText("discovery.distill.system", opts.ownerId !== null ? await deps.resolveUserProse(opts.ownerId) : {});
 
   signal?.throwIfAborted();
   // One batched call fills the role's parallel-slot pipeline; `ready[i]` pairs 1:1 with `result.items[i]`.

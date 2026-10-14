@@ -9,6 +9,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { CorpusDigestSource } from "@orb/contracts/search";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
+import type { EveryOwnerRun, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { SideGenSampling } from "@orb/inference";
 import type {
@@ -42,6 +43,7 @@ import type {
   ImageFacetKey,
   SimilarityGraphOptions,
   ThemeLevel,
+  ThemeNameEstimateOptions,
   TopKeywordsOptions,
 } from "./params.ts";
 import type {
@@ -224,14 +226,14 @@ export interface DiscoveryService {
   // ── near-duplicate characters (workload compute + owner-scoped read) ────────
   /** Recompute every owner's near-duplicate CHARACTER pairs (within-owner, within-space all-pairs cosine,
    *  content-hash collapsed, CSLS-ranked) — a full atomic replace of `duplicate_character_pairs`. */
-  readonly computeDuplicatePairs: (opts?: ComputeDuplicatesOptions) => Promise<DuplicateComputeStats>;
+  readonly computeDuplicatePairs: (opts: ComputeDuplicatesOptions) => Promise<DuplicateComputeStats>;
   /** The owner's near-duplicate character pairs, CSLS-ranked (highest first). */
   readonly duplicateCharacters: (userId: UserId, opts?: DuplicateCharactersOptions) => Promise<DuplicateCharacterPair[]>;
 
   // ── near-duplicate chats (the chat near-dup arm — Jaccard of segment content-hashes + fork lineage) ──
   /** Recompute every owner's near-duplicate CHAT pairs — Jaccard of segment content-hash sets (NOT centroid
    *  cosine), fork-root labelled (`forked` vs `duplicate`) — a full atomic replace of `duplicate_chat_pairs`. */
-  readonly computeChatDuplicatePairs: (opts?: ComputeChatDuplicatesOptions) => Promise<DuplicateChatComputeStats>;
+  readonly computeChatDuplicatePairs: (opts: ComputeChatDuplicatesOptions) => Promise<DuplicateChatComputeStats>;
   /** The owner's near-duplicate chat pairs, Jaccard-ranked (highest first), with fork `relation`. */
   readonly duplicateChats: (userId: UserId, opts?: DuplicateChatsOptions) => Promise<DuplicateChatPair[]>;
 
@@ -241,7 +243,7 @@ export interface DiscoveryService {
   readonly distillCharacters: (opts: DistillCharactersOptions) => Promise<DistillStats>;
   /** The model calls a whole-library distill would make for `ownerId` (`null` = every owner): one per card
    *  with writing beyond its name. Reads only. */
-  readonly countDistillCalls: (ownerId: UserId | null) => Promise<number>;
+  readonly countDistillCalls: (scope: UserId | WorkloadEstimateScope) => Promise<number>;
 
   // ── browse (the filterable owned catalog — CONTENT-only) ───────────────
   /** ONE keyset PAGE of the owner's characters, including cards without analysis, with the boundary for the next
@@ -279,11 +281,11 @@ export interface DiscoveryService {
   /** Recompute every owner's emergent themes — a full atomic replace of `theme_clusters` (+ assignments). */
   readonly computeThemes: (opts: ComputeThemesOptions) => Promise<ThemeComputeStats>;
   /** The cluster-naming model calls a {@link computeThemes} over the same scope and `k` would make. Reads only. */
-  readonly countThemeNameCalls: (opts: Omit<ComputeThemesOptions, "funderUserId">) => Promise<number>;
+  readonly countThemeNameCalls: (opts: ThemeNameEstimateOptions) => Promise<number>;
   /** The owner's theme clusters at `level` (both levels when omitted), ordered by `clusterIdx`. */
   readonly themes: (userId: UserId, level?: ThemeLevel) => Promise<ThemeRow[]>;
   /** Idempotently stamp `digest_theme_assignments.msgMidAt` for the owner, or every owner when omitted. */
-  readonly backfillDigestStoryTime: (ownerId?: UserId | null) => Promise<StoryTimeBackfillStats>;
+  readonly backfillDigestStoryTime: (scope: WorkloadRunScope) => Promise<StoryTimeBackfillStats>;
 
   // ── insights (pure-semantics half; owner-scoped reads) ──────────────────────
   /** How the owner's themes shift over STORY time — per-month prevalence (drift), `level` default `scene`. */
@@ -326,7 +328,7 @@ export interface DiscoveryService {
 
   // ── cooccurrence (workload compute + owner-scoped reads) ─────────────────────
   /** Recompute every owner's keyword×keyword cooccurrence + per-character keyword profiles — atomic per-owner replace. */
-  readonly computeCooccurrence: (opts?: ComputeCooccurrenceOptions) => Promise<CooccurrenceStats>;
+  readonly computeCooccurrence: (opts: ComputeCooccurrenceOptions) => Promise<CooccurrenceStats>;
   /** The owner's most-used distilled scene keywords (summed over their character profiles), count-descending. */
   readonly topKeywords: (userId: UserId, opts?: TopKeywordsOptions) => Promise<KeywordCount[]>;
   /** The keywords that co-occur with `keyword` in the owner's scenes, count-descending. */
@@ -336,14 +338,14 @@ export interface DiscoveryService {
 
   // ── hubness (workload-driven; CSLS values written via the injected writeHubScores seam) ─────────────
   /** Compute + write `character_embeddings.hub_score` (CSLS mean-cosine, per-space, content-collapsed). */
-  readonly computeCharacterHubScores: (opts?: ComputeHubScoresOptions) => Promise<HubStats>;
+  readonly computeCharacterHubScores: (opts: ComputeHubScoresOptions) => Promise<HubStats>;
   /** Compute + write `chat_digests.hub_score` (grouped per (tier, space) — digests, esoteric #5). */
-  readonly computeDigestHubScores: (opts?: ComputeHubScoresOptions) => Promise<number>;
+  readonly computeDigestHubScores: (opts: ComputeHubScoresOptions) => Promise<number>;
   /** Compute + write `chat_segments.hub_score` (per-space). */
-  readonly computeSegmentHubScores: (opts?: ComputeHubScoresOptions) => Promise<number>;
+  readonly computeSegmentHubScores: (opts: ComputeHubScoresOptions) => Promise<number>;
   /** Compute + write `image_embeddings.hub_score` (per-space; image↔image ONLY — never read on text→image,
    *  esoteric #2; discovery stamps it, `search` omits it cross-modally). */
-  readonly computeImageHubScores: (opts?: ComputeHubScoresOptions) => Promise<number>;
+  readonly computeImageHubScores: (opts: ComputeHubScoresOptions) => Promise<number>;
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the five analytics
@@ -376,5 +378,5 @@ export interface DiscoveryWorkloadDeps {
   /** The bulk arm's announce audience — every owner with corpus rows (`persistence/embed-store-reads`
    *  `distinctCorpusOwners`, whose header states the deliberate over-inclusiveness). Only consulted when the
    *  run context's `ownerId` is `null`; a scoped run announces to exactly that owner. */
-  readonly listCorpusOwners: () => Promise<UserId[]>;
+  readonly listCorpusOwners: (run: EveryOwnerRun) => Promise<UserId[]>;
 }

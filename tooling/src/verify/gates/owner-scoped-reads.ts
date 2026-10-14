@@ -1,3 +1,5 @@
+// Every-owner reads require a direct canonical run or count-only authority parameter; nullable/union tokens grant nothing.
+// Their contained nominal mints stay at the actual NULL-owner claim and admitted estimate doors.
 // Gate: owner-scoped-reads — a by-id READ of an `ownerId`-class table (table-scoping-class (a)) must put the
 // owner IN THE WHERE (`fetchOwned`, or `eq(T.ownerId, …)`), or resolve it POST-FETCH (the loadWorkload
 // F3-AUTHZ arm: project the ownerId and compare it — a distinct LEGAL shape, recognized here), or carry a
@@ -48,7 +50,7 @@
 // admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
-import type { CallExpression, Node } from "ts-morph";
+import type { AsExpression, CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { observeCallReturns } from "../../floor/code-facts/call-returns.ts";
 import { RELATIONAL_WHERE, relationalWhereCallback } from "../../floor/code-facts/drizzle-operators.ts";
@@ -58,6 +60,7 @@ import { readStatementOf } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn } from "../../floor/code-facts/function-context.ts";
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaModel } from "../../floor/code-facts/schema-model-contract.ts";
+import { resolveTypeIdentityChain } from "../../floor/code-facts/type-member-origin.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex, ValueReceiver } from "../contract/tenancy.ts";
@@ -76,7 +79,92 @@ import {
   schemaTableIndex,
   scopeParentsOfDerivedTables,
 } from "../lib/tenancy-scope.ts";
+import { resolveTypeValueOrigins } from "../lib/type-member-origin.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
+
+const EVERY_OWNER_HOME = "/packages/contracts/src/workloads/execution.ts";
+const RUNNER_HOME = "/packages/server/src/domain/workloads/engine/runner.ts";
+const ESTIMATE_HOME = "/packages/server/src/domain/workloads/verbs/estimate-model-calls.ts";
+const MINT_MESSAGE = "every-owner authority may be minted only by the runner for a NULL-owner row or by its separately admitted count-only estimate door";
+
+const EVERY_OWNER_AUTHORITIES = ["EveryOwnerRun", "EveryOwnerEstimate"] as const;
+type EveryOwnerAuthority = (typeof EVERY_OWNER_AUTHORITIES)[number];
+
+/** Named aliases resolve through the canonical floor; nullable and structural lookalikes are not authority. */
+function everyOwnerAuthority(node: Node): EveryOwnerAuthority | undefined {
+  const origin = resolveTypeIdentityChain(node);
+  return origin.kind === "unresolved"
+    ? undefined
+    : EVERY_OWNER_AUTHORITIES.find((name) =>
+        origin.value.some(
+          (identity) =>
+            identity.name === name && identity.declarations.every((declaration) => declaration.getSourceFile().getFilePath().endsWith(EVERY_OWNER_HOME)),
+        ),
+      );
+}
+
+/** Assertion targets can carry authority inside a scope, array or data member; direct read admission remains separate. */
+function assertionAuthorities(assertion: AsExpression): readonly EveryOwnerAuthority[] {
+  const annotation = assertion.getTypeNode();
+  const origins = annotation === undefined ? [] : resolveTypeValueOrigins(annotation);
+  return EVERY_OWNER_AUTHORITIES.filter((authority) =>
+    origins.some((origin) =>
+      origin.kind === "resolved"
+        ? origin.value.name === authority &&
+          origin.value.declarations.every((declaration) => declaration.getSourceFile().getFilePath().endsWith(EVERY_OWNER_HOME))
+        : origin.trace.declarations.some(
+            (declaration) =>
+              declaration.isKind(SyntaxKind.InterfaceDeclaration) &&
+              declaration.getName() === authority &&
+              declaration.getSourceFile().getFilePath().endsWith(EVERY_OWNER_HOME),
+          ),
+    ),
+  );
+}
+
+/** A token in an optional, defaulted or union parameter does not prove that this invocation holds it. */
+function hasEveryOwnerAuthority(node: Node): boolean {
+  const fn = enclosingFn(node);
+  if (
+    fn === undefined ||
+    !(
+      fn.isKind(SyntaxKind.FunctionDeclaration) ||
+      fn.isKind(SyntaxKind.ArrowFunction) ||
+      fn.isKind(SyntaxKind.FunctionExpression) ||
+      fn.isKind(SyntaxKind.MethodDeclaration)
+    )
+  ) {
+    return false;
+  }
+  return fn
+    .getParameters()
+    .some((parameter) => !parameter.hasQuestionToken() && parameter.getInitializer() === undefined && everyOwnerAuthority(parameter) !== undefined);
+}
+
+/** These casts are the nominal boundary, never a caller-accessible mint. */
+function authorizedAuthorityMint(assertion: AsExpression, authority: EveryOwnerAuthority): boolean {
+  const fn = enclosingFn(assertion);
+  const choice = assertion.getFirstAncestorByKind(SyntaxKind.ConditionalExpression);
+  if (
+    fn === undefined ||
+    !fn.isKind(SyntaxKind.FunctionDeclaration) ||
+    choice === undefined ||
+    assertion.getStart() < choice.getWhenTrue().getStart() ||
+    assertion.getEnd() > choice.getWhenTrue().getEnd()
+  ) {
+    return false;
+  }
+  const path = assertion.getSourceFile().getFilePath();
+  const condition = choice.getCondition().getText();
+  const admitted = {
+    EveryOwnerRun: path.endsWith(RUNNER_HOME) && fn.getName() === "buildRunContext" && condition === "row.ownerId === null",
+    EveryOwnerEstimate:
+      path.endsWith(ESTIMATE_HOME) &&
+      ((fn.getName() === "estimateModelCalls" && condition === "ownerId === null") ||
+        (fn.getName() === "estimateRetryModelCalls" && condition === "original.ownerId === null")),
+  } satisfies Record<EveryOwnerAuthority, boolean>;
+  return admitted[authority];
+}
 
 const ID_COL = "id";
 const MAX_SUBQUERY_DEPTH = 4;
@@ -186,6 +274,28 @@ function personaRead(chain: string): Readonly<Record<string, string>> {
   return {
     ...CHAT_PERSONA_SCHEMA,
     [PERSONA_READ_PATH]: `${PERSONA_READ_HEAD}${PERSONA_READ_SIGNATURE}  return db.select()${chain}.limit(1);\n}\n`,
+  };
+}
+
+const AUTHORITY_PROOF_HOME = "packages/contracts/src/workloads/execution.ts";
+const AUTHORITY_PROOF = {
+  [AUTHORITY_PROOF_HOME]:
+    "declare const runBrand: unique symbol; declare const estimateBrand: unique symbol; export interface EveryOwnerRun { readonly [runBrand]: true } export interface EveryOwnerEstimate { readonly [estimateBrand]: true } export type WorkloadRunScope = { readonly ownerId: string; readonly everyOwnerRun?: null } | { readonly ownerId: null; readonly everyOwnerRun: EveryOwnerRun }; export type WorkloadEstimateScope = { readonly ownerId: string; readonly everyOwnerEstimate?: null } | { readonly ownerId: null; readonly everyOwnerEstimate: EveryOwnerEstimate };",
+};
+
+/** The same canonical authority declaration is resolved through relative imports and re-export aliases. */
+function authorityRead(
+  parameter: string,
+  declarations = "",
+  imports = 'import type { EveryOwnerRun, EveryOwnerEstimate } from "../../../../../contracts/src/workloads/execution.ts";',
+): Readonly<Record<string, string>> {
+  return {
+    ...CHAT_PERSONA_SCHEMA,
+    ...AUTHORITY_PROOF,
+    [PERSONA_READ_PATH]: `${PERSONA_READ_HEAD}${imports}
+${declarations}
+export async function readEvery(db: Db, personaId: string, ${parameter}) { return db.select().from(personas).where(eq(personas.id, personaId)); }
+`,
   };
 }
 
@@ -415,6 +525,9 @@ function relationalFinding(anchor: Extract<ReadAnchor, { kind: "relational" }>, 
 
 /** The one finding this anchor owes, or undefined. Every table it can name is judged; a subquery on its inner select. */
 function anchorFinding(anchor: ReadAnchor, scope: ReadScope): string | undefined {
+  if (hasEveryOwnerAuthority(anchor.call)) {
+    return;
+  }
   if (anchor.kind === "relational") {
     return relationalFinding(anchor, scope);
   }
@@ -450,12 +563,21 @@ export const gate = defineGate({
     const anchors: ReadAnchor[] = [];
     const calls: CallExpression[] = [];
     const references: Node[] = [];
+    const assertions: AsExpression[] = [];
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.CallExpression, SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          kinds: [
+            SyntaxKind.AsExpression,
+            SyntaxKind.CallExpression,
+            SyntaxKind.Identifier,
+            SyntaxKind.PropertyAccessExpression,
+            SyntaxKind.ElementAccessExpression,
+          ],
           visit: (node) => {
-            if (node.isKind(SyntaxKind.CallExpression)) {
+            if (node.isKind(SyntaxKind.AsExpression)) {
+              assertions.push(node);
+            } else if (node.isKind(SyntaxKind.CallExpression)) {
               calls.push(node);
             } else {
               references.push(node);
@@ -468,6 +590,11 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
+        for (const assertion of assertions) {
+          if (assertionAuthorities(assertion).some((authority) => !authorizedAuthorityMint(assertion, authority))) {
+            ctx.report.node(assertion, { message: MINT_MESSAGE });
+          }
+        }
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const scope: ReadScope = {
@@ -491,6 +618,50 @@ export const gate = defineGate({
   },
 
   mustFlag: [
+    ...[
+      "export const forged = { ownerId: null, everyOwnerRun: {} } as WorkloadRunScope;",
+      "export const forged = { ownerId: null, everyOwnerEstimate: {} } as WorkloadEstimateScope;",
+      "const tokens = [{}] as EveryOwnerRun[]; const token = tokens[0]; if (token !== undefined) { consume(token); }",
+      "export const forged = { nested: { token: {} } } as Readonly<{ nested: { token: EveryOwnerRun } }>;",
+    ].map((body) => ({
+      mode: "types" as const,
+      files: {
+        ...authorityRead("ownerId: string"),
+        [PERSONA_READ_PATH]: `import type { EveryOwnerRun, WorkloadRunScope, WorkloadEstimateScope } from "../../../../../contracts/src/workloads/execution.ts"; declare function consume(run: EveryOwnerRun): void;
+${body}`,
+      },
+      expect: { count: 1, messageIncludes: MINT_MESSAGE },
+      why: "an assertion to a scope union, array or nested data carrier synthesizes authority just as a direct token assertion does",
+    })),
+
+    ...[
+      "run?: EveryOwnerRun",
+      "run: EveryOwnerRun | null",
+      "run: EveryOwnerRun | string",
+      "run: EveryOwnerRun | EveryOwnerEstimate",
+      "run: EveryOwnerRun = fallback",
+    ].map((parameter) => ({
+      mode: "types" as const,
+      files: authorityRead(parameter, "declare const fallback: EveryOwnerRun;"),
+      expect: { count: 1, messageIncludes: "by-id READ" },
+      why: "optional, nullable, defaulted and union arguments cannot prove this invocation holds direct every-owner authority",
+    })),
+    {
+      mode: "types",
+      files: authorityRead("run: EveryOwnerRun", "interface EveryOwnerRun { readonly invented: true }", ""),
+      expect: { count: 1, messageIncludes: "by-id READ" },
+      why: "an identically named local lookalike is not the canonical opaque authority",
+    },
+    {
+      mode: "types",
+      files: {
+        ...authorityRead("ownerId: string"),
+        [PERSONA_READ_PATH]: `${PERSONA_READ_HEAD}import type { EveryOwnerRun } from "../../../../../contracts/src/workloads/execution.ts"; export const forged = {} as EveryOwnerRun;`,
+      },
+      expect: { count: 1, messageIncludes: MINT_MESSAGE },
+      why: "a canonical authority assertion outside its admitted mint is rejected",
+    },
+
     {
       mode: "types",
       files: personaBody(
@@ -1060,6 +1231,50 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        ...authorityRead("ownerId: string"),
+        [PERSONA_READ_PATH]:
+          'import type { EveryOwnerRun, EveryOwnerEstimate, WorkloadRunScope, WorkloadEstimateScope } from "../../../../../contracts/src/workloads/execution.ts"; export function forwardRun(run: EveryOwnerRun): WorkloadRunScope { return { ownerId: null, everyOwnerRun: run }; } export function forwardEstimate(estimate: EveryOwnerEstimate): WorkloadEstimateScope { return { ownerId: null, everyOwnerEstimate: estimate }; }',
+      },
+      why: "typed forwarding carries an existing admitted token without asserting a new authority",
+    },
+    {
+      mode: "types",
+      files: {
+        ...authorityRead("ownerId: string"),
+        [PERSONA_READ_PATH]:
+          'import type { WorkloadRunScope } from "../../../../../contracts/src/workloads/execution.ts"; export const owner = null as WorkloadRunScope["ownerId"];',
+      },
+      why: "an owner-field projection retains no authority token even though its written annotation references the scope type",
+    },
+
+    {
+      mode: "types",
+      files: authorityRead("run: EveryOwnerRun"),
+      why: "a required canonical every-owner run parameter authorizes the execution read without prose",
+    },
+    {
+      mode: "types",
+      files: authorityRead("estimate: EveryOwnerEstimate"),
+      why: "the separately required count-only authority authorizes its private estimate read without run authority",
+    },
+    {
+      mode: "types",
+      files: authorityRead("run: Alias", "type Alias = EveryOwnerRun;"),
+      why: "a local type alias resolves to the same opaque declaration rather than losing authority by spelling",
+    },
+    {
+      mode: "types",
+      files: {
+        ...authorityRead("run: Renamed", "", 'import type { Renamed } from "./authority-alias.ts";'),
+        "packages/server/src/domain/persona/persistence/authority-alias.ts":
+          'export type { EveryOwnerRun as Renamed } from "../../../../../contracts/src/workloads/execution.ts";',
+      },
+      why: "a renamed re-export carries canonical declaration identity",
+    },
+
     {
       mode: "types",
       files: pinBody(

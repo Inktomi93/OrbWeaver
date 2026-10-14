@@ -16,6 +16,7 @@
 
 import type {
   ReportProgress,
+  WorkloadEstimateScope,
   WorkloadKind,
   WorkloadLane,
   WorkloadParamsByKind,
@@ -71,7 +72,7 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    * enumeration scope (`null` = the bulk pass) and `funderUserId` is whose Utility model the run would spend.
    * OMIT IT when the kind makes no generative model call.
    */
-  readonly modelCalls?: (args: { readonly ownerId: UserId | null; readonly funderUserId: UserId; readonly params: WorkloadParamsByKind[K] }) => Promise<number>;
+  readonly modelCalls?: (args: WorkloadEstimateScope & { readonly funderUserId: UserId; readonly params: WorkloadParamsByKind[K] }) => Promise<number>;
   readonly resume: WorkloadResumePolicy;
   /** The run body — a compose-built closure over the OWNING domain's own verbs. No shared env hub. */
   readonly run: (ctx: WorkloadRunContext, params: WorkloadParamsByKind[K], report: ReportProgress, signal: AbortSignal) => Promise<WorkloadResultByKind[K]>;

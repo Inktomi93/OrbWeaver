@@ -13,6 +13,7 @@
 // `characters` (this file), facets from `character_summaries` (that one).
 
 import { greetingsColumnSchema } from "@orb/contracts/character";
+import type { EveryOwnerEstimate, EveryOwnerRun, WorkloadEstimateScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -57,39 +58,66 @@ export async function readOwnedCardDisplay(db: Db, ownerId: UserId): Promise<Car
     .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false)));
 }
 
-/** Read the flat card text for every non-synthetic character (batch) or one owned character (on-demand).
- *  The `characterId` narrow carries its `ownerId` BY TYPE — see {@link DistillTargetNarrow} (#1414 seam 1). */
-export async function readCardDistillTargets(db: Db, filter: DistillTargetNarrow = {}): Promise<CardDistillTarget[]> {
-  const conds = [eq(characters.synthetic, false)];
-  if (filter.characterId !== undefined) {
-    conds.push(eq(characters.id, filter.characterId));
-  }
-  if (filter.ownerId !== undefined) {
-    conds.push(eq(characters.ownerId, filter.ownerId));
-  }
-  // @orb-waive owner-scoped-reads(characters): the pushed by-id term rides the `DistillTargetNarrow` member whose `characterId` requires `ownerId` by type, and the owner term is pushed beside it whenever an owner is given; the owner-less arm is the batch distill workload over every owner, reachable only from a null-owner workload run (system or box-owner bulk); rows never egress — it writes only each card's own derived summary. Ends if the narrow stops pairing `characterId` with `ownerId`.
-  const rows = await db
-    .select({
-      characterId: characters.id,
-      ownerId: characters.ownerId,
-      name: characters.name,
-      description: characters.description,
-      personality: characters.personality,
-      scenario: characters.scenario,
-      greetings: characters.greetings,
-      exampleMessages: characters.exampleMessages,
-    })
-    .from(characters)
-    .where(and(...conds));
+const distillCardFields = {
+  characterId: characters.id,
+  ownerId: characters.ownerId,
+  name: characters.name,
+  description: characters.description,
+  personality: characters.personality,
+  scenario: characters.scenario,
+  greetings: characters.greetings,
+  exampleMessages: characters.exampleMessages,
+};
+
+type DistillCardRow = {
+  readonly characterId: CharacterId;
+} & Pick<typeof characters.$inferSelect, "ownerId" | "name" | "description" | "personality" | "scenario" | "greetings" | "exampleMessages">;
+
+function materializeDistillTargets(rows: readonly DistillCardRow[]): CardDistillTarget[] {
   return rows.map((r) => {
     const { text, contentParts } = composeCardText(r);
-    return {
-      characterId: r.characterId,
-      ownerId: r.ownerId,
-      text,
-      hasContent: contentParts > 0,
-    };
+    return { characterId: r.characterId, ownerId: r.ownerId, text, hasContent: contentParts > 0 };
   });
+}
+
+async function readOwnedCardDistillTargets(
+  db: Db,
+  filter: { readonly ownerId: UserId; readonly characterId?: CharacterId | undefined },
+): Promise<CardDistillTarget[]> {
+  const rows = await db
+    .select(distillCardFields)
+    .from(characters)
+    .where(
+      and(
+        eq(characters.synthetic, false),
+        eq(characters.ownerId, filter.ownerId),
+        filter.characterId === undefined ? undefined : eq(characters.id, filter.characterId),
+      ),
+    );
+  return materializeDistillTargets(rows);
+}
+
+async function readEveryOwnerCardDistillTargets(db: Db, _run: EveryOwnerRun): Promise<CardDistillTarget[]> {
+  const rows = await db.select(distillCardFields).from(characters).where(eq(characters.synthetic, false));
+  return materializeDistillTargets(rows);
+}
+
+/** Required scope keeps a caller's card id paired with its owner and every-owner execution with its run. */
+export function readCardDistillTargets(db: Db, filter: DistillTargetNarrow): Promise<CardDistillTarget[]> {
+  return filter.ownerId === null ? readEveryOwnerCardDistillTargets(db, filter.everyOwnerRun) : readOwnedCardDistillTargets(db, filter);
+}
+
+async function countEveryOwnerDistillTargets(db: Db, _estimate: EveryOwnerEstimate): Promise<number> {
+  const rows = await db.select(distillCardFields).from(characters).where(eq(characters.synthetic, false));
+  return materializeDistillTargets(rows).filter((target) => target.hasContent).length;
+}
+
+/** Estimates share the pass's content predicate without acquiring permission to run it. */
+export async function countCardDistillTargets(db: Db, scope: UserId | WorkloadEstimateScope): Promise<number> {
+  const selected = typeof scope === "string" ? { ownerId: scope } : scope;
+  return selected.ownerId === null
+    ? countEveryOwnerDistillTargets(db, selected.everyOwnerEstimate)
+    : (await readOwnedCardDistillTargets(db, selected)).filter((target) => target.hasContent).length;
 }
 
 /** The card's prompt text PLUS how many CONTENT sections it carries (the `Name:` line is not one). The count

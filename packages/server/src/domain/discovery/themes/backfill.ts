@@ -6,11 +6,12 @@
 // within the span (NOT the time-interval midpoint — schema/discovery.ts column comment). Idempotent plain
 // UPDATE, no id/clock.
 
+import type { WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { digestThemeAssignments, messages } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
-import type { ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
+import type { ChatDigestId, ChatId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { Tier0RangeOp } from "../contract/service.ts";
 import { readSegmentBlockSpans, readTier0DigestSpans, readTierKDigestSpans } from "../persistence/embed-store-reads.ts";
@@ -89,8 +90,8 @@ function tierKSeqSpan(
  * the count of digests stamped. Standalone `(db, tier0RangeOf, ownerId?)` so the service factory and
  * `computeThemes` both drive it with the ctx-bound grid op.
  */
-export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, ownerId?: UserId | null): Promise<{ stamped: number }> {
-  const [tier0Spans, tierKDigests] = await Promise.all([readTier0DigestSpans(db, ownerId), readTierKDigestSpans(db, ownerId)]);
+export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope: WorkloadRunScope): Promise<{ stamped: number }> {
+  const [tier0Spans, tierKDigests] = await Promise.all([readTier0DigestSpans(db, scope), readTierKDigestSpans(db, scope)]);
   if (tier0Spans.length === 0 && tierKDigests.length === 0) {
     return { stamped: 0 };
   }

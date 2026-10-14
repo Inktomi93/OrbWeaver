@@ -60,7 +60,7 @@ export async function seedCharacterDistillations(
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
     .where(
       and(
-        params.ownerId === undefined ? undefined : eq(characters.ownerId, params.ownerId),
+        params.ownerId === null ? undefined : eq(characters.ownerId, params.ownerId),
         params.characterId === undefined ? undefined : eq(characterSummaries.characterId, params.characterId),
       ),
     )
@@ -72,7 +72,7 @@ export async function seedCharacterDistillations(
 export async function seedDuplicateCharacterPairs(
   db: Db,
   compute: DiscoveryService["computeDuplicatePairs"],
-  params: NonNullable<Parameters<DiscoveryService["computeDuplicatePairs"]>[0]> = {},
+  params: NonNullable<Parameters<DiscoveryService["computeDuplicatePairs"]>[0]>,
 ): Promise<SeededDuplicateCharacterPairs> {
   const result = await compute(params);
   const ownerId = params.ownerId;
@@ -80,7 +80,7 @@ export async function seedDuplicateCharacterPairs(
     .select()
     .from(duplicateCharacterPairs)
     .where(
-      ownerId === undefined || ownerId === null
+      ownerId === null
         ? undefined
         : inArray(duplicateCharacterPairs.characterIdA, db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId))),
     )
@@ -92,7 +92,7 @@ export async function seedDuplicateCharacterPairs(
 export async function seedDuplicateChatPairs(
   db: Db,
   compute: DiscoveryService["computeChatDuplicatePairs"],
-  params: NonNullable<Parameters<DiscoveryService["computeChatDuplicatePairs"]>[0]> = {},
+  params: NonNullable<Parameters<DiscoveryService["computeChatDuplicatePairs"]>[0]>,
 ): Promise<SeededDuplicateChatPairs> {
   const result = await compute(params);
   const ownerId = params.ownerId;
@@ -100,7 +100,7 @@ export async function seedDuplicateChatPairs(
     .select()
     .from(duplicateChatPairs)
     .where(
-      ownerId === undefined || ownerId === null
+      ownerId === null
         ? undefined
         : inArray(
             duplicateChatPairs.chatIdA,
@@ -125,20 +125,20 @@ export async function seedDuplicateChatPairs(
 export async function seedKeywordCooccurrence(
   db: Db,
   compute: DiscoveryService["computeCooccurrence"],
-  params: NonNullable<Parameters<DiscoveryService["computeCooccurrence"]>[0]> = {},
+  params: NonNullable<Parameters<DiscoveryService["computeCooccurrence"]>[0]>,
 ): Promise<SeededKeywordCooccurrence> {
   const result = await compute(params);
   const ownerId = params.ownerId;
   const pairs = await db
     .select()
     .from(keywordCooccurrence)
-    .where(ownerId === undefined || ownerId === null ? undefined : eq(keywordCooccurrence.ownerId, ownerId))
+    .where(ownerId === null ? undefined : eq(keywordCooccurrence.ownerId, ownerId))
     .orderBy(keywordCooccurrence.ownerId, keywordCooccurrence.keywordA, keywordCooccurrence.keywordB);
   const profiles = await db
     .select({ row: characterKeywordProfiles })
     .from(characterKeywordProfiles)
     .innerJoin(characters, eq(characters.id, characterKeywordProfiles.characterId))
-    .where(ownerId === undefined || ownerId === null ? undefined : eq(characters.ownerId, ownerId))
+    .where(ownerId === null ? undefined : eq(characters.ownerId, ownerId))
     .orderBy(characterKeywordProfiles.characterId, characterKeywordProfiles.keyword);
   return { result, pairs, profiles: profiles.map(({ row }) => row) };
 }
@@ -154,13 +154,13 @@ export async function seedThemes(
   const clusters = await db
     .select()
     .from(themeClusters)
-    .where(ownerId === undefined || ownerId === null ? undefined : eq(themeClusters.ownerId, ownerId))
+    .where(ownerId === null ? undefined : eq(themeClusters.ownerId, ownerId))
     .orderBy(themeClusters.ownerId, themeClusters.level, themeClusters.clusterIdx);
   const rows = await db
     .select({ row: digestThemeAssignments })
     .from(digestThemeAssignments)
     .innerJoin(themeClusters, eq(themeClusters.id, digestThemeAssignments.themeClusterId))
-    .where(ownerId === undefined || ownerId === null ? undefined : eq(themeClusters.ownerId, ownerId))
+    .where(ownerId === null ? undefined : eq(themeClusters.ownerId, ownerId))
     .orderBy(digestThemeAssignments.digestId, digestThemeAssignments.themeClusterId);
   return { result, clusters, assignments: rows.map(({ row }) => row) };
 }

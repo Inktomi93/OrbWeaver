@@ -4,6 +4,7 @@
 // never a sideways import, and never a shared cross-feature hub.
 
 import type { BackfillPassResult, ImportWindow } from "@orb/contracts/chat";
+import type { WorkloadRunScope } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { MemoryBackfillSweepCounts, MemoryEmbedSpace } from "./memory.ts";
 
@@ -42,7 +43,7 @@ export interface ChatWorkloadDeps {
    *  handed: `null` = every corpus owner (the bulk arm), a `UserId` = that one owner, so a per-owner catch-up
    *  never reaches a neighbour's space. The state write lives in embeddings/persistence — this is the injected
    *  op, never a db reach from chat. */
-  readonly purgeMemoryVectors: (spaces: readonly MemoryEmbedSpace[], enumerationScope: UserId | null) => Promise<void>;
+  readonly purgeMemoryVectors: (spaces: readonly MemoryEmbedSpace[], enumerationScope: WorkloadRunScope) => Promise<void>;
   /** Is the memory subsystem ON for this host (#156)? Resolved through the ONE memory-config merge
    *  (`entry/compose/chat.ts resolveMemoryConfig`: admin defaults ⊕ the host's `memory.enabled` opt-out), so
    *  the admission gate cannot drift from the sweep's own per-host skip (#54) or from the live turn. Injected

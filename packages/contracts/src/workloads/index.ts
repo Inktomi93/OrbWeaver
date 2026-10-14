@@ -34,7 +34,17 @@ export {
   workloadStatusSchema,
 } from "./axes.ts";
 export type { WorkloadError, WorkloadEvent } from "./events.ts";
-export type { ReportProgress, WorkloadLane, WorkloadProgress, WorkloadResumePolicy, WorkloadRunContext } from "./execution.ts";
+export type {
+  EveryOwnerEstimate,
+  EveryOwnerRun,
+  ReportProgress,
+  WorkloadEstimateScope,
+  WorkloadLane,
+  WorkloadProgress,
+  WorkloadResumePolicy,
+  WorkloadRunContext,
+  WorkloadRunScope,
+} from "./execution.ts";
 export { WORKLOAD_LANES, WORKLOAD_RESUME_POLICIES } from "./execution.ts";
 export type { StartWorkloadOp, StartWorkloadParams } from "./owner-ops.ts";
 export type { NoWorkloadParams, StartWorkloadEnvelope, StartWorkloadInput, WorkloadParamsByKind } from "./params.ts";

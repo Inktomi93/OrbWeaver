@@ -25,7 +25,7 @@ Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import c
 | unit | pure logic in `@orb/kit` and `@orb/contracts` |
 
 - Retrofit work on a fake-heavy server harness stops. Those rows move to the rebuild.
-- Not yet built: the server test composition root, the builders and the corpus.
+- Complete foundation qualification remains open; the plan's work items own its current state.
 - `tests/legacy/` holds every test not yet rebuilt. Add no file there; a new test goes in the mirror. `docs/law/Spine-Testing.md` §2 owns its rules.
 - `pnpm test:scoped` and `pnpm test:ct` refuse a legacy path. Pass `--legacy` to run one on purpose.
 
