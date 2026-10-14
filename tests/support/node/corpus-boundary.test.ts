@@ -20,6 +20,7 @@ test("capsule creation refuses an existing data root before opening or modifying
       directory,
       server: { authConfig: { ...authConfigFromEnv(), mode: "local" } },
       seed: { ownerPassword: "unused-boundary-password", log: () => undefined },
+      privateCredential: { provider: "custom-openai", key: "unused-boundary-credential" },
     }),
   ).rejects.toMatchObject({ code: "EEXIST" });
   expect(await readdir(directory)).toEqual(["keep.txt"]);

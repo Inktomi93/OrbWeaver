@@ -4,9 +4,15 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel } from "@orb/contracts/inference";
+import { z } from "zod";
 import type { WarningCode } from "./resolve.ts";
 
 export type { ChatDeltaEvent } from "@orb/contracts/chat";
+
+export const COMPACTION_TRIGGERS = ["manual", "auto"] as const;
+export const compactionTriggerSchema = z.enum(COMPACTION_TRIGGERS);
+export const COMPACT_RESULTS = ["success", "failed"] as const;
+export const compactResultSchema = z.enum(COMPACT_RESULTS);
 
 /** The ban-risk canary surfaced loudly on the subscription path. */
 export interface RateLimitSnapshot {
@@ -26,7 +32,7 @@ export type ChatEvent =
   | {
       readonly kind: "compaction";
       readonly at: number;
-      readonly trigger: "manual" | "auto";
+      readonly trigger: (typeof COMPACTION_TRIGGERS)[number];
       readonly preTokens: number;
       readonly postTokens: number | undefined;
       readonly durationMs: number | undefined;
@@ -53,7 +59,7 @@ export type ChatEvent =
       readonly kind: "status";
       readonly at: number;
       readonly status: string;
-      readonly compactResult: "success" | "failed" | undefined;
+      readonly compactResult: (typeof COMPACT_RESULTS)[number] | undefined;
     }
   | {
       readonly kind: "auth_status";

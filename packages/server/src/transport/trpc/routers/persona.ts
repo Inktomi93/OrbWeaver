@@ -10,6 +10,7 @@ import {
   removePersonaResultSchema,
   updatePersonaSchema,
 } from "@orb/contracts/persona";
+import { portableTextFileSchema } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
@@ -133,10 +134,13 @@ export const personaRouter = t.router({
   // The two single-entity doors, both THIN ARMS over the bundle descriptor's verbs (the ratified thin-arm
   // law): the FILE is the unit on the wire, so a persona shared one-at-a-time is byte-identical to the one
   // inside a backup zip and the merge semantics can never fork.
-  export: authedProcedure.input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) })).query(async ({ ctx, input }) => {
-    const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
-    return { filename: file.filename, fileText: DEC.decode(file.bytes) };
-  }),
+  export: authedProcedure
+    .output(portableTextFileSchema)
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .query(async ({ ctx, input }) => {
+      const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
+      return { filename: file.filename, fileText: DEC.decode(file.bytes) };
+    }),
 
   import: authedProcedure
     .output(personaDetailSchema)

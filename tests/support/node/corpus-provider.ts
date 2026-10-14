@@ -10,6 +10,16 @@ export const CORPUS_EMBEDDING_VECTOR = [1, 0, 0] as const;
 
 export const CORPUS_STRUCTURED_REPLIES: ReadonlyMap<string, string> = new Map([
   [
+    "run_analysis",
+    JSON.stringify({
+      arcStatus: "active",
+      updatedArc: "Preserve the orbital ledger.",
+      successorArc: null,
+      twistOps: [{ op: "add", twist: "A courier brings the missing loom tool." }],
+      guidance: "Keep the ledger's witnesses and completed scenes consistent.",
+    }),
+  ],
+  [
     "character_distillation",
     JSON.stringify({
       genre: "science-fiction",

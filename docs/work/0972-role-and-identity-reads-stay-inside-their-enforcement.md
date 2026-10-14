@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-14
 priority: P1
+lane: codex/identity-enforcement-972
 ---
 
 # Role and identity reads stay inside their enforcement homes

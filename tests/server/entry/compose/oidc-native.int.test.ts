@@ -11,42 +11,14 @@ import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { createControlledTimers } from "@orb/testkit/iso/timers.ts";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS as SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/server.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, sql } from "drizzle-orm";
 import type { JWTPayload } from "jose";
 import { customFetch } from "openid-client";
 import { vi } from "vitest";
-import { CALLBACK, CLIENT_ID, CLIENT_SECRET, createNativeIssuer, ISSUER } from "./oidc-issuer.fixtures.ts";
 
-const SETTINGS = {
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_ISSUER: ISSUER,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_CLIENT_ID: CLIENT_ID,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_CLIENT_SECRET: CLIENT_SECRET,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_REDIRECT_URIS: CALLBACK,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_SCOPES: "openid profile email",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_USERNAME_CLAIM: "preferred_username",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_UID_CLAIM: "sub",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_GROUPS_CLAIM: "groups",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_EMAIL_CLAIM: "email",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_GROUPS_SEPARATOR: ";",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_SIGNUP: true,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_REQUIRE_APPROVAL: false,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_BACKCHANNEL_LOGOUT: true,
-} satisfies NonNullable<ServerHarnessOptions["oidc"]>;
 // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
 const MEMBER = { sub: "native-member-subject", preferred_username: "oidc-member" } satisfies JWTPayload;
 const LOGOUT_TOKEN_PARAM = "logout_token";
@@ -545,4 +517,58 @@ test("configured native issuer execution preserves offset shared-byte views and 
     [1, 2, 3, 4, 5, 6],
     [7, 8, 9],
   ]);
+});
+
+test.each([
+  { value: null, label: "null" },
+  { value: 7, label: "number" },
+])("a signed backchannel $label event refuses before revocation; an object event still revokes", async ({ value }) => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const cookie = await signIn(root, issuer);
+  const before = await root.db.select().from(sessions);
+  expect(before).toHaveLength(1);
+  const invalid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: value } });
+  const rejected = await root.http.request("/api/auth/oidc/backchannel-logout", {
+    method: "POST",
+    body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, invalid]]),
+  });
+  expect(rejected.status).toBe(400);
+  expect(await root.db.select().from(sessions)).toEqual(before);
+  const live = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await live.json()).authenticated).toBe(true);
+  const valid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } });
+  expect(
+    (
+      await root.http.request("/api/auth/oidc/backchannel-logout", {
+        method: "POST",
+        body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, valid]]),
+      })
+    ).status,
+  ).toBe(200);
+  const dead = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await dead.json()).authenticated).toBe(false);
+});
+
+test.each([
+  { label: "missing issue time", omitted: ["iat"], patch: {} },
+  { label: "missing expiration", omitted: ["exp"], patch: {} },
+  { label: "missing token ID", omitted: ["jti"], patch: {} },
+  { label: "non-string token ID", omitted: [], patch: { jti: 7 } },
+  { label: "non-string session ID", omitted: [], patch: { sid: 7 } },
+])("a signed logout token with $label refuses before the real session is revoked", async ({ omitted, patch }) => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const cookie = await signIn(root, issuer);
+  const before = await root.db.select().from(sessions);
+  expect(before).toHaveLength(1);
+  const token = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} }, ...patch }, omitted);
+  const result = await root.http.request("/api/auth/oidc/backchannel-logout", {
+    method: "POST",
+    body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]),
+  });
+  expect(result.status).toBe(400);
+  expect(await root.db.select().from(sessions)).toEqual(before);
+  const me = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await me.json()).authenticated).toBe(true);
 });

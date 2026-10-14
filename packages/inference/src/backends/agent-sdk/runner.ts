@@ -58,7 +58,8 @@ import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
 import { buildSystemPrompt, disciplineOptions, hookContextOf, MCP_NAMESPACE, observabilityOptions, tailSystemOptions, toSdkGeneration } from "./translate.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "./types.ts";
-import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
+import { classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
+import { assertSdkMessageRead } from "./wire-read.ts";
 
 /** The SDK query options for a turn's structured request: the planned schema as `outputFormat`, refused before
  *  the spawn when it does not fit, and nothing for a turn that asks for none. The agent-sdk carries only the native
@@ -457,6 +458,7 @@ export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: 
   // @orb-waive caught-failure-ownership(error): the original stream failure is retained until completed facts are durably observed, then finishWithError rethrows it; ends if capture no longer precedes refusal.
   try {
     for await (const message of stream) {
+      assertSdkMessageRead(message);
       if (typeof message.session_id === "string" && message.session_id.length > 0) {
         acc.observeSessionId(agentSdkSessionIdSchema.parse(message.session_id));
       }
@@ -813,7 +815,6 @@ function handleSystem(acc: TurnAccumulator, message: Narrow<"system">): void {
   } else if (message.subtype === "model_refusal_fallback" || message.subtype === "model_refusal_no_fallback") {
     handleRefusal(acc, message);
   } else if (message.subtype === "init") {
-    assertInitFrameShape(message);
     acc.meta.apiKeySource = message.apiKeySource;
     acc.meta.servedModel = message.model;
   }

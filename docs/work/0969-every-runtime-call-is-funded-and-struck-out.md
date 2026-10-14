@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-13
+status: doing
+updated: 2026-10-14
 priority: P1
+lane: codex/funding-qualification-969
 plan: inference-flow
 ---
 
