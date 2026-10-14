@@ -26,7 +26,7 @@ export type {
   AgentTurnRequest,
   SessionEntryWriter,
 } from "./agent.ts";
-export type { AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-execution.ts";
+export type { AgentSdkExecution, AgentSdkLifetime, AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-execution.ts";
 export type { BackendRegistry, ProviderBackend, ProviderExecutor, WireCaptureSink } from "./backend.ts";
 export type {
   AgentMcpServerHealth,
