@@ -8,7 +8,7 @@ POINTER card; both docs win on any conflict, and the gates below win over all pr
 ## 0. What a feature IS
 
 **A feature dir earns its existence by OWNING at least one registered definition** — a rail section, a
-modal, a settings pane, or a chrome widget, co-located at `lib/*-{section,modal,pane,chrome}.tsx` and
+modal, a settings group, or a chrome widget, co-located at `lib/*-{section,modal,group,chrome}.tsx` and
 exported on the front door. Gate `feature-owns-definition` (G23) deletes-or-reds anything else; there are
 no exemptions (`prompt-manager` was deleted rather than exempted). A dir of helpers with no definition is
 not a feature — it is either tier-2 `components/`, tier-4 `lib/`, or nothing.
@@ -53,7 +53,7 @@ inside a host's region, so all of it is `components/`. That is correct, not an o
 | Where does a view-model go? | `lib/` — `preset/lib/preset-editor-model.ts`, `character/lib/character-card-form-model.ts`, `user-admin/lib/*-model.ts`. Uniform across every feature |
 | Context-tab / claimed-pane body: surface or component? | `components/`. `surfaces/` is region-level only; anything mounted INSIDE a region is a component |
 | Settings-section anatomy | four files, two buckets: def `lib/<x>-section.tsx` + nav `lib/<x>-nav.ts` + model `lib/<x>-model.ts` + body `components/<x>-section.tsx`. The def and its body deliberately share a basename across buckets. UNIFORM: every settings-section def on the tree delegates to a `components/` body — none inlines one |
-| `-section.tsx` means two things | `lib/chats-section.tsx` is a `SectionDefinition` (a RAIL section); `lib/appearance-avatars-section.tsx` is a `SettingsSectionContribution` (a settings-pane section). The filename does not distinguish them — the exported TYPE does. G23 accepts both as "owns a definition" |
+| `-section.tsx` means two things | `lib/chats-section.tsx` is a `SectionDefinition` (a rail section); `lib/appearance-avatars-section.tsx` is a `ConfigSectionContribution` (a settings section). The exported type distinguishes them. `feature-owns-definition` owns the accepted definition shapes |
 | Feature-local store? | No such thing. EVERY store lives in the central `state/` commons, minted through one of the three doors — so a pointer another feature must read is never trapped behind a feature boundary (lockdown §9) |
 | A new `.css` file for my feature? | Never. The path-closed six-home paint law and the one bounded shell-frame exception live only in `docs/law/client-architecture-lockdown.md` §4; do not restate or widen them here |
 
@@ -83,17 +83,16 @@ imports ARE allowed (a shape wired at the composition root).
 1. **Name it** after the server domain it serves (`client-structure` rule 2 checks against
    `packages/server/src/domain/*`), or add it to the gate's `RESERVED` set with the reason it is UI-only.
 2. **Decide what it OWNS** before writing UI: a rail section (`SECTION_IDS` member + a
-   `SectionDefinition`), a modal, a settings pane, a chrome widget — or, if it owns none of those, it is
+   `SectionDefinition`), a modal, a settings group, a chrome widget — or, if it owns none of those, it is
    a contribution to an existing host and probably not a new feature at all (G23).
-3. **Write the definition first**, co-located at `lib/<id>-{section,modal,pane,chrome}.tsx`, and export it
+3. **Write the definition first**, co-located at `lib/<id>-{section,modal,group,chrome}.tsx`, and export it
    on `index.ts`. `content` is a real body or the declared-`{ planned: "<reason>" }` arm; `context` is a
    real `ContextDefinition` or the explicit `{ kind: "none" }` — absence is not a state.
-4. **Register it at the door** (`main.tsx`) and nowhere else — G8. A total registry (`sections`, `modals`,
-   `settings-panes`) is `Record<Id, Def>`-total by tsc, so it will not compile until you do.
+4. **Register it at the authenticated composition door** (`packages/client/src/compose/authed-composition.tsx`). Settings-section contributions assemble in `packages/client/src/compose/config-sections.ts`. Total section, modal and config-group registries use `Record<Id, Def>`; the compiler rejects missing members.
 5. **Reach DOWN the ladder before hand-rolling**: `@orb/ui` → `components/` → `{data,forms,state}/` →
    `lib/`. Mutations ride `createEntityMutation`; paginated browse rides `createCollectionSurface`;
    ≥3-field forms ride a form factory; destructive confirms ride `ConfirmDialog`; suspending reads sit in
    `QueryBoundary`. Each of these is a sealed gate, not a preference (lockdown §1's table names the wall).
 6. **Ship all three states** — designed EMPTY (with an action), a shape-matched skeleton, and
    `QueryErrorState` with a real retry. A bare spinner or a dead-end empty is a defect (§11).
-7. **Mirror the tests** at `tests/legacy/client/<path>` — never beside the source (`test-layout`).
+7. **Write rebuilt tests** under `tests/client/` in the directory that mirrors the feature. Name each test for its behavior. Use the production mounting door for CTs and corpus-backed e2e for flows. `tests/legacy/` takes no new files. Follow `docs/law/Spine-Testing.md` and `docs/plans/test-foundation/design.md`.

@@ -13,8 +13,6 @@ Core-0 section 4 lists fewer feature-root names than the feature-structure gate 
 
 ## Why
 
-The feature-shape card at `packages/client/src/features/README.md` directs new tests into legacy and uses stale settings registry vocabulary. Align it with the current testing law and client composition door. Keep plan task indexes generated from work items; remove a plan only after its work finishes and its lasting knowledge moves into law or an ADR.
-
 A cold author reads the law literally; a stale citation sends them to a rule that is gone.
 
 ## Done when
@@ -26,3 +24,5 @@ Each listed doc matches the tree; the citation gate reds a dead section referenc
 The enforcement-index generator states maintained ESLint ownership and preserves custom gates only for unmatched semantic judgments. Main regenerates the law from that source; its derived gate table remains unchanged. The listed law and citation corrections remain open.
 
 The selected documentation-reference checks complete without tool errors or withheld policies. Path and document citations pass. Reviewed citation grants exceed their zero budget, so the selected run remains red; do not expand that budget.
+
+The feature-shape card directs rebuilt tests to the strict client tree and names the authenticated composition and settings-contribution doors. Settings vocabulary matches the native contracts. Active plan task indexes remain generated from work items.
