@@ -106,9 +106,18 @@ export function serveHttpServer(
   serverOptions: ServerOptions = HTTP_SERVER_TIMEOUTS,
   serveAdapter: typeof serve = serve,
 ): ServerType {
+  // Request's abort bridge weakly holds its controller; the physical response must retain the Request.
+  const liveRequests = new Set<Request>();
   return serveAdapter(
     {
-      fetch: (input, bindings) => options.fetch(nativeRequest(input), bindings),
+      fetch: (input, bindings) => {
+        const request = nativeRequest(input);
+        liveRequests.add(request);
+        bindings.outgoing.once("close", (): void => {
+          liveRequests.delete(request);
+        });
+        return options.fetch(request, bindings);
+      },
       ...(options.port === undefined ? {} : { port: options.port }),
       overrideGlobalObjects: false,
       serverOptions,

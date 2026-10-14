@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-13
+status: doing
+updated: 2026-10-14
 priority: P2
+lane: codex/owner-read-provenance-1016
 plan: test-foundation
 ---
 

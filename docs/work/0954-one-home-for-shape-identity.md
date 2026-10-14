@@ -1,9 +1,9 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-14
 priority: P1
-lane: codex/type-homes-981
+blocked: on 955
 plan: test-foundation
 ---
 

@@ -1,20 +1,32 @@
 // Actual producers and recipient callers own inbox state; native HTTP bytes remain private observations.
 
+import type { IncomingMessage } from "node:http";
+import { request as nodeRequest } from "node:http";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { InboxView } from "@orb/contracts/notifications";
-import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { AUTOMATION_NOTICE_COOLDOWN_SECONDS, AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { readSessionCookie } from "@orb/server/entry/auth";
 import { inArray } from "drizzle-orm";
 import { vi } from "vitest";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
+import { seedAutomationRule, seedAutomationRun } from "./factories/automation.ts";
+import { captureChatReplayRows } from "./factories/chat.ts";
 import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const CORPUS_NOTIFICATION_PASSWORD = "synthetic-notification-reader-password";
+export const CORPUS_NOTIFICATION_RULE_MESSAGE = "The room's ledger is ready for its witnesses.";
+export const CORPUS_NOTIFICATION_PLUGIN_MESSAGE = "The resident keeper has checked the ledger.";
+export const CORPUS_NOTIFICATION_PLUGIN_ERROR = "Resident keeper refused its scripted invocation.";
+const NOTICE_TOOL_NAME = "witness";
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 type Principal = Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
 type Page = Awaited<ReturnType<Caller["notifications"]["list"]>>;
@@ -23,6 +35,12 @@ interface NotificationStream extends AsyncDisposable {
   readonly socketId: ReturnType<typeof streamConnectInputSchema.parse>["socketId"];
   readonly bytes: () => string;
   readonly readThrough: (needle: string, offset?: number) => Promise<string>;
+  readonly physicalState: () => {
+    readonly requestDestroyed: boolean;
+    readonly responseClosed: boolean;
+    readonly responseDestroyed: boolean;
+    readonly generatorStopped: boolean;
+  };
 }
 interface NotificationActors {
   readonly host: Principal;
@@ -59,6 +77,37 @@ interface ReaderAdmission {
   readonly seededPending: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["list"]>>;
   readonly answeredPending: readonly Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["setGrant"]>>[];
 }
+interface ProducerCapture {
+  readonly rule: Awaited<ReturnType<typeof seedAutomationRule>>;
+  readonly ruleRun: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly ruleNotice: InboxView;
+  readonly plugin: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly notifyRun: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly pluginNotice: InboxView;
+  readonly failedBeforeClean: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly clean: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly cleanView: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["list"]>>[number];
+  readonly crashes: readonly {
+    readonly run: Awaited<ReturnType<typeof seedAutomationRun>>;
+    readonly view: ProducerCapture["cleanView"];
+    readonly disabled: readonly InboxView[];
+  }[];
+  readonly paused: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly disabled: InboxView;
+  readonly foreignBefore: Page;
+  readonly foreignAfter: Page;
+  readonly foreignRun: Error;
+}
+interface DroppedCapture {
+  readonly room: Invite["invite"]["chatId"];
+  readonly invite: Invite;
+  readonly submitted: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["send"]>>;
+  readonly queued: Awaited<ReturnType<typeof captureChatReplayRows>>;
+  readonly drained: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["drainDeferredTurns"]>>;
+  readonly repeated: DroppedCapture["drained"];
+  readonly completed: DroppedCapture["queued"];
+  readonly notice: InboxView;
+}
 interface CorpusNotifications extends Omit<NotificationActors, "caller" | "foreignCaller"> {
   readonly admission: ReaderAdmission;
   readonly inbox: InboxCapture;
@@ -67,6 +116,8 @@ interface CorpusNotifications extends Omit<NotificationActors, "caller" | "forei
   readonly accepted: Page;
   readonly kicked: InboxView;
   readonly consent: ConsentCapture;
+  readonly producers: ProducerCapture;
+  readonly dropped: DroppedCapture;
   readonly dismissed: InboxView;
   readonly dismissedAgain: InboxView;
   readonly final: Page;
@@ -79,6 +130,7 @@ interface CorpusNotifications extends Omit<NotificationActors, "caller" | "forei
   readonly recipientIds: readonly UserId[];
   readonly rows: readonly (typeof notifications.$inferSelect)[];
   readonly liveSockets: number;
+  readonly physicalCloses: readonly ReturnType<NotificationStream["physicalState"]>[];
 }
 
 /** Retain every canonical row, including dismissed history; do not substitute the active-inbox projection. */
@@ -115,32 +167,73 @@ async function openStream(
   const address = new URL("/api/trpc/stream.connect", auth.origin);
   address.searchParams.set("input", JSON.stringify({ socketId }));
   const stopped = Promise.withResolvers<void>();
+  let generatorStopped = false;
   const goDark = root.app.sockets.goDark;
   const observation = vi.spyOn(root.app.sockets, "goDark").mockImplementation((cell, listener): void => {
     goDark.call(root.app.sockets, cell, listener);
     if (cell.socketId === socketId) {
+      generatorStopped = true;
       stopped.resolve();
     }
   });
-  const stop = new AbortController();
-  const response = await fetch(address, { headers: { cookie: auth.cookie, accept: "text/event-stream" }, signal: stop.signal });
-  const reader = response.body?.getReader();
-  if (response.status !== 200 || reader === undefined) {
-    stop.abort();
+  const received = Promise.withResolvers<IncomingMessage>();
+  const requestClosed = Promise.withResolvers<void>();
+  const request = nodeRequest(address, { headers: { cookie: auth.cookie, accept: "text/event-stream" } }, received.resolve);
+  request.once("error", received.reject);
+  request.once("close", requestClosed.resolve);
+  request.end();
+  let response: IncomingMessage;
+  try {
+    response = await received.promise;
+  } catch (error) {
+    request.destroy();
+    await requestClosed.promise;
+    observation.mockRestore();
+    throw error;
+  }
+  const responseClosed = Promise.withResolvers<void>();
+  response.once("close", responseClosed.resolve);
+  if (response.statusCode !== 200) {
+    response.destroy();
+    request.destroy();
+    await Promise.all([responseClosed.promise, requestClosed.promise]);
     observation.mockRestore();
     throw new Error("native notification subscription did not open its actual body");
   }
-  const decoder = new TextDecoder();
   let bytes = "";
+  let ended = false;
+  let failure: Error | undefined;
+  let wake: (() => void) | undefined;
+  response.setEncoding("utf8");
+  response.on("data", (chunk: string): void => {
+    bytes += chunk;
+    wake?.();
+  });
+  response.once("error", (error: Error): void => {
+    failure = error;
+    wake?.();
+  });
+  response.once("close", (): void => {
+    ended = true;
+    wake?.();
+  });
   const readThrough = async (needle: string, offset = 0): Promise<string> => {
     while (!bytes.slice(offset).includes(needle)) {
-      const next = await reader.read();
-      if (next.done) {
-        throw new Error("native notification subscription ended before its delivery barrier");
+      if (failure !== undefined || ended) {
+        throw failure ?? new Error("native notification subscription ended before its delivery barrier");
       }
-      bytes += decoder.decode(next.value, { stream: true });
+      const next = Promise.withResolvers<void>();
+      wake = next.resolve;
+      await next.promise;
+      wake = undefined;
     }
     return bytes.slice(offset);
+  };
+  const close = async (): Promise<void> => {
+    response.destroy();
+    request.destroy();
+    await Promise.all([responseClosed.promise, requestClosed.promise]);
+    await stopped.promise;
   };
   try {
     await readThrough("serverReady");
@@ -148,10 +241,8 @@ async function openStream(
     await readThrough("attached");
   } catch (error) {
     try {
-      await reader.cancel();
+      await close();
     } finally {
-      stop.abort();
-      reader.releaseLock();
       observation.mockRestore();
     }
     throw error;
@@ -160,6 +251,7 @@ async function openStream(
     socketId,
     bytes: () => bytes,
     readThrough,
+    physicalState: () => ({ requestDestroyed: request.destroyed, responseClosed: response.closed, responseDestroyed: response.destroyed, generatorStopped }),
     async [Symbol.asyncDispose](): Promise<void> {
       try {
         const offset = bytes.length;
@@ -167,12 +259,8 @@ async function openStream(
         await readThrough("detached", offset);
       } finally {
         try {
-          await reader.cancel();
-          stop.abort();
-          await stopped.promise;
+          await close();
         } finally {
-          stop.abort();
-          reader.releaseLock();
           observation.mockRestore();
         }
       }
@@ -308,6 +396,152 @@ async function admitReader(root: ServerTestHarness, actors: NotificationActors, 
   return { cookie, token, seededPending, answeredPending };
 }
 
+async function producersFor(
+  root: ServerTestHarness,
+  actors: NotificationActors,
+  chatId: Invite["invite"]["chatId"],
+  stream: NotificationStream,
+): Promise<ProducerCapture> {
+  const automation = root.services.automation;
+  const principal = actors.reader;
+  const author = { principal, chatId, trigger: { bus: "chat", type: "turnCompleted" }, timeZone: UTC_TIME_ZONE } as const;
+  const rule = await seedAutomationRule(root.db, automation.createRule, {
+    ...author,
+    name: "Corpus room notice",
+    cooldownSeconds: AUTOMATION_NOTICE_COOLDOWN_SECONDS,
+    actions: [{ type: "post_notification", recipient: "all_members", messageTemplate: CORPUS_NOTIFICATION_RULE_MESSAGE }],
+  });
+  await automation.setRuleEnabled({ principal, ruleId: rule.id, enabled: true });
+  await root.services.chat.startChat({ principal: actors.foreign, characterIds: [], opening: "none" });
+  const foreignBefore = await actors.foreignCaller.notifications.list();
+  const foreignRun = await automation.runRuleNow({ principal: actors.foreign, ruleId: rule.id }).then(
+    () => {
+      throw new Error("foreign rule execution unexpectedly succeeded");
+    },
+    (error: Error) => error,
+  );
+  const ruleRun = await seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: rule.id });
+  const ruleNotice = await requiredView(actors.caller, "automation-notice");
+  await stream.readThrough(ruleNotice.id);
+  const manifest = pluginManifestSchema.parse({
+    id: `keeper-${root.idSource.typeId(ID_PREFIX.plugin).slice(-12)}`,
+    name: "Corpus resident keeper",
+    description: "Produces real participant feedback and resident crash-policy transitions.",
+    version: "1.0.0",
+    hostVersion: PLUGIN_HOST_VERSIONS[0],
+    entry: PLUGIN_MAIN_ENTRY,
+    capabilities: ["tools.register", "chat.read", "notify"],
+  });
+  const source = `const host = orb.host(1);
+host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "Check the private ledger.",
+  parameters: { type: "object", properties: { mode: { type: "string" } }, required: ["mode"], additionalProperties: false },
+  handler: async (args) => {
+    if (args.mode === "crash") throw new Error(${JSON.stringify(CORPUS_NOTIFICATION_PLUGIN_ERROR)});
+    if (args.mode === "notify") await host.notifications.post(host.chat.current(), "all_members", ${JSON.stringify(CORPUS_NOTIFICATION_PLUGIN_MESSAGE.repeat(AUTOMATION_NOTICE_MESSAGE_MAX))});
+    return "Ledger checked.";
+  }
+});`;
+  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+    caller: principal,
+    bundle: makePluginBundle(manifest, source, root.clock.now()),
+    grant: [],
+  });
+  const plugin = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+    caller: principal,
+    pluginId: installed.outcome.id,
+    grant: manifest.capabilities,
+    acknowledgedNetHosts: [],
+    enable: true,
+  });
+  const toolName = pluginToolWireName(manifest.id, NOTICE_TOOL_NAME);
+  const toolRule = async (mode: string): Promise<Awaited<ReturnType<typeof seedAutomationRule>>> => {
+    const row = await seedAutomationRule(root.db, automation.createRule, {
+      ...author,
+      name: `Corpus resident ${mode}`,
+      actions: [{ type: "run_tool", name: toolName, argsTemplate: JSON.stringify({ mode }) }],
+    });
+    await automation.setRuleEnabled({ principal, ruleId: row.id, enabled: true });
+    return row;
+  };
+  const notifyRule = await toolRule("notify");
+  const notifyRun = await seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: notifyRule.id });
+  const pluginNotice = await requiredView(actors.caller, "automation-notice");
+  await stream.readThrough(pluginNotice.id);
+  const crashRule = await toolRule("crash");
+  const cleanRule = await toolRule("clean");
+  const run = (): ReturnType<typeof seedAutomationRun> => seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: crashRule.id });
+  const view = async (): Promise<ProducerCapture["cleanView"]> => {
+    const item = (await root.services.plugin.list({ caller: principal })).find((candidate) => candidate.id === plugin.outcome.id);
+    if (item === undefined) {
+      throw new Error("resident corpus plugin disappeared from its actual owner view");
+    }
+    return item;
+  };
+  const failedBeforeClean = await run();
+  const clean = await seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: cleanRule.id });
+  const cleanView = await view();
+  const crashes: ProducerCapture["crashes"][number][] = [];
+  for (let count = 0; count < PLUGIN_CRASH_DISABLE_THRESHOLD; count += 1) {
+    const outcome = await run();
+    crashes.push({
+      run: outcome,
+      view: await view(),
+      disabled: (await actors.caller.notifications.list()).items.filter((item) => item.type === "plugin-disabled"),
+    });
+  }
+  const disabled = await requiredView(actors.caller, "plugin-disabled");
+  await stream.readThrough(disabled.id);
+  const paused = await run();
+  return {
+    rule,
+    ruleRun,
+    ruleNotice,
+    plugin,
+    notifyRun,
+    pluginNotice,
+    failedBeforeClean,
+    clean,
+    cleanView,
+    crashes,
+    disabled,
+    paused,
+    foreignRun,
+    foreignBefore,
+    foreignAfter: await actors.foreignCaller.notifications.list(),
+  };
+}
+
+async function droppedFor(root: ServerTestHarness, actors: NotificationActors, stream: NotificationStream): Promise<DroppedCapture> {
+  const principal = actors.host;
+  const caller = await root.internalCallerFor(principal.userId);
+  const connection = await root.services.connection.create({
+    principal,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: { kind: "generation", generation: { input: ["text"], context: { window: 32_000 } }, features: { detectServer: false } },
+  });
+  await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  const started = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });
+  const room = started.chat.id;
+  const invite = await root.services.chat.createInvite({ principal, chatId: room, input: { invitedHandle: actors.reader.handle } });
+  await root.services.chat.acceptInvite({ principal: actors.reader, inviteId: invite.invite.id });
+  const submitted = await root.services.chat.send({
+    principal: actors.reader,
+    chatId: room,
+    content: "Please preserve the owed ledger reply.",
+    timeZone: UTC_TIME_ZONE,
+  });
+  const queued = await captureChatReplayRows(root.db, room);
+  await root.services.chat.selfLeave({ principal, chatId: room });
+  const drained = await root.services.chat.drainDeferredTurns({ hostUserId: principal.userId });
+  const notice = await requiredView(actors.caller, "deferred-turn-dropped");
+  await stream.readThrough(notice.id);
+  const repeated = await root.services.chat.drainDeferredTurns({ hostUserId: principal.userId });
+  return { room, invite, submitted, queued, drained, repeated, notice, completed: await captureChatReplayRows(root.db, room) };
+}
+
 /** Produce only the selected real notification variants and retain private native lifecycle observations. */
 export async function seedCorpusNotifications(root: ServerTestHarness): Promise<CorpusNotifications> {
   const actors = await actorsFor(root);
@@ -318,12 +552,14 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
   const { cookie } = admission;
   let replay: string;
   let foreignAttach: Error;
+  const streams: NotificationStream[] = [];
   const delivered = inbox.raised.items[0];
   if (delivered === undefined) {
     throw new Error("native notification replay has no actual delivery barrier");
   }
   {
     await using stream = await openStream(root, actors.caller, { origin, cookie }, 0);
+    streams.push(stream);
     foreignAttach = await actors.foreignCaller.stream.attach({ socketId: stream.socketId, ref: { channel: "notifications" } }).then(
       () => {
         throw new Error("foreign notification socket attachment unexpectedly succeeded");
@@ -345,9 +581,12 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
   let accepted: Page;
   let kicked: InboxView;
   let consent: ConsentCapture;
+  let producers: ProducerCapture;
+  let dropped: DroppedCapture;
   let settled: Page;
   {
     await using stream = await openStream(root, actors.caller, { origin, cookie }, watermark);
+    streams.push(stream);
     resumed = await stream.readThrough(lateView.id);
     await root.services.chat.acceptInvite({ principal: actors.reader, inviteId: inbox.invites[0].invite.id });
     await root.services.chat.declineInvite({ principal: actors.reader, inviteId: inbox.invites[1].invite.id });
@@ -362,6 +601,8 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
     kicked = await requiredView(actors.caller, "kicked");
     await stream.readThrough(kicked.id);
     consent = await consentFor(root, actors, stream);
+    producers = await producersFor(root, actors, inbox.room.chat.id, stream);
+    dropped = await droppedFor(root, actors, stream);
     live = stream.bytes();
   }
   const original = inbox.raised.items.at(-1);
@@ -383,6 +624,8 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
     accepted,
     kicked,
     consent,
+    producers,
+    dropped,
     dismissed,
     dismissedAgain,
     final: await actors.caller.notifications.list(),
@@ -391,9 +634,10 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
     resumed,
     live,
     foreignAttach,
-    secrets: [CORPUS_NOTIFICATION_PASSWORD, cookie, admission.token, ...inbox.invites.map((invite) => invite.token), late.token],
+    secrets: [CORPUS_NOTIFICATION_PASSWORD, cookie, admission.token, ...inbox.invites.map((invite) => invite.token), late.token, dropped.invite.token],
     recipientIds,
     rows: await captureCorpusNotificationRows(root.db, recipientIds),
     liveSockets: root.app.sockets.liveSocketCount(),
+    physicalCloses: streams.map((stream) => stream.physicalState()),
   };
 }
