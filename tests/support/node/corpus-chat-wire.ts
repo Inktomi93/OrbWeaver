@@ -13,12 +13,15 @@ export const CORPUS_CHAT_DEFERRED_CUE = "Record the absent host lifecycle witnes
 export const CORPUS_CHAT_REPLY = "The lifecycle witness preserves the orbital ledger.";
 
 interface PhysicalGate {
+  signal: AbortSignal | undefined;
+  readonly deferAbortUntilRelease: boolean;
   readonly cue: string;
   readonly entered: PromiseWithResolvers<void>;
   readonly released: PromiseWithResolvers<void>;
   readonly aborted: PromiseWithResolvers<void>;
 }
 interface CorpusChatRequestHold {
+  readonly requestSignal: () => AbortSignal | undefined;
   readonly entered: Promise<void>;
   readonly aborted: Promise<void>;
   readonly release: () => void;
@@ -27,7 +30,7 @@ interface CorpusChatWire {
   readonly requests: readonly string[];
   readonly remaining: () => number;
   readonly completion: (body: string) => CorpusProviderCompletion | undefined;
-  readonly hold: (cue: string) => CorpusChatRequestHold;
+  readonly hold: (cue: string, options?: { readonly deferAbortUntilRelease: boolean }) => CorpusChatRequestHold;
   readonly wrap: (execute: typeof fetch) => typeof fetch;
 }
 
@@ -56,11 +59,13 @@ export function createCorpusChatWire(): CorpusChatWire {
         usage: { promptTokens: 40, completionTokens: cue === CORPUS_CHAT_EMPTY_CUE ? 0 : 15 },
       };
     },
-    hold: (cue: string): CorpusChatRequestHold => {
+    hold: (cue: string, options): CorpusChatRequestHold => {
       if (active !== undefined) {
         throw new Error("a lifecycle physical request is already held");
       }
       const gate: PhysicalGate = {
+        signal: undefined,
+        deferAbortUntilRelease: options?.deferAbortUntilRelease ?? false,
         cue,
         entered: Promise.withResolvers<void>(),
         released: Promise.withResolvers<void>(),
@@ -68,6 +73,7 @@ export function createCorpusChatWire(): CorpusChatWire {
       };
       active = gate;
       return {
+        requestSignal: (): AbortSignal | undefined => gate.signal,
         entered: gate.entered.promise,
         aborted: gate.aborted.promise,
         release: (): void => {
@@ -90,9 +96,12 @@ export function createCorpusChatWire(): CorpusChatWire {
           return await execute(request);
         }
         const interrupted = Promise.withResolvers<void>();
+        gate.signal = request.signal;
         const onAbort = (): void => {
           gate.aborted.resolve();
-          interrupted.reject(new DOMException("Aborted", "AbortError"));
+          if (!gate.deferAbortUntilRelease) {
+            interrupted.reject(new DOMException("Aborted", "AbortError"));
+          }
         };
         request.signal.addEventListener("abort", onAbort, { once: true });
         try {

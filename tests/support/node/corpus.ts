@@ -15,7 +15,10 @@ import type { seedCorpusKnowledge as produceCorpusKnowledge } from "./corpus-kno
 import type { seedCorpusKnowledgeVariants as produceCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
 import type { seedCorpusPlugins as produceCorpusPlugins } from "./corpus-plugin.ts";
 import type { seedCorpusRpg as produceCorpusRpg } from "./corpus-rpg.ts";
+import type { seedCorpusRpgMembers as produceCorpusRpgMembers } from "./corpus-rpg-members.ts";
 import type { seedCorpusRpgProvider as produceCorpusRpgProvider } from "./corpus-rpg-provider.ts";
+import type { seedCorpusRpgRecursion as produceCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
+import type { seedCorpusRpgRounds as produceCorpusRpgRounds } from "./corpus-rpg-rounds.ts";
 import type {
   seedCorpusAutomation as produceCorpusAutomation,
   seedCorpusLibraries as produceCorpusLibraries,
@@ -43,6 +46,9 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly rpgRecursion: Awaited<ReturnType<typeof produceCorpusRpgRecursion>>;
+  readonly rpgMembers: Awaited<ReturnType<typeof produceCorpusRpgMembers>>;
+  readonly rpgRounds: Awaited<ReturnType<typeof produceCorpusRpgRounds>>;
   readonly chatLifecycle: Awaited<ReturnType<typeof produceCorpusChatLifecycle>>;
   readonly imagery: Awaited<ReturnType<typeof produceCorpusImagery>>;
   readonly knowledgeVariants: Awaited<ReturnType<typeof produceCorpusKnowledgeVariants>>;
@@ -129,6 +135,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusImagery } = await import("./corpus-imagery.ts");
   const { createServerHarness } = await import("./server.ts");
   const { createFrozenClock } = await import("../iso/clock.ts");
+  const { createControlledTimers } = await import("../iso/timers.ts");
   const { createSeededIds } = await import("../iso/ids.ts");
   const { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
   const { seedUserCredential } = await import("./factories/credentials.ts");
@@ -137,6 +144,10 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusKnowledgeVariants } = await import("./corpus-knowledge-variants.ts");
   const { seedCorpusRpg } = await import("./corpus-rpg.ts");
   const { seedCorpusRpgProvider } = await import("./corpus-rpg-provider.ts");
+  const { seedCorpusRpgRecursion } = await import("./corpus-rpg-recursion.ts");
+  const { seedCorpusRpgMembers } = await import("./corpus-rpg-members.ts");
+  const { seedCorpusRpgRounds } = await import("./corpus-rpg-rounds.ts");
+  const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
     await import("./corpus-seed.ts");
   await using lifetimes = new AsyncDisposableStack();
@@ -147,6 +158,8 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   await runMigrations(db, SHIPPED_MIGRATIONS);
   await assertReferentialIntegrity(db);
   const clock = options.server.clock ?? createFrozenClock();
+  const rpgFlightTimers = createRpgFlightTimers(createControlledTimers(clock));
+  const rpgFlightWire = createRpgFlightWire();
   const ids = options.server.ids ?? createSeededIds();
   const issuer = await createNativeIssuer();
   let oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
@@ -182,7 +195,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       clock,
       ids,
       ownerId: oidc.ownerId,
-      providerFetch: chatWire.wrap(options.server.providerFetch ?? fetch),
+      providerFetch: rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch)),
+      timers: rpgFlightTimers.timers,
+      rpgTrace: true,
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
@@ -210,6 +225,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const knowledgeVariants = await seedCorpusKnowledgeVariants(root);
   const chatLifecycle = await seedCorpusChatLifecycle(root, chatWire, actors.secondUserId, dbHold);
   const imagery = await seedCorpusImagery(root, actors.secondUserId);
+  const rpgRecursion = await seedCorpusRpgRecursion(root);
+  const rpgMembers = await seedCorpusRpgMembers(root, rpgRecursion, actors.secondUserId);
+  const rpgRounds = await seedCorpusRpgRounds(root, rpgFlightWire, rpgFlightTimers, actors.secondUserId);
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -234,6 +252,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       knowledgeVariants,
       chatLifecycle,
       imagery,
+      rpgRecursion,
+      rpgMembers,
+      rpgRounds,
     },
   };
 }
