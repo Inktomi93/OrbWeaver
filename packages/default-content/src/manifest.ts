@@ -5,27 +5,7 @@
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-
-/** The kinds of seeded item; the seeder handles each kind in its own door. */
-export const SEED_ITEM_KINDS = ["character", "persona", "rosterPreset"] as const;
-
-/** One seeded item. `key` is the ledger key and never changes once shipped: renaming it reseeds the item. */
-export type SeedManifestItem =
-  /** A shipped card, by its handle; the server's card pack holds its content, avatar, greetings and scene plate. */
-  | { readonly kind: "character"; readonly key: string; readonly handle: CharacterHandle }
-  /** The default `{{user}}` persona. Only an automation-started stack receives it; a person names their own
-   *  persona in the first-run step (D263), so the item stays unrecorded on their account. */
-  | { readonly kind: "persona"; readonly key: string }
-  /** A roster preset over seeded characters, which starts a chat in one action. `startsGame` makes that start
-   *  a game too: the seeder stores rpg's default game template on the preset (D264). */
-  | {
-      readonly kind: "rosterPreset";
-      readonly key: string;
-      readonly name: string;
-      readonly description: string;
-      readonly characters: readonly CharacterHandle[];
-      readonly startsGame: boolean;
-    };
+import type { SeedManifestItem } from "./contract/index.ts";
 
 function character(handle: string): SeedManifestItem {
   return { kind: "character", key: `character:${handle}`, handle: castId<CharacterHandle>(handle) };

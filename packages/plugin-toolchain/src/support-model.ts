@@ -1,85 +1,8 @@
-export const PLUGIN_AUTHOR_SUPPORT_FORMATS = ["json", "markdown"] as const;
-export type PluginAuthorSupportFormat = (typeof PLUGIN_AUTHOR_SUPPORT_FORMATS)[number];
+import type { PluginAuthorSupport, PluginAuthorSupportSection, PluginAuthorSupportSource, PluginAuthorWorld } from "./contract/index.ts";
+import { PLUGIN_AUTHOR_SUPPORT_SECTIONS } from "./contract/index.ts";
 
-export const PLUGIN_AUTHOR_WORLDS = ["main", "ui", "frame"] as const;
-export type PluginAuthorWorld = (typeof PLUGIN_AUTHOR_WORLDS)[number];
-
-export const PLUGIN_AUTHOR_EXECUTIONS = ["server-quickjs", "browser-quickjs-worker", "isolated-browser-frame"] as const;
-export type PluginAuthorExecution = (typeof PLUGIN_AUTHOR_EXECUTIONS)[number];
-
-export interface PluginAuthorRuntimeSupport {
-  readonly world: PluginAuthorWorld;
-  readonly execution: PluginAuthorExecution;
-  readonly sourceEntry: string;
-  readonly sdkEntry: string;
-  readonly entrypoint: string;
-  readonly dom: boolean;
-  readonly hostFunctions: readonly string[];
-  readonly localHelpers: readonly string[];
-}
-
-export interface PluginAuthorCapabilitySupport {
-  readonly capability: string;
-  readonly functions: Readonly<Record<PluginAuthorWorld, readonly string[]>>;
-}
-
-export interface PluginAuthorHookSupport {
-  readonly name: string;
-  readonly world: "main";
-}
-
-export interface PluginAuthorSurfaceSupport {
-  readonly anchor: string;
-  readonly tiers: readonly string[];
-  readonly registrationWorld: "main";
-}
-
-export interface PluginAuthorTierSupport {
-  readonly tier: string;
-  readonly registrar: string;
-  readonly registrationWorld: "main";
-  readonly executionWorld: PluginAuthorWorld;
-}
-
-export interface PluginAuthorPlacementSupport {
-  readonly target: string;
-  readonly registrationWorld: "main";
-}
-
-export interface PluginAuthorSupport {
-  readonly schemaVersion: 1;
-  readonly runtimes: Readonly<Record<PluginAuthorWorld, PluginAuthorRuntimeSupport>>;
-  readonly capabilities: readonly PluginAuthorCapabilitySupport[];
-  readonly hooks: {
-    readonly events: {
-      readonly chat: readonly PluginAuthorHookSupport[];
-      readonly domain: readonly PluginAuthorHookSupport[];
-    };
-    readonly promptTransforms: readonly PluginAuthorHookSupport[];
-  };
-  readonly ui: {
-    readonly surfaces: readonly PluginAuthorSurfaceSupport[];
-    readonly tiers: readonly PluginAuthorTierSupport[];
-    readonly commandPlacements: readonly PluginAuthorPlacementSupport[];
-  };
-}
-
-export interface PluginAuthorSupportSource {
-  readonly capabilities: readonly string[];
-  readonly hostFunctionCapability: Readonly<Record<string, string>>;
-  readonly uiProxyableHostFunctions: readonly string[];
-  readonly chatEventHooks: readonly string[];
-  readonly domainEventHooks: readonly string[];
-  readonly promptTransformPoints: readonly string[];
-  readonly surfaceAnchors: readonly string[];
-  readonly surfaceTiers: readonly string[];
-  readonly anchorTiers: Readonly<Record<string, Readonly<Record<string, boolean>>>>;
-  readonly tierRegistrar: Readonly<Record<string, string>>;
-  readonly commandPlacements: readonly string[];
-}
-
-export const PLUGIN_AUTHOR_SUPPORT_SECTIONS = ["schemaVersion", "runtimes", "capabilities", "hooks", "ui"] as const;
-export type PluginAuthorSupportSection = (typeof PLUGIN_AUTHOR_SUPPORT_SECTIONS)[number];
+// The generated registry imports this existing model door; its type still has one declaring home.
+export type { PluginAuthorSupport } from "./contract/index.ts";
 
 function functionsFor(capability: string, hostFunctionCapability: Readonly<Record<string, string>>, allowedFunctions?: ReadonlySet<string>): readonly string[] {
   return Object.entries(hostFunctionCapability)
