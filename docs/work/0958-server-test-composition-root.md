@@ -3,7 +3,7 @@ kind: work
 status: doing
 updated: 2026-10-14
 priority: P1
-lane: codex/harness-integration-958
+lane: codex/share-acme-harness-958
 plan: test-foundation
 ---
 
@@ -27,7 +27,7 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 The Node root reuses production service, job and HTTP composition. Raw provider, SDK, kernel, plugin and network execution varies; admission, funding, ownership, accounting and identity remain production-owned.
 
-Native controls prove same-ID graph isolation for buses, automation queues and compaction. Recipient and prune controls fail under real production cuts. Notification replacement remains incomplete; legacy cases remain until complete replacement.
+Native controls prove graph isolation and recipient and prune behavior under production cuts. Notification replacement remains incomplete; preserve legacy cases.
 
 Native listener and response controls preserve Request branding, chunked admission, current headers, cloned-body cancellation and physical close joins. Cancellation preserves unexpected failures and attempts every owner and timer cleanup. Borrowed database and storage remain caller-owned.
 
@@ -42,3 +42,5 @@ Reviewed sources `e470342ad6` and `f20a77db31` own native Query leases and suppl
 Source `909c640d45` restricts server assembly to the real test root through shared declaration and return-contract facts, including wrapped or nullable services. Copied root bodies fail the existing clone policy. Exercised subjects receive presence credit; incidental graph imports do not. Concrete review corrections pass bounded controls. Public builders and external-edge adapters remain admitted.
 
 Reviewed native database disposal and corpus controls establish physical release before inspection and cleanup. Share, ACME and complete domain replacement remain open. Corpus and ingress reuse this graph, never another assembly.
+
+The share and ACME lane surveys raw seams and physical disposal. The harness still selects inactive share composition; keep policy production-owned.
