@@ -346,23 +346,28 @@ export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanA
 
 /** Start work that deliberately outlives its caller. The operation FACTORY runs inside its own request-root
  * span; returning `void` is the explicit contract that callers receive no completion or ordering guarantee.
- * This function owns the Promise completely: the root records the rejection, then the terminal catch emits
+ * This function owns operation rejection: the root records it, then the rejection handler emits
  * one structured operator-visible error. Durable writes and canonical event emissions must be awaited by
  * their caller instead of using this boundary. */
 export function superviseDetached(requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown): void {
-  void superviseSettled(requestId, name, attrs, operation);
+  withRequestSpan(requestId, name, attrs, operation).then(
+    () => undefined,
+    (err: unknown) => reportDetachedFailure(requestId, name, attrs, err),
+  );
 }
 
 /** {@link superviseDetached} for a caller that must know the work has settled, such as a seed tool that has to
  * be deterministic: it awaits the closed root span and the same single operator-visible rejection report.
- * The promise resolves after success or reported failure, so awaiting it cannot fail the caller's write. */
+ * The promise resolves after success or reported operation failure; a failure of the report itself still rejects. */
 export function superviseSettled(requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown): Promise<void> {
   return withRequestSpan(requestId, name, attrs, operation).then(
     () => undefined,
-    (err: unknown) => {
-      getLog().error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
-    },
+    (err: unknown) => reportDetachedFailure(requestId, name, attrs, err),
   );
+}
+
+function reportDetachedFailure(requestId: string, name: string, attrs: SpanAttrs, err: unknown): void {
+  getLog().error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
 }
 
 /** Read the SDK concrete-span status code through the same internal cast `span()` uses for `.attributes`

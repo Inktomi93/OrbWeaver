@@ -1,4 +1,4 @@
-import { getTraceByRequestId, logRing, span, superviseSettled } from "@orb/server/foundation/observability";
+import { getTraceByRequestId, logRing, span, superviseDetached, superviseSettled } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, vi } from "vitest";
 
@@ -52,4 +52,43 @@ test("supervised rejection settles after the error trace and exactly one existin
   expect(lines[0]).toContain(`"spanName":"${REJECTION_SPAN}"`);
   expect(lines[0]).toContain('"msg":"detached operation failed"');
   expect(lines[0]).toContain(failure.message);
+});
+
+for (const mode of ["synchronous", "asynchronous"] as const) {
+  test(`detached ${mode} failure closes its own root and reports exactly once`, async ({ ids }) => {
+    const requestId = `detached-${mode}:${ids.uuid()}`;
+    const failure = new Error(`detached-${mode}-error`);
+    expect(
+      superviseDetached(requestId, REJECTION_SPAN, { operationKind: OPERATION_KIND }, () => {
+        if (mode === "synchronous") {
+          throw failure;
+        }
+        return span(REJECTION_CHILD, () => Promise.reject(failure));
+      }),
+    ).toBeUndefined();
+    await expect.poll(() => logRing.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`))).toHaveLength(1);
+    expect(getTraceByRequestId(requestId)).toMatchObject({ requestId, rootName: REJECTION_SPAN, status: "error" });
+    const lines = logRing.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(failure.message);
+    expect(lines[0]).toContain('"msg":"detached operation failed"');
+  });
+}
+
+test("settlement does not hide a failure of the canonical rejection report", async ({ ids }) => {
+  const reportFailure = new Error("report attributes failed");
+  let reads = 0;
+  const attrs = {
+    get operationKind(): string {
+      reads += 1;
+      if (reads === 2) {
+        throw reportFailure;
+      }
+      return OPERATION_KIND;
+    },
+  };
+  const requestId = `report-rejection:${ids.uuid()}`;
+  await expect(superviseSettled(requestId, REJECTION_SPAN, attrs, () => Promise.reject(new Error("operation failed")))).rejects.toBe(reportFailure);
+  expect(getTraceByRequestId(requestId)?.status).toBe("error");
+  expect(logRing.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`))).toEqual([]);
 });
