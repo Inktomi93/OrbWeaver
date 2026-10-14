@@ -1,11 +1,13 @@
 // Declaration provenance for shape comparisons; matching types never establish a shared origin.
 import type { Node as MorphNode, Type } from "ts-morph";
 import { Node } from "ts-morph";
+import { readAssignabilityChecker } from "./assignability.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
 import { INVENTORY_KEY_SEPARATOR } from "./semantic-inventory-contract.ts";
 import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
 import type { NativeGenericArgumentContribution, NativeGenericArgumentInput } from "./shape-derivation-contract.ts";
-import { annotationReferenceOrigin, resolved, unresolved } from "./type-member-origin-core.ts";
+import { readNativeSubstitutedTypeSlots } from "./type-member-origin.ts";
+import { annotationReferenceOrigin, resolved, resolveTypePropertyValue, unresolved } from "./type-member-origin-core.ts";
 
 /** Origin declarations named by a bare alias (`type X = Y`), resolved through import/re-export hops. */
 function bareAliasTargetKeys(decl: MorphNode): Set<string> {
@@ -87,7 +89,7 @@ function nativeParts(type: Type): readonly Type[] {
   return type.isUnion() ? type.getUnionTypes() : [type];
 }
 
-/** Observe a supported native utility's actual retained/removed type constituents, never a spelling or structural fit. */
+/** Observe binding-specific native constituents, substituted declaration slots and selected output projections. */
 export function readNativeGenericArgumentContribution(input: NativeGenericArgumentInput): ReferenceFact<NativeGenericArgumentContribution> {
   const { reference, argument, program, source } = input;
   if (reference.wasForgotten() || argument.wasForgotten()) {
@@ -100,7 +102,7 @@ export function readNativeGenericArgumentContribution(input: NativeGenericArgume
   const arguments_ = reference.getTypeArguments();
   const index = arguments_.indexOf(argument);
   const first = arguments_[0];
-  const origin = annotationReferenceOrigin(reference.getTypeName());
+  const origin = annotationReferenceOrigin(genericReferenceName(reference));
   if (origin.kind === "unresolved") {
     return origin;
   }
@@ -108,13 +110,20 @@ export function readNativeGenericArgumentContribution(input: NativeGenericArgume
   if (
     origin.value.declarations.length !== 1 ||
     utility === undefined ||
-    !Node.isTypeAliasDeclaration(utility) ||
-    !program.isSourceFileDefaultLibrary(utility.getSourceFile().compilerNode)
+    !(Node.isTypeAliasDeclaration(utility) || Node.isInterfaceDeclaration(utility)) ||
+    utility.getProject() !== reference.getProject() ||
+    program.getSourceFile(utility.getSourceFile().getFilePath()) !== utility.getSourceFile().compilerNode
   ) {
-    return unresolved("unsupported", reference, "opaque generic has no canonical native TypeScript utility declaration");
+    return unresolved("unsupported", reference, "opaque generic has no single canonical native declaration");
   }
-  const definition = NATIVE_GENERIC_UTILITIES.find((candidate) => candidate.name === utility.getName());
-  if (definition === undefined || first === undefined || index < 0 || arguments_.length !== definition.arity) {
+  const definition =
+    Node.isTypeAliasDeclaration(utility) && program.isSourceFileDefaultLibrary(utility.getSourceFile().compilerNode)
+      ? NATIVE_GENERIC_UTILITIES.find((candidate) => candidate.name === utility.getName())
+      : undefined;
+  if (definition === undefined) {
+    return nativeSubstitutionContribution(input, utility, index);
+  }
+  if (first === undefined || index < 0 || arguments_.length !== definition.arity) {
     return unresolved("unsupported", reference, "opaque generic utility or argument grammar is outside supported native contribution facts");
   }
   const contribution = nativeArgumentWitness(
@@ -188,4 +197,191 @@ function nativeBindingWitness(fact: NativeGenericArgumentContribution, binding: 
         fact.utility,
         ...origin.value.declarations,
       ]);
+}
+
+function nativeSubstitutionContribution(
+  input: NativeGenericArgumentInput,
+  utility: NativeGenericArgumentContribution["utility"],
+  index: number,
+): ReferenceFact<NativeGenericArgumentContribution> {
+  const { reference, argument, binding } = input;
+  const parameter = utility.getTypeParameters()[index];
+  if (parameter === undefined || index < 0) {
+    return unresolved("unsupported", reference, "generic argument has no native formal parameter");
+  }
+  if (Node.isTypeQuery(argument)) {
+    return nativeQueryOutputContribution(input, utility, parameter);
+  }
+  const candidate = binding?.getType() ?? argument.getType();
+  if ([candidate, argument.getType(), reference.getType()].some((type) => type.isAny() || type.isUnknown() || type.isNever() || type.isTypeParameter())) {
+    return unresolved("unsupported", argument, "substituted contribution has any, unknown, never or uninstantiated types");
+  }
+  const origins = genericBindingOrigins(input);
+  if (origins.kind !== "resolved") {
+    return origins;
+  }
+  const identities = new Set(nativeParts(candidate).map((type) => type.compilerType));
+  const substitution = readNativeSubstitutedTypeSlots({
+    parameter,
+    templateLocation: utility,
+    actualLocation: reference,
+    program: input.program,
+    source: input.source,
+  });
+  if (substitution.kind !== "resolved") {
+    return substitution;
+  }
+  const slots = substitution.value;
+  const witnesses = slots.flatMap((slot) => nativeParts(slot.actual).filter((type) => identities.has(type.compilerType)));
+  const mapped = mappedFormalProjection({ utility, parameter, argument, reference, candidate });
+  witnesses.push(...mapped);
+  return witnesses.length === 0
+    ? unresolved("unsupported", binding ?? argument, "native formal has no substituted member/signature contribution to this binding")
+    : resolved(
+        {
+          utility,
+          argument,
+          ...(binding === undefined ? {} : { binding }),
+          contributes: true,
+          witnesses,
+          detail: "native formal substitution and member/signature declarations witness this authored binding",
+        },
+        binding ?? argument,
+        [utility, parameter, ...origins.value, ...slots.flatMap((slot) => slot.declarations)],
+      );
+}
+
+interface NativeMappedProjectionInput {
+  readonly utility: NativeGenericArgumentContribution["utility"];
+  readonly parameter: import("ts-morph").TypeParameterDeclaration;
+  readonly argument: import("ts-morph").TypeNode;
+  readonly reference: NativeGenericArgumentInput["reference"];
+  readonly candidate: Type;
+}
+
+function mappedFormalProjection(input: NativeMappedProjectionInput): readonly Type[] {
+  const { utility, parameter, argument, reference, candidate } = input;
+  const mapped = Node.isTypeAliasDeclaration(utility) ? utility.getTypeNode() : undefined;
+  if (mapped === undefined || !Node.isMappedTypeNode(mapped) || candidate.compilerType !== argument.getType().compilerType) {
+    return [];
+  }
+  const key = mapped.getTypeParameter();
+  const constraint = key.getConstraint();
+  const value = mapped.getTypeNode();
+  if (constraint === undefined || !Node.isTypeOperatorTypeNode(constraint) || value === undefined || !Node.isIndexedAccessTypeNode(value)) {
+    return [];
+  }
+  if (
+    constraint.getTypeNode().getType().compilerType !== parameter.getType().compilerType ||
+    value.getObjectTypeNode().getType().compilerType !== parameter.getType().compilerType ||
+    value
+      .getIndexTypeNode()
+      .getType()
+      .getSymbol()
+      ?.getDeclarations()
+      .some((declaration) => declaration.compilerNode === key.compilerNode) !== true ||
+    mapped.getNameTypeNode() !== undefined
+  ) {
+    return [];
+  }
+  const supplied = argument.getType();
+  const output = reference.getType();
+  const witnesses: Type[] = [];
+  for (const property of output.getProperties()) {
+    const origin = supplied.getProperty(property.getName());
+    const declarations = property.getDeclarations();
+    const originNodes = new Set(origin?.getDeclarations().map((node) => node.compilerNode));
+    if (origin === undefined || declarations.length === 0 || !declarations.every((node) => originNodes.has(node.compilerNode))) {
+      return [];
+    }
+    const initial = origin.getTypeAtLocation(argument);
+    const actual = property.getTypeAtLocation(reference).getNonNullableType();
+    if (actual.compilerType !== initial.getNonNullableType().compilerType || actual.isAny() || actual.isUnknown() || actual.isNever()) {
+      return [];
+    }
+    witnesses.push(actual);
+  }
+  return witnesses;
+}
+
+function genericBindingOrigins(input: NativeGenericArgumentInput): ReferenceFact<readonly MorphNode[]> {
+  const { binding, argument } = input;
+  if (binding === undefined) {
+    return resolved([], argument, []);
+  }
+  if (binding.wasForgotten() || binding.getSourceFile() !== argument.getSourceFile() || !binding.getAncestors().includes(argument)) {
+    return unresolved("unsupported", binding, "substituted binding is outside the delivered argument");
+  }
+  const origin = annotationReferenceOrigin(binding);
+  return origin.kind !== "resolved" ? origin : resolved(origin.value.declarations, binding, origin.value.declarations);
+}
+
+function formalIndexedPath(node: MorphNode, parameter: import("ts-morph").TypeParameterDeclaration): readonly string[] | undefined {
+  if (!Node.isIndexedAccessTypeNode(node)) {
+    return sameFormalBinding(node, parameter) ? [] : undefined;
+  }
+  const index = node.getIndexTypeNode();
+  const literal = Node.isLiteralTypeNode(index) ? index.getLiteral() : undefined;
+  const parent = formalIndexedPath(node.getObjectTypeNode(), parameter);
+  return parent === undefined || literal === undefined || !Node.isStringLiteral(literal) ? undefined : [...parent, literal.getLiteralValue()];
+}
+
+function nativeQueryOutputContribution(
+  input: NativeGenericArgumentInput,
+  utility: NativeGenericArgumentContribution["utility"],
+  parameter: import("ts-morph").TypeParameterDeclaration,
+): ReferenceFact<NativeGenericArgumentContribution> {
+  const { argument, reference, binding } = input;
+  const body = Node.isTypeAliasDeclaration(utility) ? utility.getTypeNode() : undefined;
+  if (!Node.isTypeQuery(argument) || body === undefined || !Node.isConditionalTypeNode(body) || binding !== argument.getExprName()) {
+    return unresolved("unsupported", argument, "schema output requires the actual query binding and selected native conditional projection");
+  }
+  const supplied = argument.getType();
+  const path = formalIndexedPath(body.getTrueType(), parameter);
+  const checker = readAssignabilityChecker(reference.getProject().getTypeChecker());
+  if (supplied.isAny() || supplied.isUnknown() || supplied.isNever() || supplied.isUnion() || supplied.isTypeParameter()) {
+    return unresolved("unsupported", argument, "native schema query is any, unknown, never, union or uninstantiated");
+  }
+  if (!sameFormalBinding(body.getCheckType(), parameter) || path === undefined || path.length === 0) {
+    return unresolved("unsupported", argument, "native schema true branch does not retain the same formal indexed property");
+  }
+  if (checker?.isTypeAssignableTo(supplied.compilerType, body.getExtendsType().getType().compilerType) !== true) {
+    return unresolved("unsupported", argument, "native schema query does not select the projected conditional branch");
+  }
+  const origin = genericBindingOrigins(input);
+  const projected = resolveTypePropertyValue(argument, path);
+  if (origin.kind !== "resolved") {
+    return origin;
+  }
+  if (projected.kind !== "resolved") {
+    return projected;
+  }
+  const output = projected.value.type;
+  if (output.isAny() || output.isUnknown() || output.isNever() || output.compilerType !== reference.getType().compilerType) {
+    return unresolved("unsupported", argument, "native projected property is not this generic's actual output type");
+  }
+  return resolved(
+    {
+      utility,
+      argument,
+      binding,
+      contributes: true,
+      witnesses: [output],
+      detail: "native selected conditional output retains the actual schema query property projection",
+    },
+    binding,
+    [utility, parameter, ...origin.value, ...projected.value.declarations],
+  );
+}
+
+function sameFormalBinding(node: MorphNode, parameter: import("ts-morph").TypeParameterDeclaration): boolean {
+  if (!Node.isTypeReference(node) || node.getTypeArguments().length > 0) {
+    return false;
+  }
+  const origin = annotationReferenceOrigin(node.getTypeName());
+  return origin.kind === "resolved" && origin.value.declarations.length === 1 && origin.value.declarations[0]?.compilerNode === parameter.compilerNode;
+}
+
+function genericReferenceName(reference: NativeGenericArgumentInput["reference"]): MorphNode {
+  return Node.isTypeReference(reference) ? reference.getTypeName() : reference.getExpression();
 }

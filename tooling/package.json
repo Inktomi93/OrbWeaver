@@ -138,6 +138,8 @@
     "./floor/code-facts/component-type-home-contract": "./src/floor/code-facts/component-type-home-contract.ts",
     "./floor/code-facts/type-member-origin-contract": "./src/floor/code-facts/type-member-origin-contract.ts",
     "./floor/code-facts/type-member-origin-core": "./src/floor/code-facts/type-member-origin-core.ts",
+    "./floor/code-facts/value-dependency": "./src/floor/code-facts/value-dependency.ts",
+    "./floor/code-facts/value-dependency-contract": "./src/floor/code-facts/value-dependency-contract.ts",
     "./floor/code-facts/value-carrier": "./src/floor/code-facts/value-carrier.ts",
     "./floor/compiler/authored-repository": "./src/floor/compiler/authored-repository.ts",
     "./floor/compiler/compiler-programs": "./src/floor/compiler/compiler-programs.ts",

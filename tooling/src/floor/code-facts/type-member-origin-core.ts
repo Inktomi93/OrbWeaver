@@ -17,6 +17,18 @@ export function symbolDeclarations(symbol: MorphSymbol, node: MorphNode, subject
   return declarations.length === 0 ? unresolved("missing", node, `${subject} has no declaration`) : resolved(declarations, node, declarations);
 }
 
+/** The checker’s terminal instantiated property type and its actual declaration origins. */
+export interface NativeTypePropertyValue {
+  readonly type: Type;
+  readonly declarations: readonly MorphNode[];
+}
+
+/** Preserve the declaration-only door over the one native property-path traversal. */
+export function resolveTypePropertyOrigin(expression: MorphNode, name: string | readonly string[]): ReferenceFact<readonly MorphNode[]> {
+  const fact = resolveTypePropertyValue(expression, name);
+  return fact.kind === "resolved" ? { ...fact, value: fact.value.declarations } : fact;
+}
+
 /** Resolve `<expression>.<name>` WHEN THERE IS NO MEMBER-ACCESS NODE TO HAND OVER — the BINDING-PATTERN twin
  *  of `resolveTypeMemberOrigin`. A destructure (`const { issues } = failure`) asks the same question
  *  the dotted read asks, but its subject is a `BindingElement`: there is no `PropertyAccessExpression` for
@@ -40,7 +52,7 @@ export function symbolDeclarations(symbol: MorphSymbol, node: MorphNode, subject
  *  receiver expression (the coordinate a policy reports), and it needs the property SYMBOL itself for the
  *  `TypeMemberOrigin` it returns, which this reader deliberately does not hand back. Folding it would move
  *  every one of that reader's refusal positions. */
-export function resolveTypePropertyOrigin(expression: MorphNode, name: string | readonly string[]): ReferenceFact<readonly MorphNode[]> {
+export function resolveTypePropertyValue(expression: MorphNode, name: string | readonly string[]): ReferenceFact<NativeTypePropertyValue> {
   const path = typeof name === "string" ? [name] : name;
   if (path.length === 0) {
     return unresolved("unsupported", expression, "a property path must name at least one member");
@@ -64,7 +76,7 @@ export function resolveTypePropertyOrigin(expression: MorphNode, name: string | 
     declarations = origin.value;
     type = symbol.getTypeAtLocation(expression);
   }
-  return resolved(declarations, expression, declarations);
+  return resolved({ type, declarations }, expression, declarations);
 }
 
 /** One authored reference's declaration identity. This is provenance only: the value query below must

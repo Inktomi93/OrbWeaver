@@ -1,7 +1,7 @@
-import type { Node, Type, TypeAliasDeclaration, TypeNode, TypeReferenceNode, ts } from "ts-morph";
+import type { ExpressionWithTypeArguments, InterfaceDeclaration, Node, Type, TypeAliasDeclaration, TypeNode, TypeReferenceNode, ts } from "ts-morph";
 
 export interface NativeGenericArgumentInput {
-  readonly reference: TypeReferenceNode;
+  readonly reference: TypeReferenceNode | ExpressionWithTypeArguments;
   readonly argument: TypeNode;
   readonly binding?: Node;
   readonly program: ts.Program;
@@ -10,7 +10,7 @@ export interface NativeGenericArgumentInput {
 
 /** Native value-type contribution only; authored declaration ownership requires a separate binding-origin witness. */
 export interface NativeGenericArgumentContribution {
-  readonly utility: TypeAliasDeclaration;
+  readonly utility: TypeAliasDeclaration | InterfaceDeclaration;
   readonly argument: TypeNode;
   readonly binding?: Node;
   readonly contributes: boolean;
