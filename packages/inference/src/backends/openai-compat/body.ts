@@ -39,12 +39,12 @@
 // included, which no row rule rewrites), and so does a `chat_template_kwargs.enable_thinking` the user stated.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
-import type { Dialect, EndpointFeatures, ImageDetail, PromptCacheFormat } from "@orb/contracts/inference";
+import type { ImageDetail } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
-import type { JsonValue } from "@orb/kit/json";
-import type { ConnectionTransport, ResolvedWarning } from "#contract";
-import type { OutboundMedia, WirePlan } from "../v4/prompt.ts";
+import type { ResolvedWarning } from "#contract";
+import type { ShapeArgs } from "../../contract/openai-backend.ts";
+import type { OutboundMedia, WirePlan } from "../../contract/v4.ts";
 import { applyIncludeExclude } from "../wire/openai-body.ts";
 
 const REASONING_EFFORT_KEY = "reasoning_effort";
@@ -75,31 +75,6 @@ const MESSAGES_KEY = "messages";
  *  so a user who declared either got a `settings_adjusted` notice about a field that rode the wire
  *  perfectly; `debug` (D3) would have inherited it. A new extras door adds its key HERE in the same commit. */
 const OPENROUTER_EXTRAS_KEYS = ["provider", "models", "plugins", "web_search_options", "debug", "session_id", "prompt_cache_key"] as const;
-
-// @orb-waive no-inline-package-interface(ShapeArgs): baselined when the gate landed; burn-down item 952.
-export interface ShapeArgs {
-  readonly cacheMarkers?: ReadonlyMap<number, Record<string, unknown>> | undefined;
-  readonly cacheFormat?: PromptCacheFormat | undefined;
-  readonly plan: WirePlan | null;
-  readonly features: EndpointFeatures;
-  readonly extras: Readonly<Record<string, JsonValue>> | null;
-  readonly transport: ConnectionTransport | null;
-  /** `openai-compatible` merges every non-belt, non-colliding extras key; `openrouter` takes its two. */
-  readonly dialect: Dialect;
-  /** The capability half of the prefill decision (`acceptsAssistantPrefill`); the array half is the plan's. */
-  readonly prefillAllowed: boolean;
-  /** Rule 10 runs: the admitted prefix action preserves block ends at the effective merging role floor. */
-  readonly foldSameRole: boolean;
-  readonly replyImages: boolean;
-  /** What rule 5b tells the template's thinking switch (`templateThinkingFor`); `undefined` sends nothing. */
-  readonly templateThinking: boolean | undefined;
-  /** Rule 5c: `false` when the turn's reasoning carry resolved off; `undefined` sends nothing. */
-  readonly templatePreserveReasoning: boolean | undefined;
-  /** The model's reasoning is mandatory: it is never told off, so rule 5's interlock leaves thinking alone. */
-  readonly reasoningMandatory: boolean;
-  readonly imageDetail?: ImageDetail | undefined;
-  readonly warnings: ResolvedWarning[];
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -483,3 +458,5 @@ function applyImageDetail(body: Record<string, unknown>, detail: ImageDetail | u
     }),
   };
 }
+
+export type { ShapeArgs } from "../../contract/openai-backend.ts";

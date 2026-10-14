@@ -10,11 +10,11 @@
 
 import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import type { ProviderErrorKind, ProviderScrubSet } from "#contract";
+import type { ProviderScrubSet } from "#contract";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
+import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "../../contract/http.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { isIdleTrip } from "./idle-timeout.ts";
-import type { ProviderLogger } from "./provider-log.ts";
 import { NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns on the hot error-classification path.
@@ -33,22 +33,6 @@ const HTTP_TOO_MANY_REQUESTS = 429;
 const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAVAILABLE_LEGAL = 451;
 const HTTP_SERVER_ERROR_FLOOR = 500;
-
-// @orb-waive no-inline-package-interface(ErrorClassification): baselined when the gate landed; burn-down item 952.
-/** A classified failure — the typed kind + whether a retry could plausibly succeed. */
-export interface ErrorClassification {
-  readonly kind: ProviderErrorKind;
-  readonly retryable: boolean;
-}
-
-// @orb-waive no-inline-package-interface(HttpErrorDiagnostic): baselined when the gate landed; burn-down item 952.
-/** Structured diagnostic peeled off an HTTP-error chain — safe to put on a log record (sanitized). */
-export interface HttpErrorDiagnostic {
-  /** Raw upstream response body, sanitized + length-capped. Absent when the chain carries no `body`. */
-  readonly body?: string;
-  /** Summary of the immediate `.cause` (typically the SDK's zod parse failure), sanitized. */
-  readonly cause?: string;
-}
 
 // File-local: narrow an unknown to a string-keyed record without an `as` cast (biome bans single `as`).
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -241,15 +225,6 @@ const SCHEMA_REJECTIONS: readonly SchemaRejectionRow[] = [
 /** A 400 that names a schema, a grammar or the response format but matches no row: logged, never guessed at. */
 const SCHEMA_SHAPED_BODY = /schema|grammar|response_format/iu;
 
-// @orb-waive no-inline-package-interface(SchemaRejectionContext): baselined when the gate landed; burn-down item 952.
-/** What a structured call's failure says about its schema, for {@link withSchemaRejection}. */
-export interface SchemaRejectionContext {
-  readonly log: ProviderLogger;
-  readonly model: string;
-  readonly mode: WireSchemaMode;
-  readonly secrets: ProviderScrubSet;
-}
-
 /** The violation a matched row reports. */
 function rejectionViolation(row: SchemaRejectionRow, match: RegExpExecArray, mode: WireSchemaMode): WireSchemaViolation {
   if (row.ceiling === undefined) {
@@ -336,3 +311,5 @@ export function providerErrorFromHttp(error: unknown, prefix: string, secrets: P
     cause,
   });
 }
+
+export type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "../../contract/http.ts";

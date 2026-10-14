@@ -14,7 +14,7 @@ import type { BackendRegistry } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { ReachabilityProbe } from "../contract/runtime.ts";
-import type { ResolveArgs, ResolverContext } from "./resolve-task.ts";
+import type { ResolveArgs, ResolverContext } from "../contract/task-resolution.ts";
 import { NoConnectionError, resolveTask } from "./resolve-task.ts";
 
 /** What the endpoint probe can say about a row's server — the axis, homed ONCE (§7.5). */

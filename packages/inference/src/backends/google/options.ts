@@ -3,7 +3,7 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import type { GoogleChatRequest, Resolved, ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy } from "#funnel";
-import type { StructuredAsk } from "#structured";
+import type { StructuredAsk } from "../../contract/structured.ts";
 import { cachePolicyContextOf } from "../http/response-cache.ts";
 import { standardSampling } from "../v4/options.ts";
 import { GOOGLE_KEY } from "./model.ts";

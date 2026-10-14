@@ -4,9 +4,9 @@
 
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV4 } from "@ai-sdk/provider";
-import type { ChatId } from "@orb/kit/ids";
-import type { Resolved, WireCaptureSink } from "#contract";
+import type { Resolved } from "#contract";
 import { ProviderError } from "#contract";
+import type { AnthropicCall } from "../../contract/anthropic-backend.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { wrapFetch } from "../v4/fetch.ts";
 
@@ -15,26 +15,6 @@ const TRAILING_SLASH_RE = /\/$/u;
 
 /** The `providerOptions` key the anthropic converter reads. */
 export const ANTHROPIC_KEY = "anthropic";
-
-// @orb-waive no-inline-package-interface(AnthropicTransportDeps): baselined when the gate landed; burn-down item 952.
-export interface AnthropicTransportDeps {
-  readonly fetch: typeof fetch;
-  readonly captureWire?: WireCaptureSink | undefined;
-  /** Tap the reply bytes onto the capture entry too (§D2) — the process-tier opt-in, off by default. */
-  readonly captureWireReply?: boolean | undefined;
-}
-
-// @orb-waive no-inline-package-interface(AnthropicCall): baselined when the gate landed; burn-down item 952.
-export interface AnthropicCall {
-  readonly connection: Resolved;
-  readonly deps: AnthropicTransportDeps;
-  readonly label: string;
-  readonly api: string;
-  readonly chatId?: ChatId | undefined;
-  /** The planned `output_config.format` schema. The SDK re-sanitizes that schema on its own (it drops `minItems` and
-   *  `pattern`, which Anthropic takes, and turns `oneOf` into `anyOf`), so the planned one is put back after it. */
-  readonly plannedSchema?: Record<string, unknown> | undefined;
-}
 
 const OUTPUT_CONFIG_KEY = "output_config";
 
@@ -90,3 +70,5 @@ export function anthropicModelFor(call: AnthropicCall): LanguageModelV4 {
   });
   return provider.chat(connection.model);
 }
+
+export type { AnthropicCall, AnthropicTransportDeps } from "../../contract/anthropic-backend.ts";

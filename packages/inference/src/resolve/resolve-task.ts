@@ -15,25 +15,12 @@
 //   7. the requirement verdict and `canFund` — VERDICTS on the result, never throws.
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
-import type { Principal } from "@orb/contracts/identity";
-import type {
-  AgentSdkModel,
-  Capability,
-  EndpointFeatures,
-  ModelCatalogEntry,
-  ModelInfoApi,
-  ModelKind,
-  ProviderDef,
-  RequirementVerdict,
-  Task,
-  UserConnection,
-} from "@orb/contracts/inference";
+import type { Capability, EndpointFeatures, ModelInfoApi, ModelKind, ProviderDef, RequirementVerdict, Task, UserConnection } from "@orb/contracts/inference";
 import { canFund, connectionTasks, effectivePromptCache, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { googleModelId } from "../backends/google/model.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
-import type { ServedWindow } from "../capability/floor.ts";
 import { applyEndpointPosture, applyServerToolChoice, clampToServedWindow, clampToTrainedWindow, markSettableWindow } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
@@ -41,51 +28,19 @@ import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability
 import { advertisedFromOpenRouter } from "../capability/sources/advertised/openrouter.ts";
 import { curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
 import { measuredRows } from "../capability/sources/measured/loader.ts";
-import type { Evidence } from "../capability/synthesize.ts";
 import { synthesizeCapability } from "../capability/synthesize.ts";
 import { sameModelId } from "../catalog/endpoint.ts";
-import type { Mirror } from "../catalog/mirror.ts";
+import type { Evidence, ServedWindow } from "../contract/capability.ts";
+import type { Mirror } from "../contract/catalog.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
-import type { DetectedServer, EndpointModel, SpawnIdentity } from "../contract/runtime.ts";
-import type { BindingActor, InferenceDeps } from "../deps.ts";
-import type { ProviderRegistry } from "../registry/providers.ts";
+import type { EndpointModel } from "../contract/runtime.ts";
+import type { ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";
 import { behaveAs, behavedFeatures, detectionUrl } from "./behave-as.ts";
 import { resolveApi } from "./coherence.ts";
 import { normalizeModelId } from "./heal.ts";
 import { foldBindings } from "./precedence.ts";
-
-// @orb-waive no-inline-package-interface(ResolveArgs): baselined when the gate landed; burn-down item 952.
-export interface ResolveArgs {
-  readonly task: Task;
-  readonly principal: Principal;
-  readonly actor?: BindingActor | undefined;
-  /** An explicit row instead of the fold — the turn's own already-resolved connection re-read, a pane preview. */
-  readonly connectionId?: UserConnection["id"] | undefined;
-  /** Read only the server facts already held, in memory or in the persisted snapshot, and dial nothing. For a read-only
-   *  question asked before the user commits (the change preview): a host that does not answer must not hold it. A fact
-   *  never persisted degrades to the stated and curated facts. */
-  readonly cachedFacts?: boolean | undefined;
-}
-
-// @orb-waive no-inline-package-interface(ResolverContext): baselined when the gate landed; burn-down item 952.
-/** Everything the resolver reads that is not a dep: the registry + the catalog mirrors + the warms. */
-export interface ResolverContext {
-  readonly deps: InferenceDeps;
-  readonly registry: ProviderRegistry;
-  readonly openRouterCatalog: Mirror<ModelCatalogEntry[]>;
-  /** The endpoint mirror for one (URL × reader) — a reader's facts never leak into another reader's rows. */
-  readonly endpointModels: (baseUrl: string, modelInfoApi: ModelInfoApi | undefined, tenant: string | null) => Mirror<EndpointModel[]>;
-  readonly agentSdkCatalog: Mirror<AgentSdkModel[]>;
-  readonly warmOpenRouter: () => Promise<void>;
-  readonly warmEndpoint: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
-  readonly warmAgentSdk: (identity: SpawnIdentity) => Promise<void>;
-  /** The per-URL answer of a detecting row's server probe (`catalog:endpoint:<url>#detect`). */
-  readonly detectedServer: (baseUrl: string) => Mirror<DetectedServer>;
-  /** Warm the detect answer; `false` when the server could not be reached to ask. */
-  readonly warmDetect: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<boolean>;
-}
 
 export class NoConnectionError extends ProviderError {
   constructor(message: string) {
@@ -251,12 +206,6 @@ async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: 
     return;
   }
   await ctx.warmEndpoint(connection, provider, credential.secret);
-}
-
-// @orb-waive no-inline-package-interface(ResolveOutcome): baselined when the gate landed; burn-down item 952.
-export interface ResolveOutcome {
-  readonly resolved: Resolved;
-  readonly warnings: readonly ResolvedWarning[];
 }
 
 async function connectionFor(ctx: ResolverContext, args: ResolveArgs): Promise<UserConnection> {
@@ -636,3 +585,5 @@ export function resolveTask(ctx: ResolverContext, args: ResolveArgs): Promise<Re
 export function resolveTaskWithBaseline(ctx: ResolverContext, args: ResolveArgs): Promise<CapabilityResolveOutcome> {
   return resolveTaskFold(ctx, args, true);
 }
+
+export type { ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";

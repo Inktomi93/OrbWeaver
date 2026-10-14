@@ -14,15 +14,15 @@ import type { ImageInput } from "@orb/contracts/role-clients";
 import { z } from "zod";
 import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult, ProviderScrubSet, ResolvedWarning } from "#contract";
 import { ProviderError } from "#contract";
+import type { ImagesDeps, ModelCall } from "../../contract/openai-backend.ts";
+import type { MeasuredCost } from "../../contract/v4.ts";
+import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
 import { responseCacheOf } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
-import type { MeasuredCost } from "../v4/result.ts";
 import { generationUsageOf, measuredCostOf, rawMeasuredOpenRouterCostOf } from "../v4/result.ts";
 import { generatedImageOf } from "../v4/stream.ts";
-import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import { toImageUrl } from "../wire/image-normalize.ts";
-import type { ModelCall, TransportDeps } from "./model.ts";
 import { imageModelFor, languageModelFor } from "./model.ts";
 
 const MAX_REFERENCE_IMAGES = 4;
@@ -123,12 +123,6 @@ function imageApiUsage(body: unknown, headers: Headers, openrouter: boolean, sec
     openrouter ? rawMeasuredOpenRouterCostOf(usage) : null,
     openrouter ? responseCacheOf(Object.fromEntries(headers.entries()), secrets) : undefined,
   );
-}
-
-// @orb-waive no-inline-package-interface(ImagesDeps): baselined when the gate landed; burn-down item 952.
-export interface ImagesDeps {
-  readonly transport: TransportDeps;
-  readonly normalize: NormalizeImageBytes;
 }
 
 function foldNegative(prompt: string, negativePrompt: string | undefined): string {
@@ -271,3 +265,5 @@ export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, de
     throw err instanceof ProviderError ? err : providerErrorFromHttp(err, label, resolvedScrubSet(connection));
   }
 }
+
+export type { ImagesDeps } from "../../contract/openai-backend.ts";

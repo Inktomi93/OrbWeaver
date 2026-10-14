@@ -15,7 +15,7 @@ import type {
   LocalLightWorkerValue,
 } from "#src/contract/local-light-worker.ts";
 import type { InferenceLog } from "#src/deps.ts";
-import type { LocalLightModelCache, ModelCacheConfig } from "./model-cache.ts";
+import type { LocalLightModelCache, ModelCacheConfig } from "../../contract/local-light.ts";
 import { toWorkerFailure } from "./worker-cache.ts";
 
 // While idle, the worker collects garbage this often: a finished model load keeps allocating for tens of seconds.

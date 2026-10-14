@@ -7,51 +7,17 @@
 // the prefetch is a latency optimisation whose failure path is automatic, so there is no user-actionable
 // state to render — an earlier draft promised a Connections-pane readout and that surface was struck.
 // ONE attempt per slot per boot; a failure is a WARN, never a crash — the lazy path is untouched.
-
-import type { RerankOnnx } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { formatBytes } from "@orb/kit/strings";
 import type { LocalLightLoadProgress, LocalLightModelSlot } from "#contract";
 import { LOCAL_LIGHT_MODEL_SLOTS } from "#contract";
-import type { InferenceLog } from "#src/deps.ts";
-import type { LocalLightModelCache } from "./model-cache.ts";
-
-const LOCAL_LIGHT_PREFETCH_STATUSES = ["queued", "downloading", "ready", "failed"] as const;
-type LocalLightPrefetchStatus = (typeof LOCAL_LIGHT_PREFETCH_STATUSES)[number];
-
-// @orb-waive no-inline-package-interface(LocalLightPrefetchRecord): baselined when the gate landed; burn-down item 952.
-export interface LocalLightPrefetchRecord {
-  readonly status: LocalLightPrefetchStatus;
-  readonly detail: string;
-  readonly updatedAt: number;
-}
-
-// @orb-waive no-inline-package-interface(LocalLightPrefetchTarget): baselined when the gate landed; burn-down item 952.
-export interface LocalLightPrefetchTarget {
-  readonly slot: LocalLightModelSlot;
-  readonly modelId: ModelId;
-  /** The reranker's capability `rerank.onnx`, so the warm-up loads the files the first request will. */
-  readonly onnx?: RerankOnnx | undefined;
-}
-
-// @orb-waive no-inline-package-interface(LocalLightPrefetchHandle): baselined when the gate landed; burn-down item 952.
-export interface LocalLightPrefetchHandle {
-  /** Schedule the walk (detached — boot never awaits it). Returns the drain: stops BEFORE the next slot. */
-  readonly start: (targets: readonly LocalLightPrefetchTarget[]) => () => void;
-  /** Re-attempt ONE slot; a slot already in flight joins it. Resolves with the record's detail line. */
-  readonly retry: (slot: LocalLightModelSlot) => Promise<string>;
-  readonly status: () => Readonly<Record<LocalLightModelSlot, LocalLightPrefetchRecord | undefined>>;
-  /** The download-progress sink the model cache is built with — routes a tick to the slot that registered the repo id. */
-  readonly onProgress: (progress: LocalLightLoadProgress) => void;
-}
-
-// @orb-waive no-inline-package-interface(LocalLightPrefetchDeps): baselined when the gate landed; burn-down item 952.
-export interface LocalLightPrefetchDeps {
-  readonly cache: () => Pick<LocalLightModelCache, "preload">;
-  readonly now: () => number;
-  readonly log: InferenceLog;
-  readonly detach: (name: string, fn: () => Promise<void>) => void;
-}
+import type {
+  LocalLightPrefetchDeps,
+  LocalLightPrefetchHandle,
+  LocalLightPrefetchRecord,
+  LocalLightPrefetchStatus,
+  LocalLightPrefetchTarget,
+} from "../../contract/local-light.ts";
 
 const PERCENT = 100;
 
@@ -143,3 +109,5 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
     },
   };
 }
+
+export type { LocalLightPrefetchDeps, LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "../../contract/local-light.ts";

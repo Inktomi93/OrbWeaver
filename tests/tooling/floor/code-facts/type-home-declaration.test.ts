@@ -109,11 +109,9 @@ export type ComponentApi = { readonly children: string };
     [
       ["no-inline-types", "Direct"],
       ["no-inline-types", "Local"],
-      ["no-inline-types", "Alias"],
       ["no-inline-types", "ComponentApi"],
       ["no-inline-domain-interface", "Default"],
       ["no-inline-package-interface", "Infra"],
-      ["no-inline-package-interface", "Backend"],
       ["no-inline-wire-interface", "HandView"],
       ["no-inline-wire-interface", "DataRow"],
     ].toSorted((left, right) => left.join(":").localeCompare(right.join(":"))),

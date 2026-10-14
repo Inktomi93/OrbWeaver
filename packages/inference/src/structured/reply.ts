@@ -6,8 +6,8 @@
 
 import { ARRAY_ITEMS_SEGMENT, MAP_VALUES_SEGMENT } from "@orb/contracts/inference";
 import type { ChatResult } from "../contract/chat.ts";
+import type { PlannedResponseFormat, StructuredPlan } from "../contract/structured.ts";
 import { extractJsonObject } from "../roles/structured-turn.ts";
-import type { PlannedResponseFormat, StructuredPlan } from "./plan.ts";
 
 type Segment = { readonly kind: "name"; readonly name: string } | { readonly kind: "items" } | { readonly kind: "values" };
 

@@ -2,7 +2,7 @@
 // counts or rates remain unknown, and a provider-reported charge wins over configured estimates.
 
 import type { CostUsage, TokenPricing } from "@orb/contracts/inference";
-import type { MeasuredCost } from "../v4/result.ts";
+import type { MeasuredCost } from "../../contract/v4.ts";
 
 const TOKENS_PER_MTOK = 1_000_000;
 

@@ -11,23 +11,14 @@ import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/co
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { fetchEndpointModels, fetchOpenRouterCatalog } from "#catalog";
-import type {
-  AccountCreditsRequest,
-  GenerationCostRequest,
-  InspectRequest,
-  ListModelsRequest,
-  ProbeRequest,
-  ProviderScrubSet,
-  Resolved,
-  ScheduleTimeout,
-} from "#contract";
+import type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, ProviderScrubSet, Resolved } from "#contract";
 import { ProviderError } from "#contract";
+import type { DiagnosticsDeps, InspectDeps } from "../../contract/openai-backend.ts";
 import { authHeaders, fetchJson, openAiPath } from "../http/fetch-json.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
 import { redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
-import type { TransportDeps } from "./model.ts";
 import { languageModelFor } from "./model.ts";
 
 const HTTP_UNAUTHORIZED = 401;
@@ -39,13 +30,6 @@ const INSPECT_LABEL = "endpoint inspector";
 const INSPECT_API = "chat-completions";
 const CREDITS_PATH = "/credits";
 const GENERATION_PATH = "/generation";
-
-// @orb-waive no-inline-package-interface(DiagnosticsDeps): baselined when the gate landed; burn-down item 952.
-export interface DiagnosticsDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly fetch: typeof fetch;
-  readonly now: () => number;
-}
 
 const creditsSchema = z.object({ data: z.object({ total_credits: z.number(), total_usage: z.number() }).loose() }).loose();
 const generationSchema = z
@@ -197,14 +181,6 @@ function inspectionRequest(url: string, headers: Record<string, string>, body: u
   };
 }
 
-// @orb-waive no-inline-package-interface(InspectDeps): baselined when the gate landed; burn-down item 952.
-/** What the inspector's call needs beyond the diagnostics deps: the app identity the model factory sends. */
-export interface InspectDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly fetch: typeof fetch;
-  readonly app: TransportDeps["app"];
-}
-
 /** The one send the model factory made, as the server received it, and its reply as the server sent it. */
 interface Observed {
   request?: { readonly url: string; readonly headers: Record<string, string>; readonly body: unknown };
@@ -296,3 +272,5 @@ async function inspectionOf(observed: Observed, secrets: ProviderScrubSet, failu
     },
   };
 }
+
+export type { DiagnosticsDeps, InspectDeps } from "../../contract/openai-backend.ts";

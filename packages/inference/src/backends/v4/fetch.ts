@@ -36,11 +36,9 @@
 //     through by reference otherwise.
 // The openrouter transport ALSO routes its body shaping through here (`shapeBody`), because the OR provider
 // exposes no post-convert hook: the request body is parsed ONCE, shaped, captured, re-serialised.
-
-import type { ProviderId, Wire } from "@orb/contracts/inference";
-import type { ChatId } from "@orb/kit/ids";
-import type { ProviderScrubSet, ResponseMap, WireCaptureSink } from "#contract";
+import type { ProviderScrubSet, ResponseMap } from "#contract";
 import { ProviderError } from "#contract";
+import type { WrapFetchArgs } from "../../contract/v4.ts";
 import { encodeSseData, parseOpenAiSse, SSE_DONE_LINE } from "../http/sse.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 
@@ -51,37 +49,6 @@ const JSON_CONTENT_TYPE = "application/json";
 const EVENT_STREAM = "text/event-stream";
 const CONTENT_TYPE = "content-type";
 const REASONING_CONTENT_KEY = "reasoning_content";
-
-// @orb-waive no-inline-package-interface(WrapFetchArgs): baselined when the gate landed; burn-down item 952.
-/** The per-call context the wrapper closes over. Built PER CALL (a transport instance is cheap), so the
- *  capture and the shaping see this turn's connection, model and chat id. */
-export interface WrapFetchArgs {
-  readonly fetch: typeof fetch;
-  readonly secrets: ProviderScrubSet;
-  readonly label: string;
-  readonly responseMap: ResponseMap | undefined;
-  readonly reasoningKeys: readonly string[] | undefined;
-  /** The openrouter transport's body shaper, and a native chat route's translation (`ollama-native.ts`); the
-   *  openai-compatible transport shapes in `transformRequestBody`. */
-  readonly shapeBody?: ((body: Record<string, unknown>) => Record<string, unknown>) | undefined;
-  /** A native chat route's reply as the SDK reads it (`ollama-native.ts`), applied AFTER the reply tap so the
-   *  capture holds the bytes the server sent, on a success and a failure alike. */
-  readonly translateResponse?: ((res: Response) => Promise<Response>) | undefined;
-  readonly capture?:
-    | {
-        readonly sink: WireCaptureSink;
-        readonly chatId: ChatId | undefined;
-        readonly api: string;
-        readonly wire: Wire;
-        readonly providerId: ProviderId;
-        readonly model: string;
-        /** Tap the RESPONSE BODY too (§D2/§D3). Off by default and independently gated: the request capture
-         *  is the operator's prompt, while the reply is the model's prose, which the recorder's outcome arm
-         *  deliberately never keeps. A caller that does not ask gets today's request-and-headers entry. */
-        readonly reply: boolean;
-      }
-    | undefined;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -485,3 +452,5 @@ export function wrapFetch(args: WrapFetchArgs): typeof fetch {
     return needsReshape(args) ? await reshapedResponse(reply, args) : reply;
   };
 }
+
+export type { WrapFetchArgs } from "../../contract/v4.ts";

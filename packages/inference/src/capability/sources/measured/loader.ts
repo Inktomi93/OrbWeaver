@@ -8,7 +8,7 @@
 // `local-servers.ts` = measured on a local server (vLLM, llama.cpp, …).
 
 import type { CapabilityOverride } from "@orb/contracts/inference";
-import type { CompiledRow, RowQuery } from "../rows.ts";
+import type { CompiledRow, RowQuery } from "../../../contract/capability.ts";
 import { compileRows, matchingRows } from "../rows.ts";
 import { measuredAnthropicRows } from "./anthropic.ts";
 import { measuredLocalServerRows } from "./local-servers.ts";

@@ -11,6 +11,7 @@
 // composes it with the idle timer; it does not re-implement it.
 
 import type { ScheduleTimeout } from "#contract";
+import type { IdleAbort } from "../../contract/http.ts";
 import { foldAbortInto } from "./abort-flatten.ts";
 import { realScheduleTimeout } from "./timers.ts";
 
@@ -40,17 +41,6 @@ export function isIdleTrip(error: unknown): boolean {
     current = current.cause;
   }
   return false;
-}
-
-// @orb-waive no-inline-package-interface(IdleAbort): baselined when the gate landed; burn-down item 952.
-/** The composed idle-abort handle a runner threads through its stream loop. */
-export interface IdleAbort {
-  /** The composed signal — fires on either the caller's cancel or an idle stall. Pass to `fetch`. */
-  readonly signal: AbortSignal;
-  /** Call on each received chunk/delta to restart the idle window. */
-  readonly reset: () => void;
-  /** Call once the turn settles to clear the timer (no dangling timer on a settled turn). */
-  readonly dispose: () => void;
 }
 
 /**
@@ -96,3 +86,5 @@ export function turnAbortSignal(external?: AbortSignal, idleMs: number = IDLE_TI
 
   return { signal: controller.signal, reset, dispose };
 }
+
+export type { IdleAbort } from "../../contract/http.ts";

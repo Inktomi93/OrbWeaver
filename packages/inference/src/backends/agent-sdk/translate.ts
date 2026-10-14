@@ -10,9 +10,7 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatPosture, ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "#contract";
 import { resolveChat } from "#funnel";
-import type { ClaudeRuntimeOverrides } from "./env.ts";
-import type { AgentSdkLog } from "./log.ts";
-import type { DisciplineOptions } from "./types.ts";
+import type { AgentSdkLog, ClaudeRuntimeOverrides, DisciplineOptions } from "../../contract/agent-sdk-backend.ts";
 
 // tools:[] alone does NOT remove the cowork bundle (leaks in regardless of env/settingSources); disallowedTools does.
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"] as const;

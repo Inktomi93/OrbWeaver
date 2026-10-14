@@ -6,25 +6,13 @@
 import type { SharedV4ProviderMetadata, SharedV4Warning } from "@ai-sdk/provider";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type {
-  ChatUsage,
-  CostDetails,
-  EndpointFeatures,
-  GenerationCapability,
-  GenerationUsage,
-  NestedUsage,
-  ResponseCache,
-  TokenDetails,
-  TokenUsage,
-} from "@orb/contracts/inference";
+import type { ChatUsage, GenerationUsage, NestedUsage } from "@orb/contracts/inference";
 import { foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
-import type { EffortLevel } from "@orb/contracts/preset";
-import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ChatEvent, ChatResult, RateLimitSnapshot, ResolvedSampling, ResolvedWarning } from "#contract";
+import type { ChatEvent, ChatResult, ResolvedSampling, ResolvedWarning } from "#contract";
 import { normalizeFinishReason } from "#contract";
+import type { MeasuredCost, ResultContext, StreamDrain } from "../../contract/v4.ts";
 import { variantProviderMetadataOf } from "../wire/provider-metadata.ts";
-import type { StreamDrain } from "./stream.ts";
 
 const TOKENS_PER_MTOK = 1_000_000;
 const OPENROUTER_KEY = "openrouter";
@@ -49,13 +37,6 @@ const openRouterRawUsageSchema = z.object({
     .catch(null),
   is_byok: z.boolean().nullish().catch(null),
 });
-
-// @orb-waive no-inline-package-interface(MeasuredCost): baselined when the gate landed; burn-down item 952.
-/** A wire-reported cost WITH its breakdown — what `costProvenance: "measured"` records. */
-export interface MeasuredCost {
-  readonly costUsd: number;
-  readonly costDetails: CostDetails;
-}
 
 function measuredCostWithDetails(args: {
   readonly cost: number;
@@ -215,32 +196,6 @@ export function appliedSampling(sampling: ResolvedSampling, warnings: readonly R
   return Object.fromEntries(Object.entries(sampling).filter(([knob]) => !dropped.has(knob)));
 }
 
-// @orb-waive no-inline-package-interface(ResultContext): baselined when the gate landed; burn-down item 952.
-export interface ResultContext {
-  readonly responseCache?: ResponseCache | undefined;
-  readonly model: ModelId;
-  readonly providerId: string;
-  readonly generation: GenerationCapability;
-  readonly maxOutputTokens: number | undefined;
-  readonly startedAt: number;
-  readonly firstDeltaAt: number | undefined;
-  readonly now: number;
-  /** The wire-reported cost + breakdown, when the transport read one (OpenRouter's usage accounting). */
-  readonly measuredCost: MeasuredCost | null;
-  /** The row's shipped pricing — the `estimated` arm when nothing was measured. */
-  readonly pricing: EndpointFeatures["pricing"];
-  readonly generationId: string | null;
-  /** What the wire carried for effort (`ChatResult.appliedEffort`) — read off the built options by the transport. */
-  readonly appliedEffort: EffortLevel | null;
-  /** The response's rate-limit headers, parsed by the transport (`backends/http/rate-limit-headers.ts`). */
-  readonly rateLimit: RateLimitSnapshot | null;
-  readonly warnings: readonly ResolvedWarning[];
-  /** Boundary-normalized facts where the SDK loses reportedness (native GenerateContent). */
-  readonly tokenUsage?: TokenUsage;
-  readonly servedModel?: string | null;
-  readonly tokenDetails?: TokenDetails | null;
-}
-
 function costOf(
   core: Omit<ChatUsage, "costUsd" | "costDetails" | "costProvenance">,
   ctx: ResultContext,
@@ -326,3 +281,5 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
     rateLimit: ctx.rateLimit,
   };
 }
+
+export type { MeasuredCost, ResultContext } from "../../contract/v4.ts";

@@ -7,7 +7,7 @@
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { AnthImageBlock, AnthImageMediaType } from "#contract";
 import { ANTH_IMAGE_MEDIA_TYPES, ProviderError } from "#contract";
-import type { NormalizeImageBytes } from "./image-normalize.ts";
+import type { NormalizeImageBytes } from "../../contract/wire.ts";
 
 const BASE64 = "base64";
 // data:<mime>;base64,<payload> — the only data-URL form our image seam ever emits.

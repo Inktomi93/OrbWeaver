@@ -2,6 +2,7 @@ import type { EmbeddingCapability } from "@orb/contracts/inference";
 import { l2Normalize } from "@orb/kit/vector-math";
 import type { EmbedRequest } from "#contract";
 import { ProviderError } from "#contract";
+import type { VectorFit } from "../../contract/wire.ts";
 
 /** Cookbook instructions (Qwen3-VL-Embedding, asymmetric retrieval). */
 export const DOC_INSTRUCTION = "Represent the user's input.";
@@ -10,13 +11,6 @@ export const QUERY_INSTRUCTION = "Retrieve images or text relevant to the user's
 /** The ChatML conversation Qwen3-VL-Embedding was trained on. */
 function toChatMlPrompt(text: string, instruction: string): string {
   return `<|im_start|>system\n${instruction}<|im_end|>\n<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
-}
-
-// @orb-waive no-inline-package-interface(VectorFit): baselined when the gate landed; burn-down item 952.
-/** The width a returned vector must have, and whether the model's vectors may be cut down to it. */
-export interface VectorFit {
-  readonly dims: number;
-  readonly mrl: boolean;
 }
 
 /** Fit a returned vector to the space width: only an MRL model's longer vector is cut (its prefix is a valid
@@ -45,3 +39,5 @@ export function embeddingPrompt(text: string, req: EmbedRequest, capability: Emb
   }
   return capability.instructionAware && req.instruction !== undefined ? `${req.instruction} ${text}` : text;
 }
+
+export type { VectorFit } from "../../contract/wire.ts";

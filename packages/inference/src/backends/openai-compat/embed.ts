@@ -21,7 +21,8 @@ import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/to
 import { z } from "zod";
 import type { EmbedRequest, Resolved, ScheduleTimeout } from "#contract";
 import { embedRequestTimeoutMs, ProviderError } from "#contract";
-import type { InferenceLog } from "#src/deps.ts";
+import type { EmbedDeps, ModelCall } from "../../contract/openai-backend.ts";
+import type { VectorFit } from "../../contract/wire.ts";
 import { deadlineSignal } from "../http/abort-flatten.ts";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
 import { providerLogger } from "../http/provider-log.ts";
@@ -29,9 +30,7 @@ import { responseCacheOf } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { measuredCostOf } from "../v4/result.ts";
 import { embeddingCostOf } from "../wire/embedding-cost.ts";
-import type { VectorFit } from "../wire/embedding-input.ts";
 import { embeddingPrompt, fitToDim } from "../wire/embedding-input.ts";
-import type { ModelCall, TransportDeps } from "./model.ts";
 import { embeddingModelFor } from "./model.ts";
 
 const DIMENSIONS_REJECTED_RE = /dimensions/iu;
@@ -43,13 +42,6 @@ const embeddingResponseSchema = z.object({
   model: z.string().min(1).nullish().catch(null),
   usage: z.looseObject({ prompt_tokens: reportedCount, total_tokens: reportedCount }).nullish().catch(null),
 });
-
-// @orb-waive no-inline-package-interface(EmbedDeps): baselined when the gate landed; burn-down item 952.
-export interface EmbedDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly log: InferenceLog;
-  readonly transport: TransportDeps;
-}
 
 interface KeptInput {
   readonly index: number;
@@ -278,3 +270,5 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     },
   };
 }
+
+export type { EmbedDeps } from "../../contract/openai-backend.ts";

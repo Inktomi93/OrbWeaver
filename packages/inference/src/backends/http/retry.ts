@@ -19,6 +19,7 @@
  *  `addSpanEvent` in through the backend deps, and a test that passes none gets a silent no-op. */
 import type { AddSpanEvent, ScheduleTimeout } from "#contract";
 import { ProviderError } from "#contract";
+import type { RetryOptions } from "../../contract/http.ts";
 import { realScheduleTimeout } from "./timers.ts";
 
 const NO_SPAN_EVENT: AddSpanEvent = () => undefined;
@@ -30,26 +31,6 @@ const RESETS_AT_NEAR_MS = 30_000; // honor a rate-limit `resetsAt` only when it'
 const BACKOFF_FACTOR = 2; // exponential base
 const JITTER_SPREAD = 0.4; // ±20% jitter band
 const JITTER_CENTER = 0.5; // RNG midpoint (random() in [0,1) → jitter in [0.8, 1.2))
-
-// @orb-waive no-inline-package-interface(RetryOptions): baselined when the gate landed; burn-down item 952.
-/** Tuning + injected seams for the retry policy. */
-export interface RetryOptions {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  /** Total tries including the first. */
-  readonly maxAttempts?: number;
-  /** First backoff sleep (ms). */
-  readonly baseMs?: number;
-  /** Cap on any single backoff sleep (ms). */
-  readonly maxMs?: number;
-  /** Caller-cancel that interrupts the backoff sleep (so Stop during a rate-limit wait is prompt). */
-  readonly signal?: AbortSignal;
-  /** Injected jitter RNG in `[0, 1)` (default `Math.random`) — deterministic in tests. */
-  readonly random?: () => number;
-  /** The request span's event sink (`provider.retry` / `provider.retry.abandoned`); absent ⇒ no-op. */
-  readonly addSpanEvent?: AddSpanEvent;
-  /** Injected clock (epoch-ms) for the `resetsAt`-proximity shortcut. Omit to skip it (pure backoff). */
-  readonly now?: () => number;
-}
 
 /**
  * Choose the sleep (ms) before the upcoming retry. When a near (`<= 30s`) rate-limit `resetsAt` is known
@@ -148,3 +129,5 @@ export async function runWithPreCommitRetry<T>(
   // Unreachable for maxAttempts >= 1 (the final attempt returns or throws); satisfies the return type.
   throw lastError;
 }
+
+export type { RetryOptions } from "../../contract/http.ts";

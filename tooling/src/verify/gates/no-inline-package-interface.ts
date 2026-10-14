@@ -60,9 +60,9 @@ export const gate = defineGate({
     },
     {
       mode: "source",
-      files: { "packages/inference/src/backends/probe.ts": "export interface Probe {\n  readonly a: string;\n}\n" },
+      files: { "packages/inference/src/backends/probe.ts": "interface Probe {\n  readonly a: string;\n}\nexport { Probe };\n" },
       expect: { count: 1, token: "Probe" },
-      why: "an inference implementation module is not a type home; package-owned exported shapes live in src/contract/",
+      why: "an inference local export list retains the semantic placement owner; native syntax owns direct exports only",
     },
   ],
   mustPass: [

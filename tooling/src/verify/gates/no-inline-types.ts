@@ -121,9 +121,9 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
-      files: { "packages/inference/src/backends/probe.ts": "export type ProbeResult = string;\n" },
+      files: { "packages/inference/src/backends/probe.ts": "type ProbeResult = string;\nexport type { ProbeResult };\n" },
       expect: { count: 1, token: "ProbeResult" },
-      why: "an inference implementation module is not a type home; package-owned exported shapes live in src/contract/",
+      why: "an inference local export list retains the semantic placement owner; native syntax owns direct exports only",
     },
     {
       mode: "types",
@@ -205,7 +205,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/inference/src/index.ts": "export const inference = true;\n",
-        "packages/inference/src/contract/probe.ts": "export type ProbeResult = string;\n",
+        "packages/inference/src/contract/probe.ts": "type ProbeResult = string;\nexport type { ProbeResult };\n",
       },
       why: "packages/inference/src/contract is the package-level type home",
     },

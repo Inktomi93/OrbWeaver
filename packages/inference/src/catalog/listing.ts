@@ -11,33 +11,17 @@
 // scrubbed reason, never an empty list.
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
-import type { AgentSdkModel, ModelCatalogEntry, ModelListing, ProviderDef } from "@orb/contracts/inference";
+import type { ModelCatalogEntry, ModelListing, ProviderDef } from "@orb/contracts/inference";
 import { agentSdkCatalogEntry } from "../backends/agent-sdk/index.ts";
 import { listAnthropicModels } from "../backends/anthropic-messages/index.ts";
 import { resolvedScrubSet } from "../backends/http/sanitize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../backends/wire/model-listing.ts";
 import { curatedIdsFor, curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
-import type { ProviderDiagnostics } from "../contract/diagnostics.ts";
+import type { CatalogListingDeps } from "../contract/catalog.ts";
 import { assertNever, ProviderError } from "../contract/errors.ts";
-import type { CatalogDraft, MirrorWarm, SpawnIdentity } from "../contract/runtime.ts";
-import type { InferenceDeps } from "../deps.ts";
-import type { ProviderRegistry } from "../registry/providers.ts";
+import type { CatalogDraft } from "../contract/runtime.ts";
 import { fetchEndpointModels } from "./endpoint.ts";
 import { listGoogleModels } from "./google.ts";
-
-// @orb-waive no-inline-package-interface(CatalogListingDeps): baselined when the gate landed; burn-down item 952.
-export interface CatalogListingDeps {
-  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
-  readonly registry: ProviderRegistry;
-  readonly resolveCredential: InferenceDeps["resolveCredential"];
-  readonly fetch: typeof fetch;
-  /** Where a failed native model-info read is reported; it never fails the list. */
-  readonly warn: (fields: Readonly<Record<string, unknown>>, message: string) => void;
-  readonly warmOpenRouter: () => Promise<MirrorWarm<ModelCatalogEntry[]>>;
-  /** The daemon catalog through its mirror, under one user's identity; absent when the wire is not built. */
-  readonly warmAgentSdk: ((identity: SpawnIdentity) => Promise<MirrorWarm<AgentSdkModel[]>>) | undefined;
-  readonly listModels: ProviderDiagnostics["listModels"];
-}
 
 /** A provider's curated rows: the whole of what the in-process runtime can run for it, named and described as
  *  the rows present them. */
@@ -164,3 +148,5 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
     }
   };
 }
+
+export type { CatalogListingDeps } from "../contract/catalog.ts";

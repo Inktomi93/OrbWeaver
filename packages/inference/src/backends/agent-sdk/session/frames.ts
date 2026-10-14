@@ -7,15 +7,9 @@ import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
-import type { AgentSdkSessionId, AgentSdkSessionTotals, AgentSeedBlock, AgentSeedTurn } from "#contract";
+import type { AgentSdkSessionId, AgentSdkSessionTotals, AgentSeedBlock } from "#contract";
 import { AGENT_PROMPT_TAIL_JOINER, agentSdkSessionIdSchema } from "#contract";
-
-// @orb-waive no-inline-package-interface(SeedTurn): baselined when the gate landed; burn-down item 952.
-/** The contract's seed turn plus the assistant model this frame should claim — EXTENDED, never re-spelled, so
- *  the two cannot drift into different content vocabularies. */
-export interface SeedTurn extends AgentSeedTurn {
-  readonly model?: string | null;
-}
+import type { SeedTurn } from "../../../contract/agent-sdk-backend.ts";
 
 // Session-only stub, never persisted to canon: a greeting has no preceding user turn, but a session must
 // start user-first to resume cleanly.
@@ -368,3 +362,5 @@ export function savedSessionTotals(entries: readonly SessionStoreEntry[], sessio
   }
   return totals;
 }
+
+export type { SeedTurn } from "../../../contract/agent-sdk-backend.ts";

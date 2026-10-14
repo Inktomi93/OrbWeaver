@@ -4,14 +4,8 @@
 
 import type { EndpointFeatures, ProviderDef, UserConnection } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, foldFeatures } from "@orb/contracts/inference";
-import type { Mirror } from "../catalog/mirror.ts";
 import type { DetectedServer } from "../contract/runtime.ts";
-
-// @orb-waive no-inline-package-interface(DetectCache): baselined when the gate landed; burn-down item 952.
-/** The slice of the resolver context detection reads: the per-URL detect cache. */
-export interface DetectCache {
-  readonly detectedServer: (baseUrl: string) => Mirror<DetectedServer>;
-}
+import type { DetectCache } from "../contract/task-resolution.ts";
 
 /** The built-in endpoint row a detected server names. */
 function detectedRow(server: NonNullable<DetectedServer["server"]>): ProviderDef | undefined {
@@ -41,3 +35,5 @@ export function behaveAs(ctx: DetectCache, provider: ProviderDef, connection: Us
 export function behavedFeatures(registered: ProviderDef, behaved: ProviderDef, connection: UserConnection): EndpointFeatures {
   return foldFeatures(registered.features, behaved === registered ? undefined : behaved.features, connection.declared?.features);
 }
+
+export type { DetectCache } from "../contract/task-resolution.ts";

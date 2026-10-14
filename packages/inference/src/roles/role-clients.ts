@@ -13,9 +13,9 @@ import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
 import type { RoleClientsFor } from "../contract/runtime.ts";
+import type { ResolverContext } from "../contract/task-resolution.ts";
 import type { BindingActor } from "../deps.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
-import type { ResolverContext } from "../resolve/resolve-task.ts";
 import { NoConnectionError, resolveTask } from "../resolve/resolve-task.ts";
 
 /** The tasks the bundle serves — the derive roles; chat/agent/generateImage reach the executor directly. */
