@@ -8,9 +8,11 @@ import { unwrapTarget } from "./reference-fact-alias.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
 import type { SchemaModel } from "./schema-model-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
+import { terminalCall } from "./schema-value.ts";
 import { resolved, unresolved } from "./type-member-origin-core.ts";
 
 const SCHEMA_PACKAGE = "@orb/db";
+const SELECT_VERBS: ReadonlySet<string> = new Set(["select", "selectDistinct"]);
 
 /** The select that actually underlies this expression, with its authored projection and row source. */
 export function readDrizzleSelection(node: Node): DrizzleSelection | undefined {
@@ -28,8 +30,13 @@ export function readDrizzleSelection(node: Node): DrizzleSelection | undefined {
     if (member.name === "from") {
       source = current.getArguments()[0];
     }
-    if (member.name === "select") {
-      selection = { root: current, source, projection: current.getArguments()[0], output, calls };
+    if (SELECT_VERBS.has(member.name)) {
+      const head = terminalCall(member.receiver);
+      if (head.kind === "resolved" && staticMemberAccess(head.value.getExpression())?.name === "with") {
+        calls.push(head.value);
+      }
+      const sqlOperands = calls.flatMap((call) => (SELECT_VERBS.has(staticMemberAccess(call.getExpression())?.name ?? "") ? [] : call.getArguments()));
+      selection = { root: current, source, projection: current.getArguments()[0], output, calls, sqlOperands };
       break;
     }
     current = unwrapTarget(member.receiver);

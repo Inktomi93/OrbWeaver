@@ -17,3 +17,9 @@ export interface ExecutedSqlInsert {
   readonly columns: readonly string[];
   readonly node: Node;
 }
+
+/** The single lexical composition reader supplied to native constructors. */
+export type SqlFragmentsReader = (node: Node) => readonly (string | undefined)[] | undefined;
+
+/** Native projection origin requires the same complete select-containment judgment. */
+export type SqlSelectContainment = (node: Node) => boolean;

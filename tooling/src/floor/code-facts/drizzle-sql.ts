@@ -1,26 +1,30 @@
-// Raw SQL constructors and execution carriers are facts; column attribution and vocabulary remain consumer-owned.
-import { existsSync, realpathSync } from "node:fs";
-import { dirname, sep } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { SQL } from "drizzle-orm";
-import { and, eq, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notIlike, notInArray, notLike, or, sql } from "drizzle-orm";
-import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
+// Complete SQL lexical composition is separate from native origins and mutable-carrier use facts.
 import type { Node as MorphNode, SourceFile, TaggedTemplateExpression, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readCallBindings, readCallTarget, readFunctionReturnPaths } from "./call-returns.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { readPredicateArgument } from "./drizzle-predicate-argument.ts";
 import { innerReadAnchorsOf } from "./drizzle-query.ts";
+import { readDrizzleSelection } from "./drizzle-select.ts";
+import { readNativeSqlConstructor } from "./drizzle-sql-constructors.ts";
 import type { ExecutedSqlInsert, SqlTemplateCarrier } from "./drizzle-sql-contract.ts";
+import { nativeOperatorFragment, runtimeDrizzleOrigin } from "./drizzle-sql-native.ts";
+import { driverParameter, nativeArrayMap, nativeMappedCallback, nativeMappedInput, nativeTableFragment, sqlValue } from "./drizzle-sql-origin.ts";
+import { readNativeColumnFragments, readSelectedSqlSource } from "./drizzle-sql-projection.ts";
+import { CONTAINED_OPERATORS, sqlBindingStable } from "./drizzle-sql-stability.ts";
 import { readStatementOf } from "./drizzle-statement.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
-import { enclosingFn } from "./function-context.ts";
-import { inspectReferenceWrites, readMemberReference, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
+import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
+import { readSchemaObjectMembers } from "./schema-object.ts";
+import { terminalCall } from "./schema-value.ts";
 import { rawInsertHeaders } from "./sql-insert-header.ts";
 import { sqliteFragmentContained } from "./sqlite-lexical.ts";
-import { resolveTypeIdentityChain } from "./type-member-origin.ts";
-import { referencesOf } from "./value-carrier.ts";
+
+/** Const binds native SQL carriers, not frozen queryChunks. */
+export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<object> = new Set()): boolean {
+  return !(Node.isIdentifier(node) && sqlValue(node.getType())) || sqlBindingStable(node, active);
+}
 
 /** Template carrier provenance; consumers choose the accepted constructor exports and the SQL obligation. */
 export function readSqlTemplateCarrier(node: MorphNode): SqlTemplateCarrier | undefined {
@@ -150,148 +154,6 @@ export function sqlTemplateText(template: TaggedTemplateExpression): string {
   );
 }
 
-function driverParameter(type: Type): boolean {
-  if (type.isUnion()) {
-    return type.getUnionTypes().every(driverParameter);
-  }
-  if (type.isIntersection()) {
-    return type.getIntersectionTypes().some(driverParameter);
-  }
-  const element = type.getArrayElementType();
-  return element === undefined
-    ? type.isString() ||
-        type.isStringLiteral() ||
-        type.isTemplateLiteral() ||
-        type.isNumber() ||
-        type.isNumberLiteral() ||
-        type.isBoolean() ||
-        type.isBooleanLiteral() ||
-        type.isNull() ||
-        type.isUndefined() ||
-        type.isBigInt() ||
-        type.isBigIntLiteral()
-    : driverParameter(element);
-}
-
-function canonicalColumn(node: MorphNode): boolean {
-  const identity = resolveTypeIdentityChain(node);
-  return (
-    identity.kind === "resolved" &&
-    identity.value.some(
-      (origin) =>
-        (origin.name === "Column" || origin.name === "SQLiteColumn") &&
-        origin.declarations.length > 0 &&
-        origin.declarations.every((declaration) => declaration.getSourceFile().getFilePath().includes("/drizzle-orm/")),
-    )
-  );
-}
-
-function sqlValue(type: Type): boolean {
-  if (type.isUnion() || type.isIntersection()) {
-    return [...type.getUnionTypes(), ...type.getIntersectionTypes()].some(sqlValue);
-  }
-  const symbol = type.getSymbol();
-  const declarations = symbol?.getDeclarations() ?? [];
-  return (
-    (symbol?.getName() === "SQL" || symbol?.getName() === "Aliased") &&
-    declarations.length > 0 &&
-    declarations.every((declaration) => declaration.getSourceFile().getFilePath().includes("/drizzle-orm/"))
-  );
-}
-
-const CONTAINED_OPERATORS = [
-  "and",
-  "or",
-  "eq",
-  "ne",
-  "gt",
-  "gte",
-  "lt",
-  "lte",
-  "isNull",
-  "isNotNull",
-  "inArray",
-  "notInArray",
-  "like",
-  "notLike",
-  "ilike",
-  "notIlike",
-  "not",
-] as const;
-
-function identityObservation(node: MorphNode | undefined): boolean {
-  return (
-    Node.isBinaryExpression(node) && [SyntaxKind.EqualsEqualsEqualsToken, SyntaxKind.ExclamationEqualsEqualsToken].includes(node.getOperatorToken().getKind())
-  );
-}
-
-function sqlAliasUseStable(use: MorphNode, active: ReadonlySet<object>): boolean {
-  let value = use;
-  let parent = value.getParent();
-  while (
-    parent !== undefined &&
-    (Node.isParenthesizedExpression(parent) ||
-      Node.isNonNullExpression(parent) ||
-      Node.isAsExpression(parent) ||
-      Node.isSatisfiesExpression(parent) ||
-      (Node.isConditionalExpression(parent) && parent.getCondition() !== value))
-  ) {
-    value = parent;
-    parent = value.getParent();
-  }
-  if (Node.isVariableDeclaration(parent) && parent.getInitializer() === value && Node.isIdentifier(parent.getNameNode())) {
-    return sqlBindingStable(parent.getNameNode(), active);
-  }
-  if (identityObservation(parent)) {
-    return true;
-  }
-  if (Node.isTemplateSpan(parent) && parent.getExpression() === value) {
-    const tagged = parent.getParent().getParent();
-    return (
-      Node.isTaggedTemplateExpression(tagged) &&
-      drizzleExportOf(tagged.getTag()) === "sql" &&
-      runtimeDrizzleOrigin(tagged.getTag()) &&
-      sqlAliasUseStable(tagged, active)
-    );
-  }
-  if (!(Node.isCallExpression(parent) && parent.getArguments().includes(value))) {
-    return false;
-  }
-  if (CONTAINED_OPERATORS.some((name) => callsDrizzleOperator(parent, name))) {
-    return runtimeDrizzleOrigin(parent.getExpression()) && sqlAliasUseStable(parent, active);
-  }
-  const member = readCalledMember(parent);
-  return member.kind === "resolved" && member.value.declarations.length > 0 && declaredInDrizzle(member.value.declarations);
-}
-
-function sqlBindingStable(node: MorphNode, active: ReadonlySet<object>): boolean {
-  if (!Node.isIdentifier(node)) {
-    return false;
-  }
-  if (active.has(node.getSymbol()?.compilerSymbol ?? node.compilerNode)) {
-    return false;
-  }
-  const declaration = node.getSymbol()?.getValueDeclaration();
-  if (!Node.isVariableDeclaration(declaration)) {
-    return false;
-  }
-  const name = declaration.getNameNode();
-  if (!Node.isIdentifier(name) || inspectReferenceWrites(name).kind === "unresolved") {
-    return false;
-  }
-  const stable = resolveStableExpression(name);
-  if (stable.kind === "unresolved" && stable.reason !== "dynamic") {
-    return false;
-  }
-  const next = new Set(active).add(node.getSymbol()?.compilerSymbol ?? node.compilerNode);
-  return referencesOf(name, enclosingFn(name) ?? name.getSourceFile()).every((use) => sqlAliasUseStable(use, next));
-}
-
-/** Const binds an SQL object, not frozen queryChunks. Only native read-only composition uses preserve it. */
-export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<object> = new Set()): boolean {
-  return !(Node.isIdentifier(node) && sqlValue(node.getType())) || sqlBindingStable(node, active);
-}
-
 function templateFragments(
   node: TaggedTemplateExpression,
   bindings: ReadonlyMap<MorphNode, MorphNode>,
@@ -326,69 +188,53 @@ function templateContained(node: TaggedTemplateExpression, bindings: ReadonlyMap
   return fragments !== undefined && fragments.every(sqliteFragmentContained);
 }
 
-const sqlDialect = new SQLiteSyncDialect();
-const runtimeDrizzleRoot = dirname(fileURLToPath(import.meta.resolve("drizzle-orm")));
-const BINARY_OPERATORS = { eq, ne, gt, gte, lt, lte, inArray, notInArray, like, notLike, ilike, notIlike } as const;
-const UNARY_OPERATORS = { isNull, isNotNull, not } as const;
-
-function runtimeDrizzleOrigin(node: MorphNode): boolean {
-  const declarations = node
-    .getType()
-    .getCallSignatures()
-    .map((signature) => signature.getDeclaration());
-  return (
-    declarations.length > 0 &&
-    declarations.every((declaration) => {
-      const path = declaration.getSourceFile().getFilePath();
-      return existsSync(path) && realpathSync(path).startsWith(runtimeDrizzleRoot + sep);
-    })
-  );
-}
-
-function fixedOperator(call: import("ts-morph").CallExpression, chunks: readonly SQL[]): SQL | undefined {
-  const first = chunks[0];
-  const second = chunks[1];
-  if (chunks.length === 2 && first !== undefined && second !== undefined) {
-    const name = (Object.keys(BINARY_OPERATORS) as (keyof typeof BINARY_OPERATORS)[]).find((key) => callsDrizzleOperator(call, key));
-    if (name === undefined) {
-      return;
-    }
-    const binary: (left: SQL, right: SQL) => SQL = BINARY_OPERATORS[name];
-    return binary(first, second);
-  }
-  const name = (Object.keys(UNARY_OPERATORS) as (keyof typeof UNARY_OPERATORS)[]).find((key) => callsDrizzleOperator(call, key));
-  return chunks.length === 1 && first !== undefined && name !== undefined ? UNARY_OPERATORS[name](first) : undefined;
-}
-
-// Native constructors own their emitted delimiters: notably AND with one child adds no parentheses.
-function nativeOperatorFragment(call: import("ts-morph").CallExpression, fragments: readonly (string | undefined)[]): string | undefined {
-  if (!runtimeDrizzleOrigin(call.getExpression())) {
+function mappedFragments(
+  value: MorphNode,
+  bindings: ReadonlyMap<MorphNode, MorphNode>,
+  active: ReadonlySet<object>,
+): readonly (string | undefined)[] | undefined {
+  const input = readPredicateArgument(value, bindings);
+  if (input.kind !== "resolved" || !Node.isCallExpression(input.value) || !nativeArrayMap(input.value)) {
     return;
   }
-  const chunks = fragments.map((fragment) => (fragment === undefined ? undefined : sql.raw(fragment)));
-  let result: SQL | undefined;
-  if (callsDrizzleOperator(call, "and")) {
-    result = and(...chunks);
-  } else if (callsDrizzleOperator(call, "or")) {
-    result = or(...chunks);
-  } else {
-    result = chunks.some((chunk) => chunk === undefined)
-      ? undefined
-      : fixedOperator(
-          call,
-          chunks.filter((chunk) => chunk !== undefined),
-        );
+  const callback = input.value.getArguments()[0];
+  const receiver = staticMemberAccess(input.value.getExpression())?.receiver;
+  if (receiver === undefined || !nativeMappedInput(receiver, bindings) || !nativeMappedCallback(callback)) {
+    return;
   }
-  return result === undefined ? undefined : sqlDialect.sqlToQuery(result).sql;
+  const paths = callback === undefined ? undefined : readFunctionReturnPaths(callback);
+  return paths?.kind === "resolved" ? fragmentsOfAlternatives(paths.value, bindings, active) : undefined;
+}
+
+function optionalNativeOperator(call: import("ts-morph").CallExpression): boolean {
+  return callsDrizzleOperator(call, "and") || callsDrizzleOperator(call, "or");
 }
 
 function operatorFragments(
   value: import("ts-morph").CallExpression,
   bindings: ReadonlyMap<MorphNode, MorphNode>,
   active: ReadonlySet<object>,
-): readonly string[] | undefined {
+): readonly (string | undefined)[] | undefined {
   let combinations: readonly (readonly (string | undefined)[])[] = [[]];
   for (const argument of value.getArguments()) {
+    if (Node.isSpreadElement(argument)) {
+      if (!optionalNativeOperator(value)) {
+        return;
+      }
+      const mapped = mappedFragments(argument.getExpression(), bindings, active);
+      if (mapped === undefined || !mapped.every((fragment) => fragment !== undefined && sqliteFragmentContained(fragment))) {
+        return;
+      }
+      const present = mapped.filter((fragment) => fragment !== undefined);
+      const prior = combinations;
+      // Native AND/OR emit nothing, one bare child, or a parenthesized multi-child expression.
+      combinations = [
+        ...prior,
+        ...prior.flatMap((items) => present.map((fragment) => [...items, fragment])),
+        ...prior.flatMap((items) => present.flatMap((first) => present.map((second) => [...items, first, second]))),
+      ];
+      continue;
+    }
     const fragments = sqlOperandFragments(argument, bindings, active);
     if (fragments === undefined) {
       return;
@@ -396,7 +242,8 @@ function operatorFragments(
     combinations = combinations.flatMap((prior) => fragments.map((fragment) => [...prior, fragment]));
   }
   const rendered = combinations.map((combination) => nativeOperatorFragment(value, combination));
-  return rendered.some((fragment) => fragment === undefined) ? undefined : rendered.filter((fragment) => fragment !== undefined);
+  const omitsAbsent = optionalNativeOperator(value);
+  return rendered.some((fragment) => fragment === undefined) && !omitsAbsent ? undefined : rendered;
 }
 
 function fragmentsOfAlternatives(
@@ -408,11 +255,25 @@ function fragmentsOfAlternatives(
   return fragments.length === 0 || fragments.some((fragment) => fragment === undefined) ? undefined : fragments.flatMap((fragment) => fragment ?? []);
 }
 
+function nativeSelectCall(call: import("ts-morph").CallExpression): boolean {
+  const member = readCalledMember(call);
+  return member.kind === "resolved" && declaredInDrizzle(member.value.declarations) && innerReadAnchorsOf(call).length > 0;
+}
+
 function callFragments(
   value: import("ts-morph").CallExpression,
   bindings: ReadonlyMap<MorphNode, MorphNode>,
   active: ReadonlySet<object>,
 ): readonly (string | undefined)[] | undefined {
+  const constructed = readNativeSqlConstructor(
+    value,
+    bindings,
+    (node) => sqlOperandFragments(node, bindings, active),
+    (node) => mappedFragments(node, bindings, active),
+  );
+  if (constructed !== undefined) {
+    return constructed;
+  }
   if (callsDrizzleOperator(value, "exists") || callsDrizzleOperator(value, "notExists")) {
     const select = value.getArguments()[0];
     const prefix = callsDrizzleOperator(value, "exists") ? "exists" : "not exists";
@@ -423,8 +284,7 @@ function callFragments(
   if (CONTAINED_OPERATORS.some((name) => callsDrizzleOperator(value, name))) {
     return operatorFragments(value, bindings, active);
   }
-  const member = readCalledMember(value);
-  if (member.kind === "resolved" && declaredInDrizzle(member.value.declarations) && innerReadAnchorsOf(value).length > 0) {
+  if (nativeSelectCall(value)) {
     return selectContained(value, bindings, active) ? ["(SELECT ?)"] : undefined;
   }
   const target = readCallTarget(value);
@@ -451,8 +311,18 @@ function valueFragments(
   bindings: ReadonlyMap<MorphNode, MorphNode>,
   active: ReadonlySet<object>,
 ): readonly (string | undefined)[] | undefined {
-  if (canonicalColumn(value)) {
-    return ['"column"'];
+  const column = readNativeColumnFragments(
+    value,
+    bindings,
+    (node) => sqlOperandFragments(node, bindings, active),
+    (node) => selectContained(node, bindings, active),
+  );
+  if (column !== undefined) {
+    return column;
+  }
+  const table = nativeTableFragment(value, bindings, new Set());
+  if (table !== undefined) {
+    return [table];
   }
   if (driverParameter(value.getType())) {
     return primitiveFragments(value.getType());
@@ -481,7 +351,13 @@ function sqlOperandFragments(
   if (operand.kind === "unresolved" || active.has(operand.value.compilerNode)) {
     return;
   }
-  return valueFragments(operand.value, bindings, new Set(active).add(operand.value.compilerNode));
+  const terminal = Node.isIdentifier(operand.value) && sqlValue(operand.value.getType()) ? terminalCall(operand.value) : undefined;
+  const value = terminal?.kind === "resolved" ? terminal.value : operand.value;
+  const receiver = staticMemberAccess(value)?.receiver;
+  if (receiver !== undefined && !readSqlAliasStability(receiver)) {
+    return;
+  }
+  return active.has(value.compilerNode) ? undefined : valueFragments(value, bindings, new Set(active).add(value.compilerNode));
 }
 
 function selectContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, MorphNode>, active: ReadonlySet<object>): boolean {
@@ -501,71 +377,58 @@ function selectContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, Morph
         return false;
       }
       const statement = readStatementOf(anchor.call);
+      const derived = readSqlAliasStability(anchor.table) ? readSelectedSqlSource(anchor.table, bindings) : undefined;
+      const nativeSource =
+        nativeTableFragment(anchor.table, bindings, new Set()) !== undefined ||
+        (derived !== undefined && !active.has(derived.compilerNode) && selectContained(derived, bindings, new Set(active).add(derived.compilerNode)));
       return (
+        nativeSource &&
         !statement.escapes &&
         [anchor.kind === "join" ? anchor.on : undefined, ...statement.innerOns, ...statement.wheres].every(
           (predicate) => predicate === undefined || sqlOperandContained(predicate, bindings, active),
         )
       );
     }) &&
+    selectionContained(node, bindings, active) &&
     node.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression).every((template) => templateContained(template, bindings, active)) &&
     node.getDescendantsOfKind(SyntaxKind.CallExpression).every((call) => !sqlValue(call.getType()) || sqlOperandContained(call, bindings, active))
   );
 }
 
-function callContained(value: import("ts-morph").CallExpression, bindings: ReadonlyMap<MorphNode, MorphNode>, active: ReadonlySet<object>): boolean {
-  if (callsDrizzleOperator(value, "exists") || callsDrizzleOperator(value, "notExists")) {
-    const select = value.getArguments()[0];
-    return select !== undefined && selectContained(select, bindings, active);
-  }
-  if (CONTAINED_OPERATORS.some((name) => callsDrizzleOperator(value, name))) {
-    return value.getArguments().every((argument) => sqlOperandContained(argument, bindings, active));
-  }
-  const member = readCalledMember(value);
+function selectionContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, MorphNode>, active: ReadonlySet<object>): boolean {
+  const selection = readDrizzleSelection(node);
   if (
-    member.kind === "resolved" &&
-    member.value.declarations.length > 0 &&
-    declaredInDrizzle(member.value.declarations) &&
-    innerReadAnchorsOf(value).length > 0
+    selection === undefined ||
+    !selection.calls.every((call) => runtimeDrizzleOrigin(call.getExpression())) ||
+    !selection.sqlOperands.every((operand) => sqlOperandContained(operand, bindings, active))
   ) {
-    return selectContained(value, bindings, active);
-  }
-  const target = readCallTarget(value);
-  if (target.kind === "unresolved" || target.value.getSourceFile().isDeclarationFile()) {
     return false;
   }
-  const paths = readFunctionReturnPaths(target.value);
-  const supplied = readCallBindings(value, target.value, bindings);
-  return paths.kind === "resolved" && paths.value.every((path) => sqlOperandContained(path, supplied, active));
+  if (selection.projection === undefined) {
+    return true;
+  }
+  const fields = readSchemaObjectMembers(selection.projection);
+  return fields.kind === "resolved" && fields.value.entries.every((field) => sqlOperandContained(field.value, bindings, active));
 }
 
 function sqlOperandContained(node: MorphNode, bindings: ReadonlyMap<MorphNode, MorphNode>, active: ReadonlySet<object>): boolean {
-  if (!readSqlAliasStability(node)) {
-    return false;
-  }
-  const operand = readPredicateArgument(node, bindings);
-  if (operand.kind === "unresolved" || active.has(operand.value.compilerNode)) {
-    return false;
-  }
-  const value = operand.value;
-  const next = new Set(active).add(value.compilerNode);
-  if (driverParameter(value.getType()) || canonicalColumn(value)) {
-    return true;
-  }
-  if (Node.isTaggedTemplateExpression(value)) {
-    return templateContained(value, bindings, next);
-  }
-  if (Node.isConditionalExpression(value)) {
-    return sqlOperandContained(value.getWhenTrue(), bindings, next) && sqlOperandContained(value.getWhenFalse(), bindings, next);
-  }
-  if (Node.isBinaryExpression(value) && [SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken].includes(value.getOperatorToken().getKind())) {
-    return sqlOperandContained(value.getLeft(), bindings, next) && sqlOperandContained(value.getRight(), bindings, next);
-  }
-  return Node.isCallExpression(value) && callContained(value, bindings, next);
+  const fragments = sqlOperandFragments(node, bindings, active);
+  return fragments !== undefined && fragments.every((fragment) => fragment === undefined || sqliteFragmentContained(fragment));
 }
 
 /** Complete literal containment plus primitive-driver/column provenance. Unknown SQL-producing values refuse;
  * contained SQL still carries no owner or FK authorization. */
 export function readSqlOperandContainment(node: MorphNode, bindings: ReadonlyMap<MorphNode, MorphNode> = new Map()): boolean {
+  if (node.wasForgotten()) {
+    return false;
+  }
+  const program = node.getProject().getProgram().compilerObject;
+  if (
+    [...bindings].some(([parameter, value]) =>
+      [parameter, value].some((bound) => bound.wasForgotten() || bound.getProject().getProgram().compilerObject !== program),
+    )
+  ) {
+    return false;
+  }
   return sqlOperandContained(node, bindings, new Set());
 }

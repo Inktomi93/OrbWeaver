@@ -31,7 +31,7 @@ function nativeArrayMember(receiver: Node, name: string): boolean {
   const type = receiver.getType();
   const declarations = type.getProperty(name)?.getDeclarations() ?? [];
   return (
-    (type.isArray() || type.isReadonlyArray()) &&
+    (type.isArray() || type.isReadonlyArray() || type.isTuple()) &&
     declarations.length > 0 &&
     declarations.every((declaration) =>
       declaration.getProject().getProgram().compilerObject.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode),

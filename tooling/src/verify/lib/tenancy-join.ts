@@ -135,7 +135,7 @@ function factLeaves(fact: DrizzlePredicate): ConjunctLeaves {
     const parts = fact.terms.map(factLeaves);
     return { leaves: parts.flatMap((part) => part.leaves), opaque: parts.some((part) => part.opaque) };
   }
-  return { leaves: fact.kind === "empty" ? [] : [fact.node], opaque: fact.kind === "unresolved" };
+  return { leaves: fact.kind === "empty" ? [] : [fact.node], opaque: fact.kind === "unresolved" || !fact.contained };
 }
 
 /** Existential by-id evidence includes every alternative; unreadable SQL or helpers remain opaque. */
