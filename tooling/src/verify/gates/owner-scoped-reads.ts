@@ -56,7 +56,7 @@ import { observeCallReturns } from "../../floor/code-facts/call-returns.ts";
 import { RELATIONAL_WHERE, relationalWhereCallback } from "../../floor/code-facts/drizzle-operators.ts";
 import { innerReadAnchorsOf, readAnchorOf } from "../../floor/code-facts/drizzle-query.ts";
 import { readDrizzleProjectedColumn } from "../../floor/code-facts/drizzle-select.ts";
-import { readStatementOf } from "../../floor/code-facts/drizzle-statement.ts";
+import { readPredicateConsumers, readStatementAnchors, readStatementOf } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn } from "../../floor/code-facts/function-context.ts";
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaModel } from "../../floor/code-facts/schema-model-contract.ts";
@@ -67,9 +67,17 @@ import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex, ValueRecei
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { chainTermsOf, conjunctLeaves, ownerTermValue, predicateHolds, predicateMayReadColumn, selectsByValue } from "../lib/tenancy-join.ts";
-import { isPlainValue, membershipPinColumns, parentReceiverOf, valuePinTerm, valueSourcesOf } from "../lib/tenancy-pin.ts";
-import { declaredTableOf, hasPostFetchFilter, predicatesOwnId, tableRefsOf } from "../lib/tenancy-read.ts";
+import {
+  chainTermsOf,
+  conjunctLeaves,
+  ownerTermValue,
+  predicateHolds,
+  predicateMayReadColumn,
+  predicatesContained,
+  selectsByValue,
+} from "../lib/tenancy-join.ts";
+import { currentMemberRoomPinned, isPlainValue, membershipPinColumns, parentReadOf, valuePinTerm, valueSourcesOf } from "../lib/tenancy-pin.ts";
+import { declaredTableOf, hasPostFetchFilter, predicatesOwnId, sameReadReceiver, tableRefsOf } from "../lib/tenancy-read.ts";
 import {
   foreignKeyEdges,
   foreignKeysBetween,
@@ -317,13 +325,13 @@ function bindsRows(judged: Judged, test: (conjunct: Node, bindings: ReadonlyMap<
 }
 
 /** Is the table written `receiver` pinned to a plain value in this statement (optionally on one column)? */
-function pinnedByValue(receiver: string, judged: Judged, scope: ReadScope, column?: string): boolean {
-  return bindsRows(judged, (conjunct) => valuePinTerm(conjunct, receiver, scope.index, column));
+function pinnedByValue(receiver: string | Node, judged: Judged, scope: ReadScope, column?: string): boolean {
+  return bindsRows(judged, (conjunct, bindings) => valuePinTerm(conjunct, { receiver, ...(column === undefined ? {} : { column }) }, scope.index, bindings));
 }
 
 /** Is a membership-class table's row pinned the one way that table's class allows: a plain value on its own id or
  *  its chat FK? */
-function membershipPinned(receiver: string, table: string, judged: Judged, scope: ReadScope): boolean {
+function membershipPinned(receiver: string | Node, table: string, judged: Judged, scope: ReadScope): boolean {
   return membershipPinColumns(table, scope.index, scope.fkEdges).some((column) => pinnedByValue(receiver, judged, scope, column));
 }
 
@@ -331,7 +339,8 @@ function membershipPinned(receiver: string, table: string, judged: Judged, scope
  *  plain value, a membership-class table by a plain value on its id or chat FK? A global, parent or junction table
  *  and a subquery never scope on their own. */
 function sourcePinned(source: ValueReceiver, judged: Judged, scope: ReadScope): boolean {
-  const { receiver, table } = source;
+  const { table } = source;
+  const receiver = source.node ?? source.receiver;
   if (table !== undefined && scope.ownerTables.has(table)) {
     return bindsRows(judged, (conjunct, bindings) => {
       const value = ownerTermValue(conjunct, receiver, bindings);
@@ -379,9 +388,9 @@ function parentPinned(term: ChainTerm, parent: string, judged: Judged, scope: Re
   const pinColumns = membershipPinColumns(parent, scope.index, scope.fkEdges);
   return foreignKeysBetween(scope.fkEdges, term.boundTable, parent).some(
     (fk) =>
-      (!ownerClass && pinColumns.includes(fk.parentColumn) && pinnedByValue(term.boundReceiver, judged, scope, fk.childColumn)) ||
-      bindsRows(judged, (conjunct) => {
-        const receiver = parentReceiverOf(conjunct, { receiver: term.boundReceiver, fk }, parent, scope.index);
+      (!ownerClass && pinColumns.includes(fk.parentColumn) && pinnedByValue(term.boundRead, judged, scope, fk.childColumn)) ||
+      bindsRows(judged, (conjunct, bindings) => {
+        const receiver = parentReadOf(conjunct, { receiver: term.boundRead, fk, parent }, scope.index, bindings);
         return receiver !== undefined && (ownerClass ? ownerScoped(receiver, judged, scope) : membershipPinned(receiver, parent, judged, scope));
       }),
   );
@@ -418,6 +427,66 @@ function projectionCarriesOwner(table: Node, scope: ReadScope): boolean {
   });
 }
 
+/** EXISTS carries no independent grant: every actual consumer must pin the correlated parent, and the
+ * inner equality must follow a real FK to that exact outer receiver. */
+function outerAnchorPinned(outer: ReadAnchor, anchors: readonly ReadAnchor[], parent: string, scope: ReadScope): boolean {
+  if (outer.kind === "relational" || readDrizzleClientCall(outer.call).kind !== "drizzle") {
+    return false;
+  }
+  const enclosing = judgedOf(outer, scope);
+  if (enclosing.statement.escapes || !predicatesContained([enclosing.on, ...enclosing.statement.innerOns, ...enclosing.statement.wheres])) {
+    return false;
+  }
+  return (
+    sourcePinned({ receiver: outer.table.getText(), table: parent, node: outer.table }, enclosing, scope) ||
+    currentMemberRoomPinned(
+      outer.table,
+      anchors.map((candidate) => candidate.table),
+      scope,
+      (test) => bindsRows(enclosing, test),
+    )
+  );
+}
+
+function correlatedTermPinned(term: ChainTerm, judged: Judged, outerAnchors: readonly ReadAnchor[], scope: ReadScope): boolean {
+  return [...scope.ownerTables, ...scope.membershipTables].some((parent) =>
+    foreignKeysBetween(scope.fkEdges, term.boundTable, parent).some((fk) =>
+      bindsRows(judged, (conjunct, bindings) => {
+        const correlated = parentReadOf(conjunct, { receiver: term.boundRead, fk, parent }, scope.index, bindings);
+        return (
+          correlated !== undefined &&
+          outerAnchors.some((outer) => sameReadReceiver(correlated, outer.table) && outerAnchorPinned(outer, outerAnchors, parent, scope))
+        );
+      }),
+    ),
+  );
+}
+
+function correlatedParentPinned(anchor: ReadAnchor, chain: readonly ChainTerm[], judged: Judged, scope: ReadScope): boolean {
+  const consumers = readPredicateConsumers(anchor.call, scope.observations);
+  return (
+    consumers.kind === "resolved" &&
+    consumers.value.length > 0 &&
+    consumers.value.every((consumer) => {
+      const outerAnchors = readStatementAnchors(consumer);
+      return chain.some((term) => correlatedTermPinned(term, judged, outerAnchors, scope));
+    })
+  );
+}
+
+function inheritedScopePinned(anchor: ReadAnchor, chain: readonly ChainTerm[], judged: Judged, scope: ReadScope): boolean {
+  if (judged.statement.escapes || !predicatesContained([judged.on, ...judged.statement.innerOns, ...judged.statement.wheres])) {
+    return false;
+  }
+  const declared = declaredTableOf(anchor.table, scope.index);
+  const inherited = chain.some(
+    (term) =>
+      sourcePinned({ receiver: term.boundReceiver, table: term.boundTable, node: term.boundRead }, judged, scope) ||
+      [...(scope.derivedParents.get(term.boundTable) ?? [])].some((parent) => parent !== declared && parentPinned(term, parent, judged, scope)),
+  );
+  return inherited || correlatedParentPinned(anchor, chain, judged, scope);
+}
+
 /** The finding message for one owner-scoped table this read binds (written `ident`, declared `declared`), or
  *  undefined when a safe arm holds. */
 function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string | undefined, scope: ReadScope): string | undefined {
@@ -443,6 +512,9 @@ function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string
     statement.wheres.some((where) => predicateMayReadColumn(where, anchor.table, ID_COL)) ||
     ons.leaves.some((leaf) => selectsByValue(leaf, `${ident}.${ID_COL}`, scope.index)) ||
     chain.some((term) => all.leaves.some((leaf) => selectsByValue(leaf, term.boundColumn, scope.index)));
+  if (inheritedScopePinned(anchor, chain, judged, scope)) {
+    return;
+  }
   const unproven = all.opaque || statement.escapes;
   if (!(byId || unproven) || hasPostFetchFilter(anchor.call, enclosingFn(anchor.call))) {
     return; // a list read, or arm 2 — the F3-AUTHZ post-fetch filter
@@ -618,6 +690,15 @@ export const gate = defineGate({
   },
 
   mustFlag: [
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(personas).limit(1);\n",
+        "export async function filtered(db: Db, cond: SQL, ownerId: string) {\n  return db.select().from(personas).where(and(eq(personas.ownerId, ownerId), cond));\n}\n",
+      ),
+      expect: { count: 1, messageIncludes: "unproven" },
+      why: "an unknown SQL-producing AND operand can contain an unparenthesized OR; Drizzle wraps the whole list, not each child, so a sibling owner term is no proof",
+    },
     ...[
       "export const forged = { ownerId: null, everyOwnerRun: {} } as WorkloadRunScope;",
       "export const forged = { ownerId: null, everyOwnerEstimate: {} } as WorkloadEstimateScope;",
@@ -1347,7 +1428,7 @@ ${body}`,
       mode: "types",
       files: {
         "packages/db/src/schema/character.ts":
-          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n',
         "packages/server/src/domain/character/persistence/queries.ts":
           'import { and, eq } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport async function loadOwned(db: Db, id: string, ownerId: string) {\n  return db.select().from(characters).where(and(eq(characters.id, id), eq(characters.ownerId, ownerId))).limit(1);\n}\n',
       },
@@ -1539,14 +1620,6 @@ ${body}`,
         "class Local {\n  query = { personas: { findFirst: (config: object) => config } };\n}\n",
       ),
       why: "the relational verb is judged by its declaration: a `findFirst` a local class declares reads no table",
-    },
-    {
-      mode: "types",
-      files: pinBody(
-        "  return db.select().from(personas).limit(1);\n",
-        "export async function filtered(db: Db, cond: SQL, ownerId: string) {\n  return db.select().from(personas).where(and(eq(personas.ownerId, ownerId), cond));\n}\n",
-      ),
-      why: "an unreadable AND conjunct cannot widen a settled read: the owner term is in every row's filter and async output is rows, not an editable returned builder",
     },
     {
       mode: "types",

@@ -5,11 +5,12 @@ import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact
 import type { Node, Type } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.ts";
+import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import { readDrizzleValueSources } from "../../floor/code-facts/drizzle-query.ts";
-import type { ForeignKeyColumns, SchemaTableIndex, ValueReceiver, ValueSources } from "../contract/tenancy.ts";
+import type { ForeignKeyParentRead, SchemaTableIndex, TenancySchema, ValuePinTarget, ValueReceiver, ValueSources } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { readsTable } from "./tenancy-join.ts";
-import { declaredTableOf, tableRefsOf } from "./tenancy-read.ts";
+import { declaredTableOf, sameReadReceiver, tableRefsOf } from "./tenancy-read.ts";
 import { foreignKeysBetween } from "./tenancy-scope.ts";
 
 const EQ_OPERATOR = "eq";
@@ -27,7 +28,7 @@ export function valueSourcesOf(value: Node, index: SchemaTableIndex): ValueSourc
     const refs = tableRefsOf(member.receiver, index);
     if (refs.some((ref) => ref.kind === "table" || ref.kind === "subquery")) {
       const receiver = member.receiver.getText();
-      receivers.set(receiver, { receiver, table: declaredTableOf(member.receiver, index) });
+      receivers.set(receiver, { receiver, table: declaredTableOf(member.receiver, index), node: member.receiver });
     }
   }
   return { receivers: [...receivers.values()], subselects: fact.value.subselects, unresolved: false };
@@ -70,7 +71,12 @@ export function membershipPinColumns(table: string, index: SchemaTableIndex, fkE
 
 /** Does this conjunct pin the rows of the table written `receiver` to a plain value: `eq(R.col, value)` or
  *  `inArray(R.col, values)`? `column` narrows it to one column. */
-export function valuePinTerm(conjunct: Node, receiver: string, index: SchemaTableIndex, column?: string): boolean {
+export function valuePinTerm(
+  conjunct: Node,
+  { receiver, column }: ValuePinTarget,
+  index: SchemaTableIndex,
+  bindings: ReadonlyMap<Node, Node> = new Map(),
+): boolean {
   if (!conjunct.isKind(SyntaxKind.CallExpression)) {
     return false;
   }
@@ -81,13 +87,16 @@ export function valuePinTerm(conjunct: Node, receiver: string, index: SchemaTabl
   const [left, right] = conjunct.getArguments();
   const pins = (side: Node | undefined, value: Node | undefined): boolean => {
     const read = side === undefined ? undefined : staticMemberAccess(unwrapExpression(side));
+    const actualReceiver = read === undefined ? undefined : readPredicateArgument(read.receiver, bindings);
+    const actualValue = value === undefined ? undefined : readPredicateArgument(value, bindings);
     return (
       read !== undefined &&
-      value !== undefined &&
-      read.receiver.getText() === receiver &&
+      actualValue?.kind === "resolved" &&
+      actualReceiver?.kind === "resolved" &&
+      sameReadReceiver(actualReceiver.value, receiver) &&
       (column === undefined || read.name === column) &&
-      !readsTable(value, receiver) &&
-      isPlainValue(value, index)
+      !readsTable(actualValue.value, receiver) &&
+      isPlainValue(actualValue.value, index)
     );
   };
   return pins(left, right) || (isEq && pins(right, left));
@@ -95,18 +104,66 @@ export function valuePinTerm(conjunct: Node, receiver: string, index: SchemaTabl
 
 /** The written receiver of a `parent` row this conjunct binds to the bound row along one declared foreign key
  *  (`eq(P.parentColumn, B.childColumn)`), or undefined. */
-export function parentReceiverOf(
+export function parentReadOf(
   conjunct: Node,
-  bound: { readonly receiver: string; readonly fk: ForeignKeyColumns },
-  parent: string,
+  bound: ForeignKeyParentRead,
   index: SchemaTableIndex,
-): string | undefined {
+  bindings: ReadonlyMap<Node, Node> = new Map(),
+): Node | undefined {
   if (!(conjunct.isKind(SyntaxKind.CallExpression) && callsDrizzleOperator(conjunct, EQ_OPERATOR))) {
     return;
   }
-  const sides = conjunct.getArguments().map((argument) => staticMemberAccess(unwrapExpression(argument)));
-  const child = sides.find((side) => side?.receiver.getText() === bound.receiver && side.name === bound.fk.childColumn);
+  const sides = conjunct.getArguments().map((argument) => {
+    const member = staticMemberAccess(unwrapExpression(argument));
+    const actual = member === undefined ? undefined : readPredicateArgument(member.receiver, bindings);
+    return member === undefined || actual?.kind !== "resolved" ? undefined : { ...member, receiver: actual.value };
+  });
+  const child = sides.find((side) => side !== undefined && sameReadReceiver(side.receiver, bound.receiver) && side.name === bound.fk.childColumn);
   const other = sides.find((side) => side !== child);
   const otherTable = other === undefined ? undefined : declaredTableOf(other.receiver, index);
-  return child !== undefined && other !== undefined && otherTable === parent && other.name === bound.fk.parentColumn ? other.receiver.getText() : undefined;
+  return child !== undefined && other !== undefined && otherTable === bound.parent && other.name === bound.fk.parentColumn ? other.receiver : undefined;
+}
+
+/** D18's current-member room scope: a bound roster row must be linked to this exact room, have a plain
+ * user pin on its declared principal FK, and exclude departed membership. No helper name grants it. */
+export function currentMemberRoomPinned(
+  room: Node,
+  boundTables: readonly Node[],
+  { index, fkEdges }: TenancySchema,
+  binds: (test: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean) => boolean,
+): boolean {
+  const chats = index.identBySqlName.get("chats");
+  const participants = index.identBySqlName.get("chat_participants");
+  const users = index.identBySqlName.get("users");
+  if (
+    chats === undefined ||
+    participants === undefined ||
+    users === undefined ||
+    declaredTableOf(room, index) !== chats ||
+    !foreignKeysBetween(fkEdges, participants, users).some((fk) => fk.childColumn === "userId" && fk.parentColumn === ID_COL)
+  ) {
+    return false;
+  }
+  return boundTables.some(
+    (table) =>
+      declaredTableOf(table, index) === participants &&
+      binds((conjunct, bindings) => valuePinTerm(conjunct, { receiver: table, column: "userId" }, index, bindings)) &&
+      binds((conjunct, bindings) => {
+        if (!(conjunct.isKind(SyntaxKind.CallExpression) && callsDrizzleOperator(conjunct, "isNull"))) {
+          return false;
+        }
+        const argument = conjunct.getArguments()[0];
+        const read = argument === undefined ? undefined : staticMemberAccess(unwrapExpression(argument));
+        const actual = read === undefined ? undefined : readPredicateArgument(read.receiver, bindings);
+        return read?.name === "leftSeq" && actual?.kind === "resolved" && sameReadReceiver(actual.value, table);
+      }) &&
+      foreignKeysBetween(fkEdges, participants, chats).some(
+        (fk) =>
+          fk.parentColumn === ID_COL &&
+          binds((conjunct, bindings) => {
+            const parent = parentReadOf(conjunct, { receiver: table, fk, parent: chats }, index, bindings);
+            return parent !== undefined && sameReadReceiver(parent, room);
+          }),
+      ),
+  );
 }

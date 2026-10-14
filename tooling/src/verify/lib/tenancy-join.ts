@@ -6,7 +6,8 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
 import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.ts";
-import { readDrizzlePredicate, readPredicateArgument } from "../../floor/code-facts/drizzle-predicate.ts";
+import { readDrizzlePredicate } from "../../floor/code-facts/drizzle-predicate.ts";
+import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import type { DrizzlePredicate } from "../../floor/code-facts/drizzle-predicate-contract.ts";
 import type { ChainTerm, ConjunctLeaves, SchemaTableIndex } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
@@ -21,13 +22,18 @@ interface ColumnRead {
   readonly receiver: string;
   readonly table: string;
   readonly name: string;
+  readonly node: Node;
 }
 
 /** A column read whose receiver names one declared table: its written receiver, that table and the column. */
-function columnOf(node: Node, index: SchemaTableIndex): ColumnRead | undefined {
+function columnOf(node: Node, index: SchemaTableIndex, bindings: ReadonlyMap<Node, Node> = new Map()): ColumnRead | undefined {
   const read = staticMemberAccess(unwrapExpression(node));
-  const table = read === undefined ? undefined : declaredTableOf(read.receiver, index);
-  return read === undefined || table === undefined ? undefined : { receiver: read.receiver.getText(), table, name: read.name };
+  const actual = read === undefined ? undefined : readPredicateArgument(read.receiver, bindings);
+  const receiver = actual?.kind === "resolved" ? actual.value : undefined;
+  const table = receiver === undefined ? undefined : declaredTableOf(receiver, index);
+  return read === undefined || receiver === undefined || table === undefined
+    ? undefined
+    : { receiver: receiver.getText(), table, name: read.name, node: receiver };
 }
 
 /** Does this node read any column of the table written `ident`? */
@@ -37,6 +43,9 @@ export function readsTable(node: Node, ident: string | Node): boolean {
 
 /** Owner authorization is universal across alternatives, and existential only across AND terms. */
 function factHolds(fact: DrizzlePredicate, holds: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean): boolean {
+  if (!fact.contained) {
+    return false;
+  }
   if (fact.kind === "leaf") {
     return holds(fact.node, fact.bindings);
   }
@@ -63,12 +72,9 @@ export function predicateMayReadColumn(predicate: Node, receiver: Node, column: 
   return factMayReadColumn(readDrizzlePredicate(predicate), receiver, column);
 }
 
-function factConjuncts(fact: DrizzlePredicate): readonly Node[] {
-  return fact.kind === "and" ? fact.terms.flatMap(factConjuncts) : [fact.node];
-}
-
-function conjunctsOf(predicate: Node): readonly Node[] {
-  return factConjuncts(readDrizzlePredicate(predicate));
+/** Unknown SQL can widen its siblings; containment alone never supplies scope. */
+export function predicatesContained(predicates: readonly (Node | undefined)[]): boolean {
+  return predicates.every((predicate) => predicate === undefined || readDrizzlePredicate(predicate).contained);
 }
 
 function isOwnerColumn(node: Node, ident: string | Node, bindings: ReadonlyMap<Node, Node>): boolean {
@@ -141,17 +147,42 @@ export function chainTermsOf(
   index: SchemaTableIndex,
   fkEdges: ReadonlySet<string>,
 ): readonly ChainTerm[] {
-  const conjuncts = predicates.flatMap((predicate) => (predicate === undefined ? [] : conjunctsOf(predicate)));
-  return conjuncts.flatMap((conjunct): ChainTerm[] => {
+  const leafTerms = (conjunct: Node, bindings: ReadonlyMap<Node, Node>): readonly ChainTerm[] => {
     if (!(conjunct.isKind(SyntaxKind.CallExpression) && callsDrizzleOperator(conjunct, EQ_OPERATOR))) {
       return [];
     }
-    const [left, right] = conjunct.getArguments().map((argument) => columnOf(argument, index));
+    const [left, right] = conjunct.getArguments().map((argument) => columnOf(argument, index, bindings));
     if (left === undefined || right === undefined || (left.receiver === joinedIdent) === (right.receiver === joinedIdent)) {
       return [];
     }
     const [joined, bound] = left.receiver === joinedIdent ? [left, right] : [right, left];
     const edge = `${foreignKeyColumnKey(bound.table, bound.name)}${EDGE_ARROW}${foreignKeyColumnKey(joined.table, joined.name)}`;
-    return fkEdges.has(edge) ? [{ boundTable: bound.table, boundReceiver: bound.receiver, boundColumn: `${bound.receiver}.${bound.name}` }] : [];
-  });
+    return fkEdges.has(edge)
+      ? [{ boundTable: bound.table, boundReceiver: bound.receiver, boundColumn: `${bound.receiver}.${bound.name}`, boundRead: bound.node }]
+      : [];
+  };
+  const termsOf = (fact: DrizzlePredicate): readonly ChainTerm[] => {
+    if (!fact.contained) {
+      return [];
+    }
+    if (fact.kind === "leaf") {
+      return leafTerms(fact.node, fact.bindings);
+    }
+    if (fact.kind !== "and" && fact.kind !== "or" && fact.kind !== "choice") {
+      return [];
+    }
+    const alternatives = fact.terms.map(termsOf);
+    if (fact.kind === "and") {
+      return alternatives.flat();
+    }
+    return (alternatives[0] ?? []).filter((term) =>
+      alternatives.every((alternative) =>
+        alternative.some(
+          (candidate) =>
+            candidate.boundTable === term.boundTable && sameReadReceiver(candidate.boundRead, term.boundRead) && candidate.boundColumn === term.boundColumn,
+        ),
+      ),
+    );
+  };
+  return predicates.flatMap((predicate) => (predicate === undefined ? [] : termsOf(readDrizzlePredicate(predicate))));
 }

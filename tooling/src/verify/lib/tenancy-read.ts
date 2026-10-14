@@ -14,7 +14,7 @@ import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess 
 import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
-import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate.ts";
+import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import { readReturnOccurrences, resultReferenceDepths } from "../../floor/code-facts/drizzle-row-flow.ts";
 import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn, readFunctionBodyNodes } from "../../floor/code-facts/function-context.ts";

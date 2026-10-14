@@ -45,6 +45,7 @@ export interface ChainTerm {
   readonly boundTable: string;
   readonly boundReceiver: string;
   readonly boundColumn: string;
+  readonly boundRead: Node;
 }
 
 /** One declared foreign key from a child table to a parent table, by column property name. */
@@ -53,11 +54,28 @@ export interface ForeignKeyColumns {
   readonly parentColumn: string;
 }
 
+export interface ValuePinTarget {
+  readonly receiver: string | Node;
+  readonly column?: string;
+}
+
+export interface ForeignKeyParentRead {
+  readonly receiver: string | Node;
+  readonly fk: ForeignKeyColumns;
+  readonly parent: string;
+}
+
+export interface TenancySchema {
+  readonly index: SchemaTableIndex;
+  readonly fkEdges: ReadonlySet<string>;
+}
+
 /** One row source a predicate value reads a column of: its written receiver, and its declared schema table
  *  (undefined for a subquery or CTE, which has no scoping class). */
 export interface ValueReceiver {
   readonly receiver: string;
   readonly table: string | undefined;
+  readonly node?: Node;
 }
 
 /** What a predicate VALUE reads: the row sources whose columns it names, and the subselects it runs. A value

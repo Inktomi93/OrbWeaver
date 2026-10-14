@@ -5,13 +5,17 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import { readCallReturnProgram } from "./call-returns.ts";
+import { readCallReturnProgram, readFunctionReturnPaths } from "./call-returns.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
-import type { DrizzleBuilderChain, ReadStatement } from "./drizzle-query-contract.ts";
+import { readAnchorOf } from "./drizzle-query.ts";
+import type { DrizzleBuilderChain, ReadAnchor, ReadStatement } from "./drizzle-query-contract.ts";
+import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { enclosingFn } from "./function-context.ts";
+import { inspectReferenceWrites, resolveStableExpression } from "./reference-fact.ts";
 import { unwrapTarget as unwrapExpression } from "./reference-fact-alias.ts";
-import type { CallReturnObservations, CallReturnProgram, UnresolvedReferenceFact } from "./reference-fact-contract.ts";
+import type { CallReturnObservations, CallReturnProgram, ReferenceFact, UnresolvedReferenceFact } from "./reference-fact-contract.ts";
 import { MEMBER_ACCESS_KINDS } from "./reference-fact-contract.ts";
+import { referencesOf } from "./value-carrier.ts";
 
 const WHERE_VERB = "where";
 const INNER_JOIN_VERB = "innerJoin";
@@ -263,4 +267,120 @@ export function readStatementOf(anchor: Node, observations?: CallReturnObservati
       return argument === undefined ? [] : [argument];
     });
   return { wheres: argumentsOf(WHERE_VERB, 0), innerOns: argumentsOf(INNER_JOIN_VERB, 1), escapes: after.escapes, refusals: after.refusals };
+}
+
+function predicateWrapper(parent: Node, value: Node): boolean {
+  return (
+    N.isParenthesizedExpression(parent) ||
+    N.isNonNullExpression(parent) ||
+    N.isAsExpression(parent) ||
+    N.isSatisfiesExpression(parent) ||
+    (N.isConditionalExpression(parent) && parent.getCondition() !== value)
+  );
+}
+
+function predicateCallUse(
+  value: Node,
+  parent: CallExpression,
+  program: CallReturnProgram,
+  active: ReadonlySet<object>,
+): ReferenceFact<readonly CallExpression[]> {
+  if (["and", "or", "not"].some((name) => callsDrizzleOperator(parent, name))) {
+    return predicateUses(parent, program, active);
+  }
+  const member = readCalledMember(parent);
+  return member.kind === "resolved" &&
+    member.value.name === WHERE_VERB &&
+    parent.getArguments()[0] === value &&
+    member.value.declarations.length > 0 &&
+    declaredInDrizzle(member.value.declarations)
+    ? { kind: "resolved", value: [parent], trace: { declarations: [], origin: value } }
+    : refusal(parent, "unsupported", "predicate leaves native boolean/WHERE composition");
+}
+
+function predicateAliasUses(parent: import("ts-morph").VariableDeclaration): ReferenceFact<readonly Node[]> {
+  const name = parent.getNameNode();
+  if (!N.isIdentifier(name)) {
+    return refusal(parent, "unsupported", "predicate alias is not a lexical identifier");
+  }
+  const stable = resolveStableExpression(name);
+  if ((stable.kind === "unresolved" && stable.reason !== "dynamic") || inspectReferenceWrites(name).kind === "unresolved") {
+    return refusal(name, "write", "predicate alias is mutable");
+  }
+  return { kind: "resolved", value: referencesOf(name, enclosingFn(name) ?? name.getSourceFile()), trace: { declarations: [parent], origin: name } };
+}
+
+function predicateReturnUses(value: Node, program: CallReturnProgram): ReferenceFact<readonly Node[]> {
+  const fn = enclosingFn(value);
+  const paths = fn === undefined ? undefined : readFunctionReturnPaths(fn);
+  if (fn === undefined || paths?.kind !== "resolved" || !program.referencesObserved) {
+    return refusal(value, "missing", "predicate helper has no complete return/reference observations");
+  }
+  const escaped = program.escapingReferences.get(fn.compilerNode) ?? [];
+  if (escaped[0] !== undefined) {
+    return escaped[0];
+  }
+  const callers = program.callers.get(fn.compilerNode) ?? [];
+  const failed = callers.find((caller) => caller.target.kind === "unresolved" || caller.returns.kind === "unresolved");
+  return failed === undefined
+    ? { kind: "resolved", value: callers.map((caller) => caller.call), trace: { declarations: [fn], origin: value } }
+    : refusal(failed.call, "unsupported", "predicate helper has an unresolved consumer");
+}
+
+function predicateUses(value: Node, program: CallReturnProgram, active: ReadonlySet<object>): ReferenceFact<readonly CallExpression[]> {
+  if (active.has(value.compilerNode)) {
+    return refusal(value, "cycle", "predicate consumers revisit an authored value");
+  }
+  const next = new Set(active).add(value.compilerNode);
+  const parent = value.getParent();
+  if (parent === undefined) {
+    return refusal(value, "missing", "predicate has no consumer");
+  }
+  if (predicateWrapper(parent, value)) {
+    return predicateUses(parent, program, next);
+  }
+  if (N.isCallExpression(parent) && parent.getArguments().includes(value)) {
+    return predicateCallUse(value, parent, program, next);
+  }
+  let uses: ReferenceFact<readonly Node[]>;
+  if (N.isVariableDeclaration(parent) && parent.getInitializer() === value) {
+    uses = predicateAliasUses(parent);
+  } else if (N.isReturnStatement(parent) || parent === enclosingFn(value)) {
+    uses = predicateReturnUses(value, program);
+  } else {
+    uses = refusal(parent, "unsupported", "predicate value has an unsupported consumer");
+  }
+  if (uses.kind === "unresolved") {
+    return uses;
+  }
+  if (uses.value.length === 0) {
+    return refusal(value, "missing", "predicate helper has no admitted native WHERE consumer");
+  }
+  const facts = uses.value.map((use) => predicateUses(use, program, next));
+  const failed = facts.find((fact) => fact.kind === "unresolved");
+  return (
+    failed ?? { kind: "resolved", value: facts.flatMap((fact) => (fact.kind === "resolved" ? fact.value : [])), trace: { declarations: [], origin: value } }
+  );
+}
+
+/** All WHERE consumers of a native EXISTS, including authored predicate-return helpers. One escape,
+ * unknown continuation or mismatched compiler epoch refuses the complete correlation proof. */
+export function readPredicateConsumers(anchor: Node, observations: CallReturnObservations): ReferenceFact<readonly CallExpression[]> {
+  const program = readCallReturnProgram(anchor, observations);
+  if (program.kind === "unresolved") {
+    return program;
+  }
+  const top = readFollowingBuilderChain(anchor).top;
+  const carrier = top.getParent();
+  return N.isCallExpression(carrier) && callsDrizzleOperator(carrier, "exists") && carrier.getArguments()[0] === top
+    ? predicateUses(carrier, program.value, new Set())
+    : refusal(top, "unsupported", "only a native EXISTS carries correlated read scope");
+}
+
+/** Only anchors in this builder's receiver chain, never a nested SELECT passed as an argument. */
+export function readStatementAnchors(call: CallExpression): readonly ReadAnchor[] {
+  return [call, ...priorCalls(call)].flatMap((candidate) => {
+    const anchor = readAnchorOf(candidate);
+    return anchor === undefined ? [] : [anchor];
+  });
 }
