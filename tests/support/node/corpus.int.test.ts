@@ -52,6 +52,8 @@ import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
 import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
+import { CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
+import { captureSdkSessionRows } from "./factories/connection.ts";
 import { captureDocumentChunks } from "./factories/embedding-generation.ts";
 import { captureRegexRows } from "./factories/regex.ts";
 import { captureRosterRows } from "./factories/roster-preset.ts";
@@ -172,6 +174,17 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const connections = capsule.privateCaptures.connection;
   const libraryViews = capsule.privateCaptures.libraryViews;
   const statsSettings = capsule.privateCaptures.statsSettings;
+  const sdkSessions = capsule.privateCaptures.sdkSessions;
+  expect(sdkSessions.empty.rows).toEqual([]);
+  expect(sdkSessions.rows.length).toBeGreaterThan(0);
+  expect(sdkSessions.rows.filter((row) => row.isPrimary).map((row) => row.connectionId)).toEqual([
+    sdkSessions.connection.id,
+    sdkSessions.alternateConnection.id,
+  ]);
+  expect(sdkSessions.foreign.after).toEqual(sdkSessions.foreign.before);
+  expect(sdkSessions.foreign.callsAfter).toBe(sdkSessions.foreign.callsBefore);
+  expect(sdkSessions.cancellation).toMatchObject({ kind: "aborted" });
+  expect(sdkSessions.exits.every(({ exitCode, signalCode }) => exitCode === 0 && signalCode === null)).toBe(true);
   expect(statsSettings.stats.character.output).toMatchObject({ characterId: variants.character.id, assistantTurns: 1, swipes: 2 });
   expect(statsSettings.stats.overview.output?.assistantTurns).toBeGreaterThan(0);
   expect(statsSettings.stats.byModel.output.some((row) => row.generations > 0 && row.tokensOutProvenance === "measured")).toBe(true);
@@ -253,6 +266,8 @@ test("a completed migrated capsule closes its real producers before cloning scru
   let sourceMarker: Awaited<ReturnType<typeof source.all>>;
   try {
     await assertReferentialIntegrity(source);
+    expect(await captureSdkSessionRows(source, sdkSessions.room.chat.id, sdkSessions.connection.id)).toEqual(sdkSessions.restored.rows);
+    expect(await captureSdkSessionRows(source, sdkSessions.room.chat.id, sdkSessions.alternateConnection.id)).toEqual(sdkSessions.alternate.rows);
     expect(await captureRpgSnapshot(source, providerOriginal.id)).toEqual(providerOriginal);
     expect(
       await source
@@ -297,6 +312,11 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const privateValues = [
     OWNER_PASSWORD,
     PROVIDER_KEY,
+    CORPUS_SDK_TOKEN,
+    sdkSessions.credential.row.ciphertext,
+    sdkSessions.credential.row.iv,
+    sdkSessions.credential.row.tag,
+    ...sdkSessions.rows.map((row) => row.sdkSessionId),
     key.toString("hex"),
     NATIVE_OIDC_SETTINGS.OIDC_CLIENT_SECRET,
     capsule.privateCaptures.credential.row.ciphertext,
@@ -309,6 +329,8 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const clone = await createDb(fixture.layout.databaseUrl);
   try {
     await assertReferentialIntegrity(clone);
+    expect(await captureSdkSessionRows(clone, sdkSessions.room.chat.id, sdkSessions.connection.id)).toEqual(sdkSessions.restored.rows);
+    expect(await captureSdkSessionRows(clone, sdkSessions.room.chat.id, sdkSessions.alternateConnection.id)).toEqual(sdkSessions.alternate.rows);
     expect(await clone.select().from(ownerStats).where(eq(ownerStats.ownerId, capsule.privateCaptures.baseline.ownerId)).get()).toEqual(
       statsSettings.rows.owner,
     );
