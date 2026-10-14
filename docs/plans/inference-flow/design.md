@@ -26,6 +26,8 @@ The [test-foundation plan](../test-foundation/design.md) owns the combined progr
 
 After those batches, prioritize typed every-owner authority (984). Runtime funding, dispatched-material strike-out and identity enforcement are qualified on real composed callers. Settings ownership (967), connection capabilities (968) and law alignment (970) remain tracked production work. Route identity-sensitive changes to the security role.
 
+[Ownerless model funding](../../work/1015-persist-the-admitted-funder-for-ownerless-model-workloads.md) follows the typed authority batch and blocks dependent bulk-model corpus qualification. Preserve the admitting funder separately from enumeration scope and the synthetic audit actor.
+
 Stored connection parsing follows ownership checks without losing owner-mismatch detection. The canonical owner-bearing read is integrated. Remaining runtime and wire qualification stays with its active work items. Preserve refusal and accounting semantics; legacy harness repair is not a prerequisite.
 
 ### Rulings
