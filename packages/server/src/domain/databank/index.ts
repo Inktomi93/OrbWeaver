@@ -18,7 +18,7 @@ export type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentDetailVie
 export { createDatabankIngest } from "./ingest/index.ts";
 export { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "./persistence/portability-write.ts";
 export { createDatabankRoomReach } from "./persistence/room-reach.ts";
-export { resolveActiveDocumentIds } from "./persistence/scope.ts";
+export { resolveActiveDocumentIds, resolveActiveDocumentScope } from "./persistence/scope.ts";
 export { createDatabankService } from "./service.ts";
 export { createGatherDatabankForTurn } from "./substrate/turn-retrieval.ts";
 export { createDatabankWorkloadContributions } from "./workload-contributions.ts";

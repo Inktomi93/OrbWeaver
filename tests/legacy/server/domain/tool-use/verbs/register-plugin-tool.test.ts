@@ -7,7 +7,7 @@
 // per installing user, so the collision is scoped to one shelf and a deactivation touches only that shelf.
 // @subject packages/server/src/domain/tool-use/verbs/register-plugin-tool.ts
 
-import type { Can, ParticipantRole } from "@orb/contracts/identity";
+import type { Can } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_WIRE_NAME_MAX } from "@orb/contracts/plugin";
 import type { UserId } from "@orb/kit/ids";
@@ -37,7 +37,7 @@ function serviceWith(can: Can = allowAll): Service {
 }
 
 /** A minimal valid plugin tool spec; `invoke` echoes the args JSON it received (the round-trip probe). The
- *  default `resolveInstallerRole` reports the installer as the chat's HOST (the permissive case — every PL-C
+ *  default `resolveInstallerAuthority` reports the installer as the chat's HOST (the permissive case — every PL-C
  *  test below overrides it, since that op IS the ceiling). */
 function specOf(over: Partial<PluginToolSpec> = {}): PluginToolSpec {
   return {
@@ -46,7 +46,7 @@ function specOf(over: Partial<PluginToolSpec> = {}): PluginToolSpec {
     parameters: { type: "object", properties: { tag: { type: "string", minLength: 1 } }, required: ["tag"], additionalProperties: false },
     installer: INSTALLER,
     invoke: (argsJson: string): Promise<string> => Promise.resolve(`echo:${argsJson}`),
-    resolveInstallerRole: (): Promise<ParticipantRole | null> => Promise.resolve("host"),
+    resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }),
     ...over,
   };
 }
@@ -142,7 +142,9 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       return Promise.resolve("x");
     };
     // The installer is a stranger to chat_x (no participant row); the turn caller is its host.
-    service.registerPluginTool(specOf({ name: "plugin_denied", installer: STRANGER, invoke, resolveInstallerRole: () => Promise.resolve(null) }));
+    service.registerPluginTool(
+      specOf({ name: "plugin_denied", installer: STRANGER, invoke, resolveInstallerAuthority: () => Promise.resolve({ canRead: false, canWrite: false }) }),
+    );
     // Driven by STRANGER — the entry lives on THEIR shelf (#677), and the PL-C ceiling is what denies it.
     const rec = await runOne(service, "plugin_denied", { tag: "calm" }, { exec: hostCallerExec, driver: STRANGER.userId });
     expect(rec?.isError).toBe(true);
@@ -160,7 +162,9 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       seen = chat;
       return Promise.resolve("ok");
     };
-    service.registerPluginTool(specOf({ name: "plugin_member", installer: INSTALLER, invoke, resolveInstallerRole: () => Promise.resolve("member") }));
+    service.registerPluginTool(
+      specOf({ name: "plugin_member", installer: INSTALLER, invoke, resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: false }) }),
+    );
     const rec = await runOne(service, "plugin_member", { tag: "calm" }, { exec: hostCallerExec });
     expect(rec?.isError).toBe(false);
     expect(seen?.chatId).toBe("chat_x");
@@ -176,7 +180,9 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       seen = chat;
       return Promise.resolve("ok");
     };
-    service.registerPluginTool(specOf({ name: "plugin_host", installer: INSTALLER, invoke, resolveInstallerRole: () => Promise.resolve("host") }));
+    service.registerPluginTool(
+      specOf({ name: "plugin_host", installer: INSTALLER, invoke, resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }) }),
+    );
     const rec = await runOne(service, "plugin_host", { tag: "calm" }, { exec: execOf({ chatId: castId("chat_x"), membership: { role: "member" } }) });
     expect(rec?.isError).toBe(false);
     expect(seen?.canWrite).toBe(true);
@@ -196,9 +202,9 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       specOf({
         name: "plugin_per_chat",
         invoke,
-        resolveInstallerRole: (chatId): Promise<ParticipantRole | null> => {
+        resolveInstallerAuthority: (chatId): ReturnType<PluginToolSpec["resolveInstallerAuthority"]> => {
           asked.push(chatId);
-          return Promise.resolve(chatId === "chat_x" ? "host" : null);
+          return Promise.resolve({ canRead: chatId === "chat_x", canWrite: chatId === "chat_x" });
         },
       }),
     );
@@ -228,7 +234,9 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
     };
     // The installer is not a present member of the chat the rule fires in. Nothing about `membership: null` may be
     // read as "no membership to check" — the ceiling's input is the INSTALLER's row read, and it says no.
-    service.registerPluginTool(specOf({ name: "plugin_auto_denied", invoke, resolveInstallerRole: () => Promise.resolve(null) }));
+    service.registerPluginTool(
+      specOf({ name: "plugin_auto_denied", invoke, resolveInstallerAuthority: () => Promise.resolve({ canRead: false, canWrite: false }) }),
+    );
     const rec = await runOne(service, "plugin_auto_denied", { tag: "calm" }, { exec: automationExec });
     expect(rec?.isError).toBe(true);
     expect(rec?.result).toContain("not permitted");
@@ -242,7 +250,9 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       seen = chat;
       return Promise.resolve("ok");
     };
-    service.registerPluginTool(specOf({ name: "plugin_auto_member", invoke, resolveInstallerRole: () => Promise.resolve("member") }));
+    service.registerPluginTool(
+      specOf({ name: "plugin_auto_member", invoke, resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: false }) }),
+    );
     const rec = await runOne(service, "plugin_auto_member", { tag: "calm" }, { exec: automationExec });
     expect(rec?.isError).toBe(false);
     // The write half stays LOCKED. With no membership in scope at all, a ceiling that had been reading the caller's

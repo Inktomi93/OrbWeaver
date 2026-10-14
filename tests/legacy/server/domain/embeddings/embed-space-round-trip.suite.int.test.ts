@@ -37,6 +37,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { resolveActiveDocumentScope } from "#server/domain/databank/index.ts";
 import { readOwnedCharacterVectors } from "#server/domain/discovery/persistence/embed-store-reads.ts";
 import type { EmbeddingsContext } from "#server/domain/embeddings/context.ts";
 import type { EmbeddingsService } from "#server/domain/embeddings/contract/service.ts";
@@ -243,7 +244,8 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     await runEmbedSweeps(drive);
 
     const readTag = await spaceModel(drive.ctx, drive.userId, "embed");
-    const hits = await nearestDocumentChunks(db, {
+    const hits = await nearestDocumentChunks(db, (scope) => resolveActiveDocumentScope(db, scope), {
+      scope: { ownerId: drive.userId },
       documentIds: [documentId],
       queryVector: queryVector(),
       model: readTag,
@@ -291,7 +293,8 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     });
     expect(await db.select().from(documentChunks)).toHaveLength(1);
     expect(
-      await nearestDocumentChunks(db, {
+      await nearestDocumentChunks(db, (scope) => resolveActiveDocumentScope(db, scope), {
+        scope: { ownerId: drive.userId },
         documentIds: [documentId],
         queryVector: queryVector(),
         model: servedTag ?? "",

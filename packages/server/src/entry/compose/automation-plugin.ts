@@ -25,7 +25,7 @@ import {
   createSuggestionStore,
 } from "#domain/automation";
 import { readPluginCardData, writePluginCardData } from "#domain/character";
-import { createPluginChatAuthority, loadPresentRole, requireHost } from "#domain/chat";
+import { createPluginChatAuthority, requireHost } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
@@ -297,11 +297,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   // Private pubsub has no domain/chat event sink.
   const pluginEventBus = createPluginEventBus();
   const pluginUiOutbox = createPluginUiOutbox(now);
+  const resolveChatAuthority = createPluginChatAuthority({ db, can });
   const registrarOps = createPluginRegistrarOps({
     toolUse: deps.toolUse,
     promptTransforms: chatCompose.promptTransforms,
     pluginSubscribers,
-    loadPresentRole: (chatId, userId) => loadPresentRole(db, chatId, userId),
+    resolveChatAuthority,
     newEventId: () => `plugin-event:${(deps.newOpaqueId ?? randomUUID)()}`,
   });
   const pluginHostOps: PluginHostOps = {
@@ -400,7 +401,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         belts: pluginBelts,
         snippetGate: createSnippetGate(),
         uiHostCallGate: createUiHostCallGate(),
-        resolveChatAuthority: createPluginChatAuthority(db),
+        resolveChatAuthority,
       },
       {
         requireAdmin: (caller): void => {

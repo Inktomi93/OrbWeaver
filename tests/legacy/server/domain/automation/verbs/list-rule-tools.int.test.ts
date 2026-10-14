@@ -5,7 +5,8 @@ import "@orb/testkit/node/composed-real.ts";
 import type { AutomationRuleToolView } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { loadPresentRole } from "@orb/server/domain/chat";
+import { can } from "@orb/server/domain/admin";
+import { createPluginChatAuthority } from "@orb/server/domain/chat";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import type { PluginToolHandle } from "#server/domain/tool-use/index.ts";
@@ -29,7 +30,7 @@ function installTool(app: ServicesResult, db: Db, owner: UserId, probe: { readon
       calls.push(marker);
       return Promise.resolve(`${marker} private execution result`);
     },
-    resolveInstallerRole: (chatId) => loadPresentRole(db, chatId, owner),
+    resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db, can })(principal(owner), chatId),
   });
 }
 

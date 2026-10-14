@@ -64,7 +64,8 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { loadPresentRole } from "@orb/server/domain/chat";
+import { can } from "@orb/server/domain/admin";
+import { createPluginChatAuthority } from "@orb/server/domain/chat";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { appRouter } from "@orb/server/transport/trpc";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -2881,7 +2882,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       },
       installer: automationPrincipal(OWNER_USER_ID),
       invoke: (): Promise<string> => Promise.resolve("catalog probe never executes a tool"),
-      resolveInstallerRole: (chatId) => loadPresentRole(db, chatId, OWNER_USER_ID),
+      resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db, can })(automationPrincipal(OWNER_USER_ID), chatId),
     });
     onTestFinished(() => catalogTool.unregister());
 

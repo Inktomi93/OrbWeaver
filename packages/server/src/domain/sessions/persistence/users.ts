@@ -5,7 +5,7 @@ import type { AwaitableBatchStmt } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import type { ProvisionCandidate } from "../contract/results.ts";
 
 // The `users`-row resolution queries. Lookups for `ensureUser` (by handle) + `provisionIdentity` (by
@@ -42,6 +42,56 @@ const PROVISION_COLS = {
   role: users.role,
   enabled: users.enabled,
 } as const;
+
+/** Trusted boot convenience seeding covers every account, including disabled and nonhuman accounts. */
+export function createListSeedAccountIds(db: Db): () => Promise<readonly UserId[]> {
+  return async () => (await db.select({ id: users.id }).from(users)).map((row) => row.id);
+}
+
+/** Any account's password depends on the current pepper, not merely the owner's credential. */
+export async function hasSessionSecretPasswordDependents(db: Db): Promise<boolean> {
+  const rows = await db.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash)).limit(1);
+  return rows.length > 0;
+}
+
+/** The boot seed reconciles the singleton's trusted environment handle before ensuring that handle. */
+export async function selectBootstrapOwner(db: Db): Promise<Pick<typeof users.$inferSelect, "id" | "handle"> | undefined> {
+  const rows = await db.select({ id: users.id, handle: users.handle }).from(users).where(eq(users.role, "owner")).limit(1);
+  return rows.at(0);
+}
+
+/** A boot seed-key move may not take another account's handle, including a confusable equivalent. */
+export async function selectBootstrapHandleConflict(db: Db, handle: Handle, ownerId: UserId): Promise<UserId | undefined> {
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.handleKey, handleKey(handle)), ne(users.id, ownerId)))
+    .limit(1);
+  return rows.at(0)?.id;
+}
+
+/** Only trusted boot repairs the owner role or a disabled owner; a healthy seeded row is unchanged. */
+export async function backfillBootstrapOwner(db: Db, userId: UserId, at: number): Promise<void> {
+  await db
+    .update(users)
+    .set({ role: "owner", enabled: true, updatedAt: at })
+    .where(and(eq(users.id, userId), or(ne(users.role, "owner"), eq(users.enabled, false))));
+}
+
+/** Avoid hashing the optional boot password again after the credential was claimed. */
+export async function selectBootstrapPasswordHash(db: Db, userId: UserId): Promise<string | null | undefined> {
+  const rows = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, userId)).limit(1);
+  return rows.at(0)?.passwordHash;
+}
+
+/** A later self-rotated password cannot be overwritten by a reboot or a concurrent first claim. */
+export async function claimBootstrapPassword(db: Db, userId: UserId, passwordHash: string, at: number): Promise<boolean> {
+  const result = await db
+    .update(users)
+    .set({ passwordHash, updatedAt: at })
+    .where(and(eq(users.id, userId), isNull(users.passwordHash)));
+  return result.rowsAffected > 0;
+}
 
 /** `authenticate` lookup: the local-login credential row for a handle. `passwordHash` is null for
  *  an SSO-only row (fails verification against the dummy hash — never a fast reject). */

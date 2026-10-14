@@ -26,9 +26,10 @@ import { characterDocuments, characters, chatDocuments, chatParticipants, chats,
 import type { AwaitableBatchStmt } from "@orb/db/query";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
-import type { SQL } from "drizzle-orm";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import type { SQL, SQLWrapper } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import type { ResolveActiveDocumentIdsOp } from "#domain/search";
 import type { DatabankContext } from "../contract/service.ts";
 import { ensureCharacterOwned } from "./queries.ts";
 
@@ -189,30 +190,28 @@ export async function insertIngestDocument(
  *  only guards the SHAPE (a non-array / non-object heals to nothing-hidden), never re-validates the TypeID. */
 const storedVisibilitySchema = z.object({ hidden: z.array(z.string()) });
 
-/** Persistence-internal scope shape (the injected resolver's argument; the search-side op type lands with
- *  DB5). Not exported — callers pass a `{chatId}` / `{ownerId}` literal. */
-type DocumentScope = { readonly chatId: ChatId } | { readonly ownerId: UserId };
+type DocumentScope = Parameters<ResolveActiveDocumentIdsOp>[0];
+type DocumentScopeQuery = SQLWrapper & PromiseLike<readonly Pick<typeof globalDocuments.$inferSelect, "documentId">[]>;
 
-/** The PRESENT human members of a chat (kind='human', still seated — leftSeq null). The host is one of them;
- *  a member who LEFT (leftSeq non-null) is excluded, so their global documents stop crediting the room. Their
- *  GLOBAL documents are the D85 membership-widening subjects. */
-async function resolveHumanMembers(db: Db, chatId: ChatId): Promise<UserId[]> {
-  const rows = await db
-    .select({ userId: chatParticipants.userId })
-    .from(chatParticipants)
+// The panel and retrieval predicate use the same junction queries, so departed seats lose both credits together.
+function globalScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
+  return db
+    .select({ documentId: globalDocuments.documentId })
+    .from(globalDocuments)
+    .innerJoin(chatParticipants, eq(globalDocuments.ownerId, chatParticipants.userId))
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), isNull(chatParticipants.leftSeq)));
-  return rows.flatMap((r) => (r.userId === null ? [] : [r.userId]));
 }
 
-/** The chat's PRESENT character roster (kind='character', still seated) — the character-scope retrieval
- *  subjects. The SHAPE CHECK guarantees a character seat carries characterId, but
- *  the column is nullable in TS (shared with the other kinds) — the flatMap drops any null defensively. */
-async function resolveRosterCharacters(db: Db, chatId: ChatId): Promise<CharacterId[]> {
-  const rows = await db
-    .select({ characterId: chatParticipants.characterId })
-    .from(chatParticipants)
+function characterScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
+  return db
+    .select({ documentId: characterDocuments.documentId })
+    .from(characterDocuments)
+    .innerJoin(chatParticipants, eq(characterDocuments.characterId, chatParticipants.characterId))
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
-  return rows.flatMap((r) => (r.characterId === null ? [] : [r.characterId]));
+}
+
+function chatScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
+  return db.select({ documentId: chatDocuments.documentId }).from(chatDocuments).where(eq(chatDocuments.chatId, chatId));
 }
 
 /** The host's per-document visibility override for a chat (D85). Reads `chats.metadata.databankVisibility` and
@@ -233,27 +232,13 @@ interface ChatDocumentCredit {
   readonly sources: DocumentScopeSource[];
 }
 
-/** The RAW membership-widened chat document union WITH its PROVENANCE — which of the three scope junctions
- *  credits each document (D-2, `DOCUMENT_SCOPE_SOURCES`). The three queries always ran separately here and
- *  their answer was collapsed to a flat id list; keeping it is what lets the per-chat rack say WHY a
- *  document is active, and which one the host may DETACH (only the `chat` junction is this room's) rather
- *  than merely hide.
- *
- *  A document can be credited by SEVERAL junctions at once, so `sources` is a list, deduplicated per
- *  document. The find-and-push (not a Map/Set) is this file's standing posture — persistence is
- *  queries-only, and the id sets are a chat's attached documents, i.e. small. ORDER is global → chat →
- *  character, exactly the order the previous indexOf-dedup produced, so the id-only
- *  {@link resolveChatDocumentUnion} reader below sees the ordering it always saw. */
+/** Raw D85 credits, deduplicated in global/chat/character order. The panel needs each source to distinguish
+ *  a detachable room junction from a visibility override; retrieval uses the same junction query builders. */
 export async function resolveChatDocumentSources(db: Db, chatId: ChatId): Promise<ChatDocumentCredit[]> {
-  const [members, rosterCharacters] = await Promise.all([resolveHumanMembers(db, chatId), resolveRosterCharacters(db, chatId)]);
   const [globalRows, chatRows, characterRows] = await Promise.all([
-    members.length === 0
-      ? Promise.resolve([] as { documentId: DocumentId }[])
-      : db.select({ documentId: globalDocuments.documentId }).from(globalDocuments).where(inArray(globalDocuments.ownerId, members)),
-    db.select({ documentId: chatDocuments.documentId }).from(chatDocuments).where(eq(chatDocuments.chatId, chatId)),
-    rosterCharacters.length === 0
-      ? Promise.resolve([] as { documentId: DocumentId }[])
-      : db.select({ documentId: characterDocuments.documentId }).from(characterDocuments).where(inArray(characterDocuments.characterId, rosterCharacters)),
+    globalScopeDocuments(db, chatId),
+    chatScopeDocuments(db, chatId),
+    characterScopeDocuments(db, chatId),
   ]);
   const credits: ChatDocumentCredit[] = [];
   const credit = (rows: readonly { documentId: DocumentId }[], source: DocumentScopeSource): void => {
@@ -272,32 +257,32 @@ export async function resolveChatDocumentSources(db: Db, chatId: ChatId): Promis
   return credits;
 }
 
-/** The RAW membership-widened chat document union — NO visibility filter (the RETRIEVAL pre-filter input).
- *  D85: every present human member's global docs ∪ the chat's attached docs ∪ the present roster
- *  characters' attached docs. Deduplicated — DERIVED from {@link resolveChatDocumentSources} so the union
- *  and its provenance can never be two different answers to one question.
- *
- *  MODULE-LOCAL since D-2: the panel read (`verbs/list-active-for-chat.ts`) was the only other caller and
- *  now takes the provenance-carrying twin, so the retrieval path below is the sole consumer. */
-async function resolveChatDocumentUnion(db: Db, chatId: ChatId): Promise<DocumentId[]> {
-  const credits = await resolveChatDocumentSources(db, chatId);
-  return credits.map((credit) => credit.documentId);
+/** Resolve the retrieval predicate at the read boundary; room membership remains inside the SQL scan. */
+export async function resolveActiveDocumentScope(db: Db, scope: DocumentScope): Promise<SQL> {
+  if ("ownerId" in scope) {
+    return eq(documents.ownerId, scope.ownerId);
+  }
+  const hidden = await resolveChatHiddenDocumentIds(db, scope.chatId);
+  return sql`${and(
+    or(
+      inArray(documents.id, globalScopeDocuments(db, scope.chatId)),
+      inArray(documents.id, chatScopeDocuments(db, scope.chatId)),
+      inArray(documents.id, characterScopeDocuments(db, scope.chatId)),
+    ),
+    hidden.length === 0 ? undefined : notInArray(documents.id, hidden),
+  )}`;
 }
 
 /** Resolve the documents ACTIVE for RETRIEVAL, deduplicated. `{ownerId}` = the whole bank (junctions don't
  *  scope a personal search); `{chatId}` = the D85 membership union MINUS the host's per-document visibility
- *  exclusions. An empty/hostless union returns []. This is the retrieval-correct set `search.documents` scans;
- *  the panel read uses {@link resolveChatDocumentUnion} + {@link resolveChatHiddenDocumentIds} to also SHOW
+ *  exclusions. An empty union returns []. This is the retrieval-correct set `search.documents` scans;
+ *  the panel read uses {@link resolveChatDocumentSources} + {@link resolveChatHiddenDocumentIds} to also SHOW
  *  hidden documents to the host. */
 export async function resolveActiveDocumentIds(db: Db, scope: DocumentScope): Promise<DocumentId[]> {
   if ("ownerId" in scope) {
     const rows = await db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, scope.ownerId));
-    return rows.map((r) => r.id);
+    return rows.map((row) => row.id);
   }
-  const [union, hidden] = await Promise.all([resolveChatDocumentUnion(db, scope.chatId), resolveChatHiddenDocumentIds(db, scope.chatId)]);
-  if (hidden.length === 0) {
-    return union;
-  }
-  // includes-filter, not a Set — persistence is queries-only (the hidden set is a handful of ids per chat).
-  return union.filter((id) => !hidden.includes(id));
+  const [credits, hidden] = await Promise.all([resolveChatDocumentSources(db, scope.chatId), resolveChatHiddenDocumentIds(db, scope.chatId)]);
+  return credits.map((credit) => credit.documentId).filter((id) => !hidden.includes(id));
 }
