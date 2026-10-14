@@ -5,13 +5,8 @@
 // only where the capability says the model honours them.
 
 import type { EmbeddingCapability } from "@orb/contracts/inference";
+import type { EmbedOptions } from "../contract/funnel.ts";
 import type { ResolvedEmbedKnobs, ResolvedWarning } from "../contract/resolve.ts";
-
-// @orb-waive no-inline-package-interface(EmbedOptions): baselined when the gate landed; burn-down item 952.
-export interface EmbedOptions {
-  readonly inputType?: "query" | "document" | undefined;
-  readonly instruction?: string | undefined;
-}
 
 export function resolveEmbed(opts: EmbedOptions, capability: EmbeddingCapability): ResolvedEmbedKnobs {
   const warnings: ResolvedWarning[] = [];
@@ -26,3 +21,5 @@ export function resolveEmbed(opts: EmbedOptions, capability: EmbeddingCapability
     warnings,
   };
 }
+
+export type { EmbedOptions } from "../contract/funnel.ts";

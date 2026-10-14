@@ -17,12 +17,11 @@ import type {
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatResult } from "#contract";
 import { ProviderError } from "#contract";
+import type { AgentSdkDeps, AgentSdkLog } from "../../contract/agent-sdk-backend.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
-import type { AgentSdkLog } from "./log.ts";
 import { consumeTurnStream, sdkOutputFormatOf } from "./runner.ts";
 import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { disciplineOptions, MCP_NAMESPACE, observabilityOptions, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
-import type { AgentSdkDeps } from "./types.ts";
 
 const DEFAULT_AGENT_MAX_TURNS = 8;
 const SDK_TITLE_AGENT = "orbweaver-agent";

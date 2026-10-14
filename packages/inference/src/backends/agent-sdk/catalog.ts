@@ -12,11 +12,10 @@ import { verifyAuthAccountSchema } from "@orb/contracts/providers";
 import type { ProviderScrubSet, SpawnIdentity, VerifyAuthRequest } from "#contract";
 import { ProviderError } from "#contract";
 import type { AgentSdkQueryLease } from "#src/contract/agent-sdk-execution.ts";
+import type { AgentSdkDeps, AgentSdkLog } from "../../contract/agent-sdk-backend.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
-import type { AgentSdkLog } from "./log.ts";
 import { disciplineOptions, observabilityOptions } from "./translate.ts";
-import type { AgentSdkDeps } from "./types.ts";
 import { assertSdkMessageRead } from "./wire-read.ts";
 
 const DISCOVERY_TIMEOUT_MS = 15_000;

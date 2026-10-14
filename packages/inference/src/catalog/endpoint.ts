@@ -12,11 +12,11 @@ import { parseModalities } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { deadlineSignal } from "../backends/http/abort-flatten.ts";
-import type { FetchJsonArgs } from "../backends/http/fetch-json.ts";
 import { authHeaders, fetchJson, isRedirect, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
-import type { ProviderScrubSet } from "../contract/errors.ts";
+import type { EndpointFetchArgs } from "../contract/catalog.ts";
 import { assertNever, ProviderError } from "../contract/errors.ts";
-import type { EndpointModel, ScheduleTimeout } from "../contract/runtime.ts";
+import type { FetchJsonArgs } from "../contract/http.ts";
+import type { EndpointModel } from "../contract/runtime.ts";
 
 const rowSchema = z
   .object({
@@ -29,25 +29,6 @@ const rowSchema = z
 type RawRow = z.infer<typeof rowSchema>;
 
 const listSchema = z.object({ data: z.array(rowSchema) }).loose();
-
-// @orb-waive no-inline-package-interface(EndpointFetchArgs): baselined when the gate landed; burn-down item 952.
-export interface EndpointFetchArgs {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly fetch: typeof fetch;
-  readonly baseUrl: string;
-  readonly secret: string | null;
-  readonly headers?: Readonly<Record<string, string>> | undefined;
-  readonly secrets: ProviderScrubSet;
-  readonly signal?: AbortSignal | undefined;
-  /** The row's folded `features.modelInfoApi`. */
-  readonly modelInfoApi?: ModelInfoApi | undefined;
-  /** Where a failed native read is reported; it never fails the list. */
-  readonly warn?: ((message: string) => void) | undefined;
-  /** The ONE listed model the per-model probes may ask about (kind, measured width, prefill). Those probes load or
-   *  wake a model, so a plain listing (the add flow, diagnostics) sets none; the resolve warm names the
-   *  connection's own model. */
-  readonly probeModel?: string | undefined;
-}
 
 /** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
  *  precedes a `/` is a registry port, not a tag. */
@@ -801,3 +782,5 @@ async function listedModelFacts(args: EndpointFetchArgs, row: EndpointModel): Pr
       return assertNever(args.modelInfoApi, "model info api");
   }
 }
+
+export type { EndpointFetchArgs } from "../contract/catalog.ts";

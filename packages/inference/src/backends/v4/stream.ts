@@ -16,11 +16,11 @@ import type {
   SharedV4ProviderMetadata,
   SharedV4Warning,
 } from "@ai-sdk/provider";
-import type { TextSignature } from "@orb/contracts/chat";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { GeneratedImage, ReasoningContentPart, ToolCallInput } from "#contract";
 import { ProviderError } from "#contract";
+import type { DrainCallbacks, StreamDrain } from "../../contract/v4.ts";
 
 const BASE64 = "base64";
 const IMAGE_PREFIX = "image/";
@@ -31,34 +31,6 @@ const OPENROUTER_KEY = "openrouter";
 const SIGNATURE_KEY = "signature";
 const REDACTED_DATA_KEY = "redactedData";
 const REASONING_DETAILS_KEY = "reasoning_details";
-
-// @orb-waive no-inline-package-interface(StreamDrain): baselined when the gate landed; burn-down item 952.
-export interface StreamDrain {
-  readonly reply: string;
-  readonly textSignatures: readonly TextSignature[];
-  readonly reasoning: string;
-  /** One entry per reasoning BLOCK the provider opened, in stream order, carrying that block's text and the
-   *  wire-opaque provenance the next leg must replay (§A1). Empty when the wire surfaced no reasoning. */
-  readonly reasoningParts: readonly ReasoningContentPart[];
-  readonly toolCalls: readonly ToolCallInput[];
-  readonly images: readonly GeneratedImage[];
-  readonly finish: LanguageModelV4FinishReason;
-  readonly usage: LanguageModelV4Usage | undefined;
-  readonly providerMetadata: SharedV4ProviderMetadata | undefined;
-  readonly responseId: string | undefined;
-  readonly servedModel?: string | undefined;
-  readonly warnings: readonly SharedV4Warning[];
-}
-
-// @orb-waive no-inline-package-interface(DrainCallbacks): baselined when the gate landed; burn-down item 952.
-export interface DrainCallbacks {
-  readonly onPart?: (() => void) | undefined;
-  readonly onRaw?: ((value: unknown) => void) | undefined;
-  readonly onText?: ((text: string) => void) | undefined;
-  readonly onReasoning?: ((text: string) => void) | undefined;
-  readonly onImage?: ((image: GeneratedImage) => void) | undefined;
-  readonly label: string;
-}
 
 /** One reasoning block under construction: its text so far and whichever wire provenance has arrived. The
  *  provenance and the text arrive on DIFFERENT parts and in wire-specific order — Anthropic puts the
@@ -343,3 +315,5 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     warnings: acc.warnings,
   };
 }
+
+export type { DrainCallbacks, StreamDrain } from "../../contract/v4.ts";

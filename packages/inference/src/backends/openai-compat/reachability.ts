@@ -4,8 +4,9 @@
 // `wakePath` once per server and polls until it answers awake — nothing here knows the word vLLM. The `up | down` cache is per
 // base URL with a short TTL so a burst of availability reads (every composer render) shares one probe.
 
-import type { Reachability, ScheduleTimeout } from "#contract";
+import type { Reachability } from "#contract";
 import { ProviderError } from "#contract";
+import type { ProbeTarget, ReachabilityDeps, ReachabilityProber, SleepTarget } from "../../contract/openai-backend.ts";
 import { deadlineSignal } from "../http/abort-flatten.ts";
 import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../http/sanitize.ts";
@@ -14,26 +15,6 @@ import { waitForTimeout } from "../http/timers.ts";
 const PROBE_TTL_MS = 10_000;
 const WAKE_POLL_MS = 1000;
 const WAKE_TIMEOUT_MS = 120_000;
-
-// @orb-waive no-inline-package-interface(ReachabilityDeps): baselined when the gate landed; burn-down item 952.
-export interface ReachabilityDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly fetch: typeof fetch;
-  readonly now: () => number;
-}
-
-interface ProbeTarget {
-  readonly baseUrl: string;
-  readonly secret: string | null;
-  readonly headers: Readonly<Record<string, string>> | undefined;
-  readonly sleepPath: string | undefined;
-}
-
-/** A row whose folded features name the sleep pair. */
-interface SleepTarget extends ProbeTarget {
-  readonly sleepPath: string;
-  readonly wakePath: string;
-}
 
 interface CacheEntry {
   readonly at: number;
@@ -143,19 +124,6 @@ function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<
   });
 }
 
-// @orb-waive no-inline-package-interface(ReachabilityProber): baselined when the gate landed; burn-down item 952.
-export interface ReachabilityProber {
-  readonly probe: (target: ProbeTarget) => Promise<Reachability>;
-  /** Whether the server says it is asleep right now. Never cached: a server is put to sleep from outside the app at
-   *  any moment, and a sleeping vLLM queues a request without answering, so only a fresh read may send to it. A read
-   *  that fails is `false` (the task then meets the server's own answer); a `signal` abort rejects. */
-  readonly asleep: (target: SleepTarget, signal: AbortSignal | undefined) => Promise<boolean>;
-  /** POST the row's wake path, then poll the sleep read until awake or the wake window closes. A `signal` abort
-   *  rejects at once with an `aborted` error. */
-  readonly wake: (target: SleepTarget, signal: AbortSignal | undefined) => Promise<boolean>;
-  readonly invalidate: (baseUrl: string) => void;
-}
-
 export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityProber {
   const cache = new Map<string, CacheEntry>();
   const inFlight = new Map<string, Promise<Reachability>>();
@@ -251,3 +219,5 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
 
   return { probe, asleep, wake, invalidate };
 }
+
+export type { ReachabilityDeps, ReachabilityProber } from "../../contract/openai-backend.ts";

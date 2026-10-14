@@ -14,7 +14,6 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
 import type {
-  AddSpanEvent,
   ChatHistoryMessage,
   ChatResult,
   OpenAiCompatChatRequest,
@@ -26,13 +25,15 @@ import type {
 } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
-import type { InferenceLog } from "#src/deps.ts";
-import type { StructuredPlan } from "#structured";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
+import type { ProviderLogger } from "../../contract/http.ts";
+import type { ModelCall, OpenAiCompatChatDeps } from "../../contract/openai-backend.ts";
+import type { StructuredPlan } from "../../contract/structured.ts";
+import type { ResultContext, StreamDrain, WirePlan } from "../../contract/v4.ts";
+import type { ExplicitCachePlan, OpenRouterRouting } from "../../contract/wire.ts";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
-import type { ProviderLogger } from "../http/provider-log.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
 import { cachePolicyContextOf, effectiveDialectOf, responseCacheOf } from "../http/response-cache.ts";
@@ -40,20 +41,14 @@ import { runWithPreCommitRetry } from "../http/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
-import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
-import type { ResultContext } from "../v4/result.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
-import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
-import type { ExplicitCachePlan, OpenRouterRouting } from "../wire/cache-control.ts";
 import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
-import type { ModelCall, TransportDeps } from "./model.ts";
 import { languageModelFor, providerOptionsKey } from "./model.ts";
 import { compatibleReasoning, isMandatoryReasoningRejection, openRouterReasoning, sendsOpenRouterReasoning } from "./reasoning.ts";
 import { wireSampling } from "./sampling.ts";
-import type { TokenLexicon } from "./tokens.ts";
 import { resolveWordBias } from "./tokens.ts";
 
 const MANDATORY_REPLAY_WARNING = "reasoning is mandatory on this endpoint: the turn ran at the model's own effort";
@@ -102,17 +97,6 @@ function nativeOpenAiUsageOverlay(drain: StreamDrain, generation: GenerationCapa
       reasoningTokens: raw?.completion_tokens_details?.reasoning_tokens ?? null,
     },
   };
-}
-
-// @orb-waive no-inline-package-interface(OpenAiCompatChatDeps): baselined when the gate landed; burn-down item 952.
-export interface OpenAiCompatChatDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly now: () => number;
-  readonly random?: (() => number) | undefined;
-  readonly log: InferenceLog;
-  readonly addSpanEvent?: AddSpanEvent | undefined;
-  readonly transport: TransportDeps;
-  readonly tokens: TokenLexicon;
 }
 
 /** The openrouter routing-prefs shape a connection's `extras.provider` may carry (snake_case, OR's own
@@ -878,3 +862,5 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   }
   return turn;
 }
+
+export type { OpenAiCompatChatDeps } from "../../contract/openai-backend.ts";

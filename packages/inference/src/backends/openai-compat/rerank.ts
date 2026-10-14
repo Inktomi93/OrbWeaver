@@ -15,22 +15,15 @@ import { clampToTokenBudget, estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { RerankRequest } from "#contract";
 import { ProviderError } from "#contract";
-import type { InferenceLog } from "#src/deps.ts";
+import type { RerankDeps } from "../../contract/openai-backend.ts";
+import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { authHeaders, fetchJson } from "../http/fetch-json.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
-import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import { toImageUrl } from "../wire/image-normalize.ts";
 
 const RERANK_SCAFFOLD_RESERVE_TOKENS = 128;
 const TRAILING_SLASH_RE = /\/$/u;
-
-// @orb-waive no-inline-package-interface(RerankDeps): baselined when the gate landed; burn-down item 952.
-export interface RerankDeps {
-  readonly fetch: typeof fetch;
-  readonly normalize: NormalizeImageBytes;
-  readonly log: InferenceLog;
-}
 
 const rerankResponseSchema = z
   .object({
@@ -168,3 +161,5 @@ export async function runOpenAiCompatRerank(req: RerankRequest, deps: RerankDeps
   });
   return toResult(rerankResponseSchema.parse(result.json), docs, req);
 }
+
+export type { RerankDeps } from "../../contract/openai-backend.ts";

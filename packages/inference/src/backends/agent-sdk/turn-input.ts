@@ -10,7 +10,7 @@
 
 import type { AgentSdkChatRequest, AgentSeedBlock, AgentSeedTurn, AgentToolServer, ChatHistoryMessage, ChatToolOffer, ChatTurnInput } from "#contract";
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, deltaSubscriptionOf } from "#contract";
-import type { AgentToolSpec } from "./index.ts";
+import type { AgentToolSpec } from "../../contract/agent-sdk-backend.ts";
 import { createAgentToolServer } from "./index.ts";
 
 /**

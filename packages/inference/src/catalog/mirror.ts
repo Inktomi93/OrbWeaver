@@ -8,41 +8,14 @@
 
 import { z } from "zod";
 import { scrubbedReason } from "../backends/wire/model-listing.ts";
+import type { Mirror, MirrorDeps } from "../contract/catalog.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
 import type { MirrorWarm } from "../contract/runtime.ts";
-import type { SnapshotStore, SpanAttrs } from "../deps.ts";
 
 const MS_PER_WEEK = 604_800_000;
 /** How long a failed live fetch is answered from memory. The several resolves of one connection write, or a burst of
  *  turns, then share one wait on a dead server instead of each dialing it again; past it the next warm asks again. */
 const FAILED_WARM_HOLD_MS = 10_000;
-
-// @orb-waive no-inline-package-interface(MirrorDeps): baselined when the gate landed; burn-down item 952.
-export interface MirrorDeps {
-  readonly now: () => number;
-  readonly snapshotStore: SnapshotStore;
-  readonly addSpanEvent?: ((name: string, attrs?: SpanAttrs) => void) | undefined;
-  readonly warn: (fields: Readonly<Record<string, unknown>>, message: string) => void;
-}
-
-// @orb-waive no-inline-package-interface(Mirror): baselined when the gate landed; burn-down item 952.
-export interface Mirror<T> {
-  readonly get: () => T | null;
-  /** Warm when cold: the snapshot first, then `fetch`; persists a fresh fetch. Returns the mirror's value
-   *  after the attempt, or why the live fetch failed, scrubbed of `secrets` (the ones `fetch` dials with).
-   *  Never a throw: the resolve path degrades on `ok: false`, and the model-list read reports the reason. A
-   *  warm that coalesces onto one in flight shares that warm's answer, reason included. */
-  readonly warm: (fetch: () => Promise<T>, secrets: ProviderScrubSet) => Promise<MirrorWarm<T>>;
-  /** The first half of a warm and nothing more: a cold mirror loads the persisted snapshot, and nothing is dialed. A read
-   *  that must not wait on a host still sees what the next warm would read first. `null` when nothing is held. */
-  readonly hydrate: () => Promise<T | null>;
-  readonly seed: (value: T, at: number) => void;
-  /** Rewrite the held value in place, in memory and in the snapshot, keeping its fetch time: facts learned about it
-   *  after the fetch (one model's own probes). A cold mirror, or one invalidated meanwhile, keeps nothing. */
-  readonly amend: (update: (value: T) => T) => Promise<void>;
-  /** Drop the in-memory copy AND skip the snapshot on the next warm — `catalogs.refresh` (a forced live fetch). */
-  readonly invalidate: () => void;
-}
 
 const snapshotSchema = z.object({ fetchedAt: z.number(), value: z.unknown() });
 
@@ -185,3 +158,5 @@ export function createMirror<T>(args: {
     },
   };
 }
+
+export type { Mirror, MirrorDeps } from "../contract/catalog.ts";

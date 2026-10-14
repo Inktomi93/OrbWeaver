@@ -16,14 +16,7 @@
 // D19/D16 payload rules that keep prompt bytes off the bus apply to it for the same reason.
 
 import type { AddSpanEvent, ChatResult } from "#contract";
-
-// @orb-waive no-inline-package-interface(TurnCacheSpan): baselined when the gate landed; burn-down item 952.
-/** One turn's cache placement, as the two hosted wires already count it for their own receipts. */
-export interface TurnCacheSpan {
-  readonly breakpointsPlaced: number;
-  readonly readTokens: number | null;
-  readonly writeTokens: number | null;
-}
+import type { TurnCacheSpan } from "../../contract/http.ts";
 
 /** Emit the turn's timeline events. Absent `addSpanEvent` ⇒ nothing happens (no span in scope), which is the
  *  same posture every other consumer of the dep takes. `firstDeltaAt` is absent on a turn that streamed no
@@ -65,3 +58,5 @@ export function emitTurnSpanEvents(args: {
     ...(total === null || readTokens === null ? {} : { hitRatio: total > 0 ? readTokens / total : 0 }),
   });
 }
+
+export type { TurnCacheSpan } from "../../contract/http.ts";

@@ -9,77 +9,23 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/provider";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { CachePolicy, Dialect, EffortLevel, ImageDetail } from "@orb/contracts/inference";
-import type { ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
-import type { ChatId } from "@orb/kit/ids";
+import type { CachePolicy, Dialect } from "@orb/contracts/inference";
 import { wrapLanguageModel } from "ai";
-import type { Resolved, ResolvedWarning, WireCaptureSink } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy } from "#funnel";
+import type { ModelCall, NativeThink, ShapeArgs } from "../../contract/openai-backend.ts";
+import type { WrapFetchArgs } from "../../contract/v4.ts";
 import { authHeaders, openAiPath } from "../http/fetch-json.ts";
 import { cachePolicyContextOf, effectiveDialectOf, responseCacheHeaders } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
-import type { WrapFetchArgs } from "../v4/fetch.ts";
 import { wrapFetch } from "../v4/fetch.ts";
-import type { WirePlan } from "../v4/prompt.ts";
-import type { ShapeArgs } from "./body.ts";
 import { shapeOutboundBody, userOwnedKeys } from "./body.ts";
-import type { NativeThink } from "./ollama-native.ts";
 import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
 import { samplerBodyKeys } from "./sampling.ts";
-import type { ReasoningTags } from "./think-tags.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
 
 const OR_REFERER_HEADER = "HTTP-Referer";
 const OR_TITLE_HEADER = "X-OpenRouter-Title";
-
-// @orb-waive no-inline-package-interface(TransportDeps): baselined when the gate landed; burn-down item 952.
-/** The transport-level deps a backend hands the factory: the egress-guarded fetch, the capture sink, the app
- *  identity OpenRouter attributes traffic to. */
-export interface TransportDeps {
-  readonly fetch: typeof fetch;
-  readonly captureWire?: WireCaptureSink | undefined;
-  /** Tap the reply bytes onto the capture entry too (§D2) — the process-tier opt-in, off by default. */
-  readonly captureWireReply?: boolean | undefined;
-  readonly app: { readonly name: string; readonly url: string };
-}
-
-// @orb-waive no-inline-package-interface(ModelCall): baselined when the gate landed; burn-down item 952.
-/** Everything one call needs the hooks to know. `plan` is null on the non-chat surfaces (no re-attach). */
-export interface ModelCall {
-  readonly cachePolicy?: CachePolicy | undefined;
-  readonly cacheMarkers?: ReadonlyMap<number, Record<string, unknown>> | undefined;
-  readonly responseCache?: ResponseCacheControl | undefined;
-  readonly responseCacheSettings?: ResponseCacheSettings | undefined;
-  readonly translateResponse?: WrapFetchArgs["translateResponse"];
-  readonly imageDetail?: ImageDetail | undefined;
-  readonly connection: Resolved;
-  readonly deps: TransportDeps;
-  readonly label: string;
-  readonly api: string;
-  readonly chatId?: ChatId | undefined;
-  readonly plan: WirePlan | null;
-  readonly prefillAllowed: boolean;
-  /** What body rule 5b tells the template's thinking switch; `undefined` leaves the server's default. */
-  readonly templateThinking: boolean | undefined;
-  /** What body rule 5c tells the template about replaying prior thinking; `undefined` sends nothing. */
-  readonly templatePreserveReasoning: boolean | undefined;
-  /** The effort the funnel resolved, for a route that spells effort in its own words rather than the V4 one (Ollama's
-   *  native `think`, where `max` is not the OpenAI route's `xhigh`). */
-  readonly reasoningEffort?: EffortLevel | undefined;
-  /** Sees each native body as it goes out (after the user's body), so a turn records what was sent. */
-  readonly onNativeBody?: ((body: Readonly<Record<string, unknown>>) => void) | undefined;
-  /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 10). */
-  readonly foldSameRole: boolean;
-  readonly replyImages: boolean;
-  readonly warnings: ResolvedWarning[];
-  /** Body-level fields the SDK does not model that this call must carry (the unmodelled sampler knobs, OR routing). */
-  readonly extraBody?: Readonly<Record<string, unknown>> | undefined;
-  /** The openrouter chat settings the SDK models at the MODEL level (ignored on the other transport). */
-  readonly openRouterChat?: { readonly strict?: boolean | undefined; readonly parallelToolCalls?: boolean | undefined } | undefined;
-  /** The preset's inline-reasoning tag pair; drives the `extractReasoningMiddleware` wrap (see `think-tags.ts`). */
-  readonly reasoningTags?: ReasoningTags | undefined;
-}
 
 function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
   return {
@@ -297,3 +243,5 @@ export function embeddingModelFor(call: ModelCall): EmbeddingModelV4 {
 export function imageModelFor(call: ModelCall): ImageModelV4 {
   return TRANSPORTS[effectiveDialectOf(call.connection)].image(call);
 }
+
+export type { ModelCall, TransportDeps } from "../../contract/openai-backend.ts";

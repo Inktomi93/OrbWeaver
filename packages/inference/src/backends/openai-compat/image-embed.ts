@@ -11,22 +11,17 @@ import type { ImageEmbedInput, ImageEmbedPair } from "@orb/contracts/role-client
 import { z } from "zod";
 import type { ImageEmbedRequest } from "#contract";
 import { ProviderError } from "#contract";
+import type { ImageEmbedDeps } from "../../contract/openai-backend.ts";
+import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { authHeaders, fetchJson, openAiPath } from "../http/fetch-json.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { embeddingCostOf } from "../wire/embedding-cost.ts";
 import { decodeEmbeddingVector } from "../wire/embedding-decode.ts";
 import { DOC_INSTRUCTION, fitToDim, QUERY_INSTRUCTION } from "../wire/embedding-input.ts";
-import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import { toImageUrl } from "../wire/image-normalize.ts";
 
 const DIMENSIONS_REJECTED_RE = /dimensions/iu;
 const EMBEDDINGS_PATH = "/embeddings";
-
-// @orb-waive no-inline-package-interface(ImageEmbedDeps): baselined when the gate landed; burn-down item 952.
-export interface ImageEmbedDeps {
-  readonly fetch: typeof fetch;
-  readonly normalize: NormalizeImageBytes;
-}
 
 type ContentPart = { readonly type: "text"; readonly text: string } | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
 interface WireMessage {
@@ -165,3 +160,5 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
       : null;
   return { vectors, model: connection.model, usage: { promptTokens, totalTokens } };
 }
+
+export type { ImageEmbedDeps } from "../../contract/openai-backend.ts";

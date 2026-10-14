@@ -19,8 +19,8 @@ import type {
   LocalLightWorkerValue,
 } from "#src/contract/local-light-worker.ts";
 import type { InferenceLog } from "#src/deps.ts";
+import type { WorkerModelCache } from "../../contract/local-light.ts";
 import { realScheduleTimeout } from "../http/timers.ts";
-import type { LocalLightModelCache } from "./model-cache.ts";
 
 // How long `close` waits for the worker to exit: one embed or rerank run returns well inside it. A model load
 // in progress can outlast it; the process exit then tears the worker down mid-run and aborts (exit 134).
@@ -36,15 +36,6 @@ interface WorkerModelCacheConfig extends Omit<LocalLightWorkerOptions, "cacheMod
   readonly maxPending?: number | undefined;
   readonly onProgress?: ((progress: LocalLightLoadProgress) => void) | undefined;
   readonly log: InferenceLog;
-}
-
-// @orb-waive no-inline-package-interface(WorkerModelCache): baselined when the gate landed; burn-down item 952.
-export interface WorkerModelCache extends LocalLightModelCache {
-  /** Stop the worker and reject its pending calls, waiting a bounded time for it to exit. Every later call is
-   *  refused as `aborted`: close runs at shutdown, and a worker started after it would be torn down mid-run. */
-  readonly close: () => Promise<void>;
-  /** Join actual worker exit, including workers lost to an error before their exit event arrives. */
-  readonly settle: () => Promise<void>;
 }
 
 // Every provenance field a ProviderError may carry; `rewrap` in contract/errors.ts lists the same set.
@@ -296,3 +287,5 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     },
   };
 }
+
+export type { WorkerModelCache } from "../../contract/local-light.ts";

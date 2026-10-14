@@ -7,27 +7,10 @@
 // have NO matcher at all — `resolve-task.ts` applied the whole anthropic list to every anthropic-family id, so a
 // per-model measurement was structurally impossible (inference audit B3/H3, 2026-09-20).
 
-import type { CapabilityOverride, ChatApi, NativeChatApi, ProviderId, Wire } from "@orb/contracts/inference";
+import type { CapabilityOverride } from "@orb/contracts/inference";
 import { capabilityOverrideSchema } from "@orb/contracts/inference";
 import { z } from "zod";
-
-// @orb-waive no-inline-package-interface(CompiledRow): baselined when the gate landed; burn-down item 952.
-export interface CompiledRow {
-  readonly row: CapabilityOverride;
-  readonly model: RegExp | null;
-  readonly ids: ReadonlySet<string> | null;
-}
-
-// @orb-waive no-inline-package-interface(RowQuery): baselined when the gate landed; burn-down item 952.
-/** What a resolver asks the row tiers with: the model id plus the route it resolved on. */
-export interface RowQuery {
-  readonly model: string;
-  readonly providerId?: ProviderId | undefined;
-  readonly wire?: Wire | undefined;
-  readonly api?: ChatApi | null | undefined;
-  /** The chat route the folded `features.nativeChat` selects; a row that names one matches that route only. */
-  readonly nativeChat?: NativeChatApi | undefined;
-}
+import type { CompiledRow, RowQuery } from "../../contract/capability.ts";
 
 const rowsSchema = z.array(capabilityOverrideSchema);
 
@@ -76,3 +59,5 @@ function rowMatches(compiled: CompiledRow, query: RowQuery): boolean {
 export function matchingRows(compiled: readonly CompiledRow[], query: RowQuery): readonly CapabilityOverride[] {
   return compiled.filter((candidate) => rowMatches(candidate, query)).map((candidate) => candidate.row);
 }
+
+export type { CompiledRow, RowQuery } from "../../contract/capability.ts";

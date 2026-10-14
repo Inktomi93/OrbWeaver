@@ -1,7 +1,7 @@
 // What one connection can carry for a structured request: its grammar vocabulary, the ceilings its vendor
 // enforces and the vehicles its wire and capability offer. Read only from the folded capability and features.
 
-import type { EndpointFeatures, StructuredSchemaTarget, StructuredVehicle, Wire } from "@orb/contracts/inference";
+import type { StructuredVehicle, Wire } from "@orb/contracts/inference";
 import {
   acceptsNamedToolChoice,
   acceptsNoneToolChoice,
@@ -10,24 +10,7 @@ import {
   WIRE_STRUCTURED_MODE_DEFAULT,
 } from "@orb/contracts/inference";
 import type { Resolved } from "../contract/resolved.ts";
-
-// @orb-waive no-inline-package-interface(StructuredTarget): baselined when the gate landed; burn-down item 952.
-/** The planner's view of one endpoint. `mode` is `features.structuredMode`, else the wire default; `limits` are
- *  `output.structuredLimitsFrom` merged with `output.structuredLimits`, where the carrier is grammar-compiled. */
-export interface StructuredTarget extends StructuredSchemaTarget {
-  /** The carriers this endpoint can take, in preference order. */
-  readonly vehicles: readonly StructuredVehicle[];
-  /** Whether strict tool input rides: `features.strictJson`. */
-  readonly strictTools: EndpointFeatures["strictJson"];
-  /** The model can be forced to call some tool (`required`). */
-  readonly requiredChoice: boolean;
-  /** The model can be forced to call one named tool. */
-  readonly namedChoice: boolean;
-  /** A `none` choice reaches the model. */
-  readonly noneChoice: boolean;
-  readonly toolsSupported: boolean;
-  readonly requiresReasoningOff: boolean;
-}
+import type { StructuredTarget } from "../contract/structured.ts";
 
 /** Wires whose request has a native schema carrier (`response_format`, `output_config.format`,
  *  `responseJsonSchema`, the agent-sdk `outputFormat`). A mapped Record so a new wire fails `tsc` here. */
@@ -104,3 +87,5 @@ export function structuredTargetOf(connection: Resolved): StructuredTarget {
     requiresReasoningOff: generation.tools?.requiresReasoningOff === true,
   };
 }
+
+export type { StructuredTarget } from "../contract/structured.ts";

@@ -26,6 +26,7 @@ import type { VariantProviderMetadata } from "@orb/contracts/chat";
 import { variantProviderMetadataSchema } from "@orb/contracts/chat";
 import { isPluginProviderId } from "@orb/contracts/inference";
 import { z } from "zod";
+import type { AgentSdkTurnFacts } from "../../contract/wire.ts";
 
 /** The registry ids with a first-party arm. Bound to the union by the returns below: misspell one and the
  *  constructed object stops matching `VariantProviderMetadata`, so `tsc` refuses a switch key that can never
@@ -65,21 +66,6 @@ export function prefixBindingDropsOf(bag: unknown): readonly string[] | undefine
     return;
   }
   return transformations.filter((entry) => entry.reason === PREFIX_BINDING_MISMATCH).map((entry) => entry.path);
-}
-
-// @orb-waive no-inline-package-interface(AgentSdkTurnFacts): baselined when the gate landed; burn-down item 952.
-/** The typed facts the agent-sdk runner accumulates for the `claude-sub` arm. An interface rather than a bag
- *  because this producer has no SDK object to parse — the frames were already read field by field. */
-export interface AgentSdkTurnFacts {
-  readonly cacheCreation5mTokens: number | null;
-  readonly cacheCreation1hTokens: number | null;
-  readonly webSearchRequests: number;
-  readonly warmSpareClaimed: boolean | null;
-  readonly sdkSessionId: string | null;
-  readonly servedModel: string | null;
-  readonly durationApiMs: number | null;
-  readonly numTurns: number;
-  readonly outputCapReached: boolean;
 }
 
 /** A recorded value survives, `null`/absence yields NO key. A measured zero is a real sample and is kept;
@@ -169,3 +155,5 @@ export function agentSdkVariantMetadata(providerId: string, facts: AgentSdkTurnF
     ...(has(facts.servedModel) ? { servedModel: facts.servedModel } : {}),
   };
 }
+
+export type { AgentSdkTurnFacts } from "../../contract/wire.ts";

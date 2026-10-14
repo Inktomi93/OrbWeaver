@@ -8,7 +8,7 @@
 
 import { z } from "zod";
 import type { ChatEvent } from "#contract";
-import type { StreamDrain } from "../v4/stream.ts";
+import type { StreamDrain } from "../../contract/v4.ts";
 import { ANTHROPIC_KEY } from "./model.ts";
 
 const CONTENT_FILTER = "content-filter";

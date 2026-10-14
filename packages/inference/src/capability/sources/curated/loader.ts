@@ -9,7 +9,7 @@
 // Adding a model is a row edit + the table test. A malformed row is a boot failure, never a runtime one.
 
 import type { CapabilityOverride, ProviderId } from "@orb/contracts/inference";
-import type { CompiledRow, RowQuery } from "../rows.ts";
+import type { CompiledRow, RowQuery } from "../../../contract/capability.ts";
 import { compileRows, matchingRows } from "../rows.ts";
 import { anthropicRows } from "./anthropic.ts";
 import { deepseekRows } from "./deepseek.ts";

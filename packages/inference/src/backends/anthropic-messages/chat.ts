@@ -20,7 +20,6 @@ import type { GenerationCapability, ReasoningOffMode } from "@orb/contracts/infe
 import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type {
-  AddSpanEvent,
   AnthropicChatRequest,
   ChatEvent,
   ChatHistoryMessage,
@@ -34,13 +33,15 @@ import type {
 } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat } from "#funnel";
-import type { InferenceLog } from "#src/deps.ts";
-import type { StructuredPlan } from "#structured";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
+import type { AnthropicCall, AnthropicChatDeps } from "../../contract/anthropic-backend.ts";
+import type { ProviderLogger } from "../../contract/http.ts";
+import type { StructuredPlan } from "../../contract/structured.ts";
+import type { StreamDrain, WirePlan } from "../../contract/v4.ts";
+import type { ExplicitCachePlan } from "../../contract/wire.ts";
 import { providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
-import type { ProviderLogger } from "../http/provider-log.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
 import { cachePolicyContextOf } from "../http/response-cache.ts";
@@ -48,33 +49,19 @@ import { runWithPreCommitRetry } from "../http/retry.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
-import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
-import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
-import type { ExplicitCachePlan } from "../wire/cache-control.ts";
 import { automaticCachePlan, explicitCachePlan, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
 import { prefixBindingDropsOf } from "../wire/provider-metadata.ts";
 import { anthropicExtras } from "./extras.ts";
-import type { AnthropicCall, AnthropicTransportDeps } from "./model.ts";
 import { ANTHROPIC_KEY, anthropicModelFor } from "./model.ts";
 import { refusalEventOf } from "./refusal.ts";
 
 /** The SDK's effort enum — `minimal` has no arm on this wire and drops with a warning. */
 const SDK_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 type SdkEffort = (typeof SDK_EFFORTS)[number];
-
-// @orb-waive no-inline-package-interface(AnthropicChatDeps): baselined when the gate landed; burn-down item 952.
-export interface AnthropicChatDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly now: () => number;
-  readonly random?: (() => number) | undefined;
-  readonly log: InferenceLog;
-  readonly addSpanEvent?: AddSpanEvent | undefined;
-  readonly transport: AnthropicTransportDeps;
-}
 
 function requireGeneration(connection: Resolved, label: string): GenerationCapability {
   if (connection.capability.kind !== "generation") {
@@ -536,3 +523,5 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   }
   return turn;
 }
+
+export type { AnthropicChatDeps } from "../../contract/anthropic-backend.ts";

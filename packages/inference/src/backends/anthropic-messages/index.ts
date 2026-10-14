@@ -7,28 +7,25 @@ import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import type {
-  AddSpanEvent,
   AnthropicChatRequest,
   ChatRequest,
   ChatResult,
   ListModelsRequest,
   ProbeRequest,
   ProviderBackend,
-  ProviderScrubSet,
   StructuredRequest,
   SummarizeRequest,
 } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
-import type { InferenceDeps } from "#src/deps.ts";
+import type { AnthropicBackendDeps, AnthropicModelsDial, AnthropicTransportDeps } from "../../contract/anthropic-backend.ts";
+import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { fetchJson } from "../http/fetch-json.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
-import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { runAnthropicChatTurn } from "./chat.ts";
-import type { AnthropicTransportDeps } from "./model.ts";
 import { anthropicBaseUrl } from "./model.ts";
 
 const API_KEY_HEADER = "x-api-key";
@@ -45,32 +42,8 @@ function isAnthropicChatRequest(req: ChatRequest): req is AnthropicChatRequest {
   return req.api === "anthropic-messages";
 }
 
-// @orb-waive no-inline-package-interface(AnthropicBackendDeps): baselined when the gate landed; burn-down item 952.
-export interface AnthropicBackendDeps {
-  readonly now: () => number;
-  readonly random?: (() => number) | undefined;
-  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
-  readonly log: InferenceDeps["log"];
-  readonly addSpanEvent?: AddSpanEvent | undefined;
-  readonly fetch: typeof fetch;
-  readonly captureWire?: InferenceDeps["captureWire"];
-  readonly captureWireReply?: InferenceDeps["captureWireReply"];
-  readonly imageToPng?: InferenceDeps["imageToPng"];
-}
-
 function headersOf(secret: string | null): Record<string, string> {
   return { [VERSION_HEADER]: API_VERSION, ...(secret !== null && secret.length > 0 ? { [API_KEY_HEADER]: secret } : {}) };
-}
-
-// @orb-waive no-inline-package-interface(AnthropicModelsDial): baselined when the gate landed; burn-down item 952.
-/** One `GET /v1/models` dial. The key is a plain string: a saved connection's decrypted key, or a key typed into
- *  a draft that has nothing saved yet. `secrets` is what the dial's error text is scrubbed of. */
-export interface AnthropicModelsDial {
-  readonly baseUrl: string | null;
-  readonly secret: string | null;
-  readonly secrets: ProviderScrubSet;
-  readonly label: string;
-  readonly signal?: AbortSignal | undefined;
 }
 
 function dialOf(req: ListModelsRequest): AnthropicModelsDial {
@@ -149,3 +122,5 @@ export function createAnthropicBackend(deps: AnthropicBackendDeps): ProviderBack
     listModels: (req) => listAnthropicModels(dialOf(req), deps.fetch),
   };
 }
+
+export type { AnthropicBackendDeps, AnthropicModelsDial } from "../../contract/anthropic-backend.ts";

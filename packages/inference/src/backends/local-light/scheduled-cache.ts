@@ -3,7 +3,7 @@
 import type { LocalTextEncoding } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { ProviderError } from "#contract";
-import type { LocalLightModelCache } from "./model-cache.ts";
+import type { LocalLightModelCache } from "../../contract/local-light.ts";
 
 const MAX_PENDING = 64;
 const MAX_TEXT_BATCH = 4;

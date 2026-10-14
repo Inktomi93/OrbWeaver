@@ -7,9 +7,10 @@ import { TOKEN_ID_KEY } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { endpointTokensKey, endpointTokensPrefix } from "#catalog";
-import type { ProviderScrubSet, Resolved, ResolvedSampling, ResolvedWarning } from "#contract";
+import type { Resolved, ResolvedSampling, ResolvedWarning } from "#contract";
 import { ProviderError } from "#contract";
 import type { SnapshotStore } from "#src/deps.ts";
+import type { TokenLexicon, TokenTarget } from "../../contract/openai-backend.ts";
 import { authHeaders, fetchJson, serverRootOf } from "../http/fetch-json.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 
@@ -70,25 +71,6 @@ const heldTokensSchema = z.object({ ids: z.array(TOKEN_ID), pieces: z.array(z.st
 // read as an object's inherited member.
 const persistedSchema = z.array(z.tuple([z.string(), heldTokensSchema]));
 type Cached = ReadonlyMap<string, z.infer<typeof heldTokensSchema>>;
-
-// @orb-waive no-inline-package-interface(TokenTarget): baselined when the gate landed; burn-down item 952.
-/** Where one connection's words are tokenized. */
-export interface TokenTarget {
-  readonly baseUrl: string;
-  readonly model: string;
-  readonly api: TokenizeApi;
-  readonly secret: string | null;
-  readonly headers?: Readonly<Record<string, string>> | undefined;
-  readonly secrets: ProviderScrubSet;
-}
-
-// @orb-waive no-inline-package-interface(TokenLexicon): baselined when the gate landed; burn-down item 952.
-export interface TokenLexicon {
-  /** Each word's tokens, from the cache where held; every missing word is asked once, in parallel, and cached. */
-  readonly lookup: (target: TokenTarget, words: readonly string[], signal?: AbortSignal) => Promise<readonly WordTokens[]>;
-  /** Forget one server's lookups (or every server's), in memory and in the store. */
-  readonly forget: (baseUrl: string | undefined) => Promise<void>;
-}
 
 /** A connection's tokenize target, or `null` when its row names no tokenize endpoint or it has no URL. */
 export function tokenTargetOf(connection: Resolved): TokenTarget | null {
@@ -229,3 +211,5 @@ export async function resolveWordBias(args: {
   }
   return { ...sampling, logitBias: ids };
 }
+
+export type { TokenLexicon, TokenTarget } from "../../contract/openai-backend.ts";

@@ -7,32 +7,14 @@
 // claimed definition, served by their enabled install; any other viewer gets the same `undefined` an
 // unregistered id gets. Two viewers may hold different definitions of one id, and neither sees the other's.
 
-import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
+import type { ProviderDef } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { ProviderError } from "../contract/errors.ts";
+import type { ProviderRegistry } from "../contract/registry.ts";
 import type { ProviderOrigin, ProviderSnapshot } from "../contract/runtime.ts";
 import type { ProviderStore } from "../deps.ts";
-
-// @orb-waive no-inline-package-interface(ProviderRegistry): baselined when the gate landed; burn-down item 952.
-export interface ProviderRegistry {
-  /** The row `viewer` may use: a built-in or admin row, or `viewer`'s own plugin row their enabled install serves. */
-  readonly get: (id: string, viewer: UserId) => ProviderDef | undefined;
-  /** Every row `viewer` may use, under the same rule as {@link ProviderRegistry.get}. */
-  readonly list: (viewer: UserId) => readonly ProviderDef[];
-  /** A deployment-wide row (built-in or admin) for a principal-free operator path. Never a plugin row. */
-  readonly deploymentRow: (id: string) => ProviderDef | undefined;
-  /** Refuses a built-in id, a plugin row whose namespace is not its own plugin's, and a malformed row. */
-  readonly register: (row: unknown, origin: ProviderOrigin) => Promise<ProviderDef>;
-  readonly drop: (id: ProviderId) => Promise<void>;
-  /** Validate the complete manifest set, then atomically link it to this plugin install owner's claims. */
-  readonly registerPlugin: (rows: readonly unknown[], origin: Extract<ProviderOrigin, { readonly plugin: PluginId }>) => Promise<readonly ProviderDef[]>;
-  /** Unlink this plugin install's claims; each owner's claimed definition remains as their tombstone. */
-  readonly dropPlugin: (pluginId: PluginId) => Promise<void>;
-  /** Re-read the store — plugin activation on another replica, an admin edit. */
-  readonly refresh: () => Promise<void>;
-}
 
 function servedByOwner(snapshot: ProviderSnapshot): Map<UserId, ReadonlyMap<string, ProviderDef>> {
   const byOwner = new Map<UserId, Map<string, ProviderDef>>();
@@ -194,3 +176,5 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
     refresh,
   };
 }
+
+export type { ProviderRegistry } from "../contract/registry.ts";

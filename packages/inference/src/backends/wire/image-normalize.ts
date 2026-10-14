@@ -12,36 +12,13 @@
 
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { sniffMime } from "@orb/kit/image-sniff";
+import type { ImageToPng, NormalizeImageBytes } from "../../contract/wire.ts";
 
 const BASE64 = "base64";
 const DATA_URL_PREFIX = "data:";
 const PNG_MIME = "image/png";
 const JPEG_MIME = "image/jpeg";
 const WEBP_MIME = "image/webp";
-
-/** Normalized outbound image bytes + the mime to LABEL them with on the wire. */
-interface NormalizedImageBytes {
-  readonly bytes: Uint8Array;
-  readonly mediaType: string;
-}
-
-// @orb-waive no-inline-package-interface(NormalizeImageBytes): baselined when the gate landed; burn-down item 952.
-/** Normalize one outbound image-input buffer for a hosted wire (async: a GIF decode is I/O-bound). A
- *  call-signature interface (not a `type` alias): exported function shapes ride an interface in this
- *  infra-pure tier — the `no-inline-types` gate reserves exported `type` aliases for type-home dirs. */
-export interface NormalizeImageBytes {
-  // biome-ignore lint/style/useShorthandFunctionType: the shorthand is an exported `type` alias, which the `no-inline-types` gate reserves for the type-home dirs — this infra-pure tier names its shapes with `interface` (see this declaration's own header).
-  (bytes: Uint8Array): Promise<NormalizedImageBytes>;
-}
-
-// @orb-waive no-inline-package-interface(ImageToPng): baselined when the gate landed; burn-down item 952.
-/** The sharp seam this normalizer needs: decode → re-encode PNG (metadata stripped). Injected as a bare
- *  function so `backends/wire` never imports `infra/image` (a sibling infra module) — the strategy-isolation
- *  seam. Compose binds `imageAdapter.transform(bytes, { format: 'png' })`. */
-export interface ImageToPng {
-  // biome-ignore lint/style/useShorthandFunctionType: same as `NormalizeImageBytes` above — the shorthand is an exported `type` alias, reserved by `no-inline-types` for the type-home dirs.
-  (bytes: Uint8Array): Promise<Uint8Array>;
-}
 
 /** Build the image-normalizing wire op. Recognized static formats keep their bytes and exact MIME; GIF and
  *  unknown bytes are decoded to PNG (metadata stripped) via the injected `toPng`. */
@@ -69,3 +46,5 @@ export async function toImageUrl(image: ImageInput, normalize: NormalizeImageByt
   const { bytes, mediaType } = await normalize(image);
   return `${DATA_URL_PREFIX}${mediaType};base64,${Buffer.from(bytes).toString(BASE64)}`;
 }
+
+export type { ImageToPng, NormalizeImageBytes } from "../../contract/wire.ts";

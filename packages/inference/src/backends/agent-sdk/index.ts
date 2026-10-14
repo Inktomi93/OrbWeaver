@@ -6,9 +6,7 @@
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel, ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
-import type { ZodRawShape } from "zod";
 import type {
-  AgentSdkLifetime,
   AgentToolServer,
   AgentTurnRequest,
   ChatRequest,
@@ -23,41 +21,23 @@ import type {
 } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
-import type { InferenceDeps } from "#src/deps.ts";
+import type { AgentSdkBackend, AgentSdkBackendDeps, AgentSdkDeps, AgentToolSpec, ClaudeRuntimeOverrides } from "../../contract/agent-sdk-backend.ts";
+import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
-import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
 import { runAgentTurn } from "./agent-runner.ts";
 import { fetchAgentSdkModels, verifyAuth } from "./catalog.ts";
-import type { ClaudeRuntimeOverrides } from "./env.ts";
 import { buildClaudeSdkEnv } from "./env.ts";
 import { createAgentSdkExecution } from "./execution.ts";
 import { createAgentSdkLog } from "./log.ts";
 import { runChatTurn } from "./runner.ts";
 import { SessionCache } from "./session/index.ts";
-import type { AgentSdkDeps } from "./types.ts";
 
 export type { SessionEntryWriter } from "./session/index.ts";
 
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 const CLAUDE_TOOL = "claude";
-
-// @orb-waive no-inline-package-interface(AgentSdkBackendDeps): baselined when the gate landed; burn-down item 952.
-export interface AgentSdkBackendDeps {
-  readonly now: () => number;
-  readonly log: InferenceDeps["log"];
-  readonly env: InferenceDeps["env"];
-  readonly userRuntimeDir: InferenceDeps["userRuntimeDir"];
-  readonly agentSdk: InferenceDeps["agentSdk"];
-  readonly captureWire?: InferenceDeps["captureWire"];
-  readonly imageToPng?: InferenceDeps["imageToPng"];
-  /** Opt-in subprocess stderr at debug level. */
-  readonly debug?: boolean | undefined;
-  /** The bounded-probe/watchdog timer seam; absent ⇒ the real unref'd `setTimeout`. */
-  readonly scheduleTimeout?: AgentSdkDeps["scheduleTimeout"];
-  readonly scheduleIdleTimeout?: AgentSdkDeps["scheduleIdleTimeout"];
-}
 
 const realScheduleTimeout: AgentSdkDeps["scheduleTimeout"] = (fn, ms) => {
   const handle = setTimeout(fn, ms);
@@ -74,15 +54,6 @@ function isSessionStore(value: unknown): value is AgentSdkDeps["sessionStore"] {
 /** A daemon catalog row as a catalog entry: the pane lists aliases, and nothing else about them is known. */
 export function agentSdkCatalogEntry(row: AgentSdkModel): ModelCatalogEntry {
   return bareCatalogEntry({ id: row.alias, name: row.displayName });
-}
-
-// @orb-waive no-inline-package-interface(AgentSdkBackend): baselined when the gate landed; burn-down item 952.
-export interface AgentSdkBackend extends AgentSdkLifetime {
-  readonly backend: ProviderBackend;
-  /** The daemon catalog under a USER's token — the resolver's `warmAgentSdk` arm (no host credential exists to
-   *  run it under, so the scheduled workload dropped this lane; the result is process-wide because the model
-   *  list is not per-user). */
-  readonly catalog: (identity: SpawnIdentity) => Promise<AgentSdkModel[]>;
 }
 
 export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBackend {
@@ -151,21 +122,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
 
 // ── The SDK-free tool-server seam (agent mode) ─────────────────────────────────────────────────────────
 
-// @orb-waive no-inline-package-interface(AgentToolResult): baselined when the gate landed; burn-down item 952.
-/** A tool's result — a thin, SDK-free shape mapped to the MCP `CallToolResult` at the boundary. */
-export interface AgentToolResult {
-  readonly content: ReadonlyArray<{ readonly type: "text"; readonly text: string }>;
-  readonly isError?: boolean;
-}
-
-// @orb-waive no-inline-package-interface(AgentToolSpec): baselined when the gate landed; burn-down item 952.
-export interface AgentToolSpec {
-  readonly name: string;
-  readonly description: string;
-  readonly inputSchema: ZodRawShape;
-  readonly handler: (args: Record<string, unknown>) => Promise<AgentToolResult>;
-}
-
 /** Build an opaque {@link AgentToolServer} from domain-supplied tool specs WITHOUT the domain importing the SDK. */
 export function createAgentToolServer(opts: { readonly name?: string; readonly version?: string; readonly tools: readonly AgentToolSpec[] }): AgentToolServer {
   const sdkTools = opts.tools.map((spec) =>
@@ -179,3 +135,5 @@ export function createAgentToolServer(opts: { readonly name?: string; readonly v
   );
   return createSdkMcpServer({ name: opts.name ?? DEFAULT_TOOL_SERVER_NAME, ...(opts.version !== undefined ? { version: opts.version } : {}), tools: sdkTools });
 }
+
+export type { AgentSdkBackend, AgentSdkBackendDeps, AgentToolResult, AgentToolSpec } from "../../contract/agent-sdk-backend.ts";

@@ -10,35 +10,13 @@
 // dated measured `{}` must beat the advertised range — under a one-level merge `{...advertised, ...{}}` never
 // could. The same rule makes a connection's `declared.sampling` the WHOLE list it checkboxes.
 
-import type {
-  Capability,
-  CapabilityOverride,
-  DeclaredCapability,
-  EmbeddingCapability,
-  GenerationCapability,
-  ModelKind,
-  RerankCapability,
-} from "@orb/contracts/inference";
+import type { CapabilityOverride, EmbeddingCapability, GenerationCapability, ModelKind, RerankCapability } from "@orb/contracts/inference";
 import { EMBEDDING_FLOOR, ESTIMABLE_TURNS, GENERATION_FLOOR, RERANK_FLOOR, RERANK_MIN_WINDOW_TOKENS, TURNS_FLOOR } from "@orb/contracts/inference";
+import type { Evidence, SynthesizedCapability } from "../contract/capability.ts";
 import { assertNever } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { ModelFamily } from "../contract/runtime.ts";
 import { applyFamilyFloor } from "./sources/family-floor.ts";
-
-// @orb-waive no-inline-package-interface(Evidence): baselined when the gate landed; burn-down item 952.
-/** What the resolver assembled for one (connection × model), lowest tier last. */
-export interface Evidence {
-  readonly declared?: DeclaredCapability | null | undefined;
-  readonly measured?: readonly CapabilityOverride[] | undefined;
-  readonly advertised?: NonNullable<CapabilityOverride["generation"]> | Partial<EmbeddingCapability> | Partial<RerankCapability> | undefined;
-  readonly curated?: readonly CapabilityOverride[] | undefined;
-}
-
-// @orb-waive no-inline-package-interface(SynthesizedCapability): baselined when the gate landed; burn-down item 952.
-export interface SynthesizedCapability {
-  readonly capability: Capability;
-  readonly warnings: readonly ResolvedWarning[];
-}
 
 type GenerationPatch = NonNullable<CapabilityOverride["generation"]>;
 /** A partial whose stated keys may ALSO be `undefined` — the shape a zod `.partial()` infers under
@@ -240,3 +218,5 @@ export function synthesizeCapability(kind: ModelKind, family: ModelFamily, evide
       return assertNever(kind, "synthesizeCapability");
   }
 }
+
+export type { Evidence, SynthesizedCapability } from "../contract/capability.ts";

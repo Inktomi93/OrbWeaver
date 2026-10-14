@@ -12,27 +12,23 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
-import type { LocalLightCpuPercent, LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
+import type { LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
 import { embedSpaceOf, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "#src/contract/errors.ts";
-import type { LoadTransformersKernel, LocalLightKernelModule } from "#src/contract/local-light-kernel.ts";
-import type { LocalLightLoadProgress, LocalLightRerankServing } from "#src/contract/local-light-worker.ts";
-import type { EmbedRequest } from "#src/contract/roles.ts";
+import type { LocalLightKernelModule } from "#src/contract/local-light-kernel.ts";
+import type { LocalLightLoadProgress } from "#src/contract/local-light-worker.ts";
 import type { LocalLightModelSlot } from "#src/contract/runtime.ts";
 import type { InferenceLog } from "#src/deps.ts";
+import type { LocalLightModelCache, ModelCacheConfig, PairTokenizer, StHead, TransformersModule } from "../../contract/local-light.ts";
 import { localLightCpuThreads } from "./cpu-budget.ts";
-import type { StHead } from "./st-head.ts";
 import { loadStHead, scoreHiddenStates } from "./st-head.ts";
 import { encodeTextWindows } from "./text-windows.ts";
 
 // Small on purpose — each ONNX session holds native (off-heap) memory.
 const MODEL_CACHE_CAP = 4;
-
-type TransformersModule = Awaited<ReturnType<LoadTransformersKernel>>;
-
 let transformersPromise: Promise<TransformersModule> | undefined;
 function loadTransformers(): Promise<TransformersModule> {
   transformersPromise ??= import("@huggingface/transformers");
@@ -106,42 +102,6 @@ function toLoadProgress(info: TransformersProgressInfo): LocalLightLoadProgress 
   const loaded = Number.isFinite(info.loaded) ? Math.max(0, info.loaded ?? 0) : 0;
   const total = Number.isFinite(info.total) ? Math.max(0, info.total ?? 0) : 0;
   return { modelId: modelIdSchema.parse(info.name), loaded, total };
-}
-
-// @orb-waive no-inline-package-interface(LocalLightModelCache): baselined when the gate landed; burn-down item 952.
-/** The inference seam the task files depend on — raw un-normalized vectors; task files own L2 + MRL. */
-export interface LocalLightModelCache {
-  readonly embedTexts: (
-    modelId: ModelId,
-    texts: readonly string[],
-    inputType?: EmbedRequest["inputType"],
-    encoding?: LocalTextEncoding,
-  ) => Promise<Float32Array[]>;
-  /** Every pair is cut to `serving.maxInputTokens` real tokens; `serving.onnx` picks the head, file and dtype. */
-  readonly scorePairs: (modelId: ModelId, query: string, documents: readonly string[], serving: LocalLightRerankServing) => Promise<number[]>;
-  readonly embedImages: (modelId: ModelId, images: readonly ImageInput[]) => Promise<Float32Array[]>;
-  readonly embedClipTexts: (modelId: ModelId, texts: readonly string[], encoding?: LocalTextEncoding) => Promise<Float32Array[]>;
-  /** Warm a slot's memos WITHOUT running inference — the prefetch's whole surface. `onnx` as in `scorePairs`. */
-  readonly preload: (slot: LocalLightModelSlot, modelId: ModelId, onnx?: RerankOnnx) => Promise<void>;
-  /** Whether the latest load of any part of this model (weights, tokenizer, processor) failed and no later
-   *  load of that part has succeeded — the availability verdict's input. */
-  readonly loadFailed: (modelId: ModelId) => boolean;
-}
-
-// @orb-waive no-inline-package-interface(ModelCacheConfig): baselined when the gate landed; burn-down item 952.
-export interface ModelCacheConfig {
-  readonly kernelModule?: string | undefined;
-  readonly cpuPercent?: LocalLightCpuPercent | undefined;
-  readonly device?: string | undefined;
-  readonly embedDtype?: string | undefined;
-  readonly cacheDir?: string | undefined;
-  readonly allowRemoteModels?: boolean | undefined;
-  readonly onProgress?: ((progress: LocalLightLoadProgress) => void) | undefined;
-  readonly log: InferenceLog;
-  /** Owned fire-and-forget for a model disposal. */
-  readonly detach: (name: string, fn: () => Promise<void>) => void;
-  /** Replaces the lib's dynamic import. Only tests set it, to drive the rerank servings without model weights. */
-  readonly __loadTransformersForTest?: (() => Promise<TransformersModule>) | undefined;
 }
 
 export function normalizeVector(v: Float32Array): Float32Array<ArrayBuffer> {
@@ -439,13 +399,6 @@ async function ensureCacheDir(dir: string, log: InferenceLog): Promise<void> {
     log.error({ err, cacheDir: dir }, "local-light: the model cache directory is not creatable");
     throw cacheDirError(err);
   });
-}
-
-// @orb-waive no-inline-package-interface(PairTokenizer): baselined when the gate landed; burn-down item 952.
-/** The tokenizer surface the pair fit needs; the lib's tokenizer satisfies it. */
-export interface PairTokenizer {
-  readonly encode: (text: string, options?: { text_pair?: string | null; add_special_tokens?: boolean }) => number[];
-  readonly decode: (ids: number[], options: { skip_special_tokens: boolean }) => string;
 }
 
 /** Cut one query/document pair to `maxTokens` real tokens: the query to at most half of what the special tokens
@@ -831,3 +784,5 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     },
   };
 }
+
+export type { LocalLightModelCache, ModelCacheConfig, PairTokenizer } from "../../contract/local-light.ts";

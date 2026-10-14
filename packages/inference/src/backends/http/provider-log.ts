@@ -4,87 +4,7 @@
 // the package never imports the server's logger).
 
 import type { InferenceLog } from "#src/deps.ts";
-
-const PROVIDER_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
-type ProviderLogLevel = (typeof PROVIDER_LOG_LEVELS)[number];
-
-// @orb-waive no-inline-package-interface(ProviderTurnUsage): baselined when the gate landed; burn-down item 952.
-/** Per-turn usage sub-object on a `provider.turn` line. All optional so a turn that never reached a result
- *  frame still logs a coherent line. */
-export interface ProviderTurnUsage {
-  readonly tokensIn?: number;
-  readonly tokensOut?: number;
-  readonly reasoningTokens?: number | null;
-  readonly cacheReadTokens?: number;
-  readonly cacheWriteTokens?: number;
-  readonly costUsd?: number;
-}
-
-/** The cache-rot signal: a collapsed hitRatio with a spiked cacheWriteTokens is the re-bill, in one grep. */
-interface ProviderCacheLog {
-  readonly turnId: string;
-  readonly cacheReadTokens: number | null;
-  readonly cacheWriteTokens: number | null;
-  readonly breakpointsPlaced: number;
-  readonly breakpointOffsets: readonly number[];
-  readonly hitRatio: number | null;
-  readonly minCacheTokens: number;
-}
-
-interface ProviderSamplingDrop {
-  readonly knob: string;
-  readonly reason: string;
-}
-
-/** Which sampling knobs survived the funnel: requested vs applied vs dropped-with-reason. */
-interface ProviderSamplingLog {
-  readonly turnId: string;
-  readonly requested: Record<string, unknown>;
-  readonly applied: Record<string, unknown>;
-  readonly dropped: readonly ProviderSamplingDrop[];
-}
-
-interface ProviderCapabilityDrop {
-  readonly code: string;
-  readonly message: string;
-}
-
-// @orb-waive no-inline-package-interface(ProviderCapabilityLog): baselined when the gate landed; burn-down item 952.
-/** The (model × wire-shape) cell the funnel resolved, plus every dropped/ignored knob. Report-only. */
-export interface ProviderCapabilityLog {
-  readonly turnId: string;
-  readonly api: string | null;
-  readonly providerId: string;
-  readonly requestedModel: string;
-  readonly servedModel?: string;
-  readonly turns: Record<string, unknown>;
-  readonly droppedWarnings: readonly ProviderCapabilityDrop[];
-}
-
-/** The per-ITEM batch turn for the `summarize` + `structured` tasks, TAGGED BY task (owner ruling
- *  2026-07-27) so a diagnosis of an rpg extraction never greps "summarize". Metadata only. */
-interface ProviderSummarizeItemLog {
-  readonly task: "summarize" | "structured";
-  readonly model: string;
-  readonly index: number;
-  readonly durationMs: number;
-  readonly ok: boolean;
-  readonly tokensIn: number | null;
-  readonly tokensOut: number | null;
-  readonly finishReason: string | null;
-  readonly hasResponseFormat: boolean;
-  /** Present only on a failed item — the classified error kind (never the message/body). */
-  readonly errorKind?: string;
-}
-
-// @orb-waive no-inline-package-interface(ProviderLogger): baselined when the gate landed; burn-down item 952.
-export interface ProviderLogger {
-  readonly emit: (level: ProviderLogLevel, event: string, fields?: Readonly<Record<string, unknown>>) => void;
-  readonly cache: (entry: ProviderCacheLog) => void;
-  readonly sampling: (entry: ProviderSamplingLog) => void;
-  readonly capability: (entry: ProviderCapabilityLog) => void;
-  readonly summarizeItem: (entry: ProviderSummarizeItemLog) => void;
-}
+import type { ProviderLogger } from "../../contract/http.ts";
 
 /** Bind the sink to one wire/provider pair — every line the backend emits carries both. */
 export function providerLogger(log: InferenceLog, wire: string, providerId: string): ProviderLogger {
@@ -122,3 +42,5 @@ export function providerLogger(log: InferenceLog, wire: string, providerId: stri
       }),
   };
 }
+
+export type { ProviderCapabilityLog, ProviderLogger, ProviderTurnUsage } from "../../contract/http.ts";

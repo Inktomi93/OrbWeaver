@@ -7,7 +7,7 @@ export const PACKAGE_TYPE_HOMES = {
   kit: { category: "primitive", nativePilot: false },
   contracts: { category: "wire", nativePilot: false },
   db: { category: "db-row", nativePilot: false },
-  inference: { category: "package-contract", nativePilot: false },
+  inference: { category: "package-contract", nativePilot: true },
   server: { category: "domain", nativePilot: false },
   "default-content": { category: "package-contract", nativePilot: true },
   "showcase-plugins": { category: "unqualified", nativePilot: false },
@@ -16,6 +16,9 @@ export const PACKAGE_TYPE_HOMES = {
   client: { category: "client-view", nativePilot: false },
   "plugin-sdk": { category: "standalone-declarations", nativePilot: false },
 } as const satisfies Readonly<Record<PackageName, PackageTypeHomePolicy>>;
+
+const TYPE_HOME_GENERATED_SUFFIX = ".gen.ts";
+export const TYPE_HOME_NATIVE_UNADMITTED_GLOBS = [`**/*${TYPE_HOME_GENERATED_SUFFIX}`] as const;
 
 export const TYPE_HOME_NATIVE_POLICY_ID = "type-home-direct-export";
 
@@ -50,4 +53,16 @@ export function packageTypeHome(path: string): PackageTypeHomeClassification | u
     home: policy.category === "package-contract" ? path.startsWith(packageContractHome(packageName)) : null,
     nativePilot: policy.nativePilot,
   };
+}
+
+/** Effective native syntax admission; generated declarations retain their semantic owner. */
+export function nativeTypeHomeDirectExport(path: string): boolean {
+  const classification = packageTypeHome(path);
+  return (
+    classification?.nativePilot === true &&
+    classification.home === false &&
+    path.startsWith(sourceRoot(classification.packageName)) &&
+    /\.tsx?$/.test(path) &&
+    !path.endsWith(TYPE_HOME_GENERATED_SUFFIX)
+  );
 }

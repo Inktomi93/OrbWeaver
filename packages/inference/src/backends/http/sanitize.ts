@@ -46,7 +46,8 @@
 // unrelated occurrence of those digits. Over-redaction inside a credential-named subtree is deliberate:
 // the key name declares the semantics, exactly as it does for a custom auth header.
 
-import type { ConnectionTransport, ProviderScrubSet } from "#contract";
+import type { ProviderScrubSet } from "#contract";
+import type { ScrubSource } from "../../contract/http.ts";
 import { secretHeaderValues } from "../wire/openai-body.ts";
 
 const DEFAULT_SANITIZE_MAX_LEN = 500;
@@ -84,14 +85,6 @@ const NO_SECRET_LITERALS: readonly string[] = Object.freeze([]);
  * Never reach for it to satisfy `tsc` on a keyed path — that is the exact hole the brand closes.
  */
 export const NO_PROVIDER_SECRETS: ProviderScrubSet = NO_SECRET_LITERALS as ProviderScrubSet;
-
-// @orb-waive no-inline-package-interface(ScrubSource): baselined when the gate landed; burn-down item 952.
-/** The credential-bearing half of a resolved connection the scrub reads — the shape `Resolved` carries and
- *  the "Test endpoint" inspector holds before a row is even saved. */
-export interface ScrubSource {
-  readonly credential: { readonly secret: string | null };
-  readonly transport: ConnectionTransport | null;
-}
 
 /**
  * Every plaintext literal a resolved connection can leak: the secret itself, EVERY secret-valued
@@ -193,3 +186,5 @@ function includeBodySecretLiterals(includeBody: Readonly<Record<string, unknown>
   }
   return out;
 }
+
+export type { ScrubSource } from "../../contract/http.ts";

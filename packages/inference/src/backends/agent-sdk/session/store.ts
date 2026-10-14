@@ -6,7 +6,7 @@ import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import type { AgentSdkSessionId, AgentSdkSessionTotals, SessionEntryWriter } from "#contract";
 import type { InferenceLog } from "#src/deps.ts";
-import type { SeedTurn } from "./frames.ts";
+import type { ReplaceableSessionStore, SeededSessionDecision, SeedTurn } from "../../../contract/agent-sdk-backend.ts";
 import {
   buildSeedFrames,
   canonHashOf,
@@ -33,37 +33,8 @@ function composite(key: SessionKey): string {
   return `${key.sessionId}${KEY_SEP}${key.subpath ?? MAIN_TRANSCRIPT_SUBPATH}`;
 }
 
-// @orb-waive no-inline-package-interface(ReplaceableSessionStore): baselined when the gate landed; burn-down item 952.
-/**
- * Orb-internal store extension: atomically REPLACE a session's frames (the SDK {@link SessionStore} is
- * append-only). Replacing in place keeps the sessionId and its prompt-cache lineage — an in-place replace
- * re-bills only the changed suffix, where minting a new id re-writes the whole conversation's cache.
- */
-export interface ReplaceableSessionStore extends SessionStore {
-  readonly replace: (key: SessionKey, entries: SessionStoreEntry[]) => Promise<void>;
-}
-
 function canReplace(store: SessionStore): store is ReplaceableSessionStore {
   return typeof (store as Partial<ReplaceableSessionStore>).replace === "function";
-}
-
-// @orb-waive no-inline-package-interface(SeededSessionDecision): baselined when the gate landed; burn-down item 952.
-/**
- * `ensureSeededSession` outcome: the session to resume (`null` = SDK-fresh) + which branch decided it.
- *   • `resumed`   — the recorded session's stored transcript still matched the seed.
- *   • `forked`    — a branch divergence (swipe/edit sharing a prefix); recorded lineage stays intact,
- *                   the branch seeds under its own deterministic lineage.
- *   • `reseeded`  — a non-branch divergence (window-slide) on a replace-capable store → in-place replace.
- *   • `seeded`    — cold cache → a fresh deterministic seed-derived session was appended.
- *   • `readopted` — a previously-seeded deterministic session for this exact state was re-adopted.
- *   • `rewound`   — that session had already run a turn on this seed (a regenerate), so it was cut back
- *                   to the seed in place before resuming.
- *   • `fresh`     — no cache hit usable (salt ceiling / replace-incapable divergence) → SDK-fresh.
- *   • `cleared`   — an empty seed dropped the mapping.
- */
-export interface SeededSessionDecision {
-  readonly sessionId: AgentSdkSessionId | null;
-  readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "rewound" | "fresh" | "cleared";
 }
 
 /**
@@ -322,3 +293,5 @@ export class SessionCache {
     return (await this.store.load({ projectKey: INTERNAL_PROJECT_KEY, sessionId })) ?? [];
   }
 }
+
+export type { ReplaceableSessionStore, SeededSessionDecision } from "../../../contract/agent-sdk-backend.ts";

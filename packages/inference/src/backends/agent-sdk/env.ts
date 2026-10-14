@@ -10,6 +10,7 @@
 import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
 import { HOST_OWNED_CLAUDE_ENV_KEYS, isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
 import { ProviderError } from "#contract";
+import type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "../../contract/agent-sdk-backend.ts";
 
 /** The documented headless subscription credential env (`claude setup-token`).
  *  @public Test-anchored module surface; the firewall's env spec pins this key by name. */
@@ -72,22 +73,6 @@ function hostEnvForClaudeChild(source: Readonly<Record<string, string>>): Record
     }
   }
   return out;
-}
-
-// @orb-waive no-inline-package-interface(ClaudeRuntimeOverrides): baselined when the gate landed; burn-down item 952.
-/** Per-turn knobs written into the subprocess env. Boolean fields opt OUT with `=== false`, distinguishing
- *  "unset" from "explicitly off". Knob names verified against the bundled claude runtime binary. */
-export interface ClaudeRuntimeOverrides {
-  maxOutputTokens?: number | undefined;
-  /** Soft cap on the runtime working set; the runtime transparently compacts/truncates to fit. */
-  maxContextTokens?: number | undefined;
-  /** Default OFF; set `false` to engage (then the typed thinking/effort SDK Options drive depth). */
-  disableThinking?: boolean | undefined;
-  disableAutoCompact?: boolean | undefined;
-  /** When auto-compaction fires, as a percent of the window (0-100). Only meaningful in mode "auto". */
-  autoCompactPct?: number | undefined;
-  /** Power-user escape hatch for CLAUDE RUNTIME KNOBS only — allowlisted, then RESERVED stripped. */
-  userEnv?: Record<string, string | null> | undefined;
 }
 
 // Deploy-only isolation pins, read by the BUNDLED runtime binary — keyed by the contracts tuple so a pin here
@@ -186,17 +171,6 @@ function claudeRuntimeLayer(overrides: ClaudeRuntimeOverrides): Record<string, s
   return merged;
 }
 
-// @orb-waive no-inline-package-interface(ClaudeSdkEnvArgs): baselined when the gate landed; burn-down item 952.
-export interface ClaudeSdkEnvArgs {
-  /** The child-env allowlist source (`deps.env.hostEnvAllowlist()`), narrowed here to the supported keys. */
-  readonly hostEnv: Readonly<Record<string, string>>;
-  /** The user's pasted `claude setup-token` — the connection's resolved secret. */
-  readonly token: string;
-  /** `<USER_RUNTIME_DIR>/<ownerId>/claude` — the runtime's writable state, per user. */
-  readonly configDir: string;
-  readonly overrides?: ClaudeRuntimeOverrides | undefined;
-}
-
 /** The subscription spawn env: the allowlisted host baseline, the per-user config dir, the runtime knobs +
  *  hatch, and the auth pins written LAST. */
 export function buildClaudeSdkEnv(args: ClaudeSdkEnvArgs): Record<string, string | undefined> {
@@ -222,3 +196,5 @@ export function buildClaudeSdkEnv(args: ClaudeSdkEnvArgs): Record<string, string
     [CLAUDE_OAUTH_TOKEN_ENV]: args.token,
   };
 }
+
+export type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "../../contract/agent-sdk-backend.ts";

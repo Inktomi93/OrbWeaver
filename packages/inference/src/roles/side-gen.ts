@@ -8,7 +8,6 @@ import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/provid
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
 import { providerLogger } from "../backends/http/provider-log.ts";
-import type { NormalizeImageBytes } from "../backends/wire/image-normalize.ts";
 import { toImageUrl } from "../backends/wire/image-normalize.ts";
 import type { ChatHistoryMessage, ChatRequest, ChatResult, GenerationObservationCallback } from "../contract/chat.ts";
 import { GenerationObservationPersistenceError } from "../contract/chat.ts";
@@ -17,7 +16,7 @@ import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import { withPresetWindow } from "../contract/resolved.ts";
 import type { StructuredRequest, SummarizeRequest } from "../contract/roles.ts";
-import type { InferenceLog } from "../deps.ts";
+import type { SideGenDeps, SideGenItem } from "../contract/side-generation.ts";
 
 const SIDE_GEN_POSTURE = "side-gen";
 /** A prose item splits inline reasoning out of its reply, on a row with no native reasoning field, with the role
@@ -25,26 +24,6 @@ const SIDE_GEN_POSTURE = "side-gen";
  *  carry (`splittableTagPair`). A structured item does not: a literal tag inside a JSON string value is
  *  the payload's own content. */
 const PROSE_REASONING_TAGS = { prefix: THINK_PREFIX_DEFAULT, suffix: THINK_SUFFIX_DEFAULT } as const;
-
-// @orb-waive no-inline-package-interface(SideGenDeps): baselined when the gate landed; burn-down item 952.
-/** What the loop needs from the backend that serves the task. */
-export interface SideGenDeps {
-  /** The wire's own chat turn. */
-  readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
-  /** How many items run at once. */
-  readonly concurrency: number;
-  readonly normalize: NormalizeImageBytes;
-  readonly log: InferenceLog;
-  readonly now: () => number;
-}
-
-// @orb-waive no-inline-package-interface(SideGenItem): baselined when the gate landed; burn-down item 952.
-/** One side-generation item as a chat turn's inputs: its two prompts and its images as URLs or data URLs. */
-export interface SideGenItem {
-  readonly systemPrompt: string;
-  readonly userPrompt: string;
-  readonly images?: readonly string[] | undefined;
-}
 
 /** The request one item sends: a non-delivered chat turn on the connection's own api, with the role's params. */
 export function sideGenChatRequest(args: {
@@ -202,3 +181,5 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
   }
   return { items, model: connection.model };
 }
+
+export type { SideGenDeps, SideGenItem } from "../contract/side-generation.ts";

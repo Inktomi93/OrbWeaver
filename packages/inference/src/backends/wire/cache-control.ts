@@ -7,41 +7,13 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { detectModelFamily } from "#capability";
 import type { Resolved } from "#contract";
 import { resolveCachePolicy } from "#funnel";
-import type { ProviderLogger } from "../http/provider-log.ts";
+import type { ProviderLogger } from "../../contract/http.ts";
+import type { AnthropicCacheDirective, CacheMarkerPlacement, CacheMarkerRow, ExplicitCachePlan, OpenRouterRouting } from "../../contract/wire.ts";
+import { EPHEMERAL } from "../../contract/wire.ts";
 import { cachePolicyContextOf } from "../http/response-cache.ts";
-
-// @orb-waive no-inline-package-interface(OpenRouterRouting): baselined when the gate landed; burn-down item 952.
-/** The openrouter routing-prefs slice this pin reads/writes. The full block is validated by the transport's
- *  own zod schema at the call site; this is the structural minimum the pin needs. */
-export interface OpenRouterRouting {
-  readonly order?: readonly string[] | undefined;
-  readonly allow_fallbacks?: boolean | undefined;
-  readonly [key: string]: unknown;
-}
-
-const EPHEMERAL = "ephemeral";
-
-interface AnthropicCacheDirective {
-  readonly type: typeof EPHEMERAL;
-  /** Absent leaves the provider's default TTL. */
-  readonly ttl?: PromptCacheTtl | undefined;
-}
 
 function anthropicCacheDirective(ttl: PromptCacheTtl | null): AnthropicCacheDirective {
   return { type: EPHEMERAL, ...(ttl === null ? {} : { ttl }) };
-}
-
-// @orb-waive no-inline-package-interface(ExplicitCachePlan): baselined when the gate landed; burn-down item 952.
-/** One turn's explicit-cache plan. ONE directive for every marker the turn places — tools, system block,
- *  history — which is how the TTL ORDER rule holds (a longer-TTL breakpoint must precede any shorter one, so a
- *  1h marker may never follow a 5m one): a turn carries a single ttl, so the order cannot be violated. */
-export interface ExplicitCachePlan {
-  readonly directive: AnthropicCacheDirective;
-  /** Mark the static system block. */
-  readonly cacheSystem: boolean;
-  /** The history depth the placer resolves: max(the request's depth, the user's minimum); `undefined` ⇒ no
-   *  history breakpoint (the request carried none). */
-  readonly historyDepth: number | undefined;
 }
 
 /** Translate the resolved manual prefix action to the placer's wire directive. */
@@ -238,23 +210,6 @@ export function computeCacheBreakpointPlacements(args: {
   return placed;
 }
 
-// @orb-waive no-inline-package-interface(CacheMarkerRow): baselined when the gate landed; burn-down item 952.
-/** One delivered wire row as the marker placer reads it: the depth axis inputs plus the prose it estimates. */
-export interface CacheMarkerRow {
-  readonly role: string;
-  readonly toolExchange: boolean;
-  readonly text: string;
-}
-
-// @orb-waive no-inline-package-interface(CacheMarkerPlacement): baselined when the gate landed; burn-down item 952.
-/** What a turn's placement wrote: the wire-array patches (index → the message's `cacheControl` option) and the
- *  receipt counts the runners log. */
-export interface CacheMarkerPlacement {
-  readonly patches: Map<number, { readonly cacheControl: AnthropicCacheDirective }>;
-  readonly historyDepths: readonly number[];
-  readonly systemBlocks: number;
-}
-
 const SYSTEM_ROLE = "system";
 const NO_CACHE_MARKERS: CacheMarkerPlacement = { patches: new Map(), historyDepths: [], systemBlocks: 0 };
 
@@ -308,3 +263,5 @@ export function placeExplicitCacheMarkers(args: {
   }
   return { patches, historyDepths, systemBlocks };
 }
+
+export type { CacheMarkerPlacement, CacheMarkerRow, ExplicitCachePlan, OpenRouterRouting } from "../../contract/wire.ts";

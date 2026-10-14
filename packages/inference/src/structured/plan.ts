@@ -9,72 +9,14 @@ import type { ResponseFormat, ToolChoice, WireTool } from "../contract/chat.ts";
 import { assertNever, ProviderError, SCHEMA_REJECTED_DETAIL } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
+import type { PlannedTool, StructuredAsk, StructuredPlan, StructuredRefusal, StructuredTarget } from "../contract/structured.ts";
 import type { StructuredFit } from "../contract/structured-turn.ts";
 import { resolveChat } from "../funnel/resolve-chat.ts";
-import type { StructuredTarget } from "./target.ts";
 import { structuredTargetOf } from "./target.ts";
 
 /** The description a structured tool carries when the caller gave none: the callers describe the schema, not
  *  the act, and a tool with no description is a measurably worse prompt on every family. */
 const STRUCTURED_TOOL_DESCRIPTION = "Record the result. Call this tool exactly once, with the complete result object.";
-
-// @orb-waive no-inline-package-interface(StructuredAsk): baselined when the gate landed; burn-down item 952.
-/** What a caller needs. A plan with `formats` produces one structured payload; `tools` alone is a tool turn. */
-export interface StructuredAsk {
-  /** Candidate schemas in preference order. The plan names the index it picked. */
-  readonly formats?: readonly ResponseFormat[] | undefined;
-  readonly tools?: readonly WireTool[] | undefined;
-  readonly toolChoice?: ToolChoice | undefined;
-  /** `false` when this turn's own settings refuse forced tool use (Anthropic's manual extended thinking): a forced
-   *  choice goes out as `auto`, loudly, and the forced-tool vehicle is not tried. */
-  readonly forcedChoice?: false | undefined;
-  /** `false` when this turn's own shape refuses the native carrier (an Anthropic assistant prefill cannot ride
-   *  `output_config.format`): the payload rides a tool or is refused. */
-  readonly nativeFormat?: false | undefined;
-  /** The funnel resolved an explicit off; omission leaves the model's reasoning default active. */
-  readonly reasoningOff?: boolean | undefined;
-}
-
-// @orb-waive no-inline-package-interface(PlannedResponseFormat): baselined when the gate landed; burn-down item 952.
-/** The structured payload as planned: the scrubbed schema, how it rides, and the paths the reply drops a null at. */
-export interface PlannedResponseFormat {
-  readonly name: string;
-  readonly description?: string | undefined;
-  readonly schema: Record<string, unknown>;
-  /** `response_format.json_schema.strict`: true where the mode compiles a strict grammar. */
-  readonly strict: boolean;
-  readonly vehicle: StructuredVehicle;
-  /** True when the reshape made optionals nullable, so a null at `reshapedPaths` means absent. */
-  readonly nullMeansAbsent: boolean;
-  readonly reshapedPaths: readonly string[];
-}
-
-// @orb-waive no-inline-package-interface(PlannedTool): baselined when the gate landed; burn-down item 952.
-/** A tool as it goes out: parameters scrubbed for its mode, strictness resolved against the endpoint. */
-export interface PlannedTool extends WireTool {
-  readonly strict: boolean | undefined;
-}
-
-// @orb-waive no-inline-package-interface(StructuredPlan): baselined when the gate landed; burn-down item 952.
-export interface StructuredPlan {
-  readonly ok: true;
-  /** The endpoint's grammar vocabulary the plan was built for. */
-  readonly mode: WireSchemaMode;
-  /** The index into `formats` the plan picked; absent on a tool-only plan. */
-  readonly shape?: number | undefined;
-  readonly responseFormat?: PlannedResponseFormat | undefined;
-  readonly tools?: readonly PlannedTool[] | undefined;
-  readonly toolChoice?: ToolChoice | undefined;
-  /** A tool vehicle rides one call: parallel calls are off. */
-  readonly parallelToolCalls?: false | undefined;
-  readonly downgrades: readonly ResolvedWarning[];
-}
-
-// @orb-waive no-inline-package-interface(StructuredRefusal): baselined when the gate landed; burn-down item 952.
-export interface StructuredRefusal {
-  readonly ok: false;
-  readonly violations: readonly WireSchemaViolation[];
-}
 
 /** Modes whose response format is a strict grammar the endpoint enforces. */
 const STRICT_FORMAT_MODES: ReadonlySet<WireSchemaMode> = new Set<WireSchemaMode>(["strict-compatible", "guided-decoding"]);
@@ -384,3 +326,5 @@ export function requireStructuredPlan(connection: Resolved, ask: StructuredAsk, 
     violations: plan.violations,
   });
 }
+
+export type { PlannedResponseFormat, PlannedTool, StructuredAsk, StructuredPlan, StructuredRefusal } from "../contract/structured.ts";

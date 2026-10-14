@@ -19,7 +19,7 @@ async function nativeFindings(eslint: ESLint, path: string, source: string): Pro
     {
       files: ["**/*.{ts,tsx}"],
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
-      plugins: { orb: config.plugins.orb },
+      plugins: config.plugins.orb === undefined ? {} : { orb: config.plugins.orb },
       rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: path },
@@ -33,7 +33,7 @@ async function nativeFindings(eslint: ESLint, path: string, source: string): Pro
 
 test("the native placement pilot flags every direct alias/interface form only outside its canonical contract homes", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
-  for (const name of ["default-content", "plugin-toolchain"] as const) {
+  for (const name of ["default-content", "plugin-toolchain", "inference"] as const) {
     const implementation = `packages/${name}/src/probe.ts`;
     for (const source of [
       "export type Scalar = string;",
@@ -68,18 +68,12 @@ test("export lists and schema origins remain explicit semantic remainders; other
   ]) {
     expect(await nativeFindings(eslint, "packages/plugin-toolchain/src/probe.ts", source), source).toEqual([]);
   }
-  for (const path of [
-    "packages/inference/src/probe.ts",
-    "packages/ui/src/probe.tsx",
-    "packages/client/src/probe.ts",
-    "tooling/src/probe.ts",
-    "tests/support/node/probe.ts",
-  ]) {
+  for (const path of ["packages/ui/src/probe.tsx", "packages/client/src/probe.ts", "tooling/src/probe.ts", "tests/support/node/probe.ts"]) {
     expect(await nativeFindings(eslint, path, "export interface Probe {};")).toEqual([]);
   }
   expect(packageTypeHome("packages/ui/src/primitives/probe.tsx")).toMatchObject({ category: "component", home: null, nativePilot: false, world: "browser" });
   expect(packageTypeHome("packages/plugin-sdk/frame.d.ts")).toMatchObject({ home: null, world: "browser" });
-  expect(packageTypeHome("packages/inference/src/contract/probe.ts")).toMatchObject({ home: true, nativePilot: false });
+  expect(packageTypeHome("packages/inference/src/contract/probe.ts")).toMatchObject({ home: true, nativePilot: true });
   expect(packageTypeHome("packages/default-content-other/src/contract/probe.ts")).toBeUndefined();
 });
 
@@ -102,4 +96,36 @@ test("the existing custom placement owners do not duplicate the pilot's native a
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(await nativeFindings(eslint, file, source)).toHaveLength(2);
+});
+
+test("inference native coverage and semantic remainder are disjoint without discarding generated or local declarations", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const root = "/type-home-inference";
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${root}/node_modules/zod/index.d.ts`, "export declare function object(shape: object): object;");
+  const cases = [
+    ["direct.ts", "export interface Direct {} export default interface Default {} export type Alias = string;", 3],
+    ["listed.ts", "interface Local {} type Alias = string; export { Local, Alias };", 0],
+    ["generated.gen.ts", "export interface Generated {} export type GeneratedAlias = string;", 0],
+    ["schema.ts", 'import { object } from "zod"; export const Schema = object({}); const ListedSchema = object({}); export { ListedSchema };', 0],
+    ["shadow.ts", "const z = { object: (value: object): object => value }; export const Shadow = z.object({});", 0],
+    ["barrel.ts", 'export type { Home } from "./contract/home.ts";', 0],
+    ["contract/home.ts", "export interface Home {}", 0],
+  ] as const;
+  for (const [file, source, count] of cases) {
+    const path = `packages/inference/src/${file}`;
+    project.createSourceFile(`${root}/${path}`, source);
+    expect(await nativeFindings(eslint, path, source), path).toHaveLength(count);
+  }
+  const policies = [inlineTypes, packageInterfaces];
+  const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.map(({ token }) => token).toSorted((left, right) => left.localeCompare(right))).toEqual([
+    "Alias",
+    "Generated",
+    "GeneratedAlias",
+    "ListedSchema",
+    "Local",
+    "Schema",
+  ]);
 });

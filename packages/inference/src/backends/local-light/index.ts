@@ -3,11 +3,8 @@
 // dispatcher's typed refusal). The prefetch handle rides beside the backend for the composition root.
 
 import type { ModelId } from "@orb/kit/ids";
-import type { ProviderBackend } from "#contract";
-import type { InferenceDeps } from "#src/deps.ts";
-import type { LocalLightModelCache } from "./model-cache.ts";
+import type { LocalLightBackend, LocalLightBackendDeps, LocalLightModelCache } from "../../contract/local-light.ts";
 import { localLightEmbedSpaceTag, resolveEmbedDtype } from "./model-cache.ts";
-import type { LocalLightPrefetchHandle } from "./prefetch.ts";
 import { createLocalLightPrefetch } from "./prefetch.ts";
 import { createScheduledCache } from "./scheduled-cache.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightRerank } from "./tasks.ts";
@@ -18,27 +15,6 @@ export { LOCAL_LIGHT_MODEL_SLOTS } from "#contract";
 export type { LocalLightModelCache } from "./model-cache.ts";
 export type { LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "./prefetch.ts";
 export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL } from "./tasks.ts";
-
-// @orb-waive no-inline-package-interface(LocalLightBackendDeps): baselined when the gate landed; burn-down item 952.
-export interface LocalLightBackendDeps {
-  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
-  readonly now: () => number;
-  readonly log: InferenceDeps["log"];
-  readonly superviseDetached: InferenceDeps["superviseDetached"];
-  readonly config: NonNullable<InferenceDeps["localLight"]> | undefined;
-}
-
-// @orb-waive no-inline-package-interface(LocalLightBackend): baselined when the gate landed; burn-down item 952.
-export interface LocalLightBackend {
-  readonly backend: ProviderBackend;
-  readonly prefetch: LocalLightPrefetchHandle;
-  /** THE ACTIVE local-light embedding space tag for a model id — the same string the embed results carry. */
-  readonly embedSpace: (modelId: ModelId) => string;
-  readonly loadFailed: LocalLightModelCache["loadFailed"];
-  /** Stop the inference worker (bounded); a no-op for an injected cache or a worker never started. */
-  readonly close: () => Promise<void>;
-  readonly settle: () => Promise<void>;
-}
 
 function isModelCache(value: unknown): value is LocalLightModelCache {
   return value !== null && typeof value === "object" && "embedTexts" in value && "preload" in value;
@@ -80,3 +56,5 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
     settle,
   };
 }
+
+export type { LocalLightBackend, LocalLightBackendDeps } from "../../contract/local-light.ts";

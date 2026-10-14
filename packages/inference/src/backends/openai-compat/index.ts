@@ -4,22 +4,19 @@
 // these methods by the table test. Nothing here knows a provider id — the row's `features`, `extras` and
 // `transport` are the whole configuration.
 
-import type { AddSpanEvent, ChatRequest, ChatResult, OpenAiCompatChatRequest, ProviderBackend, Resolved, StructuredRequest, SummarizeRequest } from "#contract";
+import type { ChatRequest, ChatResult, OpenAiCompatChatRequest, Resolved, StructuredRequest, SummarizeRequest } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
-import type { InferenceDeps } from "#src/deps.ts";
-import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
+import type { OpenAiCompatBackend, OpenAiCompatBackendDeps, ReachabilityProber, TransportDeps } from "../../contract/openai-backend.ts";
+import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { runOpenAiCompatChatTurn } from "./chat.ts";
 import { inspectOpenAiCompatEndpoint, listOpenAiCompatModels, openRouterCredits, openRouterGenerationCost, probeOpenAiCompat } from "./diagnostics.ts";
 import { runOpenAiCompatEmbed } from "./embed.ts";
 import { runOpenAiCompatImageEmbed } from "./image-embed.ts";
 import { runOpenAiCompatGenerateImage } from "./images.ts";
-import type { TransportDeps } from "./model.ts";
-import type { ReachabilityProber } from "./reachability.ts";
 import { createReachabilityProber } from "./reachability.ts";
 import { runOpenAiCompatRerank } from "./rerank.ts";
-import type { TokenLexicon } from "./tokens.ts";
 import { createTokenLexicon } from "./tokens.ts";
 
 export type { ReachabilityProber } from "./reachability.ts";
@@ -69,32 +66,6 @@ function woken<R extends WakeRequest, T>(awake: (req: WakeRequest) => Promise<vo
     await awake(req);
     return await run(req);
   };
-}
-
-// @orb-waive no-inline-package-interface(OpenAiCompatBackendDeps): baselined when the gate landed; burn-down item 952.
-/** The slice of the runtime deps this backend closes over. */
-export interface OpenAiCompatBackendDeps {
-  readonly now: () => number;
-  readonly random?: (() => number) | undefined;
-  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
-  readonly log: InferenceDeps["log"];
-  readonly addSpanEvent?: AddSpanEvent | undefined;
-  readonly fetch: typeof fetch;
-  readonly captureWire?: InferenceDeps["captureWire"];
-  readonly captureWireReply?: InferenceDeps["captureWireReply"];
-  readonly app: InferenceDeps["app"];
-  readonly imageToPng?: InferenceDeps["imageToPng"];
-  /** Where the tokenize lookups persist, beside the endpoint facts. */
-  readonly snapshotStore: InferenceDeps["snapshotStore"];
-}
-
-// @orb-waive no-inline-package-interface(OpenAiCompatBackend): baselined when the gate landed; burn-down item 952.
-export interface OpenAiCompatBackend {
-  readonly backend: ProviderBackend;
-  /** The reachability probe the availability read consults for `auth: endpoint` rows (§4). */
-  readonly reachability: ReachabilityProber;
-  /** The per-(server, model, word) tokenize cache: the turn's word-keyed logit bias and the editor's read. */
-  readonly tokens: TokenLexicon;
 }
 
 export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAiCompatBackend {
@@ -150,3 +121,5 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
     },
   };
 }
+
+export type { OpenAiCompatBackend, OpenAiCompatBackendDeps } from "../../contract/openai-backend.ts";

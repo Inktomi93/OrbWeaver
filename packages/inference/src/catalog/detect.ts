@@ -6,17 +6,8 @@
 import { z } from "zod";
 import { deadlineSignal } from "../backends/http/abort-flatten.ts";
 import { authHeaders, isRedirect, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
-import type { DetectedServer, DetectionProbe, ScheduleTimeout } from "../contract/runtime.ts";
-
-// @orb-waive no-inline-package-interface(DetectArgs): baselined when the gate landed; burn-down item 952.
-export interface DetectArgs {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly fetch: typeof fetch;
-  readonly baseUrl: string;
-  readonly secret: string | null;
-  readonly headers?: Readonly<Record<string, string>> | undefined;
-  readonly signal?: AbortSignal | undefined;
-}
+import type { DetectArgs } from "../contract/catalog.ts";
+import type { DetectedServer, DetectionProbe } from "../contract/runtime.ts";
 
 const KOBOLDCPP_RESULT = "KoboldCpp";
 
@@ -78,3 +69,5 @@ export async function detectServer(args: DetectArgs): Promise<DetectedServer> {
     deadline.dispose();
   }
 }
+
+export type { DetectArgs } from "../contract/catalog.ts";

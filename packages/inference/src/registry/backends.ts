@@ -1,26 +1,19 @@
 // Backends register once; an absent agent runtime can register later without replacing any other backend.
 
-import type { Task, Wire } from "@orb/contracts/inference";
+import type { Wire } from "@orb/contracts/inference";
 import { WIRE_DEFS, WIRES } from "@orb/contracts/inference";
-import type { AgentSdkBackend } from "../backends/agent-sdk/index.ts";
 import { createAgentSdkBackend } from "../backends/agent-sdk/index.ts";
 import { createAnthropicBackend } from "../backends/anthropic-messages/index.ts";
 import { createGoogleBackend } from "../backends/google/index.ts";
-import type { LocalLightBackend } from "../backends/local-light/index.ts";
 import { createLocalLightBackend } from "../backends/local-light/index.ts";
-import type { OpenAiCompatBackend } from "../backends/openai-compat/index.ts";
 import { createOpenAiCompatBackend } from "../backends/openai-compat/index.ts";
+import type { AgentSdkBackend } from "../contract/agent-sdk-backend.ts";
 import type { AgentSdkLifetime } from "../contract/agent-sdk-execution.ts";
 import type { BackendRegistry, ProviderBackend } from "../contract/backend.ts";
+import type { LocalLightBackend } from "../contract/local-light.ts";
+import type { OpenAiCompatBackend } from "../contract/openai-backend.ts";
+import type { BackendDef } from "../contract/registry.ts";
 import type { InferenceDeps } from "../deps.ts";
-
-// @orb-waive no-inline-package-interface(BackendDef): baselined when the gate landed; burn-down item 952.
-/** @public knip type-face false positive — the shape of `BACKEND_DEFS` below, in the module that owns it. */
-export interface BackendDef {
-  readonly serves: readonly Task[];
-  /** The missing need's name, or `null` when the wire can be built on these deps. */
-  readonly needs: (deps: InferenceDeps) => string | null;
-}
 
 const ALWAYS = (): null => null;
 
@@ -154,3 +147,5 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
     },
   };
 }
+
+export type { BackendDef } from "../contract/registry.ts";

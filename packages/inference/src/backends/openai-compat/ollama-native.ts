@@ -3,11 +3,10 @@
 // the samplers Ollama's Go decoder has no field for, so a row whose folded `features.nativeChat` is `ollama`
 // sends `/api/chat` instead. Both ends are translated inside `wrapFetch`, the request in `shapeBody` and the reply
 // after its tap, so the wire capture holds the native body and the native reply while the SDK reads OpenAI chunks.
-
-import type { EffortLevel } from "@orb/contracts/inference";
 import { z } from "zod";
 import type { ResolvedWarning } from "#contract";
 import { ProviderError } from "#contract";
+import type { NativeThink } from "../../contract/openai-backend.ts";
 import { serverRootOf } from "../http/fetch-json.ts";
 import { encodeSseData, SSE_DONE_LINE } from "../http/sse.ts";
 
@@ -143,15 +142,6 @@ function formatOf(responseFormat: unknown): unknown {
     return "json";
   }
   return responseFormat["type"] === "json_schema" && isRecord(responseFormat["json_schema"]) ? responseFormat["json_schema"]["schema"] : undefined;
-}
-
-// @orb-waive no-inline-package-interface(NativeThink): baselined when the gate landed; burn-down item 952.
-/** What `think` is spelled from: the effort the turn resolved, the levels the model's descriptor names (absent ⇒
- *  unstated; empty ⇒ on or off only), and whether body rule 5b switched the template's thinking on. */
-export interface NativeThink {
-  readonly effort?: EffortLevel | undefined;
-  readonly levels?: readonly EffortLevel[] | undefined;
-  readonly on?: boolean | undefined;
 }
 
 /** `reasoning_effort` as Ollama's `think`: off for `none`, and a word the user's own body set rides as they wrote it.
@@ -529,3 +519,5 @@ export function ollamaNativeFetch(inner: typeof fetch, args: { readonly baseUrl:
   return async (input, init): Promise<Response> =>
     await inner(urlOf(input).endsWith(CHAT_COMPLETIONS_SUFFIX) ? `${serverRootOf(args.baseUrl)}${NATIVE_CHAT_PATH}` : input, init);
 }
+
+export type { NativeThink } from "../../contract/openai-backend.ts";

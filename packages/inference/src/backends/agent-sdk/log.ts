@@ -1,69 +1,10 @@
 // agent-sdk `provider.*` event lines over the shared `providerLogger` sink. Doctrine: logs are METADATA only —
 // never prompt/RP/system-prompt content. Bound ONCE per backend (`createAgentSdkLog`) — no global logger.
-
-import type { ChatId } from "@orb/kit/ids";
-import type { AgentSdkSessionId, ContextUsage, ProviderError } from "#contract";
 import type { InferenceLog } from "#src/deps.ts";
-import type { ProviderCapabilityLog, ProviderLogger, ProviderTurnUsage } from "../http/provider-log.ts";
+import type { AgentSdkLog } from "../../contract/agent-sdk-backend.ts";
 import { providerLogger } from "../http/provider-log.ts";
-import type { SeededSessionDecision } from "./session/index.ts";
 
 const WIRE = "agent-sdk";
-
-/** One-line-per-turn anchor (`provider.turn`, info) — success or failure. */
-interface ProviderTurnLog {
-  readonly turnId?: string;
-  readonly chatId?: ChatId;
-  readonly sessionId?: AgentSdkSessionId;
-  readonly apiKeySource?: string;
-  readonly requestedModel: string;
-  readonly servedModel?: string;
-  readonly disposition?: SeededSessionDecision["disposition"];
-  readonly terminalReason?: string | null;
-  /** How many MODEL CALLS the agentic loop made for this ONE turn — the DENOMINATOR for `usage.tokensOut`. */
-  readonly numTurns?: number;
-  readonly durationMs?: number;
-  readonly ttftMs?: number | null;
-  readonly ok: boolean;
-  readonly usage?: ProviderTurnUsage;
-  readonly contextUsage?: ContextUsage;
-}
-
-interface ProviderMcpServerHealth {
-  readonly name: string;
-  readonly status: string;
-  readonly error?: string | undefined;
-}
-
-// @orb-waive no-inline-package-interface(AgentSdkLog): baselined when the gate landed; burn-down item 952.
-export interface AgentSdkLog {
-  readonly base: ProviderLogger;
-  readonly turn: (entry: ProviderTurnLog) => void;
-  readonly session: (entry: {
-    readonly chatId: ChatId;
-    readonly sessionId: AgentSdkSessionId | null;
-    readonly disposition: SeededSessionDecision["disposition"];
-  }) => void;
-  readonly error: (err: ProviderError, extra?: { readonly stderrTail?: string; readonly label?: string }) => void;
-  readonly rateLimit: (banRisk: boolean, fields: Record<string, unknown>) => void;
-  readonly retry: (fields: Record<string, unknown>) => void;
-  readonly drift: (entry: { readonly requested: string; readonly billed: readonly string[] }) => void;
-  readonly refusal: (entry: { readonly category: string | null; readonly retried: boolean }) => void;
-  readonly leak: (entry: { readonly model: string; readonly toolNames: readonly string[] }) => void;
-  readonly terminalTools: (entry: {
-    readonly turnId: string;
-    readonly mounted: boolean;
-    readonly toolNames: readonly string[];
-    readonly unliftable?: { readonly tool: string; readonly construct: string; readonly path: string };
-  }) => void;
-  readonly compaction: (fields: Record<string, unknown>) => void;
-  readonly dialog: (entry: { readonly source: "elicitation" | "user-dialog"; readonly kind: string }) => void;
-  readonly capability: (entry: ProviderCapabilityLog) => void;
-  readonly mcp: (entry: { readonly unhealthy: boolean; readonly servers: readonly ProviderMcpServerHealth[] }) => void;
-  readonly info: (fields: Record<string, unknown>, message: string) => void;
-  readonly warn: (fields: Record<string, unknown>, message: string) => void;
-  readonly debug: (fields: Record<string, unknown>, message: string) => void;
-}
 
 export function createAgentSdkLog(log: InferenceLog, providerId: string): AgentSdkLog {
   const base = providerLogger(log, WIRE, providerId);
@@ -92,3 +33,5 @@ export function createAgentSdkLog(log: InferenceLog, providerId: string): AgentS
     debug: (fields, message) => log.debug({ wire: WIRE, providerId, ...fields }, message),
   };
 }
+
+export type { AgentSdkLog } from "../../contract/agent-sdk-backend.ts";

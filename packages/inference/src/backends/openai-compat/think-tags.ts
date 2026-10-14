@@ -25,13 +25,7 @@
 
 import type { LanguageModelMiddleware } from "ai";
 import { extractReasoningMiddleware } from "ai";
-
-// @orb-waive no-inline-package-interface(ReasoningTags): baselined when the gate landed; burn-down item 952.
-/** The preset's literal open/close tags (`reasoningParse.prefix`/`suffix`), as the turn request carries them. */
-export interface ReasoningTags {
-  readonly prefix: string;
-  readonly suffix: string;
-}
+import type { ReasoningTags } from "../../contract/openai-backend.ts";
 
 const XML_OPEN_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
 
@@ -54,3 +48,5 @@ export function thinkTagMiddleware(args: {
   const tagName = tagNameOf(args.tags);
   return tagName === undefined ? [] : [extractReasoningMiddleware({ tagName })];
 }
+
+export type { ReasoningTags } from "../../contract/openai-backend.ts";

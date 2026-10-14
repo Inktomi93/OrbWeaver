@@ -4,28 +4,10 @@
 
 import { z } from "zod";
 import { ProviderError } from "#src/contract/errors.ts";
+import type { DenseLayer, StHead } from "../../contract/local-light.ts";
 
 /** Reads one file of the model repo (`<module>/<name>`), from the local cache or the Hub. */
 type RepoFileReader = (file: string) => Promise<Uint8Array>;
-
-interface DenseLayer {
-  readonly weight: Float32Array;
-  readonly bias: Float32Array | undefined;
-  readonly inDim: number;
-  readonly outDim: number;
-  readonly activation: (x: number) => number;
-}
-
-// @orb-waive no-inline-package-interface(StHead): baselined when the gate landed; burn-down item 952.
-export interface StHead {
-  /** The hidden size the head reads: the encoder's `hidden_size` must equal it. */
-  readonly inputDim: number;
-  readonly dense: DenseLayer;
-  readonly normWeight: Float32Array;
-  readonly normBias: Float32Array;
-  readonly score: DenseLayer;
-}
-
 const SAFETENSORS_HEADER_BYTES = 8;
 const F32_BYTES = 4;
 // sentence-transformers builds its LayerNorm module as torch.nn.LayerNorm(dimension), so the eps is torch's default.
@@ -193,3 +175,5 @@ export function scoreHiddenStates(head: StHead, hidden: Float32Array, dims: read
     return applyDense(head.score, normed)[0] ?? 0;
   });
 }
+
+export type { StHead } from "../../contract/local-light.ts";

@@ -10,6 +10,7 @@
 //   • `turnsEstimated` survives only on an endpoint row: every hosted route keeps the fail-closed turns floor.
 
 import type { Capability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
+import type { ServedWindow, ServerToolChoice } from "../contract/capability.ts";
 
 /** A server that states its model's trained maximum clamps any larger window to it at load (Ollama), so a
  *  declared or advertised window above it would budget the history fit past what the server evaluates. */
@@ -18,13 +19,6 @@ export function clampToTrainedWindow(capability: Capability, trained: number | u
     return capability;
   }
   return { kind: "generation", generation: { ...capability.generation, context: { ...capability.generation.context, window: trained } } };
-}
-
-// @orb-waive no-inline-package-interface(ServedWindow): baselined when the gate landed; burn-down item 952.
-/** The window a server runs where the request cannot set one, and whether that figure is only its floor. */
-export interface ServedWindow {
-  readonly window: number;
-  readonly estimated: boolean;
 }
 
 /** A route that sends no window runs the server's own, so a larger declared window would budget the history fit past
@@ -50,15 +44,6 @@ export function markSettableWindow(capability: Capability, sendsWindow: boolean,
   }
   const { settable: _replaced, ...context } = capability.generation.context;
   return { kind: "generation", generation: { ...capability.generation, context: { ...context, ...settable } } };
-}
-
-// @orb-waive no-inline-package-interface(ServerToolChoice): baselined when the gate landed; burn-down item 952.
-/** What the server does with each tool-choice form and the parallel switch, as its catalog reader states it. */
-export interface ServerToolChoice {
-  readonly required: boolean;
-  readonly named: boolean;
-  readonly none: boolean;
-  readonly parallel: boolean;
 }
 
 /** A server's own tool-choice support, from the catalog entry its reader filled, laid onto whatever tools block
@@ -102,3 +87,5 @@ export function applyEndpointPosture(provider: ProviderDef, capability: Capabili
   }
   return { kind: "generation", generation };
 }
+
+export type { ServedWindow, ServerToolChoice } from "../contract/capability.ts";

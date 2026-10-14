@@ -21,7 +21,8 @@ import type {
   SharedV4ProviderOptions,
 } from "@ai-sdk/provider";
 import type { ChatContentPart, ReasoningPartMeta } from "@orb/contracts/chat";
-import type { ChatHistoryMessage, HistoryRole } from "#contract";
+import type { ChatHistoryMessage } from "#contract";
+import type { BuildPromptArgs, OutboundMedia, PlanRow, WirePlan } from "../../contract/v4.ts";
 import { chatHistoryText } from "../wire/history.ts";
 
 const PROMPT_JOINER = "\n\n";
@@ -34,52 +35,6 @@ const VIDEO_MEDIA = "video";
 const ANTHROPIC_OPTIONS_KEY = "anthropic";
 const OPENROUTER_OPTIONS_KEY = "openrouter";
 const REASONING_DETAILS_KEY = "reasoning_details";
-
-// @orb-waive no-inline-package-interface(OutboundMedia): baselined when the gate landed; burn-down item 952.
-/** One outbound media part the converter can carry on a USER row, or that `body.ts` must re-attach on an
- *  ASSISTANT row: the resolved URL/data-URI the chat domain produced, tagged by kind. */
-export interface OutboundMedia {
-  readonly kind: "image" | "video";
-  readonly url: string;
-}
-
-// @orb-waive no-inline-package-interface(WirePlan): baselined when the gate landed; burn-down item 952.
-/** The prompt plus everything the SDK converters cannot carry, indexed by WIRE-ARRAY position. */
-export interface WirePlan {
-  readonly prompt: LanguageModelV4Prompt;
-  /** Wire index → the participant label the view-builder stamped on that row. */
-  readonly names: ReadonlyMap<number, string>;
-  /** Wire index → the media parts of an ASSISTANT row (dropped by both converters — re-attached by the hook). */
-  readonly assistantMedia: ReadonlyMap<number, readonly OutboundMedia[]>;
-  /** Wire index → the row's cache-breakpoint eligibility inputs (role + tool-exchange + token estimate source). */
-  readonly rows: readonly PlanRow[];
-  /** True when at least one history `tool-result` carried `isError` — the OpenAI-shaped wires have no slot. */
-  readonly toolResultErrorDropped: boolean;
-  /** True when the delivered array ends on an assistant row — the prefill pair's second condition. */
-  readonly endsOnAssistant: boolean;
-}
-
-/** One wire row as the cache placer sees it. `text` is the row's prose for the token estimate. */
-interface PlanRow {
-  readonly role: HistoryRole;
-  readonly toolExchange: boolean;
-  readonly text: string;
-}
-
-// @orb-waive no-inline-package-interface(BuildPromptArgs): baselined when the gate landed; burn-down item 952.
-export interface BuildPromptArgs {
-  readonly systemPrompt: { readonly static: string; readonly dynamic: string };
-  readonly history: readonly ChatHistoryMessage[];
-  /** The `providerOptions` key the wire's converter reads per message (`openaiCompatible` / `openrouter` /
-   *  `anthropic`) and a builder for a row's options from its `wireMeta` — the anthropic wire forwards
-   *  `clearAt`/`effort`; the openai-compat wires forward nothing. */
-  readonly rowOptions?: ((row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined) | undefined;
-  /** Deliver the static prefix and the dynamic half as TWO leading system rows (an Anthropic route: the static
-   *  row takes the cache breakpoint, the per-turn half stays outside it). Both stay in the system region, where
-   *  the prompt order put them. */
-  readonly splitSystem?: boolean | undefined;
-  readonly includeAssistantMedia?: boolean | undefined;
-}
 
 function joinSystemPrompt(systemPrompt: { readonly static: string; readonly dynamic: string }): string {
   return [systemPrompt.static.trim(), systemPrompt.dynamic.trim()].filter((part) => part.length > 0).join(PROMPT_JOINER);
@@ -356,3 +311,5 @@ export function withMessageOptions(prompt: LanguageModelV4Prompt, key: string, p
     return { ...message, providerOptions: { ...message.providerOptions, [key]: { ...existing, ...patch } } } as LanguageModelV4Message;
   });
 }
+
+export type { BuildPromptArgs, OutboundMedia, WirePlan } from "../../contract/v4.ts";

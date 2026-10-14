@@ -24,6 +24,7 @@
 
 import type { ProviderScrubSet } from "#contract";
 import { ProviderError } from "#contract";
+import type { FetchJsonArgs, FetchJsonResult } from "../../contract/http.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 import { classifyHttpStatus } from "./error-classify.ts";
 import { sanitizeApiError } from "./sanitize.ts";
@@ -35,27 +36,6 @@ const ERROR_BODY_LIMIT = 65_536;
 const REDIRECT_MIN = 300;
 const REDIRECT_MAX = 399;
 const JSON_CONTENT_TYPE = "application/json";
-
-// @orb-waive no-inline-package-interface(FetchJsonArgs): baselined when the gate landed; burn-down item 952.
-export interface FetchJsonArgs {
-  readonly fetch: typeof fetch;
-  readonly url: string;
-  readonly method?: "GET" | "POST" | undefined;
-  readonly headers?: Readonly<Record<string, string>> | undefined;
-  readonly body?: unknown;
-  readonly signal?: AbortSignal | undefined;
-  /** The literals to scrub from any error text (the bearer, secret-valued headers, key-in-body values). */
-  readonly secrets: ProviderScrubSet;
-  /** Names the call in error messages (`openrouter credits`, `endpoint models`). */
-  readonly label: string;
-}
-
-// @orb-waive no-inline-package-interface(FetchJsonResult): baselined when the gate landed; burn-down item 952.
-export interface FetchJsonResult {
-  readonly status: number;
-  readonly headers: Headers;
-  readonly json: unknown;
-}
 
 /** Read at most `limit` UTF-16 code units of the body, cancelling the stream past it. `limit` is the
  *  caller's display bound PLUS the #1820 scrub over-read — it is counted in code units because that is the
@@ -187,3 +167,5 @@ export function openAiPath(baseUrl: string, path: string): string {
 export function serverRootOf(baseUrl: string): string {
   return baseUrl.replace(TRAILING_SLASH_RE, "").replace(V1_SUFFIX_RE, "");
 }
+
+export type { FetchJsonArgs, FetchJsonResult } from "../../contract/http.ts";
