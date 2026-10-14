@@ -1,14 +1,15 @@
 import { symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest, InventorySpan } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { inputsCurrent } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
+import { openInventoryDatabase, publishInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
+import { inputsCurrent, inputVersion } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import type { ts } from "ts-morph";
-import { DocumentSpan, LanguageService, Node, Program, Project, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
+import { DocumentSpan, LanguageService, Node, Program, Project, SourceFile, SyntaxKind, TypeChecker, ts } from "ts-morph";
 import { vi } from "vitest";
 
 function span(node: Node): InventorySpan {
@@ -35,10 +36,11 @@ function extractWithoutReferenceWrappers(
     if (!observed.has(service)) {
       observed.add(service);
       const nativeFind = service.compilerObject.findReferences;
-      const query = vi.spyOn(service.compilerObject, "findReferences").mockImplementation((file, position) => {
+      const query = vi.spyOn(service.compilerObject, "findReferences").mockImplementation((file, position, options) => {
+        expect(options).toEqual({ includeDefinitionDisplay: false });
         beforeQuery?.(service.compilerObject);
         queries.push(JSON.stringify([file, position]));
-        return nativeFind.call(service.compilerObject, file, position);
+        return nativeFind.call(service.compilerObject, file, position, options);
       });
       restoreQueries.push(() => query.mockRestore());
     }
@@ -529,4 +531,157 @@ test("physical span reuse observes symlink retargeting and changed bytes between
   expect(changed.exports.some((entry) => entry.name === "second")).toBe(false);
   expect(inputsCurrent(changed.inputs)).toBe(true);
   expect(JSON.stringify(first)).toBe(original);
+});
+
+test("lean native references bypass display-node materialization on fresh checkers", () => {
+  const query = (omitDisplay: boolean): { groups: ts.ReferencedSymbol[]; materializations: number } => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    const source = project.createSourceFile("/fixture.ts", "export const value={outer:{nested:1}, method(){return {result:1};}}; export const use=value;\n");
+    const service = project.getLanguageService().compilerObject;
+    fixtureValue(service.getProgram()).getTypeChecker();
+    const factory = vi.spyOn(ts.factory, "createTypeLiteralNode");
+    try {
+      const groups = fixtureValue(
+        service.findReferences(source.getFilePath(), source.getFullText().indexOf("value"), { includeDefinitionDisplay: !omitDisplay }),
+      );
+      return { groups, materializations: factory.mock.calls.length };
+    } finally {
+      factory.mockRestore();
+      service.dispose();
+    }
+  };
+  const rich = query(false);
+  const lean = query(true);
+  expect(rich.materializations).toBeGreaterThan(0);
+  expect(lean.materializations).toBe(0);
+  expect(lean.groups).toEqual(
+    rich.groups.map(({ definition, references }) => ({
+      definition: { ...definition, name: "", displayParts: [] },
+      references,
+    })),
+  );
+});
+
+test("native reference display opt-out preserves all grouped metadata except presentation", () => {
+  const files = {
+    "/base.ts": [
+      '/// <reference path="./reference.d.ts" />',
+      "export const value={nested:{item:1}}; export const {nested:binding}=value;",
+      "export interface Shape<T> { 'tag': T; method(x:T):T; }",
+      "export class Base<T> { constructor(public field:T){} get item(){return this.field;} set item(x:T){this.field=x;} method(x:T){return x;} }",
+      "export class Child extends Base<number> { override method(x:number){return super.method(x)+this.item;} }",
+      "export enum Choice { One=1, Two=One+1 }",
+      "export namespace Group { export const held=value; }",
+      "export function overloaded(x:string):string; export function overloaded(x:number):number; export function overloaded(x:string|number){return x;}",
+      "export namespace overloaded {export const extra=1;}",
+      "export type Mapped<T> = {[K in keyof T]:T[K]};",
+      "export default function(){return binding;}",
+      "export const text='literal';",
+      "export function control(){ outer: for(let i=0;i<2;i++){if(i)break outer;continue;} return 'literal'; }",
+    ].join("\n"),
+    "/consumer.ts": [
+      "import fallback,{value as alias,binding,Base,Child,Choice,Group,overloaded,type Shape,type Mapped} from './base';",
+      "import * as all from './base'; export {alias as renamed};",
+      "export const shape:Shape<number>={tag:1,method(x){return x;}};",
+      "export const read=shape['tag']+new Child(1).method(2)+Choice.Two+overloaded(1)+overloaded.extra;",
+      "export const object={binding}; export const use=[alias,all.value,Group.held,fallback()];",
+      "export type Copy=Mapped<typeof object>; /** {@link binding} */ export const doc=binding;",
+    ].join("\n"),
+  };
+  const create = (): Project => {
+    const project = new Project({
+      useInMemoryFileSystem: true,
+      compilerOptions: { noLib: true, types: [], module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler },
+    });
+    project.createSourceFile("/reference.d.ts", "interface ExternalShape {external:number}\n");
+    project.createSourceFile("/jsx.tsx", "declare namespace JSX {interface IntrinsicElements {div:{tag?:number}}} export const rendered=<div tag={1}/>;\n");
+    for (const [path, text] of Object.entries(files)) {
+      project.createSourceFile(path, text);
+    }
+    return project;
+  };
+  const original = create().getLanguageService().compilerObject;
+  const leanFirst = create().getLanguageService().compilerObject;
+  const kinds = new Set<ts.ScriptElementKind>();
+  let laterDefinitions = 0;
+  const queries: { file: string; position: number }[] = [];
+  const visit = (node: ts.Node, source: ts.SourceFile): void => {
+    if (node.getChildCount(source) === 0 && node.kind !== ts.SyntaxKind.EndOfFileToken) {
+      queries.push({ file: source.fileName, position: node.getStart(source) });
+    }
+    for (const child of node.getChildren(source)) {
+      visit(child, source);
+    }
+  };
+  try {
+    for (const source of fixtureValue(original.getProgram()).getSourceFiles()) {
+      visit(source, source);
+      for (const reference of source.referencedFiles) {
+        queries.push({ file: source.fileName, position: reference.pos });
+      }
+    }
+    for (const { file, position } of queries) {
+      const rich = original.findReferences(file, position);
+      const lean = leanFirst.findReferences(file, position, { includeDefinitionDisplay: false });
+      expect(lean).toEqual(rich?.map(({ definition, references }) => ({ definition: { ...definition, name: "", displayParts: [] }, references })));
+      expect(leanFirst.findReferences(file, position)).toEqual(rich);
+      expect(leanFirst.findReferences(file, position, { includeDefinitionDisplay: true })).toEqual(rich);
+      for (const group of rich ?? []) {
+        kinds.add(group.definition.kind);
+        laterDefinitions += group.references.filter((entry, index) => index > 0 && entry.isDefinition === true).length;
+      }
+    }
+    expect(queries.length).toBeGreaterThan(100);
+    expect(laterDefinitions).toBeGreaterThan(0);
+    for (const kind of [
+      ts.ScriptElementKind.label,
+      ts.ScriptElementKind.keyword,
+      ts.ScriptElementKind.string,
+      ts.ScriptElementKind.alias,
+      ts.ScriptElementKind.classElement,
+      ts.ScriptElementKind.interfaceElement,
+      ts.ScriptElementKind.enumElement,
+      ts.ScriptElementKind.enumMemberElement,
+      ts.ScriptElementKind.typeParameterElement,
+      ts.ScriptElementKind.memberFunctionElement,
+    ]) {
+      expect(kinds.has(kind)).toBe(true);
+    }
+  } finally {
+    original.dispose();
+    leanFirst.dispose();
+  }
+});
+
+test("actual bundled compiler bytes are versioned and changed runtime input refuses publication", ({ scratch }) => {
+  writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["base.ts"], compilerOptions: { noLib: true, types: [] } }));
+  writeFileSync(join(scratch, "base.ts"), "export const value=1; export const use=value;\n");
+  execFixtureGit(scratch, ["init", "-q"]);
+  const runtime = ts.sys.getExecutingFilePath();
+  const fileSystem = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
+  const read = fileSystem.readFileSync.bind(fileSystem);
+  let changed = false;
+  const runtimeRead = vi.spyOn(fileSystem, "readFileSync").mockImplementation((path, encoding) => {
+    const text = read(path, encoding);
+    return changed && path === runtime ? `${text}\n` : text;
+  });
+  try {
+    expect(() =>
+      createSemanticInventory({
+        root: scratch,
+        fileSystem,
+        buildPartition: (request) => {
+          const partition = extractInventoryPartition(request);
+          expect(partition.inputs).toContainEqual({ path: runtime, kind: "file", version: inputVersion(runtime, "file") });
+          expect(inputsCurrent(partition.inputs, fileSystem)).toBe(true);
+          changed = true;
+          expect(inputsCurrent(partition.inputs, fileSystem)).toBe(false);
+          using staging = openInventoryDatabase(request.destination);
+          publishInventoryGeneration(staging, [partition]);
+        },
+      }),
+    ).toThrow("inputs changed during extraction");
+  } finally {
+    runtimeRead.mockRestore();
+  }
 });
