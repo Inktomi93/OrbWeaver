@@ -31,6 +31,7 @@ export type {
 } from "./contract/service.ts";
 export type { CachedUpstreamDeps } from "./contract/upstream.ts";
 export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views.ts";
+export { createEffectiveConfigCache } from "./effective-config/cache.ts";
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";
 export { migrateSeededBackgroundPicks } from "./persistence/migrate-seeded-background-picks.ts";
 export { createReadSeededKeys, listSeededItemKeys, recordSeededItemKeys } from "./persistence/seed-ledger.ts";

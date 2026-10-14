@@ -27,7 +27,7 @@ import type { StreamDataFrame } from "@orb/contracts/stream";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatService } from "#domain/chat";
-import { subscribeRpgEvents } from "#domain/rpg";
+
 import type { RoomSourceDef } from "../room-source.ts";
 
 /** Is the caller a present member of `chatId`? Reuses chat's member-scoped attach probe (rpg authority
@@ -50,8 +50,8 @@ export const rpgRoomSource: RoomSourceDef<"rpg"> = {
   // client heals every (re)connect with a blanket invalidate instead.
   resumable: false,
   authorizeAttach: () => Promise.resolve(),
-  async *run({ ref, principal, services, signal }): AsyncGenerator<StreamDataFrame> {
-    for await (const event of subscribeRpgEvents(ref.chatId, signal)) {
+  async *run({ ref, principal, services, liveBuses, signal }): AsyncGenerator<StreamDataFrame> {
+    for await (const event of liveBuses.rpg.subscribeRpgEvents(ref.chatId, signal)) {
       if (await isChatMember(services.chat, principal, ref.chatId)) {
         yield { channel: "rpg", chatId: ref.chatId, event };
       }

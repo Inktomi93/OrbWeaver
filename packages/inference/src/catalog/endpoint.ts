@@ -16,7 +16,7 @@ import type { FetchJsonArgs } from "../backends/http/fetch-json.ts";
 import { authHeaders, fetchJson, isRedirect, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
 import { assertNever, ProviderError } from "../contract/errors.ts";
-import type { EndpointModel } from "../contract/runtime.ts";
+import type { EndpointModel, ScheduleTimeout } from "../contract/runtime.ts";
 
 const rowSchema = z
   .object({
@@ -32,6 +32,7 @@ const listSchema = z.object({ data: z.array(rowSchema) }).loose();
 
 // @orb-waive no-inline-package-interface(EndpointFetchArgs): baselined when the gate landed; burn-down item 952.
 export interface EndpointFetchArgs {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
   readonly secret: string | null;
@@ -69,7 +70,7 @@ function isProbeModel(args: EndpointFetchArgs, id: string): boolean {
 
 /** One read that loads nothing on the server, bounded by {@link SERVER_READ_TIMEOUT_MS} and the caller's cancel. */
 async function boundedRead(args: EndpointFetchArgs, read: Omit<FetchJsonArgs, "fetch" | "secrets" | "signal">): Promise<unknown> {
-  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS);
+  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS, args.scheduleTimeout);
   try {
     return (await fetchJson({ ...read, fetch: args.fetch, secrets: args.secrets, signal: deadline.signal })).json;
   } finally {
@@ -130,7 +131,7 @@ interface ProbeAnswer {
 /** A native request whose STATUS is the answer (a 501 refusal, a 400 naming the missing field), so a non-2xx
  *  is returned rather than thrown. Only a server that does not answer at all throws. */
 async function probeNative(args: EndpointFetchArgs, path: string, body: unknown): Promise<ProbeAnswer> {
-  const deadline = deadlineSignal(args.signal, MODEL_PROBE_TIMEOUT_MS);
+  const deadline = deadlineSignal(args.signal, MODEL_PROBE_TIMEOUT_MS, args.scheduleTimeout);
   try {
     return await probeNativeWithin(args, path, body, deadline.signal);
   } finally {

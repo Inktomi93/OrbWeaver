@@ -3,7 +3,7 @@
 // workloads sideways-imports NO sibling runtime — every cross-feature capability is an injected op wired at entry/.
 
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { ModelCallEstimate, WorkloadEvent, WorkloadRef } from "@orb/contracts/workloads";
+import type { ModelCallEstimate, WorkloadEvent, WorkloadLane, WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
@@ -20,7 +20,7 @@ import type {
   StartWorkloadParams,
 } from "./params.ts";
 import type { WorkloadScheduleService } from "./schedule.ts";
-import type { WorkloadRowAnyKind } from "./workload-row.ts";
+import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./workload-row.ts";
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam. */
 type NewWorkloadId = () => WorkloadId;
@@ -52,13 +52,14 @@ export interface WorkloadServiceContext {
 }
 
 /** What entry supplies; the domain service adds its own event publisher at its composition root. */
-export type WorkloadServiceDeps = Omit<WorkloadServiceContext, "emitEvent">;
+export type WorkloadServiceDeps = Omit<WorkloadServiceContext, "emitEvent"> & Partial<Pick<WorkloadServiceContext, "emitEvent">>;
 
 /**
  * The base runner deps the entry root wires + the worker holds. Lease/heartbeat cadences are tunable and
  * `<= 0` disables the timers (deterministic test seam — a test drives cancel via `AbortSignal` instead).
  */
 export interface WorkloadRunnerDeps {
+  readonly emitEvent?: WorkloadServiceContext["emitEvent"];
   readonly db: Db;
   /** The per-kind contribution registry the engine dispatches through (built at compose from the owning
    *  domains' factories). Replaces the retired cross-feature `env` hub — the engine knows no domain. */
@@ -95,6 +96,7 @@ export type WorkloadReapReason = (typeof WORKLOAD_REAP_REASONS)[number];
 /** The orphan sweep's args. `reason` is REQUIRED: a new reap call site must declare which death it records,
  *  which is what keeps the two sentences from collapsing back into one. */
 export interface ReapWorkloadsArgs {
+  readonly emitEvent?: WorkloadServiceContext["emitEvent"];
   readonly db: Db;
   // No `contributions` (#1413): the sweep disposes of RAW in-flight rows and resolves no kind against the
   // registry, so handing it the domain map would be a dep it does not use — and the version that DID narrow
@@ -124,3 +126,6 @@ export interface WorkloadService extends WorkloadScheduleService {
   readonly get: (params: GetWorkloadParams) => Promise<WorkloadRowAnyKind>;
   readonly list: (params: ListWorkloadsParams) => Promise<readonly WorkloadRowAnyKind[]>;
 }
+
+export type NextRunnableWorkloadDeps = Pick<WorkloadRunnerDeps, "db" | "contributions"> & Pick<WorkloadServiceContext, "emitEvent">;
+export type NextRunnableWorkload = (now: number, lane: WorkloadLane) => Promise<WorkloadRunnableRow | null>;

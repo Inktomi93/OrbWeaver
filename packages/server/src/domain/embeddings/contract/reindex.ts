@@ -2,9 +2,11 @@ import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { StartWorkloadOp } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
+import type { superviseDetached } from "#foundation/observability";
 import type { EmbeddingsService } from "./service.ts";
 
 export interface EmbeddingReindexDeps {
+  readonly supervise?: typeof superviseDetached | undefined;
   readonly now: () => number;
   readonly getEffectiveConfig: () => EffectiveAppConfig;
   readonly startWorkload: StartWorkloadOp;

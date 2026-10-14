@@ -18,6 +18,7 @@ import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "#src/contract/errors.ts";
+import type { LoadTransformersKernel, LocalLightKernelModule } from "#src/contract/local-light-kernel.ts";
 import type { LocalLightLoadProgress, LocalLightRerankServing } from "#src/contract/local-light-worker.ts";
 import type { EmbedRequest } from "#src/contract/roles.ts";
 import type { LocalLightModelSlot } from "#src/contract/runtime.ts";
@@ -30,12 +31,36 @@ import { encodeTextWindows } from "./text-windows.ts";
 // Small on purpose — each ONNX session holds native (off-heap) memory.
 const MODEL_CACHE_CAP = 4;
 
-type TransformersModule = typeof import("@huggingface/transformers");
+type TransformersModule = Awaited<ReturnType<LoadTransformersKernel>>;
 
 let transformersPromise: Promise<TransformersModule> | undefined;
 function loadTransformers(): Promise<TransformersModule> {
   transformersPromise ??= import("@huggingface/transformers");
   return transformersPromise;
+}
+
+function isKernelModule(value: unknown): value is LocalLightKernelModule {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "loadTransformers" in value &&
+    typeof value.loadTransformers === "function" &&
+    "fetch" in value &&
+    typeof value.fetch === "function"
+  );
+}
+
+async function loadExecutionKernel(module: string | undefined): Promise<TransformersModule> {
+  if (module === undefined) {
+    return await loadTransformers();
+  }
+  const execution: unknown = await import(module);
+  if (!isKernelModule(execution)) {
+    throw new ProviderError({ kind: "invalid", retryable: false, message: "local-light: kernel execution module has no library loader" });
+  }
+  const kernel = await execution.loadTransformers(loadTransformers);
+  kernel.env.fetch = execution.fetch;
+  return kernel;
 }
 
 const DEFAULT_DEVICE: DeviceType = "auto";
@@ -105,6 +130,7 @@ export interface LocalLightModelCache {
 
 // @orb-waive no-inline-package-interface(ModelCacheConfig): baselined when the gate landed; burn-down item 952.
 export interface ModelCacheConfig {
+  readonly kernelModule?: string | undefined;
   readonly cpuPercent?: LocalLightCpuPercent | undefined;
   readonly device?: string | undefined;
   readonly embedDtype?: string | undefined;
@@ -582,7 +608,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   const embedDtype = resolveEmbedDtype(config.embedDtype);
   const cacheDir = config.cacheDir === undefined ? undefined : resolve(config.cacheDir);
   const configure = async (): Promise<TransformersModule> => {
-    const mod = await (config.__loadTransformersForTest ?? loadTransformers)();
+    const mod = await (config.__loadTransformersForTest === undefined ? loadExecutionKernel(config.kernelModule) : config.__loadTransformersForTest());
     if (config.allowRemoteModels !== undefined) {
       mod.env.allowRemoteModels = config.allowRemoteModels;
     }

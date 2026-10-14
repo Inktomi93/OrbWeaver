@@ -12,16 +12,12 @@
 
 import type { ScheduleTimeout } from "#contract";
 import { foldAbortInto } from "./abort-flatten.ts";
+import { realScheduleTimeout } from "./timers.ts";
 
 /** Max time a streaming HTTP call may go WITHOUT a received chunk before the socket is treated as stalled
  *  and aborted. NOT a whole-turn deadline: a healthy long stream resets the window on every chunk. Long
  *  enough to ride out slow first-token latency; short enough that a wedged socket can't pin a slot forever. */
 const IDLE_TIMEOUT_MS = 180_000;
-
-const realScheduleTimeout: ScheduleTimeout = (fn, ms) => {
-  const timer = setTimeout(fn, ms);
-  return (): void => clearTimeout(timer);
-};
 
 /** The reason an idle trip aborts with: a stalled server, not a cancel, so every wire classifies it as a retryable
  *  `server` failure ahead of the abort-name rule. The caller's own cancel still flattens to a plain `AbortError`. */

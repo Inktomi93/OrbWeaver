@@ -25,7 +25,17 @@ import type {
 } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { PluginBelts, PluginHostOps, PluginIdentity, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate, UiHostCallGate } from "./ops.ts";
+import type { ScheduleOp } from "@orb/kit/time";
+import type {
+  PluginBelts,
+  PluginHostOps,
+  PluginIdentity,
+  PluginInvocationWork,
+  PluginInvokeHandler,
+  PluginRegistrationHandle,
+  SnippetGate,
+  UiHostCallGate,
+} from "./ops.ts";
 import type {
   ApplyDistributedPluginsParams,
   CheckForUpdatesParams,
@@ -282,6 +292,7 @@ export interface PluginUiOutbox {
 
 /** The injected-op bundle every plugin verb closes over, assembled at the composition root. */
 export interface PluginContext {
+  readonly scheduleTimeout?: ScheduleOp | undefined;
   readonly db: Db;
   readonly now: () => number;
   readonly newPluginId: () => PluginId;
@@ -363,6 +374,14 @@ export interface PluginContext {
    *  bound how many are RUNNING, which is what a re-rendering scripted surface can turn into a flood. */
   readonly uiHostCallGate: UiHostCallGate;
 }
+
+/** Activation binds every resident handler to the service's owned invocation lifetime. */
+export interface PluginActivationContext extends PluginContext {
+  readonly invocations: Pick<PluginInvocationWork, "run">;
+}
+
+/** Closing the process view unregisters residents without changing durable enablement or consent. */
+export interface OwnedPluginService extends PluginService, AsyncDisposable {}
 
 /** The deps the SERVER-WIDE DISTRIBUTION verbs close over — a SEPARATE bundle from {@link PluginContext},
  *  and that separation is the whole point (D147 clause (a)).

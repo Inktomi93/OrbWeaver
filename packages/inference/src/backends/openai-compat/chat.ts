@@ -22,6 +22,7 @@ import type {
   Resolved,
   ResolvedChatKnobs,
   ResolvedWarning,
+  ScheduleTimeout,
 } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
@@ -105,6 +106,7 @@ function nativeOpenAiUsageOverlay(drain: StreamDrain, generation: GenerationCapa
 
 // @orb-waive no-inline-package-interface(OpenAiCompatChatDeps): baselined when the gate landed; burn-down item 952.
 export interface OpenAiCompatChatDeps {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
   readonly log: InferenceLog;
@@ -515,6 +517,7 @@ function appliedEffortOf(shape: TurnShape | undefined, dialect: Dialect, nativeB
 // ── the stream ────────────────────────────────────────────────────────────────────────────────────────────
 
 interface StreamOnceArgs {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly call: ModelCall;
   readonly options: LanguageModelV4CallOptions;
   readonly req: OpenAiCompatChatRequest;
@@ -529,7 +532,7 @@ interface StreamOnceArgs {
 async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   const { call, req, label, markCommitted } = args;
   const deltaTarget = req.chatId === undefined || req.onDelta === undefined ? undefined : { chatId: req.chatId, onDelta: req.onDelta };
-  const idle = turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs);
+  const idle = turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs, args.scheduleTimeout);
   let first = true;
   const commit = (): void => {
     if (first) {
@@ -736,6 +739,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     return templateRoleRefusal(err, label, classified) ?? classified;
   };
   const retryOpts = {
+    scheduleTimeout: deps.scheduleTimeout,
     ...(req.signal !== undefined ? { signal: req.signal } : {}),
     now: deps.now,
     ...(deps.random !== undefined ? { random: deps.random } : {}),
@@ -793,6 +797,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           ...(req.reasoningTags !== undefined ? { reasoningTags: req.reasoningTags } : {}),
         };
         return streamOnce({
+          scheduleTimeout: deps.scheduleTimeout,
           call,
           options: { ...shape.options, prompt },
           req,

@@ -19,7 +19,7 @@ import type {
 } from "#domain/automation";
 import { createChatAutomationReads } from "#domain/chat";
 import type { EmitNotification } from "#domain/notifications";
-import { subscribeAllChatEvents } from "#transport/trpc";
+import type { LiveBuses } from "#transport/trpc";
 import type { DomainEventBus } from "./event-bus.ts";
 
 /** The action WRITE ops, pre-bound at `entry/compose` (the automation domain declares only the TYPE —
@@ -89,11 +89,14 @@ export function createAutomationOps(deps: AutomationActionOpsDeps): AutomationOp
 /** Assemble the watcher env from the per-chat firehose + the domain-event bus. */
 export function createAutomationWatcherEnv(args: {
   readonly automation: Pick<AutomationService, "handleEvent">;
+  readonly supervise: NonNullable<AutomationWatcherEnv["supervise"]>;
+  readonly chatEvents: Pick<LiveBuses["chat"], "subscribeAllChatEvents">;
   readonly eventBus: DomainEventBus;
 }): AutomationWatcherEnv {
   return {
     automation: args.automation,
-    onChatEvent: (handler) => subscribeAllChatEvents((entry) => handler(entry.event)),
+    supervise: args.supervise,
+    onChatEvent: (handler) => args.chatEvents.subscribeAllChatEvents((entry) => handler(entry.event)),
     onDomainEvent: (handler) => args.eventBus.subscribe(handler),
   };
 }

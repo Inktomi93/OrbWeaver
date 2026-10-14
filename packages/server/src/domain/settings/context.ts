@@ -5,9 +5,10 @@
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import type { SettingsContext, SettingsServiceDeps } from "./contract/service.ts";
-import { getEffectiveConfig, reloadEffectiveConfig } from "./effective-config/cache.ts";
+import { createEffectiveConfigCache } from "./effective-config/cache.ts";
 
 export function createSettingsContext(deps: SettingsServiceDeps): SettingsContext {
+  const effectiveConfig = deps.effectiveConfig ?? createEffectiveConfigCache(deps.db);
   // Per-user write serializer: both user-settings write paths are read-merge-write against the same row,
   // so concurrent same-user writes would silently drop one under last-write-wins. Queues via a promise
   // chain keyed by userId; different users run concurrently.
@@ -46,9 +47,9 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     newBackgroundEntryId: deps.newBackgroundEntryId,
     versionIdentity: deps.versionIdentity,
     probeUpstream: deps.probeUpstream,
-    getEffectiveConfig,
+    getEffectiveConfig: effectiveConfig.getEffectiveConfig,
     reloadEffectiveConfig: async (): Promise<EffectiveAppConfig> => {
-      const resolved = await reloadEffectiveConfig(deps.db);
+      const resolved = await effectiveConfig.reloadEffectiveConfig();
       deps.publishPrivateEndpointAllowlist(resolved.privateEndpointAllowlist);
       deps.onEffectiveConfigChanged?.(resolved);
       return resolved;

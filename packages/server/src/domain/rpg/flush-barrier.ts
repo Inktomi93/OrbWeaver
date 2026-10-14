@@ -61,7 +61,7 @@
 // lock. A multi-replica deploy would need a shared barrier (a doorway, not built).
 
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { FlushBarrierOnTimeout, FlushBarrierScheduleTimeout, RpgFlushBarrier } from "./contract/service.ts";
+import type { FlushBarrierOnTimeout, FlushBarrierScheduleTimeout, OwnedRpgFlushBarrier } from "./contract/service.ts";
 
 /** The bound: a flush that hasn't settled within this window releases the barrier (the turn proceeds on the
  *  last-known state rather than deadlocking on a hung flush). A flush is a single extraction/tool-round call +
@@ -95,22 +95,27 @@ export function createRpgFlushBarrier(
   onTimeout: FlushBarrierOnTimeout,
   timeoutMs: number = BARRIER_TIMEOUT_MS,
   scheduleTimeout: FlushBarrierScheduleTimeout = realScheduleTimeout,
-): RpgFlushBarrier {
+): OwnedRpgFlushBarrier {
   // The SET of in-flight flushes per chat (S2). Each flush self-removes on settle; an emptied set is deleted so
   // the common fast path (no in-flight flush) is a Map miss. Two concurrent flushes on one chat are BOTH tracked.
   const inFlight = new Map<ChatId, Set<InFlightFlush>>();
+  let closed = false;
 
   return {
     register({ chatId, ownerUserId, turnSignal, run }): Promise<void> {
+      if (closed) {
+        return Promise.reject(new Error("cannot register a round on a closed RPG flush barrier"));
+      }
       // The round's OWN controller. The turn's signal is FOLDED IN by re-aborting this one (never
       // `AbortSignal.any`) so no chat-domain abort reason can reach the provider error classifier — see the
       // header, and `backends/http/idle-timeout.ts` for the archetype and the bug it was written against.
       const controller = new AbortController();
+      const onTurnAbort = (): void => controller.abort();
       if (turnSignal !== undefined) {
         if (turnSignal.aborted) {
           controller.abort();
         } else {
-          turnSignal.addEventListener("abort", (): void => controller.abort(), { once: true });
+          turnSignal.addEventListener("abort", onTurnAbort, { once: true });
         }
       }
       const set = inFlight.get(chatId) ?? new Set<InFlightFlush>();
@@ -128,6 +133,7 @@ export function createRpgFlushBarrier(
       entry.tracked = flush
         .catch(() => undefined)
         .finally(() => {
+          turnSignal?.removeEventListener("abort", onTurnAbort);
           const live = inFlight.get(chatId);
           if (live !== undefined) {
             live.delete(entry);
@@ -177,6 +183,14 @@ export function createRpgFlushBarrier(
       if (outcome === timedOut) {
         onTimeout({ chatId });
       }
+    },
+    async [Symbol.asyncDispose](): Promise<void> {
+      closed = true;
+      const rounds = [...inFlight.values()].flatMap((entries) => [...entries]);
+      for (const round of rounds) {
+        round.controller.abort();
+      }
+      await Promise.all(rounds.map((round) => round.tracked));
     },
   };
 }

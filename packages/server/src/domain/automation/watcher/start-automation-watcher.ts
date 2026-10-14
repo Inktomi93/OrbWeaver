@@ -13,17 +13,20 @@ import type { AutomationWatcherEnv, AutomationWatcherHandle } from "../contract/
 
 /** Start the automation watcher. Idempotent teardown via the returned stop(). */
 export function startAutomationWatcher(env: AutomationWatcherEnv): AutomationWatcherHandle {
+  using construction = new DisposableStack();
+  const supervise = env.supervise ?? superviseDetached;
   const unsubChat = env.onChatEvent((event) => {
-    superviseDetached(`automation:chat:${event.chatId}:${event.type}:${randomUUID()}`, "automation.handleEvent", { eventType: event.type }, () =>
+    supervise(`automation:chat:${event.chatId}:${event.type}:${randomUUID()}`, "automation.handleEvent", { eventType: event.type }, () =>
       env.automation.handleEvent(event),
     );
   });
+  construction.defer(unsubChat);
   const unsubDomain = env.onDomainEvent((event) => {
-    superviseDetached(`automation:domain:${event.type}:${randomUUID()}`, "automation.handleEvent", { eventType: event.type }, () =>
-      env.automation.handleEvent(event),
-    );
+    supervise(`automation:domain:${event.type}:${randomUUID()}`, "automation.handleEvent", { eventType: event.type }, () => env.automation.handleEvent(event));
   });
 
+  construction.defer(unsubDomain);
+  const lifetime = construction.move();
   let stopped = false;
   return {
     stop: (): void => {
@@ -31,8 +34,7 @@ export function startAutomationWatcher(env: AutomationWatcherEnv): AutomationWat
         return;
       }
       stopped = true;
-      unsubChat();
-      unsubDomain();
+      lifetime.dispose();
     },
   };
 }

@@ -199,11 +199,13 @@ process.on("SIGTERM", stopBroker);
 process.on("disconnect", stopBroker);
 
 for (;;) {
+  const brokerLifetime = superviseOneBroker();
   const outcome = await Promise.race([
-    superviseOneBroker().then((failure) => ({ kind: "failure", failure }) as const),
+    brokerLifetime.then((failure) => ({ kind: "failure", failure }) as const),
     stop.promise.then(() => ({ kind: "stop" }) as const),
   ]);
   if (outcome.kind === "stop") {
+    await brokerLifetime;
     break;
   }
   process.stderr.write(`${outcome.failure}; restarting in ${BROKER_RESTART_DELAY_MS}ms\n`);
@@ -211,4 +213,9 @@ for (;;) {
   if (!restart) {
     break;
   }
+}
+
+appSender.close();
+if (process.connected) {
+  process.disconnect?.();
 }

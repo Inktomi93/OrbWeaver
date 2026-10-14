@@ -3,11 +3,11 @@
 
 import { resolveProseText } from "@orb/contracts/prose";
 import { buildToolRoundWireTools, cacheStableExtractionRefs, recordToolCalls, toolCallsToExtraction } from "@orb/contracts/rpg";
-import { newId } from "@orb/kit/ids";
 import { logger } from "#foundation/observability";
 import type { RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { buildActorRefIndex, extractionToStateDelta, reachableActorRefs } from "../apply.ts";
+import { createExtractionMints } from "../mints.ts";
 import { resolveExtractionRefs } from "./prompts.ts";
 import { logExtractionOutcome, logToolCallLosses } from "./round-log.ts";
 
@@ -82,12 +82,7 @@ export function buildFoldTurnToolCalls(deps: RpgRoundsDeps): RpgContext["foldTur
     // genuinely needed (it resolves target names to participant refs and backs the ghost guard), and the log's
     // target-menu denominator derives from state we already hold.
     const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(
-      baseState,
-      extraction,
-      { item: () => newId(), quest: () => newId(), objective: () => newId() },
-      { participantIndex, trackerDefs },
-    );
+    const delta = extractionToStateDelta(baseState, extraction, createExtractionMints(deps.idSource), { participantIndex, trackerDefs });
     logExtractionOutcome({
       chatId,
       model: conn.model,

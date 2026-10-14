@@ -18,12 +18,13 @@
 // character seats is +1 to the owner's library and +1 to EACH seat's census — and one shared field made the
 // second seat uncountable without inflating the owner. Same shape as the `daily*`/`model*` slices.
 
-import type { ApplyStatsDelta, BumpStatsCanonVersion, StatsDelta } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion, StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
 
@@ -53,7 +54,7 @@ export const bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db> = (ba
   );
 };
 
-function appendCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta): void {
+function appendCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, idSource: IdSource): void {
   const lastAt = delta.lastAt ?? null;
   const firstAt = delta.firstAt ?? null;
   // character_stats (skipped for a null character): no ownerId, conflict on the characterId unique index.
@@ -63,7 +64,7 @@ function appendCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta
         db
           .insert(characterStats)
           .values({
-            id: mintTypeId(ID_PREFIX.characterStat),
+            id: idSource.typeId(ID_PREFIX.characterStat),
             characterId: delta.characterId,
             chats: n(delta.characterChats),
             userTurns: n(delta.userTurns),
@@ -134,22 +135,22 @@ function appendCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta
 }
 
 /** Rebase a retained voice without changing the unchanged owner, timeline or model grains. */
-export const applyCharacterStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch, db, delta): void => {
+export function applyCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, idSource: IdSource = createIdSource()): void {
   if (delta.characterId === null) {
     return;
   }
   bumpStatsCanonVersion(batch, db, delta.ownerId);
-  appendCharacterStatsDelta(batch, db, delta);
-};
+  appendCharacterStatsDelta(batch, db, delta, idSource);
+}
 
-export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchStmt[], db: Db, delta: StatsDelta): void => {
+export function applyStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, idSource: IdSource = createIdSource()): void {
   const lastAt = delta.lastAt ?? null;
   const firstAt = delta.firstAt ?? null;
   const maxCtx = delta.maxContextTokens ?? null;
 
   bumpStatsCanonVersion(batch, db, delta.ownerId);
 
-  appendCharacterStatsDelta(batch, db, delta);
+  appendCharacterStatsDelta(batch, db, delta, idSource);
 
   // owner_stats always writes (even all-zeros, so the row stays present for freshness). Natural PK on
   // ownerId; `characters` bumps only on the first chat for a character.
@@ -239,7 +240,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
       db
         .insert(dailyStats)
         .values({
-          id: mintTypeId(ID_PREFIX.dailyStat),
+          id: idSource.typeId(ID_PREFIX.dailyStat),
           ownerId: delta.ownerId,
           bucketStart: delta.bucketStart,
           chatsCreated: n(delta.chatsCreated),
@@ -297,7 +298,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
         db
           .insert(modelStats)
           .values({
-            id: mintTypeId(ID_PREFIX.modelStat),
+            id: idSource.typeId(ID_PREFIX.modelStat),
             ownerId: delta.ownerId,
             model: delta.model,
             provider: delta.provider ?? MODEL_PROVIDER_UNKNOWN,
@@ -344,4 +345,4 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
       ),
     );
   }
-};
+}

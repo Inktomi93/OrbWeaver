@@ -6,12 +6,17 @@
 // trust precedence, anti-spoof) + `parseAllowlist`; mounted by `entry/app.ts`, `clientIp` reused by
 // the transport seam. The IP certificate's https listener (`tls-terminator.ts`) forwards to the app as a loopback hop.
 
+export type { EgressResolver, ScopedEgress, ScopedEgressOptions } from "./contract/egress.ts";
+export type { NativeHttpBindings } from "./contract/http-server.ts";
+export type { PhysicalPeerRead } from "./contract/ingress.ts";
+export type { OwnedResponseBody } from "./contract/response-body.ts";
 export {
   __firewallConnectForTest,
   __pinnedAgentForTest,
   __setEgressResolverForTest,
   __setFirewallLookupForTest,
   ANY_HOST,
+  createScopedEgress,
   EgressBlockedError,
   ENDPOINT_ADMISSIONS,
   endpointAdmission,
@@ -29,10 +34,12 @@ export {
   safeFetch,
   shouldBlockEgress,
 } from "./egress.ts";
+export { drainHttpServer, HANGUP_DRAIN_MS, HTTP_SERVER_TIMEOUTS, joinNativeHttpRequest, SHUTDOWN_DRAIN_MS, serveHttpServer } from "./http-server.ts";
 export { type ImageGuardCaps, ImageRejectedError, isAllowedImageBuffer } from "./image-guard.ts";
 export {
   addressThrottleKey,
   clientIp,
+  createPhysicalPeerMiddleware,
   ipAllowlistMiddleware,
   isIngressAllowed,
   isTrustedHop,
@@ -49,5 +56,6 @@ export {
   matchesCidr,
 } from "./ip-ranges.ts";
 export type { PluginGitSource, PluginGitSourceDeps } from "./plugin-git.ts";
-export { createPluginGitSource, guardedGitHttp, materializePluginGitEntries, pluginGitSource } from "./plugin-git.ts";
+export { createNetworkPluginGitSource, createPluginGitSource, guardedGitHttp, materializePluginGitEntries, pluginGitSource } from "./plugin-git.ts";
+export { createOwnedResponseBody } from "./response-body.ts";
 export { startTlsTerminator, type TlsTerminator, type TlsTerminatorOptions } from "./tls-terminator.ts";

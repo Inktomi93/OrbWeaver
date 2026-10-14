@@ -4,20 +4,44 @@
 // (no phantom extra rows); the chat `withX` opt-ins are explicit; and seedMessage performs the D26
 // slot→variant→pointer dance.
 
-import { assets, characters, chatParticipants, chats, messages, messageVariants, users } from "@orb/db";
-import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { assets, characters, chatParticipants, chats, closeDb, messages, messageVariants, users } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { cardContentHash } from "@orb/server/primitives/serde/card";
 import { eq } from "drizzle-orm";
+import sharp from "sharp";
 import { describe } from "vitest";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 import { freshDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";
-import { makeAsset, makeCharacter, makeChat, makeMessage, makeUser, seedAsset, seedCharacter, seedChat, seedMessage, seedPersona, seedUser } from "./index.ts";
+import { makeAssetBlobRef } from "./asset-view.ts";
+import {
+  makeAsset,
+  makeAssetBytes,
+  makeCharacter,
+  makeChat,
+  makeMessage,
+  makeUser,
+  seedAsset,
+  seedCharacter,
+  seedChat,
+  seedMessage,
+  seedPersona,
+  seedUser,
+} from "./index.ts";
 
 const CHARACTER_ID_SHAPE = /^character_[0-9a-hjkmnp-tv-z]{26}$/u;
 
 describe("make* — pure, deterministic builders", () => {
+  test("user defaults consume the injected production prefixless mint, not a prefixed fixture id", () => {
+    const expected = createIdSource(createSeededIds().next);
+    const source = createIdSource(createSeededIds().next);
+    expect(makeUser({}, source).id).toBe(expected.unprefixed<UserId>());
+    expect(makeUser({}, source).id).toBe(expected.unprefixed<UserId>());
+  });
+
   test("ids are seeded-counter shaped and distinct per call; timestamps pin to the frozen instant", () => {
     const a = makeCharacter();
     const b = makeCharacter();
@@ -33,12 +57,26 @@ describe("make* — pure, deterministic builders", () => {
     expect(makeAsset().uploadedAt).toBe(FROZEN_AT_MS);
   });
 
-  test("makeAsset defaults are fully-valid; distinct calls get distinct hashes (owner+hash unique-safe)", () => {
+  test("makeAsset defaults are fully-valid; distinct calls get distinct hashes (owner+hash unique-safe)", async () => {
     const a = makeAsset();
     const b = makeAsset();
     expect(a.kind).toBe("card");
     expect(a.hash).toHaveLength(64);
     expect(a.hash).not.toBe(b.hash);
+    const bytes = makeAssetBytes(a.id);
+    expect(a.hash).toBe(sha256Hex(bytes));
+    expect(a.size).toBe(bytes.byteLength);
+    const decoded = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
+    expect(a.width).toBe(decoded.info.width);
+    expect(a.height).toBe(decoded.info.height);
+  });
+
+  test("blob-reference defaults use actual asset facts and malformed override IDs cannot bypass the output parser", () => {
+    const row = makeAsset({}, createIdSource(createSeededIds().next));
+    const ref = makeAssetBlobRef({}, createIdSource(createSeededIds().next));
+    expect(ref).toEqual({ assetId: row.id, hash: row.hash, mime: row.mime, width: row.width, height: row.height });
+    // The raw malformed override reproduces the retained CT input without branding it as a valid asset ID.
+    expect(() => Reflect.apply(makeAssetBlobRef, undefined, [{ assetId: "asset_ct_attach" }])).toThrow();
   });
 
   test("makeCharacter stamps the PRODUCT'S contentHash, moves with card content, and yields to an override (#900)", () => {
@@ -46,20 +84,21 @@ describe("make* — pure, deterministic builders", () => {
     // readers recompute-and-compare it (`verbs/update.ts`'s `contentChanged`, which gates re-embedding, and
     // the refinery's belt-14 basis fence). The old default was `hash_<id>` — a value no write path can
     // produce, which makes `contentChanged` unconditionally true on any factory-seeded row.
-    const base = makeCharacter({ id: castId<CharacterId>("character_hash01"), name: "Aria" });
+    const id = createIdSource(createSeededIds().next).typeId(ID_PREFIX.character);
+    const base = makeCharacter({ id, name: "Aria" });
     expect(base.contentHash).toBe(cardContentHash(base));
     expect(base.contentHash).toHaveLength(64);
     expect(base.contentHash).not.toBe(`hash_${base.id}`);
 
     // It follows the OVERRIDES, not just the defaults: an identity field the caller changed changes it, and
     // a non-identity column (D28: re-attribution must not change what a card IS) does not.
-    const renamed = makeCharacter({ id: castId<CharacterId>("character_hash01"), name: "Bolt" });
+    const renamed = makeCharacter({ id, name: "Bolt" });
     expect(renamed.contentHash).not.toBe(base.contentHash);
-    const restarred = makeCharacter({ id: castId<CharacterId>("character_hash01"), name: "Aria", starred: true, creator: "someone" });
+    const restarred = makeCharacter({ id, name: "Aria", starred: true, creator: "someone" });
     expect(restarred.contentHash).toBe(base.contentHash);
 
     // An explicit hash still wins — a suite pinning a stale-basis arm keeps its value.
-    expect(makeCharacter({ contentHash: "pinned" }).contentHash).toBe("pinned");
+    expect(makeCharacter({ name: "Bolt", contentHash: base.contentHash }).contentHash).toBe(base.contentHash);
   });
 
   test("overrides shallow-merge over fully-valid defaults", () => {
@@ -73,6 +112,19 @@ describe("make* — pure, deterministic builders", () => {
 });
 
 describe("seed* — the FK chain on an empty db", () => {
+  test("different default seed families share the user mint instead of colliding on independent user counters", async () => {
+    const db = await freshDb();
+    try {
+      const persona = await seedPersona(db);
+      const asset = await seedAsset(db);
+      const character = await seedCharacter(db);
+      expect(new Set([persona.ownerId, asset.ownerId, character.ownerId]).size).toBe(3);
+      expect(await db.select().from(users)).toHaveLength(3);
+    } finally {
+      closeDb(db);
+    }
+  });
+
   test("seedCharacter auto-seeds its owner user (FK PRAGMA ON, no orphan insert)", async () => {
     const db = await freshDb();
     const row = await seedCharacter(db);

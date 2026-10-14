@@ -5,7 +5,7 @@
 // clock is injected for determinism (no ambient `Date.now()` in a verb).
 
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import { createSessionsContext } from "./context.ts";
 import type { SessionsService } from "./contract/service.ts";
 import { selectOwnerUserId } from "./persistence/users.ts";
@@ -29,6 +29,7 @@ import { createValidate } from "./verbs/validate.ts";
 interface SessionsServiceDeps {
   db: Db;
   now: () => number;
+  readonly idSource?: IdSource;
   sessionSecret: string | null;
   /** #2481 — the injected per-user local-light seed (`SessionsContext.seedUserConnections`). Required on
    *  purpose: a composition root that forgets it mints accounts with no vector floor, silently, which is the
@@ -37,7 +38,7 @@ interface SessionsServiceDeps {
 }
 
 export function createSessionsService(deps: SessionsServiceDeps): SessionsService {
-  const ctx = createSessionsContext(deps.db, deps.now, deps.sessionSecret, deps.seedUserConnections);
+  const ctx = createSessionsContext(deps.db, deps.now, deps.sessionSecret, deps);
   return {
     ...createCreate(ctx),
     ...createValidate(ctx),

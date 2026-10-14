@@ -24,6 +24,8 @@
 
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginDisplayTransformRegistration } from "@orb/contracts/plugin";
+import type { ScheduleOp } from "@orb/kit/time";
+import { systemTimers } from "#infra/timers";
 import type { TransformForDisplayParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
@@ -44,12 +46,17 @@ type Outcome = { readonly text: string } | { readonly skip: "deadline" | "failed
 
 /** Run ONE display transform under the deadline. Returns the new text, or why it was skipped (throw, rejected
  *  invoke, deadline) — the caller keeps the prior text. The timer is always cleared. */
-async function applyBounded(invoke: ResidentInvoke, transform: PluginDisplayTransformRegistration, argsJson: string): Promise<Outcome> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+async function applyBounded(
+  invoke: ResidentInvoke,
+  transform: PluginDisplayTransformRegistration,
+  argsJson: string,
+  scheduleTimeout: ScheduleOp,
+): Promise<Outcome> {
+  let cancelTimer: (() => void) | undefined;
   // Aborted on the deadline so the orphaned invocation's later rejection counts a crash without a second log line.
   const orphan = new AbortController();
   const deadline = new Promise<Outcome>((resolve) => {
-    timer = setTimeout(() => {
+    cancelTimer = scheduleTimeout(() => {
       orphan.abort(DEADLINE_ABORT_REASON);
       resolve({ skip: "deadline" });
     }, PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
@@ -62,9 +69,7 @@ async function applyBounded(invoke: ResidentInvoke, transform: PluginDisplayTran
   } catch {
     return { skip: "failed" };
   } finally {
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    cancelTimer?.();
   }
 }
 
@@ -101,7 +106,7 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
         return current;
       }
       const argsJson = JSON.stringify({ text: current, env: { chatId, messageId } });
-      const next = await applyBounded(step.invoke, step.transform, argsJson);
+      const next = await applyBounded(step.invoke, step.transform, argsJson, ctx.scheduleTimeout ?? systemTimers.timeout);
       if ("skip" in next && next.skip === "deadline") {
         logPluginFailure(step.slug, "display-deadline", `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`);
         return foldFrom(index + 1, current);

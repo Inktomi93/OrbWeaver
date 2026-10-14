@@ -17,26 +17,38 @@ import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { defineBusChannel } from "./bus-channel.ts";
 
+import type { AutomationBus } from "./contract/live-buses.ts";
+
 const channelFor = (chatId: ChatId): string => `automation:${chatId}`;
 
-const bus = defineBusChannel<ChatId, AutomationBusEvent>(channelFor);
+/** Create one graph-owned live channel; admission and durable writes remain at their existing callers. */
+export function createAutomationBus(): AutomationBus {
+  // biome-ignore lint/nursery/useDisposables: the returned bus delegates disposal to this channel; local using would close it before graph subscribers start.
+  const bus = defineBusChannel<ChatId, AutomationBusEvent>(channelFor);
 
-/** The automation domain's `notify` sink (`EmitAutomationEvent`) — fan one bus event to its chat's live
- *  channel. Wired onto `AutomationContext.notify` (and the arm executors' `notify`) at compose.
- *
- *  This is ALSO the frame-free emit seam the plugin `chat.quick_reply` capability rides
- *  (`surfaceQuickReply`): the `quickReplySurfaced` emit is NOT automation-rule-private — it needs only an
- *  `AutomationBusEvent`, no `DispatchFrame`. The plugin membrane sits BELOW transport (infra/domain), so the
- *  plugin lane injects a compose-built op that closes over THIS function (the `automationNotify` precedent),
- *  reaching the same per-chat channel every `automation` ROOM subscriber tails. The `quickReplySurfaced`
- *  event carries the `AutomationEmitSource` union (`kind:"rule"|"plugin"`) — a rule stamps `kind:"rule"`, the
- *  plugin op stamps `kind:"plugin"` with its `pluginId` (no synthetic rule id). */
-export function publishAutomationEvent(event: AutomationBusEvent): void {
-  bus.publish(event.chatId, event);
+  /** The automation domain's `notify` sink (`EmitAutomationEvent`) — fan one bus event to its chat's live
+   *  channel. Wired onto `AutomationContext.notify` (and the arm executors' `notify`) at compose.
+   *
+   *  This is ALSO the frame-free emit seam the plugin `chat.quick_reply` capability rides
+   *  (`surfaceQuickReply`): the `quickReplySurfaced` emit is NOT automation-rule-private — it needs only an
+   *  `AutomationBusEvent`, no `DispatchFrame`. The plugin membrane sits BELOW transport (infra/domain), so the
+   *  plugin lane injects a compose-built op that closes over THIS function (the `automationNotify` precedent),
+   *  reaching the same per-chat channel every `automation` ROOM subscriber tails. The `quickReplySurfaced`
+   *  event carries the `AutomationEmitSource` union (`kind:"rule"|"plugin"`) — a rule stamps `kind:"rule"`, the
+   *  plugin op stamps `kind:"plugin"` with its `pluginId` (no synthetic rule id). */
+  function publish(event: AutomationBusEvent): void {
+    bus.publish(event.chatId, event);
+  }
+
+  /** The `automation` room's live tail for a chat, torn down on `signal` abort. The room source filters the
+   *  host-only events per subscriber (the `member` tier sees only `quickReplySurfaced`). */
+  function subscribe(chatId: ChatId, signal: AbortSignal): AsyncIterable<AutomationBusEvent> {
+    return bus.subscribe(chatId, signal);
+  }
+  return { publishAutomationEvent: publish, subscribeAutomation: subscribe, [Symbol.dispose]: () => bus[Symbol.dispose]() };
 }
 
-/** The `automation` room's live tail for a chat, torn down on `signal` abort. The room source filters the
- *  host-only events per subscriber (the `member` tier sees only `quickReplySurfaced`). */
-export function subscribeAutomation(chatId: ChatId, signal: AbortSignal): AsyncIterable<AutomationBusEvent> {
-  return bus.subscribe(chatId, signal);
-}
+// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
+const processBus = createAutomationBus();
+export const publishAutomationEvent: AutomationBus["publishAutomationEvent"] = processBus.publishAutomationEvent;
+export const subscribeAutomation: AutomationBus["subscribeAutomation"] = processBus.subscribeAutomation;

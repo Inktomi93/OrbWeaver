@@ -6,7 +6,7 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, UserId } from "@orb/kit/ids";
-import { newId } from "@orb/kit/ids";
+import { createIdSource } from "@orb/kit/ids";
 import { OIDC_PENDING_JOIN_TTL_MS } from "#infra/auth";
 import type { PendingSignupPlan, ProvisionDecision, ProvisionInsert } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
@@ -98,7 +98,7 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
       return null;
     }
     const sealed = sealedIdTokenOfPending(row);
-    const userId = newId<UserId>();
+    const userId = (ctx.idSource ?? createIdSource()).unprefixed<UserId>();
     return {
       inviteTokenHash: row.inviteTokenHash,
       userId,

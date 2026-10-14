@@ -1,13 +1,12 @@
-// support/factories/asset — the content-addressed `assets` index row (D21: PER-USER, composite
-// `unique(owner_id, hash)`). Mirrors the character.ts contract shape: `makeAsset` mints a dangling
-// `ownerId` (pure, no db); `seedAsset` makes the FK real, auto-seeding an owner user when the caller
-// didn't hand one in. ~3 db/schema tests hand-rolled this insert with slightly different literals — the
-// shared home owns the fully-valid default row.
+// Asset row defaults describe actual synthetic PNG bytes; the seed helper makes the owner FK real.
 
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
-import type { AssetId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { AssetId, IdSource, UserId } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { sniffImageBytes, sniffMime } from "@orb/kit/image-sniff";
+import { writeCardChunk } from "@orb/kit/png-card-chunk";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import { seedUser } from "./user.ts";
@@ -15,25 +14,32 @@ import { seedUser } from "./user.ts";
 /** The full `assets` row (derived from the live schema — the factory `X`). */
 export type AssetRow = typeof assets.$inferSelect;
 
-const ids = createSeededIds();
+const ids = createIdSource(createSeededIds().next);
+const BASE_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGM4ISeHFTEMLQkAkL9BAbKfPiIAAAAASUVORK5CYII=",
+  "base64",
+);
 
-/** Pure builder: a fully-valid `assets` row. `ownerId` defaults to a MINTED (dangling) id; `hash` is
- *  padded to a 64-char sha-256-shaped string keyed off the id so distinct assets get distinct hashes
- *  (the composite owner+hash unique never trips on defaults). Use `seedAsset` for the FK chain. */
-export function makeAsset(overrides: Partial<AssetRow> = {}): AssetRow {
-  const id = overrides.id ?? castId<AssetId>(ids.next("asset"));
+/** Distinct, deterministic image bytes for a real asset-store input. */
+export function makeAssetBytes(assetId: AssetId): Uint8Array {
+  return writeCardChunk(BASE_PNG, JSON.stringify({ fixtureAssetId: assetId }));
+}
+
+/** Builds the byte-derived index facts; use {@link seedAsset} to persist its owner relation. */
+export function makeAsset(overrides: Partial<AssetRow> = {}, source: IdSource = ids): AssetRow {
+  const id = overrides.id ?? source.typeId(ID_PREFIX.asset);
+  const bytes = makeAssetBytes(id);
+  const sniffed = sniffImageBytes(bytes);
   return {
     id,
-    ownerId: castId<UserId>(ids.next("user")),
+    ownerId: source.unprefixed<UserId>(),
     kind: "card",
-    mime: "image/png",
-    size: 100,
-    hash: id.padEnd(64, "0"),
-    animated: false,
-    // The default row has no header-parsed dimensions (#625) — the same NULL a non-image or an
-    // unparseable header stores. A test needing a reserved box overrides both.
-    width: null,
-    height: null,
+    mime: sniffMime(bytes),
+    size: bytes.byteLength,
+    hash: sha256Hex(bytes),
+    animated: sniffed !== null && sniffed.animated,
+    width: sniffed?.width ?? null,
+    height: sniffed?.height ?? null,
     uploadedAt: FROZEN_AT_MS,
     ...overrides,
   };
@@ -41,9 +47,9 @@ export function makeAsset(overrides: Partial<AssetRow> = {}): AssetRow {
 
 /** `makeAsset` then insert, FK-clean on an empty db: when `overrides.ownerId` is absent a fresh owner
  *  user is seeded first (explicit `ownerId` reuses the caller's user — no extra row). */
-export async function seedAsset(db: Db, overrides: Partial<AssetRow> = {}): Promise<AssetRow> {
-  const ownerId = overrides.ownerId ?? (await seedUser(db)).id;
-  const row = makeAsset({ ...overrides, ownerId });
+export async function seedAsset(db: Db, overrides: Partial<AssetRow> = {}, source?: IdSource): Promise<AssetRow> {
+  const ownerId = overrides.ownerId ?? (await seedUser(db, {}, source)).id;
+  const row = makeAsset({ ...overrides, ownerId }, source);
   await db.insert(assets).values(row);
   return row;
 }

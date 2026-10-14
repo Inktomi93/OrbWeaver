@@ -13,11 +13,13 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { StreamChannel, StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import type { Services } from "../context.ts";
+import type { LiveBuses } from "../contract/live-buses.ts";
 
 // @orb-waive no-inline-package-interface(RoomArgs): baselined when the gate landed; burn-down item 952.
 /** What every room source is handed. `ref` is narrowed to its own channel, so an `rpg` source reads
  *  `ref.chatId` without a cast and a `user` source has no chatId to misuse. */
 export interface RoomArgs<C extends StreamChannel> {
+  readonly liveBuses: LiveBuses;
   readonly ref: Extract<StreamRoomRef, { readonly channel: C }>;
   readonly principal: Principal;
   readonly services: Services;

@@ -21,7 +21,6 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe } from "vitest";
 import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "#server/domain/plugin/index.ts";
-import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("THE LOOP CLOSES: upgrade declares a new capability → setGrant allows it → enabling activates WITH it", async () => {
@@ -727,21 +726,27 @@ const PROBE_MAIN_JS = [
   "try { host.chat.current(); host.log.info('probe:allowed'); } catch (e) { host.log.info('probe:' + e.name); }",
 ].join("\n");
 
+let hostResources = new AsyncDisposableStack();
+
 describe("approve with enable — real guest", () => {
   afterEach(async () => {
-    await __terminateManagedPluginBrokerForTest();
+    const owned = hostResources;
+    hostResources = new AsyncDisposableStack();
+    await owned.disposeAsync();
   });
 
   function realHost(): ReturnType<typeof createPluginHost> {
     let n = 0;
-    return createPluginHost({
-      nowEpochMs: (): number => FROZEN_AT_MS,
-      nextRandom: (): number => 0.5,
-      mintId: (): string => {
-        n += 1;
-        return `grant_${n}`;
-      },
-    });
+    return hostResources.use(
+      createPluginHost({
+        nowEpochMs: (): number => FROZEN_AT_MS,
+        nextRandom: (): number => 0.5,
+        mintId: (): string => {
+          n += 1;
+          return `grant_${n}`;
+        },
+      }),
+    );
   }
 
   test("an approved-and-running guest is still refused a capability it declared but was not granted", async () => {

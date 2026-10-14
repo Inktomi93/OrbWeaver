@@ -350,25 +350,19 @@ export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanA
  * one structured operator-visible error. Durable writes and canonical event emissions must be awaited by
  * their caller instead of using this boundary. */
 export function superviseDetached(requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown): void {
-  withRequestSpan(requestId, name, attrs, operation).catch((err: unknown) => {
-    getLog().error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
-  });
+  void superviseSettled(requestId, name, attrs, operation);
 }
 
 /** {@link superviseDetached} for a caller that must know the work has settled, such as a seed tool that has to
- * be deterministic: the same root span and the same operator-visible error, which {@link superviseDetached}
- * alone emits. The promise resolves once the work settles and never rejects, so awaiting it cannot fail the
- * caller's write. */
+ * be deterministic: it awaits the closed root span and the same single operator-visible rejection report.
+ * The promise resolves after success or reported failure, so awaiting it cannot fail the caller's write. */
 export function superviseSettled(requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown): Promise<void> {
-  return new Promise((resolve) => {
-    superviseDetached(requestId, name, attrs, async () => {
-      try {
-        return await operation();
-      } finally {
-        resolve();
-      }
-    });
-  });
+  return withRequestSpan(requestId, name, attrs, operation).then(
+    () => undefined,
+    (err: unknown) => {
+      getLog().error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
+    },
+  );
 }
 
 /** Read the SDK concrete-span status code through the same internal cast `span()` uses for `.attributes`

@@ -63,7 +63,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
       : withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, { log, model: connection.model, mode: structured.mode, secrets });
   const drain = await runWithPreCommitRetry(
     async (markCommitted) => {
-      const idle = turnAbortSignal(req.signal, connection.features.requestTimeoutMs);
+      const idle = turnAbortSignal(req.signal, connection.features.requestTimeoutMs, deps.scheduleTimeout);
       const commit = (): void => {
         firstDeltaAt ??= deps.now();
         markCommitted();
@@ -97,6 +97,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
     {
       ...(req.signal === undefined ? {} : { signal: req.signal }),
       now: deps.now,
+      scheduleTimeout: deps.scheduleTimeout,
       ...(deps.random === undefined ? {} : { random: deps.random }),
       ...(deps.addSpanEvent === undefined ? {} : { addSpanEvent: deps.addSpanEvent }),
     },

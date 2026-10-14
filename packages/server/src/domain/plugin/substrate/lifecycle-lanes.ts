@@ -4,13 +4,17 @@
 // the process registry holding state for a row that no longer exists.
 
 import type { PluginId } from "@orb/kit/ids";
-import type { PluginLifecycleLanes } from "../contract/ops.ts";
+import type { OwnedPluginLifecycleLanes } from "../contract/ops.ts";
 
 /** Process-local by design: the resident guest and registration maps it protects are process-local too. */
-export function createPluginLifecycleLanes(): PluginLifecycleLanes {
+export function createPluginLifecycleLanes(): OwnedPluginLifecycleLanes {
   const tails = new Map<PluginId, Promise<void>>();
+  let closed = false;
   return {
     run: async <T>(pluginId: PluginId, job: () => Promise<T>): Promise<T> => {
+      if (closed) {
+        throw new Error("plugin lifecycle is closed");
+      }
       const prior = tails.get(pluginId) ?? Promise.resolve();
       const { promise: tail, resolve: release } = Promise.withResolvers<void>();
       tails.set(pluginId, tail);
@@ -23,6 +27,10 @@ export function createPluginLifecycleLanes(): PluginLifecycleLanes {
           tails.delete(pluginId);
         }
       }
+    },
+    async [Symbol.asyncDispose](): Promise<void> {
+      closed = true;
+      await Promise.all(tails.values());
     },
   };
 }

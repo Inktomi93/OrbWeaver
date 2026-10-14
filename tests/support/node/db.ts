@@ -12,7 +12,7 @@
 
 // @orb-waive-file no-test-fabrication({ sql?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db, LibSqlWrap } from "@orb/db";
-import { createDb } from "@orb/db";
+import { closeDb, createDb } from "@orb/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
 import * as schema from "@orb/db/schema";
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
@@ -32,10 +32,19 @@ async function pushLiveSchema(db: Db): Promise<void> {
 export const SHIPPED_MIGRATIONS = "packages/db/src/migrations";
 
 /** A fresh in-memory db with the full schema applied (FK enforcement ON, via createDb). */
-export async function freshDb(): Promise<Db> {
-  const db = await createDb(":memory:");
-  await pushLiveSchema(db);
-  return db;
+export function freshDb(wrap?: LibSqlWrap): Promise<Db> {
+  return prepareFreshDb(wrap);
+}
+
+async function prepareFreshDb(wrap?: LibSqlWrap): Promise<Db> {
+  const db = await createDb(":memory:", wrap);
+  try {
+    await pushLiveSchema(db);
+    return db;
+  } catch (err) {
+    closeDb(db);
+    throw err;
+  }
 }
 
 interface StatementGate {
@@ -69,8 +78,7 @@ export interface HeldDb {
 export async function freshHeldDb(): Promise<HeldDb> {
   let active: StatementGate | undefined;
   const wrap: LibSqlWrap = (client) => holdingClient(client, () => active);
-  const db = await createDb(":memory:", wrap);
-  await pushLiveSchema(db);
+  const db = await prepareFreshDb(wrap);
   return {
     db,
     hold: (pattern: RegExp, arrivals = 1): HeldStatement => {
@@ -126,8 +134,7 @@ export interface DbQueryCounter {
 export async function freshCountedDb(): Promise<{ db: Db; queries: DbQueryCounter }> {
   const log: string[] = [];
   const wrap: LibSqlWrap = (client) => countingClient(client, log);
-  const db = await createDb(":memory:", wrap);
-  await pushLiveSchema(db);
+  const db = await prepareFreshDb(wrap);
   log.length = 0; // the schema push isn't the test's budget
   return {
     db,

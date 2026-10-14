@@ -76,6 +76,7 @@ function woken<R extends WakeRequest, T>(awake: (req: WakeRequest) => Promise<vo
 export interface OpenAiCompatBackendDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
+  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
   readonly log: InferenceDeps["log"];
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly fetch: typeof fetch;
@@ -105,9 +106,17 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
     ...(deps.captureWireReply !== undefined ? { captureWireReply: deps.captureWireReply } : {}),
   };
   const tokens = createTokenLexicon({ fetch: deps.fetch, snapshotStore: deps.snapshotStore });
-  const chatDeps = { now: deps.now, random: deps.random, log: deps.log, addSpanEvent: deps.addSpanEvent, transport, tokens };
-  const diagnostics = { fetch: deps.fetch, now: deps.now };
-  const reachability = createReachabilityProber({ fetch: deps.fetch, now: deps.now });
+  const chatDeps = {
+    now: deps.now,
+    random: deps.random,
+    scheduleTimeout: deps.scheduleTimeout,
+    log: deps.log,
+    addSpanEvent: deps.addSpanEvent,
+    transport,
+    tokens,
+  };
+  const diagnostics = { fetch: deps.fetch, now: deps.now, scheduleTimeout: deps.scheduleTimeout };
+  const reachability = createReachabilityProber({ fetch: deps.fetch, now: deps.now, scheduleTimeout: deps.scheduleTimeout });
   const awake = wakeBeforeSend(reachability);
   const chatTurn = async (req: ChatRequest): Promise<ChatResult> => {
     if (!isOpenAiCompatChatRequest(req)) {
@@ -127,7 +136,7 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
         await awake(req);
         return await chatTurn(req);
       },
-      embed: woken(awake, (req) => runOpenAiCompatEmbed(req, { log: deps.log, transport })),
+      embed: woken(awake, (req) => runOpenAiCompatEmbed(req, { log: deps.log, transport, scheduleTimeout: deps.scheduleTimeout })),
       rerank: woken(awake, (req) => runOpenAiCompatRerank(req, { fetch: deps.fetch, normalize, log: deps.log })),
       imageEmbed: woken(awake, (req) => runOpenAiCompatImageEmbed(req, { fetch: deps.fetch, normalize })),
       summarize: woken(awake, sideGen),
@@ -136,7 +145,7 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
       probe: (req) => probeOpenAiCompat(req, diagnostics),
       accountCredits: (req) => openRouterCredits(req, diagnostics),
       generationCost: (req) => openRouterGenerationCost(req, diagnostics),
-      inspect: woken(awake, (req) => inspectOpenAiCompatEndpoint(req, { fetch: deps.fetch, app: deps.app })),
+      inspect: woken(awake, (req) => inspectOpenAiCompatEndpoint(req, { fetch: deps.fetch, app: deps.app, scheduleTimeout: deps.scheduleTimeout })),
       listModels: (req) => listOpenAiCompatModels(req, diagnostics),
     },
   };

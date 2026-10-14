@@ -3,7 +3,7 @@
 // applies its own copy of the plugin's `netHosts`, never a host list the broker sent.
 
 import type { PluginBridge, PluginInvocationLiveness } from "@orb/contracts/plugin";
-import type { SafeFetchOptions } from "../network/egress.ts";
+import type { SafeFetchOptions, ScopedEgress } from "../network/contract/egress.ts";
 import { safeFetch } from "../network/egress.ts";
 import { isAllowedImageBuffer } from "../network/image-guard.ts";
 import { HOST_FN_DEADLINE_MS, PLUGIN_ASSET_MAX_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
@@ -41,19 +41,23 @@ const NET_TEXT_DECODER = new TextDecoder();
  *  activation (the SSRF wall — never `ANY_HOST`, never guest- or broker-supplied); empty refuses every fetch.
  *  The two hourly belts are the bridge's domain closures, claimed before the first await so the check-and-claim
  *  is atomic against concurrent host calls. */
-export function createPluginNetEgress(netHosts: readonly string[], bridge: PluginEgressBridge): PluginNetEgress {
+export function createPluginNetEgress(
+  netHosts: readonly string[],
+  bridge: PluginEgressBridge,
+  fetchImpl: ScopedEgress["safeFetch"] = safeFetch,
+): PluginNetEgress {
   return {
     fetch: async (url, init, liveness): Promise<PluginNetResponse> => {
       bridge.admitEgress();
       using cancel = livenessSignal(liveness);
-      const res = await safeFetch(url, buildNetOptions(netHosts, init, cancel.signal));
+      const res = await fetchImpl(url, buildNetOptions(netHosts, init, cancel.signal));
       const body = NET_TEXT_DECODER.decode(await res.bytes());
       return { status: res.status, body };
     },
     fetchAsset: async (url, liveness): ReturnType<PluginNetEgress["fetchAsset"]> => {
       bridge.admitAssetEgress();
       using cancel = livenessSignal(liveness);
-      const res = await safeFetch(url, buildAssetFetchOptions(netHosts, cancel.signal));
+      const res = await fetchImpl(url, buildAssetFetchOptions(netHosts, cancel.signal));
       if (res.status < HTTP_OK_MIN || res.status >= HTTP_OK_MAX) {
         res.dispose?.();
         throw new Error(`plugin host: net.fetchAsset got a non-2xx response (HTTP ${res.status})`);

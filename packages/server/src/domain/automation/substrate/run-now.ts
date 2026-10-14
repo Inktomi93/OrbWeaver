@@ -25,7 +25,7 @@ import type { ArmsResult, DispatchFrame, ResolvedTrigger, RuleRow } from "../con
 import type { AutomationContext } from "../contract/service.ts";
 import { runArms, runDispatch } from "../engine/dispatch.ts";
 import { synthFact } from "./dry-run.ts";
-import { automationChatLaneKey, automationDomainLaneKey, runInLane } from "./serial-lanes.ts";
+import { automationChatLaneKey, automationDomainLaneKey } from "./serial-lanes.ts";
 
 export type { ArmsResult } from "../contract/ops.ts";
 
@@ -50,7 +50,9 @@ export function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: C
   // nest. Nothing reachable from an arm re-enters here either: the bus door's own entries are all
   // `superviseDetached` roots (`watcher/start-automation-watcher.ts:17,22`, `entry/lifecycle.ts:480`), so an
   // arm that generates chat events (`trigger_turn` → `requestTurn`) never AWAITS the resulting `handleEvent`.
-  return runInLane(chatId === null ? automationDomainLaneKey(rule.ownerId) : automationChatLaneKey(chatId), () => dispatchNow(ctx, rule, chatId, manualBy));
+  return ctx.serialLanes.run(chatId === null ? automationDomainLaneKey(rule.ownerId) : automationChatLaneKey(chatId), () =>
+    dispatchNow(ctx, rule, chatId, manualBy),
+  );
 }
 
 async function dispatchNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId | null, manualBy: UserId): Promise<AutomationRunOutcome | null> {

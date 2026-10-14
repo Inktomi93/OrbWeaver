@@ -1,19 +1,21 @@
-// Wire-output builder for an owned-asset blob reference (`assets.resolveBlobRefs`). The defaults parse through
-// the contract schema; an override is spread after the parse.
+// Blob-reference defaults project the canonical byte-derived asset row; overrides pass the owner parser.
 
 import { assetBlobRefSchema } from "@orb/contracts/assets";
-import { ID_PREFIX } from "@orb/kit/ids";
-import { createSeededIds } from "../../iso/ids.ts";
+import type { IdSource } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "../route-trpc.ts";
-
-const ids = createSeededIds();
+import { makeAsset } from "./asset.ts";
 
 type AssetBlobRefWire = TrpcWireOutput<"assets.resolveBlobRefs">[number];
 
-/** A PNG blob of unknown dimensions. */
-export function makeAssetBlobRef(overrides: Partial<AssetBlobRefWire> = {}): AssetBlobRefWire {
-  return {
-    ...assetBlobRefSchema.parse({ assetId: ids.next(ID_PREFIX.asset), hash: "deadbeef", mime: "image/png", width: null, height: null }),
+/** The real byte-derived identity and dimensions of the synthetic asset input. */
+export function makeAssetBlobRef(overrides: Partial<AssetBlobRefWire> = {}, source?: IdSource): AssetBlobRefWire {
+  const row = makeAsset({}, source);
+  return assetBlobRefSchema.parse({
+    assetId: row.id,
+    hash: row.hash,
+    mime: row.mime,
+    width: row.width,
+    height: row.height,
     ...overrides,
-  };
+  });
 }

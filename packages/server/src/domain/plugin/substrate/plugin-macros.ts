@@ -31,6 +31,8 @@ import { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "@orb/contracts/plug
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
+import type { ScheduleOp } from "@orb/kit/time";
+import { systemTimers } from "#infra/timers";
 import type { PluginInvokeHandler, PluginMacroRegistry, PluginRegistrationHandle } from "../contract/ops.ts";
 import { logPluginFailure } from "./failure-log.ts";
 
@@ -114,7 +116,10 @@ async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, d
 
 /** Build the process-wide plugin-macro registry. `deadlineMs` is a getter (read per resolution) and injectable
  *  so a deadline test runs fast + deterministic — the `createPromptTransformRegistry` seam, same reason. */
-export function createPluginMacroRegistry(deadlineMs: () => number = () => PLUGIN_MACRO_RESOLVE_DEADLINE_MS): PluginMacroRegistry {
+export function createPluginMacroRegistry(
+  deadlineMs: () => number = () => PLUGIN_MACRO_RESOLVE_DEADLINE_MS,
+  scheduleTimeout: ScheduleOp = systemTimers.timeout,
+): PluginMacroRegistry {
   /** installer → slug → that plugin's registered macros. Two levels because the READ is per-installer and the
    *  WRITE/UNREGISTER is per-plugin; one flat map would make either the linear scan. */
   const byInstaller = new Map<UserId, Map<string, readonly RegisteredMacro[]>>();
@@ -177,18 +182,16 @@ export function createPluginMacroRegistry(deadlineMs: () => number = () => PLUGI
     // A macro resolver READS; `canWrite:false` means an attempted room write inside one becomes the S4 ask (or
     // the flat refusal) it already is elsewhere, rather than a silent write from inside prompt assembly.
     const chat: InvocationChat = { chatId, canWrite: false, automationDepth: 0 };
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelTimer: (() => void) | undefined;
     const deadline = new Promise<null>((resolve) => {
-      timer = setTimeout(() => resolve(null), deadlineMs());
+      cancelTimer = scheduleTimeout(() => resolve(null), deadlineMs());
     });
     try {
       const values = await Promise.all(macros.map((macro) => resolveOne(macro, chat, deadline)));
       const defs = macros.map((macro, index) => toDef(macro.name, macro, values[index] ?? null));
       return [...defs, ...legacyAliases(macros, values)];
     } finally {
-      if (timer !== undefined) {
-        clearTimeout(timer);
-      }
+      cancelTimer?.();
     }
   };
 

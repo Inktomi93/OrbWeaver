@@ -5,9 +5,16 @@
 // that file for the full D60 belt rationale and the `no-direct-users-read` gate this builder satisfies).
 
 import type { Db } from "@orb/db";
+import type { IdSource } from "@orb/kit/ids";
+import { createIdSource } from "@orb/kit/ids";
 import type { ResolveStandingAsks } from "./contract/ops.ts";
 import type { NotificationsContext } from "./contract/service.ts";
 
-export function createNotificationsContext(db: Db, now: () => number, resolveStandingAsks: ResolveStandingAsks): NotificationsContext {
-  return { db, now, resolveStandingAsks };
+export function createNotificationsContext(
+  db: Db,
+  now: () => number,
+  resolveStandingAsks: ResolveStandingAsks,
+  idSource: IdSource = createIdSource(),
+): NotificationsContext {
+  return { db, now, resolveStandingAsks, idSource };
 }

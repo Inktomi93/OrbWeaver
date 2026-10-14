@@ -26,6 +26,7 @@ export type {
   AgentTurnRequest,
   SessionEntryWriter,
 } from "./agent.ts";
+export type { AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-execution.ts";
 export type { BackendRegistry, ProviderBackend, ProviderExecutor, WireCaptureSink } from "./backend.ts";
 export type {
   AgentMcpServerHealth,
@@ -80,6 +81,7 @@ export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 export type { GoogleBackend, GoogleBackendDeps, GoogleCall } from "./google.ts";
 export type { AgentSdkSessionId } from "./identity.ts";
 export { agentSdkSessionIdSchema } from "./identity.ts";
+export type { LoadTransformersKernel, LocalLightKernelModule } from "./local-light-kernel.ts";
 export type { LocalLightLoadProgress } from "./local-light-worker.ts";
 export type {
   ResolvedChatKnobs,

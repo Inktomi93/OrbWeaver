@@ -52,6 +52,7 @@ import { GenerationObservationPersistenceError, generationOf, ProviderError } fr
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
+import { systemTimers } from "#infra/timers";
 import type { ChatContext } from "../context.ts";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -187,6 +188,10 @@ interface EngineDeps {
     readonly instructions?: string | undefined;
     readonly signal?: AbortSignal | undefined;
   }) => Promise<{ readonly summary: string; readonly compactedAtSeq: number; readonly updated: boolean }>;
+}
+
+interface OwnedEngineDeps extends EngineDeps {
+  readonly compactionInFlight: Set<ChatId>;
 }
 
 /** The string spliced between a continue turn's existing variant tip and the newly-generated chunk. */
@@ -822,6 +827,11 @@ function memoryRequestId(turnId: ChatTurnId): string {
   return `memory-turn:${turnId}`;
 }
 
+// The existing terminal boundaries own failures; graph lifetime owns joining their settlement.
+function trackSettledWork(ctx: ChatContext, work: Promise<void>): void {
+  ctx.trackBackground?.(work);
+}
+
 /** Fire-and-forget the rpg post-turn FLUSH (docs/plans/rpg/design.md): after the variant commits, flush the turn's
  *  staged tool writes onto the committed variant, keyed by `turnId`. Null op = rpg not wired (byte-identical
  *  no-op). Fire-and-forget with `.catch` — a background staging flush must NEVER turn a committed reply into an
@@ -855,9 +865,12 @@ function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatT
     // write behind it failed. `turn` carries THIS turn's ALREADY-RESOLVED connection + enforced owner-consent
     // verdict so the rpg state round runs on the exact same route/consent the engine gated — never a second
     // hand-rolled resolve/consent path (stickler F1).
-    void withRequestSpan(rpgRoundRequestId(turnId), RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
-      rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn),
-    ).catch((err: unknown) => getLog().warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)"));
+    trackSettledWork(
+      ctx,
+      withRequestSpan(rpgRoundRequestId(turnId), RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
+        rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn),
+      ).catch((err: unknown) => getLog().warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)")),
+    );
   }
 }
 
@@ -883,25 +896,14 @@ function rpgAbortRequestId(turnId: ChatTurnId): string {
 function fireRpgTurnAborted(ctx: ChatContext, chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
-    void withRequestSpan(rpgAbortRequestId(turnId), RPG_ABORT_SPAN, { chatId, turnId, reason }, () => rpg.onTurnAborted(chatId, turnId, reason)).catch(
-      (err: unknown) => getLog().warn({ err, chatId, turnId, reason }, "rpg: turn-abort staging clear failed (the turn is still aborted)"),
+    trackSettledWork(
+      ctx,
+      withRequestSpan(rpgAbortRequestId(turnId), RPG_ABORT_SPAN, { chatId, turnId, reason }, () => rpg.onTurnAborted(chatId, turnId, reason)).catch(
+        (err: unknown) => getLog().warn({ err, chatId, turnId, reason }, "rpg: turn-abort staging clear failed (the turn is still aborted)"),
+      ),
     );
   }
 }
-
-/** SINGLE-FLIGHT set for managed compaction, keyed by chatId — at most one in-flight marker build per chat (a
- *  trip while one is running is a no-op). The UNCHANGED-coverage-point skip is NOT tracked here (that would leak
- *  a per-chat entry forever): it is enforced DURABLY by the core's `chats.compactedAtSeq` idempotence — a re-fire
- *  on an already-covered point loads an empty window and rewrites nothing (`updated:false`, no generation). The
- *  marker generation is NOT a chat turn — un-trippable: it contributes nothing to the pct usage accounting and
- *  cannot recursively re-arm this hook. The set holds only IN-FLIGHT chats, so it self-empties (delete on finally).
- *
- *  ASSUMES(single-replica): this is per-process de-dup only — a best-effort spend/concurrency guard, NOT a
- *  correctness boundary. The DB-backed replacement seam is `chats.compactedAtSeq` (the durable idempotence that
- *  ALREADY makes a cross-replica double-fire a harmless no-op: the second replica loads an empty window and writes
- *  nothing). Under multi-replica the worst case is a redundant summarizer call, never a corrupt/racing marker —
- *  so a shared cache is not required for correctness. */
-const compactionInFlight = new Set<ChatId>();
 
 /** Fire-and-forget the MANAGED-COMPACTION post-turn refresh — the LINEAR memory tier (a running `compactSummary`
  *  marker that stands in for compacted-away history), the sibling of the retrieval-tier digest build and keyed
@@ -1114,7 +1116,8 @@ async function preTurnCompactionPlan(
  *  CANCELLABLE (#1436): the turn's signal rides into the generation, and a cancelled one propagates instead of
  *  being absorbed as a failure. Returns the (possibly reloaded) canon + maxSeq + a marker overlay (null when
  *  nothing compacted). */
-async function runPreTurnCompaction(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<PreTurnCompaction> {
+async function runPreTurnCompaction(ctx: ChatContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<PreTurnCompaction> {
+  const { compactionInFlight } = deps;
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
   const { coveragePoint, instructions } = await preTurnCompactionPlan(ctx, prep, canonAll);
   // No pre-turn compaction: return the loaded canon untouched (still avoids a second DB read for maxSeq).
@@ -1196,10 +1199,12 @@ function compactionRequestId(turnId: ChatTurnId): string {
 }
 
 function fireManagedCompaction(
-  deps: EngineDeps,
+  ctx: ChatContext,
+  deps: OwnedEngineDeps,
   prep: TurnPrep,
   turn: { readonly turnId: ChatTurnId; readonly result: Awaited<ReturnType<typeof runTurnPipeline>>; readonly canonAll: readonly MessageView[] },
 ): void {
+  const { compactionInFlight } = deps;
   const { turnId } = turn;
   // The EFFECTIVE compaction config (preset params folded with the per-send intent) — NOT `prep.intent` alone.
   const { compaction } = resolveEffectiveCompaction(prep);
@@ -1221,27 +1226,30 @@ function fireManagedCompaction(
   const instructions = compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS;
   const connection = prep.connection;
   const ownerId = prep.runAsUserId;
-  void withRequestSpan(compactionRequestId(turnId), COMPACTION_SPAN, { chatId, turnId, coveragePoint }, async () => {
-    try {
-      const res = await deps.runCompaction({ chatId, connection, ownerId, coveragePoint, instructions });
-      // `updated:false` is a benign no-op (already covered / all-hidden span) — nothing changed, nothing to
-      // surface. An EMPTY generation over a real span THROWS (handled below), never a silent `updated:false`.
-      if (res.updated) {
-        // The divider re-reads previewContextFit and picks up the memory fact.
-        await emitQuiet(deps, { type: "chatUpdated", chatId });
+  trackSettledWork(
+    ctx,
+    withRequestSpan(compactionRequestId(turnId), COMPACTION_SPAN, { chatId, turnId, coveragePoint }, async () => {
+      try {
+        const res = await deps.runCompaction({ chatId, connection, ownerId, coveragePoint, instructions, signal: ctx.backgroundSignal });
+        // `updated:false` is a benign no-op (already covered / all-hidden span) — nothing changed, nothing to
+        // surface. An EMPTY generation over a real span THROWS (handled below), never a silent `updated:false`.
+        if (res.updated) {
+          // The divider re-reads previewContextFit and picks up the memory fact.
+          await emitQuiet(deps, { type: "chatUpdated", chatId });
+        }
+      } catch (compactErr) {
+        // FAILURE-HONEST: a thrown marker build (provider error OR empty generation) leaves the existing marker
+        // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
+        getLog().warn({ err: compactErr, chatId }, "chat: managed compaction failed");
+        await emitQuiet(deps, { type: "warning", chatId, code: "compaction_failed" });
+        // Rethrow so the span marks itself ERROR (I-7: previously swallowed here too). Still fire-and-forget —
+        // the outer `.catch` below absorbs it.
+        throw compactErr;
+      } finally {
+        compactionInFlight.delete(chatId);
       }
-    } catch (compactErr) {
-      // FAILURE-HONEST: a thrown marker build (provider error OR empty generation) leaves the existing marker
-      // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
-      getLog().warn({ err: compactErr, chatId }, "chat: managed compaction failed");
-      await emitQuiet(deps, { type: "warning", chatId, code: "compaction_failed" });
-      // Rethrow so the span marks itself ERROR (I-7: previously swallowed here too). Still fire-and-forget —
-      // the outer `.catch` below absorbs it.
-      throw compactErr;
-    } finally {
-      compactionInFlight.delete(chatId);
-    }
-  }).catch(() => undefined);
+    }).catch(() => undefined),
+  );
 }
 
 /** Mark the turn eligible to feed the player's queued d20 into its first skill check (docs/plans/rpg/design.md) — only
@@ -1715,7 +1723,7 @@ async function closePreStartRefusal(deps: EngineDeps, prep: TurnPrep): Promise<v
  *  turnStarted → assemble/generate → persist → turnCompleted. On a post-start error: emit turnAborted then
  *  rethrow. Pre-start refusals throw a coded error and emit nothing — except the accepted-slot close
  *  ({@link closePreStartRefusal}). */
-async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
+async function executeTurn(ctx: ChatContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
   // Absent persist mode = a new assistant slot.
   const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
   const { target } = await runPreStart(ctx, prep, persist).catch(async (err: unknown) => {
@@ -1930,83 +1938,89 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       // Reuses the per-chat producer the SHAPE path already built (character + persona name maps), so build
       // and assemble agree.
       const macroNames = historyMacroNames;
-      void withRequestSpan(memoryRequestId(turnId), MEMORY_SPAN, { chatId: prep.chatId, turnId }, async () => {
-        try {
-          await deps.generateSegments(ctx, {
-            chatId: prep.chatId,
-            funderUserId: prep.funderUserId,
-            config: memoryConfig,
-            macroNames,
-            embedOwnerId: prep.runAsUserId,
-          });
-          // No summarize connection: digests pause (the Utility-model row says so) rather than fail every turn.
-          if (!(await digestsDerivable(ctx, prep.funderUserId))) {
-            return;
-          }
-          const participants = await loadParticipants(ctx.db, prep.chatId);
-          const chars = participants.flatMap((r) => {
-            const actor = classifyParticipant(r);
-            return actor?.kind === "character" ? [actor.characterId] : [];
-          });
-
-          // Group-as-character scope (only for groups): the single synthetic bucket, keyed by the real
-          // minted synthetic-character row id, never the fabricated `__group__` handle string.
-          if (chars.length > 1) {
-            const groupCharacterId = await resolveGroupBucketCharacterId(ctx, {
-              ownerId: prep.runAsUserId,
+      trackSettledWork(
+        ctx,
+        withRequestSpan(memoryRequestId(turnId), MEMORY_SPAN, { chatId: prep.chatId, turnId }, async () => {
+          try {
+            await deps.generateSegments(ctx, {
               chatId: prep.chatId,
-            });
-            await deps.generateDigests(ctx, {
-              scope: { chatId: prep.chatId, scopedCharacterId: groupCharacterId, isGroup: true },
               funderUserId: prep.funderUserId,
               config: memoryConfig,
               macroNames,
               embedOwnerId: prep.runAsUserId,
+              signal: ctx.backgroundSignal,
             });
-          }
-          // Each seated character's SCOPED bucket is gated by its own join/leave horizons — a member digests
-          // only the blocks it was present for (correct across kick→re-add). The shared group bucket above
-          // stays horizon-free (the merged/narrator build; digests.ts §22-23). The synthetic group char has
-          // no participant seat, so it would (correctly) never appear in `chars` here.
-          await Promise.all(
-            chars.map(async (charId) =>
-              deps.generateDigests(ctx, {
-                scope: {
-                  chatId: prep.chatId,
-                  scopedCharacterId: charId,
-                  isGroup: chars.length > 1,
-                },
+            // No summarize connection: digests pause (the Utility-model row says so) rather than fail every turn.
+            if (!(await digestsDerivable(ctx, prep.funderUserId))) {
+              return;
+            }
+            const participants = await loadParticipants(ctx.db, prep.chatId);
+            const chars = participants.flatMap((r) => {
+              const actor = classifyParticipant(r);
+              return actor?.kind === "character" ? [actor.characterId] : [];
+            });
+
+            // Group-as-character scope (only for groups): the single synthetic bucket, keyed by the real
+            // minted synthetic-character row id, never the fabricated `__group__` handle string.
+            if (chars.length > 1) {
+              const groupCharacterId = await resolveGroupBucketCharacterId(ctx, {
+                ownerId: prep.runAsUserId,
+                chatId: prep.chatId,
+              });
+              await deps.generateDigests(ctx, {
+                scope: { chatId: prep.chatId, scopedCharacterId: groupCharacterId, isGroup: true },
                 funderUserId: prep.funderUserId,
                 config: memoryConfig,
                 macroNames,
                 embedOwnerId: prep.runAsUserId,
-                witnessing: await deps.loadWitnessHorizons(ctx.db, prep.chatId, charId),
-              }),
-            ),
-          );
-        } catch (memErr) {
-          // Must never surface to the caller, but must not be invisible — log + emit a machine-dispatchable
-          // warning code.
-          getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
-          // @orb-waive caught-failure-ownership(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
-          // @orb-waive detached-work-traced(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
-          try {
-            await deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" });
-          } catch {
-            // A failed warning emit must never re-throw out of the fire-and-forget.
+                signal: ctx.backgroundSignal,
+              });
+            }
+            // Each seated character's SCOPED bucket is gated by its own join/leave horizons — a member digests
+            // only the blocks it was present for (correct across kick→re-add). The shared group bucket above
+            // stays horizon-free (the merged/narrator build; digests.ts §22-23). The synthetic group char has
+            // no participant seat, so it would (correctly) never appear in `chars` here.
+            await Promise.all(
+              chars.map(async (charId) =>
+                deps.generateDigests(ctx, {
+                  scope: {
+                    chatId: prep.chatId,
+                    scopedCharacterId: charId,
+                    isGroup: chars.length > 1,
+                  },
+                  funderUserId: prep.funderUserId,
+                  config: memoryConfig,
+                  macroNames,
+                  embedOwnerId: prep.runAsUserId,
+                  signal: ctx.backgroundSignal,
+                  witnessing: await deps.loadWitnessHorizons(ctx.db, prep.chatId, charId),
+                }),
+              ),
+            );
+          } catch (memErr) {
+            // Must never surface to the caller, but must not be invisible — log + emit a machine-dispatchable
+            // warning code.
+            getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
+            // @orb-waive caught-failure-ownership(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
+            // @orb-waive detached-work-traced(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
+            try {
+              await deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" });
+            } catch {
+              // A failed warning emit must never re-throw out of the fire-and-forget.
+            }
+            // Rethrow so the span marks itself ERROR (I-7: previously swallowed here, so a failed build always
+            // looked "ok" on the trace ring even though the warning above fired). Still fire-and-forget to the
+            // caller — the outer `.catch` below absorbs it.
+            throw memErr;
           }
-          // Rethrow so the span marks itself ERROR (I-7: previously swallowed here, so a failed build always
-          // looked "ok" on the trace ring even though the warning above fired). Still fire-and-forget to the
-          // caller — the outer `.catch` below absorbs it.
-          throw memErr;
-        }
-      }).catch(() => undefined);
+        }).catch(() => undefined),
+      );
     }
 
     // Fire-and-forget MANAGED-COMPACTION trigger (the LINEAR memory tier), a sibling of the digest build above
     // and keyed off the SAME fit boundary. Runs only in `compaction.mode:"managed"`, off the hot path, and
     // never blocks/faults the reply.
-    fireManagedCompaction(deps, prep, { turnId, result, canonAll });
+    fireManagedCompaction(ctx, deps, prep, { turnId, result, canonAll });
 
     return committedOutcome([view]);
   } catch (err) {
@@ -2081,7 +2095,7 @@ const LOCK_HEARTBEAT_DIVISOR = 3;
  *  `prep.signal`) to HALT the in-flight generation before it can `commitGeneration`, then rejects the run
  *  with `aborted` (the "stale" arm the code documents). `aborted` — NOT `locked` — so it propagates loudly
  *  (`driveRound` only yields gracefully on the pre-acquire `locked`); a lost lock mid-turn is a hard fault. */
-async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
+async function runInLockWithHeartbeat(ctx: ChatContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
   const heartbeatController = new AbortController();
   const composedSignal = prep.signal !== undefined ? AbortSignal.any([prep.signal, heartbeatController.signal]) : heartbeatController.signal;
   let lockLost = false;
@@ -2107,13 +2121,16 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
     heartbeatController.abort(new StaleLockAbort());
     rejectLockLost(new ChatOperationError(CHAT_OP_CODES.aborted, "turn-lock lost mid-turn (stolen or gone)"));
   };
-  const beat = setInterval(
+  const cancelBeat = (ctx.timers ?? systemTimers).interval(
     (): void => {
-      void tick().catch((err: unknown): void => {
-        getLog().error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock heartbeat FAILED — aborting the turn");
-        heartbeatController.abort(new StaleLockAbort());
-        rejectLockLost(err);
-      });
+      trackSettledWork(
+        ctx,
+        tick().catch((err: unknown): void => {
+          getLog().error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock heartbeat FAILED — aborting the turn");
+          heartbeatController.abort(new StaleLockAbort());
+          rejectLockLost(err);
+        }),
+      );
     },
     Math.floor(deps.lockTtlMs / LOCK_HEARTBEAT_DIVISOR),
   );
@@ -2136,10 +2153,13 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
   try {
     return await Promise.race([releasedBody, lockLostBarrier]);
   } finally {
-    clearInterval(beat);
+    cancelBeat();
     // @orb-waive detached-work-traced(releasedBody): this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
     // @orb-waive caught-failure-ownership(releasedBody): this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
-    void releasedBody.catch((): undefined => undefined);
+    trackSettledWork(
+      ctx,
+      releasedBody.catch((): undefined => undefined).then(() => undefined),
+    );
   }
 }
 
@@ -2231,9 +2251,11 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
  *  turn skips the lock (and the heartbeat) entirely so it runs concurrent with a locked send.
  *  `generateText` is the non-persisting, lock-free, bus-silent sibling (composer-fill). */
 export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine {
+  // Single-flight is graph-local; unchanged coverage remains the core's durable compactedAtSeq judgment.
+  const owned: OwnedEngineDeps = { ...deps, compactionInFlight: new Set<ChatId>() };
   const runTurn = async (prep: TurnPrep): Promise<TurnOutcome> => {
     if (prep.lockFree === true) {
-      return await executeTurn(ctx, deps, prep);
+      return await executeTurn(ctx, owned, prep);
     }
     const now = ctx.now();
     const acquired = await tryAcquireLock(ctx.db, {
@@ -2249,7 +2271,7 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
       await closePreStartRefusal(deps, prep);
       throw new ChatOperationError(CHAT_OP_CODES.locked, "a turn is already in flight for this chat");
     }
-    return await runInLockWithHeartbeat(ctx, deps, prep);
+    return await runInLockWithHeartbeat(ctx, owned, prep);
   };
   return { runTurn, generateText: (prep, onText) => generateTextUnpersisted(ctx, prep, onText) };
 }

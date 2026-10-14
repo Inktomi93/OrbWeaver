@@ -11,11 +11,18 @@ export interface PubSub<E> {
   readonly subscribe: (handler: PubSubHandler<E>) => () => void;
 }
 
+/** Disposal permanently closes registration and releases the engine's current subscriber set. */
+export interface OwnedPubSub<E> extends PubSub<E>, Disposable {}
+
 /** Build a bus whose `emit` calls `dispatch(handler, event)` once per subscriber present at emit time. */
-export function createPubSub<E>(dispatch: (handler: PubSubHandler<E>, event: E) => void): PubSub<E> {
+export function createPubSub<E>(dispatch: (handler: PubSubHandler<E>, event: E) => void): OwnedPubSub<E> {
   const handlers = new Set<PubSubHandler<E>>();
+  let closed = false;
   return {
     subscribe: (handler): (() => void) => {
+      if (closed) {
+        throw new Error("cannot register a handler on a disposed pubsub engine");
+      }
       handlers.add(handler);
       return (): void => {
         handlers.delete(handler);
@@ -25,6 +32,10 @@ export function createPubSub<E>(dispatch: (handler: PubSubHandler<E>, event: E) 
       for (const handler of handlers) {
         dispatch(handler, event);
       }
+    },
+    [Symbol.dispose]: (): void => {
+      closed = true;
+      handlers.clear();
     },
   };
 }

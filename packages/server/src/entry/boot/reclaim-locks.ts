@@ -12,12 +12,13 @@
 
 import type { Db } from "@orb/db";
 import { reclaimChatLocksOnBoot } from "#domain/chat";
-import type { WorkloadContributions } from "#domain/workloads";
+import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { reclaimInFlightOnBoot } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
 // @orb-waive no-inline-package-interface(ReclaimLocksDeps): baselined when the gate landed; burn-down item 952.
 export interface ReclaimLocksDeps {
+  readonly emitWorkloadEvent?: WorkloadProgressBus["emitWorkloadEvent"];
   readonly db: Db;
   /** The contribution registry the row read path validates params against (poison tolerance), and the
    *  reclaim reads each kind's declared `resume` policy from. */
@@ -31,7 +32,12 @@ export interface ReclaimLocksDeps {
  *  orphaned chat turn-locks. Returns the TOTAL number of rows/locks moved; the per-disposition breakdown is
  *  in the log line, because "N reclaimed" is what made a lost multi-hour backfill read as boot noise. */
 export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number> {
-  const workloads = await reclaimInFlightOnBoot({ db: deps.db, contributions: deps.contributions, now: deps.now() });
+  const workloads = await reclaimInFlightOnBoot({
+    db: deps.db,
+    contributions: deps.contributions,
+    now: deps.now(),
+    ...(deps.emitWorkloadEvent === undefined ? {} : { emitEvent: deps.emitWorkloadEvent }),
+  });
   const chatLocks = await reclaimChatLocksOnBoot(deps.db, deps.holder);
   getLog().info(
     { requeued: workloads.requeued, reaped: workloads.reaped, chatLocks },

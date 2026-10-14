@@ -45,8 +45,12 @@ beforeAll(async () => {
   expect(built.diagnostics).toEqual([]);
 });
 
+let hostResources = new AsyncDisposableStack();
+
 afterEach(async () => {
-  await __terminateManagedPluginBrokerForTest();
+  const owned = hostResources;
+  hostResources = new AsyncDisposableStack();
+  await owned.disposeAsync();
 });
 
 function seams(): HostSeams {
@@ -131,8 +135,8 @@ async function activateTool(
 }
 
 test("broker exit during activation rejects the call and permits an explicit later activation", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
-  __killManagedPluginBrokerOnCommandForTest("create");
+  const host = hostResources.use(createPluginHost(seams()));
+  __killManagedPluginBrokerOnCommandForTest(host, "create");
   await expect(host.createInstance({ ...durableSource("'never completes';"), grants: [], bridge: bridge(), chat: noChat })).rejects.toMatchObject({
     name: "PluginHostUnavailable",
   });
@@ -145,12 +149,12 @@ test("broker exit during activation rejects the call and permits an explicit lat
 });
 
 test("a create still resolving its connection when the broker dies is served exactly once by the reconnect, never replayed", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const victim = await host.createInstance({ ...durableSource("'victim';"), grants: [], bridge: bridge(), chat: noChat });
   if (!victim.ok) {
     throw new Error(victim.error);
   }
-  __killManagedPluginBrokerOnCommandForTest("create");
+  __killManagedPluginBrokerOnCommandForTest(host, "create");
   let sets = 0;
   const base = bridge();
   const countingBridge: PluginBridge = {
@@ -166,7 +170,7 @@ test("a create still resolving its connection when the broker dies is served exa
   // `killer`'s own "create" write triggers the kill against the connection `victim` already opened.
   const killer = host.createInstance({ ...durableSource("'killer';"), grants: [], bridge: base, chat: noChat });
   await expect(killer).rejects.toMatchObject({ name: "PluginHostUnavailable" });
-  const pause = __pauseManagedPluginConnectChaseForTest();
+  const pause = __pauseManagedPluginConnectChaseForTest(host);
   const bystander = host.createInstance({
     ...durableSource(`
       const h = orb.host(1);
@@ -189,38 +193,39 @@ test("a create still resolving its connection when the broker dies is served exa
 });
 
 test("connectOnce never respawns a broker once the app tears it down with nothing pending", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const outcome = await host.createInstance({ ...durableSource("'settled';"), grants: [], bridge: bridge(), chat: noChat });
   expect(outcome.ok).toBe(true);
   if (outcome.ok) {
     host.dispose(outcome.instance);
   }
-  await __terminateManagedPluginBrokerForTest();
-  // A clean teardown with no in-flight command must leave the broker gone — no straggling reconnect chase
-  // should spawn a replacement process nobody asked for.
+  await host[Symbol.asyncDispose]();
+  await __terminateManagedPluginBrokerForTest(host);
+  // App teardown joins physical retirement before this forced-close check; no reconnect chase may
+  // spawn a replacement process nobody asked for.
   await sleep(100);
-  expect(__hasManagedPluginBrokerForTest()).toBe(false);
+  expect(__hasManagedPluginBrokerForTest(host)).toBe(false);
 });
 
 test("once the watchdog dies the app never sends its broker another command and serves the next one from a fresh broker", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const first = await host.createInstance({ ...durableSource("'first';"), grants: [], bridge: bridge(), chat: noChat });
   expect(first.ok).toBe(true);
-  const orphanDirectory = __readManagedPluginDirectoryForTest();
+  const orphanDirectory = __readManagedPluginDirectoryForTest(host);
 
-  await __killManagedPluginWatchdogForTest();
+  await __killManagedPluginWatchdogForTest(host);
   const second = await host.createInstance({ ...durableSource("'second';"), grants: [], bridge: bridge(), chat: noChat });
 
   expect(second.ok).toBe(true);
-  expect(__hasManagedPluginBrokerForTest()).toBe(true);
-  expect(__readManagedPluginDirectoryForTest()).not.toBe(orphanDirectory);
+  expect(__hasManagedPluginBrokerForTest(host)).toBe(true);
+  expect(__readManagedPluginDirectoryForTest(host)).not.toBe(orphanDirectory);
   if (second.ok) {
     host.dispose(second.instance);
   }
 });
 
 test("the app creates and owns the watchdog without a preconfigured broker endpoint", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const outcome = await host.createInstance({ ...durableSource("'app-owned watchdog';"), grants: [], bridge: bridge(), chat: noChat });
   expect(outcome.ok).toBe(true);
   if (outcome.ok) {
@@ -229,8 +234,8 @@ test("the app creates and owns the watchdog without a preconfigured broker endpo
 });
 
 test("broker death while a Worker waits on the synchronous seam cannot block the app", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
-  __killManagedPluginBrokerOnBridgeForTest("seam.mintId");
+  const host = hostResources.use(createPluginHost(seams()));
+  __killManagedPluginBrokerOnBridgeForTest(host, "seam.mintId");
   await expect(
     host.createInstance({
       ...durableSource("orb.host(1).ids.mint();"),
@@ -248,13 +253,15 @@ test("broker exit during an async invoke fails the call and marks the resident c
     ...base,
     variables: {
       ...base.variables,
-      get: () => {
+      get: (_key, liveness) => {
         reached();
-        return new Promise<string | null>(() => undefined);
+        return new Promise<string | null>((resolve) => {
+          liveness?.onAbort(() => resolve(null));
+        });
       },
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const resident = await activateTool(host, waitingBridge);
   const invocation = host.invoke(resident.instance, resident.handler, "{}", { chatId: CHAT, canWrite: true, automationDepth: 0 });
   // Attach a reaction to `invocation` NOW, not at the `expect(...).rejects` below: the forced teardown two
@@ -262,7 +269,7 @@ test("broker exit during an async invoke fails the call and marks the resident c
   // handler, and Node flags that gap as an unhandled rejection even though it settles correctly moments later.
   invocation.catch(() => undefined);
   await called;
-  await __terminateManagedPluginBrokerForTest();
+  await __terminateManagedPluginBrokerForTest(host);
   await expect(invocation).rejects.toMatchObject({ name: "PluginHostUnavailable" });
   await expect(host.invoke(resident.instance, resident.handler, "{}", { chatId: CHAT, canWrite: true, automationDepth: 0 })).rejects.toMatchObject({
     name: "PluginHostUnavailable",
@@ -287,7 +294,7 @@ test("disposing a pinned logical plugin cancels its Worker and rejects late call
       },
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const resident = await activateTool(host, waitingBridge);
   const invocation = host.invoke(resident.instance, resident.handler, "{}", noChat);
   await called;
@@ -310,7 +317,7 @@ test("a bridge frame already on the parent wire cannot dispatch after dispose re
       },
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const outcome = await host.createInstance({
     ...durableSource(`
       const h = orb.host(1);
@@ -331,7 +338,7 @@ test("a bridge frame already on the parent wire cannot dispatch after dispose re
   if (handler === undefined) {
     throw new Error("test: write tool did not register");
   }
-  const delivery = __pauseManagedPluginBridgeDeliveryForTest("variables.set");
+  const delivery = __pauseManagedPluginBridgeDeliveryForTest(host, "variables.set");
   try {
     const invocation = host.invoke(outcome.instance, handler, "{}", noChat);
     await delivery.reached;
@@ -350,9 +357,15 @@ test("disposing a runtime clears the command-authority tail timers it holds", { 
   const base = bridge();
   const parkedBridge: PluginBridge = {
     ...base,
-    storage: { ...base.storage, get: () => new Promise<string | null>(() => undefined) },
+    storage: {
+      ...base.storage,
+      get: (_key, liveness) =>
+        new Promise<string | null>((resolve) => {
+          liveness?.onAbort(() => resolve(null));
+        }),
+    },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   // A zero settlement grace returns activation with the call still parked, so its authority is in its tail.
   const outcome = await host.createInstance({
     ...durableSource("orb.host(1).storage.get('parked').then(function () {}); 'activated';"),
@@ -364,9 +377,9 @@ test("disposing a runtime clears the command-authority tail timers it holds", { 
   if (!outcome.ok) {
     throw new Error(outcome.error);
   }
-  expect(__countLiveAuthorityTailsForTest()).toBe(1);
+  expect(__countLiveAuthorityTailsForTest(host)).toBe(1);
   host.dispose(outcome.instance);
-  await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest()).toBe(0));
+  await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest(host)).toBe(0));
 });
 
 // cb-265 — a FAILED activation with a parked host call used to stall `retireFailedActivation` for the full
@@ -375,14 +388,20 @@ test("disposing a runtime clears the command-authority tail timers it holds", { 
 // abort now reaches the bridge call directly (bridge-rpc.ts's `createRemoteBridge` forwards it to `callAsync`),
 // so the Worker settles the call locally well inside the command timeout and the connection is never torn down.
 test("a failed activation with a parked host call retires within the settle wall and a sibling resident keeps running", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const sibling = await activateTool(host, bridge());
   await expect(host.invoke(sibling.instance, sibling.handler, "{}", noChat)).resolves.toBe("done");
 
   const base = bridge();
   const parkedBridge: PluginBridge = {
     ...base,
-    storage: { ...base.storage, get: () => new Promise<string | null>(() => undefined) },
+    storage: {
+      ...base.storage,
+      get: (_key, liveness) =>
+        new Promise<string | null>((resolve) => {
+          liveness?.onAbort(() => resolve(null));
+        }),
+    },
   };
   // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — proving the failed activation retires promptly instead of stalling the 30 s command timeout, no frozen clock to inject.
   const started = performance.now();
@@ -400,10 +419,10 @@ test("a failed activation with a parked host call retires within the settle wall
 
   // The failed activation's own authority (and the pending bridge call it carried) cleared promptly — well
   // under the fixed PLUGIN_AUTHORITY_TAIL_MS fallback the parent would otherwise have relied on.
-  await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest()).toBe(0), { timeout: 5000 });
+  await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest(host)).toBe(0), { timeout: 5000 });
 
   // The broker connection was never destroyed, so the sibling's binding was never crashed.
-  expect(__hasManagedPluginBrokerForTest()).toBe(true);
+  expect(__hasManagedPluginBrokerForTest(host)).toBe(true);
   await expect(host.invoke(sibling.instance, sibling.handler, "{}", noChat)).resolves.toBe("done");
   host.dispose(sibling.instance);
 });
@@ -475,7 +494,7 @@ test("a granted plugin's net.fetch and net.fetchAsset reach the allowlisted fixt
       },
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   try {
     const probe = await activateHandler(host, {
       handler: `async () => {
@@ -533,7 +552,7 @@ test("a floated continuation keeps its accepted command's authority to publish a
       },
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const probe = await activateHandler(host, {
     handler: `async () => {
       void (async () => {
@@ -566,7 +585,7 @@ test("a continuation that keeps calling after its command settled is cut off at 
       },
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const probe = await activateHandler(host, {
     // Hold the first read until command completion; an immediate result can post another read before the tail arms.
     handler: `async () => {
@@ -607,7 +626,7 @@ test("a slow continuation is refused as stale once the continuation window has p
         }),
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const probe = await activateHandler(host, {
     handler: `async () => {
       void (async () => {
@@ -647,7 +666,7 @@ test("a continuation acts only within its command's grants", { timeout: LONG }, 
       },
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const probe = await activateHandler(host, {
     handler: `async () => {
       void (async () => {
@@ -666,15 +685,15 @@ test("a continuation acts only within its command's grants", { timeout: LONG }, 
 });
 
 test("broker exit during deactivation releases the runtime and a later lifecycle may reactivate", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const active = await host.createInstance({ ...durableSource("'active';"), grants: [], bridge: bridge(), chat: noChat });
   if (!active.ok) {
     throw new Error(active.error);
   }
-  __killManagedPluginBrokerOnCommandForTest("dispose");
+  __killManagedPluginBrokerOnCommandForTest(host, "dispose");
   host.dispose(active.instance);
   await expect(host.invoke(active.instance, "stale" as PluginHandlerRef, "{}", noChat)).rejects.toThrow(/unknown\/disposed instance/u);
-  await __terminateManagedPluginBrokerForTest();
+  await __terminateManagedPluginBrokerForTest(host);
 
   const reactivated = await host.createInstance({ ...durableSource("'reactivated';"), grants: [], bridge: bridge(), chat: noChat });
   expect(reactivated.ok).toBe(true);
@@ -684,12 +703,12 @@ test("broker exit during deactivation releases the runtime and a later lifecycle
 });
 
 test("broker death invalidates sleeping logical residents instead of silently replaying them", { timeout: LONG }, async () => {
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const runtimeBridge = bridge();
   const first = await activateTool(host, runtimeBridge);
   const second = await activateTool(host, runtimeBridge);
   const third = await activateTool(host, runtimeBridge);
-  await __terminateManagedPluginBrokerForTest();
+  await __terminateManagedPluginBrokerForTest(host);
   await expect(host.invoke(first.instance, first.handler, "{}", noChat)).rejects.toMatchObject({ name: "PluginHostUnavailable" });
   host.dispose(first.instance);
   host.dispose(second.instance);
@@ -701,7 +720,7 @@ test("broker death invalidates sleeping logical residents instead of silently re
 });
 
 test("one hundred logical plugins remain discoverable and cold-callable through the configured bounded pool", { timeout: 180_000 }, async () => {
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const runtimeBridge = bridge();
   const residents: { readonly instance: PluginInstance; readonly handler: PluginHandlerRef; readonly value: string }[] = [];
   try {
@@ -760,7 +779,7 @@ test("a near-limit durable source is reloaded on cold wake before catalog compar
       },
     },
   };
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   let reloads = 0;
   const source = `
       const h = orb.host(1);
@@ -878,7 +897,7 @@ async function assertShowcaseColdWake(host: ReturnType<typeof createPluginHost>,
 
 test("every showcase retains its catalog through eviction and its callbacks through a cold wake", { timeout: 300_000 }, async () => {
   expect.hasAssertions();
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   for (const slug of SHOWCASE_PLUGIN_SLUGS) {
     await assertShowcaseColdWake(host, slug);
   }
@@ -933,7 +952,7 @@ test.skipIf(process.platform !== "linux")(
   "every showcase plugin activates in a broker the watchdog started under the permission model",
   { timeout: 180_000 },
   async () => {
-    const host = createPluginHost(seams());
+    const host = hostResources.use(createPluginHost(seams()));
     const activated: string[] = [];
     for (const slug of SHOWCASE_PLUGIN_SLUGS) {
       const [bundle, manifest] = await Promise.all([packShowcaseBundle(slug), readShowcaseManifest(slug)]);
@@ -961,7 +980,7 @@ test.skipIf(process.platform !== "linux")(
     }
     expect(activated.length).toBeGreaterThan(SHOWCASE_PLUGIN_SLUGS.length / 2);
 
-    const brokerDirectory = __readManagedPluginDirectoryForTest();
+    const brokerDirectory = __readManagedPluginDirectoryForTest(host);
     if (brokerDirectory === undefined) {
       throw new Error("test: the app holds no broker endpoint");
     }
@@ -1004,7 +1023,7 @@ test.each(["disable", "upgrade", "uninstall"] as const)(
         parameters: { type: "object", properties: {} },
         handler: async () => { await h.variables.get("invoke"); return "stale"; },
       });`;
-    const host = createPluginHost(seams());
+    const host = hostResources.use(createPluginHost(seams()));
     const victim = await host.createInstance({
       ...durableSource(source, async () => {
         loaderStarted();
@@ -1101,7 +1120,7 @@ test("dispose during cold activation retires the partially published runtime bef
         handler: async () => { await h.variables.get("invoke"); return "stale"; },
       });
     })().catch(() => {});`;
-  const host = createPluginHost(seams());
+  const host = hostResources.use(createPluginHost(seams()));
   const victim = await host.createInstance({
     ...durableSource(source),
     grants: ["tools.register", "global_vars"],

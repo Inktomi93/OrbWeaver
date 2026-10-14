@@ -1,10 +1,10 @@
-// agent-sdk backend-private seams (D8): SDK types are narrowed here and never leak upward — the package's
-// contract stays SDK-free.
+// Backend-private session and turn policy (D8). The raw query's vocabulary comes from inference's execution contract.
 
-import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
+import type { SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import type {
+  AgentSdkQuery,
   AgentSdkSessionId,
   AgentSdkSessionTotals,
   ChatDeltaEvent,
@@ -42,13 +42,14 @@ export interface DisciplineOptions {
 export interface AgentSdkDeps {
   readonly now: () => number;
   readonly log: InferenceLog;
-  readonly query: typeof query;
+  readonly query: AgentSdkQuery;
   readonly sessionStore: SessionStore;
   readonly sessionWriter?: SessionEntryWriter | undefined;
   /** The shared outbound-image seam (MA-10): a summarize item's images ride the SDK streaming-input prompt. */
   readonly normalizeImageBytes: NormalizeImageBytes;
   /** The TIMER seam every bound in this backend arms through — injected so a test trips a bound by hand. */
   readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleIdleTimeout?: ScheduleTimeout;
   readonly captureWire?: WireCaptureSink | undefined;
   /** Opt-in subprocess stderr at debug level. */
   readonly debug: boolean;

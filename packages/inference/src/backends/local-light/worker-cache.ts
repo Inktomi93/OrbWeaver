@@ -6,6 +6,7 @@ import { Worker } from "node:worker_threads";
 import { isHubModelId } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
+import type { ScheduleTimeout } from "#contract";
 import type { ProviderErrorInit } from "#src/contract/errors.ts";
 import { ProviderError } from "#src/contract/errors.ts";
 import type {
@@ -18,6 +19,7 @@ import type {
   LocalLightWorkerValue,
 } from "#src/contract/local-light-worker.ts";
 import type { InferenceLog } from "#src/deps.ts";
+import { realScheduleTimeout } from "../http/timers.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
 
 // How long `close` waits for the worker to exit: one embed or rerank run returns well inside it. A model load
@@ -28,6 +30,7 @@ const LOCAL_LIGHT_WORKER_CLOSE_MS = 10_000;
 const LOCAL_LIGHT_WORKER_MAX_PENDING = 64;
 
 interface WorkerModelCacheConfig extends Omit<LocalLightWorkerOptions, "cacheModule"> {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   readonly cacheModule?: string | undefined;
   readonly closeWaitMs?: number | undefined;
   readonly maxPending?: number | undefined;
@@ -40,6 +43,8 @@ export interface WorkerModelCache extends LocalLightModelCache {
   /** Stop the worker and reject its pending calls, waiting a bounded time for it to exit. Every later call is
    *  refused as `aborted`: close runs at shutdown, and a worker started after it would be torn down mid-run. */
   readonly close: () => Promise<void>;
+  /** Join actual worker exit, including workers lost to an error before their exit event arrives. */
+  readonly settle: () => Promise<void>;
 }
 
 // Every provenance field a ProviderError may carry; `rewrap` in contract/errors.ts lists the same set.
@@ -110,6 +115,8 @@ interface Live {
   ended: boolean;
   /** Set by `close`: the worker's exit is expected, not a crash. */
   closing: boolean;
+  readonly exited: PromiseWithResolvers<void>;
+  joining: boolean;
 }
 
 const DEFAULT_CACHE_MODULE = new URL("./model-cache.ts", import.meta.url).href;
@@ -117,6 +124,7 @@ const DEFAULT_CACHE_MODULE = new URL("./model-cache.ts", import.meta.url).href;
 export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerModelCache {
   const { log, onProgress } = config;
   const options: LocalLightWorkerOptions = {
+    kernelModule: config.kernelModule,
     cpuPercent: config.cpuPercent,
     device: config.device,
     embedDtype: config.embedDtype,
@@ -128,6 +136,8 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
   const failedModels = new Set<ModelId>();
   let live: Live | null = null;
   let closed = false;
+  const workers = new Set<Live>();
+  let settlement: Promise<void> | undefined;
   let nextId = 0;
 
   const settleAll = (state: Live, err: Error): void => {
@@ -181,7 +191,8 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     const worker = new Worker(new URL("./model-worker.ts", import.meta.url), { workerData: options });
     // An idle worker must never hold the process open; shutdown closes it explicitly.
     worker.unref();
-    const state: Live = { worker, pending: new Map(), ended: false, closing: false };
+    const state: Live = { worker, pending: new Map(), ended: false, closing: false, exited: Promise.withResolvers<void>(), joining: false };
+    workers.add(state);
     worker.on("message", (message: LocalLightWorkerMessage) => {
       onMessage(state, message);
     });
@@ -190,6 +201,8 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     });
     worker.on("exit", (code: number) => {
       lose(state, `exit code ${String(code)}`);
+      state.exited.resolve();
+      workers.delete(state);
     });
     return state;
   };
@@ -217,13 +230,37 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     const message: LocalLightHostMessage = { type: "call", id, call: request };
     state.worker.postMessage(message);
     return promise.finally(() => {
-      if (state.pending.size === 0) {
+      if (state.pending.size === 0 && !state.joining) {
         state.worker.unref();
       }
     });
   }
 
   const vectors = async (request: LocalLightWorkerCall): Promise<Float32Array[]> => (await call(request)) as Float32Array[];
+
+  const close = async (): Promise<void> => {
+    closed = true;
+    const state = live;
+    if (state === null) {
+      return;
+    }
+    live = null;
+    state.closing = true;
+    const bound = Promise.withResolvers<"timeout">();
+    const waitMs = config.closeWaitMs ?? LOCAL_LIGHT_WORKER_CLOSE_MS;
+    const cancelTimer = (config.scheduleTimeout ?? realScheduleTimeout)(() => bound.resolve("timeout"), waitMs);
+    const closeMessage: LocalLightHostMessage = { type: "close" };
+    state.worker.postMessage(closeMessage);
+    const outcome = await Promise.race([state.exited.promise.then(() => "exited" as const), bound.promise]);
+    cancelTimer();
+    if (outcome === "timeout") {
+      if (!state.joining) {
+        state.worker.unref();
+      }
+      log.warn({ waitedMs: waitMs }, "local-light: the inference worker is still inside a model call; shutdown continues without it");
+    }
+    settleAll(state, workerLostError("closed"));
+  };
 
   return {
     embedTexts: (modelId, texts, _inputType, encoding): Promise<Float32Array[]> =>
@@ -240,28 +277,22 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     loadFailed: (modelId): boolean => failedModels.has(modelId),
     // Never `terminate()`: stopping the thread while onnxruntime-node is inside a run makes its binding throw a
     // C++ exception nothing can catch, and that aborts the whole process. The worker exits itself instead.
-    close: async (): Promise<void> => {
-      closed = true;
-      const state = live;
-      if (state === null) {
-        return;
-      }
-      live = null;
-      state.closing = true;
-      const exited = Promise.withResolvers<"exited">();
-      state.worker.once("exit", () => exited.resolve("exited"));
-      const bound = Promise.withResolvers<"timeout">();
-      const waitMs = config.closeWaitMs ?? LOCAL_LIGHT_WORKER_CLOSE_MS;
-      const timer = setTimeout(() => bound.resolve("timeout"), waitMs);
-      const closeMessage: LocalLightHostMessage = { type: "close" };
-      state.worker.postMessage(closeMessage);
-      const outcome = await Promise.race([exited.promise, bound.promise]);
-      clearTimeout(timer);
-      if (outcome === "timeout") {
-        state.worker.unref();
-        log.warn({ waitedMs: waitMs }, "local-light: the inference worker is still inside a model call; shutdown continues without it");
-      }
-      settleAll(state, workerLostError("closed"));
+    close,
+    settle: (): Promise<void> => {
+      settlement ??= (async (): Promise<void> => {
+        closed = true;
+        const held = [...workers];
+        for (const state of held) {
+          state.joining = true;
+          state.worker.ref();
+        }
+        await using completion = new AsyncDisposableStack();
+        completion.defer(async (): Promise<void> => {
+          await Promise.all(held.map((state) => state.exited.promise));
+        });
+        await close();
+      })();
+      return settlement;
     },
   };
 }

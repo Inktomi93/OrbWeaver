@@ -17,8 +17,9 @@
 
 /** The span-event seam — the package never imports the tracer; the composition root hands the request span's
  *  `addSpanEvent` in through the backend deps, and a test that passes none gets a silent no-op. */
-import type { AddSpanEvent } from "#contract";
+import type { AddSpanEvent, ScheduleTimeout } from "#contract";
 import { ProviderError } from "#contract";
+import { realScheduleTimeout } from "./timers.ts";
 
 const NO_SPAN_EVENT: AddSpanEvent = () => undefined;
 
@@ -33,6 +34,7 @@ const JITTER_CENTER = 0.5; // RNG midpoint (random() in [0,1) → jitter in [0.8
 // @orb-waive no-inline-package-interface(RetryOptions): baselined when the gate landed; burn-down item 952.
 /** Tuning + injected seams for the retry policy. */
 export interface RetryOptions {
+  readonly scheduleTimeout?: ScheduleTimeout | undefined;
   /** Total tries including the first. */
   readonly maxAttempts?: number;
   /** First backoff sleep (ms). */
@@ -72,7 +74,7 @@ function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOption
 /** Sleep that resolves on whichever fires first: the timer or the abort signal. Throws a
  *  `ProviderError(kind:"aborted")` when the signal interrupts, so the retry loop surfaces it as the turn
  *  error rather than silently waiting out the full backoff. */
-function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+function abortableSleep(ms: number, signal: AbortSignal | undefined, scheduleTimeout: ScheduleTimeout): Promise<void> {
   if (ms <= 0) {
     return Promise.resolve();
   }
@@ -82,10 +84,10 @@ function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
       return;
     }
     const onAbort = (): void => {
-      clearTimeout(timer);
+      cancelTimer();
       reject(new ProviderError({ kind: "aborted", retryable: false, message: "backoff aborted" }));
     };
-    const timer = setTimeout((): void => {
+    const cancelTimer = scheduleTimeout((): void => {
       signal?.removeEventListener("abort", onAbort);
       resolve();
     }, ms);
@@ -140,7 +142,7 @@ export async function runWithPreCommitRetry<T>(
       // The retries are INVISIBLE otherwise: a run that succeeds on attempt 3 reports a clean span that is
       // simply (backoff + 3 round-trips) slow, with nothing on the timeline naming the two 429s underneath.
       addSpanEvent("provider.retry", { attempt, kind: mapped.kind, delayMs });
-      await abortableSleep(delayMs, opts.signal);
+      await abortableSleep(delayMs, opts.signal, opts.scheduleTimeout ?? realScheduleTimeout);
     }
   }
   // Unreachable for maxAttempts >= 1 (the final attempt returns or throws); satisfies the return type.

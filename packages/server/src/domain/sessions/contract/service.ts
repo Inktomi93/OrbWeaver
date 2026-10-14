@@ -5,7 +5,7 @@ import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
-import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, IdSource, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
@@ -24,6 +24,7 @@ import type {
 export interface SessionsContext {
   db: Db;
   now: () => number;
+  readonly idSource?: IdSource;
   /** Mint a fresh opaque session token (256 bits of CSPRNG entropy). Rides the DI seam exactly like
    *  {@link SessionsContext.hashToken}, so `verbs/create` never reaches the `tokens/` subsystem directly
    *  (`domain-substrate-mediates-subsystems`) and a test can substitute a deterministic mint without a cast. */

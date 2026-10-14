@@ -14,7 +14,7 @@ export type {
   RetryWorkloadParams,
   StartWorkloadParams,
 } from "./contract/params.ts";
-
+export type { WorkloadProgressBus } from "./contract/progress-bus.ts";
 export type {
   CreateScheduleParams,
   DeleteScheduleParams,
@@ -35,8 +35,9 @@ export type {
 } from "./contract/service.ts";
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export { reclaimInFlightOnBoot } from "./engine/boot-reclaim.ts";
-export { nextRunnableWorkload } from "./engine/next-runnable.ts";
+export { createNextRunnableWorkload, nextRunnableWorkload } from "./engine/next-runnable.ts";
 export {
+  createWorkloadProgressBus,
   emitWorkloadEvent,
   getRecentWorkloadEvents,
   subscribeWorkloadWake,

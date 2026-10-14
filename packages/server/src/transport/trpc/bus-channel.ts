@@ -9,22 +9,9 @@
 // (G10 excludes buddy's domain-minted replay-buffer bus — O4 — which never touches this file).
 import { EventEmitter, on } from "node:events";
 
-// @orb-waive no-inline-package-interface(BusChannel): baselined when the gate landed; burn-down item 952.
-export interface BusChannel<Key, Event> {
-  /** Fan `event` to `key`'s channel (+ the firehose channel, if this bus declared one). */
-  readonly publish: (key: Key, event: Event) => void;
-  /** `key`'s live stream, torn down on `signal` abort. `on()` starts buffering the instant it's called, so a
-   *  caller invoking this before a durable replay loses no event in the gap. */
-  readonly subscribe: (key: Key, signal: AbortSignal) => AsyncIterable<Event>;
-}
+import type { BusChannel, FirehoseBusChannel } from "./contract/bus-channel.ts";
 
-// @orb-waive no-inline-package-interface(FirehoseBusChannel): baselined when the gate landed; burn-down item 952.
-export interface FirehoseBusChannel<Key, Event> extends BusChannel<Key, Event> {
-  /** Every event across every key, regardless of channel — the buddy-observer-shaped tap. Callback-style: the
-   *  one caller today is a long-lived process supervisor, not a per-request SSE generator. Returns the
-   *  unsubscribe. */
-  readonly subscribeAll: (listener: (event: Event) => void) => () => void;
-}
+export type { BusChannel, FirehoseBusChannel } from "./contract/bus-channel.ts";
 
 // `on()` yields the raw emit-args array (`[event]`); EventEmitter is untyped, so the element is unwrapped and
 // annotated at this single boundary.
@@ -47,15 +34,24 @@ export function defineBusChannel<Key extends string | number, Event>(
   const emitter = new EventEmitter();
   emitter.setMaxListeners(0);
   const allChannel = "*";
+  const lifetime = new AbortController();
 
+  // biome-ignore lint/nursery/useDisposables: the returned channel owns its emitter and abort lifetime; local using would close it before returning the owner.
   const base: BusChannel<Key, Event> = {
+    [Symbol.dispose]: () => {
+      lifetime.abort();
+      emitter.removeAllListeners();
+    },
     publish: (key, event) => {
+      if (lifetime.signal.aborted) {
+        return;
+      }
       emitter.emit(channelFor(key), event);
       if (opts?.firehose === true) {
         emitter.emit(allChannel, event);
       }
     },
-    subscribe: (key, signal) => liveEntries<Event>(on(emitter, channelFor(key), { signal })),
+    subscribe: (key, signal) => liveEntries<Event>(on(emitter, channelFor(key), { signal: AbortSignal.any([signal, lifetime.signal]) })),
   };
 
   if (opts?.firehose !== true) {
@@ -64,6 +60,7 @@ export function defineBusChannel<Key extends string | number, Event>(
   return {
     ...base,
     subscribeAll: (listener) => {
+      lifetime.signal.throwIfAborted();
       emitter.on(allChannel, listener);
       return () => {
         emitter.off(allChannel, listener);
