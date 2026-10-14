@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: doing
+status: blocked
 updated: 2026-10-14
 priority: P1
 area: workloads
-lane: codex/bulk-funder-1015
+blocked: on 984
 plan: inference-flow
 ---
 

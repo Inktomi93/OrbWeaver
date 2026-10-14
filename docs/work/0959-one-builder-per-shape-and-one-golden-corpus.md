@@ -1,9 +1,9 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-14
 priority: P1
-lane: codex/corpus-integration-959
+blocked: on 984
 plan: test-foundation
 ---
 
@@ -25,9 +25,7 @@ A builder exists per contract output and table; the corpus is committed and load
 
 Canonical recall workloads produce digests, segments and query traces through public projections; native turns produce speaker rows. Positive and strike controls pass. Complete recall variants and corpus publication remain open.
 
-Inventory tables and output doors. Keep producers Node-owned and derive IDs, hashes and FK relations through production.
-
-The canonical auth-configuration schema and consumer parsing are integrated. Capture its complete request-specific response through the qualified server root before claiming the builder. The schema supplies validation, not fabricated authentication or deployment defaults.
+Auth configuration uses its canonical schema. Complete builder qualification requires real request-specific capture, not fabricated defaults.
 
 Browser responders select actual captured route inputs and outputs. Preserve absent versus explicit null input, reject conflicting captures, and refuse unmatched input without a fabricated success. This lookup does not establish generated corpus adoption.
 
@@ -48,3 +46,5 @@ Reviewed source `b78b5b8d0a` proves genuine SDK session lineage through canonica
 Reviewed source `800bd9d45a` captures plugin/provider families through real install, consent, native guest activation, owner claims and tombstones. Recipient consent, repeat skips and contained activation failure pass. Captures stay Node-private; the expanded capsule preserves disposal, scrub and clone controls. A real clock defect control fails before world-info creation receives the injected edit stamp; creation and first-edit cases then pass.
 
 The source-home map is not complete row, output or variant coverage. Refinery, discovery, RPG, imagery, schedule and transient outcome recipes remain. Committed corpus publication and every-layer adoption remain open.
+
+The retained knowledge and refinery leg has prepared source and matching scoped controls. Knowledge qualification and the expanded capsule wait for canonical typed authority. Keep the uncommitted leg; do not substitute fabricated bulk tokens or domain results.
