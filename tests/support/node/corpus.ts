@@ -14,6 +14,7 @@ import type { seedCorpusConnection as produceCorpusConnection } from "./corpus-c
 import type { seedCorpusImagery as produceCorpusImagery } from "./corpus-imagery.ts";
 import type { seedCorpusKnowledge as produceCorpusKnowledge } from "./corpus-knowledge.ts";
 import type { seedCorpusKnowledgeVariants as produceCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
+import type { seedCorpusLibraryViews as produceCorpusLibraryViews } from "./corpus-library-views.ts";
 import type { seedCorpusPlugins as produceCorpusPlugins } from "./corpus-plugin.ts";
 import type { seedCorpusRpg as produceCorpusRpg } from "./corpus-rpg.ts";
 import type { seedCorpusRpgMembers as produceCorpusRpgMembers } from "./corpus-rpg-members.ts";
@@ -48,6 +49,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly libraryViews: Awaited<ReturnType<typeof produceCorpusLibraryViews>>;
   readonly connection: Awaited<ReturnType<typeof produceCorpusConnection>>;
   readonly search: Awaited<ReturnType<typeof produceCorpusSearch>>;
   readonly rpgRecursion: Awaited<ReturnType<typeof produceCorpusRpgRecursion>>;
@@ -146,6 +148,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusPlugins } = await import("./corpus-plugin.ts");
   const { seedCorpusKnowledge } = await import("./corpus-knowledge.ts");
   const { seedCorpusKnowledgeVariants } = await import("./corpus-knowledge-variants.ts");
+  const { seedCorpusLibraryViews } = await import("./corpus-library-views.ts");
   const { seedCorpusRpg } = await import("./corpus-rpg.ts");
   const { seedCorpusRpgProvider } = await import("./corpus-rpg-provider.ts");
   const { seedCorpusRpgRecursion } = await import("./corpus-rpg-recursion.ts");
@@ -250,6 +253,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   if (connectionWire.remaining() !== 0) {
     throw new Error("completed native connection corpus left unspent physical recipes");
   }
+  const libraryViews = await seedCorpusLibraryViews(root, libraries, actors);
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -279,6 +283,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       rpgRounds,
       search,
       connection,
+      libraryViews,
     },
   };
 }

@@ -6,7 +6,6 @@ import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
-import { documentChunks } from "@orb/db";
 import type { ChatId, DocumentId, Handle, PersonaId, UserConnectionId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -14,7 +13,6 @@ import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { seedDefaultPreset, seedThemes, seedUserContent } from "@orb/server/entry/boot";
 import type { SeedDemoResult } from "@orb/tooling/seed";
 import { loadDemoSeed, SECOND_HUMAN_HANDLE } from "@orb/tooling/seed";
-import { eq } from "drizzle-orm";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
@@ -35,7 +33,7 @@ import { seedCharacterPersona, seedCharacterSnapshot } from "./factories/charact
 import type { UserConnectionRow } from "./factories/connection.ts";
 import { seedConnectionBinding, seedUserConnection } from "./factories/connection.ts";
 import { seedCharacterDocument, seedChatDocument, seedDocument, seedGlobalDocument } from "./factories/databank.ts";
-import { captureChatMemoryRows } from "./factories/embedding-generation.ts";
+import { captureChatMemoryRows, captureDocumentChunks } from "./factories/embedding-generation.ts";
 import { seedGalleryItem } from "./factories/gallery.ts";
 import { captureTurnRows } from "./factories/message.ts";
 import { captureRegexRows } from "./factories/regex.ts";
@@ -424,7 +422,7 @@ interface SyntheticCorpus {
   readonly bootCharacters: readonly NonNullable<Awaited<ReturnType<ServerHarness["services"]["character"]["findByHandle"]>>>[];
   readonly seed: SeedDemoResult;
   readonly rows: {
-    readonly documentChunks: readonly (typeof documentChunks.$inferSelect)[];
+    readonly documentChunks: Awaited<ReturnType<typeof captureDocumentChunks>>;
     readonly soloMessages: Awaited<ReturnType<typeof captureTurnRows>>;
     readonly groupMessages: Awaited<ReturnType<typeof captureTurnRows>>;
     readonly worldInfo: Awaited<ReturnType<typeof captureWorldBookRows>>;
@@ -526,11 +524,7 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
     root.db,
     seed.rosters.map((roster) => roster.id),
   );
-  const producedDocumentChunks = await root.db
-    .select()
-    .from(documentChunks)
-    .where(eq(documentChunks.documentId, seed.document.document.id))
-    .orderBy(documentChunks.chunkIdx, documentChunks.id);
+  const producedDocumentChunks = await captureDocumentChunks(root.db, seed.document.document.id);
   if (producedDocumentChunks.length === 0) {
     throw new Error("synthetic corpus document ingestion produced no canonical embedded chunks");
   }

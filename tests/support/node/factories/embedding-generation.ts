@@ -6,6 +6,7 @@ import {
   chatDigestSpeakers,
   chatDigests,
   chatSegments,
+  documentChunks,
   embeddingCalls,
   embedGenerations,
   embedGenerationTargets,
@@ -14,7 +15,7 @@ import {
   imageEmbeddings,
   imageIndexSkips,
 } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, DocumentId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { and, eq } from "drizzle-orm";
 
@@ -29,6 +30,12 @@ export type ImageIndexSkipRow = typeof imageIndexSkips.$inferSelect;
 export type ChatDigestRow = typeof chatDigests.$inferSelect;
 export type ChatSegmentRow = typeof chatSegments.$inferSelect;
 export type ChatDigestSpeakerRow = typeof chatDigestSpeakers.$inferSelect;
+export type DocumentChunkRow = typeof documentChunks.$inferSelect;
+
+/** Capture actual ingestion output; chunk boundaries, vector geometry and identities remain producer-owned. */
+export async function captureDocumentChunks(db: Db, documentId: DocumentId): Promise<readonly DocumentChunkRow[]> {
+  return await db.select().from(documentChunks).where(eq(documentChunks.documentId, documentId)).orderBy(documentChunks.chunkIdx, documentChunks.id);
+}
 
 export interface CapturedChatMemoryRows {
   readonly digests: readonly ChatDigestRow[];

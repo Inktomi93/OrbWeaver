@@ -77,6 +77,7 @@ export type {
   ChatDigestRow,
   ChatDigestSpeakerRow,
   ChatSegmentRow,
+  DocumentChunkRow,
   EmbeddingCallRow,
   EmbedGenerationRow,
   EmbedGenerationTargetRow,
@@ -88,7 +89,7 @@ export type {
   SeededEmbeddingGeneration,
   SeededIndexedAsset,
 } from "./embedding-generation.ts";
-export { captureChatMemoryRows, seedEmbeddedCorpus, seedEmbeddingGeneration, seedIndexedAsset } from "./embedding-generation.ts";
+export { captureChatMemoryRows, captureDocumentChunks, seedEmbeddedCorpus, seedEmbeddingGeneration, seedIndexedAsset } from "./embedding-generation.ts";
 export type { GalleryItemRow } from "./gallery.ts";
 export { seedGalleryItem } from "./gallery.ts";
 export type { ImageryGenerationRow, ImageryImportCallRow, SeededImageryGeneration } from "./imagery.ts";
