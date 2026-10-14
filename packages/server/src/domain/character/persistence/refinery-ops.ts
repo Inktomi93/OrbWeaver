@@ -13,14 +13,19 @@
 // is still live), and a `CHARACTER_STALE_BASIS` refusal from that write leaves the snapshot with nothing to
 // witness — this op is how the verb un-does exactly the row it just minted, scoped to its own id.
 
+import type { EveryOwnerEstimate, EveryOwnerRun } from "@orb/contracts/workloads";
+import type { ReadOnlyDb } from "@orb/db";
 import { characterSnapshots, characters } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, count, eq, exists, sql } from "drizzle-orm";
 import type {
   CharacterRefineryOpsContext,
+  CountRefineryScoreTargetsOp,
   DeleteSnapshotOp,
   ListRefineryScoreTargetsOp,
   LoadOwnedCardOp,
+  RefineryScoreCountContext,
   RefineryScoreTarget,
   StampRefinerySignalsOp,
 } from "../contract/refinery-ops.ts";
@@ -35,27 +40,51 @@ export function createLoadOwnedCard(ctx: CharacterRefineryOpsContext): LoadOwned
   };
 }
 
-/** Build the sweep's enumeration op (R4). The owner narrow rides IN THE WHERE when one is given; `null` is
- *  the deliberate box-wide bulk scope (the workload engine's own `ownerId: null` contract), which is why this
- *  op takes `UserId | null` rather than defaulting to "everything" on a dropped argument.
- *
- *  The unscored filter is SQL, not a post-filter: `json_extract` reads the stamp the sweep itself writes, and
- *  the FILL arm exists precisely so a 500-card library does not pay 500 model calls to re-score 497 cards it
- *  already knows. `is null` covers both an absent blob and a stored `"score": null` — one fact, "not scored". */
+function scoreTargets(rows: readonly (typeof characters.$inferSelect)[]): RefineryScoreTarget[] {
+  return rows.map((row): RefineryScoreTarget => ({ characterId: row.id, ownerId: row.ownerId, card: cardOf(row) }));
+}
+
+async function listOwnedScoreTargets(db: ReadOnlyDb, ownerId: UserId, unscoredOnly: boolean): Promise<Awaited<ReturnType<ListRefineryScoreTargetsOp>>> {
+  const scope = and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false));
+  const where = unscoredOnly ? and(scope, sql`json_extract(${characters.refinery}, '$.score') is null`) : scope;
+  const [rows, counted] = await Promise.all([db.select().from(characters).where(where), db.select({ inScope: count() }).from(characters).where(scope)]);
+  return { targets: scoreTargets(rows), inScope: counted[0]?.inScope ?? 0 };
+}
+
+async function listEveryOwnerScoreTargets(
+  db: ReadOnlyDb,
+  _run: EveryOwnerRun,
+  unscoredOnly: boolean,
+): Promise<Awaited<ReturnType<ListRefineryScoreTargetsOp>>> {
+  const scope = eq(characters.synthetic, false);
+  const where = unscoredOnly ? and(scope, sql`json_extract(${characters.refinery}, '$.score') is null`) : scope;
+  const [rows, counted] = await Promise.all([db.select().from(characters).where(where), db.select({ inScope: count() }).from(characters).where(scope)]);
+  return { targets: scoreTargets(rows), inScope: counted[0]?.inScope ?? 0 };
+}
+
+/** The whole candidate COUNT remains separate from the FILL read, so already-scored cards stay scanned. */
 export function createListRefineryScoreTargets(ctx: CharacterRefineryOpsContext): ListRefineryScoreTargetsOp {
-  return async ({ ownerId, unscoredOnly }) => {
-    const scope = ownerId === null ? eq(characters.synthetic, false) : and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false));
-    const where = unscoredOnly ? and(scope, sql`json_extract(${characters.refinery}, '$.score') is null`) : scope;
-    // The candidate COUNT rides the same scope minus the unscored narrow — one cheap aggregate, so the
-    // sweep can say "500 in scope, 497 already scored" instead of "scanned 0".
-    const [rows, counted] = await Promise.all([
-      ctx.db.select().from(characters).where(where),
-      ctx.db.select({ inScope: count() }).from(characters).where(scope),
-    ]);
-    return {
-      targets: rows.map((row): RefineryScoreTarget => ({ characterId: row.id, ownerId: row.ownerId, card: cardOf(row) })),
-      inScope: counted[0]?.inScope ?? 0,
-    };
+  return (scope) =>
+    scope.ownerId === null
+      ? listEveryOwnerScoreTargets(ctx.db, scope.everyOwnerRun, scope.unscoredOnly)
+      : listOwnedScoreTargets(ctx.db, scope.ownerId, scope.unscoredOnly);
+}
+
+async function countEveryOwnerScoreTargets(ctx: RefineryScoreCountContext, _estimate: EveryOwnerEstimate, unscoredOnly: boolean): Promise<number> {
+  const scope = eq(characters.synthetic, false);
+  const where = unscoredOnly ? and(scope, sql`json_extract(${characters.refinery}, '$.score') is null`) : scope;
+  const rows = await ctx.db.select().from(characters).where(where);
+  return rows.reduce((ready, row) => ready + Number(ctx.isReady(cardOf(row))), 0);
+}
+
+/** Fold the refinery's pure readiness rule inside the read boundary; estimate callers receive only a count. */
+export function createCountRefineryScoreTargets(ctx: RefineryScoreCountContext): CountRefineryScoreTargetsOp {
+  return async (scope) => {
+    if (scope.ownerId === null) {
+      return await countEveryOwnerScoreTargets(ctx, scope.everyOwnerEstimate, scope.unscoredOnly);
+    }
+    const { targets } = await listOwnedScoreTargets(ctx.db, scope.ownerId, scope.unscoredOnly);
+    return targets.reduce((ready, target) => ready + Number(ctx.isReady(target.card)), 0);
   };
 }
 

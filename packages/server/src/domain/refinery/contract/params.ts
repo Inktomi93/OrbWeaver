@@ -15,7 +15,7 @@ import type {
   RefineryStage,
   RefineryStageConfig,
 } from "@orb/contracts/refinery";
-import type { ReportProgress } from "@orb/contracts/workloads";
+import type { ReportProgress, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 
 interface RefineryActorParams {
@@ -136,10 +136,8 @@ export interface SubmitManualRewriteParams extends RefineryActorParams {
 
 /** `scoreSweep` — the LIBRARY score pass (R4 / port study I3). The ONE refinery entry point that takes NO
  *  principal: it is a workload run body, and the queue resolves identity for it (`WorkloadRunContext`), so
- *  the pass takes the ENUMERATION SCOPE the engine hands it. `ownerId: null` IS the box-wide bulk arm — the
- *  same spelling the engine uses — never "an owner I forgot to pass". */
-export interface ScoreSweepOptions {
-  readonly ownerId: UserId | null;
+ *  the pass retains the claimed enumeration scope. Null alone never grants the every-owner arm. */
+export type ScoreSweepOptions = WorkloadRunScope & {
   /** WHO FUNDS the sweep — the workload's persisted admitted funder; their `summarize`
    *  binding answers every card in the pass, owner-narrowed or bulk (inference program §7.5-2). */
   readonly funderUserId: UserId;
@@ -148,7 +146,10 @@ export interface ScoreSweepOptions {
   readonly rescoreAll: boolean;
   readonly report: ReportProgress;
   readonly signal: AbortSignal | undefined;
-}
+};
+
+/** Count scope cannot be substituted for an executing sweep's authority. */
+export type ScoreSweepEstimateOptions = WorkloadEstimateScope & { readonly rescoreAll: boolean };
 
 /** `preflight` — the output-budget readout (schema-renderer §8): resolved per call so a preset edit
  *  shows up on the next read (the D126 discipline). WARN-only; never blocks a run. */
