@@ -6,7 +6,7 @@ import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { assertReferentialIntegrity, closeDb, createDb, detachWal, sessions, userCredentials, users } from "@orb/db";
+import { assertReferentialIntegrity, closeDb, createDb, detachWal, sessions, userCredentials, users, workloadSchedules } from "@orb/db";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { parseCorpusWire } from "@orb/testkit/iso/corpus.ts";
@@ -72,6 +72,9 @@ test("a completed migrated capsule closes its real producers before cloning scru
   ]);
   expect(capsule.privateCaptures.knowledge.keywords.pairs.length).toBeGreaterThan(0);
   expect(capsule.privateCaptures.knowledge.themes.assignments.length).toBeGreaterThan(0);
+  expect(capsule.privateCaptures.rpg.restoredSnapshot.variantId).toBeNull();
+  expect(capsule.privateCaptures.rpg.reads.tracker.ambient?.location).toBe("Orbital loom");
+  expect(capsule.privateCaptures.rpg.schedules.completed).toMatchObject([{ status: "succeeded", kind: "reconcile-stats" }]);
   if (process.platform === "linux") {
     const ownedRoot = await realpath(capsule.layout.root);
     const descriptors = await Promise.all(
@@ -127,6 +130,9 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const clone = await createDb(fixture.layout.databaseUrl);
   try {
     await assertReferentialIntegrity(clone);
+    const schedules = capsule.privateCaptures.rpg.schedules;
+    expect(await clone.select().from(workloadSchedules).where(eq(workloadSchedules.id, schedules.stopped.id))).toEqual([schedules.stopped]);
+    expect(await clone.select({ id: workloadSchedules.id }).from(workloadSchedules).where(eq(workloadSchedules.id, schedules.deletedSchedule.id))).toEqual([]);
     expect((await clone.select({ id: sessions.id }).from(sessions)).length).toBe(0);
     expect((await clone.select({ id: userCredentials.id }).from(userCredentials)).length).toBe(0);
     expect((await clone.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash))).length).toBe(0);
