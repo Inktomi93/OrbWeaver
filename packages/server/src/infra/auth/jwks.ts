@@ -22,9 +22,9 @@ import { createHash } from "node:crypto";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { JWTPayload } from "jose";
-import { createLocalJWKSet, createRemoteJWKSet, jwtVerify } from "jose";
+import { createLocalJWKSet, createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 import { securityEvent } from "#foundation/observability";
-import type { ForwardJwtClaims, ForwardJwtVerifier, ForwardJwtVerifyArgs } from "./contract.ts";
+import type { ForwardJwtClaims, ForwardJwtVerifier, ForwardJwtVerifyArgs, JwksKeySet, JwksReader } from "./contract.ts";
 import { normalizeHost } from "./host.ts";
 
 // authentik joins groups with "|"; tolerate commas too. Mirrors modes/forward-header.ts' unsigned parser
@@ -40,7 +40,7 @@ const PINNED_ALGS = ["RS256", "ES256"] as const;
  *  varies the header per request, not a legitimate rotating key set. */
 const JWKS_CACHE_CAP = 32;
 
-type AnyKeySet = ReturnType<typeof createLocalJWKSet> | ReturnType<typeof createRemoteJWKSet>;
+type AnyKeySet = JwksKeySet;
 
 /** Tiny LRU: Map iteration order = insertion order; `delete+set` on read promotes to most-recent; on
  *  insert past cap, evict the least-recent (oldest key). No dep added. */
@@ -90,9 +90,9 @@ function cacheKey(metaJwks: string): string {
  * regardless of the allowlist because it is not an egress vector; the URL path is the only user-influenced
  * outbound reference, so it is https-gated + allowlist-gated.
  */
-export function jwksFor(metaJwks: string, allowlist: readonly string[]): AnyKeySet | null {
+function readJwks(cache: LruMap<string, AnyKeySet>, execution: typeof fetch, metaJwks: string, allowlist: readonly string[]): AnyKeySet | null {
   const key = cacheKey(metaJwks);
-  const cached = jwksCache.get(key);
+  const cached = cache.get(key);
   if (cached !== undefined) {
     return cached;
   }
@@ -127,13 +127,30 @@ export function jwksFor(metaJwks: string, allowlist: readonly string[]): AnyKeyS
       );
       return null;
     }
-    // createRemoteJWKSet fetches lazily via the global fetch (undici) at first verify — the egress
-    // firewall's swapped global dispatcher gates that fetch (SSRF), and the allowlist gate above is the
-    // primary belt. jose memoizes the fetched set and refetches on an unknown `kid` (rotation-safe).
-    set = createRemoteJWKSet(url);
+    // JOSE owns lazy retrieval, caching and key rotation; the injected execution retains the caller's
+    // physical guard and lifetime, while this reader keeps the HTTPS/allowlist admission unchanged.
+    set = createRemoteJWKSet(url, { [customFetch]: execution });
   }
-  jwksCache.set(key, set);
+  cache.set(key, set);
   return set;
+}
+
+/** The process-compatible forward-header reader retains its existing cache and native transport. */
+export function jwksFor(metaJwks: string, allowlist: readonly string[]): AnyKeySet | null {
+  return readJwks(jwksCache, fetch, metaJwks, allowlist);
+}
+
+/** Own one configured client's key cache without replacing another graph's keys or fetch operation. */
+export function createJwksReader(execution: typeof fetch): JwksReader {
+  const cache = new LruMap<string, AnyKeySet>(JWKS_CACHE_CAP);
+  let disposed = false;
+  return {
+    jwksFor: (metaJwks, allowlist) => (disposed ? null : readJwks(cache, execution, metaJwks, allowlist)),
+    [Symbol.dispose]: (): void => {
+      disposed = true;
+      cache.clear();
+    },
+  };
 }
 
 function groupsFromClaim(claim: unknown): string[] {

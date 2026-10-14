@@ -4,9 +4,11 @@
 
 import type { AuthMode, ResolvedIdentity } from "@orb/contracts/identity";
 import type { ExternalId, Handle } from "@orb/kit/ids";
+import type { createLocalJWKSet, createRemoteJWKSet } from "jose";
 // `authorizationCodeGrant` is imported TYPE-ONLY (it is named solely in a `typeof` position for
 // {@link OidcCodeGrant}) so this contract module stays value-free and pulls no library code into a type import.
 import type { authorizationCodeGrant, Configuration } from "openid-client";
+import type { env } from "#foundation/env";
 
 /** Parsed auth config, passed explicitly so unit tests can vary mode/fallback without re-parsing env. */
 export interface AuthConfig {
@@ -93,14 +95,14 @@ export interface OidcVerifiedTokens {
  * maps a transaction onto the grant's checks, and it is the adapter.
  *
  * IT THROWS, AND THAT IS THE CONTRACT. A replayed/expired code, an issuer/audience/nonce/state mismatch,
- * a bad signature, or a transient IdP fault all reject — the route's fail-closed handler converts the
+ * a malformed token, or a transient IdP fault all reject — the route's fail-closed handler converts the
  * throw into a sanitized error code and mints no session. An implementation that swallowed a failure into
  * a resolved value would move the fail-closed decision out of the route that owns it.
  */
 export type OidcExchange = (config: Configuration, callbackUrl: URL, tx: OidcTransaction) => Promise<OidcVerifiedTokens>;
 
 /** #867 — the raw `openid-client` grant `createOidcExchange` closes over. Named as a type so the ONE value
- *  binding to the library lives at the composition root (`entry/lifecycle.ts`) and the adapter's
+ *  binding to the library lives at the composition root (`entry/compose/oidc.ts`) and the adapter's
  *  transaction→checks mapping is provable without an IdP — the same shape `createOidcConfigCache(discover)`
  *  already uses for discovery. */
 export type OidcCodeGrant = typeof authorizationCodeGrant;
@@ -189,4 +191,29 @@ export interface IdentityResolution {
   identity: ResolvedIdentity | null;
   via: "header" | "fallback";
   hasCsrfHeader: boolean;
+}
+
+/** The configured OIDC client reads the same validated startup settings as production lifecycle. */
+export type OidcSettings = Pick<
+  typeof env,
+  | "OIDC_ISSUER"
+  | "OIDC_CLIENT_ID"
+  | "OIDC_CLIENT_SECRET"
+  | "OIDC_REDIRECT_URIS"
+  | "OIDC_SCOPES"
+  | "OIDC_USERNAME_CLAIM"
+  | "OIDC_UID_CLAIM"
+  | "OIDC_GROUPS_CLAIM"
+  | "OIDC_EMAIL_CLAIM"
+  | "OIDC_GROUPS_SEPARATOR"
+  | "OIDC_SIGNUP"
+  | "OIDC_REQUIRE_APPROVAL"
+  | "OIDC_BACKCHANNEL_LOGOUT"
+>;
+
+export type JwksKeySet = ReturnType<typeof createLocalJWKSet> | ReturnType<typeof createRemoteJWKSet>;
+
+/** One configured verifier's native key-set cache; physical HTTP belongs to its injected graph transport. */
+export interface JwksReader extends Disposable {
+  readonly jwksFor: (metaJwks: string, allowlist: readonly string[]) => JwksKeySet | null;
 }

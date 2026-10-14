@@ -69,3 +69,8 @@ export function authConfigFromEnv(): AuthConfig {
     ...(env.FORWARD_AUTH_JWT_AUDIENCE !== undefined ? { jwtAudience: env.FORWARD_AUTH_JWT_AUDIENCE } : {}),
   };
 }
+
+/** The configured callback URLs, shared by owner-claim publication and OIDC route construction. */
+export function oidcRedirectAllowlist(raw: string | undefined): readonly string[] {
+  return parseCsv(raw);
+}

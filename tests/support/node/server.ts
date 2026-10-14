@@ -12,7 +12,8 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import { ownerHandles } from "@orb/server/domain/sessions";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
-import type { createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
+import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
+import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
@@ -41,6 +42,7 @@ export interface ServerHarnessOptions
   readonly authConfig?: Parameters<typeof createHttpApp>[0]["authConfig"];
   readonly physicalPeer?: Parameters<typeof createHttpApp>[0]["physicalPeer"];
   readonly ownerId?: UserId;
+  readonly oidc?: NonNullable<Parameters<typeof createConfiguredOidc>[0]["settings"]>;
   readonly providerFetch?: typeof fetch;
   readonly sdkQuery?: AgentSdkQuery;
   readonly sdkSpawn?: AgentSdkSpawn;
@@ -48,6 +50,13 @@ export interface ServerHarnessOptions
   readonly modelKernelModule?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["kernelModule"];
   readonly allowRemoteModels?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["allowRemoteModels"];
 }
+
+export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId" | "authConfig"> & {
+  readonly ownerId: null;
+  readonly authConfig: NonNullable<ServerHarnessOptions["authConfig"]> & { readonly mode: "oidc" };
+};
+
+export type UnclaimedServerTestHarness = Omit<ServerTestHarness, "ownerId">;
 
 export interface ServerTestHarness extends AsyncDisposable {
   readonly app: ServicesResult;
@@ -66,6 +75,7 @@ export interface ServerTestHarness extends AsyncDisposable {
   readonly listen: () => Promise<Readonly<AddressInfo>>;
   readonly importStagingDir: string;
   readonly modelCacheDir: string;
+  readonly ownerClaimFile?: string;
   readonly settleBackground: ServicesResult["settleBackground"];
 }
 
@@ -139,8 +149,93 @@ async function directoriesFor(
   return paths;
 }
 
+async function closeHarnessGraph(
+  http: OwnedHttpRequests | undefined,
+  oidc: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined,
+  app: ServicesResult | undefined,
+): Promise<void> {
+  const settled = await Promise.allSettled([http?.[Symbol.asyncDispose](), oidc?.[Symbol.asyncDispose](), app?.[Symbol.asyncDispose]()]);
+  const failures: Error[] = [];
+  for (const result of settled) {
+    if (result.status === "rejected") {
+      failures.push(result.reason instanceof Error ? result.reason : new Error("server harness graph disposal failed", { cause: result.reason }));
+    }
+  }
+  if (failures.length === 1) {
+    throw failures[0];
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, "server harness graph disposal failed");
+  }
+}
+
+type HarnessConstruction = Pick<ServerTestHarness, "db" | "clock" | "idSource" | "timers"> & {
+  readonly authConfig: NonNullable<ServerHarnessOptions["authConfig"]>;
+  readonly rootDir: string;
+};
+
+async function prepareHarnessOwner(
+  options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
+  { db, clock, idSource, authConfig }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "authConfig">,
+): Promise<UserId | undefined> {
+  if (options.ownerId === null) {
+    return;
+  }
+  const ownerId = options.ownerId ?? idSource.unprefixed<UserId>();
+  if (options.ownerId === undefined) {
+    await seedUser(
+      db,
+      { id: ownerId, handle: castId<Handle>(ownerHandles()[0] ?? authConfig.defaultHandle), role: "owner", createdAt: clock.now(), updatedAt: clock.now() },
+      idSource,
+    );
+  }
+  return ownerId;
+}
+
+async function configuredOidcFor(
+  options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
+  app: ServicesResult,
+  { db, authConfig, clock, timers, rootDir }: Omit<HarnessConstruction, "idSource">,
+): Promise<(Awaited<ReturnType<typeof createConfiguredOidc>> & { readonly ownerClaimFile: string }) | undefined> {
+  if (authConfig.mode !== "oidc") {
+    return;
+  }
+  await using construction = new AsyncDisposableStack();
+  const { createConfiguredOidc: assembleOidc } = await import("@orb/server/entry/compose");
+  const oidc = construction.use(
+    await assembleOidc({
+      db,
+      now: clock.now,
+      built: app,
+      scheduleInterval: timers.interval,
+      ...(options.oidc === undefined ? {} : { settings: options.oidc }),
+    }),
+  );
+  const ownerClaimFile = join(rootDir, "owner-claim-url");
+  await announceOwnerClaim({
+    log: getLog(),
+    sessions: app.sessions,
+    ownerId: await app.sessions.getOwnerUserId(),
+    ownerClaim: oidc.ownerClaim,
+    redirectAllowlist: oidc.redirectAllowlist,
+    claimUrlFile: ownerClaimFile,
+    inContainer: false,
+  });
+  const lifetime = construction.move();
+  return {
+    ...oidc,
+    ownerClaim: removeOwnerClaimFileOnSpend(oidc.ownerClaim, ownerClaimFile),
+    ownerClaimFile,
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
+  };
+}
+
 /** Build an owned in-process server graph; a supplied database remains its caller's resource. */
-export async function createServerHarness(options: ServerHarnessOptions = {}): Promise<ServerTestHarness> {
+export function createServerHarness(options: UnclaimedServerHarnessOptions): Promise<UnclaimedServerTestHarness>;
+export function createServerHarness(options?: ServerHarnessOptions): Promise<ServerTestHarness>;
+export async function createServerHarness(
+  options: ServerHarnessOptions | UnclaimedServerHarnessOptions = {},
+): Promise<ServerTestHarness | UnclaimedServerTestHarness> {
   await using construction = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: native rollback owns this timer until transfer; the missing-directory control proves disposal before adoption.
   let pendingTimers = options.timers;
@@ -161,36 +256,11 @@ export async function createServerHarness(options: ServerHarnessOptions = {}): P
   const authConfig = options.authConfig ?? authConfigFromEnv();
   let appLifetime: ServicesResult | undefined;
   let httpLifetime: OwnedHttpRequests | undefined;
-  construction.defer(async () => {
-    const settled = await Promise.allSettled([httpLifetime?.[Symbol.asyncDispose](), appLifetime?.[Symbol.asyncDispose]()]);
-    const failures: Error[] = [];
-    for (const result of settled) {
-      if (result.status === "rejected") {
-        failures.push(result.reason instanceof Error ? result.reason : new Error("server harness graph disposal failed", { cause: result.reason }));
-      }
-    }
-    if (failures.length === 1) {
-      throw failures[0];
-    }
-    if (failures.length > 1) {
-      throw new AggregateError(failures, "server harness graph disposal failed");
-    }
-  });
+  let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined;
+  construction.defer(() => closeHarnessGraph(httpLifetime, oidcLifetime, appLifetime));
   const { casDir, variantDir, importStagingDir, userRuntimeDir, modelCacheDir, stProfileDir } = await directoriesFor(rootDir, options);
-  const ownerId = options.ownerId ?? idSource.unprefixed<UserId>();
-  if (options.ownerId === undefined) {
-    await seedUser(
-      db,
-      {
-        id: ownerId,
-        handle: castId<Handle>(ownerHandles()[0] ?? authConfig.defaultHandle),
-        role: "owner",
-        createdAt: clock.now(),
-        updatedAt: clock.now(),
-      },
-      idSource,
-    );
-  }
+  const inputs: HarnessConstruction = { db, clock, idSource, timers, authConfig, rootDir };
+  const ownerId = await prepareHarnessOwner(options, inputs);
   const { createHttpApp: assembleHttp, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
   const app = await createServices({
     authConfig,
@@ -219,6 +289,8 @@ export async function createServerHarness(options: ServerHarnessOptions = {}): P
   appLifetime = app;
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
+  const configuredOidc = await configuredOidcFor(options, app, inputs);
+  oidcLifetime = configuredOidc;
   let closing = false;
   const httpApp = assembleHttp({
     built: app,
@@ -235,6 +307,7 @@ export async function createServerHarness(options: ServerHarnessOptions = {}): P
     relayHosts: () => [],
     shareState: NO_SHARE_RELAY.relay.status,
     oidcProviderName: "Harness identity provider",
+    ...(oidcLifetime === undefined ? {} : { oidc: oidcLifetime }),
     onOwnerClaimed: () => {
       app.supervise("server-harness-owner-claim", "share.resumeAfterOwnerClaim", {}, async () => {
         getLog().info({ outcome: await app.services.share.resumeAfterOwnerClaim() }, "share owner claim settled");
@@ -278,7 +351,8 @@ export async function createServerHarness(options: ServerHarnessOptions = {}): P
     ids,
     idSource,
     timers,
-    ownerId,
+    ...(ownerId === undefined ? {} : { ownerId }),
+    ...(configuredOidc === undefined ? {} : { ownerClaimFile: configuredOidc.ownerClaimFile }),
     principalFor,
     internalCallerFor,
     actor,

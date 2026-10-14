@@ -1,7 +1,7 @@
 // infra/auth/oidc-exchange — THE AUTHORIZATION-CODE → TOKEN EXCHANGE, as an injectable adapter (#867).
 //
 // It lives here, beside `oidc-discovery.ts`, for the same reason and in the same shape: this is external
-// I/O (an HTTPS POST to the IdP's token endpoint plus the JWKS work to verify the returned ID token), infra
+// I/O (an HTTPS POST to the IdP's token endpoint and native processing of its ID-token response), infra
 // is where the sealed executors live, and the CALLER injects the round-trip — which is what makes the
 // contract provable without an IdP.
 //
@@ -13,7 +13,7 @@
 // the doctrine's own answer: fake at the edges, wire the real thing at the composition root.
 //
 // WHAT THIS FILE MUST NEVER GROW INTO. It is a NARROWING ADAPTER and nothing else:
-//   • It does NOT catch. Every failure the grant raises — replayed/expired code, bad signature,
+//   • It does NOT catch. Every failure the grant raises — replayed/expired code, malformed token,
 //     issuer/audience/nonce/state mismatch, a transient IdP fault — propagates to the route, which owns the
 //     ONE fail-closed conversion (sanitize the code, mint no session). A catch here would move that decision
 //     away from the tier that answers the browser, and a swallowed failure that resolved would mint a
@@ -28,7 +28,7 @@
 //
 // THERE IS NO DEFAULT GRANT AND NO ENV KNOB, deliberately: a switch that could substitute the exchange
 // would be an authentication bypass wearing a test affordance. The single production binding is
-// `entry/lifecycle.ts`, and `tsc` enforces the signature there.
+// `entry/compose/oidc.ts`, and `tsc` enforces the signature there.
 
 import type { Configuration } from "openid-client";
 import type { OidcCodeGrant, OidcExchange, OidcTransaction, OidcVerifiedTokens } from "./contract.ts";
@@ -42,7 +42,7 @@ import type { OidcCodeGrant, OidcExchange, OidcTransaction, OidcVerifiedTokens }
  * IdP saw even behind a proxy.
  *
  * The ID token is returned ALONGSIDE the claims rather than re-derived later: the grant has already
- * verified it (signature, issuer, audience, nonce, PKCE), and this is the only moment the raw compact JWT
+ * validated the TLS-authenticated response (issuer, audience, nonce and code-flow checks), and this is the only moment the raw compact JWT
  * exists in the process.
  */
 export function createOidcExchange(grant: OidcCodeGrant): OidcExchange {

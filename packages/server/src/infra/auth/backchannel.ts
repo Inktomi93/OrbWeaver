@@ -15,6 +15,7 @@
 import type { JWTPayload } from "jose";
 import { jwtVerify } from "jose";
 import { securityEvent } from "#foundation/observability";
+import type { JwksReader } from "./contract.ts";
 import { jwksFor } from "./jwks.ts";
 
 // The back-channel-logout event URI the `events` claim MUST carry (OIDC BCL §2.4).
@@ -69,10 +70,10 @@ function subjectFrom(payload: JWTPayload): LogoutTokenSubject | null {
 
 /** The back-channel-logout verifier the entry route injects. Returns the validated subject, or null on ANY
  *  violation (bad signature / issuer / audience / missing iat / missing event / present nonce / no subject). */
-export function createBackchannelLogoutVerifier(): BackchannelLogoutVerifier {
+export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"] = jwksFor): BackchannelLogoutVerifier {
   return {
     verify: async ({ logoutToken, jwks, issuer, audience }: BackchannelVerifyArgs): Promise<LogoutTokenSubject | null> => {
-      const keyset = jwksFor(jwks, []);
+      const keyset = readKeyset(jwks, []);
       if (keyset === null) {
         // jwksFor already emitted its own securityEvent for the rejection reason.
         return null;

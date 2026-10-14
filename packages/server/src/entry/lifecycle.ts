@@ -14,14 +14,12 @@ import type { AuthMode, Principal } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, optimizeDb, preCloseHousekeeping } from "@orb/db";
-import type { SessionToken, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
-import type { Configuration } from "openid-client";
-import { authorizationCodeGrant, discovery } from "openid-client";
 import type { ServerRestartPort } from "#domain/admin";
 
-import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
+import { createSessionsService, ownerHandles } from "#domain/sessions";
 import type { CertificateBootOutcome, CertificateController, ShareBootOutcome } from "#domain/share";
 import { createCertificateController, createRelayController } from "#domain/share";
 
@@ -45,15 +43,7 @@ import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#found
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import { ACME_POLLING, createAcmeIssuer, createCertificateStore, LETS_ENCRYPT_DIRECTORY, openChallengeResponder } from "#infra/acme";
-import type { OwnerClaimCode } from "#infra/auth";
-import {
-  createBackchannelLogoutVerifier,
-  createOidcConfigCache,
-  createOidcExchange,
-  createOwnerClaimCode,
-  createPasswordHasher,
-  createRelayHostRegistry,
-} from "#infra/auth";
+import { createOwnerClaimCode, createPasswordHasher, createRelayHostRegistry, oidcRedirectAllowlist } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
 import {
   drainHttpServer,
@@ -66,8 +56,6 @@ import {
 } from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
-
-import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler.ts";
 
 import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
 import {
@@ -101,9 +89,7 @@ import {
 } from "./boot/index.ts";
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 
-import type { ServicesResult } from "./compose/index.ts";
-import { createHttpApp, createServices } from "./compose/index.ts";
-import type { OidcRoutesDeps } from "./http/index.ts";
+import { createConfiguredOidc, createHttpApp, createServices } from "./compose/index.ts";
 
 /** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
 interface OwnedWorkloadsWorker {
@@ -203,73 +189,6 @@ function missingSessionSecretMessage(mode: AuthMode, keyfile: string | null): st
   return `boot: AUTH_MODE=${mode} needs a session secret, and ${keyfile} could not be read or generated (the crypto: line above says why). Set SESSION_SECRET (32+ characters), or fix that file.`;
 }
 
-/** AUTH_MODE=oidc's route dependencies plus the store's GC sweeper, built together because the sweeper's
- *  subject IS the store these deps carry — returning the stop handle keeps the teardown's ownership with the
- *  thing that started it. The issuer discovery is lazy + SINGLE-FLIGHT-memoized (a cold IdP must not fail
- *  boot; the concurrency contract — one shared attempt, no cached rejection — is `infra/auth/oidc-discovery`
- *  and is proven there, #762). */
-function buildOidcDeps(
-  db: Db,
-  now: () => number,
-  built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections">,
-  ownerClaim: OwnerClaimCode,
-): { oidc: OidcRoutesDeps; stopOidcGc: () => void } {
-  const issuerUrlStr = env.OIDC_ISSUER ?? "";
-  const issuerUrl = issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
-  const clientId = env.OIDC_CLIENT_ID ?? "";
-  const clientSecret = env.OIDC_CLIENT_SECRET;
-  const store = createOidcStore(db, now);
-  // #762 — ONE shared in-flight discovery per process; a rejection is never cached (the next caller
-  // retries). The cache module owns that contract; this root only supplies the round-trip.
-  const getConfig = createOidcConfigCache((): Promise<Configuration> => discovery(issuerUrl, clientId, clientSecret));
-  return {
-    oidc: {
-      // #867 — THE REAL code→token exchange. This is the ONE site that binds the callback to
-      // `openid-client`'s `authorizationCodeGrant`; the route and the adapter hold only types, which is what
-      // lets a test drive the whole callback (and the adapter's own checks mapping) with a deterministic
-      // fake and no IdP. Nothing here is env-switchable on purpose: a knob that could swap the exchange for
-      // a fake would be an authentication bypass wearing a test affordance.
-      exchange: createOidcExchange(authorizationCodeGrant),
-      redirectAllowlist: oidcRedirectAllowlist(),
-      scope: env.OIDC_SCOPES,
-      claims: {
-        usernameClaim: env.OIDC_USERNAME_CLAIM,
-        uidClaim: env.OIDC_UID_CLAIM,
-        groupsClaim: env.OIDC_GROUPS_CLAIM,
-        emailClaim: env.OIDC_EMAIL_CLAIM,
-      },
-      // A4 — split a separator-joined groups claim (authentik property mappings) into an array.
-      groupsSeparator: env.OIDC_GROUPS_SEPARATOR,
-      // A1/A2 — resolve the OIDC admission decisions from env HERE (the oidc-only caller) and pass them into
-      // provisionIdentity; the verb stays mode-agnostic and forward-header JIT is never gated by these.
-      allowJitProvision: env.OIDC_SIGNUP,
-      requireApproval: env.OIDC_REQUIRE_APPROVAL,
-      store,
-      getConfig,
-      // A5 — register the back-channel logout endpoint only when OIDC_BACKCHANNEL_LOGOUT=on. The verifier
-      // is the sealed infra/auth JWKS checker; clientId is the required `aud` on the logout_token.
-      ...(env.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier().verify, clientId } } : {}),
-      // D259 — signup through an invite for an identity the JIT gate closes on: the pending join and its confirm.
-      signup: {
-        invites: built.signupInvites,
-        pending: built.sessions,
-        sessionIsLive: async (token: SessionToken): Promise<boolean> => (await built.sessions.validate(token)) !== null,
-        seedUserConnections: built.seedUserConnections,
-      },
-      ownerClaim,
-    },
-    stopOidcGc: startOidcGcScheduler({ sweep: store.deleteExpired, now, scheduleInterval }),
-  };
-}
-
-/** The full OIDC callback URLs the per-request derived origin must exact-match (`OIDC_REDIRECT_URIS`). */
-function oidcRedirectAllowlist(): readonly string[] {
-  return (env.OIDC_REDIRECT_URIS ?? "")
-    .split(",")
-    .map((u) => u.trim())
-    .filter((u) => u.length > 0);
-}
-
 // @orb-waive no-inline-package-interface(Lifecycle): baselined when the gate landed; burn-down item 952.
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
@@ -304,7 +223,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let loopbackServer: ServerType | null = null;
   let listenerAddress: Readonly<AddressInfo> | null = null;
   let stopPlannerMaintenance: (() => Promise<void>) | null = null;
-  let stopOidcGc: (() => void) | null = null;
+  let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | null = null;
   let stopBuddyObserver: (() => void) | null = null;
 
   let stopLocalLightPrefetch: (() => void) | null = null;
@@ -318,7 +237,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   // RATIFIED (#596). boot is the ORDERED startup protocol, and its score is the protocol's LENGTH, not tangled
   // control flow: fail-closed guards on the sequence plus one conditional column per optional dependency, each
   // at real nesting depth 0 and each DOUBLED by biome's enclosing-closure nesting penalty. The genuinely nested
-  // wiring HAS been lifted out (buildOidcDeps / scheduleInterval, #596 — 57 → 45); what is
+  // wiring HAS been lifted out (OIDC composition / scheduleInterval, #596 — 57 → 45); what is
   // left is the inventory this file exists to state IN ORDER, and splitting it further hides that ordering.
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the ordered boot protocol — ruling above
   async function boot(): Promise<void> {
@@ -452,7 +371,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         sessions: bootSessions,
         ownerId,
         ownerClaim,
-        redirectAllowlist: oidcRedirectAllowlist(),
+        redirectAllowlist: oidcRedirectAllowlist(env.OIDC_REDIRECT_URIS),
         claimUrlFile: ownerClaimFile,
         inContainer: bindPostureInput().inContainer,
       });
@@ -680,8 +599,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     built.startJobs();
 
-    const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now, built, ownerClaim) : undefined;
-    stopOidcGc = oidcWiring === undefined ? null : oidcWiring.stopOidcGc;
+    const oidcWiring = env.AUTH_MODE === "oidc" ? await createConfiguredOidc({ db, now, built, ownerClaim }) : undefined;
+    oidcLifetime = oidcWiring ?? null;
 
     const app = createHttpApp({
       built,
@@ -702,7 +621,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       relayHosts: relayHosts.hosts,
       shareState: relay.status,
       oidcProviderName: env.OIDC_PROVIDER_NAME,
-      ...(oidcWiring === undefined ? {} : { oidc: oidcWiring.oidc }),
+      ...(oidcWiring === undefined ? {} : { oidc: oidcWiring }),
     });
 
     const ownerPeers = resolveOwnerFallbackPeers(ownerFallbackPeerInput());
@@ -816,9 +735,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // an isolated prod instance: 12 ms idle, and exactly 10.001 s with one in-flight request.
       log.info("shutdown: http drained");
     }
-    if (stopOidcGc !== null) {
-      stopOidcGc();
-      stopOidcGc = null;
+    if (oidcLifetime !== null) {
+      const oidc = oidcLifetime;
+      oidcLifetime = null;
+      await oidc[Symbol.asyncDispose]();
     }
     if (stopBuddyObserver !== null) {
       stopBuddyObserver();
