@@ -116,7 +116,7 @@ Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it
 
 Gate families fold onto the shared readers:
 
-- Type homes: no-inline-types, no-inline-domain-interface, no-inline-wire-interface, no-inline-package-interface, types-in-contract and contract-banned-shapes become one Spine-TypeScript section 7.4 gate driven by the type-home table.
+- Type homes: the inline alias and interface policies converge on one Spine-TypeScript section 7.4 placement judgment and home table. Native restrictions own covered syntax. Service-presence and ledger field bans retain separate hard enforcement until successor coverage is proved. Component-owned APIs stay beside their components; lower-owned data stays derived.
 - JSON columns: json-column-read-parsed, json-column-write-parity and open-json-column-key-parity become one JSON-column fact with three judgements.
 - Copies: contract-structural-copy, contract-derives-not-respells, test-hand-shape and test-production-clone become one copy family over the shape reader, judged by population.
 

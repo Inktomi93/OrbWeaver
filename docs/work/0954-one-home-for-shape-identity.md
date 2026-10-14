@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-13
+status: doing
+updated: 2026-10-14
 priority: P1
+lane: codex/type-homes-981
 plan: test-foundation
 ---
 

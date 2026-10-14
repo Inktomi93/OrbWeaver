@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-03
+updated: 2026-10-14
 ---
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
@@ -19,9 +19,14 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **domain-internal** | that domain's `contract/` (params/results/views/errors) | only that domain |
 | **package-internal** | that package's sanctioned `src/contract/` (`@orb/inference` today) | only that package and its public root |
 | **client-only view** | client | client |
+| **component-owned props and render API** | the owning UI or client component module | component callers and tests |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
-**The rule:** no exported `type`/`interface`/`z.object` (and no structural cast) declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / a sanctioned package `src/contract/` / `kit`. Inline shapes in `verbs/`, `persistence/`, `service.ts`, transport, or client components are RED.
+**The rule:** exported types, interfaces and schemas belong in the homes above. Domain, wire and database shapes never move into a component.
+
+Component-owned prop and render APIs may stay beside their component. Derive native props, callbacks and variants from the installed library types. Derive domain, wire and database data from their canonical owners. A name ending in `Props` does not establish component ownership. Tests use the owning component's exported API type. Otherwise, derive its props through React's type-only `ComponentProps` helper against that component. Neither path bypasses the sealed UI package. Tests never maintain a parallel prop contract. Package direction still applies: UI imports no application contracts. Ledger-sanctioned UI structural mirrors retain their existing cross-package conformance checks.
+
+Inline application shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. Existing placement gates do not yet establish this complete home table.
 
 **The gates (`tooling/src/verify/gates/`, ts-morph, live):**
 

@@ -41,7 +41,7 @@ Reviewed source `505c900fb5` produces native OIDC claim, pending and session cap
 
 The same batch uses real automation producers for watcher conditions, caps, manual-run provenance, state and foreign-owner refusal. Removing the subject guard produces an extra fired row for a stranger's asset. Finite request recipes admit only validated outputs and exact captured inputs. Private captures stay Node-owned.
 
-Reviewed source `b78b5b8d0a` proves genuine SDK session lineage through canonical greeting, start and send producers, with an empty-seed no-row control. The funding qualification owns this case; corpus work reuses its evidence instead of copying its producer.
+Reviewed source `b78b5b8d0a` proves native SDK session lineage and the empty-seed no-row control. Reuse its funding controls.
 
 Reviewed source `800bd9d45a` captures native plugin/provider lifecycle and private rows. Consent, repeats, failure containment and physical clone controls pass. Injected edit stamps fix the world-info clock defect.
 
@@ -49,4 +49,4 @@ Reviewed source `aea5f56d54` produces refinery and discovery rows through real a
 
 Persisted workload funding is integrated. The expanded native capsule passes with the funder FK, producer completion, secret stripping and independent database and asset clones.
 
-Reviewed source `3303ed4825` adds native RPG hand state and schedule variants. Atomic journal normalization passes held-driver races. The clone retains a real disabled recurring row. Reviewed source `5cef750b0d` captures native population, resync and changed folded RPG turns. The normalized model journal label persists through a compiler-closed row; native defect and capsule controls pass. Remaining recipes include arc themes, swipe re-rolls and raw-image geometry/facets. Committed corpus publication and every-layer adoption remain open.
+Reviewed source `3303ed4825` adds native RPG hand state and schedule variants. Atomic journal normalization passes held-driver races. The clone retains a real disabled recurring row. Reviewed source `5cef750b0d` captures native population, resync and changed folded RPG turns. The normalized model journal label persists through a compiler-closed row; native defect and capsule controls pass. Reviewed source `80bd8e5102` adds native arcs, swipe selection and GIF raw/captioned geometry and facets. Invalid multimodal requests refuse; conversion assertions inspect decoded PNG bytes. Complete builder coverage, committed corpus and every-layer adoption remain open.
