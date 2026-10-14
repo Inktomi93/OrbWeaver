@@ -30,6 +30,7 @@ import type {
   seedSyntheticCorpus as produceSyntheticCorpus,
   SeedSyntheticCorpusOptions,
 } from "./corpus-seed.ts";
+import type { seedCorpusStatsSettings as produceCorpusStatsSettings } from "./corpus-stats-settings.ts";
 import type { seedUserCredential as produceCredential } from "./factories/credentials.ts";
 import type { ServerHarnessOptions } from "./server.ts";
 
@@ -49,6 +50,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly statsSettings: Awaited<ReturnType<typeof produceCorpusStatsSettings>>;
   readonly libraryViews: Awaited<ReturnType<typeof produceCorpusLibraryViews>>;
   readonly connection: Awaited<ReturnType<typeof produceCorpusConnection>>;
   readonly search: Awaited<ReturnType<typeof produceCorpusSearch>>;
@@ -156,6 +158,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusRpgRounds } = await import("./corpus-rpg-rounds.ts");
   const { seedCorpusSearch } = await import("./corpus-search.ts");
   const { seedCorpusConnection } = await import("./corpus-connection.ts");
+  const { seedCorpusStatsSettings } = await import("./corpus-stats-settings.ts");
   const { createCorpusConnectionWire } = await import("./corpus-connection-wire.ts");
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
@@ -254,6 +257,11 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     throw new Error("completed native connection corpus left unspent physical recipes");
   }
   const libraryViews = await seedCorpusLibraryViews(root, libraries, actors);
+  const statsSettings = await seedCorpusStatsSettings(root, {
+    characterId: knowledgeVariants.character.id,
+    personaId: libraries.persona.id,
+    foreignUserId: actors.secondUserId,
+  });
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -284,6 +292,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       search,
       connection,
       libraryViews,
+      statsSettings,
     },
   };
 }

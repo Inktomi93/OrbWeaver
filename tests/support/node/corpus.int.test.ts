@@ -22,12 +22,16 @@ import {
   imageryGenerations,
   imageryImportCalls,
   messageReactions,
+  ownerStats,
   pendingTurns,
   sessions,
+  themes,
   userCredentials,
+  userSettings,
   users,
   workloadSchedules,
 } from "@orb/db";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { parseCorpusWire } from "@orb/testkit/iso/corpus.ts";
@@ -167,6 +171,18 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const search = capsule.privateCaptures.search;
   const connections = capsule.privateCaptures.connection;
   const libraryViews = capsule.privateCaptures.libraryViews;
+  const statsSettings = capsule.privateCaptures.statsSettings;
+  expect(statsSettings.stats.character.output).toMatchObject({ characterId: variants.character.id, assistantTurns: 1, swipes: 2 });
+  expect(statsSettings.stats.overview.output?.assistantTurns).toBeGreaterThan(0);
+  expect(statsSettings.stats.byModel.output.some((row) => row.generations > 0 && row.tokensOutProvenance === "measured")).toBe(true);
+  expect(statsSettings.stats.personas.output.find((row) => row.personaId === statsSettings.history.personaId)?.chatCount).toBeGreaterThan(0);
+  expect(statsSettings.stats.boundary.output).toEqual([statsSettings.stats.timeseries.output[0]]);
+  expect(statsSettings.afterRepeat.overview.output).toEqual(statsSettings.stats.overview.output);
+  expect(statsSettings.settings.duplicate.output.css).toBe(statsSettings.settings.source.output.css);
+  expect(statsSettings.settings.source.output.css).not.toBeNull();
+  expect(statsSettings.settings.restored.output.config).toEqual(statsSettings.settings.before.output.config);
+  expect(statsSettings.settings.importedAgain.output.created).toBe(false);
+  expect(statsSettings.afterRefusals).toEqual(statsSettings.beforeRefusals);
   expect(libraryViews.regex.after.output.map((script) => script.id)).toEqual([libraryViews.regex.second.id, libraryViews.regex.first.id]);
   expect(libraryViews.world.orderedEntries.output.map((entry) => entry.id)).toEqual([libraryViews.world.second.id, libraryViews.world.first.id]);
   expect(libraryViews.roster.appliedAgain.output).toMatchObject({
@@ -293,6 +309,19 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const clone = await createDb(fixture.layout.databaseUrl);
   try {
     await assertReferentialIntegrity(clone);
+    expect(await clone.select().from(ownerStats).where(eq(ownerStats.ownerId, capsule.privateCaptures.baseline.ownerId)).get()).toEqual(
+      statsSettings.rows.owner,
+    );
+    expect(
+      await clone
+        .select()
+        .from(themes)
+        .where(eq(themes.id, typeIdSchema(ID_PREFIX.theme).parse(statsSettings.settings.source.output.id)))
+        .get(),
+    ).toEqual(statsSettings.persisted.source);
+    expect(await clone.select().from(userSettings).where(eq(userSettings.userId, capsule.privateCaptures.baseline.ownerId)).get()).toEqual(
+      statsSettings.persisted.settings,
+    );
     expect(await captureDocumentChunks(clone, libraryViews.documents.created.output.document.id)).toEqual(libraryViews.documents.chunks);
     expect(await captureWorldBookRows(clone, libraryViews.world.book.id)).toEqual(libraryViews.world.persisted);
     expect(await captureRegexRows(clone, [libraryViews.regex.first.id, libraryViews.regex.second.id])).toEqual(libraryViews.regex.persisted);
