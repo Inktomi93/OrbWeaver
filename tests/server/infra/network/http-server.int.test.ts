@@ -1,4 +1,5 @@
 import "@orb/testkit/node/composed-real.ts";
+import type { IncomingMessage } from "node:http";
 import { request as nodeRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { drainHttpServer, joinNativeHttpRequest, serveHttpServer } from "@orb/server/infra/network";
@@ -139,46 +140,139 @@ test("owned physical cancellation aborts native clones and joins actual inbound 
   }
 });
 
-test("an unexpected native stream fault remains visible when owned cancellation races its error delivery", async () => {
+test("a real peer SSE disconnect aborts its actual request signal and joins both native closes without a transport fault", async () => {
   await using lifetime = new AsyncDisposableStack();
-  const stop = new AbortController();
-  const failure = new Error("controlled unexpected incoming-stream failure");
   const listening = Promise.withResolvers<AddressInfo>();
   const joined = Promise.withResolvers<PromiseSettledResult<void>[]>();
+  const cancelled = Promise.withResolvers<void>();
+  const nativeErrors: Array<{
+    readonly code: string | undefined;
+    readonly signalAborted: boolean;
+    readonly incomingDestroyed: boolean;
+    readonly incomingComplete: boolean;
+    readonly outgoingClosed: boolean;
+  }> = [];
+  const outgoingErrors: Error[] = [];
+  let initiallyAborted: boolean | undefined;
   let physicallyClosed = false;
   const server = serveHttpServer(
     {
       hostname: "127.0.0.1",
       port: 0,
-      fetch: async (_input, bindings) => {
-        const completion = Promise.allSettled([joinNativeHttpRequest(bindings, stop.signal)]);
-        bindings.incoming.destroy(failure);
-        stop.abort();
-        joined.resolve(await completion);
-        physicallyClosed = bindings.incoming.closed && bindings.outgoing.closed;
-        return new Response("native fault joined");
+      fetch: (input, bindings) => {
+        initiallyAborted = input.signal.aborted;
+        bindings.incoming.on("error", (error: NodeJS.ErrnoException) => {
+          nativeErrors.push({
+            code: error.code,
+            signalAborted: input.signal.aborted,
+            incomingDestroyed: bindings.incoming.destroyed,
+            incomingComplete: bindings.incoming.complete,
+            outgoingClosed: bindings.outgoing.closed,
+          });
+        });
+        bindings.outgoing.on("error", (error: Error) => outgoingErrors.push(error));
+        joined.resolve(
+          Promise.allSettled([joinNativeHttpRequest(bindings, input.signal)]).then((result) => {
+            physicallyClosed = bindings.incoming.closed && bindings.outgoing.closed;
+            return result;
+          }),
+        );
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller): void {
+              controller.enqueue(new TextEncoder().encode(`data: ${BODY}\n\n`));
+            },
+            cancel(): void {
+              cancelled.resolve();
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        );
       },
     },
     listening.resolve,
   );
   lifetime.defer(() => drainHttpServer(server, silentDrainLog));
   const address = await listening.promise;
+  const response = Promise.withResolvers<IncomingMessage>();
+  const delivered = Promise.withResolvers<string>();
   const clientClosed = Promise.withResolvers<void>();
-  const clientError = Promise.withResolvers<Error>();
-  const outgoing = nodeRequest(`http://${address.address}:${address.port}/fault`, { method: "POST", headers: { "transfer-encoding": "chunked" } });
-  outgoing.once("error", clientError.resolve);
-  outgoing.once("close", clientClosed.resolve);
-  outgoing.write(BODY);
+  const outgoing = nodeRequest(`http://${address.address}:${address.port}/events`, (received) => {
+    response.resolve(received);
+    received.setEncoding("utf8");
+    received.once("data", delivered.resolve);
+    received.once("close", clientClosed.resolve);
+  });
+  outgoing.end();
+  const incoming = await response.promise;
   try {
+    expect(await delivered.promise).toBe(`data: ${BODY}\n\n`);
+    expect(initiallyAborted).toBe(false);
+    incoming.destroy();
     const result = await joined.promise;
-    await clientClosed.promise;
+    await Promise.all([clientClosed.promise, cancelled.promise]);
     expect(physicallyClosed).toBe(true);
-    expect(result).toEqual([{ status: "rejected", reason: new AggregateError([failure], "native HTTP stream completion failed") }]);
-    expect(await clientError.promise).toMatchObject({ code: "ECONNRESET" });
+    expect(nativeErrors).toEqual([{ code: "ECONNRESET", signalAborted: true, incomingDestroyed: true, incomingComplete: true, outgoingClosed: true }]);
+    expect(outgoingErrors).toEqual([]);
+    expect(result).toEqual([{ status: "fulfilled", value: undefined }]);
   } finally {
-    stop.abort();
+    incoming.destroy();
     outgoing.destroy();
-    await clientClosed.promise;
-    await joined.promise;
+    await Promise.all([clientClosed.promise, joined.promise, cancelled.promise]);
   }
 });
+
+test.each([undefined, "ECONNRESET"])(
+  "an unexpected native stream fault with code %s remains visible when owned cancellation races its error delivery",
+  async (code) => {
+    await using lifetime = new AsyncDisposableStack();
+    const stop = new AbortController();
+    const failure = Object.assign(new Error("controlled unexpected incoming-stream failure"), { code });
+    const listening = Promise.withResolvers<AddressInfo>();
+    const joined = Promise.withResolvers<PromiseSettledResult<void>[]>();
+    let physicallyClosed = false;
+    let failedDuringAbort: boolean | undefined;
+    let completeAtError: boolean | undefined;
+    const server = serveHttpServer(
+      {
+        hostname: "127.0.0.1",
+        port: 0,
+        fetch: async (_input, bindings) => {
+          bindings.incoming.once("error", () => {
+            failedDuringAbort = stop.signal.aborted;
+            completeAtError = bindings.incoming.complete;
+          });
+          const completion = Promise.allSettled([joinNativeHttpRequest(bindings, stop.signal)]);
+          bindings.incoming.destroy(failure);
+          stop.abort();
+          joined.resolve(await completion);
+          physicallyClosed = bindings.incoming.closed && bindings.outgoing.closed;
+          return new Response("native fault joined");
+        },
+      },
+      listening.resolve,
+    );
+    lifetime.defer(() => drainHttpServer(server, silentDrainLog));
+    const address = await listening.promise;
+    const clientClosed = Promise.withResolvers<void>();
+    const clientError = Promise.withResolvers<Error>();
+    const outgoing = nodeRequest(`http://${address.address}:${address.port}/fault`, { method: "POST", headers: { "transfer-encoding": "chunked" } });
+    outgoing.once("error", clientError.resolve);
+    outgoing.once("close", clientClosed.resolve);
+    outgoing.write(BODY);
+    try {
+      const result = await joined.promise;
+      await clientClosed.promise;
+      expect(physicallyClosed).toBe(true);
+      expect(failedDuringAbort).toBe(true);
+      expect(completeAtError).toBe(false);
+      expect(result).toEqual([{ status: "rejected", reason: new AggregateError([new Error(failure.message)], "native HTTP stream completion failed") }]);
+      expect(await clientError.promise).toMatchObject({ code: "ECONNRESET" });
+    } finally {
+      stop.abort();
+      outgoing.destroy();
+      await clientClosed.promise;
+      await joined.promise;
+    }
+  },
+);

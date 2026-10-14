@@ -50,6 +50,7 @@ import { CORPUS_CHAT_MODEL, corpusImageryPhysicalBytes, createCorpusChatWire } f
 import { CORPUS_CONNECTION_FOREIGN_KEY, CORPUS_CONNECTION_HOSTED_KEY, CORPUS_CONNECTION_KEY, CORPUS_CONNECTION_MODEL } from "./corpus-connection-wire.ts";
 import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
+import { captureCorpusNotificationRows } from "./corpus-notifications.ts";
 import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 import { CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
@@ -175,6 +176,12 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const libraryViews = capsule.privateCaptures.libraryViews;
   const statsSettings = capsule.privateCaptures.statsSettings;
   const sdkSessions = capsule.privateCaptures.sdkSessions;
+  const notifications = capsule.privateCaptures.notifications;
+  expect(notifications.rows.length).toBeGreaterThan(0);
+  expect(notifications.inbox.afterRefusal).toEqual(notifications.inbox.beforeRefusal);
+  expect(notifications.inbox.foreignAfter).toEqual(notifications.inbox.foreignBefore);
+  expect(notifications.live).toContain(notifications.kicked.id);
+  expect(notifications.liveSockets).toBe(0);
   expect(sdkSessions.empty.rows).toEqual([]);
   expect(sdkSessions.rows.length).toBeGreaterThan(0);
   expect(sdkSessions.rows.filter((row) => row.isPrimary).map((row) => row.connectionId)).toEqual([
@@ -266,6 +273,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   let sourceMarker: Awaited<ReturnType<typeof source.all>>;
   try {
     await assertReferentialIntegrity(source);
+    expect(await captureCorpusNotificationRows(source, notifications.recipientIds)).toEqual(notifications.rows);
     expect(await captureSdkSessionRows(source, sdkSessions.room.chat.id, sdkSessions.connection.id)).toEqual(sdkSessions.restored.rows);
     expect(await captureSdkSessionRows(source, sdkSessions.room.chat.id, sdkSessions.alternateConnection.id)).toEqual(sdkSessions.alternate.rows);
     expect(await captureRpgSnapshot(source, providerOriginal.id)).toEqual(providerOriginal);
@@ -310,6 +318,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(portable.oidc?.confirmation.chatId).toBe(capsule.privateCaptures.oidc.wire.confirmation.chatId);
   expect(portable.auth.signedInMe).toEqual(capsule.wire.auth.signedInMe);
   const privateValues = [
+    ...notifications.secrets,
     OWNER_PASSWORD,
     PROVIDER_KEY,
     CORPUS_SDK_TOKEN,
@@ -329,6 +338,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const clone = await createDb(fixture.layout.databaseUrl);
   try {
     await assertReferentialIntegrity(clone);
+    expect(await captureCorpusNotificationRows(clone, notifications.recipientIds)).toEqual(notifications.rows);
     expect(await captureSdkSessionRows(clone, sdkSessions.room.chat.id, sdkSessions.connection.id)).toEqual(sdkSessions.restored.rows);
     expect(await captureSdkSessionRows(clone, sdkSessions.room.chat.id, sdkSessions.alternateConnection.id)).toEqual(sdkSessions.alternate.rows);
     expect(await clone.select().from(ownerStats).where(eq(ownerStats.ownerId, capsule.privateCaptures.baseline.ownerId)).get()).toEqual(
@@ -424,4 +434,4 @@ test("a completed migrated capsule closes its real producers before cloning scru
   await access(capsule.layout.root);
   await capsule[Symbol.asyncDispose]();
   await expect(access(capsule.layout.root)).rejects.toMatchObject({ code: "ENOENT" });
-}, 15_000);
+}, 20_000);

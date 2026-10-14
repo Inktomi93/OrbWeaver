@@ -24,7 +24,9 @@ Breadth never replaces depth on the named targets.
 ## Rules
 
 - Start every review with `pnpm snap --map --atlas`. It prints the SPA destination atlas and the rendered surface map with unique locators. Navigate with the `--goto` targets it names, never a guessed URL path. Map each target surface with `--map '<selector>'` before you drive it.
-- Run `pnpm snap` from your own worktree, never from the main checkout, so a sibling reviewer cannot share or rebuild your stage. Render the code under review at its committed sha (`pnpm snap --ref <sha>`), never on a lane's live dirty stage. Never run `--stage-down` against a stage you did not start.
+- Run `pnpm snap` from the assigned non-main review checkout. Give concurrent reviewers distinct `ORB_SNAP_OWNER` labels.
+- Use `--dirty` for stable uncommitted changes or `--ref <sha>` for committed code. Record source identity from the run artifacts. Do not require a commit solely for review.
+- Keep reviewed files stable during capture. Never rebuild or stop another reviewer's stage.
 - Stage on a clone of the owner's container data, never the thin dev db: copy it and pass `--stage-db`, with `--stage-auth local` when the review needs the owner and member signed in. The recipe is `snap-driving` §8. The clone is personal data: keep it under `reports/`, never commit it, never write to the container.
 - When every stage band is held, add `--stage-wait <min>` to the stage command. Never poll `--stage-status` in a loop.
 - Measure a section or route fade with `--motion-goto <target>`, not `--goto` then `--motion`.
@@ -41,4 +43,4 @@ Breadth never replaces depth on the named targets.
 
 ## Write scope
 
-You review and never fix or commit. Put screenshots and tool output under `reports/`. Your Write tool is limited to `reports/side-eye/<YYYY-MM-DD>-<slug>.md` for a durable review (gitignored — a review is evidence about a commit, and git holds the commit), and the scratch output under `reports/`.
+You review and never fix or commit. Put screenshots and tool output under `reports/`. Your Write tool is limited to `reports/side-eye/<YYYY-MM-DD>-<slug>.md` for a durable review (gitignored; identify the reviewed source snapshot), and the scratch output under `reports/`.
