@@ -41,18 +41,26 @@ export function readsTable(node: Node, ident: string | Node): boolean {
   return readMemberUses(node).some((fact) => fact.kind === "resolved" && sameReadReceiver(fact.value.receiver, ident));
 }
 
-/** Owner authorization is universal across alternatives, and existential only across AND terms. */
-function factHolds(fact: DrizzlePredicate, holds: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean): boolean {
+function scopedWhenPresent(fact: DrizzlePredicate, holds: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean): boolean {
   if (!fact.contained) {
     return false;
+  }
+  if (fact.presence === "absent") {
+    return true;
   }
   if (fact.kind === "leaf") {
     return holds(fact.node, fact.bindings);
   }
-  if (fact.kind === "and") {
-    return fact.terms.some((term) => factHolds(term, holds));
+  if (fact.kind !== "and" && fact.kind !== "or" && fact.kind !== "choice") {
+    return false;
   }
-  return (fact.kind === "choice" || fact.kind === "or") && fact.terms.length > 0 && fact.terms.every((term) => factHolds(term, holds));
+  const scoped = fact.terms.map((term) => scopedWhenPresent(term, holds));
+  return scoped.every(Boolean) || (fact.kind === "and" && fact.terms.some((term, index) => term.presence === "present" && scoped[index] === true));
+}
+
+/** Absent optional operands grant nothing; every emitted OR/choice arm still owes the same scope. */
+function factHolds(fact: DrizzlePredicate, holds: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean): boolean {
+  return fact.presence === "present" && scopedWhenPresent(fact, holds);
 }
 
 /** Judge scope on canonical predicate facts, never by another helper/binding walk. */
@@ -161,28 +169,27 @@ export function chainTermsOf(
       ? [{ boundTable: bound.table, boundReceiver: bound.receiver, boundColumn: `${bound.receiver}.${bound.name}`, boundRead: bound.node }]
       : [];
   };
-  const termsOf = (fact: DrizzlePredicate): readonly ChainTerm[] => {
-    if (!fact.contained) {
-      return [];
-    }
+  const candidatesOf = (fact: DrizzlePredicate): readonly ChainTerm[] => {
     if (fact.kind === "leaf") {
       return leafTerms(fact.node, fact.bindings);
     }
     if (fact.kind !== "and" && fact.kind !== "or" && fact.kind !== "choice") {
       return [];
     }
-    const alternatives = fact.terms.map(termsOf);
-    if (fact.kind === "and") {
-      return alternatives.flat();
-    }
-    return (alternatives[0] ?? []).filter((term) =>
-      alternatives.every((alternative) =>
-        alternative.some(
-          (candidate) =>
-            candidate.boundTable === term.boundTable && sameReadReceiver(candidate.boundRead, term.boundRead) && candidate.boundColumn === term.boundColumn,
-        ),
-      ),
-    );
+    return fact.terms.flatMap(candidatesOf);
   };
-  return predicates.flatMap((predicate) => (predicate === undefined ? [] : termsOf(readDrizzlePredicate(predicate))));
+  const sameTerm = (left: ChainTerm, right: ChainTerm): boolean =>
+    left.boundTable === right.boundTable && sameReadReceiver(left.boundRead, right.boundRead) && left.boundColumn === right.boundColumn;
+  return predicates.flatMap((predicate) => {
+    if (predicate === undefined) {
+      return [];
+    }
+    const fact = readDrizzlePredicate(predicate);
+    const candidates = candidatesOf(fact);
+    return candidates.filter(
+      (term, position) =>
+        candidates.findIndex((candidate) => sameTerm(candidate, term)) === position &&
+        factHolds(fact, (conjunct, bindings) => leafTerms(conjunct, bindings).some((candidate) => sameTerm(candidate, term))),
+    );
+  });
 }
