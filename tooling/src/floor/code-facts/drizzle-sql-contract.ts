@@ -1,6 +1,6 @@
 // Executed SQL INSERT source identity and its authored header.
 import type { Node } from "ts-morph";
-import type { MemberReference, ModuleMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
+import type { CallReturnProgram, MemberReference, ModuleMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
 
 export type SqlTemplateCarrier =
   | { readonly kind: "bare"; readonly template: Node }
@@ -19,7 +19,13 @@ export interface ExecutedSqlInsert {
 }
 
 /** The single lexical composition reader supplied to native constructors. */
-export type SqlFragmentsReader = (node: Node) => readonly (string | undefined)[] | undefined;
+export type SqlFragmentsReader = (node: Node, bindings?: ReadonlyMap<Node, Node>) => readonly (string | undefined)[] | undefined;
 
 /** Native projection origin requires the same complete select-containment judgment. */
-export type SqlSelectContainment = (node: Node) => boolean;
+export type SqlSelectContainment = (node: Node, bindings?: ReadonlyMap<Node, Node>) => boolean;
+
+/** SQL interpretation uses only the supplied same-world callable graph and argument bindings. */
+export interface SqlReadContext {
+  readonly bindings: ReadonlyMap<Node, Node>;
+  readonly program: CallReturnProgram | undefined;
+}

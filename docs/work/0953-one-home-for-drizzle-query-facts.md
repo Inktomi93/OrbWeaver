@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-14
 priority: P1
-lane: codex/share-acme-harness-958
 plan: test-foundation
 ---
 
@@ -23,16 +22,14 @@ One drizzle reader in the floor; the old readers are deleted; `pnpm ast columns`
 
 ## Evidence
 
-AST consumers share column, row-shape, selection and SQL readers. Keep classification consumer-owned. Statement, predicate, join and parser provenance still require complete acceptance.
+AST consumers share column, row-shape, selection and SQL readers. Classification remains consumer-owned. Preserve native program identity, complete schema populations and unresolved outcomes; fixed traversal limits do not satisfy arbitrary-depth acceptance.
 
-Preserve native program identity, complete schema populations, unresolved outcomes and the foundation plan's persisted store contract. The precise security-case coverage matrix remains an implementation prerequisite; reconnaissance is not proof that a named case is missing or covered. The compose boundary is established. The native inventory store item owns persisted inventory construction; this assignment owns Drizzle extraction and its consumer judgments.
+The native inventory item owns persistence and complete replay. This assignment owns Drizzle extraction and consumer judgments. Bounded programs and schema-presence checks do not establish repository-native equivalence or complete owner qualification. Preserve the deferred emit and population suites.
 
-Preserve gate conformance cases and exact native spellings. Fixed traversal limits do not satisfy arbitrary-depth acceptance.
+Shared readers retain full-row subquery/CTE provenance, complete caller alternatives, conditional-spread presence, returned parser provenance and editable-builder lifetimes. Unresolved, ambiguous, joined-source and unsafe-alternative refusals remain. Canonical schema facts preserve physical SQL names, actual default operations and omitted/empty/undefined name fallback; foreign source objects and dynamic names refuse.
 
-Bounded programs do not establish repository-native equivalence. Existing emit checks prove schema presence, not complete identity; grants cover broader owner populations. Preserve both deferred suites. Scoped compilation does not replace their verdict.
+Reviewed `cb26ce442e` extends supplied formals, finite actual callable bodies and imported/returned native carriers. One physical-use traversal follows SELECT, EXISTS, templates, aliases and first SQL conversion through complete consumers. Path-local cycle refusal replaces checker overflow. Runtime defaults cannot disappear through explicit undefined; native symbol identity distinguishes shadows. Callable VALUE identity supports namespace-merged functions without weakening module ambiguity or granting UI ownership.
 
-Reviewed source is integrated with the store and shape readers. Combined tooling/root types and the affected CT composition-policy suite pass. Full-row subquery and CTE provenance uses one admitted table and declared column; red-first controls and the corrected family pass. Unresolved, ambiguous and joined-source refusal remain. Native repository equivalence is pending.
+The same reviewer accepts the inline-wrapper and default-normalization corrections. Matching native positives, unsafe controls, actual runtime sharing and consumer cases pass. The final affected command retains a superseded fixture failure; its corrected case passes separately. Tooling types and exact lint pass; root types retain off-owned failures. No combined whole-command green is claimed.
 
-Reviewed integration extends canonical caller observations, editable-builder continuations and returned parser provenance. Conditional spreads preserve alternative presence through ordered overrides. Relevant unresolved callable uses remain unproven alongside admitted calls. Native controls cover both unsafe orderings, safe alternatives, installed Drizzle behavior, stale worlds and cycles. Focused security review confirms the corrections; affected tests, lint and tooling types pass. Root types retain unrelated probe and legacy errors. Complete repository output and finding equivalence remain unqualified.
-
-The reviewed schema adapter uses canonical SQL names and authored default-operation kinds. Installed Drizzle controls distinguish physical names from defaults and preserve omitted, empty and explicit-undefined name fallback. Native owner identity is required; ambiguous worlds, foreign source objects and dynamic names refuse. The corrected bounded case union passes with affected lint and tooling types; root retains unrelated diagnostics. Full repository equivalence remains pending.
+Generic table enumeration, imported destructured CTE lifetimes, INNER JOIN ON correlations and unavailable higher-order consumers remain unqualified. Containment supplies no authority. Complete repository output/finding equivalence and remaining schema-case acceptance stay open.

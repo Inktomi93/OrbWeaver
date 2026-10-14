@@ -2,9 +2,15 @@
 // Every answer is a `ReferenceFact`: an unreadable factory is an `unresolved` fact with a reason, never an empty list.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import {
+  readObservedCallableConsumers as callableConsumers,
+  readCallReturnProgram as capturedProgram,
+  readCallBindings as suppliedBindings,
+  readSuppliedParameter as suppliedParameter,
+} from "./call-supplied.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
-import { resolveCallableDeclaration, resolveCallableOrigin } from "./reference-fact-call.ts";
+import { resolveCallableAlternatives, resolveCallableDeclaration, resolveCallableOrigin } from "./reference-fact-call.ts";
 import type {
   CallReturnObservation,
   CallReturnObservations,
@@ -145,18 +151,19 @@ export function readCallTarget(call: CallExpression): ReferenceFact<MorphNode> {
   return calleeFunction(call, { declarations: [] });
 }
 
-/** The supplied arguments of one actual callable body, preserving declaration identity rather than parameter names. */
-export function readCallBindings(call: CallExpression, owner: MorphNode, previous: ReadonlyMap<MorphNode, MorphNode>): ReadonlyMap<MorphNode, MorphNode> {
-  const bindings = new Map(previous);
-  if (Node.isFunctionDeclaration(owner) || Node.isArrowFunction(owner) || Node.isFunctionExpression(owner) || Node.isMethodDeclaration(owner)) {
-    for (const [index, parameter] of owner.getParameters().entries()) {
-      const argument = call.getArguments()[index];
-      if (argument !== undefined) {
-        bindings.set(parameter, argument);
-      }
-    }
+/** The same authored invocation can select several closed literal callable bodies. */
+export function readCallTargets(call: CallExpression, admitted?: ReadonlySet<import("ts-morph").ts.CallExpression>): ReferenceFact<readonly MorphNode[]> {
+  const direct = readCallTarget(call);
+  if (direct.kind === "resolved") {
+    return { ...direct, value: [direct.value] };
   }
-  return bindings;
+  const alternatives = resolveCallableAlternatives(call, admitted);
+  return alternatives.kind === "unresolved" ? alternatives : { ...alternatives, value: alternatives.value.map((target) => target.declaration) };
+}
+
+/** Actual supplied bindings, shared with formal-origin readers. */
+export function readCallBindings(call: CallExpression, owner: MorphNode, previous: ReadonlyMap<MorphNode, MorphNode>): ReadonlyMap<MorphNode, MorphNode> {
+  return suppliedBindings(call, owner, previous);
 }
 
 function callBodyCalls(owner: MorphNode, onBodyNode?: (node: MorphNode) => void): readonly CallExpression[] {
@@ -185,10 +192,12 @@ export function readCallClosure(roots: readonly CallExpression[], onBodyNode?: (
     }
     seenCalls.add(call.compilerNode);
     calls.push(call);
-    const target = readCallTarget(call);
-    if (target.kind === "resolved" && !seenBodies.has(target.value.compilerNode)) {
-      seenBodies.add(target.value.compilerNode);
-      pending.push(...callBodyCalls(target.value, onBodyNode));
+    const targets = readCallTargets(call);
+    for (const target of targets.kind === "resolved" ? targets.value : []) {
+      if (!seenBodies.has(target.compilerNode)) {
+        seenBodies.add(target.compilerNode);
+        pending.push(...callBodyCalls(target, onBodyNode));
+      }
     }
   }
   return calls;
@@ -305,6 +314,12 @@ function escapingReferences(
   return escaped;
 }
 
+function observeAlternatives(
+  targets: ReferenceFact<readonly MorphNode[]>,
+): ReferenceFact<readonly import("./reference-fact-contract.ts").CallReturnAlternative[]> {
+  return targets.kind === "unresolved" ? targets : { ...targets, value: targets.value.map((target) => ({ target, returns: readFunctionReturnPaths(target) })) };
+}
+
 /** Observe only supplied calls and their shared authored-call closure; never acquire another compiler world. */
 export function observeCallReturns(roots: readonly CallExpression[], references?: readonly MorphNode[]): CallReturnObservations {
   const groups = new Map<
@@ -322,6 +337,7 @@ export function observeCallReturns(roots: readonly CallExpression[], references?
           }
         },
   );
+  const admitted = new Set(closure.map((call) => call.compilerNode));
   for (const call of closure) {
     const target = readCallTarget(call);
     const returns = target.kind === "resolved" ? readFunctionReturnPaths(target.value) : target;
@@ -331,8 +347,14 @@ export function observeCallReturns(roots: readonly CallExpression[], references?
       group = { calls: [], sources: new Map() };
       groups.set(project, group);
     }
-    group.calls.push({ call, target, returns });
-    for (const node of [call, ...(target.kind === "resolved" ? [target.value] : []), ...(returns.kind === "resolved" ? returns.value : [])]) {
+    const targets = readCallTargets(call, admitted);
+    const alternatives = observeAlternatives(targets);
+    group.calls.push({ call, target, targets, alternatives, returns });
+    const paths =
+      alternatives.kind === "resolved"
+        ? alternatives.value.flatMap((alternative) => (alternative.returns.kind === "resolved" ? alternative.returns.value : []))
+        : [];
+    for (const node of [call, ...(targets.kind === "resolved" ? targets.value : []), ...paths]) {
       const source = node.getSourceFile();
       group.sources.set(source, source.compilerNode);
     }
@@ -348,8 +370,8 @@ export function observeCallReturns(roots: readonly CallExpression[], references?
       const escapes = escapingReferences(nativeReferences, byCall);
       const callers = new Map<import("ts-morph").ts.Node, CallReturnObservation[]>();
       for (const observation of group.calls) {
-        if (observation.target.kind === "resolved") {
-          const target = observation.target.value.compilerNode;
+        for (const callable of observation.targets.kind === "resolved" ? observation.targets.value : []) {
+          const target = callable.compilerNode;
           const previous = callers.get(target) ?? [];
           previous.push(observation);
           callers.set(target, previous);
@@ -367,16 +389,21 @@ export function observeCallReturns(roots: readonly CallExpression[], references?
   };
 }
 
-/** Exact native world/epoch admission precedes every use of captured callable/return nodes. */
+/** Exact native world and source epochs precede captured value interpretation. */
 export function readCallReturnProgram(node: MorphNode, observations: CallReturnObservations): ReferenceFact<CallReturnProgram> {
-  const source = node.getSourceFile();
-  const program = observations.programs.find((candidate) => candidate.sources.has(source));
-  if (
-    program === undefined ||
-    [...program.sources].some(([file, snapshot]) => file.wasForgotten() || file.compilerNode !== snapshot) ||
-    node.getProject().getProgram().compilerObject !== program.program
-  ) {
-    return unresolved("unsupported", node, { declarations: [] }, "call/return observations belong to another compiler world or a stale source/program epoch");
-  }
-  return { kind: "resolved", value: program, trace: { declarations: [], origin: node } };
+  return capturedProgram(node, observations);
+}
+
+/** Complete observed callers retain the captured native graph. */
+export function readObservedCallableConsumers(owner: MorphNode, program: CallReturnProgram): ReferenceFact<readonly CallReturnObservation[]> {
+  return callableConsumers(owner, program);
+}
+
+/** Supplied origins are actual argument alternatives, never a formal annotation. */
+export function readSuppliedParameter(
+  node: MorphNode,
+  bindings: ReadonlyMap<MorphNode, MorphNode>,
+  program: CallReturnProgram | undefined,
+): ReferenceFact<readonly import("./reference-fact-contract.ts").ReturnedValueSource[]> {
+  return suppliedParameter(node, bindings, program);
 }

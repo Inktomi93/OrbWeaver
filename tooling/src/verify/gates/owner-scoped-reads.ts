@@ -309,19 +309,23 @@ export async function readEvery(db: Db, personaId: string, ${parameter}) { retur
 
 /** The predicates one anchor's verdict reads: its own ON, and its statement's inner ONs and WHERE alternatives. */
 interface Judged {
+  readonly observations: CallReturnObservations;
   readonly on: Node | undefined;
   readonly statement: ReadStatement;
 }
 
 function judgedOf(anchor: ReadAnchor, scope: ReadScope): Judged {
-  return { on: anchor.kind === "join" ? anchor.on : undefined, statement: readStatementOf(anchor.call, scope.observations) };
+  return { observations: scope.observations, on: anchor.kind === "join" ? anchor.on : undefined, statement: readStatementOf(anchor.call, scope.observations) };
 }
 
 /** Does `test` accept a conjunct that filters every row the statement returns: one in the anchor's own ON or an
  *  inner join's ON, or one in every `.where` it may apply? Several WHEREs are alternatives, never a conjunction. */
 function bindsRows(judged: Judged, test: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean): boolean {
   const { on, statement } = judged;
-  return predicateHolds([on, ...statement.innerOns], test) || (statement.wheres.length > 0 && statement.wheres.every((where) => predicateHolds([where], test)));
+  return (
+    predicateHolds([on, ...statement.innerOns], test, judged.observations) ||
+    (statement.wheres.length > 0 && statement.wheres.every((where) => predicateHolds([where], test, judged.observations)))
+  );
 }
 
 /** Is the table written `receiver` pinned to a plain value in this statement (optionally on one column)? */
@@ -434,7 +438,7 @@ function outerAnchorPinned(outer: ReadAnchor, anchors: readonly ReadAnchor[], pa
     return false;
   }
   const enclosing = judgedOf(outer, scope);
-  if (enclosing.statement.escapes || !predicatesContained([enclosing.on, ...enclosing.statement.innerOns, ...enclosing.statement.wheres])) {
+  if (enclosing.statement.escapes || !predicatesContained([enclosing.on, ...enclosing.statement.innerOns, ...enclosing.statement.wheres], scope.observations)) {
     return false;
   }
   return (
@@ -475,7 +479,7 @@ function correlatedParentPinned(anchor: ReadAnchor, chain: readonly ChainTerm[],
 }
 
 function inheritedScopePinned(anchor: ReadAnchor, chain: readonly ChainTerm[], judged: Judged, scope: ReadScope): boolean {
-  if (judged.statement.escapes || !predicatesContained([judged.on, ...judged.statement.innerOns, ...judged.statement.wheres])) {
+  if (judged.statement.escapes || !predicatesContained([judged.on, ...judged.statement.innerOns, ...judged.statement.wheres], scope.observations)) {
     return false;
   }
   const declared = declaredTableOf(anchor.table, scope.index);
@@ -496,7 +500,7 @@ function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string
     return; // arm 1 — a pinned `eq`/`inArray` owner term on this exact table
   }
   const predicates = [on, ...statement.innerOns, ...statement.wheres];
-  const chain = anchor.kind === "join" ? chainTermsOf(predicates, ident, scope.index, scope.fkEdges) : [];
+  const chain = anchor.kind === "join" ? chainTermsOf(predicates, ident, scope) : [];
   if (anchor.kind === "join" && chain.length === 0) {
     return JOIN_MESSAGE;
   }
@@ -506,10 +510,10 @@ function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string
   // BY-ID: the table's own id in a WHERE or an inner join's ON, or the chain's bound FK column selected by a value
   // (`eq(chats.anchorPersonaId, personaId)` selects the persona by id). Anything else is a list read, or a row
   // the FK chain already selected, unless some term is unreadable.
-  const ons = conjunctLeaves(statement.innerOns);
-  const all = conjunctLeaves(predicates);
+  const ons = conjunctLeaves(statement.innerOns, scope.observations);
+  const all = conjunctLeaves(predicates, scope.observations);
   const byId =
-    statement.wheres.some((where) => predicateMayReadColumn(where, anchor.table, ID_COL)) ||
+    statement.wheres.some((where) => predicateMayReadColumn(where, anchor.table, ID_COL, scope.observations)) ||
     ons.leaves.some((leaf) => selectsByValue(leaf, `${ident}.${ID_COL}`, scope.index)) ||
     chain.some((term) => all.leaves.some((leaf) => selectsByValue(leaf, term.boundColumn, scope.index)));
   if (inheritedScopePinned(anchor, chain, judged, scope)) {
@@ -581,13 +585,14 @@ function relationalFinding(anchor: Extract<ReadAnchor, { kind: "relational" }>, 
     return UNPROVEN_MESSAGE;
   }
   const judged: Judged = {
+    observations: scope.observations,
     on: undefined,
     statement: { wheres: where.predicate === undefined ? [] : [where.predicate], innerOns: [], escapes: false, refusals: [] },
   };
   if (ownerScoped(where.receiver, judged, scope)) {
     return;
   }
-  const leaves = conjunctLeaves(judged.statement.wheres);
+  const leaves = conjunctLeaves(judged.statement.wheres, scope.observations);
   const byId = leaves.leaves.some((leaf) => predicatesOwnId(leaf.getText(), where.receiver));
   if (!(byId || leaves.opaque) || hasPostFetchFilter(anchor.call, enclosingFn(anchor.call))) {
     return;

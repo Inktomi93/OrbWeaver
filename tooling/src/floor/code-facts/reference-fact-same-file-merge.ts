@@ -3,6 +3,7 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { ModuleMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
 import { importDeclarationOf, originFromTarget, projectTarget } from "./reference-fact-module-helpers.ts";
+import { overloadHome } from "./reference-fact-overload.ts";
 import type { ModuleState } from "./reference-fact-state.ts";
 import { declarationOf, resolved } from "./reference-fact-state.ts";
 
@@ -44,4 +45,31 @@ export function sameFileMergedExportOrigin(node: MorphNode, target: ModuleState)
   }
   const moduleSpecifier = importDeclaration.getModuleSpecifierValue();
   return resolved(originFromTarget(moduleSpecifier, exportedName, projectTarget(valueDeclaration, exportedName)), target, valueDeclaration);
+}
+
+/** Callable values have one function/overload home; namespace metadata does not make another function. */
+export function sameFileMergedCallableValueOrigin(node: MorphNode, target: ModuleState): ReferenceFact<ModuleMemberOrigin> | undefined {
+  const origin = sameFileMergedExportOrigin(node, target);
+  if (origin?.kind !== "resolved" || origin.value.canonical.kind !== "project") {
+    return;
+  }
+  const value = origin.value.canonical.declaration;
+  const symbol = value.getSymbol();
+  const declarations = symbol?.getDeclarations() ?? [];
+  const functions = declarations.filter(Node.isFunctionDeclaration);
+  const home = functions.length === 1 ? functions[0] : overloadHome(functions);
+  const source = home?.getSourceFile().compilerNode;
+  const closed =
+    declarations.some(Node.isModuleDeclaration) &&
+    declarations.every(
+      (declaration) =>
+        (Node.isFunctionDeclaration(declaration) || Node.isModuleDeclaration(declaration)) && declaration.getSourceFile().compilerNode === source,
+    );
+  if (home === undefined || !Node.isFunctionDeclaration(value) || !closed || !functions.some((fn) => fn.compilerNode === value.compilerNode)) {
+    return;
+  }
+  return {
+    ...origin,
+    value: originFromTarget(origin.value.moduleSpecifier, origin.value.exportedName, projectTarget(home, origin.value.canonical.exportedName)),
+  };
 }

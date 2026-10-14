@@ -9,6 +9,7 @@ import { nativeFixture, SCOPE_HEAD, statementObservations } from "@orb/testkit/n
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readSqlOperandContainment } from "@orb/tooling/floor/code-facts/drizzle-sql";
 import { readStatementOf } from "@orb/tooling/floor/code-facts/drizzle-statement";
+import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
 import { sqliteFragmentContained } from "@orb/tooling/floor/code-facts/sqlite-lexical";
 import { StringChunk, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
@@ -167,6 +168,7 @@ const R1_CASES = [
   },
   {
     name: "R1 a mutated native CTE cannot retain its original projection containment",
+    escapes: true,
     body: R1_CTE_BODY.replace("return await db.with(activity)", "activity._.sql.append(sql` OR 1`); return await db.with(activity)"),
     tokens: ["characters"],
   },
@@ -248,7 +250,7 @@ for (const scenario of R1_CASES) {
     const fixture = await nativeFixture({ plantedTree, repoRoot }, { producer: SCOPE_HEAD + scenario.body, recipient: "" });
     const statement = readStatementOf(fixture.anchor, statementObservations(fixture.root, fixture.project));
     expect(statement.refusals).toEqual([]);
-    expect(statement.escapes).toBe(false);
+    expect(statement.escapes).toBe("escapes" in scenario ? scenario.escapes : false);
     const result = runPolicyPass({
       knownPolicies: [gate],
       policies: [gate],
@@ -273,7 +275,7 @@ const relation = new QueryBuilder().selectDistinct({chatId: chatParticipants.cha
 .where(and(eq(chatParticipants.kind, "character"), isNotNull(chats.startedAt))).as("retained_chat_membership");
 return new QueryBuilder().select({chatId: relation.chatId}).from(relation).where(eq(sql\`\${relation.ownerId}\`, ownerId)).getSQL();
 }
-export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(eq(characters.ownerId, ownerId)); }`;
+export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql\`\${characters.id} in (\${carrier(ownerId)})\`)); }`;
   const fixture = await nativeFixture({ plantedTree, repoRoot }, { producer, recipient: "" });
   const carrier = fixture.source.getFunctionOrThrow("carrier");
   const value = carrier.getDescendantsOfKind(SyntaxKind.CallExpression).find((call) => call.getExpression().getText().endsWith(".getSQL"));
@@ -281,7 +283,13 @@ export async function owned(db: Db, ownerId: string) { return await db.select().
     throw new Error("the exact installed carrier did not load");
   }
   expect(readDrizzleClientCall(fixture.anchor)).toMatchObject({ kind: "drizzle", method: "from" });
-  expect(readSqlOperandContainment(value)).toBe(true);
+  beginReferencePass();
+  try {
+    expect(readSqlOperandContainment(value)).toBe(false);
+    expect(readSqlOperandContainment(value, new Map(), statementObservations(fixture.root, fixture.project))).toBe(true);
+  } finally {
+    endReferencePass();
+  }
 });
 
 test("R1 supplied SQL origins refuse other compiler worlds and forgotten source epochs", async ({ plantedTree, repoRoot }) => {

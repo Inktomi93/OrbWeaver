@@ -4,16 +4,22 @@ import type { Node as MorphNode, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { readPredicateArgument } from "./drizzle-predicate-argument.ts";
+import type { SqlReadContext } from "./drizzle-sql-contract.ts";
 import { runtimeDrizzleOrigin, sqlDialect } from "./drizzle-sql-native.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { inspectReferenceWrites, staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
+import type { ReferenceFact, ReturnedValueSource } from "./reference-fact-contract.ts";
 import { invokedMemberThroughAliases, unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { exactDrizzleExport, terminalCall } from "./schema-value.ts";
 import { readStaticAuthoredScalar } from "./static-authored-value.ts";
 import { resolveTypeIdentityChain } from "./type-member-origin.ts";
+import { readAuthoredValueSources, readReturnedValue } from "./value-carrier.ts";
 /** Primitive driver data cannot introduce SQL grammar. */
 export function driverParameter(type: Type): boolean {
+  if (type.isTuple()) {
+    return type.getTupleElements().every(driverParameter);
+  }
   if (type.isUnion()) {
     return type.getUnionTypes().every(driverParameter);
   }
@@ -48,6 +54,14 @@ export function columnType(node: MorphNode): boolean {
         origin.declarations.every((declaration) => declaration.getSourceFile().getFilePath().includes("/drizzle-orm/")),
     )
   );
+}
+
+/** Native terminals stop only the existing value traversal; supplied/returned sources retain their actual bindings. */
+export function readSqlValueSources(node: MorphNode, context: SqlReadContext): ReferenceFact<readonly ReturnedValueSource[]> {
+  const terminals = (call: import("ts-morph").CallExpression): boolean => runtimeDrizzleOrigin(call.getExpression());
+  return context.program === undefined
+    ? readAuthoredValueSources(node, [], context.bindings, terminals)
+    : readReturnedValue(node, [], { programs: [context.program] }, { terminals, bindings: context.bindings });
 }
 
 /** Actual native table/alias constructor with an authored SQL name. */

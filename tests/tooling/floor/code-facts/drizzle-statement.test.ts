@@ -73,10 +73,9 @@ const SCOPE_CASES = [
     tokens: ["assets"],
   },
   {
-    name: "R2 finite record keyset remains explicit unresolved rather than annotation-authorized",
+    name: "R3 finite closed record keyset proves both actual callable bodies",
     body: FINITE_KEYSET_BODY,
-    tokens: ["characters", "assets"],
-    unresolvedCallee: "order.after",
+    tokens: [],
   },
   {
     name: "R2 escaped finite record cannot borrow a keyset callable annotation",
@@ -240,6 +239,7 @@ export async function owned(db: Db, ownerId: string) { return await db.select().
   },
   {
     name: "an escaping predicate helper refuses correlation",
+    escapes: true,
     body: `${CORRELATED_BODY} export function expose() { return search; }`,
     tokens: ["characters"],
   },
@@ -577,8 +577,16 @@ const CASES = [
     producer: BUILDER.replace("import { eq }", "import { and, eq, type SQL }")
       .replace("export function owned(db: Db, ownerId: string)", "export async function owned(db: Db, ownerId: string, cond: SQL = eq(personas.id, ownerId))")
       .replace(".where(eq(personas.ownerId, ownerId))", ".where(and(eq(personas.ownerId, ownerId), cond))"),
-    recipient: `${RECIPIENT_HEAD}export async function read(db: Db, ownerId: string) { return await owned(db, ownerId); }`,
+    recipient: `${RECIPIENT_HEAD}import type {SQL} from "drizzle-orm"; export async function read(db: Db, ownerId: string, cond:SQL) { return await owned(db, ownerId, cond); }`,
     findings: 1,
+  },
+  {
+    name: "settled owner retains an actually executed safe native default",
+    producer: BUILDER.replace("import { eq }", "import { and, eq, type SQL }")
+      .replace("export function owned(db: Db, ownerId: string)", "export async function owned(db: Db, ownerId: string, cond: SQL = eq(personas.id, ownerId))")
+      .replace(".where(eq(personas.ownerId, ownerId))", ".where(and(eq(personas.ownerId, ownerId), cond))"),
+    recipient: `${RECIPIENT_HEAD}export async function read(db: Db, ownerId: string) { return await owned(db, ownerId); }`,
+    findings: 0,
   },
   {
     name: "review unsafe mutable caller remains unproven beside independent direct safe caller",

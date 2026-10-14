@@ -1,11 +1,13 @@
 // One fluent select/projection extraction shared by column lenses, tenancy and persisted-value tracing.
-import { Node } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import { readAnchorOf } from "./drizzle-query.ts";
+import type { DrizzleBuilderChain } from "./drizzle-query-contract.ts";
 import type { DrizzleProjectedColumn, DrizzleSelection } from "./drizzle-select-contract.ts";
 import { resolveDrizzleTableRefs } from "./drizzle-table-ref.ts";
 import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
+import { MEMBER_ACCESS_KINDS } from "./reference-fact-contract.ts";
 import type { SchemaModel } from "./schema-model-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import { terminalCall } from "./schema-value.ts";
@@ -13,6 +15,36 @@ import { resolved, unresolved } from "./type-member-origin-core.ts";
 
 const SCHEMA_PACKAGE = "@orb/db";
 const SELECT_VERBS: ReadonlySet<string> = new Set(["select", "selectDistinct"]);
+
+function builderParent(cur: Node): Node | undefined {
+  const parent = cur.getParent();
+  if (parent === undefined) {
+    return;
+  }
+  const continuesChain =
+    parent.isKind(SyntaxKind.AwaitExpression) ||
+    Node.isParenthesizedExpression(parent) ||
+    Node.isNonNullExpression(parent) ||
+    Node.isAsExpression(parent) ||
+    Node.isSatisfiesExpression(parent) ||
+    (Node.isConditionalExpression(parent) && parent.getCondition() !== cur) ||
+    (parent.isKind(SyntaxKind.CallExpression) && parent.getExpression() === cur) ||
+    (MEMBER_ACCESS_KINDS.some((kind) => parent.isKind(kind)) && parent.getFirstChild() === cur);
+  return continuesChain ? parent : undefined;
+}
+
+/** The outermost node of a read's own builder chain, and the calls applied along the way. */
+export function readFollowingSelectChain(start: Node): DrizzleBuilderChain {
+  const calls: import("ts-morph").CallExpression[] = [];
+  let cur: Node = start;
+  for (let parent = builderParent(cur); parent !== undefined; parent = builderParent(cur)) {
+    if (parent.isKind(SyntaxKind.CallExpression)) {
+      calls.push(parent);
+    }
+    cur = parent;
+  }
+  return { top: cur, calls };
+}
 
 /** The select that actually underlies this expression, with its authored projection and row source. */
 export function readDrizzleSelection(node: Node): DrizzleSelection | undefined {

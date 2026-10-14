@@ -9,7 +9,8 @@ import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.t
 import { readDrizzlePredicate } from "../../floor/code-facts/drizzle-predicate.ts";
 import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import type { DrizzlePredicate } from "../../floor/code-facts/drizzle-predicate-contract.ts";
-import type { ChainTerm, ConjunctLeaves, SchemaTableIndex } from "../contract/tenancy.ts";
+import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { ChainTerm, ConjunctLeaves, SchemaTableIndex, TenancySchema } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { declaredTableOf, predicatesReadColumn, sameReadReceiver } from "./tenancy-read.ts";
 import { EDGE_ARROW, foreignKeyColumnKey } from "./tenancy-scope.ts";
@@ -64,8 +65,12 @@ function factHolds(fact: DrizzlePredicate, holds: (conjunct: Node, bindings: Rea
 }
 
 /** Judge scope on canonical predicate facts, never by another helper/binding walk. */
-export function predicateHolds(predicates: readonly (Node | undefined)[], holds: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean): boolean {
-  return predicates.some((predicate) => predicate !== undefined && factHolds(readDrizzlePredicate(predicate), holds));
+export function predicateHolds(
+  predicates: readonly (Node | undefined)[],
+  holds: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean,
+  observations?: CallReturnObservations,
+): boolean {
+  return predicates.some((predicate) => predicate !== undefined && factHolds(readDrizzlePredicate(predicate, observations), holds));
 }
 
 function factMayReadColumn(fact: DrizzlePredicate, receiver: Node, column: string): boolean {
@@ -76,13 +81,13 @@ function factMayReadColumn(fact: DrizzlePredicate, receiver: Node, column: strin
 }
 
 /** By-id evidence is existential across alternatives, retaining actual helper argument bindings. */
-export function predicateMayReadColumn(predicate: Node, receiver: Node, column: string): boolean {
-  return factMayReadColumn(readDrizzlePredicate(predicate), receiver, column);
+export function predicateMayReadColumn(predicate: Node, receiver: Node, column: string, observations?: CallReturnObservations): boolean {
+  return factMayReadColumn(readDrizzlePredicate(predicate, observations), receiver, column);
 }
 
 /** Unknown SQL can widen its siblings; containment alone never supplies scope. */
-export function predicatesContained(predicates: readonly (Node | undefined)[]): boolean {
-  return predicates.every((predicate) => predicate === undefined || readDrizzlePredicate(predicate).contained);
+export function predicatesContained(predicates: readonly (Node | undefined)[], observations?: CallReturnObservations): boolean {
+  return predicates.every((predicate) => predicate === undefined || readDrizzlePredicate(predicate, observations).contained);
 }
 
 function isOwnerColumn(node: Node, ident: string | Node, bindings: ReadonlyMap<Node, Node>): boolean {
@@ -139,8 +144,8 @@ function factLeaves(fact: DrizzlePredicate): ConjunctLeaves {
 }
 
 /** Existential by-id evidence includes every alternative; unreadable SQL or helpers remain opaque. */
-export function conjunctLeaves(predicates: readonly (Node | undefined)[]): ConjunctLeaves {
-  const parts = predicates.flatMap((predicate) => (predicate === undefined ? [] : [factLeaves(readDrizzlePredicate(predicate))]));
+export function conjunctLeaves(predicates: readonly (Node | undefined)[], observations?: CallReturnObservations): ConjunctLeaves {
+  const parts = predicates.flatMap((predicate) => (predicate === undefined ? [] : [factLeaves(readDrizzlePredicate(predicate, observations))]));
   return { leaves: parts.flatMap((part) => part.leaves), opaque: parts.some((part) => part.opaque) };
 }
 
@@ -149,12 +154,8 @@ export function conjunctLeaves(predicates: readonly (Node | undefined)[]): Conju
  *  (Spine-Identity-and-Auth §2b): the joined row is the one a bound row references. The reverse edge
  *  (`J.col -> T.col`) is no chain: it fans out to every owner's rows that reference `T`. A term against a value
  *  (a caller-supplied id), an undeclared column pairing, or one inside `or(…)` binds whatever the value names. */
-export function chainTermsOf(
-  predicates: readonly (Node | undefined)[],
-  joinedIdent: string,
-  index: SchemaTableIndex,
-  fkEdges: ReadonlySet<string>,
-): readonly ChainTerm[] {
+export function chainTermsOf(predicates: readonly (Node | undefined)[], joinedIdent: string, schema: TenancySchema): readonly ChainTerm[] {
+  const { index, fkEdges, observations } = schema;
   const leafTerms = (conjunct: Node, bindings: ReadonlyMap<Node, Node>): readonly ChainTerm[] => {
     if (!(conjunct.isKind(SyntaxKind.CallExpression) && callsDrizzleOperator(conjunct, EQ_OPERATOR))) {
       return [];
@@ -184,7 +185,7 @@ export function chainTermsOf(
     if (predicate === undefined) {
       return [];
     }
-    const fact = readDrizzlePredicate(predicate);
+    const fact = readDrizzlePredicate(predicate, observations);
     const candidates = candidatesOf(fact);
     return candidates.filter(
       (term, position) =>

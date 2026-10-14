@@ -16,11 +16,15 @@ function transparentUse(node: MorphNode): MorphNode {
 }
 
 function aliasName(reference: MorphNode): MorphNode | undefined {
-  const parent = reference.getParent();
+  let projected = reference;
+  for (let outer = projected.getParent(); outer !== undefined && isMemberReceiver(outer, projected); outer = projected.getParent()) {
+    projected = outer;
+  }
+  const parent = projected.getParent();
   let name: MorphNode | undefined;
   if (Node.isImportSpecifier(reference) || Node.isExportSpecifier(reference)) {
     name = reference.getAliasNode() ?? reference.getNameNode();
-  } else if (Node.isVariableDeclaration(parent) && (parent.getInitializer() === reference || parent.getNameNode() === reference)) {
+  } else if (Node.isVariableDeclaration(parent) && (parent.getInitializer() === projected || parent.getNameNode() === reference)) {
     name = parent.getNameNode();
   } else if (Node.isImportSpecifier(parent) || Node.isExportSpecifier(parent)) {
     name = parent.getAliasNode() ?? parent.getNameNode();
@@ -36,7 +40,8 @@ function aliasName(reference: MorphNode): MorphNode | undefined {
  *  does not alias its length. Opaque arguments, member calls (including callbacks), storage and returns
  *  refuse. This does not model consumers outside the loaded Project or external host mutation.
  *  The older source-local write/member queries below intentionally retain their weaker contracts. */
-export function unprovenReferenceUse(identifier: Identifier, accepted: ReadonlySet<MorphNode>): MorphNode | undefined {
+export function unprovenReferenceUse(identifier: Identifier, accepted: ReadonlySet<MorphNode> | ((use: MorphNode) => boolean)): MorphNode | undefined {
+  const accepts = typeof accepted === "function" ? accepted : (use: MorphNode): boolean => accepted.has(use);
   const pending: Identifier[] = [identifier];
   const seen = new Set<object>();
   let refusal: MorphNode | undefined;
@@ -66,7 +71,7 @@ export function unprovenReferenceUse(identifier: Identifier, accepted: ReadonlyS
         return false;
       }
       const wrapped = transparentUse(reference);
-      if (accepted.has(wrapped)) {
+      if (accepts(wrapped)) {
         return false;
       }
       const parent = wrapped.getParent();

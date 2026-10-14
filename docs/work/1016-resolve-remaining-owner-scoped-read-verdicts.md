@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-14
 priority: P1
 area: tenancy
-lane: codex/share-acme-harness-958
 plan: test-foundation
 ---
 
@@ -38,6 +37,6 @@ Reviewed source `0b778e7a97` preserves distinct refinery Run and Estimate author
 
 Reviewed source `702430c3d9` adds stable native observations and compact predicate presence. Owner and FK proofs preserve absent operands and unsafe alternatives without Cartesian expansion. Native and retained policy controls pass.
 
-Reviewed source `2277119888` proves native SQL origins and complete emitted-operand containment through shared facts. Native mutation, containing-result escape and unknown-order controls pass. Containment supplies no ownership authority. Supplied formals, returned and imported helper lifetimes, finite gallery callees and complete qualification remain open.
+Reviewed `cb26ce442e` extends supplied formals, finite actual callees and native returned/imported lifetimes through canonical facts. Inline wrappers retain physical-use obligations; runtime defaults preserve every executed alternative. Native alias, mutation, cancellation, cycle and unsafe-order controls pass. The same reviewer accepts the bounded corrections. Containment supplies no ownership authority. Generic table enumeration, destructured CTE lifetimes, INNER JOIN ON correlation and complete current-population qualification remain open.
 
 Reviewed source `a2356621ba` shares retained-owner projections and captures raw economic contributions with their signed deltas. The first atomic write refuses stale selected and nonselected usage. Native paid-race refusal, unchanged accounting and current-state retries pass. Reader qualification remains open.

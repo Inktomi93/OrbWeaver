@@ -3,6 +3,7 @@
 // verdicts off. Homed in contract/ per the five-slot type law (docs/law/Core-Tooling-Law.md §2.5): `lib/` is plumbing, and an
 // exported shape declared there is `no-inline-types`-RED, exactly as a domain substrate exporting a type is.
 import type { Node } from "ts-morph";
+import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 
 /** What a drizzle statement's table argument resolved to. The three verdicts a tenancy gate must judge
  *  differently — the fourth state (the argument is a literal) is `undefined`: a literal names no table. */
@@ -68,6 +69,7 @@ export interface ForeignKeyParentRead {
 export interface TenancySchema {
   readonly index: SchemaTableIndex;
   readonly fkEdges: ReadonlySet<string>;
+  readonly observations?: CallReturnObservations;
 }
 
 /** One row source a predicate value reads a column of: its written receiver, and its declared schema table
