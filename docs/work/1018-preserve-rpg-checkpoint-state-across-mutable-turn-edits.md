@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-14
 priority: P1
 area: rpg
+lane: codex/owner-read-provenance-1016
 plan: test-foundation
 ---
 

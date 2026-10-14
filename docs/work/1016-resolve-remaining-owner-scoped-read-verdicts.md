@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-14
 priority: P1
 area: tenancy
-lane: codex/owner-read-provenance-1016
 plan: test-foundation
 ---
 
@@ -34,4 +33,6 @@ The complete selected run `codex-owner-read-provenance-1016-1125988-2026-10-14T1
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 
-Reviewed source `0b778e7a97` preserves distinct refinery Run and Estimate authority through executing target reads and scalar counting. Shared domain readiness preserves candidate semantics. Native runtime, nominal and owned-predicate controls pass. Complete owner-policy qualification remains open. The next assigned batch covers stable predicate observations, nested arrays and finite callees through canonical facts.
+Reviewed source `0b778e7a97` preserves distinct refinery Run and Estimate authority through executing target reads and scalar counting. Shared domain readiness preserves candidate semantics. Native runtime, nominal and owned-predicate controls pass.
+
+Reviewed source `702430c3d9` adds stable native observations and compact predicate presence. Owner and FK proofs preserve absent operands and unsafe alternatives without Cartesian expansion. Native and retained policy controls pass. Finite gallery callees, further SQL origins, helper correlation, retained accounting and complete qualification remain open. The owner lane now handles required checkpoint preservation.

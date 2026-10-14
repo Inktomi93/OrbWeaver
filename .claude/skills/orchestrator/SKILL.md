@@ -221,13 +221,20 @@ The board is `docs/work/`, and you own every state change on it. Read `.claude/r
 1. At session start, act on each `drift` line the onboarding prints. Each line names its fix.
 2. At dispatch, run `pnpm doc set <id> doing --lane <branch>`. The lane value is the lane's exact branch, `wt/agent-<id>` for a worktree lane.
 3. Tell the lane to end its closing commit with a `Closes: <id>` trailer. The merge hook lands the item on `main`.
-4. For work committed on `main` itself, land it with `pnpm doc land <id> --evidence <sha>` once a verifier confirms it. A landing prints the board's `drift:` lines; act on each one, such as folding a drained plan into an ADR or law.
+4. Land related ready items together with `pnpm doc land <ids...> --evidence <sha>` after their required reviews. Process the returned drift corrections, including folding a finished plan into an ADR or law.
 5. File a lane's out-of-scope finding with `pnpm doc item "<title>" --kind … --what … --why … --done …`. The title is positional.
 6. When a lane stops with its item unfinished, set the item back to `open` with the reason in its Evidence section.
 
 Run `pnpm doc <verb> --help` for one verb's flags. Read `pnpm doc overview` and `pnpm doc drift` bare; their output is short.
 
 - For any `gh` write, use `--body-file`. `gh` runs backticks inside `--body`.
+
+### Documentation batches
+
+- Batch related board, plan, law, evidence and generated-index updates into the merge train's documentation commit.
+- Keep board state current through `pnpm doc`; collect its edits before committing.
+- Reuse automatic landing commits; do not add a bookkeeping commit for each landed item.
+- Split documentation commits only for a necessary dependency, separate rollback, or explicit owner request. State the reason.
 
 ## Lying instruments
 

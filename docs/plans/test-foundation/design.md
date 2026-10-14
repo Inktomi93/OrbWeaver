@@ -32,13 +32,15 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 Discovery every-owner authority is integrated. Remaining owner-read adjudication and type homes (981) are production work. Schedule owner-specific batches without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
 
-Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Complete harness and corpus qualification stay open. A completed prerequisite does not close its parent program. Complete required production fixes before dependent corpus qualification.
+Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Server-root acceptance is established; complete corpus qualification remains open. A completed prerequisite does not close its parent program. Complete required production fixes before dependent corpus qualification.
 
 ### Foundation boundaries
 
 The legacy folder, maintained lint migration, explicit package exports, native integer migration and domain-owned compose rules are implemented. The selected compose policy holds on its complete population without findings or exemptions. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probes keep their harness dependencies and case lists.
 
-Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The complete server composition root, shared fact store and builders/corpus remain work. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
+Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The server root meets its edge, lifetime, assembly and required domain-replacement acceptance. Shared facts and builders/corpus remain work. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
+
+SDK execution joins native Query and observed direct-child completion. It does not promise a sandbox for arbitrary trusted executables or universal descendant containment. This scope does not imply a shipped-CLI defect.
 
 ### Architecture workstreams
 
@@ -69,7 +71,7 @@ Then the rebuild, cheapest proof first: the e2e smoke matrix on the corpus, whic
 - Repair product, security and checker defects. Preserve useful legacy cases for replacement; stop fixture polish, copied-harness repair and waiver bookkeeping as independent deliverables.
 - Rejudge waivers and grants against their actual subjects. Their existence does not establish authority or justify weakening enforcement.
 - Recover unfinished production branches by coherent current-tree changes, not wholesale stale merges. The work items for contract derivation and stored-value parsing own their security blockers.
-- The complete engine, server composition root and builders/corpus remain unqualified; source integration alone is not completion.
+- Complete engine and builders/corpus qualification remains open; source integration alone is not completion.
 - A rebuilt test calls production through a public entry, builds data through a builder, and carries no fake that stands in for domain logic.
 - A ported suite keeps every case of the file it replaces; the verifier checks the case list.
 - Retrofit work on fake-heavy server harnesses stops; those rows move to the rebuild.
