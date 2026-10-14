@@ -52,6 +52,8 @@ class OwnedQuery {
   private physicalChild: ChildProcessWithoutNullStreams | undefined;
   private readonly secrets;
   private readonly stderr;
+  private readonly privateStderr;
+  private readonly stdoutRecords;
   private query: ReturnType<AgentSdkExecutionDeps["query"]> | undefined;
   private closing: Promise<void> | undefined;
   private readonly abort = (): void => this.cancel();
@@ -75,6 +77,9 @@ class OwnedQuery {
     this.release = release;
     this.secrets = resolvedScrubSet({ credential: connection.credential, transport: null });
     this.stderr = new SdkStderr(this.secrets, input.options?.stderr);
+    this.privateStderr = new SdkStderr(this.secrets);
+    // Native readline removes CR/LF before these diagnostic records reach the owner.
+    this.stdoutRecords = new SdkStderr(this.secrets.flatMap((secret) => [secret, ...secret.split(/\r\n|\r|\n/u).filter((part) => part.length > 0)]));
     signal?.addEventListener("abort", this.abort, { once: true });
     if (signal?.aborted === true) {
       this.controller.abort();
@@ -88,12 +93,25 @@ class OwnedQuery {
         ...this.input.options,
         ...this.deps.native,
         abortController: this.controller,
+        diagnosticProjection: {
+          record: (text: string): string => redactSecretsFromText(text, this.secrets),
+          stderr: (text: string, end: boolean): string => this.privateStderr.append(text) + (end ? this.privateStderr.end() : ""),
+          stdoutRecord: (text: string): string => this.stdoutRecords.append(text) + this.stdoutRecords.end(),
+        },
         onProcessExitError: (error: Error): void => {
           this.exitFailures.add(error);
         },
         ...(this.input.options?.stderr === undefined
-          ? { onDecodedStderr: (text: string): void => this.stderr.append(text) }
-          : { stderr: (text: string): void => this.stderr.append(text) }),
+          ? {
+              onDecodedStderr: (text: string): void => {
+                this.stderr.append(text);
+              },
+            }
+          : {
+              stderr: (text: string): void => {
+                this.stderr.append(text);
+              },
+            }),
         ...(spawn === undefined
           ? {
               onNativeProcessCreated: (child: Parameters<NonNullable<NonNullable<AgentSdkExecutionDeps["native"]>["onNativeProcessCreated"]>>[0]): void => {
@@ -175,6 +193,8 @@ class OwnedQuery {
     } finally {
       await Promise.all(this.children);
       this.stderr.end();
+      this.privateStderr.end();
+      this.stdoutRecords.end();
       this.signal?.removeEventListener("abort", this.abort);
       this.release();
     }

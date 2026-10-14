@@ -16,7 +16,7 @@ export class SdkStderr {
     this.forward = forward;
     this.literals = secretRedactionLiterals(secrets);
   }
-  append(text: string): void {
+  append(text: string): string {
     const safe = redactKnownSecrets(this.pending + text, this.secrets);
     let retained = 0;
     for (const literal of this.literals) {
@@ -28,22 +28,25 @@ export class SdkStderr {
       }
     }
     const boundary = safe.length - retained;
-    this.publish(safe.slice(0, boundary));
+    const published = this.publish(safe.slice(0, boundary));
     this.pending = safe.slice(boundary);
+    return published;
   }
 
-  end(): void {
-    this.publish(this.pending.length === 0 ? "" : redactKnownSecrets(this.pending, [this.pending]));
+  end(): string {
+    const published = this.publish(this.pending.length === 0 ? "" : redactKnownSecrets(this.pending, [this.pending]));
     this.pending = "";
+    return published;
   }
   tail(): string {
     return sanitizeApiError(this.safe, TAIL_CHARS);
   }
-  private publish(text: string): void {
+  private publish(text: string): string {
     const safe = redactSecretsFromText(text, this.secrets);
     this.safe = (this.safe + safe).slice(-TAIL_CHARS);
     if (safe.length > 0) {
       this.forward?.(safe);
     }
+    return safe;
   }
 }

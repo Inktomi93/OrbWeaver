@@ -5,7 +5,7 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn, ChatResult, Resolved } from "@orb/inference";
 import { ProviderError, toChatRequest } from "@orb/inference";
-import { logRing } from "@orb/server/foundation/observability";
+import { logRing, runInRequest } from "@orb/server/foundation/observability";
 import { sql } from "drizzle-orm";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "./fixtures.ts";
@@ -506,18 +506,21 @@ test("default native asynchronous spawn refusal joins actual close without a PID
 
 test("default native decoder retains split UTF8 diagnostics with known credential redaction", async () => {
   let child: ChildProcessWithoutNullStreams | undefined;
-  await using harness = await createServerHarness({
-    secretBoxKey: Buffer.alloc(32, 1),
-    sdkNative: nativeSdkOptions((value) => {
-      child = value;
+  const logScope = "sdk-default-native-utf8";
+  await using harness = await runInRequest(logScope, () =>
+    createServerHarness({
+      secretBoxKey: Buffer.alloc(32, 1),
+      sdkNative: nativeSdkOptions((value) => {
+        child = value;
+      }),
     }),
-  });
+  );
   const connection = await savedSummarizer(harness);
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
   ).rejects.toMatchObject({ kind: "server" });
   expect(child?.exitCode).toBe(7);
-  const lines = logRing.recent(100).filter((line) => line.includes("sdk-diagnostic:"));
+  const lines = logRing.recent().filter((line) => line.includes(`"requestId":"${logScope}"`) && line.includes("sdk-diagnostic:"));
   expect(lines).toHaveLength(1);
   expect(lines[0]).toContain("café");
   expect(lines[0]).toContain("complete");
@@ -561,12 +564,19 @@ test("default native caller cancellation joins actual child while leaving its gr
 // Public opaque fixture material exceeds the SDK's bounded native error tail; it is not a real credential.
 const PUBLIC_NATIVE_LONG_TOKEN = `native-public-${"N".repeat(2400)}-fixture-end`;
 test("default native stderr protects an oversized known opaque credential in application diagnostics", async () => {
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkNative: nativeSdkOptions() });
+  const logScope = "sdk-default-native-oversized";
+  await using harness = await runInRequest(logScope, () => createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkNative: nativeSdkOptions() }));
   const connection = await savedSummarizer(harness, PUBLIC_NATIVE_LONG_TOKEN);
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_SHAPED_DIAGNOSTIC:intact" }] }),
   ).rejects.toMatchObject({ kind: "server" });
-  const lines = logRing.recent(100).filter((line) => line.includes("sdk-shaped-diagnostic:intact:") || line.includes("Claude Code process exited with code 7"));
+  const lines = logRing
+    .recent()
+    .filter(
+      (line) =>
+        line.includes(`"requestId":"${logScope}"`) &&
+        (line.includes("sdk-shaped-diagnostic:intact:") || line.includes("Claude Code process exited with code 7")),
+    );
   expect(lines).toHaveLength(1);
   expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
 });
