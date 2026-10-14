@@ -145,3 +145,86 @@ test("the E7 census distinguishes direct, derived, epoch and genuinely missing g
   expect(census.totals).toEqual({ "direct-pending": 1, "derived-pending": 1, epoch: 1, missing: 2, "other-guard": 2 });
   expect(census.rows.map((row) => row.line)).toEqual([9, 10, 11, 12, 13, 14, 15]);
 });
+
+const LEXICAL_CASES = [
+  {
+    name: "CSS escaped quotes retain comment-looking text",
+    path: "fixture.css",
+    source: '.a { content: "a\\"/* literal */"; } /* prose */\n',
+    expected: '.a { content: "a\\"/* literal */"; }\n',
+  },
+  {
+    name: "CSS escaped backslash still allows a closing quote",
+    path: "fixture.scss",
+    source: ".a { content: 'a\\\\'; } /* prose */\n",
+    expected: ".a { content: 'a\\\\'; }\n",
+  },
+  {
+    name: "CSS CRLF block comments preserve newline positions",
+    path: "fixture.css",
+    source: ".a {} /* prose\r\nnext\n*/ .b {}\r\n",
+    expected: ".a {}\n\n .b {}\r\n",
+  },
+  {
+    name: "CSS unterminated quoted backslash remains literal",
+    path: "fixture.css",
+    source: '.a { content: "unfinished\\',
+    expected: '.a { content: "unfinished\\',
+  },
+  {
+    name: "CSS unterminated prose retains its line hole",
+    path: "fixture.scss",
+    source: ".a {}/* prose\nrest",
+    expected: ".a {}\n",
+  },
+  {
+    name: "CSS unterminated directive remains observable",
+    path: "fixture.css",
+    source: "/* biome-ignore lint/x: retained\nrest",
+    expected: "/* biome-ignore lint/x: retained\nrest",
+  },
+  {
+    name: "CSS directive range keeps its exact ownership",
+    path: "fixture.scss",
+    source: "/* biome-ignore-start lint/x: retained */\n.a {} /* prose */\n/* biome-ignore-end lint/x: retained */\n",
+    expected: "/* biome-ignore-start lint/x: retained */\n.a {}\n/* biome-ignore-end lint/x: retained */\n",
+  },
+  {
+    name: "SQL doubled quote protects comment-looking text",
+    path: "fixture.sql",
+    source: "select 'can''t -- /* literal */'; -- prose\nselect 1/* prose\nrest */;",
+    expected: "select 'can''t -- /* literal */';\nselect 1\n;",
+  },
+  {
+    name: "SQL backslash is not a quote escape",
+    path: "fixture.sql",
+    source: "select 'back\\' /* prose */;",
+    expected: "select 'back\\' ;",
+  },
+  {
+    name: "SQL CRLF line comment stops at the newline",
+    path: "fixture.sql",
+    source: "select 1; -- prose\r\nselect 2;\r\n",
+    expected: "select 1;\nselect 2;\r\n",
+  },
+  {
+    name: "SQL unterminated quoted comment stays literal",
+    path: "fixture.sql",
+    source: "select 'unfinished -- /* literal */\nrest",
+    expected: "select 'unfinished -- /* literal */\nrest",
+  },
+  {
+    name: "SQL unterminated block preserves only its newlines",
+    path: "fixture.sql",
+    source: "select 1;/* prose\nrest",
+    expected: "select 1;\n",
+  },
+] as const;
+
+for (const { name, path, source, expected } of LEXICAL_CASES) {
+  test(name, () => {
+    const stripped = stripComments(path, source);
+    expect(stripped).toBe(expected);
+    expect(stripped.split("\n")).toHaveLength(source.split("\n").length);
+  });
+}

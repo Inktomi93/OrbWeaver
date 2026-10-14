@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-14
 priority: P2
 area: tooling
-lane: codex/owner-read-provenance-1016
 plan: test-foundation
 ---
 
@@ -31,3 +30,5 @@ Reviewed source `ba07cbab45` preserves native `Response.formData` passthrough wi
 Tracing uses explicit rejection handlers and one reporting function without a known-safe grant. Operation failures settle after reporting; reporting failures can reject. Runtime controls and independent review confirm the batch. Static floors are author-reported; whole-application qualification and the broader suppression inventory remain open.
 
 Reviewed sources `0534d11010` and `88fd25fdcc` route diagnostics, load budgets and verifier environment reads through the existing floor owner. Native rejection and scoped behavior controls preserve read timing, ceiling capture, fixture mode, child overrides and copy isolation. Tooling types and exact lint pass. The current full root log retains off-owned failures. Reuse matching checkpoint adjudications; changed subjects and configuration liveness remain unresolved. Security-adjudicated source `4a2b60faa6` retains the database-target and live ambient exceptions. Product-key ownership and setup reads across awaited input justify them; only their comments change.
+
+Reviewed `159dd24975` removes actual native complexity exceptions from the CSS and SQL mirror scanners through quoted/comment span consumption. Lexical bytes, directives, newline positions and existing language dispatch remain unchanged. Original-source native findings, maintained boundary cases, corrupt-span rejection and independent differential execution qualify this family. No replacement exception or configuration change is added; the remaining population stays open.

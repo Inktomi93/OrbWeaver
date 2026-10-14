@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-14
 priority: P1
 area: tenancy
+lane: codex/drizzle-facts-953
 plan: test-foundation
 ---
 

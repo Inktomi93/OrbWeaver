@@ -65,45 +65,61 @@ function stripTsLike(text: string, scriptKind: ts.ScriptKind): string {
   return output + text.slice(cursor);
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a quote-aware comment scanner is branchy by nature.
+function cssQuotedEnd(source: string, start: number): number {
+  const quote = source[start];
+  for (let index = start + 1; index < source.length; index += 1) {
+    if (source[index] === "\\") {
+      index += 1;
+      continue;
+    }
+    if (source[index] === quote) {
+      return index + 1;
+    }
+  }
+  return source.length;
+}
+
+function sqlQuotedEnd(source: string, start: number): number {
+  let index = start + 1;
+  while (index < source.length) {
+    if (source[index] !== "'") {
+      index += 1;
+      continue;
+    }
+    if (source[index + 1] === "'") {
+      index += 2;
+      continue;
+    }
+    return index + 1;
+  }
+  return source.length;
+}
+
+function blockCommentEnd(source: string, start: number): number {
+  const end = source.indexOf("*/", start + 2);
+  return end === -1 ? source.length : end + 2;
+}
+
+function newlineHoles(span: string): string {
+  return "\n".repeat(span.split("\n").length - 1);
+}
+
 function stripCss(source: string): string {
   let output = "";
   let index = 0;
-  let quote: string | null = null;
   while (index < source.length) {
     const current = source[index] ?? "";
-    const next = source[index + 1];
-    if (quote !== null) {
-      output += current;
-      if (current === "\\") {
-        output += next ?? "";
-        index += 2;
-        continue;
-      }
-      if (current === quote) {
-        quote = null;
-      }
-      index += 1;
-      continue;
-    }
     if (current === '"' || current === "'") {
-      quote = current;
-      output += current;
-      index += 1;
+      const end = cssQuotedEnd(source, index);
+      output += source.slice(index, end);
+      index = end;
       continue;
     }
-    if (current === "/" && next === "*") {
-      let end = index + 2;
-      let newlines = "";
-      while (end < source.length && !(source[end] === "*" && source[end + 1] === "/")) {
-        if (source[end] === "\n") {
-          newlines += "\n";
-        }
-        end += 1;
-      }
-      const span = source.slice(index, end + 2);
-      output += DIRECTIVE_RE.test(span) ? span : ` ${newlines}`;
-      index = end + 2;
+    if (current === "/" && source[index + 1] === "*") {
+      const end = blockCommentEnd(source, index);
+      const span = source.slice(index, end);
+      output += DIRECTIVE_RE.test(span) ? span : ` ${newlineHoles(span)}`;
+      index = end;
       continue;
     }
     output += current;
@@ -116,48 +132,26 @@ function stripHtml(source: string): string {
   return source.replaceAll(/<!--[\s\S]*?-->/gu, (comment) => "\n".repeat(comment.split(/\r?\n/u).length - 1));
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a SQL-quote-aware comment scanner is branchy by nature.
 function stripSql(source: string): string {
   let output = "";
   let index = 0;
-  let quoted = false;
   while (index < source.length) {
     const current = source[index] ?? "";
-    const next = source[index + 1];
-    if (quoted) {
-      output += current;
-      if (current === "'") {
-        if (next === "'") {
-          output += next;
-          index += 2;
-          continue;
-        }
-        quoted = false;
-      }
-      index += 1;
-      continue;
-    }
     if (current === "'") {
-      quoted = true;
-      output += current;
-      index += 1;
+      const end = sqlQuotedEnd(source, index);
+      output += source.slice(index, end);
+      index = end;
       continue;
     }
-    if (current === "-" && next === "-") {
-      while (index < source.length && source[index] !== "\n") {
-        index += 1;
-      }
+    if (current === "-" && source[index + 1] === "-") {
+      const end = source.indexOf("\n", index + 2);
+      index = end === -1 ? source.length : end;
       continue;
     }
-    if (current === "/" && next === "*") {
-      let end = index + 2;
-      while (end < source.length && !(source[end] === "*" && source[end + 1] === "/")) {
-        if (source[end] === "\n") {
-          output += "\n";
-        }
-        end += 1;
-      }
-      index = end + 2;
+    if (current === "/" && source[index + 1] === "*") {
+      const end = blockCommentEnd(source, index);
+      output += newlineHoles(source.slice(index, end));
+      index = end;
       continue;
     }
     output += current;
