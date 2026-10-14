@@ -27,6 +27,7 @@ import type {
   BeginGenerationObservation,
   backfillGroupCharacters,
   backfillMemory,
+  ChatBoundBackfillOps,
   ChatContext,
   ChatService,
   ChatServiceDeps,
@@ -299,6 +300,7 @@ export interface ChatComposeResult extends AsyncDisposable {
    *  `resolveMemoryConfig` merge the live turn and the corpus sweep use, so the gate cannot drift from the
    *  per-host skip it exists to pre-empt. */
   readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
+  readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
   /** D259 — the signup-invite ops the entry signup route runs, built over chat's own ctx. */
   readonly signupInvites: SignupInviteOps;
   /** Chat's corpus sweeps, bound over the chat ctx. */

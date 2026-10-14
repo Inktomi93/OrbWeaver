@@ -75,7 +75,7 @@ function sweepOps(f: Pick<Fixture, "db" | "svc">): ReturnType<typeof createVecto
   return createVectorSweepOps({
     embeddings: f.svc,
     listCorpusOwners: () => distinctCorpusOwners(f.db),
-    vacuousMemoryReceipt: createVacuousMemoryReceipt({ isMemoryEnabled: () => Promise.resolve(true), embeddings: f.svc }),
+    vacuousMemoryReceipt: createVacuousMemoryReceipt({ isMemoryEnabled: () => Promise.resolve(true), emptyMemoryScope: () => Promise.resolve(null), embeddings: f.svc }),
   });
 }
 

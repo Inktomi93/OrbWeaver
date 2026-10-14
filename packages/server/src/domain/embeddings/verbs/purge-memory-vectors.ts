@@ -7,8 +7,8 @@ import type { EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope } from "../substrate/generation.ts";
 
 export function createPurgeMemoryVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeMemoryVectors"] {
-  return async ({ ownerId, generation }): Promise<PurgeMemoryVectorsResult> => {
-    await completeGenerationScope(ctx, { ownerId, scope: "memory", generation });
+  return async ({ ownerId, generation, emptyScope }): Promise<PurgeMemoryVectorsResult> => {
+    await completeGenerationScope(ctx, { ownerId, scope: "memory", generation, onlyIf: emptyScope });
     return { segments: 0, digests: 0 };
   };
 }

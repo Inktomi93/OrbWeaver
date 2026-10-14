@@ -37,13 +37,16 @@ export function createVectorSweepOps(deps: VectorSweepDeps): VectorSweepOps {
     purgeMemoryVectors: async (spaces, enumerationScope): Promise<void> => {
       const completed = new Map(spaces.map((space) => [space.ownerId, space]));
       for (const ownerId of await sweptOwners(enumerationScope)) {
-        const receipt = completed.get(ownerId) ?? (await deps.vacuousMemoryReceipt(ownerId));
+        const built = completed.get(ownerId);
+        const vacuous = built === undefined ? await deps.vacuousMemoryReceipt(ownerId) : null;
+        const receipt = built ?? vacuous;
         if (receipt === null) {
           continue;
         }
         await embeddings.purgeMemoryVectors({
           ownerId,
           generation: { id: receipt.generationId, task: "embed", via: "embed", epoch: receipt.generationEpoch, space: receipt.model },
+          ...(vacuous?.onlyIf === null || vacuous === null ? {} : { emptyScope: vacuous.onlyIf }),
         });
       }
     },

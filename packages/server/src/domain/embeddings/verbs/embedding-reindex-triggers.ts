@@ -33,6 +33,7 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
     return await deps.purgeMemoryVectors({
       ownerId,
       generation: { id: vacuous.generationId, task: "embed", via: "embed", epoch: vacuous.generationEpoch, space: vacuous.model },
+      ...(vacuous.onlyIf === null ? {} : { emptyScope: vacuous.onlyIf }),
     });
   };
 

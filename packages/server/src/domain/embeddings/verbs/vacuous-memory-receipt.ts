@@ -1,17 +1,18 @@
-// Memory-off owners have no vectors to build, so their current target can complete vacuously.
+// Empty present-host universes need no memory build; enabled nonempty owners still owe their real sweep.
 
-import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { UserId } from "@orb/kit/ids";
-import type { VacuousMemoryReceiptDeps } from "../contract/reindex.ts";
+import type { VacuousMemoryReceipt, VacuousMemoryReceiptDeps } from "../contract/reindex.ts";
 
-/** Resolve a memory-off owner's current target receipt; enabled owners must complete their real sweep. */
+/** Resolve the current target for an off owner or a natively fenced empty present-host scope. */
 
-export function createVacuousMemoryReceipt(deps: VacuousMemoryReceiptDeps): (ownerId: UserId) => Promise<MemoryEmbedSpace | null> {
+export function createVacuousMemoryReceipt(deps: VacuousMemoryReceiptDeps): (ownerId: UserId) => Promise<VacuousMemoryReceipt | null> {
   return async (ownerId) => {
-    if (await deps.isMemoryEnabled(ownerId)) {
+    const enabled = await deps.isMemoryEnabled(ownerId);
+    const onlyIf = enabled ? await deps.emptyMemoryScope(ownerId) : null;
+    if (enabled && onlyIf === null) {
       return null;
     }
     const generation = await deps.embeddings.resolveGeneration(ownerId, "embed");
-    return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
+    return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch, onlyIf };
   };
 }

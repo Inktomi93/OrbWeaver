@@ -262,8 +262,8 @@ function eagerlyInvoked(fn: MorphNode): boolean {
 }
 
 /** Is the identifier the callee of the call it sits in (`helper(x)`), as opposed to a value handed on (`{ op: helper }`)? */
-function calledDirectly(identifier: MorphNode): boolean {
-  const site = directCall(identifier);
+function calledDirectly(expression: MorphNode): boolean {
+  const site = directCall(expression);
   return site !== undefined && site.call.getExpression() === site.slot;
 }
 
@@ -281,12 +281,15 @@ function namesItsParent(identifier: MorphNode, parent: MorphNode): boolean {
 }
 
 /** A reference position: not a declaration's own name, not a type, not an import/export specifier, not a member name. */
-function referencePosition(identifier: MorphNode): boolean {
-  const parent = identifier.getParent();
+function referencePosition(expression: MorphNode): boolean {
+  if (Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) {
+    return expression.getFirstAncestor((ancestor) => Node.isTypeNode(ancestor)) === undefined;
+  }
+  const parent = expression.getParent();
   if (parent === undefined || Node.isImportSpecifier(parent) || Node.isExportSpecifier(parent) || Node.isImportClause(parent)) {
     return false;
   }
-  return !namesItsParent(identifier, parent) && identifier.getFirstAncestor((ancestor) => Node.isTypeNode(ancestor)) === undefined;
+  return !namesItsParent(expression, parent) && expression.getFirstAncestor((ancestor) => Node.isTypeNode(ancestor)) === undefined;
 }
 
 /** The `.from(<t>)` a `select()` chain reads, walking up the chain from one of its links. */
@@ -612,7 +615,7 @@ export const gate = defineGate({
   create: (ctx) => {
     const decisions: MorphNode[] = [];
     const calls: CallExpression[] = [];
-    const identifiers: MorphNode[] = [];
+    const referenceSites: MorphNode[] = [];
     const callables = new Map<string, MorphNode[]>();
     const subjects = new Map<object, Subject>();
     const subjectOf = (node: MorphNode, perCall: (fn: MorphNode) => boolean): Subject => {
@@ -626,13 +629,13 @@ export const gate = defineGate({
       return subject;
     };
     const references = (named: ReadonlySet<object>): readonly Reference[] =>
-      identifiers.flatMap((identifier) => {
-        if (!(callables.has(identifier.getText()) && referencePosition(identifier))) {
+      referenceSites.flatMap((expression) => {
+        if (!referencePosition(expression)) {
           return [];
         }
-        const callable = resolveCallableDeclaration(identifier);
+        const callable = resolveCallableDeclaration(expression);
         return callable.kind === "resolved" && named.has(callable.value.declaration.compilerNode)
-          ? [{ target: callable.value.declaration, at: identifier, called: calledDirectly(identifier) }]
+          ? [{ target: callable.value.declaration, at: expression, called: calledDirectly(expression) }]
           : [];
       });
     return {
@@ -640,6 +643,9 @@ export const gate = defineGate({
         {
           kinds: [...DECISION_STATEMENTS, SyntaxKind.BinaryExpression, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
           visit: (node) => {
+            if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
+              referenceSites.push(node);
+            }
             const anchor = decisionAnchor(node);
             if (anchor !== undefined) {
               decisions.push(anchor);
@@ -668,7 +674,7 @@ export const gate = defineGate({
             }
           },
         },
-        { kinds: [SyntaxKind.Identifier], visit: (node) => void identifiers.push(node) },
+        { kinds: [SyntaxKind.Identifier], visit: (node) => void referenceSites.push(node) },
       ],
       evaluate: () => {
         const named = new Set<object>([...callables.values()].flat().map((fn) => fn.compilerNode));
@@ -892,6 +898,43 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/server/src/entry/auth/helper.ts": "export function pick(n: number): number { return n > 1 ? n : 0; }\n",
+        [COMPOSE_FILE]: 'import { pick as choose } from "../auth/helper.ts";\nexport function build() { return { op: choose }; }\n',
+      },
+      expect: { count: 1, token: "pick", messageIncludes: "decides per call" },
+      why: "A renamed import retains its entry helper declaration; an identifier-name prefilter must not hide its per-call decision.",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/auth/helper.ts": "export function pick(n: number): number { return n > 1 ? n : 0; }\n",
+        [COMPOSE_FILE]: 'import * as helpers from "../auth/helper.ts";\nexport function build() { return { op: helpers.pick }; }\n',
+      },
+      expect: { count: 1, token: "pick", messageIncludes: "decides per call" },
+      why: "A handed-out namespace member denotes the same entry helper, not an unjudged namespace receiver.",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/auth/helper.ts": "export function pick(n: number): number { return n > 1 ? n : 0; }\n",
+        [COMPOSE_FILE]: 'import * as helpers from "../auth/helper.ts";\nexport function build() { return { op: (n: number) => helpers.pick(n) }; }\n',
+      },
+      expect: { count: 1, token: "pick", messageIncludes: "decides per call" },
+      why: "A namespace call inside a handed-out operation preserves the helper's per-call phase.",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/auth/helper.ts": "export function pick(n: number): number { return n > 1 ? n : 0; }\n",
+        "packages/server/src/entry/auth/barrel.ts": 'export { pick as choose } from "./helper.ts";\n',
+        [COMPOSE_FILE]: 'import { choose } from "../auth/barrel.ts";\nexport function build() { return { op: choose }; }\n',
+      },
+      expect: { count: 1, token: "pick", messageIncludes: "decides per call" },
+      why: "A re-export rename resolves to the original helper declaration without depending on its local name.",
+    },
+    {
+      mode: "types",
+      files: {
         [COMPOSE_FILE]:
           'const ARMS = { a: (n: number) => n, b: (n: number) => -n } as const;\nexport function build() {\n  return { run: (kind: "a" | "b", n: number) => ARMS[kind](n) };\n}\n',
       },
@@ -906,6 +949,24 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/auth/helper.ts": "export function pick(n: number): number { return n > 1 ? n : 0; }\n",
+        [COMPOSE_FILE]:
+          'import { pick as choose } from "../auth/helper.ts";\nexport function build() { const value = choose(2); return { op: () => value }; }\n',
+      },
+      why: "Renamed helpers called only during construction still perform wiring, not per-call policy.",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/auth/helper.ts": "export function pick(n: number): number { return n > 1 ? n : 0; }\n",
+        [COMPOSE_FILE]:
+          'import * as helpers from "../auth/helper.ts";\nexport function build() { const value = helpers.pick(2); return { op: () => value }; }\n',
+      },
+      why: "A namespace helper invoked during construction retains the same wiring phase as a direct call.",
+    },
     {
       mode: "types",
       files: {

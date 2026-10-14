@@ -46,7 +46,11 @@ import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
 import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
+import { captureDocumentChunks } from "./factories/embedding-generation.ts";
+import { captureRegexRows } from "./factories/regex.ts";
+import { captureRosterRows } from "./factories/roster-preset.ts";
 import { captureRpgSnapshot } from "./factories/rpg.ts";
+import { captureWorldBookRows } from "./factories/world-info.ts";
 
 const OWNER_PASSWORD = "synthetic-capsule-owner-password";
 const PROVIDER_KEY = "synthetic-capsule-provider-key";
@@ -160,6 +164,20 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(rpgFlightWire.remaining()).toEqual({ recursion: 0, rounds: 0 });
   const search = capsule.privateCaptures.search;
   const connections = capsule.privateCaptures.connection;
+  const libraryViews = capsule.privateCaptures.libraryViews;
+  expect(libraryViews.regex.after.output.map((script) => script.id)).toEqual([libraryViews.regex.second.id, libraryViews.regex.first.id]);
+  expect(libraryViews.world.orderedEntries.output.map((entry) => entry.id)).toEqual([libraryViews.world.second.id, libraryViews.world.first.id]);
+  expect(libraryViews.roster.appliedAgain.output).toMatchObject({
+    added: [],
+    alreadyPresent: [libraryViews.roster.addedCharacter.id, capsule.privateCaptures.libraries.character.id],
+  });
+  expect(libraryViews.preset.restoredDefault).toBe(libraryViews.preset.previous);
+  expect(libraryViews.roster.persisted.rules.length).toBeGreaterThan(0);
+  expect(libraryViews.roster.repeatedRules.output).toEqual(libraryViews.roster.firstRules.output);
+  expect(libraryViews.documents.chunks.length).toBeGreaterThan(0);
+  expect(libraryViews.documents.repeatedChunks).toEqual(libraryViews.documents.chunks);
+  expect(libraryViews.refusals.after).toEqual(libraryViews.refusals.before);
+  expect(libraryViews.tags.pendingAfter.output.map((tag) => tag.id)).toContain(capsule.privateCaptures.libraries.tag.id);
   expect(connections.capabilities.summary).toMatchObject({ task: "summarize", connectionId: connections.own.row.id, model: CORPUS_CONNECTION_MODEL });
   expect(connections.list.some((row) => row.id === connections.foreign.row.id)).toBe(false);
   expect(connections.catalogs.afterRawDraft).toEqual(connections.catalogs.beforeRawDraft);
@@ -273,6 +291,14 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const clone = await createDb(fixture.layout.databaseUrl);
   try {
     await assertReferentialIntegrity(clone);
+    expect(await captureDocumentChunks(clone, libraryViews.documents.created.output.document.id)).toEqual(libraryViews.documents.chunks);
+    expect(await captureWorldBookRows(clone, libraryViews.world.book.id)).toEqual(libraryViews.world.persisted);
+    expect(await captureRegexRows(clone, [libraryViews.regex.first.id, libraryViews.regex.second.id])).toEqual(libraryViews.regex.persisted);
+    expect(await captureRosterRows(clone, [libraryViews.roster.persisted.preset.id])).toEqual({
+      presets: [libraryViews.roster.persisted.preset],
+      members: libraryViews.roster.persisted.members,
+      rules: libraryViews.roster.persisted.rules,
+    });
     const schedules = capsule.privateCaptures.rpg.schedules;
     const imagery = capsule.privateCaptures.imagery;
     expect(

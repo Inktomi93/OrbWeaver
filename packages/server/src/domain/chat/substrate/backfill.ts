@@ -23,10 +23,8 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import { buildIdentityNameContext } from "@orb/contracts/chat";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
-import { chatImportClaims, chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
-import { and, between, eq, inArray, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#primitives/abort";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
@@ -44,6 +42,7 @@ import {
 } from "../memory/generate/digests.ts";
 import { collectSegments, storeSegments } from "../memory/generate/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
+import { loadBackfillChatIds } from "../persistence/backfill-scope.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
@@ -56,35 +55,7 @@ import { hostUserIdOf } from "./participants-host.ts";
  *  narrows that universe to the chats whose import claim falls inside it: an intersection, so another owner's
  *  import in the same span matches nothing. The narrowing is a subquery, so no id list is bound as variables. */
 export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null, importWindow?: ImportWindow | null): Promise<ChatId[]> {
-  const narrowed =
-    importWindow === undefined || importWindow === null
-      ? undefined
-      : inArray(
-          chats.id,
-          ctx.db
-            .select({ id: chatImportClaims.chatId })
-            .from(chatImportClaims)
-            .where(between(chatImportClaims.createdAt, importWindow.from, importWindow.to)),
-        );
-  if (hostUserId === undefined || hostUserId === null) {
-    const rows = await ctx.db.select({ id: chats.id }).from(chats).where(narrowed);
-    return rows.map((r) => r.id);
-  }
-  const rows = await ctx.db
-    .select({ id: chats.id })
-    .from(chats)
-    .innerJoin(
-      chatParticipants,
-      and(
-        eq(chatParticipants.chatId, chats.id),
-        eq(chatParticipants.kind, "human"),
-        eq(chatParticipants.role, "host"),
-        eq(chatParticipants.userId, hostUserId),
-        isNull(chatParticipants.leftSeq),
-      ),
-    )
-    .where(narrowed);
-  return rows.map((r) => r.id);
+  return await loadBackfillChatIds(ctx.db, hostUserId, importWindow);
 }
 
 /** A chat's present characters + its host + the projected macro-name context (the summarizer transcript labels

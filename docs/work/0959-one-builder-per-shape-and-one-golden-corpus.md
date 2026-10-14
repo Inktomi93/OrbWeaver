@@ -23,8 +23,6 @@ A builder exists per contract output and table; the corpus is committed and load
 
 ## Evidence
 
-Canonical recall workloads produce digests, segments and query traces; native turns produce speaker rows. Defect controls pass; complete variants remain open.
-
 Auth uses its canonical schema. Builders require request-specific capture, not fabricated defaults.
 
 Reviewed source `f787a21337` captures native chat import, compaction, held streams and owner-scoped handoff. Imagery rejects timestamp-only merging. Scoped controls pass.
@@ -33,7 +31,7 @@ Browser responders preserve captured input/output, absent versus null input and 
 
 Builders reject schema drift and zeroed production tokens; helpers derive public compose types.
 
-`tests/support/node/factories/resolved-connection.ts` consumes fabrication waivers. New corpus inputs use actual admission; budgets remain unjudged.
+New corpus inputs use actual admission; legacy Resolved fabrication helpers do not qualify them.
 
 Reviewed source `505c900fb5` produces native OIDC claim, pending and session captures. Its capsule proves physical disposal, sole WAL ownership on reopen, secret stripping and independent DB/CAS clones. Matching auth controls pass. Portable assertions run everywhere; descriptor observations are Linux-specific.
 
@@ -54,3 +52,5 @@ Reviewed source `fa0badf99b` preserves immutable checkpoints. Reviewed source `6
 Reviewed source `7feb12bdf2` captures native routed search outputs, provenance and scopes. A capped-denominator defect control fails. Enabled empty-owner completion remains separately owned; publication and adoption remain open.
 
 Reviewed source `68e71302cf` captures native connection, catalog, capability, diagnostic and admitted-turn cost outputs. Finite physical HTTP and DNS preserve native ownership, admission, funding and parsers. Capsule holds and secret exclusion pass; the task-projection control fails. HTTP admission, complete coverage, publication and adoption remain open.
+
+Reviewed source `4c5ae5c652` captures native library lifecycles and ingestion chunks. Native, seed and order controls pass. Aggregate capsule/clone remains unqualified; timeout precedes the new producer.
