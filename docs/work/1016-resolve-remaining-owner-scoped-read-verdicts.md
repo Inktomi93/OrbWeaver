@@ -28,4 +28,6 @@ A complete selected run on the typed-authority candidate records effective findi
 
 Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, preserves native global rule ordering and seals the card loader as rows. Genuine producer and handoff controls pass; old predicates fail without deleting publication state. Authorized retained rows remain present with foreign fingerprints withheld. Fingerprints are compatibility metadata, not credentials.
 
-Character query helpers and parent pins, correlated chat scope, browse predicates, refinery authority and retained-accounting cohorts remain open. Adjudicate actual SQL and callers before fixing a query or shared reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. This batch does not establish whole-policy qualification.
+Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
+
+Refinery authority and retained-accounting cohorts remain open. Rejudge the unchanged complete policy population after integration. Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
