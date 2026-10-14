@@ -3,15 +3,16 @@
 // a stale id degrades to task defaults while a real read failure surfaces (#759).
 
 import type { UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG, rolePresetParamsOf } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION, rolePresetParamsOf } from "@orb/contracts/preset";
 import type { RolePresetChoice } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS, ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PresetService } from "@orb/server/domain/preset";
-import { buildSideGenParams, PresetNotFoundError } from "@orb/server/domain/preset";
+import { buildSideGenParams, PresetNotFoundError, presetDetailSchema } from "@orb/server/domain/preset";
+import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { presetDetail, presetWithPromptStructure, utilityPresetResolver } from "@orb/testkit/node/utility-preset.ts";
+import { presetWithPromptStructure, utilityPresetResolver } from "@orb/testkit/node/utility-preset.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 
@@ -34,7 +35,17 @@ function resolverFor(choice: RolePresetChoice | null, get: Mock<PresetGet>): Ret
   }).resolveUtilityPresetParams;
 }
 
-const chatPresetGet = (): Mock<PresetGet> => vi.fn<PresetGet>().mockResolvedValue(presetDetail({ ...DEFAULT_PROMPT_CONFIG, params: CHAT_PARAMS }));
+const chatPresetGet = (): Mock<PresetGet> =>
+  vi.fn<PresetGet>().mockResolvedValue(
+    presetDetailSchema.parse(
+      makePresetDetail({
+        name: "Structured utility",
+        kind: "chat",
+        config: { ...DEFAULT_PROMPT_CONFIG, params: CHAT_PARAMS },
+        schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
+      }),
+    ),
+  );
 
 describe("resolveUtilityPresetParams — the Utility role's preset choice", () => {
   test("task defaults resolve no params, so a short chat reply cap never reaches a background task", async () => {
@@ -68,7 +79,11 @@ describe("resolveUtilityPresetParams — the Utility role's preset choice", () =
 
   test("a named preset's inline reasoning tag pair rides with its params, so a summary splits on that pair", async () => {
     const config = { ...DEFAULT_PROMPT_CONFIG, params: { temperature: 0.9 }, reasoningParse: { autoParse: true, prefix: "<reason>", suffix: "</reason>" } };
-    const get = vi.fn<PresetGet>().mockResolvedValue(presetDetail(config));
+    const get = vi
+      .fn<PresetGet>()
+      .mockResolvedValue(
+        presetDetailSchema.parse(makePresetDetail({ name: "Structured utility", kind: "chat", config, schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION })),
+      );
     await expect(resolverFor({ kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID }, get)(USER_ID)).resolves.toEqual({
       temperature: 0.9,
       reasoningTags: { prefix: "<reason>", suffix: "</reason>" },
@@ -78,7 +93,11 @@ describe("resolveUtilityPresetParams — the Utility role's preset choice", () =
   // A pair with auto-parse off is inert in chat, so it does not reach a background task either: the house pair runs.
   test("a named preset's tag pair with auto-parse off is not carried", async () => {
     const config = { ...DEFAULT_PROMPT_CONFIG, params: { temperature: 0.9 }, reasoningParse: { autoParse: false, prefix: "<reason>", suffix: "</reason>" } };
-    const get = vi.fn<PresetGet>().mockResolvedValue(presetDetail(config));
+    const get = vi
+      .fn<PresetGet>()
+      .mockResolvedValue(
+        presetDetailSchema.parse(makePresetDetail({ name: "Structured utility", kind: "chat", config, schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION })),
+      );
     await expect(resolverFor({ kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID }, get)(USER_ID)).resolves.toEqual({ temperature: 0.9 });
   });
 
