@@ -142,15 +142,40 @@ interface CorpusProviderExecution {
   readonly requests: string[];
 }
 
-function embeddingReply(script: CorpusProviderScript, fields: ProviderRequest): Response {
-  if (fields.input === undefined) {
-    throw new Error("corpus embedding request has no physical input");
-  }
-  const inputs = typeof fields.input === "string" ? [fields.input] : fields.input;
-  const data = inputs.map((_, index) => `{"object":"embedding","index":${index},"embedding":${JSON.stringify(script.embedding)}}`).join(",");
+const imageEmbeddingRequestSchema = z.object({
+  ["add_generation_prompt"]: z.literal(true),
+  dimensions: z.int().positive(),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["system", "user"]),
+        content: z
+          .array(
+            z.discriminatedUnion("type", [
+              z.object({ type: z.literal("text"), text: z.string() }),
+              z.object({ type: z.literal("image_url"), ["image_url"]: z.object({ url: z.url() }) }),
+            ]),
+          )
+          .nonempty(),
+      }),
+    )
+    .nonempty(),
+});
+
+function embeddingReply(script: CorpusProviderScript, fields: ProviderRequest, requestBody: string): Response {
+  const count = embeddingInputCount(fields, requestBody);
+  const data = Array.from({ length: count }, (_, index) => `{"object":"embedding","index":${index},"embedding":${JSON.stringify(script.embedding)}}`).join(",");
   return new Response(`{"object":"list","model":${JSON.stringify(fields.model)},"data":[${data}]}`, {
     headers: { "content-type": "application/json" },
   });
+}
+
+function embeddingInputCount(fields: ProviderRequest, requestBody: string): number {
+  if (fields.input === undefined) {
+    imageEmbeddingRequestSchema.parse(JSON.parse(requestBody));
+    return 1;
+  }
+  return typeof fields.input === "string" ? 1 : fields.input.length;
 }
 
 function imageReply(script: CorpusProviderScript, fields: ProviderRequest): Response {
@@ -228,7 +253,7 @@ function postReply(script: CorpusProviderScript, path: string, fields: ProviderR
   }
   switch (path) {
     case "/v1/embeddings":
-      return embeddingReply(script, fields);
+      return embeddingReply(script, fields, requestBody);
     case "/v1/images/generations":
       return imageReply(script, fields);
     case "/v1/chat/completions":

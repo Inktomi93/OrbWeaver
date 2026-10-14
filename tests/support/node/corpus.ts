@@ -10,6 +10,7 @@ import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import type { seedCorpusKnowledge as produceCorpusKnowledge } from "./corpus-knowledge.ts";
+import type { seedCorpusKnowledgeVariants as produceCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
 import type { seedCorpusPlugins as produceCorpusPlugins } from "./corpus-plugin.ts";
 import type { seedCorpusRpg as produceCorpusRpg } from "./corpus-rpg.ts";
 import type { seedCorpusRpgProvider as produceCorpusRpgProvider } from "./corpus-rpg-provider.ts";
@@ -40,6 +41,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly knowledgeVariants: Awaited<ReturnType<typeof produceCorpusKnowledgeVariants>>;
   readonly rpgProvider: Awaited<ReturnType<typeof produceCorpusRpgProvider>>;
   readonly rpg: Awaited<ReturnType<typeof produceCorpusRpg>>;
   readonly knowledge: Awaited<ReturnType<typeof produceCorpusKnowledge>>;
@@ -125,6 +127,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedUserCredential } = await import("./factories/credentials.ts");
   const { seedCorpusPlugins } = await import("./corpus-plugin.ts");
   const { seedCorpusKnowledge } = await import("./corpus-knowledge.ts");
+  const { seedCorpusKnowledgeVariants } = await import("./corpus-knowledge-variants.ts");
   const { seedCorpusRpg } = await import("./corpus-rpg.ts");
   const { seedCorpusRpgProvider } = await import("./corpus-rpg-provider.ts");
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
@@ -194,6 +197,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const plugins = await seedCorpusPlugins(root, oidc.joiner.id);
   const rpg = await seedCorpusRpg(root);
   const rpgProvider = await seedCorpusRpgProvider(root, actors.connections.text.id);
+  const knowledgeVariants = await seedCorpusKnowledgeVariants(root);
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -204,6 +208,6 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
   return {
     wire: hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads }),
-    privateCaptures: { oidc, credential, baseline, recall, libraries, automation, plugins, knowledge, rpg, rpgProvider },
+    privateCaptures: { oidc, credential, baseline, recall, libraries, automation, plugins, knowledge, rpg, rpgProvider, knowledgeVariants },
   };
 }
