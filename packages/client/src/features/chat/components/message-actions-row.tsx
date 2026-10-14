@@ -48,6 +48,7 @@ import { GenerationCredit } from "./generation-credit.tsx";
 import { MessageActionsCluster } from "./message-actions-cluster.tsx";
 import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
+import { SavedRepliesItem, SavedRepliesPicker } from "./saved-replies-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
 // A failed copy's next step; the message is on screen right above the menu.
@@ -128,6 +129,8 @@ function renderGenerationCredit(show: boolean, message: MessageView): ReactEleme
 
 export interface MessageActionsRowProps {
   readonly message: MessageView;
+  /** The existing card-opening binding suppresses ordinary saved-variant navigation. */
+  readonly greetingBound?: boolean | undefined;
   readonly messageActions?: ActionsReveal | undefined;
   /** B7/MR3 — the room's PRESENT CHARACTER-NAME set (`speakerThemesByName`'s keys, threaded from the row). The
    *  picker's segment-target list parses the CANON body with these under the narrator-voice gate — the
@@ -149,6 +152,7 @@ export interface MessageActionsRowProps {
 export function MessageActionsRow({
   message,
   messageActions,
+  greetingBound = false,
   viewerIsHost = false,
   generationCredit = false,
   characterNames = [],
@@ -162,6 +166,7 @@ export function MessageActionsRow({
   const undoContinue = useUndoContinueMutation({ trpc, invalidation });
   const revertContinue = useRevertContinueMutation({ trpc, invalidation });
   const [wireOpen, setWireOpen] = useState(false);
+  const [savedRepliesOpen, setSavedRepliesOpen] = useState(false);
   // B6 — the reaction picker's open state lives HERE, beside `wireOpen`, for the reason that comment block
   // gives: a `MenuItem` click closes the menu, so a popup rendered inside the popup would unmount in the
   // same tick it was asked to open. Both doors below set this one flag.
@@ -308,6 +313,7 @@ export function MessageActionsRow({
                 Add a reaction
               </MenuItem>
             ) : null}
+            <SavedRepliesItem message={message} greetingBound={greetingBound} onSelect={(): void => setSavedRepliesOpen(true)} />
             <ReattributeFromHereItem onSelect={(): void => setReattributeOpen(true)} target={reattributeTarget} />
             <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
               <Icon icon={Copy} size="sm" />
@@ -339,6 +345,13 @@ export function MessageActionsRow({
       {/* Mounted only once opened — an unopened row builds no query key and no dialog subtree (the viewer's
           own read is `enabled: open`, so this is belt-and-braces on the same gate). */}
       {wireOpen ? <VariantWireViewer chatId={chatId} variantId={message.selectedVariantId} open={wireOpen} onOpenChange={setWireOpen} /> : null}
+      {savedRepliesOpen ? (
+        <SavedRepliesPicker
+          message={message}
+          onOpenChange={setSavedRepliesOpen}
+          finalFocus={(): HTMLElement | null => clusterRef.current?.querySelector<HTMLElement>('[aria-haspopup="menu"]') ?? null}
+        />
+      ) : null}
       <ReattributeFromHereConfirm message={message} onOpenChange={setReattributeOpen} open={reattributeOpen} target={reattributeTarget} />
       {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree (the picker
           wiring itself — the canon parse + the segment claim — lives in `row-reaction-picker.tsx`). */}

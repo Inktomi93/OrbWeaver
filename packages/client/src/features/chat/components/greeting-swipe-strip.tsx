@@ -37,7 +37,7 @@ interface SetSeededGreetingVars {
   readonly greetingIndex: number;
 }
 
-// busDriven: the verb emits `messageEdited`, which the invalidation seam already routes to the canon read —
+// busDriven: in-place steps emit `messageEdited`; preserved prose emits `variantSelected`. Both invalidate canon —
 // the row re-renders from the SERVER's bytes, never from an optimistic local swap (the card is the source of
 // truth for what an alternate says, and it may have been edited since the seed).
 const useSetSeededGreeting = createEntityMutation<SetSeededGreetingVars, unknown>({

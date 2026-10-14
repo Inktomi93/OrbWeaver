@@ -201,6 +201,7 @@ export function renderRowActions(args: {
   readonly selecting: boolean;
   readonly message: MessageView;
   readonly messageActions: ActionsReveal;
+  readonly greetingBound?: boolean | undefined;
   /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). */
   readonly viewerIsHost: boolean | undefined;
   /** Show the generation credit, already gated by the `showModelIcon` appearance toggle upstream. */
@@ -217,6 +218,7 @@ export function renderRowActions(args: {
     <MessageActionsRow
       message={args.message}
       messageActions={args.messageActions}
+      greetingBound={args.greetingBound}
       viewerIsHost={args.viewerIsHost}
       generationCredit={args.generationCredit}
       characterNames={args.characterNames}

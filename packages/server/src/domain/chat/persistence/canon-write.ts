@@ -101,8 +101,7 @@ interface CanonVariantInput {
   /** The fit-pass boundary — the earliest message actually included in the assembled history this
    *  generation. Null ⇒ nothing was dropped / the fit-pass never ran. */
   readonly contextBoundaryMessageId?: MessageId | null | undefined;
-  /** The generation window bounds (epoch-ms) the engine stamps around the pipeline. Persistence-only
-   *  columns (not on the read `MessageView`); absent ⇒ null (a verbatim/greeting seed). */
+  /** The actual generation window (epoch-ms); copies retain their source window, authored variants record none. */
   readonly genStartedAt?: number | null | undefined;
   readonly genFinishedAt?: number | null | undefined;
   /** The provider's response id for this generation (OpenRouter `gen-…` — the cost key; Anthropic
@@ -877,6 +876,7 @@ export function setMessageSeqStatement(db: Db, messageId: MessageId, seq: number
  */
 export function buildCommittedMessageView(params: InsertCanonMessageParams): MessageView {
   const providerMetadata = parseVariantMetadata(params.variant.metadata).providerMetadata;
+  const economics = variantEconomics(params.variant);
   return {
     id: params.messageId,
     chatId: params.chatId,
@@ -895,7 +895,8 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     // A freshly-committed variant has never been continued — its D26 snapshot columns are null.
     hasContinuation: false,
     outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
-    ...variantEconomics(params.variant),
+    ...economics,
+    hasGeneratedVariant: economics.genStartedAt !== null || economics.genFinishedAt !== null,
     // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the
     // client's tool read surface; a non-tool turn commits an empty array (D48).
     toolCalls: params.variant.toolCalls ?? [],

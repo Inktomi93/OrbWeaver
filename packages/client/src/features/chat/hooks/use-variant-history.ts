@@ -1,4 +1,4 @@
-// `useVariantHistory` — the swipe strip's step-target resolver: `idx -> variantId` for one message slot.
+// `useVariantHistory` — the variant strip and saved-reply picker's target resolver: `idx -> variantId` for one message slot.
 // FIXED (was per-mount-observed-only, MISSING-API — see the git history / scratch note for the prior
 // shape): the wire now has `chat.listMessageVariants` (domain/chat/verbs/read.ts createListMessageVariants),
 // the full sibling-variant set for a slot (D26 — `{variantId, idx}[]`, no content), so a step to an idx this
@@ -11,7 +11,7 @@
 // into the returned map even before the fetch resolves / while gated off), so the presently-shown idx never
 // reads as "unseen" for a one-frame gap.
 
-import type { MessageView } from "@orb/contracts/chat";
+import type { MessageVariantSummary, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { useGatedQuery, useTRPC } from "#data";
 
@@ -19,6 +19,10 @@ export interface VariantHistory {
   /** The sibling variant id at `idx`, or `undefined` if the real list hasn't resolved it (still loading, or
    *  a genuinely out-of-range idx). */
   readonly get: (idx: number) => MessageVariantId | undefined;
+  readonly variants: readonly MessageVariantSummary[];
+  readonly isPending: boolean;
+  readonly isError: boolean;
+  readonly retry: () => void;
 }
 
 /** The gate key — present only when the slot has more than one variant (a step target could exist). */
@@ -43,5 +47,13 @@ export function useVariantHistory(message: MessageView): VariantHistory {
   if (!byIdx.has(selectedVariantIdx)) {
     byIdx.set(selectedVariantIdx, selectedVariantId);
   }
-  return { get: (idx): MessageVariantId | undefined => byIdx.get(idx) };
+  return {
+    get: (idx): MessageVariantId | undefined => byIdx.get(idx),
+    variants: [...byIdx].map(([idx, variantId]) => ({ idx, variantId })).sort((left, right) => left.idx - right.idx),
+    isPending: query.isPending,
+    isError: query.isError,
+    retry: (): void => {
+      void query.refetch().catch(globalThis.reportError);
+    },
+  };
 }

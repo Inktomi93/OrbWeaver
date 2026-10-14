@@ -344,6 +344,7 @@ export function MessageRow({
         selecting,
         message,
         messageActions: actionsRevealFor(skin, lastRow, messageActions),
+        greetingBound: greeting !== undefined,
         viewerIsHost,
         generationCredit,
         characterNames: [...speakerThemes.keys()],
