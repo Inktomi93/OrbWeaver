@@ -30,4 +30,6 @@ Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, p
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
 
-Refinery authority and retained-accounting cohorts remain open. Rejudge the unchanged complete policy population after integration. Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
+The complete selected run `codex-owner-read-provenance-1016-1125988-2026-10-14T11-16-56-109Z` still reports character and chat helper judgments, refinery and accounting scope, and asset, automation, databank, discovery and workload findings. It completes without tool errors or withheld policies; dead-position and budget authority alarms remain. Survey its full current population before assigning corrections.
+
+Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
