@@ -24,7 +24,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Reviewed extraction preserves native resolution, roots, closure, ordering, aliases, physical spans and overlay isolation. Ownership, cleanup and collector parity controls pass. Frozen Knip bytes and root identities remain preserved. GNU time reports descendant high water, not simultaneous aggregate memory.
+Reviewed extraction preserves native resolution, roots, closure, ordering, aliases, physical spans and overlay isolation. Frozen Knip bytes and root identities remain preserved. GNU time reports descendant high water, not simultaneous aggregate memory.
 
 Extraction shares ts-morph's bundled language-service checker, not the TS7 typechecker. Client and root retain separate browser and Node descriptors. Cached closure paths do not authorize combined worlds or changed membership.
 
@@ -38,6 +38,6 @@ Integrated source `f109dc2abd` completes canonical client extraction, FORMAT3 st
 
 The run completes in 58:17 with GNU time maximum RSS 11,187,848 KiB at the unchanged 16 GiB heap setting. Parent public high water is 294,456 KiB. These are process high-water measurements, not aggregate memory. Full evidence is `/tmp/ast-memory-format3-client-1002/result-summary.md`.
 
-Default-demand replay is running with fixed deadline and source, dependency and seed guards. It reuses the qualified client. Evidence lives in `/tmp/ast-memory-full-replay-1002/replay-77c78fa141-once`.
+Default-demand replay fails in root-world extraction: the installed Playwright CT declaration is not shared with its native language-service Program. This is not OOM or timeout. Workers exit; complete publication and collectors remain unqualified. Evidence: `/tmp/ast-memory-full-replay-1002/replay-77c78fa141-once`. Diagnose native identity before another replay.
 
-Complete cross-world publication and original collector replay remain unqualified until terminal results are read. Client success is not current-main liveness evidence or complete memory qualification. Preserve the reusable generation without rebuilding the client automatically.
+Closed-store inspection confirms the qualified client generation survives without partial publication. Client success is not current-main liveness or complete memory qualification.

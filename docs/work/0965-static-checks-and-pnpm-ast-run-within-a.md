@@ -34,4 +34,6 @@ The supported composite diagnostic on `a5c7f1e3d1` terminates at API-surface ent
 
 This identifies the custom sequence's aborting operation, not an internal allocation cause or shipped-command failure. Later collectors, barrel sweep and serialization are not reached. Main and inputs remain unchanged. Existing logs and the parsed result remain under the diagnostic scratch directory; no second run is needed to identify this phase.
 
+Default persisted-inventory replay fails on root-world source identity, not OOM or timeout. Extraction reaches tooling; root and test-world qualification remain incomplete. The native inventory item owns diagnosis.
+
 Export adjudication remains separate. Native inventory store construction and consumer migration are implemented; complete cold replay and memory qualification remain pending. Full hosted-runner measurements and concurrent-store qualification remain required. Do not replace complete native worlds with a synthetic program, raise heaps or infer duplicate program construction from memory size.
