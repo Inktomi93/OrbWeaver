@@ -31,6 +31,6 @@ Reviewed source `7859a8567c` closes the acquired `createDb` client when wrapping
 
 Parent-scoped aliases resolve the Windows and Linux arm64-musl loader names to matching official packages. Independent review confirms the lock and public compatibility delta. Cross-platform runtime, native asynchronous operations and broader replica compatibility remain unqualified.
 
-The source assignment is integrated. The item stays open for the strengthened current corpus quiescence case and supported application qualification. Logical close or process exit cannot substitute for those observations.
+Reviewed corpus source `505c900fb5` passes the strengthened expanded pipeline on this installed driver. Before inspection, cloning or cleanup, no owned Linux descriptors remain. Independent reopen detaches WAL as sole holder; real recall, OIDC and automation outputs survive secret-free DB/CAS cloning. Independent review confirms this bounded application lifetime and publication evidence. Cross-platform runtime remains CI qualification, not a local Linux claim.
 
 The managed runtime is pinned in `package.json`; [its upstream platform policy](https://github.com/nodejs/node/blob/v26.10.0/BUILDING.md#supported-platforms) treats ARMv7 as experimental without official release binaries. Qualify the existing source-install matrix and published image rather than building a new ARMv7 distribution. Record the native package target delta without claiming unsupported-platform parity.

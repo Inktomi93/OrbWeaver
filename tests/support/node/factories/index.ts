@@ -11,7 +11,16 @@ export type {
   SeededAutomationRun,
   SeededAutomationTestFires,
 } from "./automation.ts";
-export { seedAutomationOwnerBudget, seedAutomationRule, seedAutomationRun, seedAutomationTestFires, seedGlobalVariable } from "./automation.ts";
+export {
+  captureAutomationExecution,
+  captureAutomationRule,
+  captureGlobalVariable,
+  seedAutomationOwnerBudget,
+  seedAutomationRule,
+  seedAutomationRun,
+  seedAutomationTestFires,
+  seedGlobalVariable,
+} from "./automation.ts";
 export type { CharacterPersonaRow, CharacterRow, CharacterSnapshotRow } from "./character.ts";
 export { makeCharacter, seedCharacter, seedCharacterPersona, seedCharacterSnapshot } from "./character.ts";
 export type {
@@ -123,8 +132,8 @@ export type { RosterPresetMemberRow, RosterPresetRow, RosterPresetRuleRow, Seede
 export { captureRosterRows, seedRosterPreset } from "./roster-preset.ts";
 export type { RpgCheckpointRow, RpgGameRow, RpgJournalRow, RpgSheetRow, RpgSnapshotRow, RpgTurnToolCallsRow, SeededRpgSheets } from "./rpg.ts";
 export { captureRpgSnapshot, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./rpg.ts";
-export type { BffSessionRow, CapturedLoginBuckets, RateLimitBucketRow, SeededBffSession } from "./sessions.ts";
-export { seedBffSession, seedLoginBuckets } from "./sessions.ts";
+export type { BffSessionRow, CapturedLoginBuckets, OidcPendingSignupRow, OidcTransactionRow, RateLimitBucketRow, SeededBffSession } from "./sessions.ts";
+export { captureOidcPendingSignup, captureOidcTransaction, seedBffSession, seedLoginBuckets } from "./sessions.ts";
 export type { GlobalSettingRow, ThemeRow, UserSeedLedgerRow, UserSettingsRow } from "./settings.ts";
 export { seedGlobalSetting, seedTheme, seedUserContentLedger, seedUserSettings } from "./settings.ts";
 export type { CharacterStatsRow, DailyStatsRow, ModelStatsRow, OwnerStatsRow, SeededStats, StatsCanonVersionRow } from "./stats.ts";

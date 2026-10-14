@@ -12,13 +12,18 @@ export type GlobalVariableRow = typeof globalVariables.$inferSelect;
 export type AutomationFireRow = typeof automationFires.$inferSelect;
 export type AutomationRuleStateRow = typeof automationRuleState.$inferSelect;
 
+/** Capture the exact production-returned rule identity, including later enablement and fire stamps. */
+export async function captureAutomationRule(db: Db, ruleId: AutomationRuleRow["id"]): Promise<AutomationRuleRow | undefined> {
+  return await db.select().from(automationRules).where(eq(automationRules.id, ruleId)).get();
+}
+
 export async function seedAutomationRule(
   db: Db,
   createRule: AutomationService["createRule"],
   params: Parameters<AutomationService["createRule"]>[0],
 ): Promise<AutomationRuleRow> {
   const view = await createRule(params);
-  const row = await db.select().from(automationRules).where(eq(automationRules.id, view.id)).get();
+  const row = await captureAutomationRule(db, view.id);
   if (row === undefined) {
     throw new Error("production rule creation left no canonical automation-rule row");
   }
@@ -44,14 +49,24 @@ export async function seedGlobalVariable(
   params: Parameters<AutomationService["setGlobalVariable"]>[0],
 ): Promise<GlobalVariableRow> {
   await setGlobalVariable(params);
-  const row = await db
-    .select()
-    .from(globalVariables)
-    .where(and(eq(globalVariables.ownerId, params.principal.userId), eq(globalVariables.key, params.key)))
-    .get();
+  const row = await captureGlobalVariable(db, params.principal.userId, params.key);
   if (row === undefined) {
     throw new Error("production global-variable write left no canonical row");
   }
+  return row;
+}
+
+/** Observe an actual arm's effect without rewriting the owner/key row to obtain it. */
+export async function captureGlobalVariable(
+  db: Db,
+  ownerId: GlobalVariableRow["ownerId"],
+  key: GlobalVariableRow["key"],
+): Promise<GlobalVariableRow | undefined> {
+  const row = await db
+    .select()
+    .from(globalVariables)
+    .where(and(eq(globalVariables.ownerId, ownerId), eq(globalVariables.key, key)))
+    .get();
   return row;
 }
 
@@ -62,7 +77,7 @@ export async function seedAutomationTestFires(
   params: Parameters<AutomationService["testRule"]>[0],
 ): Promise<SeededAutomationTestFires> {
   const result = await testRule(params);
-  const fires = await db.select().from(automationFires).where(eq(automationFires.ruleId, params.ruleId)).orderBy(automationFires.id);
+  const { fires } = await captureAutomationExecution(db, params.ruleId);
   if (fires.length === 0) {
     throw new Error("production rule dry run left no canonical automation fire rows");
   }
@@ -76,9 +91,16 @@ export async function seedAutomationRun(
   params: Parameters<AutomationService["runRuleNow"]>[0],
 ): Promise<SeededAutomationRun> {
   const result = await runRuleNow(params);
-  const fires = await db.select().from(automationFires).where(eq(automationFires.ruleId, params.ruleId)).orderBy(automationFires.id);
-  const state = await db.select().from(automationRuleState).where(eq(automationRuleState.ruleId, params.ruleId)).get();
-  return { result, fires, state };
+  return { result, ...(await captureAutomationExecution(db, params.ruleId)) };
+}
+
+/** Capture a real watcher/manual execution's complete rule-PK ledger; absent state remains absent. */
+export async function captureAutomationExecution(db: Db, ruleId: AutomationRuleRow["id"]): Promise<Omit<SeededAutomationRun, "result">> {
+  const [fires, state] = await Promise.all([
+    db.select().from(automationFires).where(eq(automationFires.ruleId, ruleId)).orderBy(automationFires.id),
+    db.select().from(automationRuleState).where(eq(automationRuleState.ruleId, ruleId)).get(),
+  ]);
+  return { fires, state };
 }
 
 export interface SeededAutomationTestFires {

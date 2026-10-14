@@ -11,42 +11,14 @@ import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { createControlledTimers } from "@orb/testkit/iso/timers.ts";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS as SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/server.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, sql } from "drizzle-orm";
 import type { JWTPayload } from "jose";
 import { customFetch } from "openid-client";
 import { vi } from "vitest";
-import { CALLBACK, CLIENT_ID, CLIENT_SECRET, createNativeIssuer, ISSUER } from "./oidc-issuer.fixtures.ts";
 
-const SETTINGS = {
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_ISSUER: ISSUER,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_CLIENT_ID: CLIENT_ID,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_CLIENT_SECRET: CLIENT_SECRET,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_REDIRECT_URIS: CALLBACK,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_SCOPES: "openid profile email",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_USERNAME_CLAIM: "preferred_username",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_UID_CLAIM: "sub",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_GROUPS_CLAIM: "groups",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_EMAIL_CLAIM: "email",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_GROUPS_SEPARATOR: ";",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_SIGNUP: true,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_REQUIRE_APPROVAL: false,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_BACKCHANNEL_LOGOUT: true,
-} satisfies NonNullable<ServerHarnessOptions["oidc"]>;
 // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
 const MEMBER = { sub: "native-member-subject", preferred_username: "oidc-member" } satisfies JWTPayload;
 const LOGOUT_TOKEN_PARAM = "logout_token";
