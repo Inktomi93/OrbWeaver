@@ -30,20 +30,10 @@ interface DiscoverCandidate {
 function blockSlot(chatId: DiscoverSegment["chatId"], blockIdx: number): string {
   return `${chatId}|${blockIdx}`;
 }
-
-// @orb-waive contract-structural-copy(CharacterGroup): baselined when the gate widened; burn-down item 904.
-interface CharacterGroup {
-  readonly characterId: CharacterId;
-  readonly score: number;
-  readonly relevance: number;
-  readonly name: string;
-  readonly avatarHash: string | null;
-  readonly genre: string | null;
-  readonly tone: string | null;
-  readonly elevatorPitch: string | null;
-  matchCount: number;
+type CharacterGroup = Readonly<Omit<DiscoverResult["hits"][number], "matchCount" | "segments">> & {
+  matchCount: DiscoverResult["hits"][number]["matchCount"];
   readonly segments: DiscoverSegment[];
-}
+};
 
 type SegmentCredit = Awaited<ReturnType<typeof resolveSegmentDisplay>>[number];
 

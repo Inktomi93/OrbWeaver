@@ -3,10 +3,9 @@
 // optional patch: `input` replaces kind+params (re-parsed + re-gated), `mode` re-gates the kind policy,
 // `cadence` re-bases `nextRunAt` to one new interval out. An omitted field is left unchanged.
 
-import type { ScheduleCadence, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { UpdateScheduleParams, WorkloadScheduleRow } from "../contract/schedule.ts";
+import type { SchedulePatch, UpdateScheduleParams, WorkloadScheduleRow } from "../contract/schedule.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { loadSchedule, updateScheduleFields } from "../persistence/schedule-queries.ts";
 import { assertKindSupportsMode, isVisibleToCaller } from "../substrate/authorize.ts";
@@ -14,15 +13,7 @@ import { parseWorkloadInput } from "../substrate/params.ts";
 
 const ENTITY = "workload_schedule";
 
-// @orb-waive contract-structural-copy(MutablePatch): baselined when the gate widened; burn-down item 904.
-/** The mutable patch assembled from the optional inputs (mirrors the persistence `SchedulePatch`). */
-interface MutablePatch {
-  kind?: WorkloadKind;
-  mode?: WorkloadMode;
-  params?: Record<string, unknown>;
-  cadence?: ScheduleCadence;
-  nextRunAt?: number;
-}
+type MutablePatch = { -readonly [K in keyof SchedulePatch]: SchedulePatch[K] };
 
 /** Assemble the patch from the optional inputs + re-gate MODE support / bulk authority when the kind or mode
  *  changes. Split out so the verb body stays a flat load → check → write (cognitive-complexity budget). */
@@ -55,8 +46,8 @@ function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: WorkloadSched
 
 export function createUpdateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "updateSchedule"> {
   async function updateSchedule(params: UpdateScheduleParams): Promise<WorkloadScheduleRow> {
-    const existing = await loadSchedule(ctx.db, params.id);
-    if (existing === null || !isVisibleToCaller(ctx.isAdmin, params.caller, existing.ownerId)) {
+    const existing = await loadSchedule(ctx.db, params.id, (ownerId) => isVisibleToCaller(ctx.isAdmin, params.caller, ownerId));
+    if (existing === null) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
     const patch = resolveUpdatePatch(ctx, existing, params);

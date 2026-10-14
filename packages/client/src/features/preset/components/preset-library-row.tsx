@@ -43,13 +43,14 @@
 // "ONE home — the list-row kebab, matching the characters/chats precedent". The same test kills this echo.
 // The two doors that survive are the row radio (list-side commitment) and the editor header's Activate.
 
-import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { AlertTriangle, Circle, Download, Icon, Lock } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
+import type { Trpc } from "#data";
 import { PRESET_UNREADABLE_ROW_MARKER, timeLib, unreadableConfigCause } from "#lib";
 import { presetRowSubtitle } from "../lib/preset-row-view.ts";
 
@@ -65,16 +66,7 @@ import { presetRowSubtitle } from "../lib/preset-row-view.ts";
  *  click into the menu that already offered it. */
 const PRESET_CLUSTER_SLOTS = 2;
 
-// @orb-waive contract-structural-copy(PresetRowItem): baselined when the gate widened; burn-down item 904.
-/** The minimal preset shape the row renders (a `PresetSummary` — tRPC-inferred at the surface). */
-interface PresetRowItem {
-  readonly id: PresetId;
-  readonly name: string;
-  readonly kind: string;
-  readonly isSystemDefault: boolean;
-  readonly configUnreadable: VersionedParseFailure | null;
-  readonly updatedAt: number;
-}
+type PresetRowItem = Pick<inferOutput<Trpc["preset"]["list"]>[number], "id" | "name" | "kind" | "isSystemDefault" | "configUnreadable" | "updatedAt">;
 
 export interface PresetLibraryRowProps {
   readonly preset: PresetRowItem;

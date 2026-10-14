@@ -1,4 +1,5 @@
 import type { CopyAssetToOwner } from "@orb/contracts/assets";
+import type { HandoffCardCopy } from "@orb/contracts/chat";
 import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -46,15 +47,7 @@ export interface CharacterHandoffCopyContext {
   readonly copyAsset: CopyAssetToOwner;
 }
 
-/** One source→copy pairing the op resolved: `sourceCharacterId` is the OLD host's card (the id the room's
- *  seats, canon stamps and rpg rows still point at), `characterId` is the nominee's copy. `minted` is false
- *  when a prior accept attempt already landed this copy and the provenance key found it — the caller re-points
- *  at it exactly the same way (the distinction exists for the audit trail, not for control flow). */
-export interface HandoffCardCopy {
-  readonly sourceCharacterId: CharacterId;
-  readonly characterId: CharacterId;
-  readonly minted: boolean;
-}
+export type { HandoffCardCopy } from "@orb/contracts/chat";
 
 /** Copy the named cards from `fromOwnerId`'s library into `toOwnerId`'s, point-in-time and verbatim.
  *

@@ -1,3 +1,4 @@
+import type { HandoffCardPair, HandoffHealArgs } from "@orb/contracts/chat";
 // domain/rpg/chat-ops/handoff-heal — `ChatRpgOps.handoffHealStatements` + `handoffRekeyActors`, the rpg side
 // of `chat.acceptHostHandoff`.
 //
@@ -34,18 +35,12 @@
 // is already gone refuses per-actor and changes nothing).
 
 import type { BatchStmt } from "@orb/db/query";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import type { HandStateHead, HandStateWrite, RpgContext } from "../contract/service.ts";
 import { clearGmPresetStatement, findGameByChat, setGmPresetStatement } from "../persistence/games.ts";
 import { rekeySheetCharacterStatement } from "../persistence/sheets.ts";
 import { writeHandState } from "../snapshot-edit.ts";
 import { rekeyActor } from "../substrate/actor-rekey.ts";
-
-/** One source→copy card pairing the handoff minted (the structural shape of chat's `HandoffCardCopy`). */
-interface HandoffCardPair {
-  readonly sourceCharacterId: CharacterId;
-  readonly characterId: CharacterId;
-}
 
 /** The GM-preset statement for this transfer: a re-point at the nominee's copy when the offer carries the
  *  preset and the copy resolves, else the built conditional clear. */
@@ -63,17 +58,6 @@ async function gmPresetStatements(ctx: RpgContext, game: NonNullable<Awaited<Ret
     }
   }
   return [clearGmPresetStatement(ctx.db, game.id, ctx.now())];
-}
-
-// @orb-waive contract-structural-copy(HandoffHealArgs): baselined when the gate widened; burn-down item 904.
-/** The call args — chat's `HandoffHealArgs` shape, satisfied structurally (rpg declares its own copy rather
- *  than importing a sibling's type: the foreign-op-shape precedent). */
-interface HandoffHealArgs {
-  readonly chatId: ChatId;
-  readonly newHostUserId: UserId;
-  readonly oldHostUserId: UserId | null;
-  readonly copyGmPreset: boolean;
-  readonly cardCopies: readonly HandoffCardPair[];
 }
 
 /** The statements the host-handoff swap must carry for the game rooted at `chatId` — empty for a non-game

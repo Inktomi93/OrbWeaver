@@ -30,17 +30,12 @@
 // annotation lands. That is the flank law's posture (content first, decoration when ready) and it is also the
 // failure posture — a refused, slow, or errored round-trip leaves the row reading exactly as it would have.
 
-import type { ChatId, MessageId } from "@orb/kit/ids";
 import { skipToken, useQuery } from "@tanstack/react-query";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 
-// @orb-waive no-inline-wire-interface(PluginDisplayRow): baselined when the gate widened; burn-down item 904.
-/** The row this text belongs to. Absent ⇒ a chat-less surface (a draft-greeting preview, a story mount): no
- *  row identity to hand a transform, so the hook is inert and returns its input. */
-export interface PluginDisplayRow {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-}
+export type PluginDisplayRow = Pick<inferInput<Trpc["plugin"]["transformForDisplay"]>, "chatId" | "messageId">;
 
 /** Annotate one already-rendered row through the viewer's own plugins' display transforms. Returns `text`
  *  unchanged when there is no row, no registered transform, or the round-trip has not landed (or failed). */

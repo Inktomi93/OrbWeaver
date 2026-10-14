@@ -34,6 +34,9 @@ import {
   RENDERS_UNFILTERABLE_REASON,
 } from "#src/lib/bug-report-bundle.ts";
 import { consoleErrorRing } from "#src/lib/console-error-ring.ts";
+import type { BugReportCaptureInput } from "../contract/bug-report.ts";
+
+export type { BugReportCaptureInput } from "../contract/bug-report.ts";
 
 /** The route the debug capture POSTs to — the same same-origin, gate-behind-`/api/_debug` idiom
  *  `agent-plugin-bridge.ts` uses for its own debug-route read. */
@@ -44,17 +47,6 @@ const BUG_REPORT_ROUTE = "/api/_debug/bug-report";
 const CAPS = { flags: 128, motionShifts: 32, motionLoafs: 64, busEvents: 64 } as const;
 
 const NO_BRIDGE_REASON = "window.__orb was not installed — this page is not a dev build, so no in-page census exists";
-
-// @orb-waive no-inline-wire-interface(BugReportCaptureInput): baselined when the gate widened; burn-down item 904.
-/** What the capture needs from the caller: the note, the ask, and the clock. Everything else it reads. */
-export interface BugReportCaptureInput {
-  readonly note: string;
-  /** The owner's "~N minutes ago", `null` for "everything the rings still hold". */
-  readonly windowMinutes: number | null;
-  /** Wall-clock epoch ms of the click. Optional: the capture reads its own clock (`captureClockMs`) when
-   *  the caller has no reason to pin one; a spec passes it to make the window arithmetic deterministic. */
-  readonly now?: number;
-}
 
 /** Where the report was taken from — the URL as a fact, the shell as the answer (see `BugReportRoute`).
  *

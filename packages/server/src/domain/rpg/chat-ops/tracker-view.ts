@@ -73,17 +73,7 @@ function trackerEntries(defs: readonly RpgTrackerDef[], values: RpgActorVolatile
 /** Project ONE actor onto the tracker view (R2 — participants and cast through the same function): its sheet (row or
  *  default), its identity half (cast only), whether it stands in the scene, its volatile state (from the
  *  resolved snapshot's `actorState`, keyed by `actorRefKey`, or null), and the trackers it carries. */
-function actorView(args: {
-  // @orb-waive contract-structural-copy(actorRef): baselined when the gate widened; burn-down item 904.
-  actorRef: RpgActorRef;
-  name: string;
-  avatar?: string | undefined;
-  presence: boolean;
-  identity: RpgActorView["identity"];
-  sheet: RpgSheet;
-  volatile: RpgActorVolatile | null;
-  trackers: readonly RpgTrackerDef[];
-}): RpgActorView {
+function actorView(args: Omit<RpgActorView, "sheet" | "avatar"> & { readonly sheet: RpgSheet; readonly avatar?: RpgActorView["avatar"] }): RpgActorView {
   const { sheet } = args;
   return {
     actorRef: args.actorRef,

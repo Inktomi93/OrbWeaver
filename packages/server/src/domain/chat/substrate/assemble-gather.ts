@@ -115,18 +115,8 @@ async function gatherDatabank(
   return result === null ? undefined : result.text;
 }
 
-// @orb-waive contract-structural-copy(CanonRow): baselined when the gate widened; burn-down item 904.
 /** A committed canon row, prompt-eligible (the slim shape the gather projects from `MessageView`). */
-interface CanonRow {
-  readonly seq: number;
-  readonly role: MsgRow["role"];
-  /** The row's declared purpose (D129) — carried because these rows ARE the recall window's `MsgRow`s. */
-  readonly kind: MsgRow["kind"];
-  readonly characterId: CharacterId | null;
-  readonly authorUserId: UserId | null;
-  readonly personaId: PersonaId | null;
-  readonly content: string;
-}
+type CanonRow = Readonly<Pick<MessageView, "seq" | "role" | "kind" | "characterId" | "authorUserId" | "personaId" | "content">>;
 
 // The `idle_duration` macro value (parity-plus §12, D6) — time since the last chat activity, EXCLUDING the
 // in-flight message (else it always reads ~0, the user just sent). The in-flight turn is either uncommitted

@@ -4,7 +4,6 @@
 // output parser: an extra key fails the call instead of reaching the browser.
 
 import type {
-  BoundConnectionView,
   CachePolicy,
   CachePolicyContext,
   Capability,
@@ -14,7 +13,6 @@ import type {
   RoutableTask,
   Task,
   UnavailableCause,
-  UserConnection,
 } from "@orb/contracts/inference";
 import {
   cachePolicyContextSchema,
@@ -26,21 +24,10 @@ import {
   routableTaskSchema,
   taskSchema,
   unavailableCauseSchema,
-  userConnectionSchema,
 } from "@orb/contracts/inference";
 import type { ResolvedWarning } from "@orb/inference";
 import { resolvedWarningSchema } from "@orb/inference";
 import { z } from "zod";
-
-/** A connection row with what the pane renders beside it: the tasks it may serve and the provider's label. */
-export interface ConnectionView extends UserConnection, Pick<BoundConnectionView, "providerLabel"> {
-  /** `connectionTasks(provider, kind)` — the Model-roles slots this row may be bound to. */
-  readonly tasks: readonly Task[];
-}
-
-export const connectionViewSchema = userConnectionSchema
-  .extend({ providerLabel: z.string(), tasks: z.array(taskSchema).readonly() })
-  .strict() satisfies z.ZodType<ConnectionView>;
 
 /** The capability read for one row (`runtime.capabilities.for`): the descriptor + the warnings it was
  *  synthesized with + the tasks. */
@@ -105,27 +92,6 @@ export interface EmbedSpace {
  *  PARTIAL by construction: `substrate/embed-space.ts` fills exactly the VECTOR tasks, so a lookup for any
  *  other routable task is `undefined` rather than a lie about a space it never resolved. */
 export type EmbedSpaces = Readonly<Partial<Record<RoutableTask, EmbedSpace | null>>>;
-
-/** What an embedder change would cost before it is made: whether it moves the owner to a new generation (which
- *  deletes and rebuilds the index), and how many stored vectors per scope that rebuild covers. Scopes the change
- *  does not touch read 0. */
-export interface EmbedSpaceChangePreview {
-  readonly reindex: boolean;
-  readonly stored: { readonly cards: number; readonly memory: number; readonly documents: number; readonly images: number };
-  /** The embedding calls the rebuild makes: one per stored vector it replaces. */
-  readonly embedCalls: number;
-  /** Whether a Utility model resolves: the switch deletes the chat digests, so memory re-summarizes through it. */
-  readonly utilityModelSet: boolean;
-}
-
-const storedCount = z.int().nonnegative();
-
-export const embedSpaceChangePreviewSchema = z.strictObject({
-  reindex: z.boolean(),
-  stored: z.strictObject({ cards: storedCount, memory: storedCount, documents: storedCount, images: storedCount }),
-  embedCalls: storedCount,
-  utilityModelSet: z.boolean(),
-}) satisfies z.ZodType<EmbedSpaceChangePreview>;
 
 export type { CredentialHealth } from "@orb/contracts/credentials";
 export type { ProviderAvailability } from "@orb/contracts/inference";

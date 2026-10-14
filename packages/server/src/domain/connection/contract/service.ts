@@ -10,6 +10,8 @@ import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   ConnectionBinding,
+  ConnectionView,
+  EmbedSpaceChangePreview,
   EmbedTargetRefusal,
   ModelListing,
   ResolvedCacheConnectionView,
@@ -50,15 +52,7 @@ import type {
   UpdateConnectionParams,
   UseForEverythingParams,
 } from "./params.ts";
-import type {
-  BindingView,
-  CatalogRefreshOutcome,
-  ConnectionCapabilityView,
-  ConnectionView,
-  CredentialHealth,
-  EmbedSpaceChangePreview,
-  ProviderAvailability,
-} from "./results.ts";
+import type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, CredentialHealth, ProviderAvailability } from "./results.ts";
 
 /** The F12 admission verdict for an endpoint `baseUrl` at WRITE time (the fetch guard re-judges at connect):
  *  `public` = not a private address, a hostname resolved (one that does not resolve yet is judged at connect); `admitted` = private and on the

@@ -11,6 +11,7 @@
 
 import type {
   ChatBusEvent,
+  ChatLibraryLens,
   ChatListCursor,
   ChatReasoningPart,
   ContentSignatures,
@@ -302,16 +303,9 @@ export async function loadMemberChat(
   return { chat: toChatRow(rest), role, activePersonaId, joinSeq, joinHistoryVisibility };
 }
 
-// @orb-waive contract-structural-copy(MemberChatFilter): baselined when the gate judged by type; burn-down item 904.
 /** The library list's filter axes. File-local (the `ChatRow` precedent): the verb passes an object literal,
  *  so nothing outside this module needs the name and `no-inline-types` keeps its one-home rule. */
-interface MemberChatFilter {
-  readonly includeArchived?: boolean | undefined;
-  readonly characterId?: CharacterId | undefined;
-  /** Already trimmed + lowercased by the verb; `undefined` = the unsearched list. */
-  readonly search?: string | undefined;
-  readonly beforeRecencyAt?: number | undefined;
-}
+type MemberChatFilter = Readonly<ChatLibraryLens>;
 
 /** The caller's own canon READ FLOOR, in SQL, off the participant row this list already joins — the same
  *  verdict `resolveHistoryFloorSeq` mints in TS (host is never clamped · `full` ⇒ 0 · `from-join` ⇒ joinSeq,

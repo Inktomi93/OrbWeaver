@@ -29,6 +29,7 @@
 // so the domain front door stays the one import for a plugin consumer.
 
 export type {
+  PluginCommandView,
   PluginDisplayTransformRegistration,
   PluginEventSubscription,
   PluginHandlerRef,
@@ -37,7 +38,10 @@ export type {
   PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
+  PluginView,
+  SnippetResult,
 } from "@orb/contracts/plugin";
+export { pluginCommandViewSchema, pluginViewSchema, snippetResultSchema } from "@orb/contracts/plugin";
 export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy.ts";
 export type { PluginContext } from "./context.ts";
 export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./contract/distributed-seed.ts";
@@ -105,7 +109,6 @@ export type {
 export type {
   DistributedPluginApplication,
   DistributedPluginView,
-  PluginCommandView,
   PluginDisplayTransformView,
   PluginFanoutResult,
   PluginFanoutSkip,
@@ -116,14 +119,11 @@ export type {
   PluginSurfaceView,
   PluginUpdateCheck,
   PluginUrlPreview,
-  PluginView,
-  SnippetResult,
 } from "./contract/results.ts";
 export {
   distributedPluginViewSchema,
   PLUGIN_FANOUT_SKIP_REASONS,
   pluginBundleAssetViewSchema,
-  pluginCommandViewSchema,
   pluginDisplayTransformResultSchema,
   pluginDisplayTransformViewSchema,
   pluginFanoutResultSchema,
@@ -134,8 +134,6 @@ export {
   pluginUiHostCallResultSchema,
   pluginUpdateCheckSchema,
   pluginUrlPreviewSchema,
-  pluginViewSchema,
-  snippetResultSchema,
 } from "./contract/results.ts";
 export type {
   CreateInstanceInput,

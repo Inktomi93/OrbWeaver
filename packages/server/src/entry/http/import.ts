@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { importStartedSchema } from "@orb/contracts/import";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono } from "hono";
 import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
@@ -106,7 +107,7 @@ export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundle
         mode: "singular",
         ownerId: principal.userId,
       });
-      return c.json({ workloadId: id }, ACCEPTED);
+      return c.json(importStartedSchema.parse({ workloadId: id }), ACCEPTED);
     } catch (err) {
       await rm(stagedPath, { force: true });
       if (err instanceof DomainConflictError) {

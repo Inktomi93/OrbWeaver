@@ -1,6 +1,7 @@
 // domain/import/contract/results — the verb result shapes.
 
-import type { CharacterId, ChatId, PersonaId, WorldBookId } from "@orb/kit/ids";
+import type { CardLorebookRestoreResult } from "@orb/contracts/import";
+import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type {
   ImportAmbiguousSpeakerName,
   ImportPresetNote,
@@ -58,9 +59,7 @@ export interface ImportCharacterResult {
  *  calling door renders, exactly like {@link ImportChatFileOutcome}. `replaced:false` means the character
  *  held no primary book at all and the card's book was landed fresh (a restore onto a character whose book
  *  was deleted is still a restore). */
-export type RestoreCharacterBookResult =
-  | { readonly ok: true; readonly characterId: CharacterId; readonly worldBookId: WorldBookId; readonly entryCount: number; readonly replaced: boolean }
-  | { readonly ok: false; readonly error: string };
+export type RestoreCharacterBookResult = CardLorebookRestoreResult;
 
 /** `memoryChatIds`: the real conversations this run wrote — the scope the import's memory-build offer covers.
  *  `unresolvedPinnedPersonas` is the honest half of §5.7: the chats whose ST chat-bound persona pick named

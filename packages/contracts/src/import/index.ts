@@ -4,6 +4,10 @@
 
 export type { CardImportResult, FailedCard, ImportedCard } from "./card-result.ts";
 export { cardImportResultSchema } from "./card-result.ts";
+export type { ChatImportResult } from "./chat-result.ts";
+export { chatImportResultSchema } from "./chat-result.ts";
+export type { CardLorebookRestoreResult } from "./lorebook-restore.ts";
+export { cardLorebookRestoreResultSchema } from "./lorebook-restore.ts";
 export type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices, PersonaCollisionReview, PersonaDifference } from "./persona-collision.ts";
 export {
   DEFAULT_PERSONA_COLLISION_CHOICE,
@@ -16,6 +20,8 @@ export {
   personaCollisionChoicesSchema,
   personaCollisionReviewSchema,
 } from "./persona-collision.ts";
+export type { ImportStarted } from "./started.ts";
+export { importStartedSchema } from "./started.ts";
 
 /** The ST per-profile credentials file. Never uploaded, never staged, never imported. */
 export const ST_SECRETS_FILE = "secrets.json";

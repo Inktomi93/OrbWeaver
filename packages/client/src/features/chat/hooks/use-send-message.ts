@@ -10,19 +10,14 @@
 
 import type { UserIntent } from "@orb/contracts/preset";
 import type { AssetId, ChatId } from "@orb/kit/ids";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
 import { turnMutationToast, viewerTimeZone } from "#lib";
 import { subscribeUserMessageCommitted } from "#state";
 
-// @orb-waive contract-structural-copy(SendVars): baselined when the gate judged by type; burn-down item 904.
-interface SendVars {
-  readonly chatId: ChatId;
-  readonly content: string;
-  readonly intent?: Partial<UserIntent> | undefined;
-  readonly attachmentAssetIds?: AssetId[] | undefined;
-  readonly timeZone: string;
-}
+type SendVars = inferInput<Trpc["chat"]["send"]>;
 
 // TData is `unknown` — the sent turn is bus-driven (messageCommitted/turnStarted/...), never read back.
 const useSendMutation = createEntityMutation<SendVars, unknown>({

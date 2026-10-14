@@ -8,21 +8,12 @@
 
 import type { ReadOnlyDb } from "@orb/db";
 import { characters } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 
-// @orb-waive contract-structural-copy(CardFieldsRow): baselined when the gate widened; burn-down item 904.
 /** One card's searchable text fields for the BM25 index. The row shape is inferred by the substrate's
  *  `CardDoc` (structural) — kept file-local + un-exported (`no-inline-types`; the verb passes the loader). */
-interface CardFieldsRow {
-  readonly id: CharacterId;
-  readonly name: string;
-  readonly description: string | null;
-  readonly personality: string | null;
-  readonly scenario: string | null;
-  readonly creatorNotes: string | null;
-}
-
+type CardFieldsRow = Pick<typeof characters.$inferSelect, "id" | "name" | "description" | "personality" | "scenario" | "creatorNotes">;
 /** Load the owner's character card text fields — the lexical index corpus. Archived cards are INCLUDED (a
  *  browse-search over "all my characters" should still surface an archived card by name/lore). The synthetic
  *  group-as-character bucket is not a card the owner authored, so it is neither searched nor counted. */

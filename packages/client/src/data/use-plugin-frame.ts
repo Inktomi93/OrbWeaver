@@ -16,25 +16,12 @@
 // plugin surface renders nothing — never a broken frame").
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { PluginFrameMintRequest, PluginFrameMintResponse } from "@orb/contracts/plugin";
+import type { PluginFrameMintRequest, PluginFrameMintResponse, pluginFrameMintRequestSchema } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_ROUTE, pluginFrameMintResponseSchema } from "@orb/contracts/plugin";
-import type { PluginId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
+import type { z } from "zod";
 
-// @orb-waive contract-structural-copy(PluginFrameRequest): baselined when the gate judged by type; burn-down item 904.
-// @orb-waive no-inline-wire-interface(PluginFrameRequest): baselined when the gate widened; burn-down item 904.
-/** What a caller knows about ONE frame surface. Everything here is either an id the caller already holds or a
- *  theme value the server re-clamps. */
-export interface PluginFrameRequest {
-  readonly pluginId: PluginId;
-  readonly surfaceId: string;
-  /** Concrete theme-resolved `--*` colors (`useSandboxTheme`) — a null-origin realm cannot resolve our cascade. */
-  readonly themeTokens: Readonly<Record<string, string>>;
-  /** The NON-COLOR half of the same slice (#799) — radius + the mono family, which `isSafeColor` cannot judge
-   *  and which therefore travel in their own record with their own server-side clamp. */
-  readonly styleTokens: Readonly<Record<string, string>>;
-  readonly fontFamily: string | undefined;
-}
+export type PluginFrameRequest = Readonly<z.input<typeof pluginFrameMintRequestSchema>> & Pick<PluginFrameMintRequest, "pluginId">;
 
 /** The wire body for one frame. Pure + exported so the shape is testable without a browser. */
 export function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMintRequest {

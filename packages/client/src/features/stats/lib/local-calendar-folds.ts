@@ -4,6 +4,7 @@
 
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
+import type { ActivityBucket, MomentumBucket } from "@orb/contracts/stats";
 import type { CharacterId } from "@orb/kit/ids";
 import type { CalendarMonth, CalendarPosition } from "@orb/kit/time";
 import { groupByCalendarMonth, MS_PER_DAY } from "@orb/kit/time";
@@ -39,15 +40,7 @@ export interface LocalTimeline {
  *  the time seam's `calendarPosition`: a quarter-hour bucket never straddles a local hour in any zone, so
  *  placing a bucket by its start instant is exact. Buckets arrive ascending, so days come out ascending. */
 export function localTimeline(
-  buckets: readonly {
-    // @orb-waive contract-structural-copy(bucketStart): baselined when the gate widened; burn-down item 904.
-    readonly bucketStart: number;
-    readonly chatsCreated: number;
-    readonly userTurns: number;
-    readonly assistantTurns: number;
-    readonly tokensOut: number | null;
-    readonly tokensOutProvenance: TokenProvenance;
-  }[],
+  buckets: readonly Pick<ActivityBucket, "bucketStart" | "chatsCreated" | "userTurns" | "assistantTurns" | "tokensOut" | "tokensOutProvenance">[],
   position: (epochMs: number) => CalendarPosition,
 ): LocalTimeline {
   const days = new Map<string, LocalDay>();
@@ -70,13 +63,7 @@ export function localTimeline(
 function addBucketToDay(
   prior: LocalDay | undefined,
   day: string,
-  bucket: {
-    // @orb-waive contract-structural-copy(bucketStart): baselined when the gate widened; burn-down item 904.
-    readonly bucketStart: number;
-    readonly assistantTurns: number;
-    readonly tokensOut: number | null;
-    readonly tokensOutProvenance: TokenProvenance;
-  },
+  bucket: Pick<ActivityBucket, "bucketStart" | "assistantTurns" | "tokensOut" | "tokensOutProvenance">,
   activity: number,
 ): LocalDay {
   if (prior === undefined) {
@@ -162,11 +149,7 @@ const MOMENTUM_LIMIT = 10;
 /** Fold the per-character UTC quarter-hour reply timeline into the viewer's months and rank the swing
  *  between the two most recent months with replies. Anchored to the data's months, not to wall-clock now,
  *  so a quiet current month does not read as everything falling. */
-export function localMomentum(
-  // @orb-waive contract-structural-copy(characterId): baselined when the gate widened; burn-down item 904.
-  buckets: readonly { readonly characterId: CharacterId; readonly name: string; readonly bucketStart: number; readonly replies: number }[],
-  position: (epochMs: number) => CalendarPosition,
-): LocalMomentum {
+export function localMomentum(buckets: readonly MomentumBucket[], position: (epochMs: number) => CalendarPosition): LocalMomentum {
   const ordered = groupByCalendarMonth(buckets, (bucket) => bucket.bucketStart, position);
   const latest = ordered.at(-1);
   const prev = ordered.at(-2);

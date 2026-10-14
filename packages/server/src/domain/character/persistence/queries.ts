@@ -3,11 +3,11 @@
 // depthPrompt/extensions/refinery are nullable (corrupt ⇒ null). The card projection carries NO regexScripts
 // (D121-E — they are library rows behind `character_regex_scripts`; only the serde boundary re-embeds them).
 
-import type { CharacterCard, CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
-import { cardDepthPromptSchema, characterProvenanceOf, greetingsColumnSchema, refinerySignalsSchema } from "@orb/contracts/character";
+import type { CharacterCard, CharacterListCursor, CharacterListSort, StoredCardBlob } from "@orb/contracts/character";
+import { cardDepthPromptSchema, characterProvenanceOf, greetingsColumnSchema, refinerySignalsSchema, storedCardBlobSchema } from "@orb/contracts/character";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import { canonicalBackgroundSource } from "@orb/contracts/theme";
+import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterSummaries, characters, characterTags, chatParticipants, chats, tags } from "@orb/db";
 import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/query";
@@ -772,12 +772,16 @@ export async function loadSnapshotContent(db: Db, characterId: CharacterId, snap
     .where(and(eq(characterSnapshots.id, snapshotId), eq(characterSnapshots.characterId, characterId)))
     .limit(LIMIT_ONE);
   const row = rows[0];
-  // @orb-waive json-column-read-parsed(content): baselined when the gate widened; burn-down item 905.
-  return row === undefined ? undefined : cardOf(row.content);
+  return row === undefined ? undefined : snapshotCardOf(row.content);
+}
+
+/** A stored history blob passes the scalar boundary before the card projection applies its structured heals. */
+export function snapshotCardOf(content: unknown): CharacterCard {
+  return cardOf(storedCardBlobSchema.parse(content));
 }
 
 /** Live card for a row or a stored snapshot blob — JSON columns narrowed through the parse-seam. */
-export function cardOf(src: CharacterCard): CharacterCard {
+export function cardOf(src: StoredCardBlob): CharacterCard {
   return {
     name: src.name,
     description: src.description,
@@ -854,10 +858,8 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
     forbidExternalMedia: row.forbidExternalMedia,
     trustHtml: row.trustHtml,
     interactiveHtml: row.interactiveHtml,
-    // @orb-waive json-column-read-parsed(themeOverride): baselined when the gate widened; burn-down item 905.
-    themeOverride: row.themeOverride,
-    // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
-    backgroundOverride: row.backgroundOverride,
+    themeOverride: themeOverrideSchema.nullable().parse(row.themeOverride),
+    backgroundOverride: themeBackgroundSchema.nullable().parse(row.backgroundOverride),
     importedFrom: row.importedFrom,
     importHash: row.importHash,
     provenance: characterProvenanceOf(row),
@@ -882,10 +884,8 @@ export function summaryOf(
     archived: row.archived,
     forbidExternalMedia: row.forbidExternalMedia,
     trustHtml: row.trustHtml,
-    // @orb-waive json-column-read-parsed(themeOverride): baselined when the gate widened; burn-down item 905.
-    themeOverride: row.themeOverride,
-    // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
-    backgroundOverride: row.backgroundOverride,
+    themeOverride: themeOverrideSchema.nullable().parse(row.themeOverride),
+    backgroundOverride: themeBackgroundSchema.nullable().parse(row.backgroundOverride),
     avatarAssetId: row.avatarAssetId,
     avatarHash: avatar?.hash ?? null,
     createdAt: row.createdAt,

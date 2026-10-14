@@ -23,6 +23,7 @@ import { connectionTransportSchema, isBeltOwnedBodyKey, requirementMet, taskDef 
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
 import { ROLE_ROWS_ORDERED } from "#src/lib/connection-roles.ts";
+import type { ExtraRow } from "../contract/extra-row.ts";
 import { grouped } from "./connection-fact-model.ts";
 import { fieldText, parsePastedObject } from "./pasted-fields.ts";
 
@@ -210,16 +211,7 @@ export function beltKeyGloss(key: string): string | null {
   return `We own ${key} — getting it wrong hangs or 400s the turn, so the history fit sets it. This row is dropped before the request is sent.`;
 }
 
-// @orb-waive no-inline-wire-interface(ExtraRow): baselined when the gate widened; burn-down item 904.
-/** ONE `extras` row while it is being edited. `id` is the row's IDENTITY (§5.3a property 1): the delete
- *  button removes THAT row and editing a key does not rebuild the list under the caret. A row with an empty
- *  key is HELD (property 2) — it survives an autosave instead of being pruned out from under the typist — and
- *  simply does not reach the saved object. */
-export interface ExtraRow {
-  readonly id: string;
-  readonly key: string;
-  readonly value: string;
-}
+export type { ExtraRow } from "../contract/extra-row.ts";
 
 // A value is strict JSON or exactly the text typed, surrounding whitespace included: a chat template or a
 // `[INST]` marker is a string, and only a Field-box paste reads the looser formats.

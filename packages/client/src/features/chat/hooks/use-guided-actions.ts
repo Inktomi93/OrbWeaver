@@ -27,39 +27,16 @@ import type { GuidedActionKind, GuidedImpersonatePerson, RewriteToggleId } from 
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import { useEffect, useState } from "react";
-import type { TrpcClient } from "#data";
+import type { Trpc, TrpcClient } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast, viewerTimeZone } from "#lib";
 import { pushFiredSteer } from "#state";
 import { notifyImpersonateFailure } from "../lib/guided-failure-notices.ts";
 
-// @orb-waive contract-structural-copy(GuidedSteerInput): baselined when the gate widened; burn-down item 904.
-interface GuidedSteerInput {
-  readonly action: GuidedActionKind;
-  readonly input?: string | undefined;
-  readonly person?: GuidedImpersonatePerson | undefined;
-  /** A P5 one-shot GAME steer KIND (the wand's Plot submenu / "Offer choices") — the server resolves the
-   *  kit template by kind; `input` is ignored on this arm. */
-  readonly gameSteer?: GuidedGameSteerKind | undefined;
-  /** The Rewrite modal's picked toggle KINDS (the templating fork's ARM B) — the server resolves each id's
-   *  preset prose slot and joins the sentences ahead of `input`. No fragment text crosses the wire. */
-  readonly rewriteToggles?: RewriteToggleId[] | undefined;
-}
-
-// @orb-waive contract-structural-copy(GuidedTurnVars): baselined when the gate judged by type; burn-down item 904.
-interface GuidedTurnVars {
-  readonly chatId: ChatId;
-  readonly timeZone: string;
-  readonly guided?: GuidedSteerInput | undefined;
-  /** F5 — a steer + a chosen speaker in ONE `chat.generate` (a targeted nudge in a multi-character room);
-   *  null/omitted ⇒ arbitration picks. The verb has always accepted both fields together. */
-  readonly speakerCharacterId?: CharacterId | null | undefined;
-  /** The wand Response icon sets this when the tail is an ASSISTANT turn — the server appends the
-   *  `responseNudge` so a reply after the model's OWN last line has something to respond to (a user-tail
-   *  Response omits it: the user message is the prompt). */
-  readonly afterAssistant?: boolean | undefined;
-}
+type GuidedTurnVars = inferInput<Trpc["chat"]["generate"]>;
+type GuidedSteerInput = NonNullable<GuidedTurnVars["guided"]>;
 
 interface GuidedSlotVars {
   readonly chatId: ChatId;

@@ -4,13 +4,14 @@
 // the sanctioned cross-table read, security pass §3.E). A run is reachable ONLY through its session's
 // join — a run id alone never resolves a payload.
 //
-// Read seams: `original_card` rides typed-as-written (the D28 opaque-blob posture — schema-valid at the
-// startSession write, treated as the anchor blob, exactly like `character_snapshots.content`);
+// Read seams: `original_card` retains historical bytes at rest and validates on projection;
 // `selection`/`stage_config` heal to their safe defaults OBSERVABLY (a corrupt row must not 500 the
 // surface, but a silent heal is the banned-silent-fork class — `addSpanEvent` per arm); a run row whose
 // payload no longer parses is DROPPED from reads with the same observable heal (a corrupt append-only log
 // row must never fabricate a payload).
 
+import type { CharacterCard } from "@orb/contracts/character";
+import { cardDepthPromptSchema, greetingsColumnSchema, refinerySignalsSchema, storedCardBlobSchema } from "@orb/contracts/character";
 import type { RefineryRun, RefinerySchemaStage, RefinerySchemaSummary, RefinerySessionSummary, RefineryStage, RefineryVerdict } from "@orb/contracts/refinery";
 import {
   DEFAULT_REFINERY_STAGE_CONFIG,
@@ -199,16 +200,53 @@ export async function latestVerdictsOf(db: Db, sessionIds: readonly RefinerySess
   return map;
 }
 
-/** Row → the full session view (the read-seam parse on the two config blobs; the anchor blob rides
- *  typed-as-written — header). */
+const originalCardGreetingsParser = greetingsColumnSchema.unwrap().catch(() => {
+  addSpanEvent(HEAL_EVENT, { arm: "originalCard.greetings" });
+  return [];
+});
+const originalCardDepthPromptParser = cardDepthPromptSchema.nullable().catch(() => healedOriginalCard("depthPrompt"));
+const originalCardSourceParser = z
+  .array(z.string())
+  .nullable()
+  .catch(() => healedOriginalCard("source"));
+const originalCardRecordParser = z
+  .record(z.string(), z.unknown())
+  .nullable()
+  .catch(() => healedOriginalCard("record"));
+const originalCardSignalsParser = refinerySignalsSchema
+  .extend({
+    score: refinerySignalsSchema.shape.score.catch(() => healedOriginalCard("refinery.score")),
+    analysis: refinerySignalsSchema.shape.analysis.catch(() => healedOriginalCard("refinery.analysis")),
+  })
+  .nullable()
+  .catch(() => healedOriginalCard("refinery"));
+
+function healedOriginalCard(arm: string): null {
+  addSpanEvent(HEAL_EVENT, { arm: `originalCard.${arm}` });
+  return null;
+}
+
+function originalCardOf(blob: unknown): CharacterCard {
+  const card = storedCardBlobSchema.parse(blob);
+  return {
+    ...card,
+    greetings: originalCardGreetingsParser.parse(card.greetings),
+    depthPrompt: originalCardDepthPromptParser.parse(card.depthPrompt),
+    source: originalCardSourceParser.parse(card.source),
+    extensions: originalCardRecordParser.parse(card.extensions),
+    residualData: originalCardRecordParser.parse(card.residualData),
+    refinery: originalCardSignalsParser.parse(card.refinery),
+  };
+}
+
+/** Validate the stored history card and project the remaining versioned read blobs. */
 export function sessionViewOf(row: RefinerySessionRow): RefinerySessionView {
   return {
     id: row.id,
     characterId: row.characterId,
     name: row.name,
     status: row.status,
-    // @orb-waive json-column-read-parsed(originalCard): baselined when the gate widened; burn-down item 905.
-    originalCard: row.originalCard,
+    originalCard: originalCardOf(row.originalCard),
     selection: selectionParser.parse(row.selection),
     stageConfig: stageConfigParser.parse(row.stageConfig),
     rewriteDecisions: rewriteDecisionsParser.parse(row.rewriteDecisions),

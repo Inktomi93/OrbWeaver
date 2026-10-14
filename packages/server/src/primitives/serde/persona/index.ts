@@ -12,7 +12,7 @@
 // buildPersonaBackup(p).
 
 import type { PersonaDifference } from "@orb/contracts/import";
-import type { PersonaMetadata } from "@orb/contracts/persona";
+import type { PersonaDetail, PersonaMetadata } from "@orb/contracts/persona";
 import { personaBackupSchema, personaMetadataSchema } from "@orb/contracts/persona";
 import type { PortableParse } from "@orb/contracts/portability";
 import type { PersonaId } from "@orb/kit/ids";
@@ -22,17 +22,9 @@ import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
 export const PERSONA_SCHEMA_KIND = "orb.persona";
 export const PERSONA_SCHEMA_VERSION = 1;
-
-// @orb-waive contract-structural-copy(PersonaBackup): baselined when the gate widened; burn-down item 904.
 /** The canonical persona-backup value: the portable fields with concrete (non-optional) types. Excludes
  *  avatarAssetId (a binary asset reference can't ride a JSON backup). */
-export interface PersonaBackup {
-  readonly name: string;
-  readonly title: string | null;
-  readonly description: string;
-  readonly starred: boolean;
-  readonly metadata: PersonaMetadata | null;
-}
+export type PersonaBackup = Readonly<Pick<PersonaDetail, "name" | "title" | "description" | "starred" | "metadata">>;
 
 /** Narrow the validated metadata blob. Total by construction: `personaBackupSchema`'s write guard already
  *  refused anything `personaMetadataSchema` rejects, so the fallback is unreachable — it exists so parse

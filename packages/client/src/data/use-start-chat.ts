@@ -16,10 +16,9 @@
 // (Not the factory's `echo` arm: that seeds a key with the whole mutation DATA, and this response wraps the
 // row alongside `opening`.) Cache surgery is legal here and only here (`client-cache-surgery-only-in-data`).
 
-import type { RpgGameTemplate } from "@orb/contracts/rpg";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { NewChatIntent } from "#state";
 import { enterCreatedChat, setActiveSection } from "#state";
 import { createEntityMutation } from "./create-entity-mutation.ts";
@@ -28,16 +27,7 @@ import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useInvalidation } from "./use-invalidation.ts";
 
-// @orb-waive contract-structural-copy(StartChatVars): baselined when the gate widened; burn-down item 904.
-/** The wire vars — the CREATION-INTENT fields only. Mutable arrays match the wire schema's inferred type
- *  under exactOptionalPropertyTypes (the `characterIds` precedent). */
-interface StartChatVars {
-  characterIds: CharacterId[];
-  anchorPersonaId?: PersonaId | null | undefined;
-  title?: string | null | undefined;
-  temporary?: true | undefined;
-  startAsGame?: RpgGameTemplate | undefined;
-}
+type StartChatVars = inferInput<Trpc["chat"]["startChat"]>;
 
 // The verb's own output — derived, never re-spelled: `result.chat` must stay byte-compatible with what
 // `chat.getChat` serves, because it is SEEDED into that read's cache key below. A wire reshape breaks here

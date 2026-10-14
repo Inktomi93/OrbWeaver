@@ -51,21 +51,12 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
 import { cn, timeLib } from "#lib";
+import type { MessageMetadataVisibility } from "../contract/presentation.ts";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
 import { cacheTokensLabel, canRevealGenerationCost } from "../lib/message-readout.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
-// @orb-waive contract-structural-copy(MessageMetadataVisibility): baselined when the gate widened; burn-down item 904.
-/** The metadata-datum subset of the appearance prefs (mirrors `useMessageAppearance`'s row-display
- *  shape) — threaded from the surface, never a per-row query (rows stay prop-driven). */
-export interface MessageMetadataVisibility {
-  readonly showTimestamps: boolean;
-  readonly showMessageId: boolean;
-  readonly showModelIcon: boolean;
-  readonly showTokenCount: boolean;
-  readonly showGenerationTimer: boolean;
-  readonly showGenerationCost: boolean;
-}
+export type { MessageMetadataVisibility } from "../contract/presentation.ts";
 
 export interface MessageMetadataRowProps {
   readonly message: MessageView;

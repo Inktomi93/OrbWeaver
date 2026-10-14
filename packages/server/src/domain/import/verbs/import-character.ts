@@ -125,14 +125,7 @@ async function attachCarriedContent(
   ctx: ImportContext,
   characterId: CharacterId,
   carried: CarriedContent,
-): Promise<{
-  // @orb-waive contract-structural-copy(attachedBooksLinked): baselined when the gate widened; burn-down item 904.
-  readonly attachedBooksLinked: number;
-  readonly attachedBooksSkipped: number;
-  readonly regexScriptsLifted: number;
-  readonly regexScriptsReused: number;
-  readonly skippedOverlays: readonly string[];
-}> {
+): Promise<Pick<ImportCharacterResult, "attachedBooksLinked" | "attachedBooksSkipped" | "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays">> {
   const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
   const skippedOverlays: string[] = [];
 

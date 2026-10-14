@@ -12,8 +12,8 @@ const ENTITY = "workload_schedule";
 
 export function createDeleteSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "deleteSchedule"> {
   async function deleteSchedule(params: DeleteScheduleParams): Promise<void> {
-    const existing = await loadSchedule(ctx.db, params.id);
-    if (existing === null || !isVisibleToCaller(ctx.isAdmin, params.caller, existing.ownerId)) {
+    const existing = await loadSchedule(ctx.db, params.id, (ownerId) => isVisibleToCaller(ctx.isAdmin, params.caller, ownerId));
+    if (existing === null) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
     await deleteScheduleRow(ctx.db, params.id);

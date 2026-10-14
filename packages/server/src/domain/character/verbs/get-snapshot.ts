@@ -18,7 +18,7 @@ import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { GetSnapshotParams } from "../contract/params.ts";
 import type { CharacterService } from "../contract/service.ts";
-import { cardOf, loadOwnedCharacterRow, loadSnapshotRow } from "../persistence/queries.ts";
+import { loadOwnedCharacterRow, loadSnapshotRow, snapshotCardOf } from "../persistence/queries.ts";
 
 export function createGetSnapshot(ctx: CharacterContext): CharacterService["getSnapshot"] {
   return async ({ principal, characterId, snapshotId }: GetSnapshotParams) => {
@@ -30,6 +30,6 @@ export function createGetSnapshot(ctx: CharacterContext): CharacterService["getS
     if (snapshot === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
-    return { id: snapshot.id, label: snapshot.label, createdAt: snapshot.createdAt, content: cardOf(snapshot.content) };
+    return { id: snapshot.id, label: snapshot.label, createdAt: snapshot.createdAt, content: snapshotCardOf(snapshot.content) };
   };
 }

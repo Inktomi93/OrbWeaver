@@ -1,7 +1,7 @@
 // The embedder-change rebuild as the client speaks of it: the confirm's words before a change that rebuilds the
 // search index, and the vector role row's rebuild line after. Pure and barrel-free, because node-side CT specs import it.
 
-import type { EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
+import type { EmbedSpaceChangePreview, EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
@@ -11,15 +11,7 @@ import { trpcErrorDetailFlag, trpcErrorDetailNumber, trpcErrorReason } from "./t
 /** The roles whose binding defines the owner's vector space; re-pointing the user's own one can rebuild the index. */
 export const VECTOR_ROLES: readonly RoutableTask[] = ["embed", "imageEmbed"];
 
-// @orb-waive contract-structural-copy(ReindexPreview): baselined when the gate widened; burn-down item 904.
-/** What the server says a pending embedder change would rebuild (`connection.embedSpaceChangePreview`). */
-export interface ReindexPreview {
-  readonly reindex: boolean;
-  readonly stored: { readonly cards: number; readonly memory: number; readonly documents: number; readonly images: number };
-  readonly embedCalls: number;
-  /** Whether a Utility model is bound: the switch deletes the chat digests, and memory re-summarizes through it. */
-  readonly utilityModelSet: boolean;
-}
+export type ReindexPreview = EmbedSpaceChangePreview;
 
 /** The embedder-change confirm's fixed words. */
 export const REINDEX_CONFIRM_COPY = {

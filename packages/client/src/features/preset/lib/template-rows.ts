@@ -15,18 +15,9 @@ import { GUIDED_ACTION_KINDS, TEMPLATE_CLUSTERS, TEMPLATE_DEFS, TEMPLATE_KINDS }
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { isPresetProseSlotId, PROSE_SLOTS } from "@orb/contracts/prose";
 
-// @orb-waive no-inline-wire-interface(TemplateRow): baselined when the gate widened; burn-down item 904.
-/** One registry row, resolved for the client: the def plus which slot shape it edits. */
-export interface TemplateRow {
-  readonly def: TemplateDef;
-  /** A guided action carries role/depth beside its prompt; a format string is a bare string. */
-  readonly guidedKind: GuidedActionKind | undefined;
-  /** The THIRD form path (2026-08-07): a turn-wire framing, stored as `prose[<id>]` — a `{text, baseVersion}`
-   *  record rather than a bare string, so its write re-stamps the version the edit was authored against. */
-  readonly proseSlotId: ProseSlotId | undefined;
-  /** The PROSE-1 default bytes this row ghosts. */
-  readonly factoryDefault: string;
-}
+import type { TemplateRow } from "../contract/template-row.ts";
+
+export type { TemplateRow } from "../contract/template-row.ts";
 
 /** One disclosure-banded SUB-CLUSTER inside a group (the Actions-tab IA §2.1) — the registry's own
  *  `cluster` declarations, banded in `TEMPLATE_CLUSTERS` tuple order, rows in registry order within. */

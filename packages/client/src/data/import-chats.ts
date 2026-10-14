@@ -4,34 +4,16 @@
 // isolation), so this helper hands back the real per-file outcome and the caller's summary derives from
 // THAT, never from the uploaded filenames. A non-200 (whole-batch rejection) throws.
 
-import type { ImportWindow } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { ChatImportResult } from "@orb/contracts/import";
+import { chatImportResultSchema } from "@orb/contracts/import";
 import { throwHttpError } from "./http-error.ts";
 
 const IMPORT_URL = "/api/import/chat";
 const IMPORT_FIELD = "file";
 
 /** One imported (or deduped) transcript — `created:false` marks a re-import of a chat already present. */
-interface ImportedChatResult {
-  readonly filename: string;
-  readonly created: boolean;
-}
-
-/** One transcript the server could not import (unparseable, or naming a character this account lacks). */
-interface FailedChatResult {
-  readonly filename: string;
-  readonly error: string;
-}
-
-// @orb-waive no-inline-wire-interface(ChatImportResult): baselined when the gate widened; burn-down item 904.
-/** The `POST /api/import/chat` response body (the server's `ChatImportResult`): the REAL per-file outcome. */
-export interface ChatImportResult {
-  readonly imported: readonly ImportedChatResult[];
-  readonly failed: readonly FailedChatResult[];
-  /** The span in which the batch wrote real conversations (null = none) — the "Build memory for imported chats"
-   *  offer's scope handle. */
-  readonly memoryScope: ImportWindow | null;
-}
+export type { ChatImportResult } from "@orb/contracts/import";
 
 /** POST picked `.jsonl` transcripts to the chat-import route and return the server's real per-file result.
  *  Throws on a non-OK response (a whole-batch rejection); per-file failures ride back in the 200 body. */
@@ -48,6 +30,5 @@ export async function importChats(files: readonly File[]): Promise<ChatImportRes
   if (!response.ok) {
     await throwHttpError("importChats", response);
   }
-  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
-  return (await response.json()) as ChatImportResult;
+  return chatImportResultSchema.parse(await response.json());
 }

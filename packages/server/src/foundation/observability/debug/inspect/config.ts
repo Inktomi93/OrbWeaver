@@ -84,21 +84,21 @@ export interface CharacterDetailRow {
   renderPolicy: RenderPolicyVerdict;
   themeOverride: unknown;
   backgroundOverride: unknown;
-  card: {
-    // @orb-waive contract-structural-copy(description): baselined when the gate widened; burn-down item 904.
-    description: string | null;
-    personality: string | null;
-    scenario: string | null;
-    greetings: unknown;
-    exampleMessages: string | null;
-    systemPrompt: string | null;
-    postHistoryInstructions: string | null;
-    depthPrompt: unknown;
-    creatorNotes: string | null;
-    creator: string | null;
-    cardVersion: string | null;
-    nickname: string | null;
-  };
+  card: Pick<
+    typeof characters.$inferSelect,
+    | "description"
+    | "personality"
+    | "scenario"
+    | "greetings"
+    | "exampleMessages"
+    | "systemPrompt"
+    | "postHistoryInstructions"
+    | "depthPrompt"
+    | "creatorNotes"
+    | "creator"
+    | "cardVersion"
+    | "nickname"
+  >;
   provenance: {
     importedFrom: string | null;
     importHash: string | null;

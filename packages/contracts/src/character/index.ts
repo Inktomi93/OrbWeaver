@@ -270,6 +270,40 @@ export const characterCardSchema = z.object({
 });
 export type CharacterCard = z.infer<typeof characterCardSchema>;
 
+const storedCardText = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
+const storedCardInstant = z
+  .number()
+  .nullish()
+  .transform((value) => value ?? null);
+
+/** History retains older card shapes; scalars validate here and structured fields use each reader's declared heal. */
+export const storedCardBlobSchema = characterCardSchema.omit({ starred: true, regexScripts: true, spec: true }).extend({
+  name: z.string(),
+  description: storedCardText,
+  personality: storedCardText,
+  scenario: storedCardText,
+  exampleMessages: storedCardText,
+  systemPrompt: storedCardText,
+  postHistoryInstructions: storedCardText,
+  creatorNotes: storedCardText,
+  creator: storedCardText,
+  cardVersion: storedCardText,
+  nickname: storedCardText,
+  creationDate: storedCardInstant,
+  modificationDate: storedCardInstant,
+  avatarAssetId: characterCardSchema.shape.avatarAssetId.nullish().transform((value) => value ?? null),
+  greetings: z.unknown().optional(),
+  depthPrompt: z.unknown().optional(),
+  source: z.unknown().optional(),
+  extensions: z.unknown().optional(),
+  residualData: z.unknown().optional(),
+  refinery: z.unknown().optional(),
+});
+export type StoredCardBlob = z.output<typeof storedCardBlobSchema>;
+
 /** The character-handle boundary shared by authored input and internal derived-handle producers. The cap
  * is measured in JavaScript string length (UTF-16 code units), which is also Zod's `string().max` unit. */
 export const characterHandleSchema = z

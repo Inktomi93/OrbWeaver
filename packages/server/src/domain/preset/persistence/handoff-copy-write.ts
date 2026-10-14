@@ -15,10 +15,12 @@
 // (`db/schema/preset.ts`) because the update verb's `{mode:"new"}` mints legal siblings of one source;
 // admission is therefore verb-scoped, exactly as the COW converge arm does it.
 
+import { PROMPT_CONFIG_SCHEMA_VERSION, promptConfigConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
+import { requireIntactStoredConfig } from "#primitives/stored-config";
 import type { CopyPresetToUser, PresetHandoffCopyContext } from "../contract/handoff-copy.ts";
 import { findOwnedForkOf, insertConvergedPresetForkIfAbsent } from "./queries.ts";
 
@@ -41,6 +43,7 @@ export function createCopyPresetToUser(ctx: PresetHandoffCopyContext): CopyPrese
     if (source === undefined) {
       return null;
     }
+    const config = requireIntactStoredConfig(promptConfigConfig.parseOutcome(source.config, source.schemaVersion), `presets.config for ${presetId}`);
     const id = ctx.newPresetId();
     const at = ctx.now();
     const admitted = await insertConvergedPresetForkIfAbsent(db, {
@@ -48,9 +51,8 @@ export function createCopyPresetToUser(ctx: PresetHandoffCopyContext): CopyPrese
       ownerId: toUserId,
       name: source.name,
       kind: source.kind,
-      // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
-      config: source.config,
-      schemaVersion: source.schemaVersion,
+      config,
+      schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
       // Lineage names the source AND is the convergence key. Deliberately the SOURCE id, not the source's
       // own `forkedFrom`: the recipient's copy descends from the row that was actually given to them.
       forkedFrom: presetId,

@@ -4,19 +4,16 @@
 
 import type { Db } from "@orb/db";
 import { assets, characters, messages, messageVariants } from "@orb/db";
-import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { aliasedTable, and, desc, eq, gt, sql } from "drizzle-orm";
 import { ownedRealCharacters } from "./character-scope.ts";
 
-// @orb-waive contract-structural-copy(ForgottenGemCandidateRow): baselined when the gate widened; burn-down item 904.
-interface ForgottenGemCandidateRow {
-  readonly characterId: CharacterId;
-  readonly name: string;
-  readonly avatarHash: string | null;
+type ForgottenGemCandidateRow = Pick<typeof characters.$inferSelect, "name"> & {
+  readonly characterId: (typeof characters.$inferSelect)["id"];
+  readonly avatarHash: (typeof assets.$inferSelect)["hash"] | null;
   readonly messageCount: number;
-  readonly lastActiveAt: number;
-}
-
+  readonly lastActiveAt: (typeof messages.$inferSelect)["createdAt"];
+};
 /** VISIBLE canon only: the selected-variant `innerJoin` (a slot with no selected variant is nothing a reader
  *  spent time on) ∩ non-synthetic characters — the synthetic Group card authors real narrator prose (recaps,
  *  illustrations), which is not a "gem" candidate. D124 retired the third arm: rpg's content-less state-anchor
@@ -67,16 +64,13 @@ export async function readCharacterMessageSamples(db: Db, ownerId: UserId, chara
     .limit(limit);
 }
 
-// @orb-waive contract-structural-copy(SwipeHotspotRow): baselined when the gate widened; burn-down item 904.
-interface SwipeHotspotRow {
-  readonly messageId: MessageId;
-  readonly seq: number;
-  readonly characterId: CharacterId;
-  readonly characterName: string;
+type SwipeHotspotRow = Pick<typeof messages.$inferSelect, "seq"> & {
+  readonly messageId: (typeof messages.$inferSelect)["id"];
+  readonly characterId: (typeof characters.$inferSelect)["id"];
+  readonly characterName: (typeof characters.$inferSelect)["name"];
   readonly variantCount: number;
-  readonly snippet: string | null;
-}
-
+  readonly snippet: (typeof messageVariants.$inferSelect)["content"] | null;
+};
 /** The chat's assistant slots that were re-rolled — `message_variants` COUNT per message, keeping only slots
  *  with \>1 take, most takes first. Owner-belted via `characters.ownerId` ∩ `characters.id = messages.characterId`
  *  (a foreign chat's messages belong to another owner → zero rows, no leak). `snippet` is the SELECTED variant's

@@ -1,3 +1,4 @@
+import type { SnippetResult } from "@orb/contracts/plugin";
 // verb: runSnippet — the inline mode. A member types code in the chat box; it runs ONCE as the CALLER
 // in a FRESH transient instance (no residency, no manifest, no registration) under the 5 s wall, then disposes.
 // The snippet gate is leak-free: `resolveChatAuthority` (compose-injected `loadPresentRole` under the caller)
@@ -23,7 +24,7 @@
 import type { PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RunSnippetParams } from "../contract/params.ts";
-import type { SnippetResult } from "../contract/results.ts";
+
 import type { PluginContext } from "../contract/service.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
 

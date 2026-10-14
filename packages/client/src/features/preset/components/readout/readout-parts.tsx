@@ -74,7 +74,11 @@ export function DatumRow({ label, value, suffix, valueTitle }: DatumRowProps): R
 const PENDING_ROWS = 4;
 
 // A knob the server skips this turn says so in place of the rung that produced its value.
-function readingSuffix(knob: string, reading: EffectiveProfileRow["knobs"][string], skipped: ReadonlySet<string> | undefined): string | null {
+function readingSuffix(
+  knob: string,
+  reading: EffectiveProfileRow["knobs"][keyof EffectiveProfileRow["knobs"]],
+  skipped: ReadonlySet<string> | undefined,
+): string | null {
   if (skipped?.has(knob) === true) {
     return MIROSTAT_SKIPPED_GLOSS;
   }
@@ -147,7 +151,7 @@ export function EffectiveProfile({
       </Section>
     );
   }
-  const rows = Object.entries(effective.knobs).filter(([, reading]) => reading !== undefined);
+  const rows = Object.entries(effective.knobs);
   return (
     <Section kicker="Effective generation">
       {rows.length === 0 && contextWindow === undefined ? (
@@ -157,7 +161,7 @@ export function EffectiveProfile({
           {/* DISPLAY names, never the schema key (side-eye F-13): the read is keyed by `maxOutputTokens`,
               the reader wants "max output". */}
           {rows.map(([knob, reading]) => (
-            <DatumRow key={knob} label={knobLabel(knob)} suffix={readingSuffix(knob, reading, skipped)} value={formatKnobValue(reading?.value)} />
+            <DatumRow key={knob} label={knobLabel(knob)} suffix={readingSuffix(knob, reading, skipped)} value={formatKnobValue(reading.value)} />
           ))}
           {contextWindow === undefined ? null : (
             <DatumRow label={knobLabel("maxContextTokens")} suffix={contextSetByPreset ? "preset" : "window"} value={formatKnobValue(contextWindow)} />

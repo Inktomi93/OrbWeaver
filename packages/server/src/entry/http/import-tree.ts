@@ -21,7 +21,7 @@ import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import { decodePersonaCollisionChoices, isStSecretsFile, PERSONA_COLLISION_FIELD } from "@orb/contracts/import";
+import { decodePersonaCollisionChoices, importStartedSchema, isStSecretsFile, PERSONA_COLLISION_FIELD } from "@orb/contracts/import";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
@@ -344,7 +344,7 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
           mode: "singular",
           ownerId: principal.userId,
         });
-        return c.json({ workloadId: id }, ACCEPTED);
+        return c.json(importStartedSchema.parse({ workloadId: id }), ACCEPTED);
       } catch (err) {
         await rm(stagedRoot, { recursive: true, force: true });
         throw err;

@@ -1,19 +1,22 @@
 // The Share card's view-model: the share preconditions as rows, the start refusal each row owns, and the
 // memory that notices a relay coming back under a new URL. Pure, so every verdict is unit-proved.
 
-import type {
-  AuthMode,
-  IpCertificateRefusal,
-  IpCertificateState,
-  RelayBinaryRefusal,
-  RelayDownReason,
-  RelayStatus,
-  ShareRefusal,
-  ShareState,
-  ShareStatus,
-} from "@orb/contracts/identity";
+import type { AuthMode, IpCertificateRefusal, IpCertificateState, RelayDownReason, RelayStatus, ShareState, ShareStatus } from "@orb/contracts/identity";
 import { IP_CERTIFICATE_REFUSALS, RELAY_BINARY_REFUSALS, SHARE_MODE_REFUSAL, SHARE_REFUSALS } from "@orb/contracts/identity";
 import { trpcErrorReason } from "#lib";
+import type {
+  IpCertificateFormValues,
+  IpCertificateRefusalView,
+  PreconditionRow,
+  PreconditionVerdict,
+  ShareFactsView,
+  SharePrecondition,
+  ShareStartFailure,
+  ShareStartRefusal,
+} from "../contract/share.ts";
+import { SHARE_PRECONDITIONS } from "../contract/share.ts";
+
+export type { IpCertificateFormValues, IpCertificateRefusalView, PreconditionRow, ShareFactsView, ShareStartFailure } from "../contract/share.ts";
 
 /** How a visitor signs in under each mode, in the words the mode row and the Multi-user sign-in helper both use. */
 export const MODE_NAME: Record<AuthMode, string> = {
@@ -24,13 +27,9 @@ export const MODE_NAME: Record<AuthMode, string> = {
 };
 
 // The rows the card shows before a share starts, in the order the server checks them.
-const SHARE_PRECONDITIONS = ["mode", "owner", "seating", "relay"] as const;
-type SharePrecondition = (typeof SHARE_PRECONDITIONS)[number];
 
 // A row's verdict. `unmet` is known now and its fix comes first; `waiting` hangs on an earlier row; `unchecked` is
 // decided by the server at start; `refused` is the server's answer to the last start, which a new start re-checks.
-const PRECONDITION_VERDICTS = ["met", "unmet", "waiting", "unchecked", "refused"] as const;
-type PreconditionVerdict = (typeof PRECONDITION_VERDICTS)[number];
 
 // Whether a verdict holds the Start button until its fix is done.
 const VERDICT_BLOCKS_START: Record<PreconditionVerdict, boolean> = {
@@ -42,28 +41,8 @@ const VERDICT_BLOCKS_START: Record<PreconditionVerdict, boolean> = {
 };
 
 // A `share.start` refusal the card can explain: a precondition, or the relay binary.
-type ShareStartRefusal = ShareRefusal | RelayBinaryRefusal;
 
 /** The coded refusal off a failed `share.start`, with the server's sentence, which names the fix. */
-export interface ShareStartFailure {
-  readonly code: ShareStartRefusal;
-  readonly message: string;
-}
-
-// @orb-waive no-inline-wire-interface(ShareFactsView): baselined when the gate widened; burn-down item 904.
-/** The facts the rows read: the boot-fixed sign-in mode, the two seating settings and the last start refusal. */
-export interface ShareFactsView {
-  readonly mode: AuthMode;
-  readonly localMultiUser: boolean;
-  readonly discreetLogin: boolean;
-  readonly refusal: ShareStartRefusal | null;
-}
-
-// @orb-waive no-inline-wire-interface(PreconditionRow): baselined when the gate widened; burn-down item 904.
-export interface PreconditionRow {
-  readonly id: SharePrecondition;
-  readonly verdict: PreconditionVerdict;
-}
 
 // The mode row's verdict is the one share rule: a mode the server refuses is unmet. The card never shows the rows
 // under oidc (it names the box's own address instead), so only single-user and forward-header reach `unmet` here.
@@ -227,21 +206,9 @@ export function shareStatusPollMs(status: Pick<ShareStatus, "relay" | "certifica
 }
 
 /** The offer form's values; a port is null while its field is empty. */
-export interface IpCertificateFormValues {
-  readonly address: string;
-  readonly httpsPort: number | null;
-  readonly challengePort: number | null;
-}
 
 /** A fresh offer: no address, and the ports it suggests, 8443 for https and 8080 for the port-80 check. */
 export const IP_CERTIFICATE_FORM_DEFAULTS: IpCertificateFormValues = { address: "", httpsPort: 8443, challengePort: 8080 };
-
-// @orb-waive no-inline-wire-interface(IpCertificateRefusalView): baselined when the gate widened; burn-down item 904.
-/** The coded refusal off a failed `share.enableIpCertificate`, with the server's sentence naming the fix. */
-export interface IpCertificateRefusalView {
-  readonly code: IpCertificateRefusal;
-  readonly message: string;
-}
 
 function isIpCertificateRefusal(reason: string): reason is IpCertificateRefusal {
   return (IP_CERTIFICATE_REFUSALS as readonly string[]).includes(reason);

@@ -4,11 +4,10 @@
 // chronicle (cards archived into the day they were born — the "Journal" rule), so both lenses read the
 // SAME projection of the same cache entry (`trpc.chat.listMessages` — lockdown §12 direct read).
 
-import type { ParticipantView } from "@orb/contracts/chat";
+import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CardSpanOrigin } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
 import { resolveRowRenderPolicy } from "#lib";
 
 /** One archived card projected from the visible transcript, stamped with its birth time (`createdAt` —
@@ -33,17 +32,7 @@ export interface ArchivedCard {
   readonly characterId: CharacterId | null;
 }
 
-// @orb-waive contract-structural-copy(ArchivedCardSource): baselined when the gate widened; burn-down item 904.
-/** The transcript row fields the projection reads: the body + its birth time, plus the ATTRIBUTION the
- *  render policy resolves from (`chat.listMessages` carries all six). */
-interface ArchivedCardSource {
-  readonly id: MessageId;
-  readonly content: string;
-  readonly createdAt: number;
-  readonly role: MessageRole;
-  readonly authorUserId: UserId | null;
-  readonly characterId: CharacterId | null;
-}
+type ArchivedCardSource = Pick<MessageView, "id" | "content" | "createdAt" | "role" | "authorUserId" | "characterId">;
 
 /** The participants + viewer the per-row policy resolves against — the same `chat.getChat` read the takeover
  *  already holds. `participants` absent (still loading) resolves every card to the safe floor. */

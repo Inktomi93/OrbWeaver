@@ -10,7 +10,8 @@
 // server fault) is the only arm that throws.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { CharacterId, WorldBookId } from "@orb/kit/ids";
+import type { CardLorebookRestoreResult } from "@orb/contracts/import";
+import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
 import { throwHttpError } from "./http-error.ts";
 
 const RESTORE_URL = "/api/import/restore-card-lorebook";
@@ -21,9 +22,7 @@ const BAD_REQUEST = 400;
  *  (`domain/import/contract/results.ts`), verbatim. `replaced:false` means the character held no primary
  *  book at all and the card's book landed fresh (a restore onto a character whose book was deleted is
  *  still a restore). */
-export type RestoreCardLorebookResult =
-  | { readonly ok: true; readonly characterId: CharacterId; readonly worldBookId: WorldBookId; readonly entryCount: number; readonly replaced: boolean }
-  | { readonly ok: false; readonly error: string };
+export type RestoreCardLorebookResult = CardLorebookRestoreResult;
 
 /** POST one card file's bytes to the #1598 restore route and return the server's verdict. The 400 "this
  *  card doesn't match anything of yours" arm still carries a real JSON body and is read as data, never
@@ -39,6 +38,5 @@ export async function restoreCardLorebook(file: File): Promise<RestoreCardLorebo
   if (!response.ok && response.status !== BAD_REQUEST) {
     await throwHttpError("restoreCardLorebook", response);
   }
-  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
-  return (await response.json()) as RestoreCardLorebookResult;
+  return cardLorebookRestoreResultSchema.parse(await response.json());
 }

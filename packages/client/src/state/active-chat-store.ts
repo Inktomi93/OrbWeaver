@@ -15,9 +15,9 @@
 // The client NEVER decides that a room is a husk: the verb re-checks `started_at IS NULL` and no-ops
 // otherwise, and the 24h TTL belt is the real guarantee. Nav is never blocked on it.
 
-import type { RpgGameTemplate } from "@orb/contracts/rpg";
+import type { StartChatInput } from "@orb/contracts/chat";
 import type { MessageWindowTarget } from "@orb/contracts/search";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { ChatContextTabId } from "#lib";
 import type { ChatHandle } from "./chat-handle.ts";
@@ -29,23 +29,9 @@ import { createPersistedStore } from "./create-persisted-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { activeSectionNow, openModal, revealContextPanel, setActiveSection, setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
-// @orb-waive contract-structural-copy(NewChatIntent): baselined when the gate widened; burn-down item 904.
-/** The CREATION-ONLY parameters of a new chat — what a launcher pre-arms the picker with, and what the
- *  picker hands `chat.startChat`. All fields optional: an empty intent is a legal narrator-only room. */
-export interface NewChatIntent {
-  /** The founding characters. @defaultValue [] (a narrator-only room). */
-  readonly characterIds?: readonly CharacterId[] | undefined;
-  readonly anchorPersonaId?: PersonaId | null | undefined;
-  readonly title?: string | null | undefined;
-  /** ST "Temporary Chat" — start this room EPHEMERAL: it runs turns normally but never joins the
-   *  chats list, and it is swept once past the user's own TTL. A CREATION intent, not editable config:
-   *  `startChat` is the only writer of the column, and a fork is born non-temporary.
-   *  @defaultValue undefined (a plain, permanent new chat). */
-  readonly temporary?: boolean | undefined;
-  /** Start the room as a game: rpg births it in the room's own creation batch, so the first turn is in-game.
-   *  @defaultValue undefined (a plain chat). */
-  readonly startAsGame?: RpgGameTemplate | undefined;
-}
+export type NewChatIntent = Readonly<Partial<Pick<StartChatInput, "anchorPersonaId" | "title" | "temporary" | "startAsGame">>> & {
+  readonly characterIds?: Readonly<StartChatInput["characterIds"]> | undefined;
+};
 
 interface ActiveChatState {
   readonly handle: ChatHandle;

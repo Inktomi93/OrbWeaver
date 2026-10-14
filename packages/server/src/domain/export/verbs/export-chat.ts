@@ -13,7 +13,7 @@
 import { characters, chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
-import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { ParsedChat, ParsedChatMessage, ParsedVariant } from "#primitives/serde/chat";
 import { buildChatJsonl, buildChatTxt, classifyChat } from "#primitives/serde/chat";
 import type { ExportContext } from "../context.ts";
@@ -163,17 +163,22 @@ async function loadExportMeta(ctx: ExportContext, chat: ChatRow): Promise<{ char
 
 export function createExportChat(ctx: ExportContext): ExportService["exportChat"] {
   return async ({ principal, chatId, format }: ExportChatParams): Promise<ExportedText | null> => {
-    const [chat] = await ctx.db.select().from(chats).where(eq(chats.id, chatId)).limit(1);
+    const [chat] = await ctx.db
+      .select(getTableColumns(chats))
+      .from(chats)
+      .innerJoin(
+        chatParticipants,
+        and(
+          eq(chatParticipants.chatId, chats.id),
+          eq(chatParticipants.kind, "human"),
+          eq(chatParticipants.role, "host"),
+          eq(chatParticipants.userId, principal.userId),
+          isNull(chatParticipants.leftSeq),
+        ),
+      )
+      .where(eq(chats.id, chatId))
+      .limit(1);
     if (chat === undefined) {
-      return null;
-    }
-    // Host gate — the caller must be the present `role='host'` row.
-    const hostRows = await ctx.db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq), isNotNull(chatParticipants.userId)));
-    const isHost = hostRows.some((r) => r.userId === principal.userId);
-    if (!isHost) {
       return null;
     }
 

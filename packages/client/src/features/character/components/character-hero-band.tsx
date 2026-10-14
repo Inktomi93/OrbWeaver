@@ -13,10 +13,8 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
-import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
-import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -35,12 +33,15 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useUploadAsset, useUplo
 import type { AppFormInstance } from "#forms/editor";
 import { notify, oversizeUploadMessage } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
+import type { CharacterHeroDetail } from "../contract/library.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
 import { CharacterTagsRow } from "./character-tags-row.tsx";
+
+export type { CharacterHeroDetail } from "../contract/library.ts";
 
 /** The suggestion strip's first-boot guess: one wrapped row of chips. `reserveKey` replaces it with this
  *  device's own measurement on every subsequent open. */
@@ -63,26 +64,6 @@ const TAG_SUGGESTION_SKELETON_ROWS = 1;
  *  are the EDITOR — and hiding an affordance because a read-only copy of its value sits elsewhere would be
  *  a new defect one screen over. */
 export const HERO_ECHO_CLASS = "shell-character-hero-echo";
-
-// @orb-waive contract-structural-copy(CharacterHeroDetail): baselined when the gate widened; burn-down item 904.
-/** The identity/preview subset of the owner card the hero renders — draft card fields flow through `form`. */
-export interface CharacterHeroDetail {
-  readonly id: CharacterId;
-  readonly handle: CharacterHandle;
-  readonly name: string;
-  readonly starred: boolean;
-  readonly archived: boolean;
-  /** The card's own render-policy OVERRIDE columns — inputs to the policy, never the policy itself: the
-   *  greeting preview resolves them against the deployment floor (`usePreviewRenderPolicy`). */
-  readonly trustHtml: boolean | null;
-  readonly forbidExternalMedia: boolean | null;
-  /** The third override column (#111) — carried so this subset still satisfies `RenderPolicyOverride`
-   *  whole; the greeting preview renders no card frame, so nothing here reads the resolved value. */
-  readonly interactiveHtml: boolean | null;
-  readonly avatarHash: string | null;
-  readonly themeOverride: ThemeOverride | null;
-  readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard">[];
-}
 
 export interface CharacterHeroBandProps {
   readonly detail: CharacterHeroDetail;

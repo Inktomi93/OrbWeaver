@@ -10,13 +10,13 @@
 // column diff: the space is derived from the row's model AND its resolved capability, so a provider or
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
-import type { ConnectionApi, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
+import type { ConnectionApi, ConnectionView, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, EMBED_SPACE_FIELDS, isHubModelId, mintConnectionLabel, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
-import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
+import type { EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { lookupBinding } from "../persistence/bindings.ts";
 import {

@@ -111,25 +111,25 @@ export function toHostConsoleForm(config: RpgConfigView): HostConsoleFormValues 
 /** The `updateConfig` patch for the scalar bag — the steering note rides `patch.steeringNote`; the
  *  extraction mode + deception knobs are top-level/`patch`-level per the wire schema. */
 export interface HostConsoleScalarPatch {
-  readonly patch: {
-    // @orb-waive contract-structural-copy(steeringNote): baselined when the gate widened; burn-down item 904.
-    readonly steeringNote: string;
-    readonly deception: boolean;
-    readonly omniscience: boolean;
-    readonly cyoa: boolean;
-    readonly cyoaChoiceBehavior: CyoaChoiceBehavior;
-    readonly plotProgression: boolean;
-    readonly dateMode: RpgDateMode;
-    readonly immersiveHtml: boolean;
-    readonly immersiveHtmlInteractive: boolean;
-    readonly hiddenContentReveal: boolean;
-    readonly recentBeatsKeepLast: number;
-    readonly cardKeepLastX: number;
-    readonly extractionContext: RpgExtractionContext;
-    readonly stateCaptureVehicle: RpgStateCaptureVehicle;
-    readonly extractionWindowTokens: number;
-    readonly reconcileEveryBeats: number;
-  };
+  readonly patch: Pick<
+    RpgConfigView,
+    | "steeringNote"
+    | "deception"
+    | "omniscience"
+    | "cyoa"
+    | "cyoaChoiceBehavior"
+    | "plotProgression"
+    | "dateMode"
+    | "immersiveHtml"
+    | "immersiveHtmlInteractive"
+    | "hiddenContentReveal"
+    | "recentBeatsKeepLast"
+    | "cardKeepLastX"
+    | "extractionContext"
+    | "stateCaptureVehicle"
+    | "extractionWindowTokens"
+    | "reconcileEveryBeats"
+  >;
   readonly extractionMode: RpgExtractionMode;
 }
 

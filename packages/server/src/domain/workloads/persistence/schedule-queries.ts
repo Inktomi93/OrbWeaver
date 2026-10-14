@@ -7,40 +7,20 @@
 //     so an overdue schedule jumps forward one interval from NOW (no catch-up storm).
 // Determinism: every timestamp write takes the INJECTED `now` (no ambient `Date.now()`).
 
-import type { ScheduleCadence, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
+import type { WorkloadKind } from "@orb/contracts/workloads";
+import { workloadScheduleViewSchema } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloadSchedules } from "@orb/db";
 import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, desc, eq, lte } from "drizzle-orm";
-import type { WorkloadScheduleRow } from "../contract/schedule.ts";
+import { and, desc, eq, getTableColumns, lte, sql } from "drizzle-orm";
+import type { AuthorizeScheduleRead, SchedulePatch, WorkloadScheduleRow } from "../contract/schedule.ts";
 
-// @orb-waive contract-structural-copy(ScheduleInsert): baselined when the gate judged by type; burn-down item 904.
-/** A new schedule row (file-local; the verb mints `id`, resolves the owner, passes its injected clock). */
-interface ScheduleInsert {
-  readonly id: WorkloadScheduleId;
-  readonly ownerId: UserId;
-  readonly kind: WorkloadKind;
-  readonly mode: WorkloadMode;
-  readonly params: Record<string, unknown>;
-  readonly cadence: ScheduleCadence;
-  readonly nextRunAt: number;
-  readonly enabled: boolean;
-  readonly createdAt: number;
-}
-
-// @orb-waive contract-structural-copy(SchedulePatch): baselined when the gate widened; burn-down item 904.
-/** The mutable subset `updateSchedule` may patch (file-local; the verb builds it from the parsed input, and
- *  re-bases `nextRunAt` when the cadence changes). Every field optional — an omitted key is left unchanged. */
-interface SchedulePatch {
-  readonly kind?: WorkloadKind;
-  readonly mode?: WorkloadMode;
-  readonly params?: Record<string, unknown>;
-  readonly cadence?: ScheduleCadence;
-  readonly nextRunAt?: number;
-}
+type ScheduleInsert = Pick<WorkloadScheduleRow, "id" | "ownerId" | "kind" | "mode" | "params" | "cadence" | "nextRunAt" | "enabled" | "createdAt">;
 
 type ScheduleSelectRow = typeof workloadSchedules.$inferSelect;
+
+const scheduleTextColumns = { ...getTableColumns(workloadSchedules), params: sql<string>`${workloadSchedules.params}` };
 
 /** The persistence-facing list filter — column predicates only (the verb resolves the server-authoritative
  *  `ownerId` scope BEFORE calling in). `ownerId: undefined` = no owner filter (the deployment-wide view). */
@@ -84,11 +64,14 @@ export async function insertSchedule(db: Db, row: ScheduleInsert): Promise<void>
 }
 
 /** Load one schedule by id, or `null` (absent). */
-// @orb-waive owner-scoped-reads(workloadSchedules): the `loadWorkload` F3-AUTHZ twin — every caller (`update-schedule`/`set-schedule-enabled`/ `delete-schedule`) runs `isVisibleToCaller(isAdmin, caller, existing.ownerId)` on the loaded row and collapses a foreign id to the same leak-free NOT_FOUND. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if the admin arm goes.
-export async function loadSchedule(db: Db, id: WorkloadScheduleId): Promise<WorkloadScheduleRow | null> {
-  const rows = await db.select().from(workloadSchedules).where(eq(workloadSchedules.id, id)).limit(1);
+// @orb-waive owner-scoped-reads(workloadSchedules): the `loadWorkload` F3-AUTHZ twin — every caller (`update-schedule`/`set-schedule-enabled`/ `delete-schedule`) supplies `isVisibleToCaller(isAdmin, caller, ownerId)` as the scalar authorization predicate before params decoding and collapses a foreign id to the same leak-free NOT_FOUND. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if the admin arm goes.
+export async function loadSchedule(db: Db, id: WorkloadScheduleId, authorize: AuthorizeScheduleRead): Promise<WorkloadScheduleRow | null> {
+  const rows = await db.select(scheduleTextColumns).from(workloadSchedules).where(eq(workloadSchedules.id, id)).limit(1);
   const row = rows[0];
-  return row === undefined ? null : toScheduleView(row);
+  if (row === undefined || !authorize(row.ownerId)) {
+    return null;
+  }
+  return workloadScheduleViewSchema.parse({ ...row, params: JSON.parse(row.params) });
 }
 
 /** Filtered list (owner/kind), newest-first. `createdAt` is not unique (schedules seeded together tie), so
@@ -107,7 +90,7 @@ export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Pr
     .from(workloadSchedules)
     .where(predicates.length > 0 ? and(...predicates) : undefined)
     .orderBy(desc(workloadSchedules.createdAt), desc(workloadSchedules.id));
-  return rows.map(toScheduleView);
+  return rows.map((row) => workloadScheduleViewSchema.parse(row));
 }
 
 /** Apply a patch to a schedule, returning the updated row (or `null` if the id vanished between the verb's
@@ -127,7 +110,7 @@ export async function updateScheduleFields(db: Db, id: WorkloadScheduleId, patch
     .where(eq(workloadSchedules.id, id))
     .returning();
   const row = updated[0];
-  return row === undefined ? null : toScheduleView(row);
+  return row === undefined ? null : workloadScheduleViewSchema.parse(row);
 }
 
 /** Flip a schedule's `enabled` flag, returning the updated row (or `null` if it vanished). */
@@ -135,7 +118,7 @@ export async function updateScheduleFields(db: Db, id: WorkloadScheduleId, patch
 export async function setScheduleEnabledQuery(db: Db, id: WorkloadScheduleId, enabled: boolean, now: number): Promise<WorkloadScheduleRow | null> {
   const updated = await db.update(workloadSchedules).set({ enabled, updatedAt: now }).where(eq(workloadSchedules.id, id)).returning();
   const row = updated[0];
-  return row === undefined ? null : toScheduleView(row);
+  return row === undefined ? null : workloadScheduleViewSchema.parse(row);
 }
 
 /** Delete a schedule by id. Returns whether a row was removed (false = already gone). */

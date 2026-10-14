@@ -8,6 +8,7 @@
 // the DISPATCH path takes the narrower `WorkloadRunnableRow`, so a poison row can never reach a run body.
 
 import type { WorkloadError, WorkloadKind } from "@orb/contracts/workloads";
+import type { workloads } from "@orb/db";
 import type { WorkloadId } from "@orb/kit/ids";
 
 /** A queued row terminalized while the persistence scan searched for runnable work. The engine emits the
@@ -42,3 +43,19 @@ export interface WorkloadInFlightRow {
 }
 
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "@orb/contracts/workloads";
+
+type StoredWorkloadRow = typeof workloads.$inferSelect;
+type WorkloadJsonField = keyof Pick<StoredWorkloadRow, "params" | "result" | "progress" | "dependsOn">;
+
+/** Stored JSON text remains undecoded until authorization or the system queue has selected its row. */
+export type WorkloadTextRow = {
+  readonly [Field in keyof StoredWorkloadRow]: Field extends WorkloadJsonField ? string | null : StoredWorkloadRow[Field];
+};
+
+/** JSON decoding establishes values, not their per-kind contract validity. */
+export type WorkloadDecodedRow = {
+  readonly [Field in keyof StoredWorkloadRow]: Field extends WorkloadJsonField ? unknown : StoredWorkloadRow[Field];
+};
+
+/** The user-facing authority check runs on scalar row metadata before any private JSON is decoded. */
+export type AuthorizeWorkloadRead = (row: Pick<StoredWorkloadRow, "ownerId" | "mode">) => boolean;

@@ -19,36 +19,10 @@
 // the page list and the reason-for-no-pages behind one shape that two panes consume differently.
 
 import { useQuery } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
 import { useTRPC } from "#data";
-import type { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
+import type { ExtensionsEmptyView } from "../contract/extension-views.ts";
 
-/** The axis, DERIVED from the copy map rather than declared beside it — a reason without copy is not a
- *  reachable state, and a client feature is not a type home for a declared union (`no-inline-types`). */
-type ExtensionsEmptyReason = keyof typeof EXTENSIONS_EMPTY_COPY;
-
-/** One projected row of `plugin.list` — a private derived alias, the `plugin-row.tsx` precedent (a 1-line
- *  `inferOutput` derivation, not an exported shape a type home would own). */
-type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
-
-// @orb-waive no-inline-wire-interface(ExtensionsEmptyView): baselined when the gate widened; burn-down item 904.
-/** The resolved reason plus the plugins its copy is about. */
-export interface ExtensionsEmptyView {
-  /** `null` while the reads have not settled — the pane owes a loading skin, not a claim. */
-  readonly reason: ExtensionsEmptyReason | null;
-  /**
-   * The installed plugins standing on the caller's consent, on EVERY arm: the LIST keeps them as rows after
-   * some pages exist, so they cannot hide behind a reason that only resolves when there are no pages. The
-   * count the copy spends is derived from `.length` where it is printed.
-   */
-  readonly awaitingPlugins: readonly PluginView[];
-  /** How many rows are `errored` — the number `some-errored`'s copy spends, and 0 on every other arm. A COUNT
-   *  rather than the rows (#1699's ruling survives; its input changed): the reader's next act is one screen,
-   *  not one decision per plugin, and the Plugins row is where each failure's own `lastError` is already
-   *  printed — naming them here would restate a list the destination renders better. */
-  readonly erroredCount: number;
-}
+export type { ExtensionsEmptyView } from "../contract/extension-views.ts";
 
 const PENDING: ExtensionsEmptyView = { reason: null, awaitingPlugins: [], erroredCount: 0 };
 

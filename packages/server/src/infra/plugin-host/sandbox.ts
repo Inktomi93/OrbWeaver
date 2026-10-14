@@ -1,3 +1,4 @@
+import type { PluginBudgets } from "@orb/contracts/plugin";
 // The Sandbox — one guest instance = one QuickJSContext (own globals, own memory cap, own interrupt budget).
 // It provides the skeleton (boot/teardown, injected-seam realm, per-invocation DoS budget, the async promise
 // bridge) and the MEMBRANE: the capability-gated host-fn call surface (membrane.ts),
@@ -43,21 +44,8 @@ import { createPluginNetEgress } from "./net-egress.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
-// @orb-waive no-inline-package-interface(SandboxLimits): baselined when the gate landed; burn-down item 952.
-/** Per-instance DoS limits. All default to the shared budget constants; a snippet passes a wider wall. */
-export interface SandboxLimits {
-  /** Guest CPU window (real wall-time), ms — enforced by the QuickJS interrupt handler, which preempts guest
-   *  BYTECODE only. It bounds the invocation AND each post-invocation job pump: one window per span of guest
-   *  execution, never a bound on their sum (`cpu-guard.ts`). */
-  readonly cpuDeadlineMs: number;
-  /** QuickJS live guest-allocation accounting cap for the instance, bytes; not a WASM or RSS ceiling. */
-  readonly memoryLimitBytes: number;
-  /** Grace above {@link cpuDeadlineMs} before the invocation is force-ENDED in real time
-   *  (`cpuDeadlineMs + settleGraceMs` = the settlement deadline). This is the bound the interrupt CANNOT
-   *  provide: see {@link HOST_FN_DEADLINE_MS} for why it is the host-fn deadline. */
-  readonly settleGraceMs: number;
-}
-
+/** Per-instance limits derive from the same data the domain supplies. */
+export interface SandboxLimits extends PluginBudgets {}
 /** The `name` an ENDED invocation's error carries — the design's `PluginInvocationEnded` (03 §3), surfaced as
  *  DATA on the outcome (nothing crosses back into the guest: its realm is torn down). The domain's crash policy
  *  sees it as a rejected `invoke`, so a hang finally counts toward the 3-strike auto-disable. */

@@ -33,7 +33,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { Trpc } from "#data";
@@ -41,25 +41,20 @@ import { createEntityMutation, useColorQuotedSpeech, useInvalidation, useTRPC } 
 import { viewerTimeZone } from "#lib";
 
 /** The rewrite generation — returns the revised greeting text (no cache/bus effect; the result is previewed). */
-const useRewriteGreetingMutation = createEntityMutation<
-  // @orb-waive contract-structural-copy(characterId): baselined when the gate widened; burn-down item 904.
-  { characterId: CharacterId; greeting: string; steer: string; transforms?: GreetingTransformId[] | undefined; timeZone: string },
-  inferOutput<Trpc["character"]["rewriteGreeting"]>
->({
+const useRewriteGreetingMutation = createEntityMutation<inferInput<Trpc["character"]["rewriteGreeting"]>, inferOutput<Trpc["character"]["rewriteGreeting"]>>({
   options: (trpc) => trpc.character.rewriteGreeting.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't rewrite the greeting.",
 });
 
 /** The new-greeting generation — returns a fresh greeting text (no cache/bus effect; the result is previewed). */
-const useGenerateGreetingMutation = createEntityMutation<
-  { characterId: CharacterId; steer: string; transforms?: GreetingTransformId[] | undefined; timeZone: string },
-  inferOutput<Trpc["character"]["generateGreeting"]>
->({
-  options: (trpc) => trpc.character.generateGreeting.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't generate the greeting.",
-});
+const useGenerateGreetingMutation = createEntityMutation<inferInput<Trpc["character"]["generateGreeting"]>, inferOutput<Trpc["character"]["generateGreeting"]>>(
+  {
+    options: (trpc) => trpc.character.generateGreeting.mutationOptions(),
+    busDriven: true,
+    errorToast: "Couldn't generate the greeting.",
+  },
+);
 
 export interface GreetingStudioProps {
   readonly characterId: CharacterId;

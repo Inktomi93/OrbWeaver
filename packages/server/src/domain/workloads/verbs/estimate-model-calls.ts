@@ -32,8 +32,8 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
   // retrying it is the funder, as `start` counts it.
   async function estimateRetryModelCalls(params: EstimateRetryModelCallsParams): Promise<ModelCallEstimate> {
     const contributions = ctx.getContributions();
-    const original = await loadWorkload(ctx.db, contributions, params.id);
-    if (original === null || !canCloneRow(ctx, params.caller, original)) {
+    const original = await loadWorkload(ctx.db, contributions, params.id, (access) => canCloneRow(ctx, params.caller, access));
+    if (original === null) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
     if (original.poison) {

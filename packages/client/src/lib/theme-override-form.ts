@@ -10,17 +10,7 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 // The flat palette color keys both theme forms carry (each field a color STRING; "" = unset → inherit).
 const THEME_COLOR_KEYS = ["background", "accent", "borderColor", "speaker", "dialogueColor", "narrationColor", "bodyColor"] as const;
 
-// @orb-waive contract-structural-copy(ThemeColorFields): baselined when the gate widened; burn-down item 904.
-/** The flat palette-color fields shared by every theme form value shape (both editors extend this). */
-export interface ThemeColorFields {
-  readonly background: string;
-  readonly accent: string;
-  readonly borderColor: string;
-  readonly speaker: string;
-  readonly dialogueColor: string;
-  readonly narrationColor: string;
-  readonly bodyColor: string;
-}
+export type ThemeColorFields = { readonly [K in (typeof THEME_COLOR_KEYS)[number]]: NonNullable<ThemeOverride[K]> };
 
 /** Assign the SET (non-blank) palette color fields onto an in-progress `ThemeOverride` — the shared
  *  "empty ⇒ token inherits/derives" rule. A blank field is omitted so the parent scope supplies it. */

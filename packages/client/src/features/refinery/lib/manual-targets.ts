@@ -8,6 +8,7 @@
 // reviewable entries, a lane's cross-claims), and this one is about the LIVE CARD's addressable text with
 // no run involved at all. The manual path exists precisely for when no run is worth waiting for.
 
+import type { CharacterCard } from "@orb/contracts/character";
 import type { RefinableField, RefineryRewriteField, RefinerySelection } from "@orb/contracts/refinery";
 
 /** One addressable slot the hand-edit dialog offers. It lives HERE rather than beside the dialog for two
@@ -42,16 +43,8 @@ export function manualTargetsOf(selection: RefinerySelection, card: ManualCard):
  *  unit test, separate from `manualTargetsOf`'s selection/greeting machinery; internal use above is real
  *  but not the only reason this stays exported. */
 export function manualTextOf(
-  card: {
-    // @orb-waive contract-structural-copy(description): baselined when the gate widened; burn-down item 904.
-    description: string | null;
-    personality: string | null;
-    scenario: string | null;
-    exampleMessages: string | null;
-    systemPrompt: string | null;
-    postHistoryInstructions: string | null;
-    creatorNotes: string | null;
-    depthPrompt: { prompt: string } | null;
+  card: Pick<CharacterCard, "description" | "personality" | "scenario" | "exampleMessages" | "systemPrompt" | "postHistoryInstructions" | "creatorNotes"> & {
+    depthPrompt: Pick<NonNullable<CharacterCard["depthPrompt"]>, "prompt"> | null;
   },
   field: Exclude<RefinableField, "greetings">,
 ): string {

@@ -8,14 +8,9 @@
 // `findConvergenceFork` mirrors `persistence/queries.ts#findOwnedForkOf` (the OLDEST fork by `createdAt`,
 // ties broken by id) rather than trusting the list's own ordering.
 
-// @orb-waive no-inline-wire-interface(PresetForkRow): baselined when the gate widened; burn-down item 904.
-/** The minimal `PresetSummary` shape these two need (tRPC-inferred at the call site). */
-export interface PresetForkRow {
-  readonly id: string;
-  readonly name: string;
-  readonly forkedFrom: string | null;
-  readonly createdAt: number;
-}
+import type { PresetForkRow } from "../contract/fork-row.ts";
+
+export type { PresetForkRow } from "../contract/fork-row.ts";
 
 /** The caller's OLDEST fork of `sourceId` — the row a `converge` intent would land on — or null when they
  *  have none (the silent copy-on-write case). */

@@ -6,16 +6,15 @@
 // concurrent import for one owner is a 409; an oversize upload a 413.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { WorkloadId } from "@orb/kit/ids";
+import type { ImportStarted } from "@orb/contracts/import";
+import { importStartedSchema } from "@orb/contracts/import";
 import { throwHttpError } from "./http-error.ts";
 
 const BUNDLE_URL = "/api/import/bundle";
 const ZIP_MIME = "application/zip";
 
 /** The `202` accept body: the id of the enqueued import workload to subscribe for progress + the result. */
-export interface BundleImportStarted {
-  readonly workloadId: WorkloadId;
-}
+export type BundleImportStarted = ImportStarted;
 
 /** POST a portability zip as the raw request body; resolve the enqueued workload id. Throws on a non-OK
  *  response (409 = an import is already running; 413 = oversize; 400 = a malformed/hostile archive; 401/403
@@ -29,6 +28,5 @@ export async function importBundle(file: File): Promise<BundleImportStarted> {
   if (!response.ok) {
     await throwHttpError("importBundle", response);
   }
-  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
-  return (await response.json()) as BundleImportStarted;
+  return importStartedSchema.parse(await response.json());
 }

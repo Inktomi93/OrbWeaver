@@ -2,13 +2,9 @@
 // outside a provider reads null and keeps its art as plain, non-interactive paint.
 
 import { createContext, use } from "react";
+import type { ArtToView } from "../contract/presentation.ts";
 
-// @orb-waive no-inline-wire-interface(ArtToView): baselined when the gate widened; burn-down item 904.
-/** The art being viewed: the blob's hash, and the speaker's name it is titled with. */
-export interface ArtToView {
-  readonly hash: string;
-  readonly name: string;
-}
+export type { ArtToView } from "../contract/presentation.ts";
 
 /** The shared viewer: `open` shows `art`, and `opener` is the control focus returns to when it closes. */
 export interface ArtViewer {

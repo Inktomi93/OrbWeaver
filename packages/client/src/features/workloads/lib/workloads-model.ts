@@ -1,12 +1,15 @@
 // workloads-model — the Workloads pane's pure vocabulary, DOM-free. Everything derives from the
 // canonical tuples in @orb/contracts/workloads, so a kind flipping stub→built needs zero client edits.
 
-import type { IndexSource, WorkloadKind, WorkloadLane, WorkloadStatus } from "@orb/contracts/workloads";
+import type { IndexSource, WorkloadKind, WorkloadLane, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES, INDEX_SOURCES, WORKLOAD_KIND_MODES, WORKLOAD_KINDS, WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
+import type { WorkloadProgressView } from "../contract/progress.ts";
+
+export type { WorkloadProgressView } from "../contract/progress.ts";
 
 /** The kinds the run dialog offers: singular-capable + built (not a stub). Every `singular: true` mode is
  *  already `stub: false` by construction, so the filter only needs `.singular`. */
@@ -274,23 +277,12 @@ export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): 
   return { kind, params } as StartWorkloadWire["input"];
 }
 
-// @orb-waive no-inline-wire-interface(WorkloadProgressView): baselined when the gate widened; burn-down item 904.
-/** The row-local live-progress view model. `pct: null` renders the indeterminate bar. */
-export interface WorkloadProgressView {
-  readonly pct: number | null;
-  readonly label: string | null;
-}
+/** The nullable display projection: a missing percent is indeterminate, and message/counts determine the label. */
 
 const PERCENT_SCALE = 100;
 
 /** Derive a progress view from a workload `progress` SSE event — explicit `pct` wins, else current/total derive one, else indeterminate. */
-export function toProgressView(fields: {
-  // @orb-waive contract-structural-copy(pct): baselined when the gate widened; burn-down item 904.
-  readonly pct?: number;
-  readonly current?: number;
-  readonly total?: number;
-  readonly message?: string;
-}): WorkloadProgressView {
+export function toProgressView(fields: Pick<WorkloadProgress, "pct" | "current" | "total" | "message">): WorkloadProgressView {
   const { pct, current, total, message } = fields;
   const haveCounts = current !== undefined && total !== undefined;
   const derivedPct = pct ?? (haveCounts && total > 0 ? Math.round((current / total) * PERCENT_SCALE) : null);

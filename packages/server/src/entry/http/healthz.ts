@@ -1,6 +1,7 @@
 // The liveness registrar. Owns no crypto — the decrypt-probe runs once at the crypto boot step; this
 // route reads its already-computed result via an injected getter and never re-runs SecretBox here.
 
+import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
 import type { VersionIdentity } from "@orb/kit/version-identity";
 import type { Hono } from "hono";
 import { peerIp } from "#infra/network";
@@ -36,11 +37,11 @@ export function registerHealthz(app: Hono, deps: HealthzDeps): void {
   app.get("/healthz", (c) => {
     const identity = deps.identityVisible(peerIp(c), c.req.raw.headers) ? { version: deps.version() } : {};
     if (deps.isShuttingDown()) {
-      return c.json({ status: "shutting_down", ...identity }, SERVICE_UNAVAILABLE);
+      return c.json(healthResponseSchema.parse({ status: HEALTH_STATUSES[1], ...identity }), SERVICE_UNAVAILABLE);
     }
     if (!deps.credentialsKeyOk()) {
-      return c.json({ status: "credentials_key_mismatch", ...identity }, SERVICE_UNAVAILABLE);
+      return c.json(healthResponseSchema.parse({ status: HEALTH_STATUSES[2], ...identity }), SERVICE_UNAVAILABLE);
     }
-    return c.json({ status: "ok", harness: deps.isHarnessStack(), ...identity });
+    return c.json(healthResponseSchema.parse({ status: HEALTH_STATUSES[0], harness: deps.isHarnessStack(), ...identity }));
   });
 }

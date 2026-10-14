@@ -7,7 +7,8 @@
 // provenance source `PluginView.builtAgainst` lifts from (no denormalized column). Queries only: grant math
 // and CAS ordering live in the verbs.
 
-import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus, PluginView } from "@orb/contracts/plugin";
+import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
@@ -15,11 +16,20 @@ import { batchMany } from "@orb/db/query";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { PluginBundleAssetLink } from "../contract/bundle-assets.ts";
-import type { PluginView } from "../contract/results.ts";
+
 import { clearPluginBundleAssetsStatement, linkPluginBundleAssetStatement } from "./plugin-assets.ts";
 
 /** The stored `plugins` row. Homed as the db `$inferSelect` (the RuleRow precedent) — persistence's unit. */
 type PluginRow = typeof plugins.$inferSelect;
+
+function parsePluginRow(row: PluginRow): PluginRow {
+  return {
+    ...row,
+    manifest: pluginManifestSchema.parse(row.manifest),
+    grantedCapabilities: pluginManifestSchema.shape.capabilities.parse(row.grantedCapabilities),
+    widenedNetHosts: pluginManifestSchema.shape.netHosts.unwrap().parse(row.widenedNetHosts),
+  };
+}
 
 /** WHO CAN SERVE THE NEXT VERSION for one row (#1740) — never how the bytes arrived. The `url` arm reads
  *  straight off the `source_url` the install recorded; the `showcase` arm is membership in the SHIPPED slug set.
@@ -49,7 +59,8 @@ function updateSourceFor(row: PluginRow, showcaseSlugs: ReadonlySet<string>): Pl
  *  bundle under that slug". A REQUIRED parameter rather than an optional one, so every call site is forced to
  *  say where its set comes from — a defaulted `new Set()` would silently project every seeded row as
  *  un-updatable on whichever path forgot. */
-export function toPluginView(row: PluginRow, showcaseSlugs: ReadonlySet<string>): PluginView {
+export function toPluginView(stored: PluginRow, showcaseSlugs: ReadonlySet<string>): PluginView {
+  const row = parsePluginRow(stored);
   return {
     id: row.id,
     slug: row.slug,
@@ -61,15 +72,11 @@ export function toPluginView(row: PluginRow, showcaseSlugs: ReadonlySet<string>)
     sourceCommit: row.sourceCommit,
     updateSource: updateSourceFor(row, showcaseSlugs),
     grantedCapabilities: row.grantedCapabilities,
-    // @orb-waive json-column-read-parsed(manifest): baselined when the gate widened; burn-down item 905.
     declaredCapabilities: row.manifest.capabilities,
-    // @orb-waive json-column-read-parsed(manifest): baselined when the gate widened; burn-down item 905.
     netHosts: row.manifest.netHosts ?? null,
     reconsentPending: row.pendingReconsent,
     widenedNetHosts: row.widenedNetHosts,
-    // @orb-waive json-column-read-parsed(manifest): baselined when the gate widened; burn-down item 905.
     builtAgainst: row.manifest.builtAgainst ?? null,
-    // @orb-waive json-column-read-parsed(manifest): baselined when the gate widened; burn-down item 905.
     description: row.manifest.description,
     lastError: row.lastError,
     installedAt: row.installedAt,
@@ -149,7 +156,8 @@ export async function getByOwnerSlug(db: Db, ownerId: UserId, slug: string): Pro
     .from(plugins)
     .where(and(eq(plugins.ownerId, ownerId), eq(plugins.slug, slug)))
     .limit(1);
-  return rows[0];
+  const row = rows[0];
+  return row === undefined ? undefined : parsePluginRow(row);
 }
 
 /** An owned plugin by id — owner-scoped (a foreign/missing id returns `undefined`, no existence leak). */
@@ -159,7 +167,8 @@ export async function getById(db: Db, ownerId: UserId, pluginId: PluginId): Prom
     .from(plugins)
     .where(and(eq(plugins.id, pluginId), eq(plugins.ownerId, ownerId)))
     .limit(1);
-  return rows[0];
+  const row = rows[0];
+  return row === undefined ? undefined : parsePluginRow(row);
 }
 
 /** Is `pluginId` an ENABLED plugin owned by `ownerId`? The confirm-time liveness re-check behind a
@@ -189,7 +198,8 @@ export async function countPendingConsent(db: Db, ownerId: UserId): Promise<numb
 
 /** The caller's OWN plugins (fetchOwned), newest-installed first. */
 export async function listOwned(db: Db, ownerId: UserId): Promise<PluginRow[]> {
-  return await db.select().from(plugins).where(eq(plugins.ownerId, ownerId)).orderBy(desc(plugins.installedAt));
+  const rows = await db.select().from(plugins).where(eq(plugins.ownerId, ownerId)).orderBy(desc(plugins.installedAt));
+  return rows.map(parsePluginRow);
 }
 
 /** Every ENABLED row across ALL owners, projected to the two ids a restore needs — the ONE deliberately

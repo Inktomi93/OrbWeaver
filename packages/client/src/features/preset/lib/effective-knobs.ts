@@ -11,32 +11,15 @@
 // tRPC-inferred at the call site, never a re-declared contract): the effective view lives in
 // `domain/preset/contract/views.ts`, which the client cannot import across the cake.
 
-import type { CachePolicy, GenerationCapability } from "@orb/contracts/inference";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { ResponseCacheSettings } from "@orb/contracts/preset";
 import { modelDisplayName } from "@orb/kit/model-name";
+import type { EffectiveKnobRow, EffectiveProfileRow } from "../contract/effective-profile.ts";
 import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "./sampling-knob-catalog.ts";
 
-// @orb-waive no-inline-wire-interface(EffectiveKnobRow): baselined when the gate widened; burn-down item 904.
-/** One resolved knob as the read returns it: the value the wire would carry + which rung produced it. */
-export interface EffectiveKnobRow {
-  readonly value: number | string;
-  readonly provenance: string;
-}
+export type { EffectiveKnobRow, EffectiveProfileRow } from "../contract/effective-profile.ts";
 
-// @orb-waive no-inline-wire-interface(EffectiveProfileRow): baselined when the gate widened; burn-down item 904.
-/** The effective profile the deck reads (`preset.resolveEffective`). `knobs` is keyed by the server's
- *  `EffectiveKnob` names — the same spelling as the capability's sampling keys, which is why a knob spec
- *  can look itself up by its own capability key. */
-export interface EffectiveProfileRow {
-  readonly cache: CachePolicy;
-  readonly cacheWarnings: readonly { readonly message: string }[];
-  readonly model: string;
-  readonly knobs: Readonly<Record<string, EffectiveKnobRow | undefined>>;
-  readonly stale: readonly { readonly knob: string; readonly value: number | string }[];
-  /** What the QUALITY dial feeds, as the dial declares it — the server's own projection (§4 cluster 1).
-   *  `null`/absent = no dial set, or nothing it feeds exists on this model. */
-  readonly qualityMapping: { readonly quality: string; readonly entries: readonly { readonly knob: string; readonly value: number | string }[] } | null;
-}
+/** The ghost also accepts client-only window provenance; its value still derives the actual wire reading. */
 
 export const RESPONSE_REPLAY_CHOICES = ["inherit", "off", "on"] as const;
 export const RESPONSE_REPLAY_LABELS: Readonly<Record<(typeof RESPONSE_REPLAY_CHOICES)[number], string>> = {

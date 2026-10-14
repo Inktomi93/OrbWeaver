@@ -60,7 +60,6 @@ import type {
   AnalysisPayload,
   AnalysisPromptInputs,
   AnalysisRoutes,
-  AnalysisState,
   AnalysisWindowRow,
   RuleLoreWriteArgs,
   RunAnalysisAction,
@@ -393,15 +392,8 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
  *  ordered but a no-op (see the Record). */
 const ROUTE_ORDER: readonly AnalysisOutputClass[] = ["upsertLoreEntry", "steer", "suggest", "suggestRewrite", "setVariable", "setState"];
 
-// @orb-waive contract-structural-copy(PassInputs): baselined when the gate widened; burn-down item 904.
 /** The pass's read half: current state + the fresh tip + (lore route only) the settled span. */
-interface PassInputs {
-  readonly state: AnalysisState;
-  readonly fresh: readonly AnalysisWindowRow[];
-  readonly settled: readonly AnalysisWindowRow[] | null;
-  readonly span: PassResolution["span"];
-  readonly audited: AnalysisAuditTarget | null;
-}
+type PassInputs = Readonly<Pick<AnalysisPromptInputs, "state" | "fresh" | "settled" | "audited"> & Pick<PassResolution, "span">>;
 
 /** C3's read: the FRESH tip's newest reply (§3-S5.5 — a prose audit is a steer-class read, so it takes the
  *  volatile selected-lineage tip; auditing behind a protect tail would offer to fix a reply the host stopped

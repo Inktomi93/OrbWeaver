@@ -79,7 +79,7 @@ export const workloadProgressSchema = z
     ...(total !== undefined ? { total } : {}),
     ...(pct !== undefined ? { pct } : {}),
   })) satisfies z.ZodType<WorkloadProgress>;
-const workloadRowBaseSchema = z.strictObject({
+export const workloadRowBaseSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.workload),
   status: workloadStatusSchema,
   mode: workloadModeSchema,
@@ -119,6 +119,11 @@ const workloadOutputShapes = {
   },
   "refine-score-sweep": { params: refineScoreSweepWorkloadParams.strict(), result: refineryScoreSweepResultSchema },
 } satisfies { [K in WorkloadKind]: { params: z.ZodType<WorkloadParamsByKind[K]>; result: z.ZodType<WorkloadResultByKind[K]> } };
+/** The canonical result validator for one stored workload kind. */
+export function workloadResultSchemaOf(kind: WorkloadKind): z.ZodType<WorkloadResultByKind[WorkloadKind]> {
+  return workloadOutputShapes[kind].result;
+}
+
 export const workloadRunnableRowSchema = z.discriminatedUnion("kind", [
   workloadRowBaseSchema.extend({
     kind: z.literal("index"),

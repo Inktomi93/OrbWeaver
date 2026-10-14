@@ -5,16 +5,14 @@ import { assets, characterSummaries, characters, chatDigestSpeakers, chatDigests
 import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, or } from "drizzle-orm";
 
-// @orb-waive contract-structural-copy(CharacterDisplayRow): baselined when the gate widened; burn-down item 904.
-interface CharacterDisplayRow {
-  readonly characterId: CharacterId;
-  readonly name: string;
-  readonly avatarHash: string | null;
-  readonly genre: string | null;
-  readonly tone: string | null;
-  readonly elevatorPitch: string | null;
-}
-
+type CharacterDisplayRow = Pick<typeof characters.$inferSelect, "name"> & {
+  readonly characterId: (typeof characters.$inferSelect)["id"];
+  readonly avatarHash: (typeof assets.$inferSelect)["hash"] | null;
+} & {
+  readonly [Field in keyof Pick<typeof characterSummaries.$inferSelect, "genre" | "tone" | "elevatorPitch">]:
+    | (typeof characterSummaries.$inferSelect)[Field]
+    | null;
+};
 /** Characters not returned (deleted between scan and enrich, or not the caller's) are simply absent. */
 export async function resolveCharacterDisplay(db: ReadOnlyDb, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<CharacterDisplayRow[]> {
   if (characterIds.length === 0) {

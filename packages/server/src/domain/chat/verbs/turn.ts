@@ -1599,15 +1599,8 @@ interface CommittedUserTurn {
 async function commitUserTurn(
   ctx: ChatContext,
   deps: TurnDeps,
-  args: {
-    // @orb-waive contract-structural-copy(principal): baselined when the gate widened; burn-down item 904.
-    readonly principal: SendParams["principal"];
-    readonly chatId: ChatId;
-    readonly content: string;
-    readonly personaId?: PersonaId | null | undefined;
-    readonly attachmentAssetIds?: readonly AssetId[] | undefined;
-    readonly guided?: GuidedSteer | undefined;
-    readonly timeZone: IanaTimeZone | undefined;
+  args: Readonly<Pick<SendParams, "principal" | "chatId" | "content" | "personaId" | "attachmentAssetIds" | "guided">> & {
+    readonly timeZone: SendParams["timeZone"];
   },
 ): Promise<CommittedUserTurn> {
   const { principal, chatId, content, personaId, guided } = args;
