@@ -33,7 +33,7 @@ Builder controls reject owner-schema drift and zeroed production token calculati
 
 `tests/support/node/factories/resolved-connection.ts` consumes fabrication waivers. New corpus inputs use actual admission; budgets remain unjudged.
 
-Bounded producer cases pass for real seed turns, cookie authentication, ingestion, imagery and discovery. An imagery timestamp-only control merges distinct calls and fails; exact restoration passes. Complete row/output coverage, native lifecycle captures, corpus publication and each-layer loading remain unfinished.
+Real seed, auth, ingestion, imagery and discovery controls pass. Timestamp-only imagery merging fails. Complete row/output coverage and each-layer adoption remain open.
 
 Reviewed source `dd7d73f2e9` and correction `c7b4a2026e` use the canonical harness. Seed, wire, recall, imagery-cohort/import and greeting cases pass. Retained builder callers preserve their assertions.
 
@@ -49,4 +49,4 @@ Reviewed source `aea5f56d54` produces refinery and discovery rows through real a
 
 Persisted workload funding is integrated. The expanded native capsule passes with the funder FK, producer completion, secret stripping and independent database and asset clones.
 
-The active batch adds native RPG, schedule and transient variants through the same graph. Remaining recipes include arc themes, swipe re-rolls and raw-image geometry/facets. Committed corpus publication and every-layer adoption remain open.
+Reviewed source `3303ed4825` adds native RPG hand state and schedule variants. Atomic journal normalization passes held-driver races. The clone retains a real disabled recurring row. Remaining recipes include arc themes, swipe re-rolls and raw-image geometry/facets. Committed corpus publication and every-layer adoption remain open.

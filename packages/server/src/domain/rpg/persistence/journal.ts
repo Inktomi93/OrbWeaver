@@ -10,7 +10,8 @@
 import type { Db } from "@orb/db";
 import { messages, messageVariants, rpgJournal } from "@orb/db";
 import type { MessageVariantId, RpgGameId, RpgJournalId } from "@orb/kit/ids";
-import { and, desc, eq, exists, isNull, lt, notExists, or } from "drizzle-orm";
+import { and, desc, eq, exists, isNull, lt, notExists, or, sql } from "drizzle-orm";
+import type { EditJournalEntryParams } from "../contract/params.ts";
 import type { NewRpgJournal, RpgJournalRow } from "../contract/service.ts";
 
 /** Insert a journal entry (hand entry: `variantId` NULL; model entry: the committed variant). `id`/`now`
@@ -76,17 +77,14 @@ export async function listActiveJournal(
 /** Patch an entry's mutable text columns (the host edit/recovery path — reaches model entries too). SCOPED to
  *  `gameId` — an entry id from another game matches zero rows (the cross-tenant IDOR belt); returns whether a
  *  row was touched so the verb can surface a leak-free not-found. */
-export async function updateJournalEntry(
-  db: Db,
-  gameId: RpgGameId,
-  id: RpgJournalId,
-  // Per-field `| undefined` (the transport wire patch the W2 verb spreads in): a `.set()` skips undefined keys,
-  // and `exactOptionalPropertyTypes` needs the explicit undefined for the zod-optional wire shape to assign.
-  patch: { [K in "type" | "title" | "content"]?: NewRpgJournal[K] | undefined },
-): Promise<boolean> {
+export async function updateJournalEntry(db: Db, gameId: RpgGameId, id: RpgJournalId, patch: EditJournalEntryParams["patch"]): Promise<boolean> {
   const rows = await db
     .update(rpgJournal)
-    .set(patch)
+    .set({
+      ...patch,
+      // Birth's custom-only gloss rule observes the row at UPDATE time, never a stale pre-edit read.
+      label: sql<string>`case when ${patch.type ?? rpgJournal.type} = ${"custom"} then ${patch.label ?? rpgJournal.label} else ${""} end`,
+    })
     .where(and(eq(rpgJournal.id, id), eq(rpgJournal.gameId, gameId)))
     .returning({ id: rpgJournal.id });
   return rows.length > 0;
