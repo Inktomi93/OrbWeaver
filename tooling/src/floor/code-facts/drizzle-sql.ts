@@ -234,26 +234,30 @@ function sqlAliasUseStable(use: MorphNode, active: ReadonlySet<object>): boolean
     parent = value.getParent();
   }
   if (Node.isVariableDeclaration(parent) && parent.getInitializer() === value && Node.isIdentifier(parent.getNameNode())) {
-    return readSqlAliasStability(parent.getNameNode(), active);
+    return sqlBindingStable(parent.getNameNode(), active);
   }
   if (Node.isTemplateSpan(parent) && parent.getExpression() === value) {
     const tagged = parent.getParent().getParent();
-    return Node.isTaggedTemplateExpression(tagged) && drizzleExportOf(tagged.getTag()) === "sql";
+    return (
+      Node.isTaggedTemplateExpression(tagged) &&
+      drizzleExportOf(tagged.getTag()) === "sql" &&
+      runtimeDrizzleOrigin(tagged.getTag()) &&
+      sqlAliasUseStable(tagged, active)
+    );
   }
   if (!(Node.isCallExpression(parent) && parent.getArguments().includes(value))) {
     return false;
   }
   if (CONTAINED_OPERATORS.some((name) => callsDrizzleOperator(parent, name))) {
-    return true;
+    return runtimeDrizzleOrigin(parent.getExpression()) && sqlAliasUseStable(parent, active);
   }
   const member = readCalledMember(parent);
   return member.kind === "resolved" && member.value.declarations.length > 0 && declaredInDrizzle(member.value.declarations);
 }
 
-/** Const binds an SQL object, not frozen queryChunks. Only native read-only composition uses preserve it. */
-export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<object> = new Set()): boolean {
-  if (!(Node.isIdentifier(node) && sqlValue(node.getType()))) {
-    return true;
+function sqlBindingStable(node: MorphNode, active: ReadonlySet<object>): boolean {
+  if (!Node.isIdentifier(node)) {
+    return false;
   }
   if (active.has(node.getSymbol()?.compilerSymbol ?? node.compilerNode)) {
     return false;
@@ -272,6 +276,11 @@ export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<objec
   }
   const next = new Set(active).add(node.getSymbol()?.compilerSymbol ?? node.compilerNode);
   return referencesOf(name, enclosingFn(name) ?? name.getSourceFile()).every((use) => sqlAliasUseStable(use, next));
+}
+
+/** Const binds an SQL object, not frozen queryChunks. Only native read-only composition uses preserve it. */
+export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<object> = new Set()): boolean {
+  return !(Node.isIdentifier(node) && sqlValue(node.getType())) || sqlBindingStable(node, active);
 }
 
 function templateFragments(

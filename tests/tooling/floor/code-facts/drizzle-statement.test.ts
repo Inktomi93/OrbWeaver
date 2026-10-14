@@ -10,6 +10,7 @@ import { closeDb, createDb } from "@orb/db";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
+import { readSqlAliasStability } from "@orb/tooling/floor/code-facts/drizzle-sql";
 import { readStatementOf } from "@orb/tooling/floor/code-facts/drizzle-statement";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -566,6 +567,45 @@ function statementObservations(root: string, project: Project): ReturnType<typeo
     .filter((file) => !file.isDeclarationFile() && file.getFilePath().startsWith(root))
     .flatMap((file) => file.getDescendants());
   return observeCallReturns(nodes.filter(Node.isCallExpression), nodes);
+}
+
+const SQL_STABILITY_CASES = [
+  { name: "immutable containing template", body: "const holder = sql`${child}`;", stable: true },
+  { name: "immutable containing native operator", body: "const holder = and(child)!;", stable: true },
+  {
+    name: "immutable template operator and ordinary alias chain",
+    body: "const template = sql`${child}`; const operator = and(template)!; const holder = operator;",
+    stable: true,
+  },
+  { name: "containing template escape", body: "const holder = sql`${child}`; opaque(holder);", stable: false },
+  { name: "containing template append", body: "const holder = sql`${child}`; holder.append(sql`2`);", stable: false },
+  { name: "containing template mutable chunk access", body: "const holder = sql`${child}`; holder.queryChunks.pop();", stable: false },
+  { name: "containing native operator escape", body: "const holder = and(child)!; opaque(holder);", stable: false },
+  { name: "containing native operator append", body: "const holder = and(child)!; holder.append(sql`2`);", stable: false },
+  {
+    name: "mixed containing chain escape",
+    body: "const template = sql`${child}`; const operator = and(template)!; const holder = operator; opaque(holder);",
+    stable: false,
+  },
+  { name: "unprovable containing return", body: "const holder = sql`${child}`;", stable: false, returned: true },
+  { name: "erased containing template escape", body: "const holder: object = sql`${child}`; opaqueObject(holder);", stable: false, erased: true },
+  { name: "erased containing operator escape", body: "const holder: object = and(child)!; opaqueObject(holder);", stable: false, erased: true },
+] as const;
+
+for (const scenario of SQL_STABILITY_CASES) {
+  test(`native SQL alias stability: ${scenario.name}`, async ({ plantedTree, repoRoot }) => {
+    const sink = "returned" in scenario ? "return holder;" : "db.select().from(personas).where(holder);";
+    const finalUse = "erased" in scenario ? "" : sink;
+    const producer =
+      BUILDER.replace("import { eq }", "import { and, eq, sql, type SQL }") +
+      `declare function opaque(value: SQL): void; declare function opaqueObject(value: object): void; export function fragments(db: Db) { const child = sql\`1\`; ${scenario.body} db.select().from(personas).where(child); ${finalUse} }`;
+    const fixture = await nativeFixture({ plantedTree, repoRoot }, { producer, recipient: "" });
+    const child = fixture.source.getDescendantsOfKind(SyntaxKind.VariableDeclaration).find((declaration) => declaration.getName() === "child");
+    if (child === undefined) {
+      throw new Error("the genuine numeric SQL child must exist");
+    }
+    expect(readSqlAliasStability(child.getNameNode())).toBe(scenario.stable);
+  });
 }
 
 for (const scenario of CASES) {
