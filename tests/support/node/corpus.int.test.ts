@@ -16,6 +16,7 @@ import {
   compactionSpend,
   createDb,
   detachWal,
+  documentChunks,
   imageryGenerations,
   imageryImportCalls,
   messageReactions,
@@ -156,6 +157,32 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(rpgFlight.rpgRounds.cancelled.attemptsWhileWaiting).toBe(rpgFlight.rpgRounds.cancelled.attemptsBeforeNext);
   expect(rpgFlight.rpgRounds.foreignStop.signalAborted).toBe(false);
   expect(rpgFlightWire.remaining()).toEqual({ recursion: 0, rounds: 0 });
+  const search = capsule.privateCaptures.search;
+  expect(new Set(search.reads.outputs.map((output) => output.over))).toEqual(
+    new Set(["entities", "characters", "discover", "segments", "digests", "corpus", "images", "documents"]),
+  );
+  expect(search.reads.outputs.every((output) => output.hits.length > 0 && output.coverage.reranked === false)).toBe(true);
+  expect(search.lexical.capped.coverage.matchingCharacters).toBe(2);
+  expect(search.lexical.capped.hits).toHaveLength(1);
+  expect(search.spaces.moving).toEqual({ paused: true, embed: true, imageEmbed: true });
+  expect(search.spaces.settled).toEqual({ paused: false, embed: false, imageEmbed: false });
+  expect(search.reads.status).toEqual(search.spaces.settled);
+  expect(search.foreign.map((output) => output.hits)).toEqual([[], []]);
+  expect(search.foreignSeed).toEqual([]);
+  expect(search.spaces.callsAfterEmpty).toEqual(search.spaces.callsBeforeEmpty);
+  const documents = search.reads.outputs.find((output) => output.over === "documents");
+  const imageHits = search.reads.outputs.filter((output) => output.over === "images").flatMap((output) => output.hits);
+  if (documents === undefined) {
+    throw new Error("completed native search graph lost its routed document arm");
+  }
+  expect(documents.hits.some((hit) => hit.documentId === capsule.privateCaptures.libraries.document.id)).toBe(true);
+  expect(documents.hits.some((hit) => hit.documentId === search.foreignDocument.document.id)).toBe(false);
+  for (const asset of capsule.privateCaptures.knowledgeVariants.images.assets) {
+    expect(imageHits.filter((hit) => hit.assetId === asset.id).map((hit) => [hit.hash, hit.lens])).toEqual([
+      [asset.hash, "image-raw"],
+      [asset.hash, "image-captioned"],
+    ]);
+  }
   if (process.platform === "linux") {
     const ownedRoot = await realpath(capsule.layout.root);
     const descriptors = await Promise.all(
@@ -178,6 +205,13 @@ test("a completed migrated capsule closes its real producers before cloning scru
   try {
     await assertReferentialIntegrity(source);
     expect(await captureRpgSnapshot(source, providerOriginal.id)).toEqual(providerOriginal);
+    expect(
+      await source
+        .select()
+        .from(documentChunks)
+        .where(eq(documentChunks.documentId, capsule.privateCaptures.libraries.document.id))
+        .orderBy(documentChunks.chunkIdx),
+    ).toEqual(search.canonical.chunks);
     sourceMarker = await source.all(sql`PRAGMA user_version`);
     expect((await source.select({ id: sessions.id }).from(sessions)).length).toBeGreaterThan(0);
     expect((await source.select({ id: userCredentials.id }).from(userCredentials)).length).toBeGreaterThan(0);
