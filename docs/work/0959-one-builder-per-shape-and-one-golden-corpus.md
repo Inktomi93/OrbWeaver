@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-14
 priority: P1
+lane: lane/959-rpg-variants
 plan: test-foundation
 ---
 
@@ -38,4 +39,4 @@ Reviewed `83380c0db2` adds native invite, kick, handoff and consent captures. Ac
 
 Reviewed `1a10e499df` adds real automation, resident plugin notice/crash-disable and deferred hostless-drop producers. Recipient and reset cuts fail; canonical rows match source and scrubbed clone. Native request retention preserves abort through collection and releases on physical close. Genuine faults remain failures. Native and aggregate controls pass under unchanged local guards.
 
-Secret-reviewed publication and every-layer adoption remain open. Private captures do not widen the portable recipe. Complete builders, smoke and suite replacement are not claimed.
+Secret-reviewed publication and adoption remain open. Private captures do not widen the portable recipe. Complete builders, smoke and suite replacement are not claimed.
