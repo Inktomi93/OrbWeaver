@@ -23,4 +23,6 @@ One canonical home table and placement judgment cover every workspace package an
 
 ## Evidence
 
-The component-home ruling preserves co-located UI and client prop APIs with canonical native and data derivation. Reviewed source `91ad8df309` integrates canonical factory aliases and exported origins. Non-UI package-contract moves and a bounded native placement pilot are assigned. Native syntax feasibility is established; complete home coverage, permission adjudication and production repairs remain open. Preserve hard service-presence and ledger field claims when consolidating placement.
+The component-home ruling preserves co-located UI and client prop APIs with canonical native and data derivation. Reviewed source `91ad8df309` integrates canonical factory aliases and exported origins. Reviewed source `8cc8687587` centralizes default-content and plugin-toolchain contracts and activates bounded native placement. Public APIs and generated support bytes remain unchanged. Native controls, affected behavior and compiler checks pass; root retains unrelated diagnostics.
+
+The pilot covers native-admitted source outside `.gen.ts`. Generated-output admission, export-list and schema-origin judgments remain unqualified. Canonical declaration-placement consolidation is assigned through existing floor readers and ordinary adapters. Complete home coverage, permissions and production repairs remain open. Preserve hard service-presence and ledger field claims.
