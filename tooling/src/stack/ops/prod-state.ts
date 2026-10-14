@@ -28,7 +28,7 @@ function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
 
-// biome-ignore lint/style/noProcessEnv: a launcher's whole job is reading the ambient env it will pass on.
+// biome-ignore lint/style/noProcessEnv: runSetup retains this live bag across awaiting input and re-reads AUTH_MODE afterward; even a call-time inheritedProcessEnv snapshot would freeze that second observation.
 export const AMBIENT = process.env;
 
 export function runDir(): string {
