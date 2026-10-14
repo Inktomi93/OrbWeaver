@@ -1,5 +1,6 @@
 import type { Node } from "ts-morph";
 import type { PackageName, World } from "../compiler/project-worlds.ts";
+import type { ComponentLowerDataEvidence, ComponentRenderEvidence, ComponentTypeHomeInput } from "./component-type-home-contract.ts";
 
 export const TYPE_HOME_CATEGORIES = [
   "primitive",
@@ -35,6 +36,13 @@ export type TypeHomeDeclarationPlane = (typeof TYPE_HOME_DECLARATION_PLANES)[num
 
 /** Structural package contracts are proven here; other categories still need declaration-specific evidence. */
 export type DeclarationTypeHomeOwnership =
+  | {
+      readonly kind: "component-owned";
+      readonly packageName: PackageName;
+      readonly home: string;
+      readonly component: ComponentRenderEvidence;
+      readonly lowerData: ComponentLowerDataEvidence;
+    }
   | { readonly kind: "owned"; readonly packageName: PackageName; readonly home: string }
   | { readonly kind: "misplaced"; readonly packageName: PackageName; readonly home: string }
   | { readonly kind: "unqualified"; readonly category: TypeHomeCategory | null; readonly reason: string };
@@ -43,6 +51,8 @@ export interface TypeHomeDeclarationInput {
   readonly path: string;
   /** The existing policy has already admitted this declaration's source population. */
   readonly claim: TypeHomeDeclarationClaim;
+  /** Caller-delivered native component and lower-owner evidence; absence never manufactures permission. */
+  readonly component?: Omit<ComponentTypeHomeInput, "declaration" | "path">;
 }
 
 export interface TypeHomeDeclarationShape {

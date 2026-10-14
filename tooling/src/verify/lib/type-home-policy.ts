@@ -1,7 +1,7 @@
 // Admitted declaration findings retain their policy identity, authority and authored-name coordinates.
 import type { Node } from "ts-morph";
 import { nativeTypeHomeDirectExport } from "../../floor/code-facts/type-home.ts";
-import type { TypeHomeDeclarationClaim } from "../../floor/code-facts/type-home-contract.ts";
+import type { TypeHomeDeclarationClaim, TypeHomeDeclarationInput } from "../../floor/code-facts/type-home-contract.ts";
 import { judgeTypeHomeDeclaration } from "../../floor/code-facts/type-home-declaration.ts";
 import type { GatePolicyContext, GatePolicyFindingDetails } from "../contract/policy.ts";
 
@@ -10,14 +10,18 @@ export function reportTypeHomeDeclaration(
   ctx: GatePolicyContext,
   node: Node,
   claim: TypeHomeDeclarationClaim,
-  details: Required<Pick<GatePolicyFindingDetails, "message" | "fix">>,
+  details: Required<Pick<GatePolicyFindingDetails, "message" | "fix">> & { readonly component?: TypeHomeDeclarationInput["component"] },
 ): void {
+  const { component, ...finding } = details;
   const path = ctx.relativePath(node.getSourceFile());
-  const judgment = judgeTypeHomeDeclaration(node, { path, claim });
+  const judgment = judgeTypeHomeDeclaration(node, { path, claim, ...(component === undefined ? {} : { component }) });
   if (judgment.kind === "refused") {
     throw new Error(judgment.reason);
   }
   if (judgment.kind === "not-subject") {
+    return;
+  }
+  if (judgment.ownership.kind === "component-owned") {
     return;
   }
   if (judgment.ownership.kind === "owned") {
@@ -27,6 +31,6 @@ export function reportTypeHomeDeclaration(
     if (plane === "direct-export" && nativeTypeHomeDirectExport(path)) {
       continue;
     }
-    ctx.report.node(name, { token: name.getText(), offset: 0, ...details });
+    ctx.report.node(name, { token: name.getText(), offset: 0, ...finding });
   }
 }

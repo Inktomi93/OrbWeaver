@@ -1,15 +1,22 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { captureComponentTypeHomeView, componentTypeHome } from "@orb/tooling/floor/code-facts/component-type-home";
+import { captureComponentTypeHomeView, componentTypeHome, registeredComponentTypeHomeView } from "@orb/tooling/floor/code-facts/component-type-home";
 import type { ComponentTypeHomeResult, ComponentTypeHomeView } from "@orb/tooling/floor/code-facts/component-type-home-contract";
 import { readNativeGenericArgumentContribution } from "@orb/tooling/floor/code-facts/shape-derivation";
+import { judgeTypeHomeDeclaration } from "@orb/tooling/floor/code-facts/type-home-declaration";
 import type { SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
-import { canonicalCompilerPath, createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
+import { canonicalCompilerPath, createSemanticWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { SemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace-contract.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
+import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { reportTypeHomeDeclaration } from "../../../../tooling/src/verify/lib/type-home-policy.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 interface ComponentHomeFixture {
@@ -70,7 +77,35 @@ export function Empty(props: NeverCarrier) { return <div />; }
 export interface WrappedApi { label: string; }
 declare function wrap<T>(value: T): T;
 export const Wrapped = wrap((props: WrappedApi) => <div>{props.label}</div>);
+export interface ConditionalApi { caption: string; }
+export function Conditional(props: ConditionalApi) {
+  const content = <div>{props.caption}</div>;
+  return props.caption === "" ? null : content;
+}
+export interface StringBranchApi { label: string; }
+export function StringBranch(props: StringBranchApi) { return props.label === "" ? props.label : <div />; }
+export type InlineDimension = "small" | "large";
+export function Inline(props: { dimension: InlineDimension }) { return <div>{props.dimension}</div>; }
+export type InlineErased = { ignored: string };
+export function InlineOpaque(props: { label: Ignore<InlineErased> }) { return <div>{props.label}</div>; }
+export type ErasedHeritage = { ignored: string };
+interface EmptyBase<T> { caption: string; }
+export interface HeritageCarrier extends EmptyBase<ErasedHeritage> {}
+export function Heritage(props: HeritageCarrier) { return <div>{props.caption}</div>; }
+export type ConstrainedOnly = { ignored: string };
+export interface Phantom<T extends ConstrainedOnly> { caption: string; }
+export function Constraint(props: Phantom<ConstrainedOnly>) { return <div>{props.caption}</div>; }
 `,
+  );
+  write("packages/client/src/support.ts", "export interface Supported { caption: string; } export interface UnusedSupport { value: string; }");
+  write("packages/client/src/support-barrel.ts", 'export type { Supported as Api } from "./support.ts";');
+  write(
+    "packages/client/src/support-surface.tsx",
+    'import type { Api } from "./support-barrel.ts"; export function Supporting(props: Api) { return <div>{props.caption}</div>; }',
+  );
+  write(
+    "packages/ui/src/foreign.tsx",
+    'import type { Supported } from "../../client/src/support.ts"; export function Foreign(props: Supported) { return <div />; }',
   );
   write("packages/client/src/barrel.ts", 'export { Arbitrary, Surface } from "./panel.tsx";');
   write(
@@ -99,6 +134,10 @@ type Ignore<T> = string;
 export type Custom = Ignore<Cut>;
 `,
   );
+  write(
+    "packages/ui/src/native-panel.tsx",
+    'export interface Actual { caption: string; } export interface UnusedProps { text: string; } export interface Copy { id: string; label: string; enabled: boolean; order: number; } export function Copied(props: Copy) { return <div>{props.label}</div>; } export function Surface(props: Actual) { const rendered = <div>{props.caption}</div>; return props.caption === "" ? null : rendered; }',
+  );
   for (const owner of ["client", "server"] as const) {
     write(
       `packages/${owner}/tsconfig.json`,
@@ -112,7 +151,17 @@ export type Custom = Ignore<Cut>;
           lib: owner === "client" ? ["ES2022", "DOM", "DOM.Iterable"] : ["ES2022"],
           strict: true,
         },
-        files: ["../client/src/panel.tsx", "../client/src/barrel.ts", "../client/src/generic.ts", "../client/src/mixed.tsx"],
+        files: [
+          "../client/src/panel.tsx",
+          "../client/src/barrel.ts",
+          "../client/src/generic.ts",
+          "../client/src/mixed.tsx",
+          "../client/src/support.ts",
+          "../client/src/support-barrel.ts",
+          "../client/src/support-surface.tsx",
+          "../ui/src/foreign.tsx",
+          "../ui/src/native-panel.tsx",
+        ],
       }),
     );
   }
@@ -204,30 +253,54 @@ test("Node React fallback, foreign/barrel views, and forgotten source identities
   });
 });
 
+function readRealComponentHome(
+  root: string,
+  workspace: SemanticWorkspace,
+  input: { readonly config: string; readonly path: string; readonly name: string; readonly supportPath?: string },
+): ComponentTypeHomeResult {
+  const owner = workspace.program(input.config);
+  const sourceFile = owner?.sourceFile(input.path);
+  if (owner === undefined || sourceFile === undefined) {
+    throw new Error(`missing native source ${input.path}`);
+  }
+  const support = input.supportPath === undefined ? undefined : owner.sourceFile(input.supportPath);
+  if (input.supportPath !== undefined && support === undefined) {
+    throw new Error(`missing native supporting source ${input.supportPath}`);
+  }
+  return componentTypeHome({
+    declaration: sourceFile.getInterface(input.name) ?? sourceFile.getTypeAliasOrThrow(input.name),
+    path: input.path,
+    view: captureComponentTypeHomeView({ program: owner, sourceFile, canonicalPath: canonicalCompilerPath(root, input.path) }),
+    lowerDeclarations: [],
+    ...(support === undefined
+      ? {}
+      : {
+          supportingViews: [
+            captureComponentTypeHomeView({ program: owner, sourceFile: support, canonicalPath: canonicalCompilerPath(root, support.getFilePath()) }),
+          ],
+        }),
+  });
+}
+
 test(
-  "the real Button supporting variant and sealed ContentDialog API have native browser render origins",
+  "real native component APIs preserve installed derivation and prove conditional, inline and imported support",
   ({ repoRoot }) => {
-    const configs = ["packages/ui/tsconfig.json", "packages/client/tsconfig.json"];
-    const workspace = createSemanticWorkspace({ root: repoRoot, programs: readCompilerPrograms(repoRoot).filter(({ config }) => configs.includes(config)) });
-    for (const [config, path, name] of [
+    const configs = ["packages/ui/tsconfig.json", "packages/client/tsconfig.json"] as const;
+    const workspace = createSemanticWorkspace({
+      root: repoRoot,
+      programs: readCompilerPrograms(repoRoot).filter(({ config }) => configs.some((allowed) => allowed === config)),
+    });
+    for (const [config, path, name, supportPath] of [
       [configs[0], "packages/ui/src/primitives/button/button.tsx", "IconOnlyButtonSize"],
+      [configs[0], "packages/ui/src/primitives/autocomplete/autocomplete.tsx", "AutocompleteGroup"],
+      [configs[0], "packages/ui/src/content/message-media/message-media.tsx", "MessageMediaProps"],
+      [configs[0], "packages/ui/src/primitives/field/field.tsx", "FieldAlign"],
+      [configs[0], "packages/ui/src/primitives/list-row/parts.tsx", "ListRowDescriptors"],
+      [configs[0], "packages/ui/src/charts/chart/contract.ts", "ChartProps", "packages/ui/src/charts/chart/chart.tsx"],
+      [configs[0], "packages/ui/src/content/theme-scope/clamp.ts", "ThemeScopeTokens", "packages/ui/src/content/theme-scope/theme-scope.tsx"],
       [configs[1], "packages/client/src/components/content-dialog.tsx", "ContentDialogProps"],
     ] as const) {
-      if (config === undefined) {
-        throw new Error("missing compiler config");
-      }
-      const owner = workspace.program(config);
-      const sourceFile = owner?.sourceFile(path);
-      if (owner === undefined || sourceFile === undefined) {
-        throw new Error(`missing native source ${path}`);
-      }
-      const declaration = sourceFile.getInterface(name) ?? sourceFile.getTypeAliasOrThrow(name);
-      const result = componentTypeHome({
-        declaration,
-        path,
-        view: captureComponentTypeHomeView({ program: owner, sourceFile, canonicalPath: canonicalCompilerPath(repoRoot, path) }),
-        lowerDeclarations: [],
-      });
+      const result = readRealComponentHome(repoRoot, workspace, { config, path, name, ...(supportPath === undefined ? {} : { supportPath }) });
       expect(result.kind, name).toBe("owned");
       if (result.kind !== "owned") {
         throw new Error(`unproven ${name}`);
@@ -345,4 +418,183 @@ test("a whole mixed utility argument never grants every nested authored declarat
   expect(positive.bound.value.binding).toBe(positive.binding);
   expect(positive.bound.value.witnesses.length).toBeGreaterThan(0);
   expect(positive.bound.trace.declarations).toContain(sourceFile.getTypeAliasOrThrow("Contributing"));
+});
+
+test("actual conditional and immutable bound rendering plus inline parameter origins prove support without granting string or erased branches", ({
+  scratch,
+  repoRoot,
+}) => {
+  const { read } = fixture(scratch, repoRoot);
+  for (const name of ["ConditionalApi", "InlineDimension"]) {
+    expect(read(name), name).toMatchObject({ kind: "owned" });
+  }
+  for (const name of ["StringBranchApi", "InlineErased", "ErasedHeritage", "ConstrainedOnly"]) {
+    expect(read(name), name).toMatchObject({ kind: "unqualified" });
+  }
+});
+
+test("cross-source support follows actual native alias origins only within the delivered owner boundary", ({ scratch, repoRoot }) => {
+  const { view } = fixture(scratch, repoRoot);
+  const path = "packages/client/src/support.ts";
+  const sourceFile = view.program.sourceFile(path);
+  const surface = view.program.sourceFile("packages/client/src/support-surface.tsx");
+  const foreign = view.program.sourceFile("packages/ui/src/foreign.tsx");
+  if (sourceFile === undefined || surface === undefined || foreign === undefined) {
+    throw new Error("missing native supporting sources");
+  }
+  const capture = (source: SourceFile): ComponentTypeHomeView =>
+    captureComponentTypeHomeView({
+      program: view.program,
+      sourceFile: source,
+      canonicalPath: canonicalCompilerPath(scratch, source.getFilePath()),
+    });
+  const supportView = capture(sourceFile);
+  const surfaceView = capture(surface);
+  const read = (name: string): ComponentTypeHomeResult => {
+    const input = {
+      declaration: sourceFile.getInterfaceOrThrow(name),
+      path,
+      view: supportView,
+      lowerDeclarations: [],
+      supportingViews: [surfaceView],
+    };
+    return componentTypeHome(input);
+  };
+  const result = read("Supported");
+  expect(result.kind).toBe("owned");
+  if (result.kind !== "owned") {
+    throw new Error("missing imported component origin");
+  }
+  expect(result.component.callable.getSourceFile()).toBe(surface);
+  expect(result.component.supportingDeclarations).toContain(sourceFile.getInterfaceOrThrow("Supported"));
+  expect(read("UnusedSupport").kind).toBe("unqualified");
+  const foreignInput = {
+    declaration: sourceFile.getInterfaceOrThrow("Supported"),
+    path,
+    view: supportView,
+    lowerDeclarations: [],
+    supportingViews: [capture(foreign)],
+  };
+  expect(componentTypeHome(foreignInput)).toMatchObject({ kind: "refused" });
+  surface.replaceWithText("export function Changed() { return <div />; }");
+  const staleInput = {
+    declaration: sourceFile.getInterfaceOrThrow("Supported"),
+    path,
+    view: capture(sourceFile),
+    lowerDeclarations: [],
+    supportingViews: [surfaceView],
+  };
+  expect(componentTypeHome(staleInput)).toMatchObject({ kind: "refused" });
+});
+
+test("registered view delivery reads only the existing source owner and contextual declaration judgment never invents a fallback", ({ scratch, repoRoot }) => {
+  const { view, sourceFile, workspace } = fixture(scratch, repoRoot);
+  const server = workspace.program("packages/server/tsconfig.json");
+  if (server === undefined) {
+    throw new Error("missing unopened Node owner");
+  }
+  const unopened = vi.spyOn(server, "project").mockImplementation(() => {
+    throw new Error("unrequested native program materialized");
+  });
+  try {
+    expect(registeredSemanticSourceView(sourceFile)?.program).toBe(view.program);
+    expect(registeredComponentTypeHomeView(sourceFile)?.nativeSource).toBe(view.nativeSource);
+    expect(
+      componentTypeHome({
+        declaration: sourceFile.getInterfaceOrThrow("Arbitrary"),
+        path: "packages/client/src/panel.tsx",
+        view: { ...view, program: server },
+        lowerDeclarations: [],
+      }),
+    ).toMatchObject({ kind: "refused" });
+    expect(unopened).not.toHaveBeenCalled();
+    const syntax = new Project({ useInMemoryFileSystem: true }).createSourceFile("/syntax/packages/ui/src/panel.tsx", "export interface Props {}");
+    expect(registeredSemanticSourceView(syntax)).toBeUndefined();
+    expect(registeredComponentTypeHomeView(syntax)).toBeUndefined();
+    const path = "packages/ui/src/native-panel.tsx";
+    const source = view.program.sourceFile(path);
+    const native = source === undefined ? undefined : registeredComponentTypeHomeView(source);
+    if (source === undefined || native === undefined) {
+      throw new Error("missing delivered UI context");
+    }
+    const actual = source.getInterfaceOrThrow("Actual");
+    expect(judgeTypeHomeDeclaration(actual, { path, claim: "interface" })).toMatchObject({ kind: "subject", ownership: { kind: "unqualified" } });
+    expect(judgeTypeHomeDeclaration(actual, { path, claim: "interface", component: { view: native, lowerDeclarations: [] } })).toMatchObject({
+      kind: "subject",
+      ownership: { kind: "component-owned" },
+    });
+    expect(
+      judgeTypeHomeDeclaration(source.getInterfaceOrThrow("UnusedProps"), { path, claim: "interface", component: { view: native, lowerDeclarations: [] } }),
+    ).toMatchObject({ kind: "subject", ownership: { kind: "unqualified" } });
+    expect(unopened).not.toHaveBeenCalled();
+  } finally {
+    unopened.mockRestore();
+  }
+});
+
+test("ordinary reporting accepts only delivered component ownership and preserves missing-context and lower-data findings", ({ scratch, repoRoot }) => {
+  const { view } = fixture(scratch, repoRoot);
+  const path = "packages/ui/src/native-panel.tsx";
+  const source = view.program.sourceFile(path);
+  const lower = view.program.sourceFile("packages/contracts/src/wire.ts")?.getInterfaceOrThrow("Wire");
+  if (source === undefined || lower === undefined) {
+    throw new Error("missing native placement subjects");
+  }
+  const unqualified = defineGate({
+    ...packageInterfaces,
+    id: "component-placement-fixture",
+    population: { in: ["@ui"], under: [path] },
+    mustFlag: [
+      {
+        mode: "source",
+        files: { [path]: "export interface Actual { caption: string; }" },
+        expect: { count: 1 },
+        why: "missing native context retains the ordinary placement finding",
+      },
+    ],
+    mustPass: [{ mode: "source", files: { [path]: "export const anchor = 1;" }, why: "values are not declaration placement subjects" }],
+  });
+  const delivered = defineGate({
+    ...unqualified,
+    analysis: "types",
+    mustFlag: unqualified.mustFlag.map((proof) => ({ ...proof, mode: "types" as const })),
+    mustPass: unqualified.mustPass.map((proof) => ({ ...proof, mode: "types" as const })),
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.InterfaceDeclaration],
+          visit: (node): void => {
+            const native = registeredComponentTypeHomeView(node.getSourceFile());
+            reportTypeHomeDeclaration(ctx, node, "interface", {
+              message: "fixture placement",
+              fix: "retain actual ownership",
+              ...(native === undefined ? {} : { component: { view: native, lowerDeclarations: [lower] } }),
+            });
+          },
+        },
+      ],
+    }),
+  });
+  const run = (policy: GatePolicy): readonly string[] => {
+    const result = runPolicyPass({
+      root: scratch,
+      project: view.program.project(),
+      knownPolicies: [policy],
+      policies: [policy],
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.authority.authorityAlarms).toEqual([]);
+    return result.authority.effectiveFindings
+      .map(({ token }) => {
+        if (token === undefined) {
+          throw new Error("fixture placement finding lost its authored token");
+        }
+        return token;
+      })
+      .toSorted((left, right) => left.localeCompare(right));
+  };
+  expect(run(unqualified)).toEqual(["Actual", "Copy", "UnusedProps"]);
+  expect(run(delivered)).toEqual(["Copy", "UnusedProps"]);
 });

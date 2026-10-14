@@ -136,6 +136,20 @@ function lazySemanticProgram(
 const semanticWorkspaces = new WeakMap<object, SemanticWorkspace>();
 const semanticPrograms = new WeakMap<Project, SemanticProgram>();
 
+/** The already registered native source owner; this lookup never materializes another program. */
+export function registeredSemanticSourceView(sourceFile: SourceFile): SemanticSourceView | undefined {
+  if (sourceFile.wasForgotten()) {
+    return;
+  }
+  const project = sourceFile.getProject();
+  const workspace = semanticWorkspaces.get(project);
+  const program = semanticPrograms.get(project);
+  if (workspace === undefined || program === undefined || project.getSourceFile(sourceFile.getFilePath()) !== sourceFile) {
+    return;
+  }
+  return { program, sourceFile, canonicalPath: canonicalCompilerPath(workspace.root, sourceFile.getFilePath()) };
+}
+
 export function semanticWorkspaceOf(value: object): SemanticWorkspace | undefined {
   return semanticWorkspaces.get(value);
 }
