@@ -1,21 +1,15 @@
 // Provider-backed captures use admitted owner connections; only raw external replies are scripted.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
-import { rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { eq } from "drizzle-orm";
 import { CORPUS_RPG_CARD_NAME, CORPUS_RPG_FOLDED_INPUT, CORPUS_RPG_REBUILT_BEAT } from "./corpus-rpg-wire.ts";
-import { captureRpgSnapshot, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
+import { captureRpgRows, captureRpgSnapshot, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 type Tracker = Awaited<ReturnType<CorpusCaller["rpg"]["getTrackerView"]>>;
-interface CorpusRpgRows {
-  readonly sheets: readonly (typeof rpgSheets.$inferSelect)[];
-  readonly snapshots: readonly (typeof rpgSnapshots.$inferSelect)[];
-  readonly journal: readonly (typeof rpgJournal.$inferSelect)[];
-}
+type CorpusRpgRows = Awaited<ReturnType<typeof captureRpgRows>>;
 interface SeededCorpusRpgProvider {
   readonly character: Awaited<ReturnType<CorpusCaller["character"]["create"]>>;
   readonly game: Awaited<ReturnType<typeof seedRpgGame>>;
@@ -43,15 +37,6 @@ interface SeededCorpusRpgProvider {
   readonly journal: Awaited<ReturnType<CorpusCaller["rpg"]["listJournal"]>>;
 }
 
-async function captureRows(root: ServerTestHarness, gameId: SeededCorpusRpgProvider["game"]["id"]): Promise<CorpusRpgRows> {
-  const [sheets, snapshots, journal] = await Promise.all([
-    root.db.select().from(rpgSheets).where(eq(rpgSheets.gameId, gameId)).orderBy(rpgSheets.id),
-    root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId)).orderBy(rpgSnapshots.id),
-    root.db.select().from(rpgJournal).where(eq(rpgJournal.gameId, gameId)).orderBy(rpgJournal.id),
-  ]);
-  return { sheets, snapshots, journal };
-}
-
 /** Resolve, populate, reconcile and fold through the actual root; no writer or execution actor is replaced. */
 export async function seedCorpusRpgProvider(root: ServerTestHarness, connectionId: UserConnectionId): Promise<SeededCorpusRpgProvider> {
   const principal = await root.principalFor(root.ownerId);
@@ -74,10 +59,10 @@ export async function seedCorpusRpgProvider(root: ServerTestHarness, connectionI
   const actorRef = { kind: "character", characterId: character.id } as const;
   const populate = await caller.rpg.populateFromCharacter({ chatId, actorRef });
   const populated = await caller.rpg.getTrackerView({ chatId });
-  const populatedRows = await captureRows(root, game.id);
+  const populatedRows = await captureRpgRows(root.db, game.id);
   await caller.rpg.patchSheet({ chatId, actorRef, patch: { className: "Host-tuned artificer", level: 4 } });
   const absorbed = await caller.rpg.populateFromCharacter({ chatId, actorRef });
-  const absorbedRows = await captureRows(root, game.id);
+  const absorbedRows = await captureRpgRows(root.db, game.id);
   await caller.chat.commitMessage({ chatId, timeZone: UTC_TIME_ZONE, content: CORPUS_RPG_REBUILT_BEAT });
   await caller.rpg.editSnapshot({ chatId, patch: { location: "Hand-pinned loom" } });
   const firstResync = await caller.rpg.resyncFromStory({ chatId });
@@ -97,14 +82,14 @@ export async function seedCorpusRpgProvider(root: ServerTestHarness, connectionI
   });
   const toolResync = await caller.rpg.resyncFromStory({ chatId });
   const toolRebuilt = await caller.rpg.getTrackerView({ chatId });
-  const beforeQuietRows = await captureRows(root, game.id);
+  const beforeQuietRows = await captureRpgRows(root.db, game.id);
   const quietResync = await caller.rpg.resyncFromStory({ chatId });
-  const quietRows = await captureRows(root, game.id);
+  const quietRows = await captureRpgRows(root.db, game.id);
   if (quietRows.snapshots.length !== beforeQuietRows.snapshots.length) {
     throw new Error("native no_changes resync unexpectedly wrote another snapshot");
   }
   await caller.rpg.editSnapshot({ chatId, patch: { weather: { type: "rain", label: "Hand-pinned rain" } } });
-  const beforeFoldRows = await captureRows(root, game.id);
+  const beforeFoldRows = await captureRpgRows(root.db, game.id);
   const turn = await root.services.chat.send({
     principal,
     chatId,
@@ -116,7 +101,7 @@ export async function seedCorpusRpgProvider(root: ServerTestHarness, connectionI
   }
   await root.settleBackground();
   const folded = await caller.rpg.getTrackerView({ chatId });
-  const foldedRows = await captureRows(root, game.id);
+  const foldedRows = await captureRpgRows(root.db, game.id);
   const variants = turn.messages.filter((message) => message.role === "assistant").map((message) => message.selectedVariantId);
   const calls = await captureRpgTurnToolCalls(root.db, game.id, variants);
   const checkpoint = await seedRpgCheckpoint(root.db, root.services.rpg.createCheckpoint, { ...params, label: "Folded loom" });

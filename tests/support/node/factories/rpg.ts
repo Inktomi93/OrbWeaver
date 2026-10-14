@@ -12,6 +12,22 @@ export type RpgSheetRow = typeof rpgSheets.$inferSelect;
 export type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
 export type RpgTurnToolCallsRow = typeof rpgTurnToolCalls.$inferSelect;
 
+export interface CapturedRpgRows {
+  readonly sheets: readonly RpgSheetRow[];
+  readonly snapshots: readonly RpgSnapshotRow[];
+  readonly journal: readonly RpgJournalRow[];
+}
+
+/** Observe the actual game planes without supplying a head, sheet, lineage or journal rule. */
+export async function captureRpgRows(db: Db, gameId: RpgGameId): Promise<CapturedRpgRows> {
+  const [sheets, snapshots, journal] = await Promise.all([
+    db.select().from(rpgSheets).where(eq(rpgSheets.gameId, gameId)).orderBy(rpgSheets.id),
+    db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId)).orderBy(rpgSnapshots.id),
+    db.select().from(rpgJournal).where(eq(rpgJournal.gameId, gameId)).orderBy(rpgJournal.id),
+  ]);
+  return { sheets, snapshots, journal };
+}
+
 /** Capture disclosures only for operation-returned variants; the RPG flush owns calls, verdicts and lineage. */
 export async function captureRpgTurnToolCalls(db: Db, gameId: RpgGameId, variantIds: readonly MessageVariantId[]): Promise<readonly RpgTurnToolCallsRow[]> {
   if (variantIds.length === 0) {

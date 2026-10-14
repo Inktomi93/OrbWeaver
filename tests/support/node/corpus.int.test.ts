@@ -6,6 +6,7 @@ import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import {
   assertReferentialIntegrity,
   chatHandoffResumptions,
@@ -41,7 +42,9 @@ import { eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { CORPUS_CHAT_MODEL, corpusImageryPhysicalBytes, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
+import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
+import { captureRpgSnapshot } from "./factories/rpg.ts";
 
 const OWNER_PASSWORD = "synthetic-capsule-owner-password";
 const PROVIDER_KEY = "synthetic-capsule-provider-key";
@@ -54,14 +57,15 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const rpgWire = createCorpusRpgWire();
   const swipes = createKnowledgeSwipeWire();
   const lifecycleWire = createCorpusChatWire();
+  const rpgFlightWire = createRpgFlightWire();
   const execution = createCorpusProviderExecution({
-    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, CORPUS_CHAT_MODEL, CORPUS_IMAGE_MODEL],
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, CORPUS_CHAT_MODEL, CORPUS_IMAGE_MODEL, RPG_RECURSION_MODEL, RPG_ROUND_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: corpusKnowledgeVariantsText,
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: await corpusImageryPhysicalBytes(),
     usage: { promptTokens: 40, completionTokens: 15 },
-    completion: (body) => rpgWire.completion(body) ?? swipes.completion(body) ?? lifecycleWire.completion(body),
+    completion: (body) => rpgFlightWire.completion(body) ?? rpgWire.completion(body) ?? swipes.completion(body) ?? lifecycleWire.completion(body),
   });
   const key = randomBytes(32);
   const capsule = ownership.use(
@@ -99,9 +103,17 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.privateCaptures.rpg.restoredSnapshot.variantId).toBeNull();
   expect(capsule.privateCaptures.rpg.reads.tracker.ambient?.location).toBe("Orbital loom");
   expect(capsule.privateCaptures.rpg.schedules.completed).toMatchObject([{ status: "succeeded", kind: "reconcile-stats" }]);
-  expect(capsule.privateCaptures.rpgProvider.snapshot.variantId).toBe(
-    capsule.privateCaptures.rpgProvider.turn.messages.find((message) => message.role === "assistant")?.selectedVariantId,
-  );
+  const providerRpg = capsule.privateCaptures.rpgProvider;
+  const providerAssistant = providerRpg.turn.messages.find((message) => message.role === "assistant");
+  const providerOriginal = providerRpg.foldedRows.snapshots.find((row) => row.variantId === providerAssistant?.selectedVariantId);
+  if (providerAssistant === undefined || providerOriginal === undefined) {
+    throw new Error("completed native provider graph lost its original folded variant snapshot");
+  }
+  expect(providerRpg.snapshot.id).not.toBe(providerOriginal.id);
+  expect(providerRpg.snapshot).toMatchObject({ messageId: null, variantId: null, asOfMessageId: providerAssistant.id, committed: 1 });
+  expect(rpgSnapshotStateSchema.parse(providerRpg.snapshot)).toEqual(rpgSnapshotStateSchema.parse(providerOriginal));
+  expect(providerRpg.snapshot.fieldLocks).toEqual(providerOriginal.fieldLocks);
+  expect(providerOriginal).toMatchObject({ messageId: providerAssistant.id, variantId: providerAssistant.selectedVariantId, committed: 0 });
   expect(capsule.privateCaptures.rpgProvider.journal).toMatchObject([
     { type: "event", label: "" },
     { type: "custom", label: "Expedition" },
@@ -130,6 +142,20 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.privateCaptures.imagery.newerReuse.generations).toEqual(capsule.privateCaptures.imagery.newest.generations);
   expect(capsule.privateCaptures.imagery.rows).toHaveLength(6);
   expect(lifecycleWire.remaining()).toBe(0);
+  const rpgFlight = capsule.privateCaptures;
+  expect(rpgFlight.rpgRecursion.rows.journal.map((row) => row.title)).toEqual(RPG_JOURNAL_TITLES.slice(0, 2));
+  expect(rpgFlight.rpgMembers.checkpointAfter).toEqual(rpgFlight.rpgMembers.checkpointBefore);
+  expect(rpgFlight.rpgMembers.recovery.before.rpg?.gameId).toBe(rpgFlight.rpgMembers.forkGame.id);
+  expect(rpgFlight.rpgMembers.recovery.healed.rpg).toBeNull();
+  expect(rpgFlight.rpgMembers.recovery.repeated).toEqual(rpgFlight.rpgMembers.recovery.healed);
+  expect(rpgFlight.rpgMembers.handedChat.participants.filter((seat) => seat.role === "host").map((seat) => seat.userId)).toEqual([
+    rpgFlight.rpgMembers.participant.userId,
+  ]);
+  expect(rpgFlight.rpgRounds.cancelled.after).toEqual(rpgFlight.rpgRounds.cancelled.before);
+  expect(rpgFlight.rpgRounds.cancelled.cancelledCalls).toEqual([]);
+  expect(rpgFlight.rpgRounds.cancelled.attemptsWhileWaiting).toBe(rpgFlight.rpgRounds.cancelled.attemptsBeforeNext);
+  expect(rpgFlight.rpgRounds.foreignStop.signalAborted).toBe(false);
+  expect(rpgFlightWire.remaining()).toEqual({ recursion: 0, rounds: 0 });
   if (process.platform === "linux") {
     const ownedRoot = await realpath(capsule.layout.root);
     const descriptors = await Promise.all(
@@ -151,6 +177,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   let sourceMarker: Awaited<ReturnType<typeof source.all>>;
   try {
     await assertReferentialIntegrity(source);
+    expect(await captureRpgSnapshot(source, providerOriginal.id)).toEqual(providerOriginal);
     sourceMarker = await source.all(sql`PRAGMA user_version`);
     expect((await source.select({ id: sessions.id }).from(sessions)).length).toBeGreaterThan(0);
     expect((await source.select({ id: userCredentials.id }).from(userCredentials)).length).toBeGreaterThan(0);

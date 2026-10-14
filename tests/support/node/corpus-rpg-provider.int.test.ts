@@ -2,6 +2,7 @@
 // @subject tests/support/node/corpus-rpg-wire.ts
 import "@orb/testkit/node/composed-real.ts";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
+import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity, rpgJournal, rpgSnapshots } from "@orb/db";
 import {
   CORPUS_EMBED_MODEL,
@@ -24,6 +25,7 @@ import {
   CORPUS_RPG_SCENE_TOOL,
   createCorpusRpgWire,
 } from "./corpus-rpg-wire.ts";
+import { captureRpgSnapshot } from "./factories/rpg.ts";
 
 test("native model population, structured and required-tool resync, and changed folded calls retain their real planes and lineage", async () => {
   const wire = createCorpusRpgWire();
@@ -75,7 +77,17 @@ test("native model population, structured and required-tool resync, and changed 
   if (assistant === undefined) {
     throw new Error("native folded corpus turn produced no selected assistant");
   }
-  expect(result.snapshot).toMatchObject({ gameId: result.game.id, messageId: assistant.id, variantId: assistant.selectedVariantId, committed: 0 });
+  const original = result.foldedRows.snapshots.find((row) => row.variantId === assistant.selectedVariantId);
+  if (original === undefined) {
+    throw new Error("native folded turn lost its original variant snapshot");
+  }
+  expect(result.snapshot.id).not.toBe(original.id);
+  expect(result.snapshot).toMatchObject({ gameId: result.game.id, messageId: null, variantId: null, asOfMessageId: assistant.id, committed: 1 });
+  expect(rpgSnapshotStateSchema.parse(result.snapshot)).toEqual(rpgSnapshotStateSchema.parse(original));
+  expect(result.snapshot.fieldLocks).toEqual(original.fieldLocks);
+  const retained = await captureRpgSnapshot(root.db, original.id);
+  expect(retained).toEqual(original);
+  expect(retained).toMatchObject({ id: original.id, messageId: assistant.id, variantId: assistant.selectedVariantId, committed: 0 });
   expect(result.calls).toMatchObject([{ gameId: result.game.id, messageId: assistant.id, variantId: assistant.selectedVariantId, failure: null }]);
   expect(result.calls.flatMap((row) => row.calls.map((call) => call.name))).toEqual([
     CORPUS_RPG_SCENE_TOOL,
