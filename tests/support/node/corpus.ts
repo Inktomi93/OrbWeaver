@@ -19,6 +19,7 @@ import type { seedCorpusRpgMembers as produceCorpusRpgMembers } from "./corpus-r
 import type { seedCorpusRpgProvider as produceCorpusRpgProvider } from "./corpus-rpg-provider.ts";
 import type { seedCorpusRpgRecursion as produceCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
 import type { seedCorpusRpgRounds as produceCorpusRpgRounds } from "./corpus-rpg-rounds.ts";
+import type { seedCorpusSearch as produceCorpusSearch } from "./corpus-search.ts";
 import type {
   seedCorpusAutomation as produceCorpusAutomation,
   seedCorpusLibraries as produceCorpusLibraries,
@@ -46,6 +47,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly search: Awaited<ReturnType<typeof produceCorpusSearch>>;
   readonly rpgRecursion: Awaited<ReturnType<typeof produceCorpusRpgRecursion>>;
   readonly rpgMembers: Awaited<ReturnType<typeof produceCorpusRpgMembers>>;
   readonly rpgRounds: Awaited<ReturnType<typeof produceCorpusRpgRounds>>;
@@ -147,6 +149,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusRpgRecursion } = await import("./corpus-rpg-recursion.ts");
   const { seedCorpusRpgMembers } = await import("./corpus-rpg-members.ts");
   const { seedCorpusRpgRounds } = await import("./corpus-rpg-rounds.ts");
+  const { seedCorpusSearch } = await import("./corpus-search.ts");
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
     await import("./corpus-seed.ts");
@@ -228,6 +231,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const rpgRecursion = await seedCorpusRpgRecursion(root);
   const rpgMembers = await seedCorpusRpgMembers(root, rpgRecursion, actors.secondUserId);
   const rpgRounds = await seedCorpusRpgRounds(root, rpgFlightWire, rpgFlightTimers, actors.secondUserId);
+  const search = await seedCorpusSearch(root, { actors, libraries, recall, images: knowledgeVariants.images });
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -255,6 +259,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       rpgRecursion,
       rpgMembers,
       rpgRounds,
+      search,
     },
   };
 }
