@@ -33,6 +33,8 @@ Stored connections require owner comparison before JSON decoding or schema refus
 
 Reviewed source `6c60dde2c0` classifies direct server and inference reads, traces native decoders and widens the existing policy. Matching scoped cases and the complete selected policy population pass without grants. The original contract and stored-value recovery remains integrated.
 
-Independent security review confirms logout admission before revocation and SDK admission before consumed effects. Both findings have discriminating corrected controls: raw schema causes cannot disclose through error logging, and inherited activation names refuse. Context usage remains an unqualified optional post-terminal miss. The source lane is complete; main retains whole-population acceptance and this fork. No application or complete wire verdict is claimed.
+Independent security review confirms logout admission before revocation and SDK admission before consumed effects. Both findings have discriminating corrected controls: raw schema causes cannot disclose through error logging, and inherited activation names refuse. Main accepts the complete classified server and inference boundary population after confirming the current census matches the reviewed source. Matching native controls and policy verdicts establish this assignment, not whole-application qualification.
+
+The optional context-usage probe runs after native Query teardown and receives no native response. Its absent diagnostic is not a delivered unvalidated wire value. Moving it into a live-query lifetime requires boundary admission and separate product work; no such protocol change is included here.
 
 The persona, regex and world-info wrappers use one canonical filename-and-file-text schema. Their decoded contents remain separate contracts.

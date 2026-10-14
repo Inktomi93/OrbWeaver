@@ -29,7 +29,7 @@ Inventory tables and output doors, including server-owned projections. Keep prod
 
 Capture HTTP auth outputs through the real application and resolved request identity. A tRPC caller does not produce anonymous auth configuration. Reuse the server root's HTTP app.
 
-The canonical auth-configuration schema and consumer parsing are integrated through the [boundary-parsing assignment](0982-wire-values-are-parsed-at-every-boundary-not.md). Capture its complete request-specific response through the qualified server root before claiming the builder. The schema supplies validation, not fabricated authentication or deployment defaults.
+The canonical auth-configuration schema and consumer parsing are integrated. Capture its complete request-specific response through the qualified server root before claiming the builder. The schema supplies validation, not fabricated authentication or deployment defaults.
 
 Browser responders select actual captured route inputs and outputs. Preserve absent versus explicit null input, reject conflicting captures, and refuse unmatched input without a fabricated success. This lookup does not establish generated corpus adoption.
 
