@@ -219,6 +219,12 @@ const CONTAINED_OPERATORS = [
   "not",
 ] as const;
 
+function identityObservation(node: MorphNode | undefined): boolean {
+  return (
+    Node.isBinaryExpression(node) && [SyntaxKind.EqualsEqualsEqualsToken, SyntaxKind.ExclamationEqualsEqualsToken].includes(node.getOperatorToken().getKind())
+  );
+}
+
 function sqlAliasUseStable(use: MorphNode, active: ReadonlySet<object>): boolean {
   let value = use;
   let parent = value.getParent();
@@ -235,6 +241,9 @@ function sqlAliasUseStable(use: MorphNode, active: ReadonlySet<object>): boolean
   }
   if (Node.isVariableDeclaration(parent) && parent.getInitializer() === value && Node.isIdentifier(parent.getNameNode())) {
     return sqlBindingStable(parent.getNameNode(), active);
+  }
+  if (identityObservation(parent)) {
+    return true;
   }
   if (Node.isTemplateSpan(parent) && parent.getExpression() === value) {
     const tagged = parent.getParent().getParent();
