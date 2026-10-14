@@ -1,42 +1,8 @@
-// Policy: no-direct-users-read (Spine-Identity-and-Auth.md — resolve-once Principal). `users` is the
-// identity root every single-owned table FKs, and it is read/written through exactly TWO sanctioned domains:
-// `sessions` (the resolution-path writer that turns a session into the Principal) and `admin` (user
-// management). Every other domain takes `userId` from the resolved Principal; joining `users` sideways
-// re-couples identity into a feature.
-//
-// IDENTITY, NOT SPELLING: the legacy reader keyed on the NAME `users` plus a `/^@orb\/db/` module-specifier
-// regex, so a local object with a `users` key had to be excluded by hand and a re-export through any other
-// barrel walked past. The subject is now the reference whose CANONICAL DECLARATION is the `users` export of
-// the db schema, resolved through the shared sealed-origin reader — the named import, the namespace member
-// (`schema.users`) and the bracket spelling (`schema["users"]`) are one reference however they are written,
-// and a same-named export of another module is provably not it.
-//
-// AUTHORITY IS reviewed-grant. The two identity domains are not per-occurrence mistakes; each importing
-// module is a recurring repository PERMISSION and takes one exact `(subject, operation)` row in the central
-// reviewed-grant table. A row per FILE, deliberately: the legacy `domain/sessions/` and `domain/admin/` rows
-// were DIRECTORY licences that admitted every future file under them, which the final law forbids. The two
-// legacy staleness arms are BOTH the grant table now — a domain that stops reading `users` (mode A) and a
-// domain that moves (mode B) each leave their rows consumed zero times, which is the central STALE alarm.
-// The db schema home is outside this policy's population, so its own liveness is that same alarm rather
-// than a receipt: if `users` moves out of the schema, every reference resolves foreign, every row goes
-// stale, and the run says so at each row instead of silently having nothing to judge.
-//
-// FAMILY: SINGLETON (`no-direct-users-read`). `lib/sealed-origin.ts#readSealedOrigin`/`sealedOriginReports`
-// and `floor/code-facts/reference-fact.ts#readMemberReference` are corpus-wide primitives, not a family computation; the
-// identity root's home constant is this policy's alone and no sibling shares its subject.
-// POPULATION PORT: byte-identical. The legacy descriptor filtered `MSG_DIR.test(p)` where
-// `MSG_DIR = /packages\/server\/src\/domain\//` (`b5acbf2594^:71`); the final population is
-// `{ in: ["@server"], under: ["packages/server/src/domain/**"] }`. The legacy `domain/sessions/` and
-// `domain/admin/` rows were scanned-and-excused SANCTIONED_HOMES entries, never a population subtraction, so
-// nothing moved between the two halves at the conversion.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-direct-users-read` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion
-// `b5acbf2594` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,219 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
-// admits 1,148 and final `population` admits 1,148. legacy − final = ∅. final − legacy = ∅. Controls: inside
-// `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
-// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+// Identity persistence belongs in sessions/admin; entry orchestrates their operations, including boot.
+// The sealed-origin reader judges the canonical users declaration through imports and member spellings.
+// Domain and entry are both admitted; exact existing per-module grants license the sanctioned identity homes.
+// Renamed reexports remain the candidate-prefilter limit; no policy-local permission or reader is added.
+// Singleton: identity-root origin is its own semantic question; shared floor primitives do not define a family.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
@@ -75,7 +41,7 @@ export const gate = defineGate({
   family: "no-direct-users-read",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@server"], under: ["packages/server/src/domain/**"] },
+  population: { in: ["@server"], under: ["packages/server/src/domain/**", "packages/server/src/entry/**"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],
@@ -110,6 +76,37 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/server/src/entry/boot/identity.ts": 'import { users } from "../../../../db/src/schema/users.ts";\nexport const identity = users;\n',
+        "packages/server/src/domain/anchor.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/entry/boot/identity.ts" },
+      why: "boot delegates its sanctioned operation to sessions; a boot path does not license new raw identity persistence",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/server/src/entry/compose/identity.ts": 'import { users as root } from "../../../../db/src/schema/users.ts";\nexport const identity = root;\n',
+        "packages/server/src/domain/anchor.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/entry/compose/identity.ts" },
+      why: "entry composition must delegate identity persistence rather than create a second users reader",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/server/src/entry/auth/identity.ts":
+          'import * as schema from "../../../../db/src/schema/users.ts";\nexport const identity = schema["users"];\n',
+        "packages/server/src/domain/anchor.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/entry/auth/identity.ts" },
+      why: "entry namespace and bracket references reach the same sealed identity root",
+    },
     {
       mode: "types",
       grant: { subject: "packages/server/src/domain/billing/x.ts", operation: "users-table-reference" },
@@ -168,6 +165,15 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const sessions = { name: "sessions" };\n',
+        "packages/server/src/entry/boot/secrets.ts": 'import { sessions } from "../../../../db/src/schema/users.ts";\nexport const dependency = sessions;\n',
+        "packages/server/src/domain/anchor.ts": "export {};\n",
+      },
+      why: "boot is admitted but a session-token dependency read is not a users-table read",
+    },
     {
       mode: "types",
       files: {

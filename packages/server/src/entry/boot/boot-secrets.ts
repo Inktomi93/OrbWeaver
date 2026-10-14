@@ -3,8 +3,9 @@
 // every sealed credential, or every local password, session and live invite link.
 
 import type { Db } from "@orb/db";
-import { chatInvites, sessions, userCredentials, users } from "@orb/db";
-import { and, eq, gt, isNotNull, isNull, or } from "drizzle-orm";
+import { chatInvites, sessions, userCredentials } from "@orb/db";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { createSettleSessionSecret } from "#domain/sessions";
 import type { BootSecretResolution } from "#infra/crypto";
 import { loadOrCreateKeyfile } from "#infra/crypto";
 
@@ -34,11 +35,7 @@ async function hasSealedCredentials(db: Db): Promise<boolean> {
 
 // The pepper's dependents: a local password hash, a session token hash, and a chat invite whose token hash
 // can still be redeemed (`pending`, and either open-ended or not yet expired).
-async function hasSessionDependents(db: Db, now: number): Promise<boolean> {
-  const withPassword = await db.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash)).limit(LIMIT_ONE);
-  if (withPassword.length > 0) {
-    return true;
-  }
+async function hasSessionTokenOrInviteDependents(db: Db, now: number): Promise<boolean> {
   const sessionRows = await db.select({ id: sessions.id }).from(sessions).limit(LIMIT_ONE);
   if (sessionRows.length > 0) {
     return true;
@@ -53,10 +50,6 @@ async function hasSessionDependents(db: Db, now: number): Promise<boolean> {
 
 function missingCredentialsKeyRefusal(path: string): string {
   return `boot: CREDENTIALS_KEY is unset and the keyfile ${path} does not exist, but this database holds sealed provider credentials that were encrypted with it. Restore ${path} from the backup taken with the database, or set CREDENTIALS_KEY to the same value. Generating a new key would make every stored provider key unreadable, so the boot stops here.`;
-}
-
-function missingSessionSecretRefusal(path: string): string {
-  return `boot: SESSION_SECRET is unset and the keyfile ${path} does not exist, but this database holds local passwords, sessions or live invite links that were hashed with it. Restore ${path} from the backup taken with the database, or set SESSION_SECRET to the same value. Generating a new secret would invalidate every local password, sign-in and outstanding invite, so the boot stops here.`;
 }
 
 /**
@@ -76,10 +69,13 @@ export async function settleBootSecrets(deps: BootSecretsDeps): Promise<BootSecr
 
   let sessionSecret: string | null;
   if (deps.sessionSecret.kind === "absent") {
-    if (await hasSessionDependents(deps.db, deps.now())) {
-      throw new Error(missingSessionSecretRefusal(deps.sessionSecret.path));
-    }
-    sessionSecret = loadOrCreateKeyfile(deps.sessionSecret.path)?.toString("hex") ?? null;
+    const at = deps.now();
+    sessionSecret = await createSettleSessionSecret({
+      db: deps.db,
+      resolution: deps.sessionSecret,
+      hasOtherDependents: () => hasSessionTokenOrInviteDependents(deps.db, at),
+      createKeyfile: (path) => loadOrCreateKeyfile(path)?.toString("hex") ?? null,
+    })();
   } else {
     sessionSecret = deps.sessionSecret.value;
   }

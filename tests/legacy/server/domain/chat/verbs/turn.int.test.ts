@@ -4226,7 +4226,7 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
     parameters: { type: "object", properties: {}, additionalProperties: false },
     installer: principal(host),
     invoke: () => Promise.resolve("ok"),
-    resolveInstallerRole: () => Promise.resolve("host"),
+    resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }),
   });
   const toolOps = buildChatToolOps(toolUse, (userId) => Promise.resolve(principal(userId)));
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
@@ -4260,7 +4260,7 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
     parameters: { type: "object", properties: {}, additionalProperties: false },
     installer: principal(installerUserId),
     invoke: () => Promise.resolve("ok"),
-    resolveInstallerRole: () => Promise.resolve("host"),
+    resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }),
   });
   // The stranger enables FIRST — pre-fix this squatted the name and the room host's own activation would have
   // thrown; post-fix both are resident and the turn must pick the host's.

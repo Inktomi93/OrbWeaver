@@ -3,7 +3,8 @@ import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { CorpusSource, DigestSearchEvents, ResolveCorpusSourceState, SearchSpaceStatus } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
-import type { ChatId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "#domain/embeddings";
 import type {
   CorpusParams,
@@ -51,7 +52,10 @@ export type { DigestSearchEvents } from "@orb/contracts/search";
 /** The databank scope-junction resolver, INJECTED into search at compose.
  *  The union SQL has ONE home in `domain/databank` (`persistence/scope.ts`) — search never re-implements
  *  it, so when host-only widens to membership-gated ONE file changes and search is untouched. */
-export type ResolveActiveDocumentIdsOp = (scope: { readonly chatId: ChatId } | { readonly ownerId: UserId }) => Promise<readonly DocumentId[]>;
+export type ResolveActiveDocumentIdsOp = (scope: DocumentSearchParams["scope"]) => Promise<readonly DocumentId[]>;
+
+/** Databank's current retrieval predicate, resolved after external query embedding and applied before ranking. */
+export type ResolveActiveDocumentScopeOp = (scope: DocumentSearchParams["scope"]) => Promise<SQL>;
 
 /** The active generation a query is served from. `via` carries the joint-space rule's read-side answer
  *  (§10-3, `substrate/space.ts`): `"imageEmbed"` is the ordinary picture arm, `"embed"` the captioned-text
@@ -80,6 +84,7 @@ export interface SearchContext {
   /** The databank scope resolver (DB5) — injected by `domain/databank` at compose; consumed ONLY by the
    *  `documents` lens. The union SQL lives in databank, so search stays free of databank's authority model. */
   readonly resolveActiveDocumentIds: ResolveActiveDocumentIdsOp;
+  readonly resolveActiveDocumentScope: ResolveActiveDocumentScopeOp;
 }
 
 export interface SearchService {

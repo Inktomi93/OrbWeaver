@@ -22,4 +22,10 @@ No role comparison or users access outside the sanctioned homes; both gates cove
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed source `24e06ec6f4` derives installer effects through canonical chat authority and rechecks document consent after query embedding. Real native guest and search races pass; removing current scope or substituting caller authority fails the maintained assertions. The independent bridge guard remains effective.
+
+Guarded owner bootstrap and missing-pepper settlement use private sessions persistence without widening authority. Existing owner-key collision, password CAS, account enumeration and credential-key ordering controls pass.
+
+Both identity policies judge complete domain and entry populations without new grants or path exclusions. Bounded field and population controls discriminate the changes. Independent security review confirms the complete source batch.
+
+Integrated runtime cases and client, DOM and isomorphic compiler programs pass. Root retains its known unrelated errors; legacy fixtures and old lint findings remain visible. The interface allowance mismatch is tracked separately. Whole-application qualification remains open.

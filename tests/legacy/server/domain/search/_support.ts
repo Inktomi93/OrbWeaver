@@ -60,7 +60,7 @@ import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { and, eq, sql } from "drizzle-orm";
-import { resolveActiveDocumentIds } from "#server/domain/databank/persistence/scope.ts";
+import { resolveActiveDocumentIds, resolveActiveDocumentScope } from "#server/domain/databank/persistence/scope.ts";
 import type { ResolveEmbeddingConnection } from "#server/domain/embeddings/index.ts";
 import { createEmbeddingsService, SpaceMismatchError } from "#server/domain/embeddings/index.ts";
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
@@ -309,6 +309,7 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
     resolveEmbeddingConnection: searchEmbeddingConnection(roleClients),
     now,
     resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
+    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope),
   };
   return createSearchService(ctx);
 }

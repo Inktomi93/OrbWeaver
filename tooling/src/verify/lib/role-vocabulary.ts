@@ -33,7 +33,7 @@ const EQUALITY_TOKENS = [SyntaxKind.EqualsEqualsEqualsToken, SyntaxKind.Exclamat
 /** One `<role read> ===/!== "<member>"` comparison, either operand order. */
 export interface RoleComparison {
   readonly comparison: MorphNode;
-  /** The `role` read itself — a bare identifier or a member access in any spelling. */
+  /** The compared read: name-bound by default, or any expression at an explicitly selected enforcement sink. */
   readonly read: MorphNode;
   /** The compared string value, resolved through the shared static-string reader (const aliases included). */
   readonly value: string;
@@ -64,8 +64,8 @@ function roleOperand(left: MorphNode, right: MorphNode): MorphNode | undefined {
   return isRoleRead(right) ? right : undefined;
 }
 
-/** Read one equality comparison as a role comparison, in either operand order. */
-export function readRoleComparison(node: MorphNode): RoleComparison | undefined {
+/** Read one role equality; expression matching lets a known enforcement field consume a fresh call result. */
+export function readRoleComparison(node: MorphNode, matchExpression = false): RoleComparison | undefined {
   if (!Node.isBinaryExpression(node)) {
     return;
   }
@@ -74,7 +74,10 @@ export function readRoleComparison(node: MorphNode): RoleComparison | undefined 
   }
   const left = node.getLeft();
   const right = node.getRight();
-  const read = roleOperand(left, right);
+  let read = roleOperand(left, right);
+  if (matchExpression) {
+    read = comparedValue(right) === undefined ? right : left;
+  }
   if (read === undefined) {
     return;
   }

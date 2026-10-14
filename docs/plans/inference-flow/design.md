@@ -24,7 +24,7 @@ Read this plan for runtime dependencies and correctness work scheduled by test-f
 
 The [test-foundation plan](../test-foundation/design.md) owns the combined program order. Compose cleanup (964) moves runtime ports and reads to owning domains before the server harness (958) is built. Initial Drizzle facts (953) provide shared tenancy and query judgments.
 
-After those batches, prioritize identity enforcement (972), then typed every-owner authority (984). Runtime funding and dispatched-material strike-out are qualified on real composed callers. Settings ownership (967), connection capabilities (968) and law alignment (970) remain tracked production work. Route identity-sensitive changes to the security role.
+After those batches, prioritize typed every-owner authority (984). Runtime funding, dispatched-material strike-out and identity enforcement are qualified on real composed callers. Settings ownership (967), connection capabilities (968) and law alignment (970) remain tracked production work. Route identity-sensitive changes to the security role.
 
 Stored connection parsing follows ownership checks without losing owner-mismatch detection. The canonical owner-bearing read is integrated. Remaining runtime and wire qualification stays with its active work items. Preserve refusal and accounting semantics; legacy harness repair is not a prerequisite.
 

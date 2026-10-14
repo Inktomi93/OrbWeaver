@@ -14,11 +14,9 @@
 //       back through the SAME `projectJsonSchema` — zod stays the ONE representation (D79), no second schema.
 //   (c) The ceiling runs as the INSTALLING principal (PL-C), not the turn caller: a plugin tool invoked in a
 //       chat its installer is not a member of fails with errors-as-data (`denied`) — the model narrates, never
-//       a cross-tenant read. It is a ROW READ of the installer's present role in THAT chat (the injected
-//       `resolveInstallerRole`), not a `can()` verdict over the caller's membership — `can()` cannot express this
-//       check, because the only membership in scope at invocation time belongs to the wrong principal. The guest
-//       handler itself runs host-side under each host-fn's own installer gate, so the effects are
-//       installer-bounded by construction; this belt is the invocation-time read/write ceiling.
+//       a cross-tenant read. The injected authority operation loads the installer's present seat and asks the
+//       kernel; the caller's execution membership authorizes none of this ceiling. Guest host functions also
+//       recheck the installer, independently of this invocation-time read/write scope.
 //
 // The guest handler returns a raw string that IS the tool result — it flows back verbatim (NOT
 // re-JSON-stringified), so a guest that returns `JSON.stringify(...)` yields exactly that JSON to the model.
@@ -45,14 +43,14 @@ async function resolveInvocationChat(spec: PluginToolSpec, exec: ToolExecutionCo
   if (exec.chatId === null) {
     return null;
   }
-  const role = await spec.resolveInstallerRole(exec.chatId);
-  if (role === null) {
+  const authority = await spec.resolveInstallerAuthority(exec.chatId);
+  if (!authority.canRead) {
     return "denied";
   }
   // A resident tool runs INSIDE the turn that called it; v1 treats that as the cascade ROOT (automationDepth 0 —
   // a plugin `chat.requestTurn` from the tool stamps depth 1). The tool-exec context carries no turn depth yet, so
   // 0 is the honest floor (a future depth-aware exec context threads the executing turn's depth here).
-  return { chatId: exec.chatId, canWrite: role === "host", automationDepth: 0 };
+  return { chatId: exec.chatId, canWrite: authority.canWrite, automationDepth: 0 };
 }
 
 export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginToolSpec) => PluginToolHandle {
@@ -114,7 +112,7 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
         }
         // PL-C: the invocation ceiling runs as the INSTALLING principal — the installer must be a present
         // participant of the chat this tool runs in (a plugin never reads a room its owner can't see). The SAME
-        // resolved role sets the guest handler's invocation-chat scope (membership admits it, host unlocks
+        // resolved authority sets the guest handler's invocation-chat scope (membership admits it, host unlocks
         // `canWrite`). The turn CALLER's membership is irrelevant to this ceiling by construction.
         const chat = await resolveInvocationChat(spec, exec);
         if (chat === "denied") {

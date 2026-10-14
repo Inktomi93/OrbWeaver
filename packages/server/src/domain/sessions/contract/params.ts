@@ -4,7 +4,10 @@
 // type that already has a canonical home in `@orb/contracts/identity`, violating one-home/no-doubling).
 // `ensureUser`/`revoke`/`list` take bare branded ids/strings — no wrapper needed.
 
+import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
+import type { BootSecretResolution } from "#infra/crypto";
+import type { SessionsService } from "./service.ts";
 
 /** `create` input: the resolved owner of the new session + the UA captured at mint (null when absent). */
 export interface CreateSessionParams {
@@ -43,4 +46,24 @@ export interface ProvisionIdentityOptions {
    *  passes whether the callback came from loopback or carried the boot claim code; `forward-header` passes true.
    *  An `OWNER_GROUP` member needs no proof. */
   readonly ownerClaimProven: boolean;
+}
+
+/** Trusted boot owner provisioning; no owner Principal exists before this operation. */
+export interface SeedOwnerParams {
+  readonly db: Db;
+  readonly sessions: Pick<SessionsService, "ensureUser" | "renameUserHandle">;
+  readonly ownerHandles: readonly string[];
+  readonly now: () => number;
+  /** AUTH_MODE=local only: the cleartext first-boot owner password. Never logged. */
+  readonly initialPassword?: string;
+  /** Present iff `initialPassword` is. Injected, not constructed here — infra/auth is the sole hashing home. */
+  readonly hashPassword?: (plain: string) => Promise<string>;
+}
+
+/** Pre-compose secret settlement; private password presence precedes the other domains' dependency probes. */
+export interface SettleSessionSecretParams {
+  readonly db: Db;
+  readonly resolution: BootSecretResolution<string>;
+  readonly hasOtherDependents: () => Promise<boolean>;
+  readonly createKeyfile: (path: string) => string | null;
 }
