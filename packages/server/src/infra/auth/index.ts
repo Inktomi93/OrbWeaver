@@ -87,7 +87,7 @@ export {
   type LogoutTokenSubject,
 } from "./backchannel.ts";
 // ── Public surface ───────────────────────────────────────────────────────────────────────────────
-export { authConfigFromEnv } from "./config.ts";
+export { authConfigFromEnv, oidcRedirectAllowlist } from "./config.ts";
 export type {
   AllowedHostsReader,
   AuthConfig,
@@ -96,9 +96,12 @@ export type {
   ForwardJwtVerifyArgs,
   HostNotAllowedNotice,
   IdentityResolution,
+  JwksKeySet,
+  JwksReader,
   OidcCodeGrant,
   OidcDiscover,
   OidcExchange,
+  OidcSettings,
   OidcTransaction,
   OidcTransactionStore,
   OidcVerifiedTokens,
@@ -123,7 +126,7 @@ export {
   refusedHost,
   reportHostNotAllowed,
 } from "./host-allowlist.ts";
-export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
+export { createForwardJwtVerifier, createJwksReader, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
 export { readRequestCookie, SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES, sessionCookieFor } from "./modes/cookie-session.ts";
 export { selectSignedForwardJwt } from "./modes/forward-header.ts";
 export {

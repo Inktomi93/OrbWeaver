@@ -1,7 +1,7 @@
 ---
 kind: work
 status: doing
-updated: 2026-10-13
+updated: 2026-10-14
 priority: P1
 lane: codex/harness-integration-958
 plan: test-foundation
@@ -25,24 +25,16 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 ## Evidence
 
-Provider overrides script execution, not admission, funding, accounting or resolution.
+The Node root reuses production service, job and HTTP composition. Raw provider, SDK, kernel, plugin and network execution varies; admission, funding, ownership, accounting and identity remain production-owned.
 
-Native controls prove same-ID graph isolation and socket pump joins before database disposal.
+Native controls prove same-ID graph isolation for buses, automation queues and compaction. Recipient and prune controls fail under real production cuts. Notification replacement remains incomplete; legacy cases remain until complete replacement.
 
-Notification replacement remains incomplete. Corpus auth uses production HTTP and request identity.
+Native listener and response controls preserve Request branding, chunked admission, current headers, cloned-body cancellation and physical close joins. Cancellation preserves unexpected failures and attempts every owner and timer cleanup. Borrowed database and storage remain caller-owned.
 
-Connector controls reject CIDR widening of a restricted hostname port before dialing. Declared-port, unrelated-host and public-address admission remain valid.
+Configured OIDC source at `ee87bcd961` shares its factory between lifecycle and testkit. Explicit unclaimed roots create no phantom owner; actual claim files, native grants, sessions, pending joins and GC use their production owners. Guarded issuer execution and native JOSE key caches belong to each graph. Browser-binding and cache cuts fail; restored cases pass. Independent security review confirms the leg.
 
-Native listener controls prove Request branding, chunked body admission, cloned body cancellation and physical close joins. Cancellation preserves unexpected physical failures. Graph isolation controls pass, not complete HTTP qualification.
+Raw issuer protocol cases do not establish physical TLS or real-IdP e2e. Direct code grants retain native TLS-authenticated-response policy, not universal ID-token signature verification. Backchannel verification uses native JOSE signatures.
 
-Canonical funding and owner-bearing reads are integrated on main. Reviewed harness source at `7c30cea43f` includes SDK, kernel, timer, network, builder and graph-bus prerequisites. Independent security review confirms its bounded dependency integration. Scoped HTTP, auth and model controls pass. SDK controls prove actual child execution, timer cleanup, close and sibling survival; the old-source timeout supplies no verdict.
+The shared contract integration preserves canonical ForwardJwtClaims derivation. Affected production compilers and scoped lint pass; root retains known unrelated diagnostics. The suppression assignment owns unresolved tracing and native form-data lint conflicts.
 
-Notification replacement cases and public replay pass. Removing recipient filtering delivers foreign data; replacing the host read prevents required prune effects. Both controls fail meaningfully and exact restoration passes. Legacy persistence cases remain until replacement coverage is complete.
-
-Cancellation could stop after a timer cleanup error, leaving background and egress work live. Native disposal preserves cancellation order and attempts every cleanup. Actual fetch abort and original-error controls fail before correction and pass afterward. Automation queues now belong to their graph through a pure kit engine; independent same-ID roots and ordering controls pass.
-
-Compaction exclusion belongs to each engine instance. Native child controls prove same-ID sibling roots both start compaction; cancellation joins only its own child. Recipient controls reject foreign replay bytes. The cross-tenant sweep passes through matching unchanged cases and the corrected affected family. Native Kit, server and tooling configs pass; root retains unrelated copied-helper diagnostics. The suppression work item owns unresolved native-lint conflicts.
-
-Owner-local timer disposal attempts every cancellation after a clear failure. Unresolved DNS preserves write-time admission without weakening physical connect refusal. Discriminating controls and independent probes confirm both corrections.
-
-Configured OIDC, share and ACME execution, strong native SDK exit joins, remaining lifecycle cases and assembly enforcement remain unqualified. Corpus storage and native ingress must reuse this graph, not build another application.
+Strong native SDK descendant/diagnostic parity, share and ACME execution, remaining lifecycle cases, assembly enforcement and exercised reach remain unqualified. Whole-domain replacement and corpus adoption remain open. Corpus and native ingress reuse this graph, never another assembly.

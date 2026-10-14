@@ -190,7 +190,7 @@ type OidcExchangeResult =
     }
   | { readonly ok: false; readonly code: string };
 
-/** Run the JWKS-verified code→token exchange, converting every throw (replayed/expired code, issuer /
+/** Run the native TLS-authenticated code→token exchange, converting every throw (replayed/expired code, issuer /
  *  nonce / state mismatch, or a transient IdP/network fault) into a fail-closed result — never a 500 that
  *  leaks a stack path through the observability onError. On the error path the caller mints no session.
  *
@@ -201,7 +201,7 @@ type OidcExchangeResult =
  *  Location header.
  *
  *  The ID token comes back alongside the claims (#141) rather than being re-derived later: the exchange has
- *  already VERIFIED it (signature, issuer, audience, nonce, PKCE), and this is the only moment the raw
+ *  already validated the issuer, audience, nonce and code-flow checks, and this is the only moment the raw
  *  compact JWT exists in the process. */
 async function exchangeCodeForClaims(exchange: OidcExchange, config: Configuration, callbackUrl: URL, tx: OidcTransaction): Promise<OidcExchangeResult> {
   try {
@@ -515,7 +515,7 @@ export interface OidcRoutesDeps {
   readonly getConfig: () => Promise<Configuration>;
   /** #867 — the code→token exchange, injected so the callback's happy path is drivable without an IdP.
    *  Production wires `infra/auth`'s `createOidcExchange(authorizationCodeGrant)` — the real grant — at
-   *  `entry/lifecycle.ts`. REQUIRED, deliberately: an optional dep would make "no exchange configured"
+   *  `entry/compose/oidc.ts`. REQUIRED, deliberately: an optional dep would make "no exchange configured"
    *  a silently loginless OIDC box, and a defaulted one would let a mis-wired root fall back to
    *  something the operator never chose. */
   readonly exchange: OidcExchange;

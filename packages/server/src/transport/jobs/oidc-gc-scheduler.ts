@@ -18,6 +18,7 @@
 
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
+import type { BackgroundWork } from "#infra/tasks";
 
 const LOG_COMPONENT = "oidc-gc-scheduler";
 
@@ -33,6 +34,7 @@ type ScheduleOp = (fn: () => void, ms: number) => () => void;
 // @orb-waive no-inline-package-interface(OidcGcSchedulerDeps): baselined when the gate landed; burn-down item 952.
 /** The DI bundle the scheduler closes over — the store sweep op + clock + timer, injected at entry/. */
 export interface OidcGcSchedulerDeps {
+  readonly track?: BackgroundWork["track"];
   /** Reap every tx with `expiresAt <= before`, returning the count. Entry binds `createOidcStore(...).deleteExpired`. */
   readonly sweep: (before: number) => Promise<number>;
   /** The injected clock — the reap gates on it (no ambient `Date.now`). */
@@ -65,9 +67,10 @@ export function startOidcGcScheduler(deps: OidcGcSchedulerDeps): () => void {
   const intervalMs = deps.intervalMs ?? OIDC_GC_INTERVAL_MS;
 
   const safeSweep = (): void => {
-    runOidcGc(deps).catch((err: unknown) => {
+    const completion = runOidcGc(deps).catch((err: unknown) => {
       log.error({ err }, "oidc-gc: sweep failed (next tick retries)");
     });
+    deps.track?.(completion);
   };
 
   safeSweep();
