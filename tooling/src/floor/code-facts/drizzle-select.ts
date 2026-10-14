@@ -17,6 +17,10 @@ const SCHEMA_PACKAGE = "@orb/db";
 const SELECT_VERBS: ReadonlySet<string> = new Set(["select", "selectDistinct"]);
 
 function builderParent(cur: Node): Node | undefined {
+  // Execution remains consumer-owned; members above await read its delivered value, not the original builder.
+  if (Node.isAwaitExpression(cur)) {
+    return;
+  }
   const parent = cur.getParent();
   if (parent === undefined) {
     return;
