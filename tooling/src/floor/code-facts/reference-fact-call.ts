@@ -48,6 +48,11 @@ function resolveReferenceOrigin(node: MorphNode): ReferenceFact<ReferenceOrigin>
   return globalFact.kind === "resolved" ? globalFact : chooseRefusal(moduleFact, globalFact);
 }
 
+/** Target identity without invocation semantics; native wrapper readers separately prove their argument transformation. */
+export function resolveCallableTargetOrigin(node: MorphNode): ReferenceFact<ReferenceOrigin> {
+  return resolveReferenceOrigin(node);
+}
+
 // ── WHICH CALLABLE DECLARATION DOES THIS CALL DENOTE? (#2097) ────────────────────────────────────────
 //
 // `resolveCallableOrigin` above answers "which module EXPORT is this", and that is a different question:

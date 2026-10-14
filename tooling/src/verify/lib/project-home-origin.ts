@@ -95,8 +95,8 @@ export function readPackageExportOrigin(node: MorphNode, packageNames: readonly 
   if (origin.kind === "unresolved") {
     return { verdict: classifyOriginRefusal(origin.reason, node), exportedName: null };
   }
-  const { canonical, memberPath, exportedName } = origin.value;
-  const named = memberPath.length === 0 ? exportedName : memberPath.at(-1);
+  const { canonical, memberPath } = origin.value;
+  const named = memberPath.length === 0 ? canonical.exportedName : memberPath.at(-1);
   if (named === undefined || !names.has(named)) {
     return { verdict: "other", exportedName: null };
   }
