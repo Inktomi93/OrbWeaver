@@ -40,7 +40,6 @@ import {
   MANAGED_VERBATIM_TAIL,
 } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
 import { isConstraintViolation } from "@orb/db/query";
 // A VALUE import from infra, unlike this file's other `#infra/providers` type-only imports: the fault-outcome
@@ -56,7 +55,7 @@ import { systemTimers } from "#infra/timers";
 import type { ChatContext } from "../context.ts";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
-import type { GenerationObservationParent, GenerationObservationSession } from "../contract/generation-observation.ts";
+import type { GenerationObservationParent, GenerationObservationSession, RetainedTurnStats } from "../contract/generation-observation.ts";
 import type {
   MemoryConfig,
   MemoryEmbedSpace,
@@ -99,7 +98,6 @@ import {
   loadCanonCues,
   loadCanonHistory,
   loadCanonReasoningParts,
-  loadCanonStatRows,
   loadChatRow,
   loadInlineReplyAssetIds,
   loadMaxMessageSeq,
@@ -107,6 +105,7 @@ import {
   loadRecordedSystemTokens,
   loadSlotTarget,
   loadVariableDeltas,
+  readRetainedCanonContributions,
 } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
@@ -117,7 +116,7 @@ import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { projectInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
-import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, canonRowOf, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { runTurnPipeline } from "./pipeline.ts";
 import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
@@ -393,10 +392,6 @@ function generatedRowEconomics(
   };
 }
 
-/** The pre-mutation selected-variant stat row of the target slot — the old state an append-variant/continue
- *  delta subtracts. Loaded before the batch. */
-type CanonStatRow = Awaited<ReturnType<typeof loadCanonStatRows>>[number];
-
 /**
  * The per-turn stats delta(s) the commit applies, matching what `reconcileStats` folds for the same canon
  * change. One builder per persist mode:
@@ -417,124 +412,134 @@ async function buildTurnStatsDeltas(args: {
   readonly genStartedAt: number;
   readonly genFinishedAt: number;
   readonly now: number;
-}): Promise<StatsDelta[]> {
+}): Promise<RetainedTurnStats> {
   const { ctx, prep, persist, target, result, genStartedAt, genFinishedAt, now } = args;
   const ownerId = prep.runAsUserId;
   const econ = generatedRowEconomics(result, genStartedAt, genFinishedAt);
 
   if (persist.mode === "new-slot") {
     if (persist.role === "assistant") {
-      return [
-        ...assistantTurnDelta({
-          ownerId,
-          characterId: args.speakerCharacterId,
-          economics: {
-            content: result.content,
-            reasoning: result.reasoning,
-            // The SAME sidecar the row persists (#184) — the new-slot builder folds `reasoning_duration` out
-            // of it exactly as the swipe/continue builders (which read the committed row) already do.
-            metadata: econ.metadata,
-            ...economicsCommon(result.economics),
-            contextWindow: result.economics?.contextWindow ?? null,
-            genTimeMs: genFinishedAt - genStartedAt,
-          },
-          now,
-        }),
-      ];
+      return {
+        deltas: [
+          ...assistantTurnDelta({
+            ownerId,
+            characterId: args.speakerCharacterId,
+            economics: {
+              content: result.content,
+              reasoning: result.reasoning,
+              // The SAME sidecar the row persists (#184) — the new-slot builder folds `reasoning_duration` out
+              // of it exactly as the swipe/continue builders (which read the committed row) already do.
+              metadata: econ.metadata,
+              ...economicsCommon(result.economics),
+              contextWindow: result.economics?.contextWindow ?? null,
+              genTimeMs: genFinishedAt - genStartedAt,
+            },
+            now,
+          }),
+        ],
+        contributions: [],
+      };
     }
     // impersonate: the rebuild folds a user row (userTurns + economics, no assistantTurns/character/model grain).
-    return [
-      ...canonMessageDelta({
-        ownerId,
-        sign: 1,
-        now,
-        row: {
-          characterId: null,
-          role: persist.role,
-          createdAt: now,
-          content: result.content,
-          reasoning: result.reasoning,
-          selectedIdx: null,
-          variantCount: 1,
-          ...econ,
-        },
-      }),
-    ];
+    return {
+      deltas: [
+        ...canonMessageDelta({
+          ownerId,
+          sign: 1,
+          now,
+          row: {
+            characterId: null,
+            role: persist.role,
+            createdAt: now,
+            content: result.content,
+            reasoning: result.reasoning,
+            selectedIdx: null,
+            variantCount: 1,
+            ...econ,
+          },
+        }),
+      ],
+      contributions: [],
+    };
   }
 
   // append-variant/continue mutate an existing slot — load its pre-mutation selected-variant row so the
   // signed deltas subtract exactly what the rebuild folded before the write.
-  const old = target === null ? undefined : await loadOldStatRow(ctx, prep, target);
-  if (old === undefined || target === null) {
+  const contributions = target === null ? null : await readRetainedCanonContributions(ctx.db, prep.chatId, [target.messageId]);
+  const slot = contributions?.slots[0];
+  if (slot === undefined || contributions === null || target === null) {
     throw new ChatNotFoundError(prep.chatId);
   }
+  const variants = contributions.variants.filter((variant) => variant.messageId === slot.id);
+  const selected = variants.find((variant) => variant.id === slot.selectedVariantId) ?? null;
+  const old = canonRowOf(slot, selected, variants.length);
 
   if (persist.mode === "append-variant") {
-    return [
-      ...canonMessageDelta({ ownerId, sign: -1, now, row: old }),
-      ...swipeVariantDelta({
+    return {
+      deltas: [
+        ...canonMessageDelta({ ownerId, sign: -1, now, row: old }),
+        ...swipeVariantDelta({
+          ownerId,
+          sign: 1,
+          now,
+          row: {
+            characterId: old.characterId,
+            msgCreatedAt: old.createdAt,
+            content: old.content,
+            tokensIn: old.tokensIn,
+            tokensOut: old.tokensOut,
+            tokenProvenance: old.tokenProvenance,
+            genStartedAt: old.genStartedAt,
+            genFinishedAt: old.genFinishedAt,
+            model: old.model,
+            provider: old.provider,
+            reasoning: old.reasoning,
+            metadata: old.metadata,
+          },
+        }),
+        ...canonMessageDelta({
+          ownerId,
+          sign: 1,
+          now,
+          row: {
+            characterId: target.characterId,
+            role: target.role,
+            createdAt: old.createdAt,
+            content: result.content,
+            reasoning: result.reasoning,
+            selectedIdx: target.variantCount,
+            variantCount: target.variantCount + 1,
+            ...econ,
+          },
+        }),
+      ],
+      contributions: [contributions],
+    };
+  }
+
+  // continue: (new - old) on the slot — the extended variant replaces the pre-continue one (same idx/count).
+  return {
+    deltas: [
+      ...canonMessageDelta({
         ownerId,
         sign: 1,
         now,
         row: {
           characterId: old.characterId,
-          msgCreatedAt: old.createdAt,
-          content: old.content,
-          tokensIn: old.tokensIn,
-          tokensOut: old.tokensOut,
-          tokenProvenance: old.tokenProvenance,
-          genStartedAt: old.genStartedAt,
-          genFinishedAt: old.genFinishedAt,
-          model: old.model,
-          provider: old.provider,
-          reasoning: old.reasoning,
-          metadata: old.metadata,
-        },
-      }),
-      ...canonMessageDelta({
-        ownerId,
-        sign: 1,
-        now,
-        row: {
-          characterId: target.characterId,
-          role: target.role,
+          role: old.role,
           createdAt: old.createdAt,
-          content: result.content,
-          reasoning: result.reasoning,
-          selectedIdx: target.variantCount,
-          variantCount: target.variantCount + 1,
+          // Mirrors the commit's postfix-delimited join so both sides join identically.
+          content: old.content + continuePostfixDelimiter(prep) + result.content,
+          reasoning: combineReasoning(old.reasoning, result.reasoning),
+          selectedIdx: old.selectedIdx,
+          variantCount: old.variantCount,
           ...econ,
         },
       }),
-    ];
-  }
-
-  // continue: (new - old) on the slot — the extended variant replaces the pre-continue one (same idx/count).
-  return [
-    ...canonMessageDelta({
-      ownerId,
-      sign: 1,
-      now,
-      row: {
-        characterId: old.characterId,
-        role: old.role,
-        createdAt: old.createdAt,
-        // Mirrors the commit's postfix-delimited join so both sides join identically.
-        content: old.content + continuePostfixDelimiter(prep) + result.content,
-        reasoning: combineReasoning(old.reasoning, result.reasoning),
-        selectedIdx: old.selectedIdx,
-        variantCount: old.variantCount,
-        ...econ,
-      },
-    }),
-    ...canonMessageDelta({ ownerId, sign: -1, now, row: old }),
-  ];
-}
-
-/** Loads the target slot's pre-mutation selected-variant stat row. */
-async function loadOldStatRow(ctx: ChatContext, prep: TurnPrep, target: SlotTarget): Promise<CanonStatRow | undefined> {
-  const rows = await loadCanonStatRows(ctx.db, prep.chatId, [target.messageId]);
-  return rows.at(0);
+      ...canonMessageDelta({ ownerId, sign: -1, now, row: old }),
+    ],
+    contributions: [contributions],
+  };
 }
 
 /** Builds one persist-mode's canon statements + the committed-view reader, for a given tail seq. Re-mints
@@ -704,7 +709,7 @@ async function commitGeneration(args: {
       }),
     );
 
-    const deltas = await buildTurnStatsDeltas({
+    const stats = await buildTurnStatsDeltas({
       ctx,
       prep,
       persist,
@@ -715,7 +720,10 @@ async function commitGeneration(args: {
       genFinishedAt,
       now,
     });
-    const retainedStats = await prepareRetainedCanonStats(ctx, prep.chatId, deltas);
+    const retainedStats = await prepareRetainedCanonStats(ctx, prep.chatId, stats.deltas, {
+      sources: target === null ? [] : [{ ...target, id: target.messageId, chatId: prep.chatId }],
+      contributions: stats.contributions,
+    });
     statements.unshift(...args.observations.transferStatements(facts, retainedStats.predicate));
     appendStatsDeltas(ctx, statements, retainedStats.deltas);
 

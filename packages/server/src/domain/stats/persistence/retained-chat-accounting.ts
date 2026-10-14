@@ -14,20 +14,19 @@ import {
   ownerStats,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import { immutableCollection, rowTuple, ROW_TUPLE_ALIAS as TUPLE_ALIAS } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { SQL, Table } from "drizzle-orm";
-import { and, asc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
-import { chatOwnerIds, ownerChatIds, retainedCharacterSeatPredicate } from "../substrate/owner-chat-scope.ts";
+import type { SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+import type { RetainedOwnersRead } from "../contract/retained-chat-accounting.ts";
+import { RETAINED_CHAT_OWNERS_ALIAS } from "../contract/retained-chat-accounting.ts";
+import { chatOwnerIds, ownerChatIds, retainedCharacterSeatPredicate, retainedChatOwners } from "../substrate/owner-chat-scope.ts";
 import { retainedRebaseProjection } from "../substrate/retained-chat-accounting.ts";
 
 /** Compose-built private accounting scope; caller has already admitted the retained source operation. */
 export function createResolveRetainedChatAccountingScope(db: Db): ResolveRetainedChatAccountingScope<SQL> {
   return async (chatId, characterId) => {
-    const owners = await db
-      .selectDistinct({ ownerId: characters.ownerId })
-      .from(characters)
-      .where(sql`${characters.ownerId} in (${chatOwnerIds(chatId)})`)
-      .orderBy(characters.ownerId);
+    const owners = await retainedOwners(db, chatId);
     const ownerIds = owners.map((row) => row.ownerId);
     // @orb-waive owner-scoped-reads(characters): compose-private retained canon accounting; chat's admitted operation supplies the canonical voice id, and this returns only its actual owner while the write fence pins that owner. Ends if external ids or an unbounded reader can reach this op.
     const voice = characterId === null ? [] : await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, characterId)).limit(1);
@@ -47,17 +46,11 @@ export function createResolveRetainedChatAccountingScope(db: Db): ResolveRetaine
   };
 }
 
-const TUPLE_ALIAS = "retained_tuple";
-
-/** SQLite records its own driver representation; parsed JSON fields cannot change the immutable witness. */
-function rowTuple<T extends Table>(table: T): SQL.Aliased<string> {
-  return sql<string>`json_array(${sql.join(Object.values(getTableColumns(table)), sql`, `)})`.as(TUPLE_ALIAS);
-}
-
-/** One bounded predicate instead of one SQL clause/parameter per historic message field. */
-function immutableCollection(query: SQL, tuples: readonly string[]): SQL {
-  return sql`(select coalesce(json_group_array(snapshot.${sql.identifier(TUPLE_ALIAS)}), '[]') from (${query}) as snapshot) = ${JSON.stringify(tuples)}`;
-}
+const retainedOwners = (db: Db, chatId: Parameters<typeof retainedChatOwners>[0]): RetainedOwnersRead =>
+  db
+    .select()
+    .from(retainedChatOwners(chatId).as(RETAINED_CHAT_OWNERS_ALIAS))
+    .orderBy(({ ownerId }) => ownerId);
 
 /** The accepted copy's scope and canon freeze together; pending paid facts do not participate in this rebase. */
 export function createResolveRetainedChatRebase(
@@ -99,11 +92,7 @@ export function createResolveRetainedChatRebase(
       .orderBy(characters.id);
     const [rooms, owners, seatRows, slotRows, variantRows, cardOwners] = await db.batch([
       roomQuery,
-      db
-        .selectDistinct({ ownerId: characters.ownerId })
-        .from(characters)
-        .where(sql`${characters.ownerId} in (${chatOwnerIds(rekeys.chatId)})`)
-        .orderBy(characters.ownerId),
+      retainedOwners(db, rekeys.chatId),
       seatQuery,
       slotQuery,
       variantQuery,

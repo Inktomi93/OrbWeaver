@@ -872,9 +872,11 @@ async function persistUserMessage(
       }),
     );
     // characterId null — the stats rebuild's per-char grain is assistant-only.
-    await commitRetainedCanonStats(ctx, args.chatId, statements, [
-      userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now }),
-    ]);
+    await commitRetainedCanonStats(ctx, args.chatId, statements, {
+      deltas: [userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now })],
+      sources: [],
+      contributions: [],
+    });
     return buildCommittedMessageView(params);
   };
   const view = await attempt().catch((err: unknown) => {

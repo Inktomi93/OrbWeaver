@@ -42,7 +42,7 @@ import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messageAssets, messages, messageVariants } from "@orb/db";
-import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/query";
+import { chatRecencyExpr, immutableCollection, memberVisibleChatScope, rowTuple } from "@orb/db/query";
 import { HIDDEN_TAGS } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -50,6 +50,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import type { RetainedCanonContributions } from "../contract/generation-observation.ts";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
@@ -792,6 +793,38 @@ export async function loadMessageView(db: Db, messageId: MessageId): Promise<Mes
     .limit(LIMIT_ONE);
   const r = rows.at(0);
   return r === undefined ? undefined : toMessageView(r);
+}
+
+/** Capture admitted source slots and every contributing variant in one read batch, before deriving deltas. */
+export async function readRetainedCanonContributions(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<RetainedCanonContributions> {
+  const slotQuery = db
+    .select({ row: messages, view: messageViewSelection, tuple: rowTuple(messages) })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds])))
+    .orderBy(messages.id);
+  const variantQuery = db
+    .select({ row: messageVariants, tuple: rowTuple(messageVariants) })
+    .from(messageVariants)
+    .innerJoin(messages, eq(messages.id, messageVariants.messageId))
+    .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds])))
+    .orderBy(messageVariants.messageId, messageVariants.idx, messageVariants.id);
+  const [slots, variants] = await db.batch([slotQuery, variantQuery]);
+  return {
+    slots: slots.map(({ row }) => row),
+    views: slots.map(({ view }) => toMessageView(view)),
+    variants: variants.map(({ row }) => ({ ...row, metadata: parseVariantMetadata(row.metadata) })),
+    predicate: sql`${and(
+      immutableCollection(
+        slotQuery.getSQL(),
+        slots.map(({ tuple }) => tuple),
+      ),
+      immutableCollection(
+        variantQuery.getSQL(),
+        variants.map(({ tuple }) => tuple),
+      ),
+    )}`,
+  };
 }
 
 // ── Stats-delta canon reads (the delete-messages arm). Full rows so the signed deltas mirror the
