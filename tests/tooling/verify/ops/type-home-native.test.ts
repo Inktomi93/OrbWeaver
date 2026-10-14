@@ -120,12 +120,11 @@ test("inference native coverage and semantic remainder are disjoint without disc
   const policies = [inlineTypes, packageInterfaces];
   const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
   expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.map(({ token }) => token).toSorted((left, right) => left.localeCompare(right))).toEqual([
-    "Alias",
-    "Generated",
-    "GeneratedAlias",
-    "ListedSchema",
-    "Local",
-    "Schema",
-  ]);
+  const tokens = result.authority.effectiveFindings.map(({ token }) => {
+    if (token === undefined) {
+      throw new Error("Every fixture placement finding must carry its authored token.");
+    }
+    return token;
+  });
+  expect(tokens.toSorted((left, right) => left.localeCompare(right))).toEqual(["Alias", "Generated", "GeneratedAlias", "ListedSchema", "Local", "Schema"]);
 });
