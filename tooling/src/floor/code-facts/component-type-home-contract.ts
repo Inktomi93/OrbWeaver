@@ -11,6 +11,8 @@ export interface ComponentTypeHomeInput {
   readonly declaration: InterfaceDeclaration | TypeAliasDeclaration;
   readonly path: string;
   readonly view: ComponentTypeHomeView;
+  /** Explicit native supporting sources; actual declaration edges, not membership, prove contribution. */
+  readonly supportingViews?: readonly ComponentTypeHomeView[];
   /** Supplied native lower-owner declarations; an empty or partial set cannot prove absence of copies. */
   readonly lowerDeclarations: readonly (InterfaceDeclaration | TypeAliasDeclaration)[];
 }

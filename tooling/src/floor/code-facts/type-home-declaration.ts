@@ -1,6 +1,7 @@
 // Declaration placement over delivered native nodes; consumers retain population, authority and reporting.
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
+import { componentTypeHome } from "./component-type-home.ts";
 import { inlineShapeNames, isPlainDataShape } from "./shape-declaration.ts";
 import { packageContractHome, packageTypeHome } from "./type-home.ts";
 import type {
@@ -41,7 +42,11 @@ export function judgeTypeHomeDeclaration(node: MorphNode, input: TypeHomeDeclara
     return { kind: "not-subject" };
   }
   const plane = declarationPlane(node);
-  return { kind: "subject", shapes: names.map((name) => ({ name, plane })), ownership: declarationTypeHome(path) };
+  const ownership = contextualDeclarationTypeHome(node, input);
+  if (ownership.kind === "refused") {
+    return ownership;
+  }
+  return { kind: "subject", shapes: names.map((name) => ({ name, plane })), ownership };
 }
 
 const UNQUALIFIED_HOME_REASONS = {
@@ -54,6 +59,23 @@ const UNQUALIFIED_HOME_REASONS = {
   "standalone-declarations": "Standalone declarations require their native runtime and distribution ownership.",
   unqualified: "This package's declaration ownership has not been adjudicated.",
 } as const satisfies Readonly<Record<Exclude<TypeHomeCategory, "package-contract">, string>>;
+
+function contextualDeclarationTypeHome(
+  node: MorphNode,
+  input: TypeHomeDeclarationInput,
+): DeclarationTypeHomeOwnership | { readonly kind: "refused"; readonly reason: string } {
+  const classification = packageTypeHome(input.path);
+  if (classification?.category !== "component" || input.component === undefined || !(Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node))) {
+    return declarationTypeHome(input.path);
+  }
+  const result = componentTypeHome({ declaration: node, path: input.path, ...input.component });
+  if (result.kind === "refused") {
+    return result;
+  }
+  return result.kind === "owned"
+    ? { kind: "component-owned", packageName: classification.packageName, home: input.path, component: result.component, lowerData: result.lowerData }
+    : { kind: "unqualified", category: "component", reason: result.reason };
+}
 
 /** Resolve only sanctioned structural ownership; package categories are never blanket declaration homes. */
 function declarationTypeHome(path: string): DeclarationTypeHomeOwnership {
