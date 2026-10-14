@@ -3,6 +3,8 @@ import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/referen
 import type { UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SemanticProgram, SourceCorpus } from "../compiler/ts-workspace.ts";
+import { semanticWorkspaceOf } from "../compiler/ts-workspace.ts";
 import type { SchemaFact, SchemaFactReceipt, SchemaModel, SchemaQuery, SchemaQueryOptions, SchemaTable } from "./schema-model-contract.ts";
 import { columnFromReference, foreignKeyOf, indexesOf, tableForeignKeysOf, tableFromReference } from "./schema-resolve.ts";
 import {
@@ -210,4 +212,60 @@ export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
   } catch (error) {
     return unresolvedDiscovery(options, error);
   }
+}
+
+/** Schema facts from the corpus's admitted native owners; syntax carriers cannot mint a checker context. */
+export function schemaFromCorpus(corpus: SourceCorpus, files: readonly SourceFile[]): SchemaFact<SchemaModel> {
+  const workspace = semanticWorkspaceOf(corpus);
+  const paths = files.map((file) => file.getFilePath());
+  const unavailable = (reason: string): SchemaFact<SchemaModel> => ({ status: "unresolved", reason, receipt: receipt("unresolved", paths, []) });
+  if (workspace === undefined) {
+    return unavailable("schema corpus has no admitted native semantic workspace");
+  }
+  const rootPrefix = `${workspace.root.replaceAll("\\", "/")}/`;
+  const relativePath = (file: SourceFile): string => file.getFilePath().slice(rootPrefix.length);
+  const groups = new Map<SemanticProgram, SourceFile[]>();
+  for (const file of files) {
+    if (!file.getFilePath().startsWith(rootPrefix)) {
+      return unavailable(`schema source is outside its native workspace: ${file.getFilePath()}`);
+    }
+    const owners = workspace.rootOwners(file.getFilePath());
+    const owner = owners[0];
+    if (owners.length !== 1 || owner === undefined) {
+      return unavailable(`schema source has ${owners.length} admitted root owners; a unique native interpretation is required: ${relativePath(file)}`);
+    }
+    if (owner.sourceFile(file.getFilePath()) !== file) {
+      return unavailable(`schema source does not belong to its admitted native owner ${owner.descriptor.config}: ${relativePath(file)}`);
+    }
+    const previous = groups.get(owner) ?? [];
+    previous.push(file);
+    groups.set(owner, previous);
+  }
+  const relativePaths = files.map(relativePath);
+  if (files.length === 0) {
+    return { status: "missing", reason: "schema source population is missing", receipt: receipt("missing", relativePaths, []) };
+  }
+  return schemaFromOwners(groups, relativePath, relativePaths);
+}
+
+function schemaFromOwners(
+  groups: ReadonlyMap<SemanticProgram, readonly SourceFile[]>,
+  relativePath: (file: SourceFile) => string,
+  paths: readonly string[],
+): SchemaFact<SchemaModel> {
+  const tables: SchemaTable[] = [];
+  for (const [owner, sources] of groups) {
+    const schema = createSchemaQuery({ files: sources, relativePath, checker: () => owner.project().getTypeChecker() }).schema();
+    if (schema.status === "empty") {
+      continue;
+    }
+    if (schema.status !== "ready") {
+      return { ...schema, receipt: receipt(schema.status, paths, []) };
+    }
+    tables.push(...schema.value.tables);
+  }
+  if (tables.length === 0) {
+    return { status: "empty", reason: "schema source population declares no Drizzle SQLite tables", receipt: receipt("empty", paths, []) };
+  }
+  return { status: "ready", value: { tables }, receipt: receipt("ready", paths, tables) };
 }

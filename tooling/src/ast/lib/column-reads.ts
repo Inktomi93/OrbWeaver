@@ -1,8 +1,8 @@
 // The column READ arms: raw-sql mentions, checker-resolved query reads, inferred-row reads,
 // classification + candidate collection.
 
-import type { SourceFile, Type } from "ts-morph";
-import { Node, SyntaxKind, ts } from "ts-morph";
+import type { SourceFile, Type, ts } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import { readColumnReferences, readRowShapeMembers } from "../../floor/code-facts/drizzle-column-reads.ts";
 import { shapeFitsColumns } from "../../floor/code-facts/drizzle-columns.ts";
 import { readDrizzleSelection } from "../../floor/code-facts/drizzle-select.ts";
@@ -44,28 +44,9 @@ function classifyColumn(reads: number, writes: number, opaque: boolean): ColumnC
 /** The audit-stamp column names this repo writes by convention on nearly every table. */
 const PROVENANCE_COLUMNS = new Set(["created_at", "updated_at"]);
 
-/** The drizzle builders that make a column's value the SCHEMA'S, not a writer's decision. */
-const COLUMN_DEFAULT_METHODS = new Set(["default", "$defaultFn", "$default", "$onUpdate", "$onUpdateFn"]);
-
-/** A `created_at`/`updated_at` whose builder chain declares a DEFAULT — provenance, stamped by the schema.
- *  Both halves are required: the NAME alone would exempt a hand-written timestamp some writer deliberately
- *  stores (a real value), and a default alone says nothing about what the column means. */
+// A timestamp remains a consumer judgment; the operation evidence comes from the canonical schema owner.
 function isConventionTimestamp(column: ColumnDef): boolean {
-  if (!PROVENANCE_COLUMNS.has(column.sqlColumn)) {
-    return false;
-  }
-  let cur: Node | undefined = Node.isPropertyAssignment(column.decl) ? column.decl.getInitializer() : undefined;
-  while (cur !== undefined && Node.isCallExpression(cur)) {
-    const expr = cur.getExpression();
-    if (!Node.isPropertyAccessExpression(expr)) {
-      return false;
-    }
-    if (COLUMN_DEFAULT_METHODS.has(expr.getName())) {
-      return true;
-    }
-    cur = expr.getExpression();
-  }
-  return false;
+  return PROVENANCE_COLUMNS.has(column.sqlColumn) && column.hasDefault;
 }
 
 /** Every column of `tables`, classified. Pure enumeration — no exemption policy, no printing (the verb owns
@@ -205,7 +186,7 @@ function scanFileQueryReads(sf: SourceFile, ctx: QueryReadCtx): void {
   for (const fact of readColumnReferences(sf, ctx.columnNames)) {
     const site = `${rel}:${String(sf.compilerNode.getLineAndCharacterOfPosition(fact.node.getStart()).line + 1)}`;
     for (const declaration of fact.declarations) {
-      const column = ts.isPropertyAssignment(declaration) ? ctx.byDeclaration.get(declarationSite(declaration)) : undefined;
+      const column = ctx.byDeclaration.get(declarationSite(declaration));
       if (column !== undefined) {
         const key = columnKey(column.tableKey, column.jsProp);
         ctx.sites.set(key, (ctx.sites.get(key) ?? new Set<string>()).add(site));

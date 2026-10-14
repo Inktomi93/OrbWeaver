@@ -351,6 +351,7 @@ export interface ColumnDef {
   readonly sqlTable: string;
   readonly jsProp: string;
   readonly sqlColumn: string;
+  readonly hasDefault: boolean;
   readonly decl: Node;
 }
 

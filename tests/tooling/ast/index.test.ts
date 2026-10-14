@@ -1,8 +1,8 @@
 // Self-test for the `pnpm ast` rot lenses (tooling/src/ast) — unwired, clientgap, the orphan
-// substrate, swallowed, respell, typeonly-alive, columns, regkeys, chains, and stringy. Each drives the pure
+// substrate, swallowed, respell, typeonly-alive, regkeys, chains, and stringy. Each drives the pure
 // enumeration substrate over a tiny synthetic project (a server router with one WIRED and one UNWIRED
 // procedure; a namespace-swallowed schema barrel; a derived-vs-hand-spelled contract pair; a value export
-// reached only from type positions; a miniature drizzle schema with one column per consumption class; a
+// reached only from type positions; a
 // 3-link dead chain; a bare-`string` alias chain beside every legitimate narrowing) and asserts the lens
 // flags EXACTLY the defect shape — bite-proof in both directions, never a sketch.
 //
@@ -40,10 +40,8 @@ import {
   collectChainAudit,
   collectChainCandidates,
   collectClientConsumed,
-  collectColumnCandidates,
   collectOrphanCandidates,
   collectRegistries,
-  collectSchemaTables,
   collectServerProcedures,
   collectStringyAudit,
   collectSwallowedCandidates,
@@ -54,7 +52,6 @@ import {
   fieldClass,
   fieldHit,
   fieldIndexes,
-  isColumnExempt,
   isCompositionAlias,
   isProdConsumed,
   isPublicTagged,
@@ -70,7 +67,6 @@ import {
   rotSwallowedHits,
   rotTestOnlyHits,
   rotTypeOnlyHits,
-  scanRowReads,
   scriptEntryFiles,
   scriptEntryPaths,
   spellingIndex,
@@ -1616,17 +1612,7 @@ export const live = staleTagged.a;
   });
 });
 
-// The columns lens over a MINIATURE drizzle: `sqliteTable` is declared with a signature returning the config
-// object's own type, so `<table>.<col>` resolves to the real PropertyAssignment the way the live drizzle
-// types do. All three consumption shapes the lens must separate are present: a QUERY read (`t.col`), a ROW
-// read, and structural writes via `.values({…})` / `.set({…})` / a whole-row `.values(row)`.
-//
-// A NOTE ON WHAT THIS SYNTHETIC PROJECT CANNOT REPRODUCE, so a later reader does not mistake it for full
-// coverage: on the REAL tree, drizzle's `$inferSelect` loses its declaration links, which is why a
-// `row.<col>` read there is invisible to reference resolution and why READ arm 2 exists at all (measured —
-// the lens's first cut reported 90 write-only columns, of which `plugins.*` was a whole table of falsehoods).
-// A hand-written mini `$inferSelect` keeps those links whatever shape it is given, so arm 1 happens to catch
-// that read HERE. Arm 2 is therefore pinned DIRECTLY, against `scanRowReads`, in its own test below.
+// Syntax-only columns corpus retained for the unrelated liveness edge-map control below.
 const MINI_DRIZZLE = `
 export declare function sqliteTable<T>(name: string, cols: T): T & { $inferSelect: { [K in keyof T]: string } };
 export declare function text(name: string): string;
@@ -1650,7 +1636,6 @@ export const widgets = sqliteTable("widgets", {
 });
 `;
 
-/** Only the mini-schema counts as the schema dir — the lens's own SCHEMA_DIR constant is a path substring. */
 const COLUMN_FILES: Record<string, string> = {
   "packages/db/src/drizzle.ts": MINI_DRIZZLE,
   ...MINI_DRIZZLE_ORM_FILES,
@@ -1669,366 +1654,6 @@ export function write(): void {
 }
 `,
 };
-
-describe("ast columns lens (drizzle consumption)", () => {
-  test("classifies every column into the four consumption classes", () => {
-    const project = projectOf(COLUMN_FILES);
-    const tables = collectSchemaTables(project);
-    expect(tables.map((t) => t.sqlName)).toEqual(["widgets"]);
-
-    const byName = new Map(collectColumnCandidates(project, tables).candidates.map((c) => [c.column.jsProp, c]));
-    // `label` is read as a query reference AND written in the insert literal — the healthy state.
-    expect(byName.get("label")?.klass).toBe("read-write");
-    // `tally` is read off a row and written twice (the insert literal + the update `set`).
-    expect(byName.get("tally")?.klass).toBe("read-write");
-    // `id` is read (the `where` reference) and written — healthy.
-    expect(byName.get("id")?.klass).toBe("read-write");
-    // `origin` is written by the insert literal and read by NOBODY — the RV-11 class, exactly.
-    expect(byName.get("origin")?.klass).toBe("write-only");
-    // `ghost` is named by no reader and no writer at all, and no writer here is opaque — pure rot.
-    expect(byName.get("ghost")?.klass).toBe("neither");
-    expect(byName.get("ghost")?.opaque).toBe(false);
-    // The SQL spelling travels beside the JS one (a reader greps the migration, not the property).
-    expect(byName.get("ghost")?.column.sqlColumn).toBe("ghost");
-  });
-
-  test("test and tool reads/writes do not make an otherwise-unused production column look healthy", () => {
-    const project = projectOf({
-      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
-      ...MINI_DRIZZLE_ORM_FILES,
-      "packages/db/src/schema/widgets.ts": WIDGET_SCHEMA,
-      "tests/db/widgets.test.ts": `
-import { db } from "../../packages/db/src/drizzle";
-import { widgets } from "../../packages/db/src/schema/widgets";
-export function fixture(): unknown {
-  db.insert(widgets).values({ ghost: "fixture" });
-  return widgets.ghost;
-}
-`,
-      "scripts/seed.ts": `
-import { db } from "../packages/db/src/drizzle";
-import { widgets } from "../packages/db/src/schema/widgets";
-export function seed(): unknown {
-  db.insert(widgets).values({ ghost: "seed" });
-  return widgets.ghost;
-}
-`,
-    });
-    const ghost = collectColumnCandidates(project, collectSchemaTables(project)).candidates.find((candidate) => candidate.column.jsProp === "ghost");
-    expect(ghost?.klass).toBe("neither");
-    expect(ghost?.reads).toEqual([]);
-    expect(ghost?.writes).toEqual([]);
-  });
-
-  test("table-level write evidence separates a consumed producerless table from empty, opaque, raw, and named writers", () => {
-    const project = projectOf({
-      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
-      ...MINI_DRIZZLE_ORM_FILES,
-      "packages/db/src/schema/tables.ts": `
-import { sqliteTable, text } from "../drizzle";
-export const producerless = sqliteTable("producerless", { seen: text("seen") });
-export const emptyInsert = sqliteTable("empty_insert", { emptySeen: text("empty_seen") });
-export const opaqueInsert = sqliteTable("opaque_insert", { opaqueSeen: text("opaque_seen") });
-export const rawInsert = sqliteTable("raw_insert", { rawSeen: text("raw_seen") });
-export const healthy = sqliteTable("healthy", { healthySeen: text("healthy_seen") });
-`,
-      "packages/server/src/domain/widget/table-writes.ts": `
-import { db } from "../../../../db/src/drizzle";
-import { emptyInsert, healthy, opaqueInsert, producerless, rawInsert } from "../../../../db/src/schema/tables";
-declare const sql: { raw: (text: string) => unknown };
-declare const row: unknown;
-export const reads = [producerless.seen, emptyInsert.emptySeen, opaqueInsert.opaqueSeen, rawInsert.rawSeen, healthy.healthySeen];
-db.insert(emptyInsert).values({});
-db.insert(opaqueInsert).values(row);
-db.insert(healthy).values({ healthySeen: "written" });
-db.run(sql.raw("INSERT INTO raw_insert DEFAULT VALUES"));
-`,
-      "tests/server/producerless.test.ts": `
-import { db } from "../../packages/db/src/drizzle";
-import { producerless } from "../../packages/db/src/schema/tables";
-db.insert(producerless).values({ seen: "fixture-only" });
-`,
-    });
-
-    const tables = collectSchemaTables(project);
-    const audit = collectColumnCandidates(project, tables);
-    expect(audit.producerlessTables.map(({ table }) => table.varName)).toEqual(["producerless"]);
-    expect(tables.filter(({ key }) => audit.tableWrites.has(key)).map(({ varName }) => varName)).toEqual([
-      "emptyInsert",
-      "opaqueInsert",
-      "rawInsert",
-      "healthy",
-    ]);
-    expect(tables.filter(({ key }) => audit.opaqueTables.has(key)).map(({ varName }) => varName)).toEqual(["opaqueInsert"]);
-  });
-
-  test("raw INSERT evidence requires an executing database sink", () => {
-    const project = projectOf({
-      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
-      ...MINI_DRIZZLE_ORM_FILES,
-      "packages/db/src/schema/tables.ts": `
-import { sqliteTable, text } from "../drizzle";
-export const inertTagged = sqliteTable("inert_tagged", { seen: text("seen") });
-export const inertRaw = sqliteTable("inert_raw", { seen: text("seen") });
-export const dynamicRaw = sqliteTable("dynamic_raw", { seen: text("seen") });
-export const reassignedStatement = sqliteTable("reassigned_statement", { seen: text("seen") });
-export const executedRaw = sqliteTable("executed_raw", { seen: text("seen") });
-export const batchedRaw = sqliteTable("batched_raw", { seen: text("seen") });
-`,
-      "packages/server/src/domain/widget/raw-writes.ts": `
-import { db } from "../../../../db/src/drizzle";
-declare const sql: {
-  (parts: TemplateStringsArray, ...values: unknown[]): unknown;
-  raw: (text: string) => unknown;
-};
-import { batchedRaw, dynamicRaw, executedRaw, inertRaw, inertTagged, reassignedStatement } from "../../../../db/src/schema/tables";
-declare const dynamicText: string;
-export const reads = [inertTagged.seen, inertRaw.seen, dynamicRaw.seen, reassignedStatement.seen, executedRaw.seen, batchedRaw.seen];
-export const taggedStatement = sql\`INSERT INTO inert_tagged DEFAULT VALUES\`;
-export const rawStatement = sql.raw("INSERT INTO inert_raw DEFAULT VALUES");
-db.run(sql.raw(dynamicText));
-let statement = sql\`INSERT INTO reassigned_statement DEFAULT VALUES\`;
-statement = sql.raw(dynamicText);
-db.execute(statement);
-db.run(sql\`INSERT INTO executed_raw DEFAULT VALUES\`);
-const batchedStatement = sql\`INSERT INTO batched_raw DEFAULT VALUES\`;
-db.batch([batchedStatement]);
-`,
-    });
-
-    const tables = collectSchemaTables(project);
-    const audit = collectColumnCandidates(project, tables);
-    expect(audit.producerlessTables.map(({ table }) => table.sqlName)).toEqual(["inert_tagged", "inert_raw", "dynamic_raw", "reassigned_statement"]);
-    expect(tables.filter(({ key }) => audit.tableWrites.has(key)).map(({ sqlName }) => sqlName)).toEqual(["executed_raw", "batched_raw"]);
-  });
-
-  test("table identity does not cross-contaminate same-named schema exports", () => {
-    const project = projectOf({
-      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
-      ...MINI_DRIZZLE_ORM_FILES,
-      "packages/db/src/schema/a.ts": `
-import { sqliteTable, text } from "../drizzle";
-export const events = sqliteTable("a_events", { aValue: text("a_value") });
-`,
-      "packages/db/src/schema/b.ts": `
-import { sqliteTable, text } from "../drizzle";
-export const events = sqliteTable("b_events", { bValue: text("b_value") });
-`,
-      "packages/server/src/domain/widget/events.ts": `
-import { db } from "../../../../db/src/drizzle";
-import { events as aEvents } from "../../../../db/src/schema/a";
-export function useA(): unknown {
-  db.insert(aEvents).values({ aValue: "written" });
-  return aEvents.aValue;
-}
-`,
-    });
-
-    const audit = collectColumnCandidates(project, collectSchemaTables(project));
-    const byTable = new Map(audit.candidates.map((candidate) => [candidate.column.sqlTable, candidate]));
-    expect(byTable.get("a_events")?.klass).toBe("read-write");
-    expect(byTable.get("b_events")?.klass).toBe("neither");
-    expect(audit.producerlessTables).toEqual([]);
-  });
-
-  test("a full-table select reaches a producerless table without fabricating named-column reads", () => {
-    const project = projectOf({
-      "packages/db/src/drizzle.ts": MINI_DRIZZLE,
-      ...MINI_DRIZZLE_ORM_FILES,
-      "packages/db/src/schema/tables.ts": `
-import { sqliteTable, text } from "../drizzle";
-export const selected = sqliteTable("selected", { value: text("value") });
-export const mentioned = sqliteTable("mentioned", { value: text("value") });
-`,
-      "packages/server/src/domain/widget/full-table-read.ts": `
-import { db } from "../../../../db/src/drizzle";
-import { mentioned, selected } from "../../../../db/src/schema/tables";
-export const tableAlias = mentioned;
-export function readAll(): unknown[] {
-  return db.select().from(selected);
-}
-`,
-    });
-
-    const audit = collectColumnCandidates(project, collectSchemaTables(project));
-    expect(audit.producerlessTables.map(({ table }) => table.sqlName)).toEqual(["selected"]);
-    const byTable = new Map(audit.candidates.map((candidate) => [candidate.column.sqlTable, candidate]));
-    expect(byTable.get("selected")).toMatchObject({ klass: "neither", reads: [] });
-    expect(byTable.get("mentioned")).toMatchObject({ klass: "neither", reads: [] });
-  });
-
-  test("READ arm 2 counts a row-shaped access with NO link back to the table (the mapped-type hole)", () => {
-    const project = projectOf({
-      ...COLUMN_FILES,
-      // A hand-written view whose fields merely MATCH the columns — nothing ties it to `widgets`, so
-      // reference resolution can never connect this read to the schema. Arm 2's shape test is the only
-      // thing that can, and this is exactly the real-tree `type Row = typeof t.$inferSelect` situation.
-      "packages/server/src/domain/widget/view.ts": `
-interface WidgetView { id: string; label: string; origin: string; tally: string; ghost: string }
-export function render(v: WidgetView): string {
-  const { ghost } = v;
-  return v.origin + ghost;
-}
-`,
-    });
-    const tables = collectSchemaTables(project);
-    const rowReads = scanRowReads(project, tables);
-    // The scan's key is the lens's private (tableVar, prop) PAIR — matched by suffix so this test never
-    // encodes the separator, the same way the liveness tests avoid encoding declaration keys.
-    const readSites = (col: string): readonly string[] => [...rowReads].find(([k]) => k.endsWith(col))?.[1] ?? [];
-    // The property access AND the destructure both land — a destructure is a read of every name it binds.
-    expect(readSites("origin").length).toBeGreaterThan(0);
-    expect(readSites("ghost").length).toBeGreaterThan(0);
-    // `label` is on the view type but nothing reads it there — arm 2 counts ACCESSES, never membership.
-    expect(readSites("label")).toEqual([]);
-
-    // End to end: the two columns the view reads stop being findings; the lens errs toward alive.
-    const byName = new Map(collectColumnCandidates(project, tables).candidates.map((c) => [c.column.jsProp, c]));
-    expect(byName.get("origin")?.klass).toBe("read-write");
-    expect(byName.get("ghost")?.klass).toBe("read-only");
-  });
-
-  test("a whole-row `.values(row)` makes every column of that table write-UNKNOWN, never `neither`", () => {
-    const project = projectOf({
-      ...COLUMN_FILES,
-      // The opaque writer: a typed variable, no object literal — it names no column, so the lens must stop
-      // claiming any column of `widgets` is unwritten (erring toward alive, as the swallowed lens does).
-      "packages/server/src/domain/widget/bulk.ts": `
-import { db } from "../../../../db/src/drizzle";
-import { widgets } from "../../../../db/src/schema/widgets";
-export function bulk(row: { id: string }): void {
-  db.insert(widgets).values(row);
-}
-`,
-    });
-    const audit = collectColumnCandidates(project, collectSchemaTables(project));
-    const ghost = audit.candidates.find((c) => c.column.jsProp === "ghost");
-    expect(ghost?.opaque).toBe(true);
-    // The load-bearing assertion: `neither` is no longer reachable for this table, but the READ half is
-    // untouched, so `ghost` stays a WRITE-only hit rather than silently disappearing into read-write.
-    expect(ghost?.klass).toBe("write-only");
-    expect([...audit.opaqueTables.keys()]).toEqual([collectSchemaTables(project)[0]?.key]);
-  });
-
-  test("an `insert(table).select(query)` attributes the select projection as writes", () => {
-    const project = projectOf({
-      ...COLUMN_FILES,
-      "packages/server/src/domain/widget/insert-select.ts": `
-import { db } from "../../../../db/src/drizzle";
-import { widgets } from "../../../../db/src/schema/widgets";
-declare const sql: <T>(parts: TemplateStringsArray, ...values: unknown[]) => { as: (name: string) => T };
-export function copy(): void {
-  db.insert(widgets).select(db.select({
-    id: sql<string>\`\${"new-id"}\`.as("id"),
-    label: widgets.label,
-    origin: sql<string>\`\${"copy"}\`.as("origin"),
-  }).from(widgets));
-}
-`,
-    });
-    const audit = collectColumnCandidates(project, collectSchemaTables(project));
-    const byName = new Map(audit.candidates.map((candidate) => [candidate.column.jsProp, candidate]));
-    expect(byName.get("id")?.writes).toHaveLength(2);
-    expect(byName.get("label")?.writes).toHaveLength(2);
-    expect(byName.get("origin")?.writes).toHaveLength(2);
-    expect(byName.get("ghost")?.writes).toEqual([]);
-    expect([...audit.opaqueTables.keys()]).toEqual([]);
-  });
-
-  test("a write through a hoisted builder counts, and a same-named method on a non-drizzle object does not", () => {
-    const project = projectOf({
-      ...COLUMN_FILES,
-      "packages/server/src/domain/widget/hoisted.ts": `
-import { db } from "../../../../db/src/drizzle";
-import { widgets } from "../../../../db/src/schema/widgets";
-declare const store: { update(table: unknown): { set(value: object): void } };
-export function hoisted(): void {
-  const query = db.update(widgets);
-  query.set({ ghost: "x" });
-}
-export function foreign(): void {
-  store.update(widgets).set({ origin: "never written" });
-}
-`,
-    });
-    const byName = new Map(collectColumnCandidates(project, collectSchemaTables(project)).candidates.map((candidate) => [candidate.column.jsProp, candidate]));
-    expect(byName.get("ghost")?.writes).toHaveLength(1);
-    expect(byName.get("origin")?.writes).toHaveLength(1);
-  });
-
-  test("a positional insert-select marks the target table opaque instead of inventing destination columns", () => {
-    const project = projectOf({
-      ...COLUMN_FILES,
-      "packages/server/src/domain/widget/positional-select.ts": `
-import { db } from "../../../../db/src/drizzle";
-import { widgets } from "../../../../db/src/schema/widgets";
-export function copy(): void {
-  db.insert(widgets).select(db.select().from(widgets));
-}
-`,
-    });
-    const audit = collectColumnCandidates(project, collectSchemaTables(project));
-    expect([...audit.opaqueTables.keys()]).toEqual([collectSchemaTables(project)[0]?.key]);
-    expect(audit.candidates.find((candidate) => candidate.column.jsProp === "ghost")?.klass).toBe("write-only");
-  });
-
-  test("a static raw-SQL INSERT attributes only its target table's named columns", () => {
-    const project = projectOf({
-      ...COLUMN_FILES,
-      "packages/server/src/domain/widget/raw-insert.ts": `
-declare const sql: (parts: TemplateStringsArray, ...values: unknown[]) => unknown;
-declare const sqlFake: (parts: TemplateStringsArray, ...values: unknown[]) => unknown;
-declare const db: { run: (query: unknown) => void };
-export function writeRaw(id: string): void {
-  db.run(sql\`INSERT INTO widgets (id, origin) SELECT \${id}, 'import'\`);
-  db.run(sql\`INSERT INTO "widgets" ("label") VALUES ('quoted')\`);
-  db.run(sql\`SELECT ghost FROM widgets\`);
-  db.run(sql\`INSERT INTO other_table (tally) VALUES (1)\`);
-  db.run(sql\`SELECT 'INSERT INTO widgets (ghost)' /* INSERT INTO widgets (tally) */\`);
-  db.run(sqlFake\`INSERT INTO widgets (ghost) VALUES ('decoy')\`);
-}
-`,
-    });
-    const audit = collectColumnCandidates(project, collectSchemaTables(project));
-    const byName = new Map(audit.candidates.map((candidate) => [candidate.column.jsProp, candidate]));
-    expect(byName.get("id")?.writes).toHaveLength(2);
-    expect(byName.get("origin")?.writes).toHaveLength(2);
-    expect(byName.get("label")?.writes).toHaveLength(2);
-    expect(byName.get("ghost")?.writes).toEqual([]);
-    expect(byName.get("tally")?.writes).toHaveLength(2);
-  });
-
-  test("a DEFAULTED created_at/updated_at nobody reads is `provenance`, not the RV-11 write-only class", () => {
-    // LENS CALIBRATION (2026-08-13): every write-only row the real tree produced was a junction table's
-    // audit stamp, and the audit that consumed them wrote "safe to kill". An audit stamp nothing reads back
-    // is doing its job. BOTH halves of the rule are pinned here — the second row is the control that keeps
-    // the first from being a blanket name-based exemption.
-    const project = projectOf(COLUMN_FILES);
-    const byName = new Map(collectColumnCandidates(project, collectSchemaTables(project)).candidates.map((c) => [c.column.jsProp, c]));
-    // `created_at`, written by the insert literal, read by nobody, value stamped by `.default(…)`.
-    expect(byName.get("createdAt")?.klass).toBe("provenance");
-    // The CONTROL: same convention NAME (`updated_at`), written the same way, but NO schema default — a
-    // value some writer chose to store, so it stays a finding.
-    expect(byName.get("touchedAt")?.column.sqlColumn).toBe("updated_at");
-    expect(byName.get("touchedAt")?.klass).toBe("write-only");
-    // And the class is scoped to the WRITE-ONLY verdict: `origin` (not a timestamp) is untouched.
-    expect(byName.get("origin")?.klass).toBe("write-only");
-  });
-
-  test("`@column-ok: <reason>` on the column property exempts it; the marker reads off the PropertyAssignment", () => {
-    const project = projectOf(COLUMN_FILES);
-    const tables = collectSchemaTables(project);
-    const declOf = (name: string): Parameters<typeof isColumnExempt>[0] => {
-      const found = tables[0]?.columns.find((c) => c.jsProp === name)?.decl;
-      if (found === undefined) {
-        throw new Error(`no column ${name}`);
-      }
-      return found;
-    };
-    expect(isColumnExempt(declOf("origin"))).toBe(true);
-    expect(isColumnExempt(declOf("ghost"))).toBe(false);
-  });
-});
 
 describe("ast contract-field-liveness lens (fields declared but never populated)", () => {
   // The audit's two real findings, reproduced as shapes: a field READ on a live wire that no production
