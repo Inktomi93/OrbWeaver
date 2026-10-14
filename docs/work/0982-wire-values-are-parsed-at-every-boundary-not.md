@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-13
+status: doing
+updated: 2026-10-14
 priority: P1
+lane: codex/contract-boundary-integration-904-905
 ---
 
 # Wire values are parsed at every boundary, not only in the client
@@ -31,6 +32,6 @@ The remaining boundary batch covers Ollama responses, local-light model files, M
 
 Stored connections require owner comparison before JSON decoding or schema refusal. Project JSON columns as raw text and return an explicit owner-bearing parse envelope through the runtime port. Owned reads parse after their owner predicate. Preserve summarize compatibility through a derived input schema and validate canonical output. Corrupt owned bytes must refuse before read-derived writes or rollback, never become persisted null stand-ins. Composed boundary proof depends on genuine runtime and testkit seams, not test-only exports.
 
-The boundary source is frozen; complete integration and qualification remain pending. The current authority integration owns its canonical owner-bearing read prerequisite. Preserve the separate SDK, kernel and timer additions with the harness. Strict head/kernel, host lifecycle, scoped-query rejection and complete wire inventory proof remain required. These remaining paths await assignment; prerequisite integration does not close them.
+The listed contract and stored-value recovery is integrated. The active boundary lane classifies remaining server and inference wire reads and widens the existing policy where required. Canonical owner-bearing reads remain prerequisites, not complete wire qualification. The harness owns separate SDK, kernel and timer execution. Preserve native parsing and refusal before effects; do not repeat completed recovery or repair disposable fixtures.
 
 The persona export router returns a filename and decoded file text. Classify that wire wrapper separately from its persona-backup contents before adding corpus validation; a backup schema does not validate the wrapper.

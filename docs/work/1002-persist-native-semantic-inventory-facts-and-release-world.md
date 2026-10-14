@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: doing
-updated: 2026-10-13
+updated: 2026-10-14
 priority: P1
 area: tooling
-lane: codex/native-late-diagnostic-1002
+lane: codex/native-reference-display-1002
 plan: test-foundation
 ---
 
@@ -36,4 +36,4 @@ The complete-root client diagnostic records a native reference query entering de
 
 Inspector sampling forces collection during profile reads. Its debugger registers a near-heap callback that expands the limit during an OOM pause. The owned diagnostic is stopped without a retry; fixed-heap and undisturbed-memory claims are invalid. Preserve its artifacts. Any replacement must retain alias kinds, group selection and definition flags; flat references alone are not equivalent. No private cache clearing, heap increase or population reduction is allowed. Instrumented client results do not qualify all worlds or clean timing.
 
-A bounded native differential preserves raw reference order but does not yet admit the tRPC-like case. Evaluate an opt-in pinned dependency patch that skips unused definition formatting while retaining native search and selection. Default callers must remain unchanged; no patch or complete-client replay is qualified yet.
+A bounded native differential preserves reference order but rejects the tRPC-like case. The active lane implements an opt-in pinned patch that skips definition formatting while retaining native search and selection. Its factory control fails before the patch. Default metadata, lean parity and input-version refusal remain required; the patch and complete replay remain unqualified.

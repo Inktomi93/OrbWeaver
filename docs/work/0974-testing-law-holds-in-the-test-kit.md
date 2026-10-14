@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-13
+status: doing
+updated: 2026-10-14
 priority: P2
+lane: wt/agent-determinism-974
 plan: test-foundation
 ---
 
