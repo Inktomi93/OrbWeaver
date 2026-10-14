@@ -546,3 +546,57 @@ test("configured native issuer execution preserves offset shared-byte views and 
     [7, 8, 9],
   ]);
 });
+
+test.each([
+  { value: null, label: "null" },
+  { value: 7, label: "number" },
+])("a signed backchannel $label event refuses before revocation; an object event still revokes", async ({ value }) => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const cookie = await signIn(root, issuer);
+  const before = await root.db.select().from(sessions);
+  expect(before).toHaveLength(1);
+  const invalid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: value } });
+  const rejected = await root.http.request("/api/auth/oidc/backchannel-logout", {
+    method: "POST",
+    body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, invalid]]),
+  });
+  expect(rejected.status).toBe(400);
+  expect(await root.db.select().from(sessions)).toEqual(before);
+  const live = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await live.json()).authenticated).toBe(true);
+  const valid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } });
+  expect(
+    (
+      await root.http.request("/api/auth/oidc/backchannel-logout", {
+        method: "POST",
+        body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, valid]]),
+      })
+    ).status,
+  ).toBe(200);
+  const dead = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await dead.json()).authenticated).toBe(false);
+});
+
+test.each([
+  { label: "missing issue time", omitted: ["iat"], patch: {} },
+  { label: "missing expiration", omitted: ["exp"], patch: {} },
+  { label: "missing token ID", omitted: ["jti"], patch: {} },
+  { label: "non-string token ID", omitted: [], patch: { jti: 7 } },
+  { label: "non-string session ID", omitted: [], patch: { sid: 7 } },
+])("a signed logout token with $label refuses before the real session is revoked", async ({ omitted, patch }) => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const cookie = await signIn(root, issuer);
+  const before = await root.db.select().from(sessions);
+  expect(before).toHaveLength(1);
+  const token = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} }, ...patch }, omitted);
+  const result = await root.http.request("/api/auth/oidc/backchannel-logout", {
+    method: "POST",
+    body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]),
+  });
+  expect(result.status).toBe(400);
+  expect(await root.db.select().from(sessions)).toEqual(before);
+  const me = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await me.json()).authenticated).toBe(true);
+});

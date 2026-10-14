@@ -2,6 +2,7 @@
 // CLS pooling → Dense (+ activation) → LayerNorm → Dense(1), read from the repo's module directories. The modules
 // are a few hundred KB of f32, so plain arithmetic here costs nothing next to the encoder pass.
 
+import { z } from "zod";
 import { ProviderError } from "#src/contract/errors.ts";
 
 /** Reads one file of the model repo (`<module>/<name>`), from the local cache or the Hub. */
@@ -57,33 +58,62 @@ function headError(message: string): ProviderError {
   return new ProviderError({ kind: "server", retryable: false, message: `local-light reranker head: ${message}` });
 }
 
+const tensorMetadataSchema = z.object({
+  dtype: z.literal("F32"),
+  shape: z.array(z.int().nonnegative()),
+  data_offsets: z.tuple([z.int().nonnegative(), z.int().nonnegative()]),
+});
+const safetensorsHeaderSchema = z.record(z.string(), z.unknown());
+const denseConfigSchema = z
+  .object({ in_features: z.int().positive(), out_features: z.int().positive(), activation_function: z.string() })
+  .describe("integer in_features and out_features and a string activation_function");
+const poolingConfigSchema = z.object({ pooling_mode: z.string() });
+
 function parseSafetensors(bytes: Uint8Array): ReadonlyMap<string, Float32Array> {
+  if (bytes.byteLength < SAFETENSORS_HEADER_BYTES) {
+    throw headError("safetensors header is truncated");
+  }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const headerLength = Number(view.getBigUint64(0, true));
-  const header = JSON.parse(new TextDecoder().decode(bytes.subarray(SAFETENSORS_HEADER_BYTES, SAFETENSORS_HEADER_BYTES + headerLength))) as Record<
-    string,
-    { readonly dtype?: string; readonly data_offsets?: readonly [number, number] }
-  >;
   const base = SAFETENSORS_HEADER_BYTES + headerLength;
+  if (!Number.isSafeInteger(base) || base > bytes.byteLength) {
+    throw headError("safetensors header is truncated");
+  }
+  const parsedHeader = safetensorsHeaderSchema.safeParse(JSON.parse(new TextDecoder().decode(bytes.subarray(SAFETENSORS_HEADER_BYTES, base))));
+  if (!parsedHeader.success) {
+    throw headError("safetensors header is not an object");
+  }
+  const header = parsedHeader.data;
   const tensors = new Map<string, Float32Array>();
-  for (const [name, meta] of Object.entries(header)) {
+  for (const [name, raw] of Object.entries(header)) {
     if (name === "__metadata__") {
       continue;
     }
-    if (meta.dtype !== "F32" || meta.data_offsets === undefined) {
-      throw headError(`tensor "${name}" is ${String(meta.dtype)}; only F32 heads are supported`);
+    const parsed = tensorMetadataSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw headError(`tensor "${name}" has malformed metadata; only F32 heads are supported`);
     }
-    const [start, end] = meta.data_offsets;
-    // A copy into a fresh buffer: aligned for Float32Array, and correct for a Node Buffer, whose `slice` is a view
-    // into a shared pool rather than a copy.
+    const {
+      shape,
+      data_offsets: [start, end],
+    } = parsed.data;
+    const elements = shape.reduce((count, dimension) => count * dimension, 1);
+    if (end < start || end > bytes.byteLength - base || start % F32_BYTES !== 0 || end % F32_BYTES !== 0 || (end - start) / F32_BYTES !== elements) {
+      throw headError(`tensor "${name}" offsets do not match its shape or data`);
+    }
+    // Node Buffer.slice aliases its pool; this copy owns an aligned buffer for the tensor.
     const copy = new Uint8Array(bytes.subarray(base + start, base + end));
-    tensors.set(name, new Float32Array(copy.buffer, 0, (end - start) / F32_BYTES));
+    tensors.set(name, new Float32Array(copy.buffer));
   }
   return tensors;
 }
 
-async function readJson(read: RepoFileReader, file: string): Promise<Record<string, unknown>> {
-  return JSON.parse(new TextDecoder().decode(await read(file))) as Record<string, unknown>;
+async function readJson<T>(read: RepoFileReader, file: string, schema: z.ZodType<T>): Promise<T> {
+  const parsed = schema.safeParse(JSON.parse(new TextDecoder().decode(await read(file))));
+  if (!parsed.success) {
+    throw headError(`${file} is malformed; expected ${schema.description ?? "valid fields"}`);
+  }
+  return parsed.data;
 }
 
 function tensor(tensors: ReadonlyMap<string, Float32Array>, name: string, module: string): Float32Array {
@@ -95,16 +125,13 @@ function tensor(tensors: ReadonlyMap<string, Float32Array>, name: string, module
 }
 
 async function readDense(read: RepoFileReader, module: string): Promise<DenseLayer> {
-  const [config, weights] = await Promise.all([readJson(read, `${module}/config.json`), read(`${module}/model.safetensors`)]);
-  const activation = ACTIVATIONS[String(config["activation_function"])];
+  const [config, weights] = await Promise.all([readJson(read, `${module}/config.json`, denseConfigSchema), read(`${module}/model.safetensors`)]);
+  const activation = Object.hasOwn(ACTIVATIONS, config["activation_function"]) ? ACTIVATIONS[config["activation_function"]] : undefined;
   if (activation === undefined) {
-    throw headError(`${module} uses the unsupported activation ${String(config["activation_function"])}`);
+    throw headError(`${module} uses the unsupported activation ${config["activation_function"]}`);
   }
   const inDim = config["in_features"];
   const outDim = config["out_features"];
-  if (typeof inDim !== "number" || typeof outDim !== "number" || !Number.isInteger(inDim) || !Number.isInteger(outDim) || inDim < 1 || outDim < 1) {
-    throw headError(`${module}/config.json does not state integer in_features and out_features`);
-  }
   const tensors = parseSafetensors(weights);
   const weight = tensor(tensors, "linear.weight", module);
   const bias = tensors.get("linear.bias");
@@ -117,9 +144,9 @@ async function readDense(read: RepoFileReader, module: string): Promise<DenseLay
 /** Load the fixed CrossEncoder head layout (`1_Pooling`, `2_Dense`, `3_LayerNorm`, `4_Dense`). Anything it cannot
  *  reproduce exactly (another pooling, an unknown activation, mismatched shapes, more than one score) is refused. */
 export async function loadStHead(read: RepoFileReader): Promise<StHead> {
-  const pooling = await readJson(read, "1_Pooling/config.json");
+  const pooling = await readJson(read, "1_Pooling/config.json", poolingConfigSchema);
   if (pooling["pooling_mode"] !== "cls") {
-    throw headError(`pooling mode ${String(pooling["pooling_mode"])} is unsupported; only cls is`);
+    throw headError(`pooling mode ${pooling["pooling_mode"]} is unsupported; only cls is`);
   }
   const [dense, norm, score] = await Promise.all([readDense(read, "2_Dense"), read("3_LayerNorm/model.safetensors"), readDense(read, "4_Dense")]);
   const normTensors = parseSafetensors(norm);

@@ -1,16 +1,15 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-14
 priority: P1
-lane: codex/contract-boundary-integration-904-905
 ---
 
 # Wire values are parsed at every boundary, not only in the client
 
 ## What
 
-Spine-TypeScript requires wire values to be parsed at boundaries, but wire-json-parsed-at-consumer judges the client only. Classify every server and inference wire read by its actual parser. Repair missing validation and widen the rule to every reading package. Preserve native library validation rather than duplicating its schema.
+Complete Spine-TypeScript boundary parsing across application packages. Classify every server and inference wire read by its actual parser. Repair missing validation and maintain the rule's complete reading population. Preserve native library validation rather than duplicating its schema.
 
 ## Why
 
@@ -28,12 +27,12 @@ The reviewed bootstrap prerequisite is integrated. Installed JOSE validates key-
 
 Legacy success stubs omit required auth-config fields in persona-panel-surface, character-appearance-tab, character-editor-surface, chats-section, reauth-modal and app-shell CTs. Chat and shell also use `single`, outside the canonical auth-mode tuple. Complete production parsing must reject these inputs. Preserve their behavior cases for corpus-builder replacement; do not fabricate missing fields or weaken the schema. This source finding is not a completed CT verdict.
 
-The remaining boundary batch covers Ollama responses, local-light model files, MediaWiki responses, synchronous plugin replies and stored connection fields. Preserve sanctioned tolerant import adapters and native codecs; classify their complete consumed paths separately from unchecked casts.
+The integrated boundary batch covers Ollama responses, local-light model files, MediaWiki responses, synchronous plugin replies and stored connection fields. Preserve sanctioned tolerant import adapters and native codecs; classify their complete consumed paths separately from unchecked casts.
 
 Stored connections require owner comparison before JSON decoding or schema refusal. Project JSON columns as raw text and return an explicit owner-bearing parse envelope through the runtime port. Owned reads parse after their owner predicate. Preserve summarize compatibility through a derived input schema and validate canonical output. Corrupt owned bytes must refuse before read-derived writes or rollback, never become persisted null stand-ins. Composed boundary proof depends on genuine runtime and testkit seams, not test-only exports.
 
-The listed contract and stored-value recovery is integrated. The uncommitted boundary candidate classifies direct server and inference reads, traces native decoders and widens the existing policy. Scoped cases and the complete selected policy population pass without grants. Canonical owner-bearing reads remain prerequisites, not complete wire qualification.
+Reviewed source `6c60dde2c0` classifies direct server and inference reads, traces native decoders and widens the existing policy. Matching scoped cases and the complete selected policy population pass without grants. The original contract and stored-value recovery remains integrated.
 
-Independent security review confirms logout admission before revocation and SDK admission before consumed effects. It requires corrections for raw validation causes disclosing echoed credentials and inherited activation registry keys bypassing refusal. The author owns both corrections in the final batch. Context usage remains an unqualified optional post-terminal miss. No application or complete wire verdict is claimed.
+Independent security review confirms logout admission before revocation and SDK admission before consumed effects. Both findings have discriminating corrected controls: raw schema causes cannot disclose through error logging, and inherited activation names refuse. Context usage remains an unqualified optional post-terminal miss. The source lane is complete; main retains whole-population acceptance and this fork. No application or complete wire verdict is claimed.
 
-The candidate uses one canonical filename-and-file-text schema for the persona, regex and world-info wrappers. Their decoded contents remain separate contracts.
+The persona, regex and world-info wrappers use one canonical filename-and-file-text schema. Their decoded contents remain separate contracts.
