@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
-import type { AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
+import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import { ownerHandles } from "@orb/server/domain/sessions";
@@ -46,6 +46,7 @@ export interface ServerHarnessOptions
   readonly providerFetch?: typeof fetch;
   readonly sdkQuery?: AgentSdkQuery;
   readonly sdkSpawn?: AgentSdkSpawn;
+  readonly sdkNative?: AgentSdkNativeOptions;
   readonly runtimeSpan?: NonNullable<ServicesDeps["providerSeams"]>["span"];
   readonly modelKernelModule?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["kernelModule"];
   readonly allowRemoteModels?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["allowRemoteModels"];
@@ -103,14 +104,18 @@ function refusingResolver(): Promise<never> {
 }
 
 function providerExecutionOf(
-  options: Pick<ServerHarnessOptions, "providerFetch" | "sdkQuery" | "sdkSpawn" | "modelKernelModule" | "allowRemoteModels" | "runtimeSpan">,
+  options: Pick<ServerHarnessOptions, "providerFetch" | "sdkQuery" | "sdkSpawn" | "sdkNative" | "modelKernelModule" | "allowRemoteModels" | "runtimeSpan">,
   modelCacheDir: string,
 ): NonNullable<ServicesDeps["providerSeams"]> {
   return {
     sdkFetch: options.providerFetch ?? refusingProviderFetch(),
     agentSdk: {
-      ...(options.sdkQuery === undefined && options.sdkSpawn !== undefined ? {} : { query: options.sdkQuery ?? refusingSdkQuery }),
-      spawnClaudeCodeProcess: options.sdkSpawn ?? refusingSdkSpawn,
+      ...(options.sdkQuery === undefined && (options.sdkSpawn !== undefined || options.sdkNative !== undefined)
+        ? {}
+        : { query: options.sdkQuery ?? refusingSdkQuery }),
+      ...(options.sdkNative === undefined ? { spawnClaudeCodeProcess: options.sdkSpawn ?? refusingSdkSpawn } : {}),
+      ...(options.sdkSpawn === undefined ? {} : { spawnClaudeCodeProcess: options.sdkSpawn }),
+      ...(options.sdkNative === undefined ? {} : { native: options.sdkNative }),
     },
     ...(options.runtimeSpan === undefined ? {} : { span: options.runtimeSpan }),
     localLight: {

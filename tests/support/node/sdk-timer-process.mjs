@@ -26,9 +26,12 @@ if (process.argv[2] === "owned-descendant") {
 
 let descendant;
 let descendantClosed;
-process.once("SIGTERM", () => {
+let observeNativeGrace = false;
+process.on("SIGTERM", () => {
   if (descendant === undefined) {
     process.exit(0);
+  } else if (observeNativeGrace) {
+    process.stderr.write("sdk-owned:native-grace\n");
   }
 });
 // biome-ignore lint/style/noProcessEnv: this external executable consumes the actual prepared subprocess credential to prove split raw/JSON stderr scrubbing, not app configuration.
@@ -52,6 +55,10 @@ for await (const line of lines) {
   }
   const content = message.message.content;
   const prompt = typeof content === "string" ? content : content.map((block) => block.text).join("\n");
+  if (prompt.includes("SDK_PREFIX_EOF")) {
+    await new Promise((resolve) => process.stderr.write(`sdk-prefix-eof: ${token.slice(0, 64)}`, resolve));
+    process.exit(7);
+  }
   if (prompt.includes("SDK_SHAPED_DIAGNOSTIC:")) {
     const split = prompt.endsWith(":split");
     if (split) {
@@ -75,6 +82,7 @@ for await (const line of lines) {
     spawn(process.execPath, [fileURLToPath(import.meta.url), "late-diagnostic"], { stdio: ["ignore", "ignore", "inherit"] });
     process.exit(7);
   }
+  observeNativeGrace = prompt.includes("SDK_DEFAULT_GRACE");
   if (prompt.includes("SDK_OWNED_DESCENDANT")) {
     descendant = spawn(process.execPath, [fileURLToPath(import.meta.url), "owned-descendant"], { stdio: ["ignore", "ignore", "inherit"] });
     const owned = descendant;
@@ -121,6 +129,9 @@ for await (const line of lines) {
     skills: [],
     plugins: [],
   });
+  if (prompt.includes("SDK_CONCURRENT_CALLER_FAILURE")) {
+    write({ ...common, type: "system", subtype: "status", status: "compacting" });
+  }
   write({
     ...common,
     type: "assistant",
@@ -141,6 +152,10 @@ for await (const line of lines) {
     modelUsage: {},
     ["permission_denials"]: [],
   });
+  if (prompt.includes("SDK_CONCURRENT_CALLER_FAILURE")) {
+    await new Promise((resolve) => process.stdout.write("", resolve));
+    process.exit(7);
+  }
 }
 
 process.stderr.write("sdk-owned:stdin-eof\n");

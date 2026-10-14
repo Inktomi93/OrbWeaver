@@ -7,9 +7,9 @@
 import type { AccountInfo, ModelInfo, Query } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel } from "@orb/contracts/inference";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
-import { errorMessage } from "@orb/kit/error-message";
 import type { ProviderScrubSet, SpawnIdentity, VerifyAuthRequest } from "#contract";
 import { ProviderError } from "#contract";
+import type { AgentSdkQueryLease } from "#src/contract/agent-sdk-execution.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import type { AgentSdkLog } from "./log.ts";
@@ -51,27 +51,14 @@ function normalize(info: ModelInfo): AgentSdkModel {
   };
 }
 
-/**
- * THE THIRD UPSTREAM-PROSE PATH (the other two are `providerErrorFromHttp` and `fetch-json.ts::safeErrorBody`),
- * and it composes its hygiene exactly like them. The SDK's own message is genuinely worth keeping — it is what
- * tells an operator the daemon refused, wedged or died — so it is SANITIZED, never stripped.
- *
- * ORDER (#1809): the by-value belt reads INTACT text and `sanitizeApiError` mangles what is left. Reversed,
- * the tag strip / control strip / whitespace collapse / 500-char cap can bite the subscription token in half,
- * after which neither of its spellings matches and the fragment rides `ProviderError.message` onward. There is
- * no #1820 over-read hop here because nothing truncates upstream of this: the SDK hands us a whole string.
- *
- * The raw thrown object does NOT survive as `cause`, for the reason `providerErrorFromHttp` states: an SDK
- * error can carry reflected bodies, argv and nested causes as enumerable fields that a later logger
- * serializes, and this boundary is credential-bearing by construction (the daemon spawns under the user's
- * token). A `ProviderError` we minted ourselves passes through untouched — its message is our own vocabulary.
- */
-function discoveryError(err: unknown, secrets: ProviderScrubSet): ProviderError {
+/** Native exit faults use the owned diagnostic projection because vendor text may contain truncated credentials.
+ * Keep trusted provider classifications intact and reconstruct causes rather than retaining raw SDK objects. */
+function queryError(err: unknown, secrets: ProviderScrubSet, safeErrorMessage: AgentSdkQueryLease["safeErrorMessage"], operation: string): ProviderError {
   if (err instanceof ProviderError) {
     return err;
   }
-  const safe = sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets));
-  return new ProviderError({ kind: "server", retryable: true, message: `agent-sdk model discovery failed: ${safe}`, cause: new Error(safe) });
+  const safe = sanitizeApiError(redactSecretsFromText(safeErrorMessage(err), secrets));
+  return new ProviderError({ kind: "server", retryable: true, message: `agent-sdk ${operation} failed: ${safe}`, cause: new Error(safe) });
 }
 
 export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: AgentSdkDeps, log: AgentSdkLog): Promise<AgentSdkModel[]> {
@@ -82,8 +69,9 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
   await using lease = deps.execution.open(connection, { prompt: heldOpenPrompt(), options: disciplineOptions(deps.childEnv(connection)) });
   const stream = lease.query;
   try {
-    const models = await withTimeout(stream.supportedModels(), deps, DISCOVERY_TIMEOUT_MS, "model discovery").catch((err: unknown) => {
-      throw discoveryError(err, secrets);
+    const models = await withTimeout(stream.supportedModels(), deps, DISCOVERY_TIMEOUT_MS, "model discovery").catch(async (err: unknown) => {
+      await lease[Symbol.asyncDispose]();
+      throw queryError(err, secrets, lease.safeErrorMessage, "model discovery");
     });
     return models.map(normalize);
   } finally {
@@ -92,7 +80,7 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
       await withTimeout(stream.interrupt(), deps, INTERRUPT_TIMEOUT_MS, "discovery turn teardown");
       // @orb-waive caught-failure-ownership(err): bounded best-effort teardown is owned by the warning log; the model-discovery result or primary failure remains authoritative. Precedent: the gate mustPass fixture packages/server/src/infra/probe/cleanup.ts proves the same bounded teardown absorber. Ends if the warning disappears.
     } catch (err) {
-      log.warn({ err }, "agent-sdk model discovery: turn teardown did not complete — the spawn may already be gone");
+      log.warn({ err: new Error(lease.safeErrorMessage(err)) }, "agent-sdk model discovery: turn teardown did not complete — the spawn may already be gone");
     }
   }
 }
@@ -169,7 +157,14 @@ export async function verifyAuth(req: VerifyAuthRequest, deps: AgentSdkDeps, log
     req.signal,
   );
   const stream = lease.query;
-  const { apiKeySource, reply, ok, costUsd } = await reduceVerifyStream(stream);
+  let result: Awaited<ReturnType<typeof reduceVerifyStream>>;
+  try {
+    result = await reduceVerifyStream(stream);
+  } catch (error) {
+    await lease[Symbol.asyncDispose]();
+    throw queryError(error, resolvedScrubSet({ credential: connection.credential, transport: null }), lease.safeErrorMessage, "verification");
+  }
+  const { apiKeySource, reply, ok, costUsd } = result;
   const account = await probeAccountInfo(stream, deps);
   return { source: "max-pro-sub", ok, apiKeySource, model: connection.model, reply: reply.trim(), costUsd, ...(account !== undefined ? { account } : {}) };
 }

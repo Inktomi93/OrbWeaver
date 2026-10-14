@@ -5,11 +5,17 @@ import type { InferenceLog, SpawnIdentity } from "./runtime.ts";
 export type AgentSdkQuery = typeof query;
 /** The supported raw execution hook returns a real child, never a Query or process facade. */
 export type AgentSdkSpawn = (options: Parameters<NonNullable<Options["spawnClaudeCodeProcess"]>>[0]) => ChildProcessWithoutNullStreams;
+/** Trusted physical selection retains the SDK's native transport and prepared environment. */
+export type AgentSdkNativeOptions = Pick<
+  Options,
+  "executable" | "executableArgs" | "pathToClaudeCodeExecutable" | "cwd" | "debug" | "debugFile" | "onNativeProcessCreated"
+>;
 
 export interface AgentSdkQueryLease extends AsyncDisposable {
   readonly signal: AbortSignal;
   readonly query: ReturnType<AgentSdkQuery>;
   readonly stderrTail: () => string;
+  readonly safeErrorMessage: (error: unknown) => string;
 }
 
 export interface AgentSdkLifetime {
@@ -18,11 +24,12 @@ export interface AgentSdkLifetime {
 }
 
 export interface AgentSdkExecution extends AgentSdkLifetime {
-  readonly open: (connection: SpawnIdentity, input: Parameters<AgentSdkQuery>[0], signal?: AbortSignal, captureStderr?: boolean) => AgentSdkQueryLease;
+  readonly open: (connection: SpawnIdentity, input: Parameters<AgentSdkQuery>[0], signal?: AbortSignal) => AgentSdkQueryLease;
 }
 
 export interface AgentSdkExecutionDeps {
   readonly query: AgentSdkQuery;
   readonly spawn?: AgentSdkSpawn;
+  readonly native?: AgentSdkNativeOptions;
   readonly log: InferenceLog;
 }
