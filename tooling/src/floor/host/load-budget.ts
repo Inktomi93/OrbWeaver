@@ -44,7 +44,7 @@
 // reading as a value, so a planted control forces the loaded condition instead of spinning the box.
 
 import { loadavg } from "node:os";
-import process from "node:process";
+import { processEnvValue } from "../process/process-env.ts";
 import type { CpuThrottleSample } from "./load-budget-cgroup.ts";
 import { effectiveCpuCount, liveThrottle } from "./load-budget-cgroup.ts";
 import type { TimingCapability } from "./timing-capability.ts";
@@ -121,8 +121,7 @@ export const BOX_LOAD_ENV = "ORB_BOX_LOAD";
 const PLANTED_SUFFIX = "(planted)";
 
 function rawBoxLoadKnob(): string | undefined {
-  // biome-ignore lint/style/noProcessEnv: this IS the tooling env door for a planted control — the rule guards app config reads, and no config is read here.
-  const raw = process.env[BOX_LOAD_ENV];
+  const raw = processEnvValue(BOX_LOAD_ENV);
   return raw === undefined || raw.trim() === "" ? undefined : raw;
 }
 
@@ -224,8 +223,7 @@ export function boxFactor(box: BoxLoad, cap = FACTOR_CAP): number {
  *  correct for the way this knob is used: every consumer is a fresh process (an instrument CLI, a vitest
  *  worker, a config load, a spawned child), so a caller that wants a different ceiling sets it in the
  *  ENVIRONMENT OF THE CHILD, never mid-process. */
-// biome-ignore lint/style/noProcessEnv: ORB_BUDGET_CEILING_MS is an ambient TOOLING knob (the calibration-drive override on the absolute budget ceiling), the same class as this directory's SNAP_BASE_URL/DEBUG_TOKEN rows — not app config, and the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake, so it cannot be imported down here.
-const CEILING_OVERRIDE_MS = Number(process.env[BUDGET_CEILING_ENV]);
+const CEILING_OVERRIDE_MS = Number(processEnvValue(BUDGET_CEILING_ENV));
 
 /** The absolute ceiling in force for this process. A non-numeric or non-positive override falls back to
  *  the default rather than silently disabling the ceiling. */
