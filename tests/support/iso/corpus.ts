@@ -1,7 +1,8 @@
 // Portable corpus data contains owner-validated wire captures only, never Node row or credential material.
 import { authConfigSchema } from "@orb/contracts/auth-config";
+import { ownerBudgetViewSchema } from "@orb/contracts/automation";
 import { listCharactersResultSchema } from "@orb/contracts/character";
-import { chatDetailSchema, chatListPageSchema } from "@orb/contracts/chat";
+import { chatDetailSchema, chatListPageSchema, pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
 import { bankHealthViewSchema, documentDetailViewSchema, listDocumentsResultSchema } from "@orb/contracts/databank";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
@@ -26,6 +27,14 @@ const corpusAuthSchema = z.strictObject({
   signedInMe: authMeSchema,
 });
 
+const corpusOidcSchema = z.strictObject({
+  anonymousConfig: authConfigSchema,
+  ownerMe: authMeSchema,
+  pendingPreview: signedOutInvitePreviewSchema,
+  confirmation: pendingJoinConfirmResultSchema,
+  joinerMe: authMeSchema,
+});
+
 /** The finite corpus requests, not a replacement for the production routers' input parsers. */
 export const corpusReadInput = {
   absent: (): undefined => undefined,
@@ -37,6 +46,7 @@ export const corpusReadInput = {
 
 const publishedCorpusSchema = z.strictObject({
   auth: corpusAuthSchema,
+  oidc: corpusOidcSchema.optional(),
   health: healthResponseSchema,
   reads: z.strictObject({
     "sessions.me": viewerViewSchema.array(),
@@ -57,6 +67,7 @@ const publishedCorpusSchema = z.strictObject({
     "worldInfo.countBooks": z.int().nonnegative().array(),
     "regex.countScripts": z.int().nonnegative().array(),
     "rosterPreset.count": z.int().nonnegative().array(),
+    "automation.getOwnerBudgets": ownerBudgetViewSchema.array(),
   }),
 });
 
@@ -79,17 +90,20 @@ export interface CorpusReads {
   readonly "worldInfo.countBooks": readonly CorpusRead<"worldInfo.countBooks">[];
   readonly "regex.countScripts": readonly CorpusRead<"regex.countScripts">[];
   readonly "rosterPreset.count": readonly CorpusRead<"rosterPreset.count">[];
+  readonly "automation.getOwnerBudgets": readonly CorpusRead<"automation.getOwnerBudgets">[];
 }
 
 /** Serializable input produced by the Node publisher, not an intake for arbitrary procedure requests. */
 export interface CorpusWireInput {
   readonly auth: z.input<typeof corpusAuthSchema>;
+  readonly oidc?: z.input<typeof corpusOidcSchema>;
   readonly health: z.input<typeof healthResponseSchema>;
   readonly reads: CorpusReads;
 }
 
 export interface CorpusWire {
   readonly auth: z.output<typeof corpusAuthSchema>;
+  readonly oidc?: z.output<typeof corpusOidcSchema>;
   readonly health: z.output<typeof healthResponseSchema>;
   readonly reads: CorpusReads;
 }
@@ -105,6 +119,7 @@ function hydrateReads<P extends TrpcProcedurePath>(
 export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
   return {
     auth: corpusAuthSchema.parse(input.auth),
+    ...(input.oidc === undefined ? {} : { oidc: corpusOidcSchema.parse(input.oidc) }),
     health: healthResponseSchema.parse(input.health),
     reads: {
       "sessions.me": hydrateReads(input.reads["sessions.me"], viewerViewSchema),
@@ -125,6 +140,7 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
       "worldInfo.countBooks": hydrateReads(input.reads["worldInfo.countBooks"], z.int().nonnegative()),
       "regex.countScripts": hydrateReads(input.reads["regex.countScripts"], z.int().nonnegative()),
       "rosterPreset.count": hydrateReads(input.reads["rosterPreset.count"], z.int().nonnegative()),
+      "automation.getOwnerBudgets": hydrateReads(input.reads["automation.getOwnerBudgets"], ownerBudgetViewSchema),
     },
   };
 }
@@ -137,6 +153,7 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
   const { reads } = published;
   return {
     auth: published.auth,
+    ...(published.oidc === undefined ? {} : { oidc: published.oidc }),
     health: published.health,
     reads: {
       "sessions.me": reads["sessions.me"].map(inputless),
@@ -157,6 +174,7 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
       "worldInfo.countBooks": reads["worldInfo.countBooks"].map(inputless),
       "regex.countScripts": reads["regex.countScripts"].map(inputless),
       "rosterPreset.count": reads["rosterPreset.count"].map(inputless),
+      "automation.getOwnerBudgets": reads["automation.getOwnerBudgets"].map(inputless),
     },
   };
 }
@@ -176,6 +194,7 @@ function capturedInputs(reads: CorpusReads): string {
 export function serializeCorpusWire(wire: CorpusWire): string {
   const published = publishedCorpusSchema.parse({
     auth: wire.auth,
+    ...(wire.oidc === undefined ? {} : { oidc: wire.oidc }),
     health: wire.health,
     reads: Object.fromEntries(
       Object.entries<readonly CorpusRead<keyof CorpusReads>[]>({ ...wire.reads }).map(([path, records]) => [path, records.map(({ output }) => output)]),

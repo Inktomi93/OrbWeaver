@@ -1,6 +1,7 @@
 // Session tokens and throttle keys remain Node-only; creation and request admission are actual production operations.
 import type { Db } from "@orb/db";
-import { rateLimitBuckets, sessions } from "@orb/db";
+import { oidcPendingSignups, oidcTransactions, rateLimitBuckets, sessions } from "@orb/db";
+import type { ExternalId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
 import type { ServerTestHarness } from "../server.ts";
@@ -9,6 +10,18 @@ type SessionsService = ServicesResult["sessions"];
 type HttpRequest = ServerTestHarness["http"]["request"];
 export type BffSessionRow = typeof sessions.$inferSelect;
 export type RateLimitBucketRow = typeof rateLimitBuckets.$inferSelect;
+export type OidcTransactionRow = typeof oidcTransactions.$inferSelect;
+export type OidcPendingSignupRow = typeof oidcPendingSignups.$inferSelect;
+
+/** State comes from the actual authorization redirect; PKCE and expiry remain production-owned. */
+export async function captureOidcTransaction(db: Db, state: OidcTransactionRow["state"]): Promise<OidcTransactionRow | undefined> {
+  return await db.select().from(oidcTransactions).where(eq(oidcTransactions.state, state)).get();
+}
+
+/** Capture only a callback-produced pending row, preserving its opaque hash and sealed bytes in Node. */
+export async function captureOidcPendingSignup(db: Db, subject: ExternalId): Promise<OidcPendingSignupRow | undefined> {
+  return await db.select().from(oidcPendingSignups).where(eq(oidcPendingSignups.subject, subject)).get();
+}
 
 export interface SeededBffSession {
   readonly created: Awaited<ReturnType<SessionsService["create"]>>;

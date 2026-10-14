@@ -6,45 +6,19 @@ import { chatInvites, chatParticipants, closeDb, oidcPendingSignups, oidcTransac
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { ownerHandles } from "@orb/server/domain/sessions";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
+import { createConfiguredOidc } from "@orb/server/entry/compose";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { createControlledTimers } from "@orb/testkit/iso/timers.ts";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS as SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/server.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, sql } from "drizzle-orm";
 import type { JWTPayload } from "jose";
+import { customFetch } from "openid-client";
 import { vi } from "vitest";
-import { CALLBACK, CLIENT_ID, CLIENT_SECRET, createNativeIssuer, ISSUER } from "./oidc-issuer.fixtures.ts";
 
-const SETTINGS = {
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_ISSUER: ISSUER,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_CLIENT_ID: CLIENT_ID,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_CLIENT_SECRET: CLIENT_SECRET,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_REDIRECT_URIS: CALLBACK,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_SCOPES: "openid profile email",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_USERNAME_CLAIM: "preferred_username",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_UID_CLAIM: "sub",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_GROUPS_CLAIM: "groups",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_EMAIL_CLAIM: "email",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_GROUPS_SEPARATOR: ";",
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_SIGNUP: true,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_REQUIRE_APPROVAL: false,
-  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
-  OIDC_BACKCHANNEL_LOGOUT: true,
-} satisfies NonNullable<ServerHarnessOptions["oidc"]>;
 // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
 const MEMBER = { sub: "native-member-subject", preferred_username: "oidc-member" } satisfies JWTPayload;
 const LOGOUT_TOKEN_PARAM = "logout_token";
@@ -470,4 +444,131 @@ test("failed OIDC GC construction joins its held actual database sweep and retai
   }
   expect(timers.pending()).toBe(0);
   expect(await held.db.all(sql`select 1 as retained`)).toEqual([{ retained: 1 }]);
+});
+
+test("configured native issuer execution preserves offset shared-byte views and streaming cancellation", async () => {
+  const issuer = await createNativeIssuer();
+  const entered = Promise.withResolvers<void>();
+  const bodies: number[][] = [];
+  const execute: typeof fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const path = new URL(request.url).pathname;
+    if (path !== "/byte-body-probe" && path !== "/stream-body-probe") {
+      return await issuer.fetch(request);
+    }
+    expect(request.method).toBe("POST");
+    expect(request.headers.get("content-type")).toBe("application/octet-stream");
+    bodies.push([...new Uint8Array(await request.arrayBuffer())]);
+    if (path === "/stream-body-probe") {
+      entered.resolve();
+      await new Promise<void>((_resolve, reject) => {
+        if (request.signal.aborted) {
+          reject(request.signal.reason);
+        } else {
+          request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+        }
+      });
+    }
+    return new Response("accepted actual issuer bytes");
+  };
+  await using root = await createServerHarness({
+    networkExecution: {
+      resolver: (hostname) =>
+        hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted issuer host")),
+      fetch: execute,
+    },
+  });
+  await using oidc = await createConfiguredOidc({
+    db: root.db,
+    now: root.clock.now,
+    built: root.app,
+    settings: SETTINGS,
+    scheduleInterval: root.timers.interval,
+  });
+  const issuerFetch = (await oidc.getConfig())[customFetch];
+  if (issuerFetch === undefined) {
+    throw new Error("the configured native client omitted its actual issuer execution hook");
+  }
+  const bytes = new Uint8Array(new SharedArrayBuffer(12));
+  bytes.set([99, 98, 97, 96, 1, 2, 3, 4, 5, 6, 95, 94]);
+  const headers = { "content-type": "application/octet-stream" };
+  const response = await issuerFetch(new URL("/byte-body-probe", ISSUER).href, { method: "POST", headers, body: bytes.subarray(4, 10), redirect: "manual" });
+  expect(await response.text()).toBe("accepted actual issuer bytes");
+  expect(bodies).toEqual([[1, 2, 3, 4, 5, 6]]);
+  const controller = new AbortController();
+  const stream = new ReadableStream<Uint8Array>({
+    start: (target) => {
+      target.enqueue(new Uint8Array([7, 8, 9]));
+      target.close();
+    },
+  });
+  const pending = issuerFetch(new URL("/stream-body-probe", ISSUER).href, {
+    method: "POST",
+    headers,
+    body: stream,
+    duplex: "half",
+    redirect: "manual",
+    signal: controller.signal,
+  });
+  await entered.promise;
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  expect(bodies).toEqual([
+    [1, 2, 3, 4, 5, 6],
+    [7, 8, 9],
+  ]);
+});
+
+test.each([
+  { value: null, label: "null" },
+  { value: 7, label: "number" },
+])("a signed backchannel $label event refuses before revocation; an object event still revokes", async ({ value }) => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const cookie = await signIn(root, issuer);
+  const before = await root.db.select().from(sessions);
+  expect(before).toHaveLength(1);
+  const invalid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: value } });
+  const rejected = await root.http.request("/api/auth/oidc/backchannel-logout", {
+    method: "POST",
+    body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, invalid]]),
+  });
+  expect(rejected.status).toBe(400);
+  expect(await root.db.select().from(sessions)).toEqual(before);
+  const live = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await live.json()).authenticated).toBe(true);
+  const valid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } });
+  expect(
+    (
+      await root.http.request("/api/auth/oidc/backchannel-logout", {
+        method: "POST",
+        body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, valid]]),
+      })
+    ).status,
+  ).toBe(200);
+  const dead = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await dead.json()).authenticated).toBe(false);
+});
+
+test.each([
+  { label: "missing issue time", omitted: ["iat"], patch: {} },
+  { label: "missing expiration", omitted: ["exp"], patch: {} },
+  { label: "missing token ID", omitted: ["jti"], patch: {} },
+  { label: "non-string token ID", omitted: [], patch: { jti: 7 } },
+  { label: "non-string session ID", omitted: [], patch: { sid: 7 } },
+])("a signed logout token with $label refuses before the real session is revoked", async ({ omitted, patch }) => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const cookie = await signIn(root, issuer);
+  const before = await root.db.select().from(sessions);
+  expect(before).toHaveLength(1);
+  const token = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} }, ...patch }, omitted);
+  const result = await root.http.request("/api/auth/oidc/backchannel-logout", {
+    method: "POST",
+    body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]),
+  });
+  expect(result.status).toBe(400);
+  expect(await root.db.select().from(sessions)).toEqual(before);
+  const me = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await me.json()).authenticated).toBe(true);
 });

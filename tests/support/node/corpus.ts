@@ -3,31 +3,41 @@
 import { readFileSync, statSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
+import { localPath } from "@orb/db";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import type {
+  seedCorpusAutomation as produceCorpusAutomation,
   seedCorpusLibraries as produceCorpusLibraries,
+  seedOidcCorpus as produceOidcCorpus,
   seedRecallCorpus as produceRecallCorpus,
   seedSyntheticCorpus as produceSyntheticCorpus,
   SeedSyntheticCorpusOptions,
 } from "./corpus-seed.ts";
+import type { seedUserCredential as produceCredential } from "./factories/credentials.ts";
 import type { ServerHarnessOptions } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
 
 export interface CorpusCapsuleOptions {
   readonly directory: string;
-  readonly server: Omit<ServerHarnessOptions, "db" | "ownerId" | "physicalPeer" | "authConfig" | "casDir" | "variantDir" | "importStagingDir"> & {
+  readonly server: Omit<
+    ServerHarnessOptions,
+    "db" | "ownerId" | "physicalPeer" | "authConfig" | "casDir" | "variantDir" | "importStagingDir" | "timers" | "oidc"
+  > & {
     readonly authConfig: NonNullable<ServerHarnessOptions["authConfig"]> & { readonly mode: "local" };
   };
   readonly seed: SeedSyntheticCorpusOptions;
+  readonly privateCredential: Omit<Parameters<typeof produceCredential>[2], "principal">;
 }
 
 interface CorpusPrivateCaptures {
+  readonly automation: Awaited<ReturnType<typeof produceCorpusAutomation>>;
+  readonly oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
+  readonly credential: Awaited<ReturnType<typeof produceCredential>>;
   readonly baseline: Awaited<ReturnType<typeof produceSyntheticCorpus>>;
   readonly recall: Awaited<ReturnType<typeof produceRecallCorpus>>;
   readonly libraries: Awaited<ReturnType<typeof produceCorpusLibraries>>;
@@ -46,11 +56,19 @@ export interface CorpusFixture {
 
 export interface PreparedCorpusFixture extends CorpusFixture, AsyncDisposable {}
 
+function corpusDatabaseFile(layout: DataLayout): string {
+  const path = localPath(layout.databaseUrl);
+  if (path === undefined) {
+    throw new Error("A corpus fixture requires a file-backed database");
+  }
+  return path;
+}
+
 /** Read only a completed, prepared clone; this loader does not construct or boot an application graph. */
 export function loadCorpusFixture(directory: string): CorpusFixture {
   const layout = resolveDataLayout({ ["DATA_DIR"]: resolve(directory) });
   const wire = parseCorpusWire(readFileSync(join(layout.root, CORPUS_WIRE_FILE), "utf8"));
-  if (!statSync(fileURLToPath(layout.databaseUrl)).isFile()) {
+  if (!statSync(corpusDatabaseFile(layout)).isFile()) {
     throw new Error("Prepared corpus fixture has no database file");
   }
   return { layout, wire };
@@ -64,7 +82,7 @@ export async function prepareCorpusFixture(capsule: CorpusCapsule, directory: st
   ownership.defer(() => rm(root, { recursive: true, force: true }));
   const layout = resolveDataLayout({ ["DATA_DIR"]: root });
   const { cloneStageDb } = await import("@orb/tooling/snap");
-  cloneStageDb(fileURLToPath(capsule.layout.databaseUrl), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets });
+  cloneStageDb(corpusDatabaseFile(capsule.layout), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets });
   await writeFile(join(root, CORPUS_WIRE_FILE), serializeCorpusWire(capsule.wire), { encoding: "utf8", flag: "wx" });
   const fixture = loadCorpusFixture(root);
   const lifetime = ownership.move();
@@ -92,22 +110,60 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { assertReferentialIntegrity, createDb, preCloseHousekeeping, runMigrations } = await import("@orb/db");
   const { SHIPPED_MIGRATIONS } = await import("./db.ts");
   const { createServerHarness } = await import("./server.ts");
-  const { captureCorpusReads, seedCorpusActors, seedCorpusLibraries, seedRecallCorpus, seedSyntheticCorpus } = await import("./corpus-seed.ts");
+  const { createFrozenClock } = await import("../iso/clock.ts");
+  const { createSeededIds } = await import("../iso/ids.ts");
+  const { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
+  const { seedUserCredential } = await import("./factories/credentials.ts");
+  const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
+    await import("./corpus-seed.ts");
   await using lifetimes = new AsyncDisposableStack();
   const db = await createDb(layout.databaseUrl);
   lifetimes.defer(() => preCloseHousekeeping(db));
   await runMigrations(db, SHIPPED_MIGRATIONS);
   await assertReferentialIntegrity(db);
+  const clock = options.server.clock ?? createFrozenClock();
+  const ids = options.server.ids ?? createSeededIds();
+  const issuer = await createNativeIssuer();
+  let oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
+  {
+    await using authentication = await createServerHarness({
+      ...options.server,
+      db,
+      clock,
+      ids,
+      ownerId: null,
+      authConfig: { ...options.server.authConfig, mode: "oidc", fallback: "deny" },
+      // biome-ignore lint/style/useNamingConvention: OIDC_SIGNUP is the canonical startup setting; the corpus exercises the real pending-join path.
+      oidc: { ...NATIVE_OIDC_SETTINGS, OIDC_SIGNUP: false },
+      networkExecution: {
+        fetch: issuer.fetch,
+        resolver: (hostname) => {
+          if (hostname !== new URL(ISSUER).hostname) {
+            return Promise.reject(new Error("unscripted corpus issuer address resolution"));
+          }
+          return Promise.resolve(["93.184.215.14"]);
+        },
+      },
+      casDir: layout.assets,
+      variantDir: layout.variants,
+      importStagingDir: layout.importStaging,
+    });
+    oidc = await seedOidcCorpus(authentication, issuer);
+  }
   const root = lifetimes.use(
     await createServerHarness({
       ...options.server,
       db,
+      clock,
+      ids,
+      ownerId: oidc.ownerId,
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
     }),
   );
   const actors = await seedCorpusActors(root);
+  const credential = await seedUserCredential(db, root.services.credentials.add, { ...options.privateCredential, principal: actors.owner });
   const baseline = await seedSyntheticCorpus(root, options.seed);
   const libraries = await seedCorpusLibraries(root);
   const caller = await root.internalCallerFor(root.ownerId);
@@ -120,6 +176,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     embedConnectionId: actors.connections.embed.id,
     summarizeConnectionId: actors.connections.text.id,
   });
+  const automation = await seedCorpusAutomation(root, libraries.room.chat.id);
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -128,5 +185,8 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   }
   const health = healthResponseSchema.parse(await response.json());
   const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
-  return { wire: hydrateCorpusWire({ auth: baseline.auth, health, reads }), privateCaptures: { baseline, recall, libraries } };
+  return {
+    wire: hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads }),
+    privateCaptures: { oidc, credential, baseline, recall, libraries, automation },
+  };
 }
