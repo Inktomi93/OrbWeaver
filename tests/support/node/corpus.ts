@@ -15,6 +15,7 @@ import type { seedCorpusImagery as produceCorpusImagery } from "./corpus-imagery
 import type { seedCorpusKnowledge as produceCorpusKnowledge } from "./corpus-knowledge.ts";
 import type { seedCorpusKnowledgeVariants as produceCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
 import type { seedCorpusLibraryViews as produceCorpusLibraryViews } from "./corpus-library-views.ts";
+import type { seedCorpusNotifications as produceCorpusNotifications } from "./corpus-notifications.ts";
 import type { seedCorpusPlugins as produceCorpusPlugins } from "./corpus-plugin.ts";
 import type { seedCorpusRpg as produceCorpusRpg } from "./corpus-rpg.ts";
 import type { seedCorpusRpgMembers as produceCorpusRpgMembers } from "./corpus-rpg-members.ts";
@@ -51,6 +52,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly notifications: Awaited<ReturnType<typeof produceCorpusNotifications>>;
   readonly sdkSessions: Awaited<ReturnType<typeof produceCorpusSdkSessions>>;
   readonly statsSettings: Awaited<ReturnType<typeof produceCorpusStatsSettings>>;
   readonly libraryViews: Awaited<ReturnType<typeof produceCorpusLibraryViews>>;
@@ -162,6 +164,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusConnection } = await import("./corpus-connection.ts");
   const { seedCorpusStatsSettings } = await import("./corpus-stats-settings.ts");
   const { seedCorpusSdkSessions } = await import("./corpus-sdk-sessions.ts");
+  const { seedCorpusNotifications } = await import("./corpus-notifications.ts");
   const { createCorpusSdkExecution } = await import("./corpus-sdk-wire.ts");
   const { createCorpusConnectionWire } = await import("./corpus-connection-wire.ts");
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
@@ -269,6 +272,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     foreignUserId: actors.secondUserId,
   });
   const sdkSessions = await seedCorpusSdkSessions(root, sdkExecution);
+  const notifications = await seedCorpusNotifications(root);
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -280,6 +284,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   return {
     wire: hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads }),
     privateCaptures: {
+      notifications,
       sdkSessions,
       oidc,
       credential,

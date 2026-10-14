@@ -38,15 +38,28 @@ export function joinNativeHttpRequest(bindings: NativeHttpBindings, signal: Abor
   const abortError = new DOMException("The owned HTTP request was cancelled.", "AbortError");
   const streams = [bindings.incoming, bindings.outgoing];
   const failures: Error[] = [];
-  const onError = (error: Error): void => {
-    if (error !== abortError) {
-      failures.push(new Error(error.message));
-    }
-  };
-  const closed = streams.map((stream) => {
+  const removeListeners = streams.map((stream) => {
+    const onError = (error: Error): void => {
+      // Node reports a completed request's peer-closed response separately from our own destroy error.
+      const peerCancelled =
+        stream === bindings.incoming &&
+        "code" in error &&
+        error.code === "ECONNRESET" &&
+        signal.aborted &&
+        bindings.incoming.destroyed &&
+        bindings.incoming.complete &&
+        bindings.outgoing.closed &&
+        !bindings.outgoing.writableFinished;
+      if (error !== abortError && !peerCancelled) {
+        failures.push(new Error(error.message));
+      }
+    };
     stream.on("error", onError);
-    return stream.closed ? Promise.resolve() : new Promise<void>((resolve) => stream.once("close", resolve));
+    return (): void => {
+      stream.removeListener("error", onError);
+    };
   });
+  const closed = streams.map((stream) => (stream.closed ? Promise.resolve() : new Promise<void>((resolve) => stream.once("close", resolve))));
   const abort = (): void => {
     using cancellation = new DisposableStack();
     cancellation.defer(() => {
@@ -66,8 +79,8 @@ export function joinNativeHttpRequest(bindings: NativeHttpBindings, signal: Abor
   }
   return Promise.all(closed).then(() => {
     signal.removeEventListener("abort", abort);
-    for (const stream of streams) {
-      stream.removeListener("error", onError);
+    for (const remove of removeListeners) {
+      remove();
     }
     if (failures.length > 0) {
       throw new AggregateError(failures, "native HTTP stream completion failed");
