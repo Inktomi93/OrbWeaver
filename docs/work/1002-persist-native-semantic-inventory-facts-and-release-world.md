@@ -30,8 +30,6 @@ Extraction shares ts-morph's bundled language-service checker, not the TS7 typec
 
 Pinned patch `0450353ca5` skips definition formatting only for opted-in native queries. Independent review confirms native kind, selection, default metadata, lean parity, runtime-byte invalidation and formatter rejection controls. Isolated real-client `TrpcClient` and `useTRPC` queries complete at the fixed heap.
 
-The whole-partition JSON failure is preserved in `/tmp/ast-memory-cold-client-1002/result-summary.md`. It supplies no publication verdict.
-
 The reviewed correction replaces whole-partition persistence and eager readers with indexed SQLite records. Bounded controls cover native meanings, ordering, multiplicity, input versions, atomic generations, last-good data, overlays and CLI disposal.
 
 The independent review found native scalar UTF-16 loss through SQLite text binding. The accepted correction uses a canonical scalar JSON codec for records and indexed predicates. Its format boundary preserves previous generations without reinterpretation. Native extraction and metadata controls pass, including decoded program ordering and changed-value hashes. Tooling types and scoped lint pass; root retains unrelated errors.
@@ -40,4 +38,6 @@ Integrated source `f109dc2abd` completes canonical client extraction, FORMAT3 st
 
 The run completes in 58:17 with GNU time maximum RSS 11,187,848 KiB at the unchanged 16 GiB heap setting. Parent public high water is 294,456 KiB. These are process high-water measurements, not aggregate memory. Full evidence is `/tmp/ast-memory-format3-client-1002/result-summary.md`.
 
-Complete cross-world publication and original collector replay remain unqualified. Client success is not current-main liveness evidence or complete memory qualification. Preserve the reusable generation; schedule default-demand replay explicitly without rebuilding the client automatically.
+Default-demand replay is running with fixed deadline and source, dependency and seed guards. It reuses the qualified client. Evidence lives in `/tmp/ast-memory-full-replay-1002/replay-77c78fa141-once`.
+
+Complete cross-world publication and original collector replay remain unqualified until terminal results are read. Client success is not current-main liveness evidence or complete memory qualification. Preserve the reusable generation without rebuilding the client automatically.
