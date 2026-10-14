@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   buildLiveness,
@@ -19,9 +20,10 @@ import type { SemanticInventory } from "@orb/tooling/floor/code-facts/semantic-i
 import { SemanticInventoryError } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
-import { createSemanticWorkspace, semanticReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
+import { createSemanticWorkspace, nativeCompilerSourceFiles, semanticReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
+import { Project } from "ts-morph";
 import { vi } from "vitest";
 import { declarationsNamed } from "../../../../tooling/src/floor/code-facts/reference-declarations.ts";
 import { readInventoryInputs, readInventoryModules, readInventorySourceMetadata } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
@@ -460,3 +462,73 @@ test("stored dead evidence refuses unindexed dependency barrel origins instead o
     testCount: 0,
   });
 });
+
+for (const carrier of ["references", "exports"] as const) {
+  test(`stored library ${carrier} materialize captured syntax and release on consumer failure`, ({ scratch }) => {
+    write(scratch, ".gitignore", ".cache/\n");
+    write(scratch, "tsconfig.json", JSON.stringify({ files: ["ambient.ts", "barrel.ts"], compilerOptions: { lib: ["ES2015.Collection", "DOM"], types: [] } }));
+    write(scratch, "ambient.ts", "interface Map<K, V> { readonly marker: K }\n");
+    write(scratch, "barrel.ts", "export type { Map }; export declare const value: Map<string, number>;\n");
+    execFixtureGit(scratch, ["init", "-q"]);
+    const native = createSemanticWorkspace({ root: scratch });
+    const ambient = fixtureValue(native.sourceCorpus().getSourceFile("ambient.ts"));
+    const physical = (nodes: readonly import("ts-morph").Node[]): object[] =>
+      nodes.map((node) => ({
+        file: node.getSourceFile().getFilePath(),
+        start: node.getStart(),
+        end: node.getEnd(),
+        kind: node.getKind(),
+        text: node.getText(),
+      }));
+    const capture = (nodes: readonly import("ts-morph").Node[]): { nodes: object[]; libraryPath: string; libraryText: string } => {
+      const library = fixtureValue(nodes.find((node) => node.getSourceFile().getFilePath().startsWith("/node_modules/typescript/lib/"))).getSourceFile();
+      return { nodes: physical(nodes), libraryPath: library.getFilePath(), libraryText: library.getFullText() };
+    };
+    const nativeExports = (): ReturnType<typeof capture> => {
+      const program = fixtureValue(fixtureValue(native.program("tsconfig.json")).project().getLanguageService().compilerObject.getProgram());
+      const wrappers = nativeCompilerSourceFiles(program);
+      try {
+        return capture(
+          fixtureValue(
+            fixtureValue(wrappers.find((file) => file.getFilePath() === join(scratch, "barrel.ts")))
+              .getExportedDeclarations()
+              .get("Map"),
+          ),
+        );
+      } finally {
+        for (const file of wrappers) {
+          file.forget();
+        }
+      }
+    };
+    const expected = carrier === "references" ? capture(semanticReferenceNodes(ambient.getInterfaceOrThrow("Map").getNameNode())) : nativeExports();
+    using stored = createSemanticInventory({ root: scratch });
+    const close = vi.spyOn(DatabaseSync.prototype, "close");
+    const program = vi.spyOn(Project.prototype, "getProgram").mockImplementation(() => {
+      throw new Error("stored syntax hydrated a native Program");
+    });
+    let captured: import("ts-morph").SourceFile | undefined;
+    try {
+      expect(() => {
+        using corpus = stored.sourceCorpus();
+        const actual =
+          carrier === "references"
+            ? stored.references(fixtureValue(corpus.getSourceFile("ambient.ts")).getInterfaceOrThrow("Map").getNameNode())
+            : fixtureValue(stored.exports(fixtureValue(corpus.getSourceFile("barrel.ts"))).get("Map"));
+        expect(physical(actual)).toEqual(expected.nodes);
+        captured = fixtureValue(actual.find((node) => node.getSourceFile().getFilePath() === expected.libraryPath)).getSourceFile();
+        expect(captured.getFullText()).toBe(expected.libraryText);
+        expect(() => stored.references(fixtureValue(actual.find((node) => node.getSourceFile() === captured)))).toThrow("unsupported for non-authored origin");
+        throw new Error("consumer failed after stored library read");
+      }).toThrow("consumer failed after stored library read");
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(captured?.wasForgotten()).toBe(true);
+      expect(() => stored.sourceCorpus().getSourceFile(expected.libraryPath)).toThrow("disposed");
+      expect(program).not.toHaveBeenCalled();
+    } finally {
+      stored[Symbol.dispose]();
+      program.mockRestore();
+      close.mockRestore();
+    }
+  });
+}

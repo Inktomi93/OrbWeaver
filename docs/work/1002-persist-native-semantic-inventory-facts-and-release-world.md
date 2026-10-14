@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-14
 priority: P1
 area: tooling
-lane: codex/ast-wrapper-lifetime-1002
 plan: test-foundation
 ---
 
@@ -24,7 +23,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Native extraction uses ts-morph's bundled checker. Root, client and test programs retain their own descriptors, roots and closure. Cached paths never authorize combined worlds.
+Native extraction uses ts-morph's bundled checker. Root, client and test programs retain their own descriptors, roots and closure.
 
 Pinned patch `0450353ca5` skips unused definition formatting only for opted-in native queries. Independent controls preserve reference kinds, selection, metadata, aliases and lean parity. The fixed-heap client queries pass.
 
@@ -40,4 +39,4 @@ The terminal report preserves exact populations, timings, per-process RSS and sw
 
 Reviewed `49d607fd3c` reuses extraction-local physical identities and completed native import maps through a typed readonly reference pass. Bounded parity, cancellation, invalidation and refusal controls pass. Complete tests-DOM cold extraction, staging, worker release, import, generation publication, lazy reading and disposal pass at frozen `7394d01aaf`; recorded inputs revalidate. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. This qualifies that native world, not complete demand. Multi-world replay, collector equivalence, concurrent reuse and hosted memory remain open.
 
-Reuse acquires the committed generation, but library-reference consumption fails on syntax-carrier virtual file collision. Preserve input fingerprints during repair.
+Reviewed `e70114404e` repairs syntax-carrier virtual library collisions with captured text. Native ordered parity, refusal and error disposal pass. Reader fingerprints remain intact; historical partitions need a new current-source generation.

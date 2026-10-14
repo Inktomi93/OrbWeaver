@@ -62,7 +62,13 @@ export function inventoryReader(
       throw new SemanticInventoryError("native semantic inventory has been disposed");
     }
   };
-  const project = new Project({ skipAddingFilesFromTsConfig: true, skipFileDependencyResolution: true, useInMemoryFileSystem: true });
+  // Captured library text owns these paths; implicit virtual libs would collide before lazy source creation.
+  const project = new Project({
+    skipAddingFilesFromTsConfig: true,
+    skipFileDependencyResolution: true,
+    skipLoadingLibFiles: true,
+    useInMemoryFileSystem: true,
+  });
   const contextProjects = new Map<string, Project>();
   const contextWorlds = new WeakMap<Project, readonly string[]>();
   const texts = new Map<string, { partition: string; source: StoredInventorySource }>();
@@ -92,7 +98,12 @@ export function inventoryReader(
     if (existing !== undefined) {
       return existing;
     }
-    const carrier = new Project({ skipAddingFilesFromTsConfig: true, skipFileDependencyResolution: true, useInMemoryFileSystem: true });
+    const carrier = new Project({
+      skipAddingFilesFromTsConfig: true,
+      skipFileDependencyResolution: true,
+      skipLoadingLibFiles: true,
+      useInMemoryFileSystem: true,
+    });
     contextProjects.set(key, carrier);
     contextWorlds.set(carrier, context);
     inventories.set(carrier, inventory);
