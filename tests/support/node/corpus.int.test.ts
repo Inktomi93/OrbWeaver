@@ -1,5 +1,7 @@
 // @subject tests/support/node/corpus.ts
 import "@orb/testkit/node/composed-real.ts";
+// The native clone's module graph belongs to import time, not the case's execution budget.
+import "@orb/tooling/snap";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node:fs/promises";
