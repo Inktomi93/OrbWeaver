@@ -43,8 +43,8 @@ The staged-selection release-promotion cases fail on current qualification gener
 
 JSON and wire parsing allowances are zero; whole-application qualification remains open.
 
-The suppression work item owns form-data and settled-tracing lint conflicts.
+The package-interface shrink is integrated. `SandboxLimits` remains unwaived for type-home repairs. Native coverage does not establish complete placement qualification.
 
-Complete owner evidence supports the package-interface shrink after inference relocation. `SandboxLimits` remains unwaived and belongs to type-home repairs. Other allowances are unchanged; native coverage does not establish complete placement qualification.
+Native ESLint partition and real CLI controls pass. The [hosted artifact](https://github.com/Inktomi93/OrbWeaver/actions/runs/38544900781) leaves shared-declaration and `contract-verb-presence` native-library qualification open. Arbitrary owner selection and legacy fixture repairs are not remedies.
 
-Native ESLint parser requests separate untyped files from compiler-owned partitions. Red/green and real CLI controls pass. The [hosted artifact](https://github.com/Inktomi93/OrbWeaver/actions/runs/38544900781) retains the earlier shared-declaration failure and an incomplete `contract-verb-presence` native-library boundary. Full qualification and that boundary correction remain open; arbitrary owner selection and legacy fixture repairs are not remedies.
+The generation-provenance wire requires a derived slot fact. `scripts/probes/f4-cache-proof.ts` still builds a copied `MessageView` without it. This item owns its corpus-backed replacement; do not insert a fabricated default to silence the type failure.

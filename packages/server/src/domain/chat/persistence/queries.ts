@@ -150,6 +150,7 @@ const messageViewSelection = {
   ttftMs: messageVariants.ttftMs,
   genStartedAt: messageVariants.genStartedAt,
   genFinishedAt: messageVariants.genFinishedAt,
+  hasGeneratedVariant: sql<number>`exists(select 1 from ${messageVariants} where ${messageVariants.messageId} = ${messages.id} and (${messageVariants.genStartedAt} is not null or ${messageVariants.genFinishedAt} is not null))`,
   generationId: messageVariants.generationId,
   connectionId: messageVariants.connectionId,
   connectionAttributionProvenance: messageVariants.connectionAttributionProvenance,
@@ -192,9 +193,10 @@ export function normalizeToolOrdinals(records: readonly ToolCallRecord[]): reado
 // parsed at this read seam. Tool calls degrade malformed/absent blobs to `[]`, while provider metadata is
 // reduced to the one member-visible output-cap fact — neither raw blob crosses the boundary.
 function toMessageView(
-  row: Omit<MessageView, "toolCalls" | "hasContinuation" | "outputCapReached"> & {
+  row: Omit<MessageView, "toolCalls" | "hasContinuation" | "hasGeneratedVariant" | "outputCapReached"> & {
     toolCalls: readonly ToolCallRecord[] | null;
     hasContinuation: number;
+    hasGeneratedVariant: number;
     variantMetadata: VariantMetadata | null;
   },
 ): MessageView {
@@ -204,6 +206,7 @@ function toMessageView(
   return {
     ...view,
     hasContinuation: row.hasContinuation === 1,
+    hasGeneratedVariant: row.hasGeneratedVariant === 1,
     outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
     toolCalls: activeToolCalls(row.toolCalls, metadata, row.content),
   };
@@ -1232,16 +1235,22 @@ export async function loadAuthoredUserMessageIds(db: Db, chatId: ChatId, authorU
   return rows.map((r) => r.id);
 }
 
+function userMessageScope(chatId: ChatId): SQL | undefined {
+  return and(eq(messages.chatId, chatId), eq(messages.role, "user"));
+}
+
+/** Carry the greeting window into the existing retained mutation's first required-parent write. */
+export function retainOpenGreetingWindow(db: Db, chatId: ChatId, contributions: RetainedCanonContributions): RetainedCanonContributions {
+  const user = db.select({ id: messages.id }).from(messages).where(userMessageScope(chatId)).limit(LIMIT_ONE);
+  return { ...contributions, predicate: sql`${and(contributions.predicate, sql`not ${exists(user)}`)}` };
+}
+
 /** Does this chat have ANY user-role canon row? THE greeting-malleability predicate: the first user turn is
  *  where `freezeGreetingVolatiles` (verbs/turn.ts) bakes every prior greeting's volatile macros, so a room
  *  with no user row is still in the window where a greeting may be stepped among its card's alternates.
  *  `limit(1)` — this is an EXISTENCE question, never a count. */
 export async function loadHasUserMessage(db: Db, chatId: ChatId): Promise<boolean> {
-  const rows = await db
-    .select({ id: messages.id })
-    .from(messages)
-    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user")))
-    .limit(1);
+  const rows = await db.select({ id: messages.id }).from(messages).where(userMessageScope(chatId)).limit(1);
   return rows.length > 0;
 }
 

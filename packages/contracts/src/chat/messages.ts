@@ -555,6 +555,8 @@ export interface MessageView {
    *  present and ordered) is the generation duration the `showGenerationTimer` chip reads. */
   genStartedAt: number | null;
   genFinishedAt: number | null;
+  /** Any sibling variant records a generation-window bound; selected-swipe timing remains separate. */
+  hasGeneratedVariant: boolean;
   /** The upstream generation handle (OpenRouter's `gen-…`) this shown swipe billed under — the key a quiet
    *  per-message cost readout settles with via `connection.generationCost`, resolved against
    *  `connectionId`. Null where the transport reports none (agent-sdk / endpoint rows / user/system rows). */
@@ -631,6 +633,7 @@ export const messageViewSchema = z.strictObject({
   ttftMs: z.number().nullable(),
   genStartedAt: z.number().nullable(),
   genFinishedAt: z.number().nullable(),
+  hasGeneratedVariant: z.boolean(),
   // @orb-waive no-raw-id(generationId): upstream provider billing handle (OpenRouter gen-…), not the separately minted ChatStreamGenerationId; ends if billing provenance becomes an Orbweaver identity.
   generationId: z.string().nullable(),
   connectionAttributionProvenance: connectionAttributionProvenanceSchema,
@@ -638,11 +641,11 @@ export const messageViewSchema = z.strictObject({
   toolCalls: z.array(toolCallRecordOutputSchema).readonly(),
 }) satisfies z.ZodType<MessageView>;
 
-/** Is this row a seeded greeting: a character-voiced assistant row no model produced. The engine stamps
- *  `genStartedAt` on every generation it commits and the greeting seeder never does, so a generated reply is
- *  never a greeting. The one predicate the greeting strip and `setSeededGreeting` both read. */
-export function isSeededGreetingRow<T extends Pick<MessageView, "role" | "characterId" | "genStartedAt">>(
+/** A character-voiced assistant slot with no recorded generation window on any variant.
+ *  Unstamped imported or authored text remains eligible, but a card step preserves it as a swipe.
+ *  The greeting consumer and write door share this predicate; missing evidence never proves eligibility. */
+export function isSeededGreetingRow<T extends Pick<MessageView, "role" | "characterId" | "hasGeneratedVariant">>(
   view: T,
 ): view is T & { readonly characterId: NonNullable<T["characterId"]> } {
-  return view.role === "assistant" && view.characterId !== null && view.genStartedAt === null;
+  return view.role === "assistant" && view.characterId !== null && view.hasGeneratedVariant === false;
 }

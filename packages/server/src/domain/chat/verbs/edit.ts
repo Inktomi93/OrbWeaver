@@ -3,7 +3,7 @@
 // hidden/seq — never doubling content. Each verb: gate → the correct mutation → emit the room-public bus
 // event → return the fresh MessageView (or void for the bulk mutators).
 //
-// ONE VERB HERE APPENDS INSTEAD OF MUTATING, and the exception is the rule's own proof: `applyProseRewrite`
+// Prose rewrites and greeting steps preserve replaced non-card text as variants. `applyProseRewrite`
 // (C3) lands a host-CONFIRMED automation rewrite as a NEW VARIANT of the audited slot rather than overwriting
 // it, because a machine-authored rewrite of settled prose must be revertible and a swipe already is one. It is
 // not "doubling content" — it is a swipe, the shape this schema was built for; the doubling ban is about one
@@ -16,7 +16,7 @@
 //
 // reattributeMessages/reattributePersona deliberately emit one messageEdited per slot (an attribution
 // re-stamp is a slot edit). duplicateMessage copies the selected variant's content + economics; params/
-// promptSnapshot are not carried onto the copy (a duplicate is a fresh slot).
+// promptSnapshot are not carried onto the copy (a duplicate is a fresh slot); its source generation window is retained.
 //
 // THE §3.6 RETURN BELT (D110 §3.6 / D106 one-verdict). Every verb here that hands a `MessageView` back to its
 // CALLER routes the return through {@link projectEditReturn} — the same seam `turn.ts` and (via
@@ -105,6 +105,7 @@ import {
   loadVariantMessageId,
   normalizeToolOrdinals,
   readRetainedCanonContributions,
+  retainOpenGreetingWindow,
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats, prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
@@ -330,6 +331,33 @@ function appendedVariantOf(audited: VariantRow, content: string, idx: number): V
     genStartedAt: null,
     genFinishedAt: null,
     metadata: null,
+  };
+}
+
+function selectedVariantOf(slot: RetainedCanonCapturedView): VariantRow {
+  const selected = slot.contributions.variants.find((variant) => variant.id === slot.selectedVariantId);
+  if (selected === undefined) {
+    throw new ChatNotFoundError(slot.chatId);
+  }
+  return selected;
+}
+
+// Every append describes the same captured selected-to-swipe swap; the new prose carries no generation economics.
+function appendSelectedVariant(
+  ctx: ChatContext,
+  args: { readonly slot: RetainedCanonCapturedView; readonly content: string; readonly ownerId: UserId; readonly now: number },
+): { readonly statements: BatchStmt[]; readonly deltas: StatsDelta[] } {
+  const { slot, content, ownerId, now } = args;
+  const variants = slot.contributions.variants;
+  const replaced = selectedVariantOf(slot);
+  const idx = variants.length;
+  return {
+    statements: appendVariantStatements(ctx.db, { messageId: slot.id, variantId: ctx.newMessageVariantId(), idx, now, variant: { content } }),
+    deltas: [
+      ...canonMessageDelta({ ownerId, sign: -1, now, row: canonRowOf(slot, replaced, idx) }),
+      ...swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, replaced) }),
+      ...canonMessageDelta({ ownerId, sign: 1, now, row: canonRowOf(slot, appendedVariantOf(replaced, content, idx), idx + 1) }),
+    ],
   };
 }
 
@@ -581,9 +609,8 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
  *  (c) the index resolves against the card, read under the HOST's ownership exactly as `startChat` seeded it
  *      (`greeting_alternate_not_found`).
  *
- * The write itself is the ordinary content edit — the same statements, the same `editMessageDelta`, the same
- * `messageEdited` event — so a stepped greeting is indistinguishable downstream from an edited one, which is
- * what keeps stats, the bus and the read path from needing a third shape.
+ * Card-authored text steps in place. Any other body survives as a swipe beside the selected card alternate;
+ * editedAt cannot distinguish authored prose because a card step stamps it too.
  */
 function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatService["setSeededGreeting"] {
   return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams) => {
@@ -601,33 +628,42 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       throw new ChatNotFoundError(chatId);
     }
     const card = await ctx.getCard({ ownerId: hostUserId, characterId: slot.characterId });
-    const alternate = card?.greetings[greetingIndex]?.text;
+    const greetings = card?.greetings ?? [];
+    const alternate = greetings[greetingIndex]?.text;
     if (alternate === undefined) {
       throw new ChatOperationError(CHAT_OP_CODES.greetingAlternateNotFound, `chat ${chatId}: greeting ${String(greetingIndex)} is not on this card`);
     }
     const now = ctx.now();
-    const statsDeltas: StatsDelta[] = [];
-    const statements = editMessageContentStatements(ctx.db, {
-      messageId,
-      variantId: slot.selectedVariantId,
-      content: alternate,
-      editedAt: now,
-      toolCalls: slot.toolCalls,
+    const cardWroteCurrent = greetings.some((greeting) => greeting.text === slot.content);
+    const mutation = cardWroteCurrent
+      ? {
+          statements: editMessageContentStatements(ctx.db, {
+            messageId,
+            variantId: slot.selectedVariantId,
+            content: alternate,
+            editedAt: now,
+            toolCalls: slot.toolCalls,
+          }),
+          deltas: [
+            editMessageDelta({
+              ownerId: hostUserId,
+              characterId: slot.characterId,
+              role: slot.role,
+              createdAt: slot.createdAt,
+              oldContent: slot.content,
+              newContent: alternate,
+              now,
+            }),
+          ],
+        }
+      : appendSelectedVariant(ctx, { slot, content: alternate, ownerId: hostUserId, now });
+    await commitRetainedCanonStats(ctx, chatId, mutation.statements, {
+      deltas: mutation.deltas,
+      sources: [slot],
+      contributions: [retainOpenGreetingWindow(ctx.db, chatId, slot.contributions)],
     });
-    statsDeltas.push(
-      editMessageDelta({
-        ownerId: hostUserId,
-        characterId: slot.characterId,
-        role: slot.role,
-        createdAt: slot.createdAt,
-        oldContent: slot.content,
-        newContent: alternate,
-        now,
-      }),
-    );
-    await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
-    await emit({ type: "messageEdited", chatId, messageId, view });
+    await emit({ type: cardWroteCurrent ? "messageEdited" : "variantSelected", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
   };
 }
@@ -662,33 +698,12 @@ function createApplyProseRewrite(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     if (slot.selectedVariantId !== variantId) {
       throw new ChatOperationError(CHAT_OP_CODES.rewriteSuperseded, `chat ${chatId}: the audited variant is no longer the selected one`);
     }
-    const variants = slot.contributions.variants;
-    const audited = variants.find((v) => v.id === variantId);
-    if (audited === undefined) {
-      throw new ChatNotFoundError(chatId);
-    }
+    const audited = selectedVariantOf(slot);
     if (sha256Hex(audited.content) !== expectedContentHash) {
       throw new ChatOperationError(CHAT_OP_CODES.rewriteStale, `chat ${chatId}: the audited reply has changed since it was read`);
     }
-    const now = ctx.now();
-    const newVariantId = ctx.newMessageVariantId();
-    const statsDeltas: StatsDelta[] = [];
-    const statements = appendVariantStatements(ctx.db, { messageId, variantId: newVariantId, idx: variants.length, now, variant: { content } });
-    const ownerId = principal.userId;
-    // EACH HALF DESCRIBES ITS OWN ERA, and that is not pedantry: `canonMessageDelta` derives the
-    // `variantMessages` / `activeIdxSum` counters from `variantCount > 1`, so a subtraction told the POST
-    // count would remove a "this slot has swipes" credit the PRE state never had — the two would cancel and
-    // the live mirror would drift from a rebuild by exactly one. (Caught by the rebuild-parity pin, not by
-    // inspection.)
-    const swap: StatsDelta[] = [
-      ...canonMessageDelta({ ownerId, sign: -1, now, row: canonRowOf(slot, audited, variants.length) }),
-      ...swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, audited) }),
-      ...canonMessageDelta({ ownerId, sign: 1, now, row: canonRowOf(slot, appendedVariantOf(audited, content, variants.length), variants.length + 1) }),
-    ];
-    for (const delta of swap) {
-      statsDeltas.push(delta);
-    }
-    await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
+    const mutation = appendSelectedVariant(ctx, { slot, content, ownerId: principal.userId, now: ctx.now() });
+    await commitRetainedCanonStats(ctx, chatId, mutation.statements, { deltas: mutation.deltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     // `variantSelected` is the honest event: the slot gained a swipe AND its selection moved to it, which is
     // exactly what a manual swipe emits — so every live consumer already knows how to fold it.
@@ -1050,10 +1065,7 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
   return async ({ principal, chatId, messageId }: DuplicateMessageParams) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
-    const source = slot.contributions.variants.find((variant) => variant.id === slot.selectedVariantId);
-    if (source === undefined) {
-      throw new ChatNotFoundError(chatId);
-    }
+    const source = selectedVariantOf(slot);
     const sourceMetadata = parseVariantMetadata(source.metadata);
     const metadata =
       sourceMetadata.usageLegs === undefined && sourceMetadata.providerMetadata === undefined
@@ -1092,6 +1104,8 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
         responseCache: source.responseCache ?? undefined,
         metadata,
         contextWindow: slot.contextWindow,
+        genStartedAt: source.genStartedAt,
+        genFinishedAt: source.genFinishedAt,
         ttftMs: slot.ttftMs,
         finishReason: slot.finishReason,
         stopReason: slot.stopReason,
@@ -1120,8 +1134,8 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
           cacheReadTokens: slot.cacheReadTokens,
           cacheWriteTokens: slot.cacheWriteTokens,
           contextWindow: slot.contextWindow,
-          genStartedAt: null,
-          genFinishedAt: null,
+          genStartedAt: params.variant.genStartedAt,
+          genFinishedAt: params.variant.genFinishedAt,
           model: slot.model,
           provider: slot.provider,
           reasoning: slot.reasoning,
