@@ -5,14 +5,13 @@
 // a deps bundle or a component's props carries behaviour, so it never crosses a wire and is not judged here.
 //
 // FAMILY `no-inline-types` (split by POPULATION): shared reporting lives in `lib/type-home-policy.ts`;
-// declaration recognition lives in the floor shape reader. Server and inference code is subtracted because
+// declaration and wire eligibility live in `floor/code-facts/type-home-declaration.ts`. Server and inference code is subtracted because
 // `no-inline-domain-interface` and `no-inline-package-interface` already judge every exported interface there.
 // POPULATION: the client minus its type homes (forms, state, lib, `contract/`); the `data/` tier is judged, since
 // hand-spelled HTTP response shapes live there. Each clause has a mustPass row that dies without it.
-import { Node, SyntaxKind } from "ts-morph";
-import { isPlainDataShape } from "../../floor/code-facts/shape-declaration.ts";
+import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { reportExportedWireShapes } from "../lib/type-home-policy.ts";
+import { reportTypeHomeDeclaration } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
   "exported wire-named plain-data interface outside a type home — a cross-boundary wire shape lives in @orb/contracts " +
@@ -44,10 +43,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.InterfaceDeclaration],
         visit: (node): void => {
-          if (!(Node.isInterfaceDeclaration(node) && isPlainDataShape(node))) {
-            return;
-          }
-          reportExportedWireShapes(ctx, node, MESSAGE, FIX);
+          reportTypeHomeDeclaration(ctx, node, "wire-interface", { message: MESSAGE, fix: FIX });
         },
       },
     ],

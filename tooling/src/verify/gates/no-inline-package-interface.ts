@@ -9,7 +9,7 @@
 // sibling, so the three interface policies partition the implementation roots without overlap.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { reportExportedShapes } from "../lib/type-home-policy.ts";
+import { reportTypeHomeDeclaration } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
   "exported interface in server entry, transport, infra, foundation or inference outside a type home — a shape " +
@@ -41,7 +41,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.InterfaceDeclaration],
         visit: (node): void => {
-          reportExportedShapes(ctx, node, MESSAGE, FIX);
+          reportTypeHomeDeclaration(ctx, node, "interface", { message: MESSAGE, fix: FIX });
         },
       },
     ],

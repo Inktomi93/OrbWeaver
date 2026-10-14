@@ -1,26 +1,27 @@
-// Type-home policy reporting over canonical declaration facts; the wire arm additionally owns its name vocabulary.
+// Admitted declaration findings retain their policy identity, authority and authored-name coordinates.
 import type { Node } from "ts-morph";
-import { inlineShapeNames } from "../../floor/code-facts/shape-declaration.ts";
-import type { GatePolicyContext } from "../contract/policy.ts";
+import type { TypeHomeDeclarationClaim } from "../../floor/code-facts/type-home-contract.ts";
+import { judgeTypeHomeDeclaration } from "../../floor/code-facts/type-home-declaration.ts";
+import type { GatePolicyContext, GatePolicyFindingDetails } from "../contract/policy.ts";
 
-const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input", "Request", "Response", "Wire"] as const;
-
-function reportNames(ctx: GatePolicyContext, names: readonly Node[], message: string, fix: string): void {
-  for (const name of names) {
-    ctx.report.node(name, { token: name.getText(), offset: 0, message, fix });
+/** Unqualified ownership cannot erase a current accusation; only successor equivalence may retire its owner. */
+export function reportTypeHomeDeclaration(
+  ctx: GatePolicyContext,
+  node: Node,
+  claim: TypeHomeDeclarationClaim,
+  details: Required<Pick<GatePolicyFindingDetails, "message" | "fix">>,
+): void {
+  const judgment = judgeTypeHomeDeclaration(node, { path: ctx.relativePath(node.getSourceFile()), claim });
+  if (judgment.kind === "refused") {
+    throw new Error(judgment.reason);
   }
-}
-
-/** Report an exported shape at its authored name, the exact coordinate its waiver must identify. */
-export function reportExportedShapes(ctx: GatePolicyContext, node: Node, message: string, fix: string): void {
-  reportNames(ctx, inlineShapeNames(node), message, fix);
-}
-
-/** Report only wire-vocabulary names; the consumer proves the declaration is plain data first. */
-export function reportExportedWireShapes(ctx: GatePolicyContext, node: Node, message: string, fix: string): void {
-  const names = inlineShapeNames(node).filter((name) => {
-    const text = name.getText();
-    return WIRE_SHAPE_SUFFIXES.some((suffix) => text.endsWith(suffix) && text.length > suffix.length);
-  });
-  reportNames(ctx, names, message, fix);
+  if (judgment.kind === "not-subject") {
+    return;
+  }
+  if (judgment.ownership.kind === "owned") {
+    throw new Error("Type-home population admitted a sanctioned package contract home.");
+  }
+  for (const { name } of judgment.shapes) {
+    ctx.report.node(name, { token: name.getText(), offset: 0, ...details });
+  }
 }

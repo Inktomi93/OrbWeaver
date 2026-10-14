@@ -57,7 +57,7 @@
 
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { reportExportedShapes } from "../lib/type-home-policy.ts";
+import { reportTypeHomeDeclaration } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
   "exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or " +
@@ -113,7 +113,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.TypeAliasDeclaration, SyntaxKind.VariableStatement],
         visit: (node): void => {
-          reportExportedShapes(ctx, node, MESSAGE, FIX);
+          reportTypeHomeDeclaration(ctx, node, "alias-or-schema", { message: MESSAGE, fix: FIX });
         },
       },
     ],
