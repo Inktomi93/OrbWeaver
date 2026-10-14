@@ -16,7 +16,7 @@ Preserve useful migration cases and production contract concerns for the test-fo
 
 [test-foundation](../test-foundation/design.md) owns execution order, the legacy boundary, shared readers, production composition, builders/corpus and replacement suites. This plan retains candidate cases and production contract concerns; it does not authorize a separate legacy retrofit queue.
 
-The work items own live status. Contract, stored-value and current wire-boundary recovery is integrated through canonical type homes, ownership before private parsing and refusal before effects. Server-root acceptance is established; complete corpus qualification remains open. The smoke matrix follows complete foundations.
+The work items own live status. Contract, stored-value and current wire-boundary recovery is integrated through canonical type homes, ownership before private parsing and refusal before effects. Test-foundation owns remaining physical-edge and corpus qualification. The smoke matrix follows complete foundations.
 
 ### Using the inventory
 

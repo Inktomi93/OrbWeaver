@@ -147,7 +147,7 @@ function noticeLine(text: string): void {
 async function reportDevDbForecast(root: string): Promise<void> {
   // The dev db's URL is derived the way the server derives it (the data root, else the slot key), through
   // the pure resolver rather than the server's env module, which this standalone stage must not load.
-  // biome-ignore lint/style/noProcessEnv: the dev db's location is genuinely process env — this stage runs standalone, outside the server's env module.
+  // biome-ignore lint/style/noProcessEnv: these product keys belong to the pure app layout resolver, not tooling's protocol-only process-env door; loading foundation/env would change standalone boot/config behavior.
   const { databaseUrl: url } = resolveDataLayout({ ["DATA_DIR"]: process.env["DATA_DIR"], ["DATABASE_URL"]: process.env["DATABASE_URL"] });
   const { forecastDevDbReset } = await import("@orb/db");
   let forecast: Awaited<ReturnType<typeof forecastDevDbReset>>;
