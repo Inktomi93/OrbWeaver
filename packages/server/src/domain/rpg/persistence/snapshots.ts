@@ -627,6 +627,19 @@ export async function writeResyncedSnapshot(db: Db, state: RpgSnapshotState, tar
   return { ok: true, row };
 }
 
+/** Detach a bookmark from its mutable variant using the canonical committed hand arm and current tail.
+ * The array carries an unexecuted query across the async tail read without assimilating its thenable. */
+export async function buildCheckpointSnapshotStatements(db: Db, base: RpgSnapshotRow, target: HandSnapshotTarget): Promise<readonly BatchStmt[]> {
+  const asOfMessageId = await findTailMessageId(db, target.chatId);
+  return batchMany([
+    batchStmt(
+      db
+        .insert(rpgSnapshots)
+        .values(snapshotInsertFrom(snapshotRowToState(base), { fieldLocks: base.fieldLocks, committed: COMMITTED, arm: handArmKeys(asOfMessageId) }, target)),
+    ),
+  ]);
+}
+
 /** Checkpoint restore's UNEXECUTED companion statement: clone a pointed snapshot forward as a HAND row, BORN
  *  COMMITTED with locks preserved, stamped at the visible restore marker. The narrator writer appends this to
  *  its existing pure-write batch, so marker and state have one commit while each domain still builds only its

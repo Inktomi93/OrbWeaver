@@ -1,21 +1,18 @@
-// domain/rpg/persistence/checkpoints — labeled snapshot bookmarks (docs/plans/rpg/design.md). Create (label a
-// snapshot) · list · read (the restore target). RESTORE ITSELF is composed in the verb layer (W1b): it
-// reads the checkpointed snapshot, then clone-forwards it BORN COMMITTED through
-// `buildRestoredSnapshotStatement` (persistence/snapshots), committed beside the visible narrator marker —
-// this slot owns only checkpoint rows. The snapshot FK is RESTRICT (a restore broken because the snapshot
-// vanished must be a constraint error, not a silent dangle). No JSON columns — no parse-on-read belt.
-// `id`/`now` injected.
+// Labeled immutable snapshot bookmarks; an optional detached snapshot shares the checkpoint's write batch.
+// Restore owns its narrator/state batch in the verb; the snapshot FK remains RESTRICT.
 
 import type { Db } from "@orb/db";
 import { rpgCheckpoints } from "@orb/db";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { RpgCheckpointId, RpgGameId } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
 import type { NewRpgCheckpoint, RpgCheckpointRow } from "../contract/service.ts";
 
-/** Create a checkpoint row pointing at a snapshot. */
-export async function insertCheckpoint(db: Db, values: NewRpgCheckpoint): Promise<RpgCheckpointRow> {
-  const rows = await db.insert(rpgCheckpoints).values(values).returning();
-  const row = rows[0];
+/** Commit the bookmark and its optional detached snapshot together, without a durable half on failure. */
+export async function insertCheckpoint(db: Db, values: NewRpgCheckpoint, snapshotStatements: readonly BatchStmt[] = []): Promise<RpgCheckpointRow> {
+  await db.batch(batchMany([...snapshotStatements, batchStmt(db.insert(rpgCheckpoints).values(values))]));
+  const row = await findCheckpoint(db, values.id);
   if (!row) {
     throw new Error("insertCheckpoint: no row returned");
   }
