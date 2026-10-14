@@ -11,6 +11,7 @@ import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts
 import { resolveHost } from "#src/domain/rpg/guard.ts";
 import { findCheckpoint } from "#src/domain/rpg/persistence/checkpoints.ts";
 import { buildRestoredSnapshotStatement, findSnapshotById } from "#src/domain/rpg/persistence/snapshots.ts";
+import { serializeHandWrite } from "#src/domain/rpg/snapshot-edit.ts";
 
 const RESTORE_MESSAGE = "— scene restored —";
 
@@ -18,22 +19,23 @@ export function createRestoreCheckpoint(ctx: RpgContext): Pick<RpgService, "rest
   async function restoreCheckpoint(params: RestoreCheckpointParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
     await ctx.claimChat(params.chatId);
-    const checkpoint = await findCheckpoint(ctx.db, params.checkpointId);
-    if (checkpoint === undefined || checkpoint.gameId !== game.id) {
-      throw new DomainNotFoundError("checkpoint", params.checkpointId);
-    }
-    // The checkpointed snapshot IS the restore base — read it by its durable id.
-    const base = await findSnapshotById(ctx.db, checkpoint.snapshotId);
-    if (base === undefined) {
-      throw new DomainNotFoundError("snapshot", checkpoint.snapshotId);
-    }
-    const snapshotId = ctx.ids.snapshot();
-    // Chat mints the visible marker ids before its batch, then asks RPG for exactly one unexecuted companion
-    // statement. The marker remains the hand row's D124 ordering stamp, while either statement failing rolls
-    // both back and a retry starts from no visible half.
-    await ctx.postNarratorMessage(game.chatId, RESTORE_MESSAGE, ({ messageId }) =>
-      buildRestoredSnapshotStatement(ctx.db, base, { id: snapshotId, gameId: game.id, now: ctx.now() }, messageId),
-    );
+    const snapshotId = await serializeHandWrite(game.id, async () => {
+      const checkpoint = await findCheckpoint(ctx.db, params.checkpointId);
+      if (checkpoint === undefined || checkpoint.gameId !== game.id) {
+        throw new DomainNotFoundError("checkpoint", params.checkpointId);
+      }
+      // The checkpointed snapshot IS the restore base — read it by its durable id.
+      const base = await findSnapshotById(ctx.db, checkpoint.snapshotId);
+      if (base === undefined) {
+        throw new DomainNotFoundError("snapshot", checkpoint.snapshotId);
+      }
+      const restoredId = ctx.ids.snapshot();
+      // The narrator/state batch stays inside the same owner as hand edits; neither writer resolves past it.
+      await ctx.postNarratorMessage(game.chatId, RESTORE_MESSAGE, ({ messageId }) =>
+        buildRestoredSnapshotStatement(ctx.db, base, { id: restoredId, gameId: game.id, now: ctx.now() }, messageId),
+      );
+      return restoredId;
+    });
     // The restored snapshot is the new resolved-current head → the whole panel re-resolves (§4.9).
     ctx.emitBus({ type: "snapshotPatched", chatId: params.chatId, snapshotId });
   }
