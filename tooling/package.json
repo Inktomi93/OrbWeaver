@@ -130,6 +130,7 @@
     "./floor/code-facts/type-member-origin": "./src/floor/code-facts/type-member-origin.ts",
     "./floor/code-facts/type-home": "./src/floor/code-facts/type-home.ts",
     "./floor/code-facts/type-home-contract": "./src/floor/code-facts/type-home-contract.ts",
+    "./floor/code-facts/type-home-declaration": "./src/floor/code-facts/type-home-declaration.ts",
     "./floor/code-facts/type-member-origin-contract": "./src/floor/code-facts/type-member-origin-contract.ts",
     "./floor/code-facts/type-member-origin-core": "./src/floor/code-facts/type-member-origin-core.ts",
     "./floor/code-facts/value-carrier": "./src/floor/code-facts/value-carrier.ts",

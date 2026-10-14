@@ -11,8 +11,8 @@
 // every exported interface in three roots or re-home a corpus predicate inside a policy body, which the
 // final design bans outright.
 //
-// No identity reader is involved: an exported interface is authored syntax, and `export` cannot be
-// aliased, re-exported or computed into existence at the declaration site.
+// The floor declaration reader retains local export-list visibility and authored-name identity;
+// foreign reexports are not new local declarations.
 //
 // §4.6 SPLIT DIFFERENTIAL (#2000, committed at `tests/tooling/verify/gates/split-arm-parity.test.ts`).
 // LEGACY-SIDE COVERAGE: 2 of the parent's 9 examples — `no-inline-types` mustFlag[1] and mustFlag[4] —
@@ -40,7 +40,7 @@
 // The floor recognizes declarations; this policy delivers only interfaces, not aliases or schema constants.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { reportExportedShapes } from "../lib/type-home-policy.ts";
+import { reportTypeHomeDeclaration } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
   "exported interface in a server domain outside a type home — a domain-internal shape lives in that " +
@@ -75,7 +75,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.InterfaceDeclaration],
         visit: (node): void => {
-          reportExportedShapes(ctx, node, MESSAGE, FIX);
+          reportTypeHomeDeclaration(ctx, node, "interface", { message: MESSAGE, fix: FIX });
         },
       },
     ],

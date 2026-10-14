@@ -27,13 +27,14 @@ function sourceRoot(name: PackageName): string {
   return `${packageRoot(name)}src/`;
 }
 
-function contractRoot(name: PackageName): string {
+/** The sanctioned structural package-contract directory, not a declaration ownership grant. */
+export function packageContractHome(name: PackageName): string {
   return `${sourceRoot(name)}contract/`;
 }
 
 const NATIVE_PACKAGES = PACKAGE_NAMES.filter((name) => PACKAGE_TYPE_HOMES[name].nativePilot);
 export const TYPE_HOME_NATIVE_SOURCE_GLOBS = NATIVE_PACKAGES.map((name) => `${sourceRoot(name)}**/*.{ts,tsx}`);
-export const TYPE_HOME_NATIVE_CONTRACT_GLOBS = NATIVE_PACKAGES.map((name) => `${contractRoot(name)}**/*.{ts,tsx}`);
+export const TYPE_HOME_NATIVE_CONTRACT_GLOBS = NATIVE_PACKAGES.map((name) => `${packageContractHome(name)}**/*.{ts,tsx}`);
 
 /** Classify the canonical package/world and answer only the sanctioned package-contract path question. */
 export function packageTypeHome(path: string): PackageTypeHomeClassification | undefined {
@@ -46,7 +47,7 @@ export function packageTypeHome(path: string): PackageTypeHomeClassification | u
     packageName,
     world: worldOf(path),
     category: policy.category,
-    home: policy.category === "package-contract" ? path.startsWith(contractRoot(packageName)) : null,
+    home: policy.category === "package-contract" ? path.startsWith(packageContractHome(packageName)) : null,
     nativePilot: policy.nativePilot,
   };
 }
