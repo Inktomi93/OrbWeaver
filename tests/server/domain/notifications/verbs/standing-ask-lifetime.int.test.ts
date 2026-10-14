@@ -1,0 +1,271 @@
+// @subject packages/server/src/domain/notifications/verbs/standing.ts
+// @subject packages/server/src/domain/notifications/persistence/queries.ts
+// @subject packages/server/src/domain/plugin/substrate/consent-prompt.ts
+// @subject tests/support/node/factories/plugin.ts
+
+import { spawn } from "node:child_process";
+import process from "node:process";
+import type { Principal } from "@orb/contracts/identity";
+import type { InboxView } from "@orb/contracts/notifications";
+import type { PluginManifest } from "@orb/contracts/plugin";
+import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
+import { MS_PER_SECOND } from "@orb/kit/time";
+import { makePluginBundle, PLUGIN_ZIP_MTIME_SECONDS_RANGE, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import { unzipSync } from "fflate";
+import { describe } from "vitest";
+import { expect, NOTIFICATION_GUEST_SOURCE, pendingConsent, test } from "../_fixtures.ts";
+
+const CONSENT_TYPE = "plugins-awaiting-consent";
+async function standingRows(harness: ServerTestHarness, principal: Principal): Promise<readonly InboxView[]> {
+  const page = await harness.services.notifications.list({ principal });
+  return page.items.filter((item) => item.type === CONSENT_TYPE);
+}
+describe("record — supersedeActiveOfSameType", () => {
+  test("a re-raise leaves ONE live row of the type, carrying the newest number", async ({ harness, notificationActors: actors, consentSnapshots: consent }) => {
+    const svc = harness.services.notifications;
+    await svc.record({ event: consent.small, supersedeActiveOfSameType: true });
+    await svc.record({ event: consent.large, supersedeActiveOfSameType: true });
+
+    const rows = await standingRows(harness, actors.alice);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.payload).toEqual(consent.large);
+  });
+
+  test("it supersedes only the SAME type, and only the SAME recipient", async ({ harness, notificationActors: actors, consentSnapshots: consent }) => {
+    const svc = harness.services.notifications;
+    await svc.record({ event: actors.aliceInvite });
+    await svc.record({ event: consent.bob, supersedeActiveOfSameType: true });
+    await svc.record({ event: consent.corrected, supersedeActiveOfSameType: true });
+    await svc.record({ event: consent.large, supersedeActiveOfSameType: true });
+
+    const alice = await svc.list({ principal: actors.alice });
+    expect(alice.items.map((item) => item.type).sort()).toEqual(["invite", CONSENT_TYPE].sort());
+    expect((await standingRows(harness, actors.bob))[0]?.payload).toEqual(consent.bob);
+  });
+
+  test("the absent flag still APPENDS — two invites are two events", async ({ harness, notificationActors: actors }) => {
+    const svc = harness.services.notifications;
+    await svc.record({ event: actors.aliceInvite });
+    await svc.record({ event: actors.aliceInvite });
+    expect((await svc.list({ principal: actors.alice })).items).toHaveLength(2);
+  });
+});
+
+describe("refreshStanding — the QUIET correction", () => {
+  test("the number changes in place: same row, same seq, and a row already read STAYS read", async ({
+    harness,
+    notificationActors: actors,
+    consentSnapshots: consent,
+  }) => {
+    const svc = harness.services.notifications;
+    const raised = await svc.record({ event: consent.large, supersedeActiveOfSameType: true });
+    await svc.markAllRead({ principal: actors.alice });
+
+    const changed = await svc.refreshStanding({ event: consent.corrected });
+    expect(changed).toHaveLength(1);
+
+    const rows = await standingRows(harness, actors.alice);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.payload).toEqual(consent.corrected);
+    expect(rows[0]?.seq).toBe(raised.seq);
+    expect(rows[0]?.readAt).not.toBeNull();
+  });
+
+  test("it does NOT resurrect a dismissed ask — no active row means no write", async ({ harness, notificationActors: actors, consentSnapshots: consent }) => {
+    const svc = harness.services.notifications;
+    const raised = await svc.record({ event: consent.large, supersedeActiveOfSameType: true });
+    await svc.dismiss({ principal: actors.alice, notificationId: raised.id });
+
+    expect(await svc.refreshStanding({ event: consent.corrected })).toHaveLength(0);
+    expect(await standingRows(harness, actors.alice)).toHaveLength(0);
+  });
+
+  test("it touches only the addressed recipient's row", async ({ harness, notificationActors: actors, consentSnapshots: consent }) => {
+    const svc = harness.services.notifications;
+    await svc.record({ event: consent.large, supersedeActiveOfSameType: true });
+    await svc.record({ event: consent.bob, supersedeActiveOfSameType: true });
+
+    await svc.refreshStanding({ event: consent.corrected });
+
+    expect((await standingRows(harness, actors.bob))[0]?.payload).toEqual(consent.bob);
+  });
+});
+
+describe("retract — the ask is gone", () => {
+  test("it takes the standing row out of the active inbox and returns what it flipped", async ({
+    harness,
+    notificationActors: actors,
+    clock,
+    consentSnapshots: consent,
+  }) => {
+    const svc = harness.services.notifications;
+    await svc.record({ event: consent.corrected, supersedeActiveOfSameType: true });
+    await svc.record({ event: actors.aliceInvite });
+
+    const withdrawn = await svc.retract({ recipientUserId: actors.alice.userId, type: CONSENT_TYPE });
+    expect(withdrawn).toHaveLength(1);
+    expect(withdrawn[0]?.dismissedAt).toBe(clock.frozenAt);
+
+    const page = await svc.list({ principal: actors.alice });
+    expect(page.items.map((item) => item.type)).toEqual(["invite"]);
+  });
+
+  test("it is idempotent and total — retracting when nothing stands flips nothing", async ({
+    harness,
+    notificationActors: actors,
+    consentSnapshots: consent,
+  }) => {
+    const svc = harness.services.notifications;
+    expect(await svc.retract({ recipientUserId: actors.alice.userId, type: CONSENT_TYPE })).toHaveLength(0);
+    await svc.record({ event: consent.corrected, supersedeActiveOfSameType: true });
+    expect(await svc.retract({ recipientUserId: actors.alice.userId, type: CONSENT_TYPE })).toHaveLength(1);
+    expect(await svc.retract({ recipientUserId: actors.alice.userId, type: CONSENT_TYPE })).toHaveLength(0);
+  });
+
+  test("a retracted row never replays on a socket resume (#1459's ascending pump reads active rows only)", async ({
+    harness,
+    notificationActors: actors,
+    consentSnapshots: consent,
+  }) => {
+    const svc = harness.services.notifications;
+    const raised = await svc.record({ event: consent.large, supersedeActiveOfSameType: true });
+    await svc.retract({ recipientUserId: actors.alice.userId, type: CONSENT_TYPE });
+
+    expect(await svc.replaySince({ principal: actors.alice, afterSeq: raised.seq - 1 })).toHaveLength(0);
+  });
+
+  test("a SUPERSEDED row never replays either — a resume cannot show two copies of one ask", async ({
+    harness,
+    notificationActors: actors,
+    consentSnapshots: consent,
+  }) => {
+    const svc = harness.services.notifications;
+    const first = await svc.record({ event: consent.small, supersedeActiveOfSameType: true });
+    const second = await svc.record({ event: consent.large, supersedeActiveOfSameType: true });
+
+    const replayed = await svc.replaySince({ principal: actors.alice, afterSeq: first.seq - 1 });
+    expect(replayed.map((view) => view.seq)).toEqual([second.seq]);
+  });
+});
+
+test("actual plugin consent grows one ask, quietly answers it and retracts the last question without starting a guest", async ({
+  harness,
+  notificationActors: actors,
+  clock,
+}) => {
+  const first = await pendingConsent(harness, actors.alice);
+  const second = await pendingConsent(harness, actors.alice);
+  expect(second.event.pendingCount).toBe(first.event.pendingCount + 1);
+  expect(second.view.id).not.toBe(first.view.id);
+  expect((await harness.services.notifications.list({ principal: actors.alice })).items.map((row) => row.id)).toEqual([second.view.id]);
+  await harness.services.notifications.markAllRead({ principal: actors.alice });
+  clock.advance(1000);
+  const answered = await seedPluginGrant(harness.db, harness.services.plugin.setGrant, {
+    caller: actors.alice,
+    pluginId: first.plugin.id,
+    grant: first.plugin.manifest.capabilities,
+    acknowledgedNetHosts: [],
+  });
+  expect(answered.plugin.status).toBe("disabled");
+  expect(answered.kv).toEqual([]);
+  const [quiet] = (await harness.services.notifications.list({ principal: actors.alice })).items;
+  expect(quiet).toMatchObject({ id: second.view.id, seq: second.view.seq, readAt: clock.frozenAt, actionable: true, payload: first.event });
+  await harness.services.plugin.uninstall({ caller: actors.alice, pluginId: second.plugin.id });
+  expect((await harness.services.notifications.list({ principal: actors.alice })).items).toEqual([]);
+  expect(await harness.services.notifications.replaySince({ principal: actors.alice, afterSeq: 0 })).toEqual([]);
+});
+test("raw plugin ZIP identity derives from supplied time and still enters native install and consent", async ({
+  harness,
+  notificationActors: actors,
+  clock,
+}) => {
+  const pending = await pendingConsent(harness, actors.alice);
+  const manifest = pending.plugin.manifest;
+  const first = makePluginBundle(manifest, NOTIFICATION_GUEST_SOURCE, clock.now());
+  const repeat = makePluginBundle(manifest, NOTIFICATION_GUEST_SOURCE, clock.now());
+  const later = makePluginBundle(manifest, NOTIFICATION_GUEST_SOURCE, clock.now() + MS_PER_SECOND);
+  expect(Array.from(repeat)).toEqual(Array.from(first));
+  expect(Array.from(later)).not.toEqual(Array.from(first));
+  const caller = actors.bob;
+  const installed = await seedInstalledPlugin(harness.db, harness.services.plugin.install, { caller, bundle: first, grant: [] });
+  expect(installed.plugin.manifest).toEqual(manifest);
+  expect(installed.plugin.pendingReconsent).toBe(false);
+  const requested = await seedPluginGrant(harness.db, harness.services.plugin.setGrant, {
+    caller,
+    pluginId: installed.plugin.id,
+    grant: [],
+    acknowledgedNetHosts: [],
+  });
+  expect(requested.plugin.pendingReconsent).toBe(true);
+  expect(requested.plugin.status).toBe("disabled");
+  expect((await harness.services.notifications.list({ principal: caller })).items).toMatchObject([
+    { actionable: true, payload: { type: pending.event.type, recipientUserId: caller.userId, pendingCount: 1 } },
+  ]);
+});
+
+const CHILD_TIMEZONE_ENV = "TZ";
+
+async function archiveInTimezone(manifest: PluginManifest, mtime: number, timezone: string): Promise<string> {
+  await using lifetime = new AsyncDisposableStack();
+  const source = `import { makePluginBundle } from "@orb/testkit/node/factories/plugin.ts";
+process.stdout.write(Buffer.from(makePluginBundle(${JSON.stringify(manifest)}, ${JSON.stringify(NOTIFICATION_GUEST_SOURCE)}, ${String(mtime)})).toString("base64"));`;
+  const child = spawn(process.execPath, ["--input-type=module", "--eval", source], {
+    env: { [CHILD_TIMEZONE_ENV]: timezone },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const closed = Promise.withResolvers<void>();
+  const completion = Promise.withResolvers<number | null>();
+  child.once("error", completion.reject);
+  child.once("close", (exitCode) => {
+    closed.resolve();
+    completion.resolve(exitCode);
+  });
+  lifetime.defer(async () => {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGTERM");
+    }
+    await closed.promise;
+  });
+  let bytes = "";
+  let diagnostic = "";
+  child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+    bytes += chunk;
+  });
+  child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+    diagnostic += chunk;
+  });
+  const code = await completion.promise;
+  if (code !== 0) {
+    throw new Error(`native ZIP child failed: ${diagnostic}`);
+  }
+  return bytes;
+}
+
+test("the same raw plugin input has exact native ZIP bytes across UTC and Boise including a DST-boundary epoch", async ({
+  harness,
+  notificationActors: actors,
+  clock,
+}) => {
+  const pending = await pendingConsent(harness, actors.alice);
+  for (const mtime of [clock.now(), Date.UTC(2025, 2, 9, 9, 30)]) {
+    const utc = await archiveInTimezone(pending.plugin.manifest, mtime, "UTC");
+    const boise = await archiveInTimezone(pending.plugin.manifest, mtime, "America/Boise");
+    expect(boise).toBe(utc);
+  }
+});
+
+test("raw plugin UTC mtime admits signed32 endpoints and refuses unrepresentable seconds instead of wrapping", async ({
+  harness,
+  notificationActors: actors,
+}) => {
+  const pending = await pendingConsent(harness, actors.alice);
+  for (const seconds of PLUGIN_ZIP_MTIME_SECONDS_RANGE) {
+    const archive = makePluginBundle(pending.plugin.manifest, NOTIFICATION_GUEST_SOURCE, seconds * MS_PER_SECOND);
+    expect(Object.keys(unzipSync(archive)).toSorted()).toEqual([PLUGIN_MANIFEST_ENTRY, PLUGIN_MAIN_ENTRY].toSorted());
+  }
+  const [min, max] = PLUGIN_ZIP_MTIME_SECONDS_RANGE;
+  for (const mtime of [(min - 1) * MS_PER_SECOND, (max + 1) * MS_PER_SECOND, Number.NaN]) {
+    expect(() => makePluginBundle(pending.plugin.manifest, NOTIFICATION_GUEST_SOURCE, mtime)).toThrow(RangeError);
+  }
+});

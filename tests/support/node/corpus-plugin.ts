@@ -1,14 +1,14 @@
 // Synthetic bundle bytes enter the real consent and sandbox lifecycle; private captures never become ISO data.
 import { providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
-import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginProviderClaims } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import { strToU8, zipSync } from "fflate";
+import { FROZEN_AT_MS } from "../iso/clock.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { makePluginBundle, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
 import { seedAdminProvider, seedPluginProviders } from "./factories/provider.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -56,12 +56,13 @@ const GUEST_SOURCE = `const host = orb.host(1); host.storage.set(${JSON.stringif
 const REFUSED_GUEST_SOURCE = 'throw new Error("corpus guest activation refused");';
 
 /** Pack physical guest input only; production owns validation, consent, isolation and execution. */
-export function corpusPluginBundle(asset: Uint8Array, manifest: PluginManifest = CORPUS_PLUGIN_MANIFEST, source: string = GUEST_SOURCE): Uint8Array {
-  return zipSync({
-    [PLUGIN_MANIFEST_ENTRY]: strToU8(JSON.stringify(manifest)),
-    [PLUGIN_MAIN_ENTRY]: strToU8(source),
-    [CORPUS_PLUGIN_ASSET_PATH]: asset,
-  });
+export function corpusPluginBundle(
+  asset: Uint8Array,
+  manifest: PluginManifest = CORPUS_PLUGIN_MANIFEST,
+  source: string = GUEST_SOURCE,
+  mtime: number = FROZEN_AT_MS,
+): Uint8Array {
+  return makePluginBundle(manifest, source, mtime, { [CORPUS_PLUGIN_ASSET_PATH]: asset });
 }
 
 export interface SeededCorpusPlugins {
@@ -80,7 +81,7 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
   const caller = await root.principalFor(root.ownerId);
   const recipientCaller = await root.principalFor(recipientId);
   const manifest = CORPUS_PLUGIN_PROVIDER_MANIFEST;
-  const bytes = corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), manifest);
+  const bytes = corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), manifest, GUEST_SOURCE, root.clock.now());
   const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, { caller, bundle: bytes, grant: [] });
   const providers = await seedPluginProviders(
     root.db,
@@ -118,7 +119,7 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
   const refusedManifest = pluginManifestSchema.parse({ ...CORPUS_PLUGIN_MANIFEST, id: "corpus-refused", name: "Corpus refused activation" });
   const refusedInstall = await seedInstalledPlugin(root.db, root.services.plugin.install, {
     caller,
-    bundle: corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), refusedManifest, REFUSED_GUEST_SOURCE),
+    bundle: corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), refusedManifest, REFUSED_GUEST_SOURCE, root.clock.now()),
     grant: [],
   });
   const refused = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
