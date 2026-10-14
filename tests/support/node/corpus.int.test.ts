@@ -21,7 +21,7 @@ import {
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import { eq, isNotNull, sql } from "drizzle-orm";
-import { corpusKnowledgeText } from "./corpus-knowledge.ts";
+import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 
 const OWNER_PASSWORD = "synthetic-capsule-owner-password";
@@ -32,14 +32,16 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const parent = await mkdtemp(join(tmpdir(), "orb-completed-corpus-"));
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
+  const rpgWire = createCorpusRpgWire();
+  const swipes = createKnowledgeSwipeWire();
   const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
-    chatText: corpusKnowledgeText,
+    chatText: corpusKnowledgeVariantsText,
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
     usage: { promptTokens: 40, completionTokens: 15 },
-    completion: createCorpusRpgWire().completion,
+    completion: (body) => rpgWire.completion(body) ?? swipes.completion(body),
   });
   const key = randomBytes(32);
   const capsule = ownership.use(
@@ -84,6 +86,12 @@ test("a completed migrated capsule closes its real producers before cloning scru
     { type: "event", label: "" },
     { type: "custom", label: "Expedition" },
   ]);
+  const variants = capsule.privateCaptures.knowledgeVariants;
+  expect(variants.home.arcThemes.length).toBeGreaterThan(0);
+  expect(variants.selectedHotspot).toMatchObject([{ messageId: variants.slot.id, variantCount: 3, snippet: CORPUS_KNOWLEDGE_SWIPE_TAKES[0] }]);
+  expect(variants.images.indexed.every((capture) => capture.vectors.length === 2 && capture.analysis?.captionMeta.artStyle === "illustration")).toBe(true);
+  expect(variants.images.members.map((member) => member.characterId)).toEqual(expect.arrayContaining(variants.images.cards.map((card) => card.id)));
+  expect(swipes.remaining()).toBe(0);
   if (process.platform === "linux") {
     const ownedRoot = await realpath(capsule.layout.root);
     const descriptors = await Promise.all(
