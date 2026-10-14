@@ -5,6 +5,7 @@
 // after its tap, so the wire capture holds the native body and the native reply while the SDK reads OpenAI chunks.
 
 import type { EffortLevel } from "@orb/contracts/inference";
+import { z } from "zod";
 import type { ResolvedWarning } from "#contract";
 import { ProviderError } from "#contract";
 import { serverRootOf } from "../http/fetch-json.ts";
@@ -371,6 +372,35 @@ function completionOf(line: Json): Json {
   };
 }
 
+const ollamaChatResponseSchema = z
+  .object({
+    model: z.string().optional(),
+    error: z.string().optional(),
+    done: z.boolean().optional(),
+    done_reason: z.string().optional(),
+    prompt_eval_count: z.int().nonnegative().optional(),
+    eval_count: z.int().nonnegative().optional(),
+    prompt_eval_cached_count: z.int().nonnegative().optional(),
+    message: z
+      .object({
+        content: z.string().optional(),
+        thinking: z.string().optional(),
+        tool_calls: z
+          .array(
+            z
+              .object({
+                id: z.string().optional(),
+                function: z.object({ name: z.string(), arguments: z.unknown() }).loose(),
+              })
+              .loose(),
+          )
+          .optional(),
+      })
+      .loose()
+      .optional(),
+  })
+  .loose();
+
 function parseLine(text: string, label: string): Json {
   let parsed: unknown;
   try {
@@ -378,10 +408,11 @@ function parseLine(text: string, label: string): Json {
   } catch (cause) {
     throw notJson("server", `${label}: Ollama sent a line that is not JSON`, cause);
   }
-  if (!isRecord(parsed)) {
-    throw new ProviderError({ kind: "server", retryable: true, message: `${label}: Ollama sent a line that is not a JSON object` });
+  const result = ollamaChatResponseSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new ProviderError({ kind: "server", retryable: true, message: `${label}: Ollama sent a malformed native chat response` });
   }
-  return parsed;
+  return result.data;
 }
 
 /** Ollama's NDJSON stream as OpenAI SSE: one `data:` chunk per line, then `[DONE]`. Cancelling the SSE side

@@ -14,13 +14,14 @@ const AUTHORIZE = "/authorize";
 const TOKEN = "/token";
 const JWKS = "/jwks";
 const END_SESSION = "/end-session";
+const TOKEN_LIFETIME_SECONDS = 300;
 
 interface NativeIssuer {
   readonly fetch: typeof fetch;
   readonly calls: string[];
   readonly idTokens: string[];
   readonly authorize: (authorizationUrl: string, claims: JWTPayload) => URL;
-  readonly logoutToken: (claims: JWTPayload) => Promise<string>;
+  readonly logoutToken: (claims: Readonly<Record<string, unknown>>, omittedClaims?: readonly string[]) => Promise<string>;
 }
 
 /** Sign real issuer output; no Configuration, exchange, domain or accepted identity is fabricated. */
@@ -72,7 +73,21 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
       callback.searchParams.set("code", code);
       return callback;
     },
-    logoutToken: (claims) => sign({ iss: ISSUER, aud: CLIENT_ID, ...claims }),
+    logoutToken: (claims, omittedClaims = []): Promise<string> => {
+      const issuedAt = Math.floor(Date.now() / 1000);
+      const payload: Record<string, unknown> = {
+        iss: ISSUER,
+        aud: CLIENT_ID,
+        iat: issuedAt,
+        exp: issuedAt + TOKEN_LIFETIME_SECONDS,
+        jti: randomUUID(),
+        ...claims,
+      };
+      for (const claim of omittedClaims) {
+        delete payload[claim];
+      }
+      return new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY }).sign(keys.privateKey);
+    },
     fetch: async (input, init): Promise<Response> => {
       const request = new Request(input, init);
       const url = new URL(request.url);

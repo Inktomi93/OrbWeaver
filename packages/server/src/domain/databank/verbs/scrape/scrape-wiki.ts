@@ -8,6 +8,7 @@
 // never retry-looped; a malformed/absent-article response (no extract) collapses the same way. Stamps: origin
 // 'wiki', sourceUrl = the requested article URL, name = the article title from the API (fallback: the URL title).
 
+import { z } from "zod";
 import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeWikiParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
@@ -29,17 +30,22 @@ function articleTitle(url: URL): string {
   return decodeURIComponent(raw).replace(UNDERSCORE, " ");
 }
 
+const mediaWikiExtractSchema = z.object({ extract: z.string().min(1), title: z.string() });
+const mediaWikiResponseSchema = z.object({
+  query: z.object({ pages: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]) }),
+});
+
 /** The MediaWiki plain-text extract from a `prop=extracts&explaintext` response. Returns the `{ extract, title }`
  *  of the first (non-missing) page, or `undefined` when the article is missing / the shape is unexpected. */
 function parseExtract(json: unknown): { readonly text: string; readonly title: string } | undefined {
-  const pages = (json as { query?: { pages?: unknown } } | null)?.query?.pages;
-  const rows = typeof pages === "object" && pages !== null ? Object.values(pages as Record<string, unknown>) : [];
-  const hit = rows.find((page): page is { extract: string; title: string } => {
-    const extract = (page as { extract?: unknown } | null)?.extract;
-    const title = (page as { title?: unknown } | null)?.title;
-    return typeof extract === "string" && extract.length > 0 && typeof title === "string";
-  });
-  return hit === undefined ? undefined : { text: hit.extract, title: hit.title };
+  const parsed = mediaWikiResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    return;
+  }
+  const hit = Object.values(parsed.data.query.pages)
+    .map((page) => mediaWikiExtractSchema.safeParse(page))
+    .find((page) => page.success);
+  return hit?.success === true ? { text: hit.data.extract, title: hit.data.title } : undefined;
 }
 
 export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeWiki"] {
