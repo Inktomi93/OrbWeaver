@@ -1310,29 +1310,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const settingsComposedOps = createSettingsComposedOps(settings);
 
-  const services: Services = {
-    admin,
-    assets,
-    automation,
-    character,
-    chat,
-    connection,
-    credentials,
-    databank,
-    discovery,
-    imagery,
-    notifications,
-    persona,
-    plugin,
-    preset,
-    refinery,
-    regex: regexCompose.regex,
-    rosterPreset,
-    rpg,
-    search,
-    sessions,
-    settings,
-    share: createShareService({
+  const share = resources.use(
+    createShareService({
       relay: deps.share.relay,
       certificate: deps.share.certificate,
       certificateSetting: settingsComposedOps.certificateSetting,
@@ -1360,6 +1339,31 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       audit,
       now,
     }),
+  );
+
+  const services: Services = {
+    admin,
+    assets,
+    automation,
+    character,
+    chat,
+    connection,
+    credentials,
+    databank,
+    discovery,
+    imagery,
+    notifications,
+    persona,
+    plugin,
+    preset,
+    refinery,
+    regex: regexCompose.regex,
+    rosterPreset,
+    rpg,
+    search,
+    sessions,
+    settings,
+    share,
     stats,
     tag,
     workloads,

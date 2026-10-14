@@ -8,12 +8,15 @@ import { join } from "node:path";
 import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
+import { createBinding } from "@orb/kit/binding";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import { ownerHandles } from "@orb/server/domain/sessions";
+import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
+import { resolveBindPosture } from "@orb/server/foundation/env";
 import { getLog } from "@orb/server/foundation/observability";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
@@ -31,6 +34,11 @@ import { createOwnedHttpRequests } from "./http.ts";
 export interface ServerHarnessOptions
   extends Partial<Pick<ServicesDeps, "secretBoxKey" | "casDir" | "variantDir" | "importStagingDir" | "rpgTrace" | "wireCapture" | "wireCaptureReply">> {
   readonly networkExecution?: ServicesDeps["networkExecution"];
+  readonly share?: Pick<ShareGraphOptions, "relay" | "acme">;
+  readonly relayDir?: string;
+  readonly secretsDir?: string;
+  readonly bindHost?: string;
+  readonly allowPublicBind?: boolean;
   readonly pluginSpawn?: NonNullable<ServicesDeps["pluginExecution"]>["spawn"];
   readonly db?: Db;
   readonly clock?: Clock;
@@ -76,8 +84,11 @@ export interface ServerTestHarness extends AsyncDisposable {
   readonly listen: () => Promise<Readonly<AddressInfo>>;
   readonly importStagingDir: string;
   readonly modelCacheDir: string;
+  readonly relayDir: string;
+  readonly secretsDir: string;
   readonly ownerClaimFile?: string;
   readonly settleBackground: ServicesResult["settleBackground"];
+  readonly settleSharing: ShareGraph["settle"];
 }
 
 const SESSION_SECRET = "server-harness-session-secret-at-least-32-chars";
@@ -158,8 +169,13 @@ async function closeHarnessGraph(
   http: OwnedHttpRequests | undefined,
   oidc: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined,
   app: ServicesResult | undefined,
+  share: ShareGraph | undefined,
 ): Promise<void> {
-  const settled = await Promise.allSettled([http?.[Symbol.asyncDispose](), oidc?.[Symbol.asyncDispose](), app?.[Symbol.asyncDispose]()]);
+  const shareSettled = await Promise.allSettled([share?.[Symbol.asyncDispose]()]);
+  const settled = [
+    ...shareSettled,
+    ...(await Promise.allSettled([http?.[Symbol.asyncDispose](), oidc?.[Symbol.asyncDispose](), app?.[Symbol.asyncDispose]()])),
+  ];
   const failures: Error[] = [];
   for (const result of settled) {
     if (result.status === "rejected") {
@@ -235,6 +251,31 @@ async function configuredOidcFor(
   };
 }
 
+function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOptions, inputs: HarnessConstruction, appPort: () => number): ShareGraphOptions {
+  const bind = resolveBindPosture({
+    nodeEnv: "test",
+    authMode: inputs.authConfig.mode,
+    bindHost: options.bindHost ?? "127.0.0.1",
+    allowDevPublicBind: options.allowPublicBind ?? false,
+    ownerPeersDeclared: false,
+    inContainer: false,
+  });
+  if (bind.refusal !== null) {
+    throw new Error(bind.refusal);
+  }
+  return {
+    bind,
+    appPort,
+    relayDir: options.relayDir ?? join(inputs.rootDir, "relay"),
+    secretsDir: options.secretsDir ?? join(inputs.rootDir, "secrets"),
+    now: inputs.clock.now,
+    timers: inputs.timers,
+    relay: options.share?.relay ?? null,
+    acme: options.share?.acme ?? null,
+    networkExecution: { ...options.networkExecution, resolver: options.networkExecution?.resolver ?? refusingResolver },
+  };
+}
+
 /** Build an owned in-process server graph; a supplied database remains its caller's resource. */
 export function createServerHarness(options: UnclaimedServerHarnessOptions): Promise<UnclaimedServerTestHarness>;
 export function createServerHarness(options?: ServerHarnessOptions): Promise<ServerTestHarness>;
@@ -262,11 +303,17 @@ export async function createServerHarness(
   let appLifetime: ServicesResult | undefined;
   let httpLifetime: OwnedHttpRequests | undefined;
   let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined;
-  construction.defer(() => closeHarnessGraph(httpLifetime, oidcLifetime, appLifetime));
+  let shareLifetime: ShareGraph | undefined;
+  construction.defer(() => closeHarnessGraph(httpLifetime, oidcLifetime, appLifetime, shareLifetime));
   const { casDir, variantDir, importStagingDir, userRuntimeDir, modelCacheDir, stProfileDir } = await directoriesFor(rootDir, options);
   const inputs: HarnessConstruction = { db, clock, idSource, timers, authConfig, rootDir };
   const ownerId = await prepareHarnessOwner(options, inputs);
-  const { createHttpApp: assembleHttp, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+  const { createHttpApp: assembleHttp, createServices, createShareGraph, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+  const listener = createBinding<Readonly<AddressInfo>>("Share execution requires the server harness native listener");
+  const shareInputs = shareInputsFor(options, inputs, () => listener.read().port);
+  const { bind, relayDir, secretsDir } = shareInputs;
+  const sharing = await createShareGraph(shareInputs);
+  shareLifetime = sharing;
   const app = await createServices({
     authConfig,
     db,
@@ -286,7 +333,7 @@ export async function createServerHarness(
     stProfileDir,
     userRuntimeDir,
     serverRestart: UNSUPERVISED_RESTART,
-    share: NO_SHARE_RELAY,
+    share: sharing.share,
     providerSeams: providerExecutionOf(options, modelCacheDir),
     pluginExecution: { spawn: options.pluginSpawn ?? refusingPluginSpawn, monotonicNow: clock.now },
     networkExecution: { ...options.networkExecution, resolver: options.networkExecution?.resolver ?? refusingResolver },
@@ -309,8 +356,8 @@ export async function createServerHarness(
     isShuttingDown: () => closing,
     credentialsKeyOk: () => credentialsKeyOk,
     inContainer: false,
-    relayHosts: () => [],
-    shareState: NO_SHARE_RELAY.relay.status,
+    relayHosts: sharing.relayHosts,
+    shareState: sharing.share.relay.status,
     oidcProviderName: "Harness identity provider",
     ...(oidcLifetime === undefined ? {} : { oidc: oidcLifetime }),
     onOwnerClaimed: () => {
@@ -319,7 +366,7 @@ export async function createServerHarness(
       });
     },
   });
-  const http = createOwnedHttpRequests(httpApp, timers.timeout);
+  const http = createOwnedHttpRequests(httpApp, timers.timeout, bind.host);
   httpLifetime = http;
   const internalCallerFor = async (userId: UserId | null): Promise<ReturnType<typeof createCaller>> =>
     createCaller(
@@ -362,10 +409,17 @@ export async function createServerHarness(
     internalCallerFor,
     actor,
     http,
-    listen: http.listen,
+    listen: async (): Promise<Readonly<AddressInfo>> => {
+      const address = await http.listen();
+      listener.bind(address);
+      return address;
+    },
     importStagingDir,
     modelCacheDir,
+    relayDir,
+    secretsDir,
     settleBackground: app.settleBackground,
+    settleSharing: sharing.settle,
     async [Symbol.asyncDispose](): Promise<void> {
       closing = true;
       await lifetime.disposeAsync();

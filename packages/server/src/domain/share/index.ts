@@ -2,6 +2,7 @@
 // root builds once.
 
 export { createCertificateController } from "./certificate/controller.ts";
+export type { ShareGraph, ShareGraphOptions } from "./contract/composition.ts";
 export type { EnableIpCertificateParams, ShareParams } from "./contract/params.ts";
 export type { EnableShareSeatingDeps } from "./contract/seating.ts";
 export type {
@@ -10,7 +11,10 @@ export type {
   CertificateController,
   CertificateControllerDeps,
   CertificateFacts,
+  CertificateTransitions,
   IpCertificateRefusalNotice,
+  OwnedCertificateController,
+  OwnedShareService,
   RelayController,
   RelayControllerDeps,
   ShareBootOutcome,

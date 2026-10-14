@@ -9,7 +9,7 @@
 
 import process from "node:process";
 import { Tunnel, use } from "cloudflared";
-import type { QuickTunnelLauncherDeps, RelayEvents, RelayLauncher, RelayProcess, SpawnRelay } from "./contract.ts";
+import type { OwnedRelayProcess, QuickTunnelLauncherDeps, RelayEvents, RelayLauncher } from "./contract.ts";
 
 const QUICK_TUNNEL_PARENT = "trycloudflare.com";
 const QUICK_TUNNEL_LABEL = /^[a-z0-9]+(?:-[a-z0-9]+)+$/u;
@@ -62,10 +62,11 @@ function bannerUrlReader(onUrl: (url: string) => void): (chunk: string) => void 
 }
 
 /** Spawns `executable` as a quick tunnel to `origin`. `onExit` fires once, for an exit or a spawn failure. */
-export const spawnQuickTunnel: SpawnRelay = (executable, origin, events: RelayEvents): RelayProcess => {
+export function spawnQuickTunnel(executable: string, origin: string, events: RelayEvents): OwnedRelayProcess {
   use(executable);
   const tunnel = Tunnel.quick(origin, { "--no-autoupdate": true });
   const child = tunnel.process;
+  const settled = new Promise<void>((resolve) => child.once("close", () => resolve()));
   let ended = false;
   let force: NodeJS.Timeout | undefined;
   // A server that exits without its shutdown (a crash, a direct exit) still takes the relay down with it.
@@ -96,19 +97,25 @@ export const spawnQuickTunnel: SpawnRelay = (executable, origin, events: RelayEv
     child.kill("SIGKILL");
     end(`cloudflared failed: ${err.message}`);
   });
+  const stop = (): void => {
+    if (ended || force !== undefined) {
+      return;
+    }
+    child.kill("SIGINT");
+    force = setTimeout(() => {
+      child.kill("SIGKILL");
+    }, STOP_GRACE_MS);
+    force.unref();
+  };
   return {
-    stop: (): void => {
-      if (ended || force !== undefined) {
-        return;
-      }
-      child.kill("SIGINT");
-      force = setTimeout(() => {
-        child.kill("SIGKILL");
-      }, STOP_GRACE_MS);
-      force.unref();
+    stop,
+    settled,
+    async [Symbol.asyncDispose](): Promise<void> {
+      stop();
+      await settled;
     },
   };
-};
+}
 
 /** The launcher the relay controller holds: verify the pinned binary on every launch, then spawn it. */
 export function createQuickTunnelLauncher(deps: QuickTunnelLauncherDeps): RelayLauncher {

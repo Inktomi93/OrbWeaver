@@ -41,6 +41,9 @@ export interface FakeAcme {
   readonly fetches: { readonly url: string; readonly status: number; readonly body: string }[];
   readonly csrs: Buffer[];
   readonly close: () => Promise<void>;
+  readonly hold: (path: string) => { readonly reached: Promise<void>; readonly closed: Promise<void>; readonly release: () => void };
+  readonly refuseOrders: (problem: FakeAcmeOptions["refuseOrder"]) => void;
+  readonly validity: (notBefore: number, notAfter: number) => void;
 }
 
 const NONCE = "fake-nonce";
@@ -88,6 +91,12 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
   let challengeError: { type: string; detail: string } | null = null;
   let orderStatus: "pending" | "ready" | "valid" = "pending";
   let certificate = "";
+  let refusal = options.refuseOrder;
+  let validity = { notBefore: options.notBefore, notAfter: options.notAfter };
+  const holds = new Map<
+    string,
+    { readonly reached: PromiseWithResolvers<void>; readonly closed: PromiseWithResolvers<void>; readonly released: PromiseWithResolvers<void> }
+  >();
 
   const challenge = (): Record<string, unknown> => ({
     type: "http-01",
@@ -131,10 +140,13 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
       send(res, 201, { status: "valid" }, { location: `${base}/acct/1` });
     },
     "/new-order": (res, { payload }) => {
-      if (options.refuseOrder !== undefined) {
-        send(res, 400, options.refuseOrder, { "content-type": "application/problem+json" });
+      if (refusal !== undefined) {
+        send(res, 400, refusal, { "content-type": "application/problem+json" });
         return;
       }
+      challengeStatus = "pending";
+      challengeError = null;
+      orderStatus = "pending";
       const [first] = (payload?.["identifiers"] as { type: string; value: string }[] | undefined) ?? [];
       identifier = first ?? identifier;
       send(res, 201, order(), { location: `${base}/order/1` });
@@ -157,8 +169,7 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
         issuerKey: ca.privateKey,
         issuerName: "Fake ACME CA",
         serial: 1,
-        notBefore: options.notBefore,
-        notAfter: options.notAfter,
+        ...validity,
       });
       orderStatus = "valid";
       send(res, 200, order());
@@ -173,6 +184,15 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
 
   async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const path = req.url ?? "/";
+    const held = holds.get(path);
+    if (held !== undefined) {
+      req.socket.once("close", () => held.closed.resolve());
+      held.reached.resolve();
+      await held.released.promise;
+      if (res.destroyed) {
+        return;
+      }
+    }
     if (path === "/directory") {
       send(res, 200, { newNonce: `${base}/new-nonce`, newAccount: `${base}/new-account`, newOrder: `${base}/new-order` });
       return;
@@ -206,8 +226,29 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
     requests,
     fetches,
     csrs,
+    hold: (path): ReturnType<FakeAcme["hold"]> => {
+      const held = { reached: Promise.withResolvers<void>(), closed: Promise.withResolvers<void>(), released: Promise.withResolvers<void>() };
+      holds.set(path, held);
+      return {
+        reached: held.reached.promise,
+        closed: held.closed.promise,
+        release: (): void => {
+          holds.delete(path);
+          held.released.resolve();
+        },
+      };
+    },
+    refuseOrders: (problem): void => {
+      refusal = problem;
+    },
+    validity: (notBefore, notAfter): void => {
+      validity = { notBefore, notAfter };
+    },
     close: () =>
       new Promise<void>((resolve) => {
+        for (const held of holds.values()) {
+          held.released.resolve();
+        }
         server.close(() => {
           resolve();
         });

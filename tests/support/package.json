@@ -128,6 +128,7 @@
     "./node/refuse-model-kernel.ts": "./node/refuse-model-kernel.ts",
     "./node/reference-head-kernel.ts": "./node/reference-head-kernel.ts",
     "./node/server.ts": "./node/server.ts",
+    "./node/share.ts": "./node/share.ts",
     "./node/sdk-process.ts": "./node/sdk-process.ts",
     "./node/sdk-process-control.mjs": "./node/sdk-process-control.mjs",
     "./node/select-native-sources.test.ts": "./node/select-native-sources.test.ts",

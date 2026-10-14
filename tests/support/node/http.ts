@@ -4,6 +4,7 @@
 import type { AddressInfo } from "node:net";
 import { errorMessage } from "@orb/kit/error-message";
 import type { createHttpApp } from "@orb/server/entry/compose";
+import { loopbackCompanion } from "@orb/server/foundation/env";
 import { getLog } from "@orb/server/foundation/observability";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
 import { createOwnedResponseBody, drainHttpServer, joinNativeHttpRequest, serveHttpServer } from "@orb/server/infra/network";
@@ -21,13 +22,17 @@ interface ActiveRequest {
 }
 
 /** Forward the actual Hono request operation; disposal cancels bodies and joins handlers before graph teardown. */
-export function createOwnedHttpRequests(app: HttpApp, scheduleTimeout: Parameters<typeof drainHttpServer>[3]): OwnedHttpRequests {
+export function createOwnedHttpRequests(
+  app: HttpApp,
+  scheduleTimeout: Parameters<typeof drainHttpServer>[3],
+  host: string | undefined = "127.0.0.1",
+): OwnedHttpRequests {
   const active = new Set<ActiveRequest>();
   const failures: Error[] = [];
   let closed = false;
   let disposal: Promise<void> | undefined;
   let listening: Promise<Readonly<AddressInfo>> | undefined;
-  let server: ReturnType<typeof serveHttpServer> | undefined;
+  const servers = new Set<ReturnType<typeof serveHttpServer>>();
 
   const release = (entry: ActiveRequest): void => {
     active.delete(entry);
@@ -98,7 +103,7 @@ export function createOwnedHttpRequests(app: HttpApp, scheduleTimeout: Parameter
     for (const entry of requests) {
       entry.controller.abort();
     }
-    const listenerClosed = listening?.then(() => (server === undefined ? undefined : drainHttpServer(server, getLog(), undefined, scheduleTimeout)));
+    const listenerClosed = listening?.then(() => Promise.all([...servers].map((server) => drainHttpServer(server, getLog(), undefined, scheduleTimeout))));
     const settled = await Promise.allSettled([Promise.all(requests.map((entry) => entry.completion.promise)), listenerClosed]);
     for (const result of settled) {
       if (result.status === "rejected") {
@@ -117,16 +122,41 @@ export function createOwnedHttpRequests(app: HttpApp, scheduleTimeout: Parameter
       if (closed) {
         return Promise.reject(new Error("server harness HTTP lifetime is closed"));
       }
-      listening ??= new Promise((resolve, reject) => {
-        const onError = (error: Error): void => {
-          server?.close(() => reject(error));
-        };
-        server = serveHttpServer({ fetch, hostname: "127.0.0.1", port: 0 }, (address) => {
-          server?.removeListener("error", onError);
-          resolve(address);
+      const open = (hostname: string | undefined, port: number): Promise<Readonly<AddressInfo>> =>
+        new Promise((resolve, reject) => {
+          const onError = (error: Error): void => {
+            server.close(() => reject(error));
+          };
+          const server = serveHttpServer({ fetch, ...(hostname === undefined ? {} : { hostname }), port }, (address) => {
+            server.removeListener("error", onError);
+            resolve(address);
+          });
+          servers.add(server);
+          server.once("error", onError);
         });
-        server.once("error", onError);
-      });
+      listening ??= (async (): Promise<Readonly<AddressInfo>> => {
+        try {
+          const primary = await open(host, 0);
+          const companion = loopbackCompanion(host);
+          if (companion !== null) {
+            await open(companion, primary.port);
+          }
+          return primary;
+        } catch (error) {
+          await Promise.all(
+            [...servers].map(
+              (server) =>
+                new Promise<void>((resolve) => {
+                  server.close(() => resolve());
+                  if ("closeAllConnections" in server && typeof server.closeAllConnections === "function") {
+                    server.closeAllConnections();
+                  }
+                }),
+            ),
+          );
+          throw error;
+        }
+      })();
       return listening;
     },
     [Symbol.asyncDispose]: (): Promise<void> => {

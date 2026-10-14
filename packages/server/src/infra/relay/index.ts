@@ -10,13 +10,17 @@ export type {
   CloudflaredPin,
   CloudflaredTarget,
   ExtractTgz,
+  OwnedRelayLauncher,
+  OwnedRelayProcess,
   QuickTunnelLauncherDeps,
   RelayAssetFetch,
   RelayEvents,
+  RelayExecutionDeps,
   RelayLauncher,
   RelayProcess,
   SpawnRelay,
 } from "./contract.ts";
 export { CLOUDFLARED_TARGETS } from "./contract.ts";
+export { createOwnedRelayLauncher } from "./execution.ts";
 export { CLOUDFLARED_PIN } from "./pin.ts";
 export { createQuickTunnelLauncher, quickTunnelOrigin, spawnQuickTunnel } from "./quick-tunnel.ts";

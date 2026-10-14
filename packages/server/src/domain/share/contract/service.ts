@@ -61,6 +61,14 @@ export interface CertificateController {
   readonly status: () => IpCertificateStatus;
 }
 
+export interface OwnedCertificateController extends CertificateController, AsyncDisposable {
+  readonly settle: () => Promise<void>;
+}
+
+export interface CertificateTransitions extends AsyncDisposable {
+  readonly run: <T>(job: () => Promise<T>) => Promise<T>;
+}
+
 /** The controller's seams, wired at the composition root (`entry/lifecycle.ts`). */
 export interface CertificateControllerDeps {
   readonly issuer: AcmeIssuer;
@@ -145,6 +153,7 @@ export interface ShareServiceDeps extends ShareFacts, CertificateFacts {
 
 /** The DI bundle the verbs close over: the deps plus the one precondition check every start runs. */
 export interface ShareContext extends ShareServiceDeps {
+  readonly certificateTransition: CertificateTransitions["run"];
   readonly refusal: () => Promise<ShareRefusalNotice | null>;
   /** The IP certificate's preconditions, run by the owner's enable and by the boot start alike. */
   readonly certificateRefusal: (setting: IpCertificateSetting) => Promise<CertificateCheckResult>;
@@ -172,3 +181,5 @@ export interface ShareService {
   /** Owner or admin: the running sign-in mode, its source, the install shape, and the share refusal per target mode. */
   readonly signInMode: (params: ShareParams) => Promise<SignInModeView>;
 }
+
+export interface OwnedShareService extends ShareService, AsyncDisposable {}

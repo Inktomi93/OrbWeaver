@@ -20,8 +20,7 @@ import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { ServerRestartPort } from "#domain/admin";
 
 import { createSessionsService, ownerHandles } from "#domain/sessions";
-import type { CertificateBootOutcome, CertificateController, ShareBootOutcome } from "#domain/share";
-import { createCertificateController, createRelayController } from "#domain/share";
+import type { CertificateBootOutcome, ShareBootOutcome, ShareGraph } from "#domain/share";
 
 import { OWNER_CLAIM_URL_FILE_NAME } from "#foundation/data-layout";
 import {
@@ -32,7 +31,6 @@ import {
   env,
   launchedBySupervisor,
   loopbackCompanion,
-  loopbackOrigin,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
   resolveBindPosture,
@@ -42,20 +40,10 @@ import {
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
-import { ACME_POLLING, createAcmeIssuer, createCertificateStore, LETS_ENCRYPT_DIRECTORY, openChallengeResponder } from "#infra/acme";
-import { createOwnerClaimCode, createPasswordHasher, createRelayHostRegistry, oidcRedirectAllowlist } from "#infra/auth";
+import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import {
-  drainHttpServer,
-  fetchPinnedDownload,
-  installEgressFirewall,
-  parseAllowlist,
-  SHUTDOWN_DRAIN_MS,
-  serveHttpServer,
-  startTlsTerminator,
-} from "#infra/network";
+import { drainHttpServer, installEgressFirewall, parseAllowlist, SHUTDOWN_DRAIN_MS, serveHttpServer } from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
-import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
 
 import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
 import {
@@ -89,7 +77,7 @@ import {
 } from "./boot/index.ts";
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 
-import { createConfiguredOidc, createHttpApp, createServices } from "./compose/index.ts";
+import { createConfiguredOidc, createHttpApp, createServices, createShareGraph } from "./compose/index.ts";
 
 /** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
 interface OwnedWorkloadsWorker {
@@ -228,11 +216,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
   let stopLocalLightPrefetch: (() => void) | null = null;
   let closeLocalLight: (() => Promise<void>) | null = null;
-  let stopRelay: (() => void) | null = null;
-  let certificateController: CertificateController | null = null;
+  let sharing: ShareGraph | null = null;
   let booted = false;
-  // The one relay host registry for this process: the Host allowlist reads `hosts`; `writer` is the relay controller's.
-  const relayHosts = createRelayHostRegistry();
 
   // RATIFIED (#596). boot is the ORDERED startup protocol, and its score is the protocol's LENGTH, not tangled
   // control flow: fail-closed guards on the sequence plus one conditional column per optional dependency, each
@@ -453,42 +438,16 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // The share relay: the server's one long-lived child, spawned in this process group. Built once, before compose,
     // because it holds the relay registry's write side; the port is read when a relay starts, after the bind.
     const listenPort = (): number => listenerAddress?.port ?? options.listenPort ?? env.PORT;
-    const relaySeams: NonNullable<LifecycleOptions["relaySeams"]> = options.relaySeams ?? {
-      pin: CLOUDFLARED_PIN,
-      fetch: (url, limits) => fetchPinnedDownload(url, { allowedHosts: CLOUDFLARED_PIN.downloadHosts, ...limits }),
-      spawn: spawnQuickTunnel,
-    };
-    const relay = createRelayController({
-      relay: "quick",
-      launcher: createQuickTunnelLauncher({
-        binary: createCloudflaredBinary({
-          pin: relaySeams.pin,
-          target: `${process.platform}-${process.arch}`,
-          dir: env.DATA_LAYOUT.relay,
-          fetch: relaySeams.fetch,
-          extractTgz: extractTgzWithTar,
-        }),
-        spawn: relaySeams.spawn,
-      }),
-      hosts: relayHosts.writer,
-      // Over loopback, never the bound interface address, so the app believes the relay's forwarded headers (D255).
-      origin: () => loopbackOrigin(bind.host, listenPort()),
+    sharing = await createShareGraph({
+      bind,
+      appPort: listenPort,
+      relayDir: env.DATA_LAYOUT.relay,
+      secretsDir: env.DATA_LAYOUT.secrets,
       now,
-      schedule: scheduleOnce,
+      timers: { timeout: scheduleOnce, timeoutUnref: scheduleOnce, interval: scheduleInterval },
+      ...(options.relaySeams === undefined ? {} : { relaySeams: options.relaySeams }),
     });
-    stopRelay = relay.stop;
-    // The IP certificate (D275): its https listener forwards to the app listener over loopback, never the bound interface
-    // address, so the app sees a trusted loopback peer (D255); its HTTP-01 responder opens on the app's interface only
-    // while a challenge is pending.
-    const certificate = createCertificateController({
-      issuer: createAcmeIssuer({ directoryUrl: LETS_ENCRYPT_DIRECTORY, openResponder: openChallengeResponder, polling: ACME_POLLING }),
-      store: createCertificateStore(env.DATA_LAYOUT.secrets),
-      startHttps: (https) => startTlsTerminator({ ...https, host: bind.host, upstream: () => loopbackOrigin(bind.host, listenPort()) }),
-      bindHost: bind.host,
-      now,
-      schedule: scheduleOnce,
-    });
-    certificateController = certificate;
+    const relay = sharing.share.relay;
 
     const authConfig = authConfigFromEnv();
     const built = await createServices({
@@ -505,13 +464,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
       serverRestart,
-      share: {
-        relay,
-        certificate,
-        localSetupUrl: () => `http://localhost:${listenPort()}`,
-        appPort: listenPort,
-        publicBind: bind.publicBind,
-      },
+      share: sharing.share,
     });
     closeLocalLight = async (): Promise<void> => {
       await built[Symbol.asyncDispose]();
@@ -618,7 +571,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
       inContainer: bindPostureInput().inContainer,
-      relayHosts: relayHosts.hosts,
+      relayHosts: sharing.relayHosts,
       shareState: relay.status,
       oidcProviderName: env.OIDC_PROVIDER_NAME,
       ...(oidcWiring === undefined ? {} : { oidc: oidcWiring }),
@@ -710,16 +663,15 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
     isShuttingDown = true;
     log.info("shutdown: draining");
-    // The relay first: it is this process's child, and a visitor it still carries would reach a server going away.
-    if (stopRelay !== null) {
-      stopRelay();
-      stopRelay = null;
-    }
-    // The https listener next, for the same reason; its certificate files stay for the next boot.
-    if (certificateController !== null) {
-      const controller = certificateController;
-      certificateController = null;
-      await controller.stop();
+    let shareFailure: Error | undefined;
+    if (sharing !== null) {
+      const graph = sharing;
+      sharing = null;
+      try {
+        await graph[Symbol.asyncDispose]();
+      } catch (error) {
+        shareFailure = error instanceof Error ? error : new Error("native sharing disposal failed", { cause: error });
+      }
     }
 
     if (server !== null) {
@@ -773,6 +725,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       db = null;
     }
     log.info("shutdown: complete");
+    if (shareFailure !== undefined) {
+      throw shareFailure;
+    }
   }
 
   return { boot, listeningAddress: (): Readonly<AddressInfo> | null => listenerAddress, shutdown };

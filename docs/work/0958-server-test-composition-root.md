@@ -35,7 +35,7 @@ Configured OIDC source at `ee87bcd961` shares its factory between lifecycle and 
 
 Raw issuer protocol cases do not establish physical TLS or real-IdP e2e. Direct code grants retain native TLS-authenticated-response policy, not universal ID-token signature verification. Backchannel verification uses native JOSE signatures.
 
-The shared contract integration preserves canonical ForwardJwtClaims derivation. Affected production compilers and scoped lint pass; root retains known unrelated diagnostics. The suppression assignment owns unresolved tracing and native form-data lint conflicts.
+Shared contract integration preserves canonical ForwardJwtClaims derivation. Affected compilers and scoped lint pass; root retains unrelated diagnostics.
 
 Reviewed sources `e470342ad6` and `f20a77db31` own native Query leases and supplied or default children. Actual close joins precede graph cleanup. Cancellation, construction refusal, diagnostic redaction and wire admission controls pass. Native transport, decoder and shutdown remain unchanged. Private diagnostic sinks and escaped descendants remain unqualified.
 
@@ -43,4 +43,4 @@ Source `909c640d45` restricts server assembly to the real test root through shar
 
 Reviewed native database disposal and corpus controls establish physical release before inspection and cleanup. Share, ACME and complete domain replacement remain open. Corpus and ingress reuse this graph, never another assembly.
 
-The share and ACME lane surveys raw seams and physical disposal. The harness still selects inactive share composition; keep policy production-owned.
+Reviewed source `973da716eb` shares native relay and ACME composition with lifecycle. Physical child, worker and socket joins pass. Concurrent certificate commands preserve stored, returned and native state; the ordering control fails when serialization is removed. Complete domain replacement remains open.

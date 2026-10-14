@@ -158,8 +158,11 @@ export function createRelayController(deps: RelayControllerDeps): RelayControlle
     },
     stop: (): void => {
       generation += 1;
-      cancelPending();
-      running?.stop();
+      using stopping = new DisposableStack();
+      stopping.defer(cancelPending);
+      if (running !== null) {
+        stopping.defer(running.stop);
+      }
       running = null;
       host = null;
       deps.hosts.clear();
