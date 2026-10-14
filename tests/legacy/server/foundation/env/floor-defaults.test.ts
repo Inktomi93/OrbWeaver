@@ -1,8 +1,11 @@
 // @module-tag requires-process-chdir
+
+import { join } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { reimportEnvWith, restoreProcessEnvAfterEach } from "./_support.ts";
+import { EMPTY_DIR, reimportEnvWith, restoreProcessEnvAfterEach } from "./_support.ts";
 
 describe("foundation/env — the floor parse (defaults + transforms)", () => {
   restoreProcessEnvAfterEach();
@@ -52,7 +55,7 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
   test("the data slots resolve from DATA_DIR: the defaults, a re-rooted tree, and an explicit slot that wins", async () => {
     const { env } = await reimportEnvWith({});
     expect(env.DATA_DIR).toBe("./data");
-    expect(env.DATABASE_URL).toBe("file:./data/db/orbweaver.db");
+    expect(env.DATABASE_URL).toBe(pathToFileURL(join(EMPTY_DIR, "data/db/orbweaver.db")).href);
     expect(env.ASSETS_DIR).toBe("./data/assets");
     expect(env.USER_RUNTIME_DIR).toBe("./data/users");
     expect(env.IMPORT_STAGING_DIR).toBe("./data/cache/import-staging");
@@ -62,7 +65,7 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     expect(env.DATA_LAYOUT.reports).toBe("./data/reports");
 
     const rerooted = await reimportEnvWith({ DATA_DIR: "/srv/orb", ASSETS_DIR: "/blobs" });
-    expect(rerooted.env.DATABASE_URL).toBe("file:/srv/orb/db/orbweaver.db");
+    expect(rerooted.env.DATABASE_URL).toBe("file:///srv/orb/db/orbweaver.db");
     expect(rerooted.env.ASSETS_DIR).toBe("/blobs");
     expect(rerooted.env.DATA_LAYOUT.secrets).toBe("/srv/orb/secrets");
     expect([...rerooted.env.DATA_LAYOUT.explicit]).toEqual(["ASSETS_DIR"]);

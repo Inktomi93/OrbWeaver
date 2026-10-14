@@ -3,6 +3,7 @@
 // backup rule this shape exists for: copy the root except `cache/`.
 
 import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { isBackupFileName } from "@orb/db/backup-names";
 import type { DataLayout, DataLayoutInput, DataLayoutKeeperKey, LegacyEntry } from "./contract.ts";
 import { DATA_LAYOUT_SLOT_KEYS, SECRET_ENV_KEYS } from "./contract.ts";
@@ -65,9 +66,9 @@ export const LEGACY_ENTRIES: Readonly<Record<string, LegacyEntry>> = {
   [DB_FILE_NAME]: { to: join(DATA_LAYOUT_DIRS.db, DB_FILE_NAME), keptBy: "DATABASE_URL", requireBytes: true },
 };
 
-/** The `DATABASE_URL` that opens the db file at `path`, in the path's own spelling. */
+/** The encoded absolute `DATABASE_URL` for a filesystem path, resolved against the process cwd. */
 export function fileDatabaseUrl(path: string): string {
-  return `file:${path}`;
+  return pathToFileURL(path).href;
 }
 
 /** The remedy that keeps a keyed legacy entry where it is: the secret's own value, the db's url as a working

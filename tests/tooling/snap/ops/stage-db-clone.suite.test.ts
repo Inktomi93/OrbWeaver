@@ -7,6 +7,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { localPath } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterEach } from "vitest";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
@@ -95,7 +96,7 @@ test("two sibling sessions' --stage-db runs at one sha keep separate data, each 
     cloneStageDb(second.path, b);
 
     const handleIn = (databaseUrl: string): unknown => {
-      const db = new DatabaseSync(databaseUrl.replace(/^file:/u, ""));
+      const db = new DatabaseSync(localPath(databaseUrl) ?? "");
       try {
         return db.prepare("SELECT handle FROM users WHERE role = 'owner'").get();
       } finally {
