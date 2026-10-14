@@ -628,13 +628,13 @@ describe("migrateDataLayout", () => {
     await plantLegacyTree(root);
     const dbOnOtherDevice = (path: string): number => (path.endsWith(`${sep}${DB_FILE_NAME}`) ? 2 : 1);
     const refusal = migrateDataLayout({ layout: layoutFor(root), pid, deviceOf: dbOnOtherDevice });
-    await expect(refusal).rejects.toThrow(`DATABASE_URL=file:${join(root, DB_FILE_NAME)} `);
+    await expect(refusal).rejects.toThrow(`DATABASE_URL=file://${join(root, DB_FILE_NAME)} `);
     const message = await refusal.then(
       () => "",
       (err: Error) => err.message,
     );
     const remedy = /DATABASE_URL=(\S+)/u.exec(message)?.[1];
-    expect(remedy).toBe(`file:${join(root, DB_FILE_NAME)}`);
+    expect(remedy).toBe(`file://${join(root, DB_FILE_NAME)}`);
     const report = await migrateDataLayout({ layout: layoutFor(root, { ["DATABASE_URL"]: remedy ?? "" }), pid, deviceOf: dbOnOtherDevice });
     expect(report.moved.some((move) => move.from === DB_FILE_NAME)).toBe(false);
     expect(await probeValues(join(root, DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);

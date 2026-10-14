@@ -2,6 +2,7 @@
 // keep their override power, and the resolver records which ones the operator set, because the layout
 // migration moves only a defaulted slot.
 
+import { pathToFileURL } from "node:url";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DATA_LAYOUT_SLOT_KEYS, DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -9,10 +10,10 @@ import { describe } from "vitest";
 import { DEFAULT_IMPORT_STAGING_DIR } from "#server/domain/import/index.ts";
 
 describe("resolveDataLayout", () => {
-  test("every slot derives from the default root, keeping the relative spelling", () => {
+  test("every slot derives from the default root, keeping filesystem paths relative", () => {
     const layout = resolveDataLayout({});
     expect(layout.root).toBe(DEFAULT_DATA_DIR);
-    expect(layout.databaseUrl).toBe("file:./data/db/orbweaver.db");
+    expect(layout.databaseUrl).toBe(pathToFileURL("./data/db/orbweaver.db").href);
     expect(layout.dbDir).toBe("./data/db");
     expect(layout.backups).toBe("./data/backups");
     expect(layout.assets).toBe("./data/assets");
@@ -28,7 +29,7 @@ describe("resolveDataLayout", () => {
 
   test("an explicit DATA_DIR re-roots every derived slot, absolute roots included", () => {
     const layout = resolveDataLayout({ ["DATA_DIR"]: "/srv/orb" });
-    expect(layout.databaseUrl).toBe("file:/srv/orb/db/orbweaver.db");
+    expect(layout.databaseUrl).toBe("file:///srv/orb/db/orbweaver.db");
     expect(layout.secrets).toBe("/srv/orb/secrets");
     expect(layout.variants).toBe("/srv/orb/cache/variants");
     expect(resolveDataLayout({ ["DATA_DIR"]: "./elsewhere" }).assets).toBe("./elsewhere/assets");
@@ -41,7 +42,7 @@ describe("resolveDataLayout", () => {
     expect([...layout.explicit].sort()).toEqual(["ASSETS_DIR", "LOCAL_LIGHT_CACHE_DIR"]);
     // The variants for an explicit blob root still live under the data root's cache.
     expect(layout.variants).toBe("/srv/orb/cache/variants");
-    expect(layout.databaseUrl).toBe("file:/srv/orb/db/orbweaver.db");
+    expect(layout.databaseUrl).toBe("file:///srv/orb/db/orbweaver.db");
   });
 
   test("every slot key is honoured, and an empty value counts as unset", () => {
@@ -89,7 +90,7 @@ describe("resolveDataLayout", () => {
   // The db's remedy is a value, not only a key: the url that keeps the legacy db under the operator's root.
   test("DATA_LAYOUT_SKIP refuses the db with the DATABASE_URL value that keeps it under the root", () => {
     const refusal = (): DataLayout => resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", ["DATA_LAYOUT_SKIP"]: DB_FILE_NAME });
-    expect(refusal).toThrow(`DATABASE_URL=file:/srv/orb/${DB_FILE_NAME} `);
+    expect(refusal).toThrow(`DATABASE_URL=file:///srv/orb/${DB_FILE_NAME} `);
   });
 
   test("an explicit CREDENTIALS_KEY or SESSION_SECRET lands in the explicit set like a slot key", () => {
