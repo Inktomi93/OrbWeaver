@@ -54,7 +54,7 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
       keywords: chatDigests.keywords,
     })
     .from(chatDigests)
-    .leftJoin(embedGenerations, eq(embedGenerations.id, chatDigests.generationId))
+    .leftJoin(embedGenerations, and(eq(embedGenerations.id, chatDigests.generationId), eq(embedGenerations.ownerId, params.ownerId)))
     .where(
       and(
         digestScopeCond({
@@ -151,7 +151,7 @@ export async function nearestSegments(db: ReadOnlyDb, params: NearestSegmentsPar
       contentHash: chatSegments.contentHash,
     })
     .from(chatSegments)
-    .leftJoin(embedGenerations, eq(embedGenerations.id, chatSegments.generationId))
+    .leftJoin(embedGenerations, and(eq(embedGenerations.id, chatSegments.generationId), eq(embedGenerations.ownerId, params.ownerId)))
     .where(
       and(
         segmentScopeCond({

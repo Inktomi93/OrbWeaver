@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-14
 priority: P1
+lane: codex/corpus-integration-959
 plan: test-foundation
 ---
 
@@ -46,4 +47,4 @@ Reviewed source `800bd9d45a` captures plugin/provider families through real inst
 
 The source-home map is not complete row, output or variant coverage. Refinery, discovery, RPG, imagery, schedule and transient outcome recipes remain. Committed corpus publication and every-layer adoption remain open.
 
-The retained knowledge and refinery leg has prepared source and matching scoped controls. Knowledge qualification and the expanded capsule wait for canonical typed authority. Keep the uncommitted leg; do not substitute fabricated bulk tokens or domain results.
+The knowledge and refinery leg consumes canonical typed authority. Actual transcript history and full owned memory backfill produce its knowledge inputs without changing thresholds. Scoped cases pass; the expanded capsule still needs its lifecycle verdict.

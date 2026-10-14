@@ -24,7 +24,7 @@ Read this plan for runtime dependencies and correctness work scheduled by test-f
 
 The [test-foundation plan](../test-foundation/design.md) owns the combined program order. Compose cleanup (964) moves runtime ports and reads to owning domains before the server harness (958) is built. Initial Drizzle facts (953) provide shared tenancy and query judgments.
 
-After those batches, prioritize typed every-owner authority (984). Runtime funding, dispatched-material strike-out and identity enforcement are qualified on real composed callers. Settings ownership (967), connection capabilities (968) and law alignment (970) remain tracked production work. Route identity-sensitive changes to the security role.
+Typed discovery authority is integrated. Runtime funding, dispatched-material strike-out and identity enforcement are qualified on real composed callers. Ownerless workload funding, remaining owner-read adjudication, settings ownership (967), connection capabilities (968) and law alignment (970) remain production work. Route identity-sensitive changes to the security role.
 
 [Ownerless model funding](../../work/1015-persist-the-admitted-funder-for-ownerless-model-workloads.md) follows the typed authority batch and blocks dependent bulk-model corpus qualification. Preserve the admitting funder separately from enumeration scope and the synthetic audit actor.
 

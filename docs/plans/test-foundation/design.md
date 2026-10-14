@@ -30,7 +30,7 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 | Test inputs and mounting | Finish builders/corpus (959) and the client compose door (960). | Test data derives from production and CT wiring derives from client composition. |
 | Replacement suites | Corpus-backed e2e smoke, server domains, component CTs, then remaining suites. | Replacement preserves meaningful cases, catches a production defect and deletes the corresponding legacy harness. |
 
-Every-owner tokens (984) and type homes (981) remain production work. Schedule their owner-specific batches after the compose and initial Drizzle work, without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
+Discovery every-owner authority is integrated. Remaining owner-read adjudication and type homes (981) are production work. Schedule owner-specific batches without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
 
 Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Complete harness and corpus qualification stay open. A completed prerequisite does not close its parent program. Complete required production fixes before dependent corpus qualification.
 
