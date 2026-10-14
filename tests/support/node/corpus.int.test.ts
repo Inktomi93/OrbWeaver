@@ -8,9 +8,11 @@ import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import {
   assertReferentialIntegrity,
+  automationFires,
   chatHandoffResumptions,
   chatImportClaims,
   chatLocks,
@@ -24,6 +26,7 @@ import {
   messageReactions,
   ownerStats,
   pendingTurns,
+  plugins,
   sessions,
   themes,
   userCredentials,
@@ -32,6 +35,7 @@ import {
   workloadSchedules,
 } from "@orb/db";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { parseCorpusWire } from "@orb/testkit/iso/corpus.ts";
@@ -50,7 +54,7 @@ import { CORPUS_CHAT_MODEL, corpusImageryPhysicalBytes, createCorpusChatWire } f
 import { CORPUS_CONNECTION_FOREIGN_KEY, CORPUS_CONNECTION_HOSTED_KEY, CORPUS_CONNECTION_KEY, CORPUS_CONNECTION_MODEL } from "./corpus-connection-wire.ts";
 import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
-import { captureCorpusNotificationRows } from "./corpus-notifications.ts";
+import { CORPUS_NOTIFICATION_PLUGIN_ERROR, captureCorpusNotificationRows } from "./corpus-notifications.ts";
 import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 import { CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
@@ -182,6 +186,23 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(notifications.inbox.foreignAfter).toEqual(notifications.inbox.foreignBefore);
   expect(notifications.live).toContain(notifications.kicked.id);
   expect(notifications.liveSockets).toBe(0);
+  expect(notifications.physicalCloses).toHaveLength(2);
+  expect(
+    notifications.physicalCloses.every(
+      (receipt) => receipt.requestDestroyed && receipt.responseClosed && receipt.responseDestroyed && receipt.generatorStopped,
+    ),
+  ).toBe(true);
+  expect(new Set(notifications.rows.map((row) => row.type))).toEqual(new Set(NOTIFICATION_TYPES));
+  expect(notifications.producers.paused.result).toEqual({ outcome: "paused" });
+  expect(notifications.producers.foreignAfter).toEqual(notifications.producers.foreignBefore);
+  expect(notifications.dropped.drained).toEqual({ ran: 0, dropped: 1 });
+  expect(notifications.dropped.repeated).toEqual({ ran: 0, dropped: 0 });
+  const notificationFires = [
+    ...notifications.producers.ruleRun.fires,
+    ...notifications.producers.notifyRun.fires,
+    ...notifications.producers.paused.fires,
+    ...notifications.producers.clean.fires,
+  ].toSorted((left, right) => left.id.localeCompare(right.id));
   expect(sdkSessions.empty.rows).toEqual([]);
   expect(sdkSessions.rows.length).toBeGreaterThan(0);
   expect(sdkSessions.rows.filter((row) => row.isPrimary).map((row) => row.connectionId)).toEqual([
@@ -271,9 +292,29 @@ test("a completed migrated capsule closes its real producers before cloning scru
   }
   const source = await createDb(capsule.layout.databaseUrl);
   let sourceMarker: Awaited<ReturnType<typeof source.all>>;
+  let notificationPlugin: typeof plugins.$inferSelect | undefined;
   try {
     await assertReferentialIntegrity(source);
     expect(await captureCorpusNotificationRows(source, notifications.recipientIds)).toEqual(notifications.rows);
+    notificationPlugin = await source.select().from(plugins).where(eq(plugins.id, notifications.producers.plugin.outcome.id)).get();
+    expect(notificationPlugin).toMatchObject({
+      ownerId: notifications.reader.userId,
+      status: "errored",
+      consecutiveCrashes: PLUGIN_CRASH_DISABLE_THRESHOLD,
+      lastError: expect.stringContaining(CORPUS_NOTIFICATION_PLUGIN_ERROR),
+    });
+    expect(
+      await source
+        .select()
+        .from(automationFires)
+        .where(
+          inArray(
+            automationFires.id,
+            notificationFires.map((fire) => fire.id),
+          ),
+        )
+        .orderBy(automationFires.id),
+    ).toEqual(notificationFires);
     expect(await captureSdkSessionRows(source, sdkSessions.room.chat.id, sdkSessions.connection.id)).toEqual(sdkSessions.restored.rows);
     expect(await captureSdkSessionRows(source, sdkSessions.room.chat.id, sdkSessions.alternateConnection.id)).toEqual(sdkSessions.alternate.rows);
     expect(await captureRpgSnapshot(source, providerOriginal.id)).toEqual(providerOriginal);
@@ -339,6 +380,19 @@ test("a completed migrated capsule closes its real producers before cloning scru
   try {
     await assertReferentialIntegrity(clone);
     expect(await captureCorpusNotificationRows(clone, notifications.recipientIds)).toEqual(notifications.rows);
+    expect(await clone.select().from(plugins).where(eq(plugins.id, notifications.producers.plugin.outcome.id)).get()).toEqual(notificationPlugin);
+    expect(
+      await clone
+        .select()
+        .from(automationFires)
+        .where(
+          inArray(
+            automationFires.id,
+            notificationFires.map((fire) => fire.id),
+          ),
+        )
+        .orderBy(automationFires.id),
+    ).toEqual(notificationFires);
     expect(await captureSdkSessionRows(clone, sdkSessions.room.chat.id, sdkSessions.connection.id)).toEqual(sdkSessions.restored.rows);
     expect(await captureSdkSessionRows(clone, sdkSessions.room.chat.id, sdkSessions.alternateConnection.id)).toEqual(sdkSessions.alternate.rows);
     expect(await clone.select().from(ownerStats).where(eq(ownerStats.ownerId, capsule.privateCaptures.baseline.ownerId)).get()).toEqual(

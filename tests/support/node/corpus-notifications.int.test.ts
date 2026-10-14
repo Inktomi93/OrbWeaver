@@ -2,14 +2,26 @@
 // @subject packages/server/src/transport/trpc/stream/sources/notifications.ts
 // @subject packages/server/src/transport/trpc/routers/notifications.ts
 import "./composed-real.ts";
+import { spawn } from "node:child_process";
+import { AUTOMATION_NOTICE_MESSAGE_MAX, NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import { assertReferentialIntegrity } from "@orb/db";
+import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { captureCorpusNotificationRows, seedCorpusNotifications } from "./corpus-notifications.ts";
+import {
+  CORPUS_NOTIFICATION_PLUGIN_ERROR,
+  CORPUS_NOTIFICATION_PLUGIN_MESSAGE,
+  CORPUS_NOTIFICATION_RULE_MESSAGE,
+  captureCorpusNotificationRows,
+  seedCorpusNotifications,
+} from "./corpus-notifications.ts";
+import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 test("native notification corpus retains real recipient lifecycle and bounded physical replay, live correction and withdrawal", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" }, pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
   const result = await seedCorpusNotifications(root);
   expect(result.admission.seededPending.length).toBeGreaterThan(0);
   expect(result.admission.answeredPending).toHaveLength(result.admission.seededPending.length);
@@ -51,14 +63,82 @@ test("native notification corpus retains real recipient lifecycle and bounded ph
   expect(result.consent.quietBytes).toContain(JSON.stringify(result.consent.quiet.payload));
   expect(result.consent.retractedBytes).toContain(result.consent.grown.id);
   expect(result.consent.retractedBytes).toContain(`"dismissedAt":${String(root.clock.frozenAt)}`);
+  const producers = result.producers;
+  expect(producers.foreignRun).toMatchObject({ name: "RuleNotFoundError" });
+  expect(producers.foreignAfter).toEqual(producers.foreignBefore);
+  expect(producers.ruleRun.result).toEqual({ outcome: "fired" });
+  expect(producers.ruleRun.fires).toMatchObject([{ outcome: "fired", detail: { runNow: true, byUserId: result.reader.userId } }]);
+  expect(producers.ruleNotice).toMatchObject({
+    actionable: false,
+    payload: {
+      type: "automation-notice",
+      recipientUserId: result.reader.userId,
+      chatId: result.inbox.room.chat.id,
+      source: { kind: "rule", ruleId: producers.rule.id },
+      message: CORPUS_NOTIFICATION_RULE_MESSAGE,
+    },
+  });
+  expect(producers.plugin.outcome.status).toBe("enabled");
+  expect(producers.notifyRun.result).toEqual({ outcome: "fired" });
+  expect(producers.pluginNotice).toMatchObject({
+    actionable: false,
+    payload: {
+      type: "automation-notice",
+      recipientUserId: result.reader.userId,
+      chatId: result.inbox.room.chat.id,
+      source: { kind: "plugin", pluginId: producers.plugin.outcome.id },
+      message: CORPUS_NOTIFICATION_PLUGIN_MESSAGE.repeat(AUTOMATION_NOTICE_MESSAGE_MAX).slice(0, AUTOMATION_NOTICE_MESSAGE_MAX),
+    },
+  });
+  expect(producers.failedBeforeClean.result).toEqual({ outcome: "action_error" });
+  expect(producers.clean.result).toEqual({ outcome: "fired" });
+  expect(producers.cleanView.status).toBe("enabled");
+  expect(producers.crashes).toHaveLength(PLUGIN_CRASH_DISABLE_THRESHOLD);
+  expect(producers.crashes.map(({ view }) => view.status)).toEqual([...Array.from({ length: PLUGIN_CRASH_DISABLE_THRESHOLD - 1 }, () => "enabled"), "errored"]);
+  expect(producers.crashes.map(({ disabled }) => disabled.length)).toEqual([...Array.from({ length: PLUGIN_CRASH_DISABLE_THRESHOLD - 1 }, () => 0), 1]);
+  expect(producers.crashes.every(({ run, view }) => run.result.outcome === "action_error" && view.lastError?.includes(CORPUS_NOTIFICATION_PLUGIN_ERROR))).toBe(
+    true,
+  );
+  expect(producers.paused.result).toEqual({ outcome: "paused" });
+  expect(producers.paused.fires).toEqual(producers.crashes.at(-1)?.run.fires);
+  expect(producers.disabled).toMatchObject({
+    actionable: false,
+    payload: {
+      type: "plugin-disabled",
+      recipientUserId: result.reader.userId,
+      pluginId: producers.plugin.outcome.id,
+    },
+  });
+  expect(JSON.stringify(producers.disabled)).not.toContain(CORPUS_NOTIFICATION_PLUGIN_ERROR);
+  for (const message of [
+    CORPUS_NOTIFICATION_RULE_MESSAGE,
+    CORPUS_NOTIFICATION_PLUGIN_MESSAGE.repeat(AUTOMATION_NOTICE_MESSAGE_MAX).slice(0, AUTOMATION_NOTICE_MESSAGE_MAX),
+  ]) {
+    const copies = result.rows.filter((row) => row.payload.type === "automation-notice" && row.payload.message === message);
+    expect(copies.map((row) => row.recipientUserId).toSorted()).toEqual([result.reader.userId, result.host.userId].toSorted());
+  }
+  expect(result.dropped.submitted.messages.map((message) => message.role)).toEqual(["user"]);
+  expect(result.dropped.queued.pending).toMatchObject([{ chatId: result.dropped.room, triggeredBy: result.reader.userId, runAsUserId: result.host.userId }]);
+  expect(result.dropped.queued.locks).toEqual([]);
+  expect(result.dropped.drained).toEqual({ ran: 0, dropped: 1 });
+  expect(result.dropped.repeated).toEqual({ ran: 0, dropped: 0 });
+  expect(result.dropped.completed.pending).toEqual([]);
+  expect(result.dropped.notice).toMatchObject({
+    actionable: false,
+    payload: {
+      type: "deferred-turn-dropped",
+      recipientUserId: result.reader.userId,
+      chatId: result.dropped.room,
+      reason: "chat-gone",
+    },
+  });
+  expect(result.rows.filter((row) => row.type === "deferred-turn-dropped")).toHaveLength(1);
   expect(result.dismissed).toMatchObject({ actionable: false, dismissedAt: root.clock.frozenAt });
   expect(result.dismissedAgain).toEqual(result.dismissed);
   expect(result.final.items.some((view) => view.id === result.dismissed.id)).toBe(false);
   expect(result.finalReplay).toEqual([...result.final.items].reverse());
   expect(result.rows.find((row) => row.id === result.dismissed.id)?.dismissedAt).toBe(root.clock.frozenAt);
-  expect(new Set(result.rows.map((row) => row.type))).toEqual(
-    new Set(["invite", "handoff-nominated", "handoff-accepted", "kicked", "plugins-awaiting-consent"]),
-  );
+  expect(new Set(result.rows.map((row) => row.type))).toEqual(new Set(NOTIFICATION_TYPES));
   expect(result.rows).toEqual(await captureCorpusNotificationRows(root.db, result.recipientIds));
   for (const view of result.inbox.raised.items) {
     expect(result.replay).toContain(view.id);
@@ -67,11 +147,22 @@ test("native notification corpus retains real recipient lifecycle and bounded ph
   expect(result.replay.indexOf(oldest.id)).toBeLessThan(result.replay.indexOf(newest.id));
   expect(result.live).toContain(result.nomination.id);
   expect(result.live).toContain(result.kicked.id);
+  for (const notice of [producers.ruleNotice, producers.pluginNotice, producers.disabled, result.dropped.notice]) {
+    expect(result.live).toContain(notice.id);
+  }
   for (const view of result.inbox.foreignBefore.items) {
     expect(result.replay).not.toContain(view.id);
     expect(result.live).not.toContain(view.id);
   }
   expect(result.foreignAttach).toMatchObject({ code: "NOT_FOUND" });
   expect(result.liveSockets).toBe(0);
+  expect(result.physicalCloses).toEqual(
+    Array.from({ length: 2 }, () => ({
+      requestDestroyed: true,
+      responseClosed: true,
+      responseDestroyed: true,
+      generatorStopped: true,
+    })),
+  );
   await assertReferentialIntegrity(root.db);
 });

@@ -2,6 +2,7 @@ import "@orb/testkit/node/composed-real.ts";
 import type { IncomingMessage } from "node:http";
 import { request as nodeRequest } from "node:http";
 import type { AddressInfo } from "node:net";
+import { queryObjects } from "node:v8";
 import { drainHttpServer, joinNativeHttpRequest, serveHttpServer } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
@@ -140,87 +141,102 @@ test("owned physical cancellation aborts native clones and joins actual inbound 
   }
 });
 
-test("a real peer SSE disconnect aborts its actual request signal and joins both native closes without a transport fault", async () => {
-  await using lifetime = new AsyncDisposableStack();
-  const listening = Promise.withResolvers<AddressInfo>();
-  const joined = Promise.withResolvers<PromiseSettledResult<void>[]>();
-  const cancelled = Promise.withResolvers<void>();
-  const nativeErrors: Array<{
-    readonly code: string | undefined;
-    readonly signalAborted: boolean;
-    readonly incomingDestroyed: boolean;
-    readonly incomingComplete: boolean;
-    readonly outgoingClosed: boolean;
-  }> = [];
-  const outgoingErrors: Error[] = [];
-  let initiallyAborted: boolean | undefined;
-  let physicallyClosed = false;
-  const server = serveHttpServer(
-    {
-      hostname: "127.0.0.1",
-      port: 0,
-      fetch: (input, bindings) => {
-        initiallyAborted = input.signal.aborted;
-        bindings.incoming.on("error", (error: NodeJS.ErrnoException) => {
-          nativeErrors.push({
-            code: error.code,
-            signalAborted: input.signal.aborted,
-            incomingDestroyed: bindings.incoming.destroyed,
-            incomingComplete: bindings.incoming.complete,
-            outgoingClosed: bindings.outgoing.closed,
+test.each([false, true])(
+  "a real peer SSE disconnect after request GC=%s aborts its actual signal and joins both native closes without a transport fault",
+  async (collectRequest) => {
+    await using lifetime = new AsyncDisposableStack();
+    const listening = Promise.withResolvers<AddressInfo>();
+    const joined = Promise.withResolvers<PromiseSettledResult<void>[]>();
+    const cancelled = Promise.withResolvers<void>();
+    const nativeErrors: Array<{
+      readonly code: string | undefined;
+      readonly signalAborted: boolean;
+      readonly incomingDestroyed: boolean;
+      readonly incomingComplete: boolean;
+      readonly outgoingClosed: boolean;
+    }> = [];
+    const outgoingErrors: Error[] = [];
+    let initiallyAborted: boolean | undefined;
+    let requestSignal: AbortSignal | undefined;
+    let normalizedRequest: WeakRef<Request> | undefined;
+    let physicallyClosed = false;
+    const server = serveHttpServer(
+      {
+        hostname: "127.0.0.1",
+        port: 0,
+        fetch: (input, bindings) => {
+          // Retaining the Request in this observer would mask a lost abort controller at its owner.
+          const signal = input.signal;
+          initiallyAborted = signal.aborted;
+          requestSignal = signal;
+          normalizedRequest = new WeakRef(input);
+          bindings.incoming.on("error", (error: NodeJS.ErrnoException) => {
+            nativeErrors.push({
+              code: error.code,
+              signalAborted: signal.aborted,
+              incomingDestroyed: bindings.incoming.destroyed,
+              incomingComplete: bindings.incoming.complete,
+              outgoingClosed: bindings.outgoing.closed,
+            });
           });
-        });
-        bindings.outgoing.on("error", (error: Error) => outgoingErrors.push(error));
-        joined.resolve(
-          Promise.allSettled([joinNativeHttpRequest(bindings, input.signal)]).then((result) => {
-            physicallyClosed = bindings.incoming.closed && bindings.outgoing.closed;
-            return result;
-          }),
-        );
-        return new Response(
-          new ReadableStream<Uint8Array>({
-            start(controller): void {
-              controller.enqueue(new TextEncoder().encode(`data: ${BODY}\n\n`));
-            },
-            cancel(): void {
-              cancelled.resolve();
-            },
-          }),
-          { headers: { "content-type": "text/event-stream" } },
-        );
+          bindings.outgoing.on("error", (error: Error) => outgoingErrors.push(error));
+          joined.resolve(
+            Promise.allSettled([joinNativeHttpRequest(bindings, signal)]).then((result) => {
+              physicallyClosed = bindings.incoming.closed && bindings.outgoing.closed;
+              return result;
+            }),
+          );
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller): void {
+                controller.enqueue(new TextEncoder().encode(`data: ${BODY}\n\n`));
+              },
+              cancel(): void {
+                cancelled.resolve();
+              },
+            }),
+            { headers: { "content-type": "text/event-stream" } },
+          );
+        },
       },
-    },
-    listening.resolve,
-  );
-  lifetime.defer(() => drainHttpServer(server, silentDrainLog));
-  const address = await listening.promise;
-  const response = Promise.withResolvers<IncomingMessage>();
-  const delivered = Promise.withResolvers<string>();
-  const clientClosed = Promise.withResolvers<void>();
-  const outgoing = nodeRequest(`http://${address.address}:${address.port}/events`, (received) => {
-    response.resolve(received);
-    received.setEncoding("utf8");
-    received.once("data", delivered.resolve);
-    received.once("close", clientClosed.resolve);
-  });
-  outgoing.end();
-  const incoming = await response.promise;
-  try {
-    expect(await delivered.promise).toBe(`data: ${BODY}\n\n`);
-    expect(initiallyAborted).toBe(false);
-    incoming.destroy();
-    const result = await joined.promise;
-    await Promise.all([clientClosed.promise, cancelled.promise]);
-    expect(physicallyClosed).toBe(true);
-    expect(nativeErrors).toEqual([{ code: "ECONNRESET", signalAborted: true, incomingDestroyed: true, incomingComplete: true, outgoingClosed: true }]);
-    expect(outgoingErrors).toEqual([]);
-    expect(result).toEqual([{ status: "fulfilled", value: undefined }]);
-  } finally {
-    incoming.destroy();
-    outgoing.destroy();
-    await Promise.all([clientClosed.promise, joined.promise, cancelled.promise]);
-  }
-});
+      listening.resolve,
+    );
+    lifetime.defer(() => drainHttpServer(server, silentDrainLog));
+    const address = await listening.promise;
+    const response = Promise.withResolvers<IncomingMessage>();
+    const delivered = Promise.withResolvers<string>();
+    const clientClosed = Promise.withResolvers<void>();
+    const outgoing = nodeRequest(`http://${address.address}:${address.port}/events`, (received) => {
+      response.resolve(received);
+      received.setEncoding("utf8");
+      received.once("data", delivered.resolve);
+      received.once("close", clientClosed.resolve);
+    });
+    outgoing.end();
+    const incoming = await response.promise;
+    try {
+      expect(await delivered.promise).toBe(`data: ${BODY}\n\n`);
+      expect(initiallyAborted).toBe(false);
+      if (collectRequest) {
+        queryObjects(Request, { format: "count" });
+      }
+      incoming.destroy();
+      const result = await joined.promise;
+      await Promise.all([clientClosed.promise, cancelled.promise]);
+      expect(physicallyClosed).toBe(true);
+      expect(requestSignal?.aborted).toBe(true);
+      expect(nativeErrors).toEqual([{ code: "ECONNRESET", signalAborted: true, incomingDestroyed: true, incomingComplete: true, outgoingClosed: true }]);
+      expect(outgoingErrors).toEqual([]);
+      expect(result).toEqual([{ status: "fulfilled", value: undefined }]);
+      queryObjects(Request, { format: "count" });
+      expect(normalizedRequest?.deref()).toBeUndefined();
+    } finally {
+      incoming.destroy();
+      outgoing.destroy();
+      await Promise.all([clientClosed.promise, joined.promise, cancelled.promise]);
+    }
+  },
+);
 
 test.each([undefined, "ECONNRESET"])(
   "an unexpected native stream fault with code %s remains visible when owned cancellation races its error delivery",
