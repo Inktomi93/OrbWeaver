@@ -9,6 +9,8 @@ import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
+import type { seedCorpusImagery as produceCorpusImagery } from "./corpus-imagery.ts";
 import type { seedCorpusKnowledge as produceCorpusKnowledge } from "./corpus-knowledge.ts";
 import type { seedCorpusKnowledgeVariants as produceCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
 import type { seedCorpusPlugins as produceCorpusPlugins } from "./corpus-plugin.ts";
@@ -41,6 +43,8 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly chatLifecycle: Awaited<ReturnType<typeof produceCorpusChatLifecycle>>;
+  readonly imagery: Awaited<ReturnType<typeof produceCorpusImagery>>;
   readonly knowledgeVariants: Awaited<ReturnType<typeof produceCorpusKnowledgeVariants>>;
   readonly rpgProvider: Awaited<ReturnType<typeof produceCorpusRpgProvider>>;
   readonly rpg: Awaited<ReturnType<typeof produceCorpusRpg>>;
@@ -119,7 +123,10 @@ export async function createCorpusCapsule(options: CorpusCapsuleOptions): Promis
 
 async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout): Promise<CapturedCapsule> {
   const { assertReferentialIntegrity, createDb, preCloseHousekeeping, runMigrations } = await import("@orb/db");
-  const { SHIPPED_MIGRATIONS } = await import("./db.ts");
+  const { SHIPPED_MIGRATIONS, createDbStatementHold } = await import("./db.ts");
+  const { createCorpusChatWire } = await import("./corpus-chat-wire.ts");
+  const { seedCorpusChatLifecycle } = await import("./corpus-chat-lifecycle.ts");
+  const { seedCorpusImagery } = await import("./corpus-imagery.ts");
   const { createServerHarness } = await import("./server.ts");
   const { createFrozenClock } = await import("../iso/clock.ts");
   const { createSeededIds } = await import("../iso/ids.ts");
@@ -133,7 +140,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
     await import("./corpus-seed.ts");
   await using lifetimes = new AsyncDisposableStack();
-  const db = await createDb(layout.databaseUrl);
+  const dbHold = createDbStatementHold();
+  const chatWire = createCorpusChatWire();
+  const db = await createDb(layout.databaseUrl, dbHold.wrap);
   lifetimes.defer(() => preCloseHousekeeping(db));
   await runMigrations(db, SHIPPED_MIGRATIONS);
   await assertReferentialIntegrity(db);
@@ -173,6 +182,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       clock,
       ids,
       ownerId: oidc.ownerId,
+      providerFetch: chatWire.wrap(options.server.providerFetch ?? fetch),
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
@@ -198,6 +208,8 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const rpg = await seedCorpusRpg(root);
   const rpgProvider = await seedCorpusRpgProvider(root, actors.connections.text.id);
   const knowledgeVariants = await seedCorpusKnowledgeVariants(root);
+  const chatLifecycle = await seedCorpusChatLifecycle(root, chatWire, actors.secondUserId, dbHold);
+  const imagery = await seedCorpusImagery(root, actors.secondUserId);
   await root.settleBackground();
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
@@ -208,6 +220,20 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
   return {
     wire: hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads }),
-    privateCaptures: { oidc, credential, baseline, recall, libraries, automation, plugins, knowledge, rpg, rpgProvider, knowledgeVariants },
+    privateCaptures: {
+      oidc,
+      credential,
+      baseline,
+      recall,
+      libraries,
+      automation,
+      plugins,
+      knowledge,
+      rpg,
+      rpgProvider,
+      knowledgeVariants,
+      chatLifecycle,
+      imagery,
+    },
   };
 }

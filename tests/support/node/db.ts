@@ -70,17 +70,27 @@ export interface HeldDb {
   readonly hold: (pattern: RegExp, arrivals?: number) => HeldStatement;
 }
 
+export interface DbStatementHold extends Pick<HeldDb, "hold"> {
+  readonly wrap: LibSqlWrap;
+}
+
 /**
  * A real freshDb whose libSQL wrapper can hold one statement class before it enters the driver. Tests use
  * this to make read-then-write races deterministic: both requests finish their reads, the matching writes
  * park here, then the test releases them together. The database, schema, and statements are all real.
  */
 export async function freshHeldDb(): Promise<HeldDb> {
+  const controller = createDbStatementHold();
+  const db = await prepareFreshDb(controller.wrap);
+  return { db, hold: controller.hold };
+}
+
+/** Use the same physical statement fence with a migrated file DB or the fresh in-memory helper. */
+export function createDbStatementHold(): DbStatementHold {
   let active: StatementGate | undefined;
   const wrap: LibSqlWrap = (client) => holdingClient(client, () => active);
-  const db = await prepareFreshDb(wrap);
   return {
-    db,
+    wrap,
     hold: (pattern: RegExp, arrivals = 1): HeldStatement => {
       if (active !== undefined) {
         throw new Error("a DB statement hold is already armed");
