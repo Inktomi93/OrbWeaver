@@ -5,11 +5,12 @@
 // `contract-derives-not-respells` (`lib/contract-structural-copy.ts`). Debt: `lib/reviewed-grants-test-hand-shape.ts`.
 import type { InterfaceDeclaration, TypeAliasDeclaration } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { indexByField } from "../../floor/code-facts/shape-copy.ts";
+import type { ShapeCopySource as ContractFieldShape, ShapeCopyComparison as StructuralCopyMatch } from "../../floor/code-facts/shape-copy-contract.ts";
 import { exportedShapeDeclarations, isHandWrittenShape } from "../../floor/code-facts/shape-declaration.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ContractFieldShape, StructuralCopyMatch } from "../lib/contract-structural-copy.ts";
-import { bestCopyMatch, bestOverlapMatch, candidateFields, contractFields, createFieldAgreement, indexByField } from "../lib/contract-structural-copy.ts";
+import { bestCopyMatch, bestOverlapMatch, candidateFields, contractFields, createFieldAgreement } from "../lib/contract-structural-copy.ts";
 
 const TESTS = "tests/";
 const E2E = "tests/e2e/";

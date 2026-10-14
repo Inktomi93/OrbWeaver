@@ -6,37 +6,14 @@
 import type { InterfaceDeclaration, Node, TypeAliasDeclaration, TypeChecker, TypeLiteralNode } from "ts-morph";
 import { Node as N } from "ts-morph";
 import type { AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
-import { fieldTypesAgree, readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import { agreeingCount, createShapeFieldAgreement, sharedFieldCounts } from "../../floor/code-facts/shape-copy.ts";
+import type { ShapeCopyCandidate, ShapeCopyComparison, ShapeCopySource, ShapeFieldAgreement } from "../../floor/code-facts/shape-copy-contract.ts";
 import { ownDataFieldNames, resolvedShapeProperties } from "../../floor/code-facts/shape-fields.ts";
 
 /** A candidate needs this many own data fields; three-field overlaps are mostly coincidence. */
 export const MIN_COPY_FIELDS = 4;
 /** The share of shared fields whose types must agree. */
 export const TYPE_AGREEMENT_FLOOR = 0.8;
-
-export interface ContractFieldShape {
-  readonly name: string;
-  readonly file: string;
-  /** The declaration whose resolved type supplies each field's type. */
-  readonly decl: Node;
-  readonly fields: ReadonlySet<string>;
-}
-
-/** A hand-written shape's own data fields, read off the declaration that spells them. */
-export interface CopyCandidate {
-  readonly decl: Node;
-  readonly fields: ReadonlySet<string>;
-}
-
-export interface StructuralCopyMatch {
-  readonly contract: ContractFieldShape;
-  readonly shared: number;
-  readonly agreeing: number;
-  readonly exact: boolean;
-}
-
-/** Whether a candidate's field has the type of the contract's field of the same name. */
-type FieldAgreement = (candidate: Node, contract: Node, field: string) => boolean;
 
 const REFUSALS: Readonly<Record<AssignabilityRefusalKind, string>> = {
   "primitive-absent":
@@ -46,17 +23,10 @@ const REFUSALS: Readonly<Record<AssignabilityRefusalKind, string>> = {
 };
 
 /** The checker-backed agreement for one policy run. Refuses loudly, in the policy's voice, when it cannot compare. */
-export function createFieldAgreement(policyId: string, checker: Pick<TypeChecker, "compilerObject">): FieldAgreement {
-  const assignability = readAssignabilityChecker(checker);
-  const refuse = (kind: AssignabilityRefusalKind): never => {
+export function createFieldAgreement(policyId: string, checker: Pick<TypeChecker, "compilerObject">): ShapeFieldAgreement {
+  return createShapeFieldAgreement(checker, (kind): never => {
     throw new Error(`${policyId}: ${REFUSALS[kind]}`);
-  };
-  if (assignability === undefined) {
-    return refuse("primitive-absent");
-  }
-  // A copy that only adds `?` or `readonly` is still the contract's field.
-  const context = { checker: assignability, refuse, lenient: true };
-  return (candidate, contract, field) => fieldTypesAgree(context, { decl: candidate, name: field }, { decl: contract, name: field });
+  });
 }
 
 /** The data field names of one exported contract type, or undefined when it is not a plain object shape. */
@@ -72,44 +42,15 @@ export function candidateFields(node: InterfaceDeclaration | TypeLiteralNode): R
   return fields.size >= MIN_COPY_FIELDS ? fields : undefined;
 }
 
-/** Index contract shapes by field name, so a candidate is compared only with shapes it shares a field with. */
-export function indexByField(shapes: readonly ContractFieldShape[]): ReadonlyMap<string, readonly ContractFieldShape[]> {
-  const index = new Map<string, ContractFieldShape[]>();
-  for (const shape of shapes) {
-    for (const field of shape.fields) {
-      const list = index.get(field) ?? [];
-      list.push(shape);
-      index.set(field, list);
-    }
-  }
-  return index;
-}
-
-/** How many of the candidate's field names each indexed shape carries. */
-function sharedFieldCounts(fields: ReadonlySet<string>, index: ReadonlyMap<string, readonly ContractFieldShape[]>): ReadonlyMap<ContractFieldShape, number> {
-  const tally = new Map<ContractFieldShape, number>();
-  for (const field of fields) {
-    for (const shape of index.get(field) ?? []) {
-      tally.set(shape, (tally.get(shape) ?? 0) + 1);
-    }
-  }
-  return tally;
-}
-
-/** How many of the candidate's fields the contract carries with the same type. */
-function agreeingCount(candidate: CopyCandidate, contract: ContractFieldShape, agree: FieldAgreement): number {
-  return [...candidate.fields].filter((field) => contract.fields.has(field) && agree(candidate.decl, contract.decl, field)).length;
-}
-
 /** The best contract this candidate copies: every candidate field is a contract field and enough types agree.
  *  Exact field-set equality ranks above a proper subset, then the larger shared set. */
 export function bestCopyMatch(
-  candidate: CopyCandidate,
-  index: ReadonlyMap<string, readonly ContractFieldShape[]>,
-  agree: FieldAgreement,
-): StructuralCopyMatch | undefined {
+  candidate: ShapeCopyCandidate,
+  index: ReadonlyMap<string, readonly ShapeCopySource[]>,
+  agree: ShapeFieldAgreement,
+): ShapeCopyComparison | undefined {
   const tally = sharedFieldCounts(candidate.fields, index);
-  let best: StructuralCopyMatch | undefined;
+  let best: ShapeCopyComparison | undefined;
   for (const [contract, shared] of tally) {
     if (shared !== candidate.fields.size) {
       continue;
@@ -135,12 +76,12 @@ const DRIFTED_TYPE_ALLOWANCE = 1;
  *  `OVERLAP_FLOOR` of them, are that shape's, and all but `DRIFTED_TYPE_ALLOWANCE` of those agree on type. The widest
  *  overlap wins. A copy that renamed or retyped a field slips `bestCopyMatch` and is still the same copy. */
 export function bestOverlapMatch(
-  candidate: CopyCandidate,
-  index: ReadonlyMap<string, readonly ContractFieldShape[]>,
-  agree: FieldAgreement,
-): StructuralCopyMatch | undefined {
+  candidate: ShapeCopyCandidate,
+  index: ReadonlyMap<string, readonly ShapeCopySource[]>,
+  agree: ShapeFieldAgreement,
+): ShapeCopyComparison | undefined {
   const tally = sharedFieldCounts(candidate.fields, index);
-  let best: StructuralCopyMatch | undefined;
+  let best: ShapeCopyComparison | undefined;
   for (const [contract, shared] of tally) {
     if (shared < MIN_COPY_FIELDS || shared < OVERLAP_FLOOR * candidate.fields.size) {
       continue;
@@ -157,7 +98,7 @@ export function bestOverlapMatch(
   return best;
 }
 
-function rank(match: StructuralCopyMatch): number {
+function rank(match: ShapeCopyComparison): number {
   const exactWeight = 1_000_000;
   const sharedWeight = 1000;
   return (match.exact ? exactWeight : 0) + match.shared * sharedWeight + match.agreeing;
