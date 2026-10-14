@@ -1,58 +1,17 @@
-// Gate: test-determinism (Spine-Testing.md §3, Core-0-Architecture-and-Structure.md §7) — no ambient
-// clock/random/unseeded id under tests/. Tests inject the frozen clock + seeded ids (tests/support)
-// through the same composition seam production uses; the real clock/Math.random makes ordering assertions
-// flaky. COMMENTS ARE BLANKED before the line scan (issue #132) — a comment EXPLAINING a determinism fix
-// names the banned call, and reading prose as code cost two CTs a reworded comment. DECLARED LIMIT: string
-// literals still scan (a fixture that spells the call is code the test could evaluate). Exempts support/ +
-// e2e/ via population, so a predicate that stops matching REDs on the zero-scan alarm instead of passing.
-// PER-SITE ESCAPE (#828, RESPELLED at the conversion): the central `@orb-waive test-determinism(<position>):
-// <reason>` marker on the line IMMEDIATELY above the call — for a test whose SUBJECT is elapsed real time.
-// The position is the finding's `token`: the matched banned spelling trimmed of its call parens
-// (`Date.now`, `process.hrtime`, `performance.timeOrigin`). Comments are blanked, so the marker line can
-// never itself match.
-// MARKER CENSUS (#1963, 2026-09-11). The conversion commit (`9c04cd7182`) converted this module's own proof
-// rows to `@orb-waive` but did NOT translate the live tree, and marker routing is FENCED (design §7):
-// legacy `@orb-gate-ignore` reaches only LEGACY owners, so all 14 real-tree markers naming this now-FINAL
-// policy went inert in one commit — 14 suppressions LOST, reported by `gate-ignore-inventory` as 14 STALE
-// markers and by this policy as 14 newly-effective findings. Translated 1:1 (14 legacy = 14 waives, no
-// MULTI split, no DEAD marker) across 9 files: `Date.now` ×4 (tests/tooling/{vitest-supervised,
-// snap/ops/session-client,snap/ops/stage-keeper,floor/process/proc}), `process.hrtime` ×9
-// (plugin-host/{sandbox ×4,escape.suite ×2}, entry/{compose/chat ×2,lifecycle}), `performance.timeOrigin` ×1
-// (plugin-host/realm). The 22 raw grep hits minus 4 legacy-engine fixtures in
-// tests/tooling/gate-ignore-grammar.repo.int.test.ts, 3 file-header prose mentions and this header's own
-// quote = those 14. THAT ARITHMETIC IS FROZEN AT THE CONVERSION COMMIT and is no longer reproducible: this
-// policy was that suite's Finding-arm carrier, the conversion made the arm vacuous (a legacy marker cannot
-// reach a final policy), and #1974 re-pointed it at `no-test-fabrication` — so its 4 fixtures no longer
-// name this policy. Re-derive from the tree, never from this paragraph.
-// WIDENED SPELLINGS (#831): four real sites routed around the gate through spellings the old regex did
-// not recognise — process.hrtime()/process.hrtime.bigint() (an ambient monotonic clock; one member match
-// covers both call forms) and performance.timeOrigin (an ambient clock PROPERTY, not a call). All four
-// now carry the #828 marker. DECLARED LIMIT, unchanged by #831: a guest-realm probe that reaches a stub
-// via SUBSCRIPT/bracket access (`Date['now']()`, `performance['now']()`) still evades every regex in this
-// file by construction — the probe never spells the dotted member the regex matches on. That is
-// tests/legacy/server/infra/plugin-host/realm.test.ts's documented choice (its own header), not a gap this gate
-// closes; a future "flag bracket access too" would need to special-case away from EVERY legitimate bracket
-// property read, which is not this gate's job.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-determinism` descriptor at a2a93cac726442da889b41f089610914f5dc692f, the parent of the conversion `9c04cd7182`
-// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,353 harness
-// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,744
-// and final `population` admits 2,744. legacy − final = ∅. final − legacy = ∅. Controls: inside
-// `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
-// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
-//
-// FAMILY: a declared SINGLETON under its own id. `lib/comment-spans.ts#blankTsComments` is a generic comment
-// primitive several unrelated policies call; no sibling judges ambient clocks under `tests/`.
+// Test determinism includes testkit: ambient clocks/entropy and unseeded business mints are forbidden.
+// Canonical floor origin readers distinguish aliases and seeded production mints from lookalikes.
+// Singleton: test-specific timer and source-string obligations share this population and authority.
+// Population correction: support is judged; live e2e remains outside this policy. Source strings retain their waiver door.
 
+import type { CallExpression, Node as MorphNode, NewExpression } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { blankTsComments } from "../lib/comment-spans.ts";
-
-// A scan-SCOPE decision, NOT an exemption table (hence the name — `gate-modernization` reds an
-// exemption-vocabulary collection with no stale arm, and rightly): support/ is the determinism seam ITSELF
-// (it is where the frozen clock lives) and e2e/ is a real browser against a live clock. Neither is a
-// sanctioned home for a violation; both are tiers the rule does not apply to.
-const UNSCANNED_UNDER: readonly [string, ...string[]] = ["tests/support/**", "tests/e2e/**"];
+import type { SealedOriginVerdict } from "../contract/sealed-origin.ts";
+import { bindsProvenNonModuleDeclaration, classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
+import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
+import { readSealedOrigin } from "../lib/sealed-origin.ts";
 
 const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
   {
@@ -87,145 +46,364 @@ const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
   },
 ];
 
+const KIT_MINTS = new Set(["mintTypeId", "newId", "createIdSource"]);
+const VENDOR_MINTS = new Set(["typeid", "typeidUnboxed"]);
+const CRYPTO_MINTS = new Set(["randomUUID"]);
+
+function ambientToken(node: MorphNode): string | undefined {
+  const origin = resolveGlobalMemberOrigin(node);
+  if (origin.kind !== "resolved") {
+    return;
+  }
+  const { globalName, memberPath } = origin.value;
+  const path = [globalName, ...memberPath].join(".");
+  return ["Date.now", "Math.random", "crypto.randomUUID", "performance.now", "performance.timeOrigin", "process.hrtime", "process.hrtime.bigint"].includes(path)
+    ? path.replace(".bigint", "")
+    : undefined;
+}
+
+function canUseAmbientGenerator(node: MorphNode): boolean {
+  const type = node.getType();
+  return (
+    type.isUndefined() ||
+    type.getUnionTypes().some((part) => part.isUndefined()) ||
+    readPackageExportOrigin(node, ["typeid-js"], VENDOR_MINTS).verdict === "home" ||
+    ambientToken(node) !== undefined
+  );
+}
+
+function rejectUnreadableMint(callee: MorphNode, kit: SealedOriginVerdict): void {
+  if (
+    kit.kind === "unresolved" &&
+    [...KIT_MINTS].some((name) => referenceNamesExport(callee, name)) &&
+    classifyOriginRefusal(kit.fact.reason, callee) === "unreadable"
+  ) {
+    throw new Error("test-determinism cannot establish the canonical id mint behind this invocation");
+  }
+}
+
+function mintToken(node: import("ts-morph").CallExpression): string | undefined {
+  const callee = node.getExpression();
+  const kit = readSealedOrigin(callee, { pathInfix: "/packages/kit/src/ids/", exportedNames: KIT_MINTS });
+  rejectUnreadableMint(callee, kit);
+  if (kit.kind === "sealed") {
+    const wrapper = kit.origin.memberPath.at(-1);
+    if (wrapper === "bind") {
+      return;
+    }
+    if (wrapper === "call" || wrapper === "apply") {
+      throw new Error("test-determinism requires checker-proven Function wrapper identity before judging id mint arguments");
+    }
+    const generator = node.getArguments()[kit.exportedName === "mintTypeId" ? 1 : 0];
+    return generator === undefined || canUseAmbientGenerator(generator) ? kit.exportedName : undefined;
+  }
+  const vendor = readPackageExportOrigin(callee, ["typeid-js"], VENDOR_MINTS);
+  if (vendor.verdict === "home") {
+    return vendor.exportedName ?? undefined;
+  }
+  const crypto = readPackageExportOrigin(callee, ["node:crypto", "crypto"], CRYPTO_MINTS);
+  return crypto.verdict === "home" ? "randomUUID" : undefined;
+}
+
+function invocationToken(node: CallExpression | NewExpression): string | undefined {
+  const callee = node.getExpression();
+  if (Node.isNewExpression(node)) {
+    const origin = resolveGlobalMemberOrigin(callee);
+    return node.getArguments().length === 0 && origin.kind === "resolved" && origin.value.globalName === "Date" && origin.value.memberPath.length === 0
+      ? "new Date"
+      : undefined;
+  }
+  const token = ambientToken(callee) ?? mintToken(node);
+  if (token !== undefined) {
+    return token;
+  }
+  const fakeTimers = readPackageExportOrigin(callee, ["vitest"], new Set(["useFakeTimers"]));
+  if (fakeTimers.verdict === "home") {
+    return "vi.useFakeTimers";
+  }
+  // Syntax-only fixture references have no ambient declarations; keep their existing refusal surface.
+  const syntax = `${callee.getText()}(`;
+  const banned = BANNED.find(({ re }) => re.test(syntax));
+  return banned !== undefined && (!bindsProvenNonModuleDeclaration(callee) || BANNED.slice(-2).includes(banned))
+    ? banned.re.exec(syntax)?.[0].replace(/[()]+$/u, "")
+    : undefined;
+}
+
+function reportSourceString(node: MorphNode, ctx: GatePolicyContext, reported: Set<string>): void {
+  // Source strings can execute in another realm; retain the existing explicit per-site waiver door.
+  for (const { re, what } of BANNED) {
+    const match = re.exec(node.getText());
+    if (match !== null) {
+      const token = match[0].replace(/[()]+$/u, "");
+      const line = node.getSourceFile().getLineAndColumnAtPos(node.getStart() + match.index).line;
+      const identity = `${node.getSourceFile().getFilePath()}:${String(line)}:${token}`;
+      if (!reported.has(identity)) {
+        reported.add(identity);
+        ctx.report.node(node, { token, offset: match.index, message: `ambient nondeterminism: ${what}` });
+      }
+    }
+  }
+}
+
+function nodeToken(node: MorphNode): string | undefined {
+  if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
+    return ambientToken(node) === "performance.timeOrigin" ? "performance.timeOrigin" : undefined;
+  }
+  return Node.isCallExpression(node) || Node.isNewExpression(node) ? invocationToken(node) : undefined;
+}
+
 export const gate = defineGate({
   id: "test-determinism",
   family: "test-determinism",
-  // The legacy descriptor carried no `markerImmune`, so it was suppressible via the ordinary
-  // `@orb-gate-ignore` marker (#828's per-site escape) — never a hard, unsuppressible boundary.
   authority: "ordinary",
   severity: "error",
-  population: { in: ["@tests"], notUnder: UNSCANNED_UNDER },
-  analysis: "syntax",
+  population: { in: ["@tests"], notUnder: ["tests/e2e/**"] },
+  analysis: "types",
   execution: "selected-files",
   facts: [],
   resources: [],
   message:
-    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now/process.hrtime/performance.timeOrigin/vi.useFakeTimers/waitForTimeout) — inject the frozen clock + seeded ids via the fixture seam (docs/law/Spine-Testing.md §3).",
+    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/unseeded mintTypeId/newId/typeid/performance.now/process.hrtime/performance.timeOrigin/vi.useFakeTimers/waitForTimeout) — inject the frozen clock + seeded ids via the fixture seam (docs/law/Spine-Testing.md §3).",
   fix:
     "inject the frozen clock (tests/support/iso/clock.ts) + seeded ids (tests/support/iso/ids.ts) through the " +
     "composition seam production uses. A deliberate site (a test whose SUBJECT is elapsed real time) is " +
     "waived with `@orb-waive test-determinism(<position>): <reason>` on the line IMMEDIATELY above the " +
     "call, where <position> is the matched banned spelling trimmed of its call parens (`Date.now`, " +
     "`process.hrtime`, `performance.timeOrigin`).",
-  create: (ctx) => ({
-    visitFile: (sf) => {
-      const raw = sf.getFullText();
-      // CANDIDATE FENCE, and it is a MEMORY one, not a micro-optimisation: `blankTsComments` walks
-      // `getDescendants()`, which materialises every wrapped node for the file, and doing that for all
-      // ~1,836 in-scope test files OOMs the whole run (measured: heap limit at 4GB, exit 134). It is SOUND
-      // because blanking only ever REMOVES matches — a file whose RAW text matches no banned regex cannot
-      // match after comments are blanked, so skipping it can hide nothing.
-      if (!BANNED.some(({ re }) => re.test(raw))) {
-        return;
-      }
-      const file = ctx.relativePath(sf);
-      // Comments are TRIVIA to a value scan. Blanking is length-preserving (comment-spans.ts), so
-      // `index + 1` is still the real line — and the line stays the finding's ONLY position, which is
-      // also what makes the line-adjacent escape exact.
-      for (const [index, line] of blankTsComments(sf).split(/\r?\n/u).entries()) {
-        for (const { re, what } of BANNED) {
-          const match = re.exec(line);
-          if (match !== null) {
-            // An ordinary finding binds its waiver by exact position `token` — the matched banned
-            // spelling itself is the identity a `@orb-waive <policy>(<position>): <reason>` marker
-            // names. The marker grammar's `(<position>)` capture excludes literal parens, so a call-form
-            // match ("Date.now(", "new Date()") is trimmed to its bare identity before reporting; the
-            // trimmed text is still an exact prefix slice at the same offset.
-            const token = match[0].replace(/[()]+$/u, "");
-            ctx.report.file(file, {
-              line: index + 1,
-              column: match.index + 1,
-              token,
-              message: `ambient nondeterminism: ${what} — inject the frozen clock / seeded ids via the fixture seam (Spine-Testing.md §3).`,
-            });
-          }
-        }
-      }
-    },
-  }),
+  create: (ctx) => {
+    const reportedStrings = new Set<string>();
+    return {
+      visitors: [
+        {
+          kinds: [
+            SyntaxKind.CallExpression,
+            SyntaxKind.NewExpression,
+            SyntaxKind.PropertyAccessExpression,
+            SyntaxKind.ElementAccessExpression,
+            SyntaxKind.StringLiteral,
+            SyntaxKind.NoSubstitutionTemplateLiteral,
+            SyntaxKind.TemplateHead,
+            SyntaxKind.TemplateMiddle,
+            SyntaxKind.TemplateTail,
+          ],
+          visit: (node) => {
+            if (
+              Node.isStringLiteral(node) ||
+              Node.isNoSubstitutionTemplateLiteral(node) ||
+              Node.isTemplateHead(node) ||
+              Node.isTemplateMiddle(node) ||
+              Node.isTemplateTail(node)
+            ) {
+              reportSourceString(node, ctx, reportedStrings);
+              return;
+            }
+            const token = nodeToken(node);
+            if (token !== undefined) {
+              const offset = node.getText().indexOf(token);
+              const position = offset < 0 ? {} : { token, offset };
+              ctx.report.node(node, {
+                ...position,
+                message: `ambient nondeterminism: ${token === "new Date" ? "new Date()" : token} — inject the frozen clock / seeded ids via the fixture seam (Spine-Testing.md §3).`,
+              });
+            }
+          },
+        },
+      ],
+    };
+  },
   mustFlag: [
     {
-      mode: "source",
+      mode: "types",
+      files: {
+        "packages/kit/src/ids/index.ts": "export function mintTypeId(prefix: string, generate?: (prefix: string) => string): string { return ''; }",
+        "node_modules/typeid-js/index.d.ts": "export declare function typeidUnboxed(prefix: string): string;",
+        "tests/support/iso/ambient-generator.ts":
+          "import { mintTypeId } from '../../../packages/kit/src/ids/index.ts'; import { typeidUnboxed as generate } from 'typeid-js'; export const value = mintTypeId('chat', generate);",
+      },
+      expect: { count: 1, messageIncludes: "mintTypeId" },
+      why: "an explicit generator that is canonically ambient is not a seeded mint",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/ids/index.ts":
+          "export function newId(generate?: (prefix: string) => string): string { return ''; } export function createIdSource(generate?: (prefix: string) => string): object { return {}; }",
+        "tests/support/iso/mints.ts":
+          "import * as ids from '../../../packages/kit/src/ids/index.ts'; export const one = ids.newId(); export const two = ids.createIdSource(undefined);",
+      },
+      expect: { count: 2, messageIncludes: "ambient nondeterminism" },
+      why: "prefixless mints and default id sources are ambient even through a namespace and explicit undefined",
+    },
+    {
+      mode: "types",
+      files: { "tests/support/iso/ambient.ts": "export const value = Date['now']();" },
+      expect: { count: 1, messageIncludes: "Date.now" },
+      why: "testkit is judged and bracket access retains ambient identity",
+    },
+    {
+      mode: "types",
+      files: { "tests/support/iso/alias.ts": "const { random: draw } = Math; export const value = draw();" },
+      expect: { count: 1, messageIncludes: "Math.random" },
+      why: "a renamed destructured ambient function has the same identity",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/ids/index.ts": "export function mintTypeId(prefix: string, generate?: (prefix: string) => string): string { return ''; }",
+        "tests/support/iso/mint.ts": "import { mintTypeId as mint } from '../../../packages/kit/src/ids/index.ts'; export const value = mint('chat');",
+      },
+      expect: { count: 1, messageIncludes: "mintTypeId" },
+      why: "a renamed canonical business mint without its generator is ambient",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/typeid-js/index.d.ts": "export declare function typeid(prefix?: string): string;",
+        "tests/support/iso/vendor.ts": "import { typeid as mint } from 'typeid-js'; export const value = mint('chat');",
+      },
+      expect: { count: 1, messageIncludes: "typeid" },
+      why: "a renamed vendor mint reads ambient entropy despite the local spelling",
+    },
+    {
+      mode: "types",
       files: { "tests/server/x.test.ts": "export const t = Date.now();\n" },
       expect: { count: 1, messageIncludes: "Date.now" },
       why: "an ambient Date.now() in a test — inject the frozen clock (§3)",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/newdate.test.ts": "export const t = new Date();\n" },
       expect: { count: 1, messageIncludes: "new Date()" },
       why: "a no-arg new Date() — its own BANNED entry, distinct message + regex arm",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/rand.test.ts": "export const r = Math.random();\n" },
       expect: { count: 1, messageIncludes: "Math.random" },
       why: "Math.random() — its own BANNED entry (member call biome can't ban)",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/uuid.test.ts": "export const id = crypto.randomUUID();\n" },
       expect: { count: 1, messageIncludes: "randomUUID" },
       why: "a .randomUUID() call — its own BANNED entry (unseeded id)",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/perf.test.ts": "export const p = performance.now();\n" },
       expect: { count: 1, messageIncludes: "performance.now" },
       why: "performance.now() — its own BANNED entry (ambient clock)",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/parked.test.ts": "// export const t = Date.now();\nexport const t = Date.now();\n" },
       expect: { count: 1, line: 2 },
       why: "the LINE arithmetic after blanking: only the real call on line 2 fires, and it still reports line 2 (blanking preserves length + newlines, so a comment above a violation cannot shift it). The PARKED call on line 1 is not this gate's business — `commented-code` owns it and REDs it, receipted on a planted tests/ probe 2026-08-17",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/literal.test.ts": 'export const src = "Date.now()";\n' },
       expect: { count: 1, messageIncludes: "Date.now" },
       why: "DECLARED LIMIT (issue #132): only COMMENTS are blanked. A banned call spelled inside a STRING is code a test could evaluate — tests/tooling/vitest-supervised.test.ts's SPIN_SRC is exactly that, a string spawned as a real grandchild — so keeping this row proven stops a future 'blank strings too' from silently disarming the arm. THE LIMIT CANNOT BE NARROWED (#1975, 2026-09-11): a syntax line-scanner cannot tell a string parsed by ts-morph from one that runs, and the parser fixtures that spell a banned call to prove a READER (tests/tooling/verify/lib/{ambient-determinism,origin-verdict,reference-fact-origin.suite}) each carry their own `@orb-waive` instead — nine of them, one reason apiece, which is the per-site door this arm is supposed to have",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/hrtime.test.ts": "export const t = process.hrtime();\n" },
       expect: { count: 1, messageIncludes: "process.hrtime" },
       why: "#831 — process.hrtime() is an ambient monotonic clock the old regex did not recognise; four real sites routed around the gate through this spelling before the class was widened",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/hrtime-bigint.test.ts": "export const t = process.hrtime.bigint();\n" },
       expect: { count: 1, messageIncludes: "process.hrtime" },
       why: "#831 — process.hrtime.bigint() is the same ambient clock family; one member match (\\bprocess\\.hrtime\\b) covers both call forms, no separate BANNED entry needed",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/time-origin.test.ts": "export const t = performance.timeOrigin;\n" },
       expect: { count: 1, messageIncludes: "performance.timeOrigin" },
       why: "#831 — performance.timeOrigin is an ambient clock property (not a call); the old performance.now()-only regex missed it and a guest-realm probe string spelled it undetected",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/faketimers.test.ts": "vi.useFakeTimers();\nexport const t = 1;\n" },
       expect: { count: 1, messageIncludes: "vi.useFakeTimers" },
       why: "#2384 — vi.useFakeTimers() replaces the ambient clock globally rather than injecting through the composition seam; 9 post-law drifters found by the Qwen audit",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/client/wft.ct.tsx": "await page.waitForTimeout(100);\nexport const t = 1;\n" },
       expect: { count: 1, messageIncludes: "waitForTimeout" },
       why: "#2385 — page.waitForTimeout() is a Playwright flaky-wait anti-pattern; biome's noPlaywrightWaitForTimeout does not fire on CT files at all",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/client/wft-chain.ct.tsx": "await locator.page().waitForTimeout(60);\nexport const t = 1;\n" },
       expect: { count: 1, messageIncludes: "waitForTimeout" },
       why: "#2385 — locator.page().waitForTimeout() escapes biome's noPlaywrightWaitForTimeout because the receiver is not literally `page`; this regex catches all receiver forms",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/ids/index.ts": "export function mintTypeId(prefix: string, generate?: (prefix: string) => string): string { return ''; }",
+        "tests/support/iso/wrapper.ts":
+          "import { mintTypeId } from '../../../packages/kit/src/ids/index.ts'; export const value = mintTypeId.call(null, 'chat');",
+      },
+      expect: { messageIncludes: "requires checker-proven Function wrapper identity" },
+      why: "shared callable facts explicitly refuse wrapper identity; unreadability withholds rather than accuses or silently passes",
+    },
+  ],
   mustPass: [
     {
-      mode: "source",
+      mode: "types",
+      files: {
+        "packages/kit/src/ids/index.ts":
+          "export function newId(generate?: (prefix: string) => string): string { return ''; } export function createIdSource(generate?: (prefix: string) => string): object { return {}; }",
+        "tests/support/iso/mints.ts":
+          "import * as ids from '../../../packages/kit/src/ids/index.ts'; const next = (prefix: string): string => prefix; export const one = ids.newId(next); export const two = ids.createIdSource(next);",
+      },
+      why: "the same canonical prefixless and bound-source mints with an explicit deterministic generator are lawful",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/ids/index.ts": "export function mintTypeId(prefix: string, generate?: (prefix: string) => string): string { return ''; }",
+        "tests/support/iso/bound.ts": "import { mintTypeId } from '../../../packages/kit/src/ids/index.ts'; export const mint = mintTypeId.bind(null);",
+      },
+      why: "bind construction does not mint an id",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/ids/index.ts": "export function mintTypeId(prefix: string, generate?: (prefix: string) => string): string { return ''; }",
+        "tests/support/iso/bound-seeded.ts":
+          "import { mintTypeId } from '../../../packages/kit/src/ids/index.ts'; const mint = mintTypeId.bind(null); const next = (prefix: string): string => prefix; export const value = mint('chat', next);",
+      },
+      why: "a later seeded bound invocation remains lawful; shared origin facts do not currently follow a bound callable alias",
+    },
+    {
+      mode: "types",
+      files: { "tests/support/iso/lookalike.ts": "const mintTypeId = (): string => 'seed'; export const value = mintTypeId();" },
+      why: "a deterministic local lookalike is not the canonical mint",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/ids/index.ts": "export function mintTypeId(prefix: string, generate?: (prefix: string) => string): string { return ''; }",
+        "tests/support/iso/seeded.ts":
+          "import { mintTypeId as mint } from '../../../packages/kit/src/ids/index.ts'; const next = (prefix: string): string => prefix; export const value = mint('chat', next);",
+      },
+      why: "the canonical production mint with an explicit generator is the lawful seeded seam",
+    },
+    {
+      mode: "types",
+      files: { "tests/support/iso/local.ts": "const Date = { now: (): number => 1 }; export const value = Date.now();" },
+      why: "an authored deterministic lookalike is not the ambient clock",
+    },
+    {
+      mode: "types",
       files: {
         "tests/server/marked.test.ts":
           "// @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — ends when the assertion stops measuring wall-clock\nexport const p = performance.now();\n",
@@ -233,7 +411,7 @@ export const gate = defineGate({
       why: "#828 — the per-site escape this gate had no way to express: an ordinary finding now consumes the one central `@orb-waive <policy>(<position>): <reason>` marker on the line IMMEDIATELY above. Before #828 a test whose subject IS elapsed real time had to contort or change instrument; the marker is two-sided (central grant/marker reconciliation reds it the day the call goes away)",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/server/marked-hrtime.test.ts":
           "// @orb-waive test-determinism(process.hrtime): monotonic elapsed-ms for a real-timer race; no frozen clock to inject\nexport const t = process.hrtime.bigint();\n",
@@ -241,22 +419,12 @@ export const gate = defineGate({
       why: "#831 — the same per-site escape for the newly-recognised process.hrtime family, proving the marker reaches it identically to performance.now()",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/y.test.ts": "export const t = clock.now();\n" },
       why: "the injected clock (clock.now()) — no ambient nondeterminism, passes",
     },
     {
-      mode: "source",
-      files: {
-        "tests/support/iso/clock.test.ts": "export const t = Date.now();\n",
-        // A companion IN-population file: `notUnder` excludes every candidate here otherwise, and a
-        // population resolving zero paths from a nonempty candidate set is a tool error, not a pass.
-        "tests/server/companion.test.ts": "export const t = clock.now();\n",
-      },
-      why: "a banned call under support/ — the determinism seam itself is population-excluded, passes",
-    },
-    {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/e2e/flow.test.ts": "export const t = Date.now();\n",
         "tests/server/companion.test.ts": "export const t = clock.now();\n",
@@ -264,12 +432,12 @@ export const gate = defineGate({
       why: "a banned call under e2e/ — real-browser full-stack is population-excluded, passes",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/client/line-comment.ct.tsx": "// The frozen clock stands in for Date.now() here.\nexport const t = clock.now();\n" },
       why: "ISSUE #132, the founding defect: a LINE comment explaining the determinism fix names the banned call. Two home CTs were reworded to 'wall-clock read' to dodge this — the gate was wrong, not the comments",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/client/block-comment.ct.tsx":
           "/** Seeded, never Math.random() / crypto.randomUUID().\n *  performance.now() is ambient too. */\nexport const id = seededId();\n",
@@ -277,12 +445,12 @@ export const gate = defineGate({
       why: "#132's block-comment half — a JSDoc naming three banned calls is prose, and ts-morph's leading-comment ranges cover it",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { "tests/server/trailing-comment.test.ts": "export const t = clock.now(); // not Date.now(), which the gate bans\n" },
       why: "a TRAILING comment on a violation-free line — the blanker is span-based, not line-based, so the code half of the line is still scanned while the prose half is not",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/server/file-waived.test.ts":
           '// @orb-waive-file test-determinism(Date.now): FIXTURE SOURCE for a reader that parses but never evaluates the call — ends when this fixture stops flagging.\nexport const src = "Date.now()";\n',
@@ -290,7 +458,7 @@ export const gate = defineGate({
       why: "#1984 — the file-scoped `@orb-waive-file` grammar waives a finding anywhere in the file, not only carrier-adjacent. This proves the grammar works for test-determinism: a string-literal Date.now() (the DECLARED LIMIT) is waived by a file-level marker at the top",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/server/faketimers-waived.test.ts":
           "// @orb-waive test-determinism(vi.useFakeTimers): legacy test not yet migrated to the composition seam; ends when this test adopts the frozen clock\nvi.useFakeTimers();\nexport const t = 1;\n",
@@ -298,7 +466,7 @@ export const gate = defineGate({
       why: "#2384 — the per-site escape for vi.useFakeTimers proving the marker reaches it identically to the other BANNED entries",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/client/wft-waived.ct.tsx":
           "// @orb-waive test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll\nawait page.waitForTimeout(100);\nexport const t = 1;\n",

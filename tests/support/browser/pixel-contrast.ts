@@ -54,6 +54,8 @@ export interface TextContrastAuditReceipt {
   readonly subjects: readonly TextContrastSubjectReceipt[];
 }
 
+const auditSequences = new WeakMap<Page, number>();
+
 const show = ({ r, g, b }: Rgb): string => `${String(Math.round(r))},${String(Math.round(g))},${String(Math.round(b))}`;
 
 /** The element's resolved ink as sRGB bytes, RESOLVED BY THE BROWSER rather than by a regex here.
@@ -242,7 +244,9 @@ export async function auditRenderedTextContrast(
   root: Locator,
   options: { readonly floor: number; readonly label: string },
 ): Promise<TextContrastAuditReceipt> {
-  const marker = `orb-contrast-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const sequence = (auditSequences.get(page) ?? 0) + 1;
+  auditSequences.set(page, sequence);
+  const marker = `data-orb-contrast-owner-${String(sequence)}`;
   const subjects = await root.evaluate((element, auditMarker): readonly DeclaredTextSubject[] => {
     const document = element.ownerDocument;
     const viewport = { width: window.innerWidth, height: window.innerHeight };
@@ -291,7 +295,7 @@ export async function auditRenderedTextContrast(
         ownerId = `${auditMarker}-${String(nextOwner)}`;
         nextOwner += 1;
         owners.set(owner, ownerId);
-        owner.setAttribute("data-orb-contrast-owner", ownerId);
+        owner.setAttribute(auditMarker, ownerId);
       }
       const range = document.createRange();
       range.selectNodeContents(node);
@@ -319,7 +323,7 @@ export async function auditRenderedTextContrast(
       throw new Error(`${options.label}: declared=${String(subjects.length)} reached=${String(reached.length)} sampled=0 — ${missed.join(", ")}`);
     }
     for (const subject of reached) {
-      const target = page.locator(`[data-orb-contrast-owner="${subject.owner}"]`);
+      const target = page.locator(`[${marker}="${subject.owner}"]`);
       try {
         const receipt = await pixelContrast(page, target);
         measured.push({ ...receipt, subject: subject.owner, text: subject.text });
@@ -345,8 +349,9 @@ export async function auditRenderedTextContrast(
     return { declared: subjects.length, reached: reached.length, sampled: measured.length, minimum, subjects: measured };
   } finally {
     await root.evaluate((element, auditMarker) => {
-      for (const owner of element.querySelectorAll(`[data-orb-contrast-owner^="${auditMarker}"]`)) {
-        owner.removeAttribute("data-orb-contrast-owner");
+      element.removeAttribute(auditMarker);
+      for (const owner of element.querySelectorAll(`[${auditMarker}]`)) {
+        owner.removeAttribute(auditMarker);
       }
     }, marker);
   }

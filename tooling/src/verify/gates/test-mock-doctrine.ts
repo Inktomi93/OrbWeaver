@@ -1,31 +1,13 @@
-// docs/law/Spine-Testing.md §3 — `vi.mock` is banned for INTERNAL modules; it is legitimate only for an
-// unavoidable third-party node edge, and fakes belong at the composition root. Two identities, both
-// canonical: the mocker is Vitest's `vi` resolved through the shared module-origin reader (a local object
-// named `vi` is not it, and `vi["mock"]` is the same call), and the TARGET is read through the shared
-// static-string resolver, so a specifier held in a const no longer hides. A target the reader cannot
-// resolve is fail-closed. DECLARED LIMITS live in the mustPass rows.
-//
-// FAMILY `test-mock-doctrine` — a declared SINGLETON. Its subject is ONE doctrine rule about ONE runner API;
-// it consumes `floor/code-facts/reference-fact.ts` and `lib/sealed-origin.ts`'s `originModuleSpecifier`, and sharing those
-// with the rest of the canonical-origin corpus is not a family (guide §2). "Test-tree policies" is a theme.
-//
-// POPULATION PORT: byte-identical, legacy at `4561cb18c4^` (`scanRoot: (p) => p.includes("tests/")` — every
-// authored `tests/` tree, including the nested ones); the final `TEST_POPULATION` is that expression, pinned
-// by a mustPass row placing the same internal `vi.mock` in production source.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-mock-doctrine` descriptor at 2325062f91fac612856a95c68027bd8735eb040c, the parent of the conversion
-// `4561cb18c4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,186 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
-// admits 2,780 and final `population` admits 2,780. legacy − final = ∅. final − legacy = ∅. Controls: inside
-// `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
-// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+// Mock only external edges; internal namespaces, authored prototypes and the shared logger are not injected collaborators.
+// Canonical floor origins judge targets; genuine third-party objects and composition-owned objects remain legal.
+// Singleton: Vitest module replacements and spies share the same test-tree doctrine and waiver authority.
+// Population preserves every authored test tree, including nested tests; production sources are outside this policy.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { isAuthoredModuleNamespace } from "../../floor/code-facts/module-namespace.ts";
-import { readMemberReference, readStaticString, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import { readMemberReference, readStaticString, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { originModuleSpecifier } from "../lib/sealed-origin.ts";
+import { originModuleSpecifier, readSealedOrigin } from "../lib/sealed-origin.ts";
 
 const VITEST_MODULE = "vitest";
 /** `mock` is hoisted, `doMock` is not; both replace an internal module with a fake and both are the ban's
@@ -53,10 +35,37 @@ function isInternalTarget(specifier: string): boolean {
   return INTERNAL_PREFIXES.some((prefix) => specifier.startsWith(prefix));
 }
 
+function isClassHome(declaration: MorphNode): boolean {
+  if (Node.isClassDeclaration(declaration)) {
+    return true;
+  }
+  if (!Node.isVariableDeclaration(declaration)) {
+    return false;
+  }
+  const value = resolveStableExpression(declaration.getNameNode());
+  return value.kind === "resolved" && Node.isClassExpression(value.value);
+}
+
 /** The finding message when this vitest call replaces internal code, else undefined. */
 function replacementMessage(verb: string, target: MorphNode): string | undefined {
   if (verb === SPY_MEMBER) {
-    return isAuthoredModuleNamespace(target) ? SPY_MESSAGE : undefined;
+    if (isAuthoredModuleNamespace(target)) {
+      return SPY_MESSAGE;
+    }
+    const prototype = resolveModuleMemberOrigin(target);
+    if (
+      prototype.kind === "resolved" &&
+      prototype.value.memberPath.at(-1) === "prototype" &&
+      prototype.value.canonical.kind === "project" &&
+      isClassHome(prototype.value.canonical.declaration) &&
+      !prototype.value.canonical.sourceFile.isInNodeModules()
+    ) {
+      return "vi.spyOn on an authored class prototype replaces behavior for every instance — inject the collaborator at its port (Spine-Testing.md §3).";
+    }
+    const logger = readSealedOrigin(target, { pathInfix: "/packages/server/src/foundation/observability/logger.ts", exportedNames: new Set(["logger"]) });
+    return logger.kind === "sealed"
+      ? "vi.spyOn on the production logger replaces the shared observability sink — inject an edge recorder (Spine-Testing.md §3)."
+      : undefined;
   }
   const specifier = readStaticString(target);
   // FAIL-CLOSED: a target the static reader cannot resolve is exactly where an internal module
@@ -106,6 +115,39 @@ export const gate = defineGate({
     ],
   }),
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "packages/server/src/domain/thing.ts": "export const Thing = class { run(): number { return 1; } };",
+        "tests/tooling/class-expression.test.ts":
+          "import { vi } from 'vitest'; import { Thing } from '../../packages/server/src/domain/thing.ts'; vi.spyOn(Thing.prototype, 'run');",
+      },
+      expect: { count: 1, token: "spyOn", messageIncludes: "authored class prototype" },
+      why: "an authored exported class expression has the same shared prototype as a class declaration",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "packages/server/src/domain/thing.ts": "export class Thing { run(): number { return 1; } }",
+        "tests/tooling/prototype.test.ts":
+          "import { vi } from 'vitest'; import { Thing as Subject } from '../../packages/server/src/domain/thing.ts'; const prototype = Subject['prototype']; vi.spyOn(prototype, 'run');",
+      },
+      expect: { count: 1, token: "spyOn", messageIncludes: "authored class prototype" },
+      why: "an aliased authored prototype replaces every instance, not an injected collaborator",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "packages/server/src/foundation/observability/logger.ts": "export const logger = { info: (): void => {} };",
+        "tests/tooling/logger.test.ts":
+          "import { vi } from 'vitest'; import { logger as sink } from '../../packages/server/src/foundation/observability/logger.ts'; vi.spyOn(sink, 'info');",
+      },
+      expect: { count: 1, token: "spyOn", messageIncludes: "production logger" },
+      why: "the shared production logger is not a composition-owned collaborator",
+    },
     {
       mode: "types",
       files: {
@@ -193,6 +235,24 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "node_modules/vendor/index.ts": "export const Thing = class { run(): number { return 1; } };",
+        "tests/tooling/vendor-expression.test.ts": "import { vi } from 'vitest'; import { Thing } from 'vendor'; vi.spyOn(Thing.prototype, 'run');",
+      },
+      why: "a third-party class expression remains an external instrumentation edge",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "node_modules/vendor/index.ts": "export class Thing { run(): number { return 1; } }",
+        "tests/tooling/vendor-prototype.test.ts": "import { vi } from 'vitest'; import { Thing } from 'vendor'; vi.spyOn(Thing.prototype, 'run');",
+      },
+      why: "a third-party class prototype remains an external instrumentation edge",
+    },
     {
       mode: "types",
       files: {
