@@ -128,6 +128,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const fileSystem = inventoryFileSystem(base, request.overlay, inputs);
   const implementationInputs = [
     import.meta.filename,
+    ts.sys.getExecutingFilePath(),
     fileURLToPath(new URL("./ts-workspace.ts", import.meta.url)),
     fileURLToPath(new URL("./semantic-inventory-filesystem.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-contract.ts", import.meta.url)),
@@ -291,7 +292,7 @@ function nativeReferenceFacts(
   spans: InventorySpans,
 ): Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] {
   // DocumentSpan wrappers subscribe to source modifications and retain every result in this read-only worker.
-  const groups = service.findReferences(query.file, query.start) ?? [];
+  const groups = service.findReferences(query.file, query.start, { includeDefinitionDisplay: false }) ?? [];
   const program = service.getProgram();
   const references: Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] = [];
   for (const group of groups) {
