@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-14
 priority: P1
 area: tooling
-lane: codex/native-reference-display-1002
+lane: codex/native-source-identity-1002
 plan: test-foundation
 ---
 

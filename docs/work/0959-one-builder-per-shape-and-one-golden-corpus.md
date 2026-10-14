@@ -43,10 +43,10 @@ The same batch uses real automation producers for watcher conditions, caps, manu
 
 Reviewed source `b78b5b8d0a` proves genuine SDK session lineage through canonical greeting, start and send producers, with an empty-seed no-row control. The funding qualification owns this case; corpus work reuses its evidence instead of copying its producer.
 
-Reviewed source `800bd9d45a` captures plugin/provider families through real install, consent, native guest activation, owner claims and tombstones. Recipient consent, repeat skips and contained activation failure pass. Captures stay Node-private; the expanded capsule preserves disposal, scrub and clone controls. A real clock defect control fails before world-info creation receives the injected edit stamp; creation and first-edit cases then pass.
+Reviewed source `800bd9d45a` captures native plugin/provider lifecycle and private rows. Consent, repeats, failure containment and physical clone controls pass. Injected edit stamps fix the world-info clock defect.
 
 Reviewed source `aea5f56d54` produces refinery and discovery rows through real admission, transcript history and memory backfill. Scoped cases and the expanded native capsule pass; independent review confirms the batch.
 
 Persisted workload funding is integrated. The expanded native capsule passes with the funder FK, producer completion, secret stripping and independent database and asset clones.
 
-Reviewed source `3303ed4825` adds native RPG hand state and schedule variants. Atomic journal normalization passes held-driver races. The clone retains a real disabled recurring row. Remaining recipes include arc themes, swipe re-rolls and raw-image geometry/facets. Committed corpus publication and every-layer adoption remain open.
+Reviewed source `3303ed4825` adds native RPG hand state and schedule variants. Atomic journal normalization passes held-driver races. The clone retains a real disabled recurring row. Reviewed source `5cef750b0d` captures native population, resync and changed folded RPG turns. The normalized model journal label persists through a compiler-closed row; native defect and capsule controls pass. Remaining recipes include arc themes, swipe re-rolls and raw-image geometry/facets. Committed corpus publication and every-layer adoption remain open.

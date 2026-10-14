@@ -25,7 +25,7 @@ The single assembly home and its public doors are enforced. A copied assembly pl
 
 ## Evidence
 
-The Node root reuses production service, job and HTTP composition. Raw provider, SDK, kernel, plugin and network execution varies; admission, funding, ownership, accounting and identity remain production-owned.
+The Node root uses production composition. Only raw execution edges vary; domain rules remain production-owned.
 
 Native controls prove graph isolation and recipient and prune behavior under production cuts. Notification replacement remains incomplete; preserve legacy cases.
 
@@ -35,7 +35,7 @@ Configured OIDC source at `ee87bcd961` shares its factory between lifecycle and 
 
 Raw issuer protocol cases do not establish physical TLS or real-IdP e2e. Direct code grants retain native TLS-authenticated-response policy, not universal ID-token signature verification. Backchannel verification uses native JOSE signatures.
 
-Shared contract integration preserves ForwardJwtClaims derivation. Affected compilers and scoped lint pass; root retains unrelated diagnostics.
+ForwardJwtClaims retains canonical derivation. Scoped checks pass; root retains unrelated diagnostics.
 
 Reviewed sources `e470342ad6` and `f20a77db31` own native Query leases and supplied or default children. Actual close joins precede graph cleanup. Cancellation, construction refusal, diagnostic redaction and wire admission controls pass. Native transport, decoder and shutdown remain unchanged. Private diagnostic sinks and escaped descendants remain unqualified.
 
@@ -44,3 +44,5 @@ Source `909c640d45` restricts server assembly to the real test root through shar
 Reviewed native database disposal and corpus controls establish physical release before inspection and cleanup. Share, ACME and complete domain replacement remain open. Corpus and ingress reuse this graph, never another assembly.
 
 Reviewed source `973da716eb` shares native relay and ACME composition with lifecycle. Native joins and the corpus capsule pass. Concurrent certificate commands preserve stored, returned and native state; the ordering control fails when serialization is removed. Complete domain replacement remains open.
+
+Notifications is the complete-domain qualification candidate. Legacy retirement requires preserved cases, native defect controls and review.
