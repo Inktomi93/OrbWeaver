@@ -4,19 +4,29 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
 import { zipSync } from "fflate";
 import ts from "typescript";
+import type {
+  PluginAuthorArtifact,
+  PluginAuthorBundleResult,
+  PluginAuthorCompilerObserver,
+  PluginAuthorDiagnostic,
+  PluginAuthorProject,
+  PluginAuthorResult,
+  PluginAuthorRuntime,
+} from "./contract/index.ts";
 import { surfaceLinkProblems } from "./surface-links.ts";
 
-export { PLUGIN_AUTHOR_SUPPORT } from "./support.generated.ts";
-export {
-  pluginAuthorSupportGuideIsCurrent,
-  renderPluginAuthorSupport,
-  writePluginAuthorSupportGuide,
-} from "./support.ts";
 export type {
+  PluginAuthorArtifact,
+  PluginAuthorBundleResult,
   PluginAuthorCapabilitySupport,
+  PluginAuthorCompilerObserver,
+  PluginAuthorDiagnostic,
   PluginAuthorExecution,
   PluginAuthorHookSupport,
   PluginAuthorPlacementSupport,
+  PluginAuthorProject,
+  PluginAuthorResult,
+  PluginAuthorRuntime,
   PluginAuthorRuntimeSupport,
   PluginAuthorSupport,
   PluginAuthorSupportFormat,
@@ -25,57 +35,24 @@ export type {
   PluginAuthorSurfaceSupport,
   PluginAuthorTierSupport,
   PluginAuthorWorld,
-} from "./support-model.ts";
+} from "./contract/index.ts";
 export {
-  createPluginAuthorSupport,
   PLUGIN_AUTHOR_EXECUTIONS,
+  PLUGIN_AUTHOR_RUNTIMES,
   PLUGIN_AUTHOR_SUPPORT_FORMATS,
   PLUGIN_AUTHOR_SUPPORT_SECTIONS,
   PLUGIN_AUTHOR_WORLDS,
+} from "./contract/index.ts";
+export { PLUGIN_AUTHOR_SUPPORT } from "./support.generated.ts";
+export {
+  pluginAuthorSupportGuideIsCurrent,
+  renderPluginAuthorSupport,
+  writePluginAuthorSupportGuide,
+} from "./support.ts";
+export {
+  createPluginAuthorSupport,
   pluginAuthorSupportDrift,
 } from "./support-model.ts";
-
-export const PLUGIN_AUTHOR_RUNTIMES = ["main", "ui", "frame"] as const;
-export type PluginAuthorRuntime = (typeof PLUGIN_AUTHOR_RUNTIMES)[number];
-
-export interface PluginAuthorDiagnostic {
-  readonly file: string;
-  readonly line: number;
-  readonly column: number;
-  readonly message: string;
-}
-
-export interface PluginAuthorArtifact {
-  readonly runtime: PluginAuthorRuntime;
-  readonly sourcePath: string;
-  readonly outputPath: string;
-  readonly bytes: Uint8Array;
-}
-
-export interface PluginAuthorResult {
-  readonly artifacts: readonly PluginAuthorArtifact[];
-  readonly diagnostics: readonly PluginAuthorDiagnostic[];
-  readonly obsoleteOutputPaths: readonly string[];
-}
-
-export interface PluginAuthorProject {
-  readonly pluginDirectory: string;
-  readonly sdkDirectory: string;
-  readonly sourceDirectory?: string;
-  readonly outputDirectory?: string;
-  readonly compilerObserver?: PluginAuthorCompilerObserver;
-}
-
-/** Observe the reads and resolution probes of the compiler that checks the authored scripts. */
-export interface PluginAuthorCompilerObserver {
-  readonly readFile: (path: string, text: string | undefined) => void;
-  readonly fileExists: (path: string, exists: boolean) => void;
-  readonly directoryExists: (path: string, exists: boolean) => void;
-}
-
-export interface PluginAuthorBundleResult extends PluginAuthorResult {
-  readonly bundle: Uint8Array | null;
-}
 
 const QUICKJS_FORBIDDEN_GLOBALS = new Set([
   "Date",

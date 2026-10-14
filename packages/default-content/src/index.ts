@@ -42,9 +42,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CharacterHandle } from "@orb/kit/ids";
 
+import type { SeedAssetBytes, SeedBackgroundPlate } from "./contract/index.ts";
+
+export type { SeedAssetBytes, SeedBackgroundPlate, SeedEmbeddingResult, SeedManifestItem } from "./contract/index.ts";
+export { SEED_ITEM_KINDS } from "./contract/index.ts";
 export { findSeedEmbedding } from "./embeddings.ts";
-export type { SeedManifestItem } from "./manifest.ts";
-export { SEED_ITEM_KINDS, SEED_MANIFEST } from "./manifest.ts";
+export { SEED_MANIFEST } from "./manifest.ts";
 
 /** The content ROOT — `packages/default-content/`, resolved off THIS module rather than off a repo-relative
  *  literal, so every consumer reaches the bytes the same way node resolves the package. */
@@ -53,12 +56,6 @@ const CONTENT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 /** The MIME of a shipped avatar (PNG — matches the card-avatar precedent + the byte signature the assets
  *  store sniffs with `enforceMagic`). */
 export const SEED_AVATAR_MIME = "image/png";
-
-/** One shipped asset's bytes + the mime that matches them. */
-export interface SeedAssetBytes {
-  readonly bytes: Uint8Array;
-  readonly mime: string;
-}
 
 /** The shipped avatar PNG for a character HANDLE / the persona key (`persona-you`), or `null` when this
  *  package ships none for it — so a missing file seeds ONE card art-less instead of failing the whole seed. */
@@ -77,14 +74,6 @@ export async function readSeedAvatar(handle: CharacterHandle): Promise<SeedAsset
 /** The MIME of a shipped scene plate (JPEG — matches the byte signature the assets store sniffs with
  *  `enforceMagic`, the `SEED_AVATAR_MIME` precedent). */
 export const SEED_BACKGROUND_MIME = "image/jpeg";
-
-/** One shipped scene plate: the file `slug` (`backgrounds/<slug>.jpg`) and the display NAME the seeded
- *  background-library entry wears. The label lives beside the bytes rather than in a contract catalog — it
- *  IS content, and its only reader is the seeder that writes the library entry. */
-export interface SeedBackgroundPlate {
-  readonly slug: string;
-  readonly label: string;
-}
 
 /** THE SHIPPED SCENE PLATES — one per default character, slugged `<handle>-bg` so a card and its plate
  *  cannot drift apart silently. The seeder lifts each into an owned `background`-kind asset plus an

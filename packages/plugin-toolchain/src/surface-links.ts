@@ -2,6 +2,7 @@
 // checks read the literal ids and bindings the checker inferred and link them across separate statements.
 // A reference the checker cannot resolve to literals is open and is never reported.
 import ts from "typescript";
+import type { SurfaceLinkProblem } from "./contract/index.ts";
 
 /** The `host.ui` members whose calls are checked. */
 const LINKED_UI_METHOD_NAMES = ["register", "setState", "openDialog"] as const;
@@ -26,12 +27,6 @@ const CLOSED_LEAF_FLAGS: readonly ts.TypeFlags[] = [
   ts.TypeFlags.Null,
   ts.TypeFlags.Never,
 ];
-
-/** A problem located at one node of the checked source. */
-export interface SurfaceLinkProblem {
-  readonly node: ts.Node;
-  readonly message: string;
-}
 
 interface RegisteredSurface {
   readonly ids: readonly string[];

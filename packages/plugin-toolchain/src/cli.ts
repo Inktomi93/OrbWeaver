@@ -4,9 +4,9 @@ import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
+import type { PluginAuthorSupportFormat } from "./contract/index.ts";
 import { compilePluginDirectory, formatPluginAuthorDiagnostics, packPluginDirectory, stalePluginArtifacts, writePluginArtifacts } from "./index.ts";
 import { pluginAuthorSupportGuideIsCurrent, renderPluginAuthorSupport, writePluginAuthorSupportGuide } from "./support.ts";
-import type { PluginAuthorSupportFormat } from "./support-model.ts";
 
 const EXIT_VIOLATION = 1;
 const EXIT_MISUSE = 3;

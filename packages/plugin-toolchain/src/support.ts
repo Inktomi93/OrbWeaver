@@ -1,8 +1,8 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import process from "node:process";
+import type { PluginAuthorSupportFormat } from "./contract/index.ts";
 import { PLUGIN_AUTHOR_SUPPORT } from "./support.generated.ts";
-import type { PluginAuthorSupportFormat } from "./support-model.ts";
 
 function code(value: string): string {
   return `\`${value}\``;

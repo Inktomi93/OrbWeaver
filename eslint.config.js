@@ -80,6 +80,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
+import { TYPE_HOME_NATIVE_CONTRACT_GLOBS, TYPE_HOME_NATIVE_POLICY_ID, TYPE_HOME_NATIVE_SOURCE_GLOBS } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, LEGACY_TEST_WORLD_PROGRAMS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
@@ -564,6 +565,19 @@ const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
 
 const RESTRICTIONS = [
   {
+    id: TYPE_HOME_NATIVE_POLICY_ID,
+    scope: TYPE_HOME_NATIVE_SOURCE_GLOBS,
+    notUnder: TYPE_HOME_NATIVE_CONTRACT_GLOBS,
+    homes: [],
+    selectors: [
+      {
+        selector: ":matches(ExportNamedDeclaration, ExportDefaultDeclaration) > :matches(TSTypeAliasDeclaration, TSInterfaceDeclaration)",
+        message:
+          "An exported package-owned type belongs in its sanctioned src/contract home; import or reexport its canonical declaration (Spine-TypeScript §7.4).",
+      },
+    ],
+  },
+  {
     id: "no-raw-zustand-persist",
     scope: rootSources("@client"),
     homes: [
@@ -824,8 +838,8 @@ function restrictionRule({ selectors = [], globals = [] }) {
   };
 }
 const restrictionPlugin = { rules: Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])) };
-const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], homes, deferred = [] }) => {
-  const ignores = [...notNamed, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
+const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
+  const ignores = [...notNamed, ...notUnder, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
   return {
     files: scope,
     // A flat-config `ignores` array must not be empty.
