@@ -39,6 +39,6 @@ The shared contract integration preserves canonical ForwardJwtClaims derivation.
 
 SDK source `e470342ad6` owns native Query leases and supplied real children across stream and probe calls. Controls prove cancellation, child and reaped-descendant joins, diagnostic draining and streaming secret redaction. Independent review corrections pass affected controls; production and DOM compilers pass. Root retains unrelated diagnostics.
 
-The active SDK assignment preserves default spawning through a pinned public child-observation hook. It must join genuine close on normal execution, cancellation and construction failure without replacing native transport behavior. Its source and native controls remain unfinished. Private diagnostic sinks and escaped descendants remain unqualified.
+The SDK candidate preserves default spawning through pinned public observation hooks. Bounded controls prove genuine child close joins and safe application diagnostics without replacing native transport behavior. Current-main reconciliation and independent security review remain pending. Private diagnostic sinks and escaped descendants remain unqualified.
 
-Share, ACME, assembly enforcement, exercised reach and complete domain replacement remain open. Native database statement retention blocks corpus quiescence; logical close does not prove physical release. Corpus and ingress reuse this graph, never another assembly.
+Reviewed native database disposal and corpus controls establish physical release before inspection and cleanup. Share, ACME, assembly enforcement, exercised reach and complete domain replacement remain open. Corpus and ingress reuse this graph, never another assembly.

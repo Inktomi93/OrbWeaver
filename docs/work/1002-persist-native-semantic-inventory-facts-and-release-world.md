@@ -24,11 +24,9 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Reviewed descriptor, query, path-interning and span corrections preserve native resolution, overlays, ordering, alias filtering and physical spans. Configuration mutation and lifecycle controls distinguish failures. Bounded extraction, inventory parity, lint and tooling types pass; root retains unrelated errors. Complete memory qualification remains pending.
+Reviewed extraction preserves native resolution, roots, closure, ordering, aliases, physical spans and overlay isolation. Ownership, cleanup and collector parity controls pass. Frozen Knip bytes and root identities remain preserved. GNU time reports descendant high water, not simultaneous aggregate memory.
 
-The integrated extractor shares the language-service checker and preserves bootstrap roots, closure, order and native source identity. Ownership and cleanup controls pass. Frozen Knip bytes and root identities remain preserved. GNU time reports command-and-descendant high water, not simultaneous aggregate memory.
-
-Extraction uses the compiler bundled with ts-morph, not the native TS7 typechecker. Client and root descriptors remain separate browser and Node programs. The language-service host exposes cached closure paths as roots; this does not establish combined worlds or permit changing native membership.
+Extraction shares ts-morph's bundled language-service checker, not the TS7 typechecker. Client and root retain separate browser and Node descriptors. Cached closure paths do not authorize combined worlds or changed membership.
 
 Inspector diagnostics localize native definition-display allocation but force collection and change heap behavior. Preserve those artifacts without claiming fixed-heap qualification. Native kind, group selection and definition flags remain required; flat references alone are not equivalent.
 
@@ -36,4 +34,8 @@ Pinned patch `0450353ca5` skips definition formatting only for opted-in native q
 
 The complete cold client run on that patch returns from native extraction, then fails with `RangeError: Invalid string length` at `JSON.stringify(partition)`. It runs for 55:01 with peak RSS 12,188,660 KiB and no OOM. The closed staging database contains no committed partition or generation. The terminal report is `/tmp/ast-memory-cold-client-1002/result-summary.md`; it does not qualify parent decoding, publication or complete-world replay.
 
-The active correction replaces canonical whole-partition persistence and eager readers with indexed SQLite records. Preserve native meanings, ordering, multiplicity, input versions, atomic generations, last-good data and overlay isolation. Bounded controls and independent review precede another complete replay. No automatic retry is authorized.
+The reviewed correction replaces whole-partition persistence and eager readers with indexed SQLite records. Bounded controls cover native meanings, ordering, multiplicity, input versions, atomic generations, last-good data, overlays and CLI disposal.
+
+The independent review found native scalar UTF-16 loss through SQLite text binding. The accepted correction uses a canonical scalar JSON codec for records and indexed predicates. Its format boundary preserves previous generations without reinterpretation. Native extraction and metadata controls pass, including decoded program ordering and changed-value hashes. Tooling types and scoped lint pass; root retains unrelated errors.
+
+Integrate the corrected source with current main before scheduling frozen replay. Real-client staging, parent import cost and complete-world publication remain unqualified. Bounded controls do not establish resource qualification. No automatic retry is authorized.
