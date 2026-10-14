@@ -208,7 +208,7 @@ export async function listRuleIdsForChat(db: Db, chatId: ChatId): Promise<Automa
 
 function orderScopePredicate(scope: RuleOrderScope): SQL {
   return scope.chatId === null
-    ? sql`${automationRules.chatId} is null and ${automationRules.ownerId} = ${scope.ownerId}`
+    ? (and(isNull(automationRules.chatId), eq(automationRules.ownerId, scope.ownerId)) ?? eq(automationRules.ownerId, scope.ownerId))
     : eq(automationRules.chatId, scope.chatId);
 }
 

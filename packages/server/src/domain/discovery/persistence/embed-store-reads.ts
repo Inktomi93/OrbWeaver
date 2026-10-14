@@ -797,7 +797,7 @@ export async function readOwnedAvatarVectors(db: Db, ownerId: UserId): Promise<A
       embedding: imageEmbeddings.embedding,
     })
     .from(imageEmbeddings)
-    .leftJoin(embedGenerations, eq(embedGenerations.id, imageEmbeddings.generationId))
+    .leftJoin(embedGenerations, and(eq(embedGenerations.id, imageEmbeddings.generationId), eq(embedGenerations.ownerId, ownerId)))
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
     .where(and(ownedRealCharacters(ownerId), eq(assets.ownerId, ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared), currentImage));
