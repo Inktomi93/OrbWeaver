@@ -9,6 +9,7 @@ import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import type { seedCorpusKnowledge as produceCorpusKnowledge } from "./corpus-knowledge.ts";
 import type { seedCorpusPlugins as produceCorpusPlugins } from "./corpus-plugin.ts";
 import type {
   seedCorpusAutomation as produceCorpusAutomation,
@@ -37,6 +38,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly knowledge: Awaited<ReturnType<typeof produceCorpusKnowledge>>;
   readonly plugins: Awaited<ReturnType<typeof produceCorpusPlugins>>;
   readonly automation: Awaited<ReturnType<typeof produceCorpusAutomation>>;
   readonly oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
@@ -118,6 +120,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
   const { seedUserCredential } = await import("./factories/credentials.ts");
   const { seedCorpusPlugins } = await import("./corpus-plugin.ts");
+  const { seedCorpusKnowledge } = await import("./corpus-knowledge.ts");
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
     await import("./corpus-seed.ts");
   await using lifetimes = new AsyncDisposableStack();
@@ -180,6 +183,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     embedConnectionId: actors.connections.embed.id,
     summarizeConnectionId: actors.connections.text.id,
   });
+  const knowledge = await seedCorpusKnowledge(root, recall);
   const automation = await seedCorpusAutomation(root, libraries.room.chat.id);
   const plugins = await seedCorpusPlugins(root, oidc.joiner.id);
   await root.settleBackground();
@@ -192,6 +196,6 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
   return {
     wire: hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads }),
-    privateCaptures: { oidc, credential, baseline, recall, libraries, automation, plugins },
+    privateCaptures: { oidc, credential, baseline, recall, libraries, automation, plugins, knowledge },
   };
 }

@@ -7,8 +7,62 @@ export const CORPUS_PROVIDER_ENDPOINT = "http://127.0.0.1:8704/v1";
 export const CORPUS_EMBED_MODEL = "corpus-embed-v1";
 export const CORPUS_TEXT_MODEL = "corpus-text-v1";
 export const CORPUS_EMBEDDING_VECTOR = [1, 0, 0] as const;
+export const CORPUS_REFINERY_SCHEMA_NAME = "corpus_refinery_score";
+export const CORPUS_REFINERY_SCHEMA_REVISION = "corpus_refinery_score_revision";
+
+const CUSTOM_SCORE_REPLY = JSON.stringify({ overallScore: 8, notes: "The keeper preserves the ledger's character." });
 
 export const CORPUS_STRUCTURED_REPLIES: ReadonlyMap<string, string> = new Map([
+  [
+    "comparison_narrative",
+    JSON.stringify({ summary: "Both keepers preserve the ledger.", overlap: "Their careful curiosity.", distinction: "One guards the orbital witnesses." }),
+  ],
+  ["card_answer", JSON.stringify({ answer: "The keeper remembers the orbital ledger.", grounded: true })],
+  [
+    "refinery_score",
+    JSON.stringify({
+      fieldScores: [{ field: "description", score: 8, strengths: "A clear keeper.", weaknesses: "The task is broad.", suggestions: "Name the ledger." }],
+      overallScore: 8,
+      priorityImprovements: ["Make the ledger explicit."],
+      summary: "The keeper has a coherent task.",
+      inventedDirective: "This unrecognized model field must be itemized and stripped.",
+    }),
+  ],
+  ["refinery_rewrite", JSON.stringify({ fields: [{ field: "description", text: "A curious keeper preserves the orbital ledger and its witnesses." }] })],
+  [
+    "refinery_analyze",
+    JSON.stringify({
+      preserved: ["The keeper's curiosity."],
+      lost: [],
+      gained: ["A concrete ledger."],
+      soulScore: 9,
+      soulAssessment: "The keeper remains the same character.",
+      verdict: "ACCEPT",
+      issues: [],
+      recommendations: ["Keep the explicit ledger."],
+    }),
+  ],
+  [CORPUS_REFINERY_SCHEMA_NAME, CUSTOM_SCORE_REPLY],
+  [CORPUS_REFINERY_SCHEMA_REVISION, CUSTOM_SCORE_REPLY],
+  ["refinery_schema_preview", CUSTOM_SCORE_REPLY],
+  [
+    "refinery_schema_design",
+    JSON.stringify({
+      name: CORPUS_REFINERY_SCHEMA_NAME,
+      description: "Explain how well the card preserves the keeper.",
+      fields: [{ path: "notes", type: "string", description: "Explain the score.", required: true, maxLength: 400 }],
+    }),
+  ],
+  [
+    "refinery_schema_plan",
+    JSON.stringify({
+      name: CORPUS_REFINERY_SCHEMA_NAME,
+      description: "Explain the keeper's score.",
+      fields: [{ path: "notes", intent: "Explain the score." }],
+    }),
+  ],
+  ["refinery_schema_field", JSON.stringify({ field: { path: "notes", type: "string", description: "Explain the score.", required: true, maxLength: 400 } })],
+  ["refinery_schema_hints", JSON.stringify({ hints: [{ path: "notes", role: "prose", label: "Keeper notes" }] })],
   [
     "run_analysis",
     JSON.stringify({
@@ -59,7 +113,7 @@ interface CorpusProviderScript {
   readonly baseUrl?: string;
   readonly modelIds: readonly string[];
   readonly embedding: readonly number[];
-  readonly chatText: string;
+  readonly chatText: string | ((requestBody: string) => string);
   readonly structuredReplies: ReadonlyMap<string, string>;
   readonly images: Uint8Array[];
   readonly usage?: TerminalFrameOptions["usage"];
@@ -103,12 +157,20 @@ function imageReply(script: CorpusProviderScript, fields: ProviderRequest): Resp
   return new Response(`{"created":0,"data":[${data}]}`, { headers: { "content-type": "application/json" } });
 }
 
-function chatReply(script: CorpusProviderScript, fields: ProviderRequest): Response {
+function completionText(script: CorpusProviderScript, fields: ProviderRequest, requestBody: string): string {
   const name = fields.response_format?.json_schema?.name;
-  const text = name === undefined ? script.chatText : script.structuredReplies.get(name);
+  if (name === undefined) {
+    return typeof script.chatText === "string" ? script.chatText : script.chatText(requestBody);
+  }
+  const text = script.structuredReplies.get(name);
   if (text === undefined) {
     throw new Error(`unscripted corpus structured response: ${name}`);
   }
+  return text;
+}
+
+function chatReply(script: CorpusProviderScript, fields: ProviderRequest, requestBody: string): Response {
+  const text = completionText(script, fields, requestBody);
   const tool = (fields.tools?.length ?? 0) === 0 ? undefined : script.toolCall;
   if (tool !== undefined && !fields.tools?.some((offered) => offered.function.name === tool.name)) {
     throw new Error(
@@ -138,7 +200,7 @@ function chatReply(script: CorpusProviderScript, fields: ProviderRequest): Respo
   );
 }
 
-function postReply(script: CorpusProviderScript, path: string, fields: ProviderRequest): Response {
+function postReply(script: CorpusProviderScript, path: string, fields: ProviderRequest, requestBody: string): Response {
   if (!script.modelIds.includes(fields.model)) {
     throw new Error(`unscripted corpus provider model: ${fields.model}`);
   }
@@ -148,7 +210,7 @@ function postReply(script: CorpusProviderScript, path: string, fields: ProviderR
     case "/v1/images/generations":
       return imageReply(script, fields);
     case "/v1/chat/completions":
-      return chatReply(script, fields);
+      return chatReply(script, fields, requestBody);
     default:
       throw new Error(`unscripted corpus provider execution: POST ${path}`);
   }
@@ -173,7 +235,8 @@ export function createCorpusProviderExecution(script: CorpusProviderScript): Cor
     if (request.method !== "POST") {
       throw new Error(`unscripted corpus provider execution: ${request.method} ${path}`);
     }
-    return postReply(script, path, requestSchema.parse(await request.json()));
+    const body = await request.text();
+    return postReply(script, path, requestSchema.parse(JSON.parse(body)), body);
   };
   return { execute, requests };
 }

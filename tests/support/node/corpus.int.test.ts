@@ -21,6 +21,7 @@ import {
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import { eq, isNotNull, sql } from "drizzle-orm";
+import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 
 const OWNER_PASSWORD = "synthetic-capsule-owner-password";
 const PROVIDER_KEY = "synthetic-capsule-provider-key";
@@ -33,7 +34,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
-    chatText: "The traveller repairs the orbital loom and preserves the completed ledger.",
+    chatText: corpusKnowledgeText,
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
     usage: { promptTokens: 40, completionTokens: 15 },
@@ -60,6 +61,17 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.privateCaptures.plugins.recipient.plugin).toMatchObject({ ownerId: capsule.privateCaptures.oidc.joiner.id, status: "enabled" });
   expect(capsule.privateCaptures.plugins.tombstones.map((row) => row.pluginId)).toEqual([null]);
   expect(capsule.privateCaptures.plugins.refused.outcome.status).toBe("errored");
+  expect(capsule.privateCaptures.knowledge.jobs.find((job) => job.kind === "compute-cooccurrence")).toMatchObject({
+    mode: "bulk",
+    ownerId: null,
+    status: "succeeded",
+  });
+  expect(capsule.privateCaptures.knowledge.refinery.customRuns.map((run) => run.id)).toEqual([
+    capsule.privateCaptures.knowledge.refinery.customFirst.id,
+    capsule.privateCaptures.knowledge.refinery.customSecond.id,
+  ]);
+  expect(capsule.privateCaptures.knowledge.keywords.pairs.length).toBeGreaterThan(0);
+  expect(capsule.privateCaptures.knowledge.themes.assignments.length).toBeGreaterThan(0);
   if (process.platform === "linux") {
     const ownedRoot = await realpath(capsule.layout.root);
     const descriptors = await Promise.all(

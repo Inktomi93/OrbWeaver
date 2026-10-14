@@ -16,6 +16,7 @@ import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 type DiscoveryService = ServicesResult["services"]["discovery"];
+type OwnerNarrow = NonNullable<Parameters<DiscoveryService["computeDuplicatePairs"]>[0]>["ownerId"];
 export type DuplicateCharacterPairRow = typeof duplicateCharacterPairs.$inferSelect;
 export type DuplicateChatPairRow = typeof duplicateChatPairs.$inferSelect;
 export type KeywordCooccurrenceRow = typeof keywordCooccurrence.$inferSelect;
@@ -54,18 +55,7 @@ export async function seedCharacterDistillations(
   params: Parameters<DiscoveryService["distillCharacters"]>[0],
 ): Promise<SeededCharacterDistillations> {
   const result = await distillCharacters(params);
-  const rows = await db
-    .select({ row: characterSummaries })
-    .from(characterSummaries)
-    .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
-    .where(
-      and(
-        params.ownerId === null ? undefined : eq(characters.ownerId, params.ownerId),
-        params.characterId === undefined ? undefined : eq(characterSummaries.characterId, params.characterId),
-      ),
-    )
-    .orderBy(characterSummaries.characterId);
-  return { result, summaries: rows.map(({ row }) => row) };
+  return { result, summaries: await captureCharacterDistillations(db, params) };
 }
 
 /** Captures the actual scoped replacement, not a test-computed similarity or canonical pair. */
@@ -75,17 +65,7 @@ export async function seedDuplicateCharacterPairs(
   params: NonNullable<Parameters<DiscoveryService["computeDuplicatePairs"]>[0]>,
 ): Promise<SeededDuplicateCharacterPairs> {
   const result = await compute(params);
-  const ownerId = params.ownerId;
-  const pairs = await db
-    .select()
-    .from(duplicateCharacterPairs)
-    .where(
-      ownerId === null
-        ? undefined
-        : inArray(duplicateCharacterPairs.characterIdA, db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId))),
-    )
-    .orderBy(duplicateCharacterPairs.characterIdA, duplicateCharacterPairs.characterIdB);
-  return { result, pairs };
+  return { result, pairs: await captureDuplicateCharacterPairs(db, params.ownerId) };
 }
 
 /** Chat ownership is the actual present human host FK path; fork relation remains producer data. */
@@ -95,7 +75,64 @@ export async function seedDuplicateChatPairs(
   params: NonNullable<Parameters<DiscoveryService["computeChatDuplicatePairs"]>[0]>,
 ): Promise<SeededDuplicateChatPairs> {
   const result = await compute(params);
-  const ownerId = params.ownerId;
+  return { result, pairs: await captureDuplicateChatPairs(db, params.ownerId) };
+}
+
+/** The pass owns normalization, hub filtering and solo/group census; missing input is not fabricated activity. */
+export async function seedKeywordCooccurrence(
+  db: Db,
+  compute: DiscoveryService["computeCooccurrence"],
+  params: NonNullable<Parameters<DiscoveryService["computeCooccurrence"]>[0]>,
+): Promise<SeededKeywordCooccurrence> {
+  const result = await compute(params);
+  return { result, ...(await captureKeywordCooccurrence(db, params.ownerId)) };
+}
+
+/** Capture true cluster/assignment PKs and the actual story-time backfill; no digest-less replacement is invented. */
+export async function seedThemes(
+  db: Db,
+  compute: DiscoveryService["computeThemes"],
+  params: Parameters<DiscoveryService["computeThemes"]>[0],
+): Promise<SeededThemes> {
+  const result = await compute(params);
+  return { result, ...(await captureThemeRows(db, params.ownerId)) };
+}
+
+/** Read the actual retained summary rows after a completed producer; this capture computes nothing. */
+export async function captureCharacterDistillations(
+  db: Db,
+  scope: Pick<Parameters<DiscoveryService["distillCharacters"]>[0], "ownerId" | "characterId">,
+): Promise<readonly CharacterSummaryRow[]> {
+  const rows = await db
+    .select({ row: characterSummaries })
+    .from(characterSummaries)
+    .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
+    .where(
+      and(
+        scope.ownerId === null ? undefined : eq(characters.ownerId, scope.ownerId),
+        scope.characterId === undefined ? undefined : eq(characterSummaries.characterId, scope.characterId),
+      ),
+    )
+    .orderBy(characterSummaries.characterId);
+  return rows.map(({ row }) => row);
+}
+
+/** Capture the actual character pair replacement without another compute pass. */
+export async function captureDuplicateCharacterPairs(db: Db, ownerId: OwnerNarrow): Promise<readonly DuplicateCharacterPairRow[]> {
+  const pairs = await db
+    .select()
+    .from(duplicateCharacterPairs)
+    .where(
+      ownerId === null
+        ? undefined
+        : inArray(duplicateCharacterPairs.characterIdA, db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId))),
+    )
+    .orderBy(duplicateCharacterPairs.characterIdA, duplicateCharacterPairs.characterIdB);
+  return pairs;
+}
+
+/** Capture the actual chat pair replacement without another compute pass. */
+export async function captureDuplicateChatPairs(db: Db, ownerId: OwnerNarrow): Promise<readonly DuplicateChatPairRow[]> {
   const pairs = await db
     .select()
     .from(duplicateChatPairs)
@@ -118,17 +155,11 @@ export async function seedDuplicateChatPairs(
           ),
     )
     .orderBy(duplicateChatPairs.chatIdA, duplicateChatPairs.chatIdB);
-  return { result, pairs };
+  return pairs;
 }
 
-/** The pass owns normalization, hub filtering and solo/group census; missing input is not fabricated activity. */
-export async function seedKeywordCooccurrence(
-  db: Db,
-  compute: DiscoveryService["computeCooccurrence"],
-  params: NonNullable<Parameters<DiscoveryService["computeCooccurrence"]>[0]>,
-): Promise<SeededKeywordCooccurrence> {
-  const result = await compute(params);
-  const ownerId = params.ownerId;
+/** Keyword and profile rows retain their real owner/FK scopes; no fixture tally is performed. */
+export async function captureKeywordCooccurrence(db: Db, ownerId: OwnerNarrow): Promise<Pick<SeededKeywordCooccurrence, "pairs" | "profiles">> {
   const pairs = await db
     .select()
     .from(keywordCooccurrence)
@@ -140,17 +171,11 @@ export async function seedKeywordCooccurrence(
     .innerJoin(characters, eq(characters.id, characterKeywordProfiles.characterId))
     .where(ownerId === null ? undefined : eq(characters.ownerId, ownerId))
     .orderBy(characterKeywordProfiles.characterId, characterKeywordProfiles.keyword);
-  return { result, pairs, profiles: profiles.map(({ row }) => row) };
+  return { pairs, profiles: profiles.map(({ row }) => row) };
 }
 
-/** Capture true cluster/assignment PKs and the actual story-time backfill; no digest-less replacement is invented. */
-export async function seedThemes(
-  db: Db,
-  compute: DiscoveryService["computeThemes"],
-  params: Parameters<DiscoveryService["computeThemes"]>[0],
-): Promise<SeededThemes> {
-  const result = await compute(params);
-  const ownerId = params.ownerId;
+/** Capture production cluster/assignment identities and actual story-time stamps after the public job. */
+export async function captureThemeRows(db: Db, ownerId: OwnerNarrow): Promise<Pick<SeededThemes, "clusters" | "assignments">> {
   const clusters = await db
     .select()
     .from(themeClusters)
@@ -162,5 +187,5 @@ export async function seedThemes(
     .innerJoin(themeClusters, eq(themeClusters.id, digestThemeAssignments.themeClusterId))
     .where(ownerId === null ? undefined : eq(themeClusters.ownerId, ownerId))
     .orderBy(digestThemeAssignments.digestId, digestThemeAssignments.themeClusterId);
-  return { result, clusters, assignments: rows.map(({ row }) => row) };
+  return { clusters, assignments: rows.map(({ row }) => row) };
 }
