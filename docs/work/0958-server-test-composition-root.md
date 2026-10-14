@@ -35,9 +35,9 @@ Configured OIDC source at `ee87bcd961` shares its factory between lifecycle and 
 
 Raw issuer protocol cases do not establish physical TLS or real-IdP e2e. Direct code grants retain native TLS-authenticated-response policy, not universal ID-token signature verification. Backchannel verification uses native JOSE signatures.
 
-ForwardJwtClaims retains canonical derivation. Scoped checks pass; root retains unrelated diagnostics.
+ForwardJwtClaims retains canonical derivation. Root retains unrelated diagnostics.
 
-Reviewed sources `e470342ad6` and `f20a77db31` own native Query leases and supplied or default children. Actual close joins precede graph cleanup. Cancellation, construction refusal, diagnostic redaction and wire admission controls pass. Native transport, decoder and shutdown remain unchanged. Native parent diagnostics expose saved credentials despite safe public errors; their scoped repair is assigned. Detached descendants remain unqualified.
+Reviewed sources `e470342ad6` and `f20a77db31` own native Query leases and supplied or default children. Close joins precede graph cleanup. Cancellation, construction refusal and wire admission controls pass. Native transport, decoder and shutdown remain unchanged. Reviewed source `76e495055d` scrubs known credentials from native diagnostic copies, including fragmented output, without changing raw protocol or observers. Scoped runtime and static controls pass. Detached descendants remain unqualified.
 
 Source `909c640d45` enforces one server assembly and exercised-subject reach through canonical declaration and return facts. Copied roots fail; builders and raw-edge adapters pass. Incidental graph imports receive no presence credit.
 

@@ -23,13 +23,15 @@ A builder exists per contract output and table; the corpus is committed and load
 
 ## Evidence
 
-Canonical recall workloads produce digests, segments and query traces through public projections; native turns produce speaker rows. Positive and strike controls pass. Complete recall variants and corpus publication remain open.
+Canonical recall workloads produce digests, segments and query traces; native turns produce speaker rows. Defect controls pass; complete variants remain open.
 
-Auth configuration uses its canonical schema. Complete builder qualification requires real request-specific capture, not fabricated defaults.
+Auth uses its canonical schema. Builders require request-specific capture, not fabricated defaults.
 
-Browser responders use captured route inputs and outputs. They preserve absent versus null input and refuse conflicting or unmatched captures. Corpus adoption remains open.
+Reviewed source `f787a21337` adds native chat import, compaction, held stream and handoff captures with owner-scoped copied-seat identity. Imagery controls reject timestamp-only cohort merging. Runtime and static controls pass; publication and adoption remain open.
 
-Builder controls reject owner-schema drift and zeroed production token calculation. Helpers derive service types through public compose. Complete adoption remains open.
+Browser responders preserve captured input/output, absent versus null input and conflicting or unmatched capture refusal. Adoption remains open.
+
+Builder controls reject owner-schema drift and zeroed production token calculation. Helpers derive service types through public compose. Adoption remains open.
 
 `tests/support/node/factories/resolved-connection.ts` consumes fabrication waivers. New corpus inputs use actual admission; budgets remain unjudged.
 

@@ -33,3 +33,5 @@ Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, paren
 The complete selected run `codex-owner-read-provenance-1016-1125988-2026-10-14T11-16-56-109Z` still reports character and chat helper judgments, refinery and accounting scope, and asset, automation, databank, discovery and workload findings. It completes without tool errors or withheld policies; dead-position and budget authority alarms remain. Survey its full current population before assigning corrections.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
+
+Reviewed source `0b778e7a97` preserves distinct refinery Run and Estimate authority through executing target reads and scalar counting. Shared domain readiness preserves candidate semantics. Native runtime, nominal and owned-predicate controls pass. Complete owner-policy qualification remains open. The next assigned batch covers stable predicate observations, nested arrays and finite callees through canonical facts.
