@@ -1,4 +1,3 @@
-import { setTimeout as waitForIo } from "node:timers/promises";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { assemblyPreviewSchema } from "@orb/contracts/chat";
@@ -19,6 +18,7 @@ import { eq } from "drizzle-orm";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
+import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
@@ -260,9 +260,6 @@ export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId):
 }
 
 const RECALL_INTENT = { maxContextTokens: 2048, maxOutputTokens: 64 };
-const RECALL_WORKER_ADVANCE_MS = 2000;
-const RECALL_WAIT_INTERVAL_MS = 25;
-const RECALL_WAIT_TIMEOUT_MS = 5000;
 const memoryRecallSchema = assemblyPreviewSchema.shape.trace.shape.memoryRecall.unwrap();
 
 export interface SeedRecallCorpusOptions {
@@ -323,7 +320,7 @@ export async function seedRecallCorpus(root: ServerHarness, options: SeedRecallC
     await caller.workloads.start({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
     await caller.workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, mode: "singular" }),
   ];
-  const jobs = await settleRecallJobs(root, caller, started);
+  const jobs = await settleCorpusWorkloads(root, caller, started);
   const memory = await captureChatMemoryRows(root.db, chatId);
   if (memory.digests.length === 0 || memory.segments.length === 0) {
     throw new Error("synthetic recall corpus workers produced no genuine digests or segments");
@@ -342,26 +339,6 @@ export async function seedRecallCorpus(root: ServerHarness, options: SeedRecallC
     throw new Error("synthetic recall corpus produced no fresh nonempty recall trace");
   }
   return { chatId, historyTurn, first, recalled, memory, jobs, traces };
-}
-
-// Native waiting only yields to I/O; the real worker's business schedule advances through the graph timer.
-async function settleRecallJobs(
-  root: ServerHarness,
-  caller: CorpusCaller,
-  started: readonly Awaited<ReturnType<CorpusCaller["workloads"]["start"]>>[],
-): Promise<SeededRecallCorpus["jobs"]> {
-  const deadline = AbortSignal.timeout(RECALL_WAIT_TIMEOUT_MS);
-  for (;;) {
-    root.timers.advance(RECALL_WORKER_ADVANCE_MS);
-    const jobs = (await caller.workloads.list()).filter((job) => started.some((ref) => ref.id === job.id));
-    if (jobs.some((job) => job.status === "failed" || job.status === "cancelled")) {
-      throw new Error("synthetic recall corpus workload failed", { cause: jobs });
-    }
-    if (jobs.length === started.length && jobs.every((job) => job.status === "succeeded")) {
-      return jobs;
-    }
-    await waitForIo(RECALL_WAIT_INTERVAL_MS, undefined, { signal: deadline });
-  }
 }
 
 export interface SeedSyntheticCorpusOptions {

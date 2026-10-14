@@ -8,6 +8,16 @@ export type RefinerySessionRow = typeof refinerySessions.$inferSelect;
 export type RefinerySchemaRow = typeof refinerySchemas.$inferSelect;
 export type RefineryRunRow = typeof refineryRuns.$inferSelect;
 
+/** Capture a model-produced run by the identity the actual stage operation returned. */
+export async function seedRefineryRun(
+  db: Db,
+  runStage: RefineryService["runStage"],
+  params: Parameters<RefineryService["runStage"]>[0],
+): Promise<RefineryRunRow> {
+  const view = await runStage(params);
+  return await captureRefineryRun(db, view.id);
+}
+
 export async function seedRefinerySession(
   db: Db,
   startSession: RefineryService["startSession"],
@@ -41,9 +51,13 @@ export async function seedManualRefineryRun(
   params: Parameters<RefineryService["submitManualRewrite"]>[0],
 ): Promise<RefineryRunRow> {
   const view = await submitManualRewrite(params);
-  const row = await db.select().from(refineryRuns).where(eq(refineryRuns.id, view.id)).get();
+  return await captureRefineryRun(db, view.id);
+}
+
+async function captureRefineryRun(db: Db, runId: RefineryRunRow["id"]): Promise<RefineryRunRow> {
+  const row = await db.select().from(refineryRuns).where(eq(refineryRuns.id, runId)).get();
   if (row === undefined) {
-    throw new Error("production manual refinery rewrite left no canonical run row");
+    throw new Error("production refinery operation left no canonical run row");
   }
   return row;
 }

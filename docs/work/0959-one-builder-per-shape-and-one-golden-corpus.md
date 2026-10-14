@@ -45,6 +45,6 @@ Reviewed source `b78b5b8d0a` proves genuine SDK session lineage through canonica
 
 Reviewed source `800bd9d45a` captures plugin/provider families through real install, consent, native guest activation, owner claims and tombstones. Recipient consent, repeat skips and contained activation failure pass. Captures stay Node-private; the expanded capsule preserves disposal, scrub and clone controls. A real clock defect control fails before world-info creation receives the injected edit stamp; creation and first-edit cases then pass.
 
-The source-home map is not complete row, output or variant coverage. Refinery, discovery, RPG, imagery, schedule and transient outcome recipes remain. Committed corpus publication and every-layer adoption remain open.
+Reviewed source `aea5f56d54` produces refinery and discovery rows through real admission, transcript history and memory backfill. Scoped cases and the expanded native capsule pass; independent review confirms the batch.
 
-The knowledge and refinery leg consumes canonical typed authority. Actual transcript history and full owned memory backfill produce its knowledge inputs without changing thresholds. Scoped cases pass; the expanded capsule still needs its lifecycle verdict.
+Remaining recipes include arc themes, swipe re-rolls, raw-image geometry/facets, RPG, schedule and transient variants. Committed corpus publication and every-layer adoption remain open.
