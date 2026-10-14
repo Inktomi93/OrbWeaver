@@ -55,6 +55,17 @@ for await (const line of lines) {
   }
   const content = message.message.content;
   const prompt = typeof content === "string" ? content : content.map((block) => block.text).join("\n");
+  if (prompt.includes("SDK_PRIVATE_STDOUT_PREFIX_EOF")) {
+    await new Promise((resolve) => process.stdout.write(`private-stdout-prefix-safe-context: ${token.slice(0, 64)}`, resolve));
+    process.exit(7);
+  }
+  if (prompt.includes("SDK_PRIVATE_STDOUT")) {
+    if (!prompt.includes(token)) {
+      throw new Error("private diagnostic projection changed the raw SDK user input");
+    }
+    await new Promise((resolve) => process.stdout.write(`private-stdout-safe-context: ${token} ${JSON.stringify(token).slice(1, -1)}\n`, resolve));
+    process.exit(7);
+  }
   if (prompt.includes("SDK_PREFIX_EOF")) {
     await new Promise((resolve) => process.stderr.write(`sdk-prefix-eof: ${token.slice(0, 64)}`, resolve));
     process.exit(7);
@@ -83,6 +94,9 @@ for await (const line of lines) {
     process.exit(7);
   }
   observeNativeGrace = prompt.includes("SDK_DEFAULT_GRACE");
+  if (prompt.includes("SDK_PRIVATE_GENERIC")) {
+    await new Promise((resolve) => process.stderr.write(`sdk-diagnostic: café ${token} ${JSON.stringify(token).slice(1, -1)} complete\n`, resolve));
+  }
   if (prompt.includes("SDK_OWNED_DESCENDANT")) {
     descendant = spawn(process.execPath, [fileURLToPath(import.meta.url), "owned-descendant"], { stdio: ["ignore", "ignore", "inherit"] });
     const owned = descendant;
@@ -143,16 +157,16 @@ for await (const line of lines) {
     subtype: "success",
     ["duration_ms"]: 1,
     ["duration_api_ms"]: 1,
-    ["is_error"]: false,
+    ["is_error"]: prompt.includes("SDK_PRIVATE_GENERIC"),
     ["num_turns"]: 1,
-    result: "settled native SDK reply",
+    result: prompt.includes("SDK_PRIVATE_GENERIC") ? `private-result-safe-context ${token}` : "settled native SDK reply",
     ["stop_reason"]: "end_turn",
     ["total_cost_usd"]: 0,
     usage: { ["input_tokens"]: 1, ["output_tokens"]: 1, ["cache_read_input_tokens"]: 0, ["cache_creation_input_tokens"]: 0 },
     modelUsage: {},
     ["permission_denials"]: [],
   });
-  if (prompt.includes("SDK_CONCURRENT_CALLER_FAILURE")) {
+  if (prompt.includes("SDK_CONCURRENT_CALLER_FAILURE") || prompt.includes("SDK_PRIVATE_GENERIC")) {
     await new Promise((resolve) => process.stdout.write("", resolve));
     process.exit(7);
   }
