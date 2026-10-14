@@ -22,6 +22,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import { eq, isNotNull, sql } from "drizzle-orm";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
+import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 
 const OWNER_PASSWORD = "synthetic-capsule-owner-password";
 const PROVIDER_KEY = "synthetic-capsule-provider-key";
@@ -38,6 +39,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
     usage: { promptTokens: 40, completionTokens: 15 },
+    completion: createCorpusRpgWire().completion,
   });
   const key = randomBytes(32);
   const capsule = ownership.use(
@@ -75,6 +77,13 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.privateCaptures.rpg.restoredSnapshot.variantId).toBeNull();
   expect(capsule.privateCaptures.rpg.reads.tracker.ambient?.location).toBe("Orbital loom");
   expect(capsule.privateCaptures.rpg.schedules.completed).toMatchObject([{ status: "succeeded", kind: "reconcile-stats" }]);
+  expect(capsule.privateCaptures.rpgProvider.snapshot.variantId).toBe(
+    capsule.privateCaptures.rpgProvider.turn.messages.find((message) => message.role === "assistant")?.selectedVariantId,
+  );
+  expect(capsule.privateCaptures.rpgProvider.journal).toMatchObject([
+    { type: "event", label: "" },
+    { type: "custom", label: "Expedition" },
+  ]);
   if (process.platform === "linux") {
     const ownedRoot = await realpath(capsule.layout.root);
     const descriptors = await Promise.all(

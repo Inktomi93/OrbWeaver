@@ -42,7 +42,7 @@ import { generationOf } from "@orb/inference";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "#domain/chat";
 import type { StagedPatch, StagedTurnFlush } from "../contract/params.ts";
-import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service.ts";
+import type { RpgContext, RpgGameRow, RpgJournalRow, RpgRunToolRound } from "../contract/service.ts";
 import { findMessageSeq, writeStagedSnapshotAndJournal } from "../persistence/snapshots.ts";
 import { recordTurnToolCalls } from "../persistence/turn-tool-calls.ts";
 import { currentSnapshotState, foldTurnWriteIntoHandHead, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
@@ -226,16 +226,20 @@ async function writeFlush(
   const snapshotId = ctx.ids.snapshot();
   // Parse and mint every journal row before the batch starts. A corrupt type therefore writes neither plane;
   // once valid, the snapshot statement and every journal insert share one same-DB commit boundary.
-  const journal = flush.journal.map((entry) => ({
-    id: ctx.ids.journal(),
-    gameId: game.id,
-    type: rpgJournalTypeSchema.parse(entry.type),
-    title: entry.title,
-    content: entry.content,
-    variantId: turn.variantId,
-    sourceMessageId: turn.messageId,
-    createdAt: ctx.now(),
-  }));
+  const journal = flush.journal.map(
+    (entry) =>
+      ({
+        id: ctx.ids.journal(),
+        gameId: game.id,
+        type: rpgJournalTypeSchema.parse(entry.type),
+        label: entry.label,
+        title: entry.title,
+        content: entry.content,
+        variantId: turn.variantId,
+        sourceMessageId: turn.messageId,
+        createdAt: ctx.now(),
+      }) satisfies RpgJournalRow,
+  );
   const written = await writeStagedSnapshotAndJournal(
     ctx.db,
     flush.state,

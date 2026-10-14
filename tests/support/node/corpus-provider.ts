@@ -118,6 +118,13 @@ interface CorpusProviderScript {
   readonly images: Uint8Array[];
   readonly usage?: TerminalFrameOptions["usage"];
   readonly toolCall?: { readonly name: string; readonly argumentsJson: string };
+  readonly completion?: (requestBody: string) => CorpusProviderCompletion | undefined;
+}
+
+/** Physical completion bytes for a request-specific script, before native provider parsing. */
+export interface CorpusProviderCompletion {
+  readonly text: string;
+  readonly toolCalls: readonly NonNullable<CorpusProviderScript["toolCall"]>[];
 }
 
 const requestSchema = z.object({
@@ -169,27 +176,42 @@ function completionText(script: CorpusProviderScript, fields: ProviderRequest, r
   return text;
 }
 
-function chatReply(script: CorpusProviderScript, fields: ProviderRequest, requestBody: string): Response {
-  const text = completionText(script, fields, requestBody);
-  const tool = (fields.tools?.length ?? 0) === 0 ? undefined : script.toolCall;
-  if (tool !== undefined && !fields.tools?.some((offered) => offered.function.name === tool.name)) {
-    throw new Error(
-      `corpus provider was not offered its scripted tool: ${tool.name}; offered ${(fields.tools ?? []).map((offered) => offered.function.name).join(", ")}`,
-    );
+function completionCalls(
+  script: CorpusProviderScript,
+  fields: ProviderRequest,
+  completion: CorpusProviderCompletion | undefined,
+): CorpusProviderCompletion["toolCalls"] {
+  const calls = completion?.toolCalls ?? ((fields.tools?.length ?? 0) === 0 || script.toolCall === undefined ? [] : [script.toolCall]);
+  for (const call of calls) {
+    if (!fields.tools?.some((offered) => offered.function.name === call.name)) {
+      throw new Error(
+        `corpus provider was not offered its scripted tool: ${call.name}; offered ${(fields.tools ?? []).map((offered) => offered.function.name).join(", ")}`,
+      );
+    }
   }
+  return calls;
+}
+
+function chatReply(script: CorpusProviderScript, fields: ProviderRequest, requestBody: string): Response {
+  const completion = script.completion?.(requestBody);
+  const text = completion?.text ?? completionText(script, fields, requestBody);
+  const calls = completionCalls(script, fields, completion);
   if (fields.stream === true) {
-    const delta =
-      tool === undefined
-        ? `{"content":${JSON.stringify(text)}}`
-        : `{"content":${JSON.stringify(text)},"tool_calls":[{"index":0,"id":"corpus-tool-call","type":"function","function":{"name":${JSON.stringify(tool.name)},"arguments":${JSON.stringify(tool.argumentsJson)}}}]}`;
+    const tools = calls.map((call, index) => ({
+      index,
+      id: `corpus-tool-call-${index}`,
+      type: "function",
+      function: { name: call.name, arguments: call.argumentsJson },
+    }));
+    const delta = calls.length === 0 ? `{"content":${JSON.stringify(text)}}` : `{"content":${JSON.stringify(text)},"tool_calls":${JSON.stringify(tools)}}`;
     return new Response(
-      `data: {"choices":[{"delta":${delta}}]}\n\n${terminalSseLine({ finishReason: tool === undefined ? "stop" : "tool_calls", ...(script.usage === undefined ? {} : { usage: script.usage }) })}\n\ndata: [DONE]\n\n`,
+      `data: {"choices":[{"delta":${delta}}]}\n\n${terminalSseLine({ finishReason: calls.length === 0 ? "stop" : "tool_calls", ...(script.usage === undefined ? {} : { usage: script.usage }) })}\n\ndata: [DONE]\n\n`,
       {
         headers: { "content-type": "text/event-stream" },
       },
     );
   }
-  if (tool !== undefined) {
+  if (calls.length > 0) {
     throw new Error("corpus tool execution requires the actual streaming chat request");
   }
   return new Response(
