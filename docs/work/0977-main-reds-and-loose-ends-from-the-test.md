@@ -31,15 +31,11 @@ Each listed check is green on main or has a recorded cause and owner.
 
 ## Evidence
 
-The application check at `4d7b00a6d4` exited 2: `reports/runs/verify/main-4157590-2026-10-12T20-18-49-624Z/verify.json`. Tool errors and withheld policies prevent qualification.
-
 Remaining findings: legacy disposal and typed-lint errors; maintained classes above; client formatting/import order; caught-failure census differences; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Default application Knip reports unused exports/types and configuration hints, not production-baseline reconciliation. Adjudicate intended consumers before deleting supported doors.
-
-Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Findings and authority alarms remain unresolved. Repair product, security or checker defects, not disposable legacy suites.
 
 Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-638409-2026-10-14T09-03-57-578Z/check-structure.json`. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
 
-The UI export floor reports untouched legacy fixtures: seed-user-content's optional RPG input, profile-directory's optional name and handle, and run-profile-import's optional tag source. Preserve cases for replacement; do not retrofit them for a green export floor.
+Legacy export-floor findings concern optional RPG, profile and tag inputs in seed-user-content, profile-directory and run-profile-import. Preserve cases for replacement, not fixture retrofits.
 
 Compose integration preserves census equality. Reindex/auth classifications remain unproven; literal removals shrink budgets.
 
@@ -50,3 +46,5 @@ JSON and wire parsing allowances are zero; whole-application qualification remai
 The suppression work item owns form-data and settled-tracing lint conflicts.
 
 The identity candidate measures `no-inline-package-interface` at 311 findings against budget 328 after its attributable decrement from 329. Type-home work owns the remaining mismatch; do not lower another allowance or regenerate globally to hide it.
+
+Native ESLint parser requests separate untyped files from compiler-owned partitions. Red/green and real CLI controls pass. The [hosted artifact](https://github.com/Inktomi93/OrbWeaver/actions/runs/38544900781) retains the earlier shared-declaration failure and an incomplete `contract-verb-presence` native-library boundary. Full qualification and that boundary correction remain open; arbitrary owner selection and legacy fixture repairs are not remedies.

@@ -5,7 +5,7 @@ import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CompilerProgram } from "@orb/tooling/verify";
 import { ESLint } from "eslint";
-import { eslintConfiguredPaths } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
+import { eslintConfiguredPaths, readEslintFileAdmissions } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
 import {
   DISCOVERY_MAX_BUFFER_BYTES,
   parsedDiscovery,
@@ -101,6 +101,52 @@ test("partition uses one native compiler owner, keeps untyped residuals, and ref
   expect(() => partitionEslintFiles(["missing.ts"], programs)).toThrow("no native compiler owner");
   expect(() => partitionEslintFiles([], programs)).toThrow("empty population");
   expect(() => partitionEslintFiles(["root.ts", "root.ts"], programs)).toThrow("duplicate file identities");
+});
+
+test("native untyped declarations need no exclusive compiler owner while typed declarations still refuse ambiguity", { tags: ["slow"] }, async ({
+  repoRoot,
+}) => {
+  expect(await readEslintFileAdmissions(repoRoot, "eslint.config.js", ["aggregator-assets.d.ts"])).toEqual([
+    { path: "aggregator-assets.d.ts", requiresTypeInformation: false },
+  ]);
+  const programs = [
+    program("tsconfig.json", ["aggregator-assets.d.ts", "typed.d.ts"]),
+    program("tsconfig.tests-legacy.json", ["aggregator-assets.d.ts", "typed.d.ts"]),
+  ];
+  expect(Object.fromEntries(partitionEslintFiles(["aggregator-assets.d.ts", "tool.js"], programs, new Set()))).toEqual({
+    "<untyped>": ["aggregator-assets.d.ts", "tool.js"],
+  });
+  expect(() => partitionEslintFiles(["typed.d.ts"], programs, new Set(["typed.d.ts"]))).toThrow("ambiguous native compiler owners");
+  expect(() => partitionEslintFiles(["missing.ts"], programs, new Set(["missing.ts"]))).toThrow("no native compiler owner");
+});
+
+test("native file admission preserves enabled parser programs and explicit disables", async () => {
+  const root = mkdtempSync(join(tmpdir(), "orb-eslint-parser-admission-"));
+  try {
+    writeFileSync(join(root, "package.json"), '{"type":"module"}\n');
+    writeFileSync(
+      join(root, "eslint.config.js"),
+      `export default [
+        { ignores: ["ignored.ts"] },
+        { files: ["**/*.ts"] },
+        { files: ["project.ts"], languageOptions: { parserOptions: { project: ["tsconfig.json"] } } },
+        { files: ["service.ts"], languageOptions: { parserOptions: { projectService: { loadTypeScriptPlugins: false } } } },
+        { files: ["program.ts"], languageOptions: { parserOptions: { programs: [{}] } } },
+        { files: ["disabled.ts"], languageOptions: { parserOptions: { project: false, projectService: false, programs: null } } },
+      ];`,
+    );
+    expect(
+      await readEslintFileAdmissions(root, "eslint.config.js", ["plain.ts", "project.ts", "service.ts", "program.ts", "disabled.ts", "ignored.ts"]),
+    ).toEqual([
+      { path: "plain.ts", requiresTypeInformation: false },
+      { path: "project.ts", requiresTypeInformation: true },
+      { path: "service.ts", requiresTypeInformation: true },
+      { path: "program.ts", requiresTypeInformation: true },
+      { path: "disabled.ts", requiresTypeInformation: false },
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 /** A minimal root the discovery child can actually enumerate: its own config, a package manifest, and three
  *  admitted files. Small on purpose — the ceiling arm below must blow a TINY ceiling, not a real one. */

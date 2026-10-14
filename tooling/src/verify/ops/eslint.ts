@@ -19,11 +19,12 @@ import { execNicedSync, runNicedSync } from "@orb/tooling/floor/process/proc";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { isTypeWorldSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
+import type { EslintFileAdmission } from "../contract/config-snapshot.ts";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
 import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readCompilerProgramsFromInventory } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
-import { eslintConfiguredPaths } from "./config-snapshot.ts";
+import { readEslintFileAdmissions } from "./config-snapshot.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 
@@ -34,10 +35,11 @@ const DISCOVERY_ENTRY = fileURLToPath(new URL("./config-snapshot-entry.ts", impo
 const CHILD_FLAGS = ["--max-warnings", "0", "--cache", "--cache-strategy", "content", "--concurrency", "off"] as const;
 /** The directory under which per-owner cache files live (inside `.cache/`, already gitignored). */
 const ESLINT_CACHE_DIR = ".cache/eslint";
+const UNTYPED_OWNER = "<untyped>";
 
 function ownerFor(path: string, owners: readonly string[]): string {
   if (!isTypeWorldSource(path)) {
-    return "<untyped>";
+    return UNTYPED_OWNER;
   }
   const predicted = predictedProgram(path);
   if (predicted !== undefined && owners.includes(predicted)) {
@@ -77,7 +79,11 @@ export function parsedDiscovery(text: string): readonly string[] {
   return files;
 }
 
-export function partitionEslintFiles(paths: readonly string[], programs: readonly CompilerProgram[]): ReadonlyMap<string, readonly string[]> {
+export function partitionEslintFiles(
+  paths: readonly string[],
+  programs: readonly CompilerProgram[],
+  typedPaths?: ReadonlySet<string>,
+): ReadonlyMap<string, readonly string[]> {
   if (paths.length === 0) {
     throw new Error("ESLint discovery produced an empty population; no lint verdict is available");
   }
@@ -94,7 +100,7 @@ export function partitionEslintFiles(paths: readonly string[], programs: readonl
   }
   const groups = new Map<string, string[]>();
   for (const path of paths) {
-    const owner = ownerFor(path, roots.get(path) ?? []);
+    const owner = typedPaths !== undefined && !typedPaths.has(path) ? UNTYPED_OWNER : ownerFor(path, roots.get(path) ?? []);
     const members = groups.get(owner) ?? [];
     members.push(path);
     groups.set(owner, members);
@@ -149,10 +155,10 @@ function isBufferOverflow(error: unknown): boolean {
 
 /** The population ESLint itself enumerates for `patterns` (`.` when none), cross-checked against native
  *  ConfigArray admission. */
-async function admittedPopulation(root: string, patterns: readonly string[]): Promise<readonly string[]> {
+async function admittedPopulation(root: string, patterns: readonly string[]): Promise<readonly EslintFileAdmission[]> {
   const discovered = readDiscoveredPopulation(root, DISCOVERY_MAX_BUFFER_BYTES, patterns);
-  const admitted = await eslintConfiguredPaths(root, CONFIG_REL, discovered);
-  if (admitted.length !== discovered.length || admitted.some((path, index) => path !== discovered[index])) {
+  const admitted = await readEslintFileAdmissions(root, CONFIG_REL, discovered);
+  if (admitted.length !== discovered.length || admitted.some(({ path }, index) => path !== discovered[index])) {
     throw new Error("ESLint discovery and native ConfigArray admission resolved different filename populations");
   }
   return admitted;
@@ -183,8 +189,11 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
 }
 
 /** One sequential ESLint child per compiler owner. The worst verdict wins; a tool error stops the run. */
-function runPartitions(root: string, admitted: readonly string[], cachePrefix: string): number {
-  const groups = partitionEslintFiles(admitted, readCompilerProgramsFromInventory(readPolicyRepositoryInventory(root)));
+function runPartitions(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string): number {
+  const filenames = admitted.map(({ path }) => path);
+  const typedPaths = new Set(admitted.filter(({ requiresTypeInformation }) => requiresTypeInformation).map(({ path }) => path));
+  const programs = typedPaths.size === 0 ? [] : readCompilerProgramsFromInventory(readPolicyRepositoryInventory(root));
+  const groups = partitionEslintFiles(filenames, programs, typedPaths);
   const cacheDir = join(root, ESLINT_CACHE_DIR);
   mkdirSync(cacheDir, { recursive: true });
 

@@ -37,8 +37,6 @@ Builder controls reject owner-schema drift and zeroed production token calculati
 
 Real seed, auth, ingestion, imagery and discovery controls pass. Timestamp-only imagery merging fails. Complete row/output coverage and each-layer adoption remain open.
 
-Reviewed source `dd7d73f2e9` and correction `c7b4a2026e` use the canonical harness. Seed, wire, recall, imagery-cohort/import and greeting cases pass. Retained builder callers preserve their assertions.
-
 Reviewed source `505c900fb5` produces native OIDC claim, pending and session captures. Its capsule proves physical disposal, sole WAL ownership on reopen, secret stripping and independent DB/CAS clones. Matching auth controls pass. Portable assertions run everywhere; descriptor observations are Linux-specific.
 
 The same batch uses real automation producers for watcher conditions, caps, manual-run provenance, state and foreign-owner refusal. Removing the subject guard produces an extra fired row for a stranger's asset. Finite request recipes admit only validated outputs and exact captured inputs. Private captures stay Node-owned.
@@ -54,3 +52,5 @@ Persisted workload funding is integrated. The expanded native capsule passes wit
 Reviewed sources `3303ed4825`, `5cef750b0d` and `80bd8e5102` produce native RPG hand, population, resync, journal and schedule state, plus knowledge arcs, swipes and GIF geometry. Native cuts and scoped controls pass. Complete builder coverage, committed corpus and every-layer adoption remain open.
 
 Reviewed source `fa0badf99b` preserves immutable checkpoints. Reviewed source `69c196ed8f` produces native RPG recursion, cancellation, visibility, fork, handoff and intake captures. Defect controls and capsule assertions preserve original turn lineage. Complete coverage, publication and adoption remain open.
+
+Reviewed source `7feb12bdf2` captures native routed search outputs, provenance and scopes. A capped-denominator defect control fails. Enabled empty-owner completion remains separately owned; publication and adoption remain open.

@@ -13,6 +13,7 @@ import type {
   DepcruiseConfigSnapshot,
   DepcruiseConfigSnapshotField,
   DepcruiseSelectorSnapshot,
+  EslintFileAdmission,
   VitestConfigSnapshot,
   VitestConfigSnapshotField,
 } from "../contract/config-snapshot.ts";
@@ -225,17 +226,24 @@ export async function snapshotDepcruiseConfig(root: string, config: string): Pro
   return { version: 1, runner: "depcruise", config, effectiveRules: effective.forbidden.length, selectors };
 }
 
-/** Preserve input order while asking ESLint's native configuration whether each path is selected. */
-export async function eslintConfiguredPaths(root: string, config: string, paths: readonly string[]): Promise<readonly string[]> {
+/** Observe admission and parser program requests through ESLint's effective configuration. */
+export async function readEslintFileAdmissions(root: string, config: string, paths: readonly string[]): Promise<readonly EslintFileAdmission[]> {
   const { ESLint } = await import("eslint");
   const eslint = new ESLint({ cwd: root, overrideConfigFile: resolve(root, config) });
-  const admitted: string[] = [];
+  const admitted: EslintFileAdmission[] = [];
   for (const path of paths) {
-    if ((await eslint.calculateConfigForFile(resolve(root, path))) !== undefined) {
-      admitted.push(path);
+    const effective = await eslint.calculateConfigForFile(resolve(root, path));
+    if (effective !== undefined) {
+      const options = effective.languageOptions?.parserOptions;
+      admitted.push({ path, requiresTypeInformation: Boolean(options?.project) || Boolean(options?.projectService) || Boolean(options?.programs) });
     }
   }
   return admitted;
+}
+
+/** Preserve input order while asking ESLint's native configuration whether each path is selected. */
+export async function eslintConfiguredPaths(root: string, config: string, paths: readonly string[]): Promise<readonly string[]> {
+  return (await readEslintFileAdmissions(root, config, paths)).map(({ path }) => path);
 }
 
 export async function runConfigSnapshot(root: string, rest: readonly string[]): Promise<number> {

@@ -1,5 +1,10 @@
 export const CONFIG_SNAPSHOT_RUNNERS = ["vitest", "depcruise"] as const;
 
+export interface EslintFileAdmission {
+  readonly path: string;
+  readonly requiresTypeInformation: boolean;
+}
+
 export type ConfigSnapshotRunner = (typeof CONFIG_SNAPSHOT_RUNNERS)[number];
 
 export const VITEST_CONFIG_SNAPSHOT_FIELDS = ["test.include", "test.exclude", "test.globalSetup", "typecheck.include", "typecheck.exclude"] as const;
