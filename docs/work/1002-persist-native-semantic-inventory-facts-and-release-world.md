@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-14
 priority: P1
 area: tooling
+lane: codex/ast-wrapper-lifetime-1002
 plan: test-foundation
 ---
 

@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-14
 priority: P1
 area: tenancy
-lane: codex/drizzle-facts-953
 plan: test-foundation
 ---
 
@@ -24,8 +23,6 @@ Every retained finding has an evidence-backed disposition and owner. Corrected q
 
 ## Evidence
 
-A complete selected run on the typed-authority candidate records effective findings without tool errors or withheld policies. Its artifact is `codex-every-owner-984-22942-2026-10-14T06-13-08-606Z`. The newly exposed owned-generation join belongs to that authority batch; this item owns the unchanged-source remainder.
-
 Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, preserves native global rule ordering and seals the card loader as rows. Genuine producer and handoff controls pass; old predicates fail without deleting publication state. Authorized retained rows remain present with foreign fingerprints withheld. Fingerprints are compatibility metadata, not credentials.
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
@@ -41,3 +38,5 @@ Reviewed source `702430c3d9` adds stable native observations and compact predica
 Reviewed `cb26ce442e` extends supplied formals, finite actual callees and native returned/imported lifetimes through canonical facts. Inline wrappers retain physical-use obligations; runtime defaults preserve every executed alternative. Native alias, mutation, cancellation, cycle and unsafe-order controls pass. The same reviewer accepts the bounded corrections. Containment supplies no ownership authority. Generic table enumeration, destructured CTE lifetimes, INNER JOIN ON correlation and complete current-population qualification remain open.
 
 Reviewed source `a2356621ba` shares retained-owner projections and captures raw economic contributions with their signed deltas. The first atomic write refuses stale selected and nonselected usage. Native paid-race refusal, unchanged accounting and current-state retries pass. Reader qualification remains open.
+
+Reviewed `5423bfb5d9` separates awaited rows from fluent builder continuations. Direct-owner and joined-parent controls pass; inert carriers, mutations and retained escapes still refuse. Await grants no execution or ownership. Affected and independent native controls pass. Policy reconciliation and retained relations remain open.

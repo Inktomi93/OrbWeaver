@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-14
 priority: P1
-lane: codex/drizzle-facts-953
 plan: test-foundation
 ---
 
@@ -34,3 +33,5 @@ Reviewed `cb26ce442e` extends supplied formals, finite actual callable bodies an
 The same reviewer accepts the inline-wrapper and default-normalization corrections. Matching native positives, unsafe controls, actual runtime sharing and consumer cases pass. The final affected command retains a superseded fixture failure; its corrected case passes separately. Tooling types and exact lint pass; root types retain off-owned failures. No combined whole-command green is claimed.
 
 Generic table enumeration, imported destructured CTE lifetimes, INNER JOIN ON correlations and unavailable higher-order consumers remain unqualified. Containment supplies no authority. Complete repository output/finding equivalence and remaining schema-case acceptance stay open.
+
+Reviewed `5423bfb5d9` stops fluent extraction at delivered await values. Native execution, mutable SQL lifetime and owner predicates remain separate judgments. Native policy positives and unsafe controls pass; complete equivalence remains open.
