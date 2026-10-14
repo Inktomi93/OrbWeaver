@@ -1,89 +1,21 @@
+import { readSqliteLexical } from "./sqlite-lexical.ts";
+
 interface SqlToken {
   readonly kind: "word" | "punct";
   readonly text: string;
 }
 
-interface SqlTokenStep {
-  readonly next: number;
-  readonly token?: SqlToken;
-}
-
-function skipTemplateExpression(text: string, start: number): number {
-  let depth = 1;
-  let index = start + 2;
-  while (index < text.length && depth > 0) {
-    if (text[index] === "{") {
-      depth += 1;
-    } else if (text[index] === "}") {
-      depth -= 1;
-    }
-    index += 1;
-  }
-  return index;
-}
-
-function skipQuoted(text: string, start: number, quote: string): number {
-  let index = start + 1;
-  while (index < text.length) {
-    if (text[index] !== quote) {
-      index += 1;
-    } else if (text[index + 1] === quote) {
-      index += 2;
-    } else {
-      return index + 1;
-    }
-  }
-  return index;
-}
-
-function skippedSqlRegionEnd(text: string, index: number): number | undefined {
-  const char = text[index];
-  const next = text[index + 1];
-  if (char === "$" && next === "{") {
-    return skipTemplateExpression(text, index);
-  }
-  if (char === "-" && next === "-") {
-    const newline = text.indexOf("\n", index + 2);
-    return newline < 0 ? text.length : newline + 1;
-  }
-  if (char === "/" && next === "*") {
-    const close = text.indexOf("*/", index + 2);
-    return close < 0 ? text.length : close + 2;
-  }
-  return char === "'" ? skipQuoted(text, index, char) : undefined;
-}
-
-function nextSqlToken(text: string, index: number): SqlTokenStep {
-  const skipped = skippedSqlRegionEnd(text, index);
-  if (skipped !== undefined) {
-    return { next: skipped };
-  }
-  const char = text[index];
-  if (char === '"') {
-    const end = skipQuoted(text, index, char);
-    return { next: end, token: { kind: "word", text: text.slice(index + 1, Math.max(index + 1, end - 1)).replaceAll('""', '"') } };
-  }
-  if (char !== undefined && /[A-Za-z_]/u.test(char)) {
-    let end = index + 1;
-    while (end < text.length && /[A-Za-z0-9_]/u.test(text[end] ?? "")) {
-      end += 1;
-    }
-    return { next: end, token: { kind: "word", text: text.slice(index, end) } };
-  }
-  return char === "(" || char === ")" || char === "," ? { next: index + 1, token: { kind: "punct", text: char } } : { next: index + 1 };
-}
-
 function sqlTokens(text: string): SqlToken[] {
-  const out: SqlToken[] = [];
-  let index = 0;
-  while (index < text.length) {
-    const step = nextSqlToken(text, index);
-    if (step.token !== undefined) {
-      out.push(step.token);
+  const body = text.startsWith("`") && text.endsWith("`") ? text.slice(1, -1) : text;
+  return readSqliteLexical(body).tokens.flatMap((token): SqlToken[] => {
+    if (token.kind === "word") {
+      return [{ kind: "word", text: token.text }];
     }
-    index = step.next;
-  }
-  return out;
+    if (token.kind === "quoted-identifier") {
+      return token.text.startsWith('"') ? [{ kind: "word", text: token.text.slice(1, -1).replaceAll('""', '"') }] : sqlTokens(token.text.slice(1, -1));
+    }
+    return "(),".includes(token.text) ? [{ kind: "punct", text: token.text }] : [];
+  });
 }
 
 function rawInsertColumnsAt(tokens: readonly SqlToken[], start: number): readonly string[] | undefined {

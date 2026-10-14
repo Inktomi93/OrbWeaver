@@ -1,5 +1,6 @@
 // SQL aliases belong to a SELECT scope. A json_each row can flow through an explicit CTE projection;
 // neither a coincident alias in another query nor an arbitrary CTE expression proves virtual lineage.
+import { readSqliteLexical } from "./sqlite-lexical.ts";
 
 interface Token {
   readonly word: string;
@@ -37,17 +38,19 @@ const FROM_END = new Set(["where", "group", "order", "limit", "union", "having",
 
 /** Quoted names are tokens only; relation positions own their interpretation, never SQL structure. */
 function tokensOf(text: string): Token[] {
-  const out: Token[] = [];
-  const token = /'(?:''|[^'])*'|"(?:""|[^"])*"|`(?:``|[^`])*`|\[(?:\]\]|[^\]])*\]|--[^\n]*|\/\*[\s\S]*?\*\/|«[^»]*»|[a-z_][a-z0-9_]*|[(),.]/giu;
-  for (const match of text.matchAll(token)) {
-    const word = match[0].toLowerCase();
-    const quotedIdentifier = /^["`[]/u.test(word);
-    const stringLiteral = word.startsWith("'");
-    if (/^[a-z_(.),]/u.test(word) || quotedIdentifier || stringLiteral) {
-      out.push({ word, start: match.index, end: match.index + word.length, quotedIdentifier, stringLiteral });
-    }
-  }
-  return out;
+  return readSqliteLexical(text).tokens.flatMap((token) =>
+    token.kind === "word" || token.kind === "quoted-identifier" || token.kind === "string" || "(),.".includes(token.text)
+      ? [
+          {
+            word: token.text.toLowerCase(),
+            start: token.start,
+            end: token.end,
+            quotedIdentifier: token.kind === "quoted-identifier",
+            stringLiteral: token.kind === "string",
+          },
+        ]
+      : [],
+  );
 }
 
 function relationIdentifier(token: Token | undefined): string | undefined {

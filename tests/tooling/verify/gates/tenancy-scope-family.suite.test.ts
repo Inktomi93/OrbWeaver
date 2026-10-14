@@ -7,11 +7,14 @@ import { gate as ownerScopedUpserts } from "../../../../tooling/src/verify/gates
 import { gate as ownerScopedWrites } from "../../../../tooling/src/verify/gates/owner-scoped-writes.ts";
 import { gate as tableScopingClass } from "../../../../tooling/src/verify/gates/table-scoping-class.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { TABLE_SCOPING_ROWS, tableScopingClasses } from "../../../../tooling/src/verify/lib/tenancy-scope.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
-test("owner-scoped-reads preserves every declared owned-scope and every-owner authority proof", () => {
+test("owner-scoped-reads preserves every declared owned-scope and every-owner authority proof", {
+  timeout: policyProofRows(ownerScopedReads).length * 1000,
+}, () => {
   expect(verifyPolicyProofs([ownerScopedReads])).toEqual([]);
 });
 

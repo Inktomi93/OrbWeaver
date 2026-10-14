@@ -1,15 +1,20 @@
 // @subject tooling/src/floor/code-facts/drizzle-statement.ts
 // @subject tooling/src/verify/gates/owner-scoped-reads.ts
+// @subject tooling/src/floor/code-facts/drizzle-sql.ts
+// @subject tooling/src/floor/code-facts/drizzle-predicate.ts
+// @subject tooling/src/floor/code-facts/drizzle-predicate-argument.ts
 
 import { symlinkSync } from "node:fs";
 import { join } from "node:path";
+import { closeDb, createDb } from "@orb/db";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
+import { readSqlAliasStability } from "@orb/tooling/floor/code-facts/drizzle-sql";
 import { readStatementOf } from "@orb/tooling/floor/code-facts/drizzle-statement";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { CallExpression, Project, SourceFile } from "ts-morph";
@@ -37,6 +42,198 @@ const RECIPIENT_HEAD = `import { and, eq } from "drizzle-orm";
 import { personas, type Db } from "@orb/db";
 import { owned } from "./producer.js";
 `;
+
+const SCOPE_SCHEMA = `
+export const users = sqliteTable("users", { id: text("id").primaryKey() });
+export const assets = sqliteTable("assets", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull() });
+export const characters = sqliteTable("characters", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), avatarAssetId: text("avatar_asset_id").references(() => assets.id) });
+export const tags = sqliteTable("tags", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull() });
+export const characterTags = sqliteTable("character_tags", { characterId: text("character_id").references(() => characters.id), tagId: text("tag_id").references(() => tags.id) });
+export const chatParticipants = sqliteTable("chat_participants", { id: text("id").primaryKey(), chatId: text("chat_id").references(() => chats.id), userId: text("user_id").references(() => users.id), leftSeq: text("left_seq"), characterId: text("character_id").references(() => characters.id) });
+`;
+const SCOPE_HEAD = `import { and, eq, exists, inArray, isNull, or, sql } from "drizzle-orm";
+import { assets, characters, characterTags, tags, chats, chatParticipants, type Db } from "@orb/db";
+`;
+const CORRELATED_BODY = `import { alias } from "drizzle-orm/sqlite-core"; const seats = alias(chatParticipants, "seats");
+function search(db: Db) { return or(sql\`lower(\${chats.id}) like \${"needle"}\`, exists(db.select({named: sql\`1\`}).from(seats).innerJoin(characters, eq(characters.id, seats.characterId)).where(and(eq(seats.chatId, chats.id), sql\`lower(\${characters.id}) like \${"needle"}\`)))); }
+function member(db: Db, userId: string) { return and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq), search(db)); }
+export async function owned(db: Db, ownerId: string) { return await db.select().from(chats).innerJoin(chatParticipants, eq(chatParticipants.chatId, chats.id)).where(member(db, ownerId)); }`;
+const SCOPE_CASES = [
+  {
+    name: "adjacent child SQL fragments cannot compose an owner-bypassing OR",
+    body: 'export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`1 ${sql`O`}${sql`R`} ${characters.id} = ${"foreign"}`)); }',
+    tokens: ["characters"],
+  },
+  {
+    name: "literal and nested fragment boundaries cannot compose OR",
+    body: 'export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`1 O${sql`R`} ${characters.id} = ${"foreign"}`)); }',
+    tokens: ["characters"],
+  },
+  {
+    name: "native single-condition AND preserves its unparenthesized child boundary",
+    body: 'export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`1 ${and(sql`O`)}R ${characters.id} = ${"foreign"}`)); }',
+    tokens: ["characters"],
+  },
+  {
+    name: "undefined native AND arguments cannot create synthetic parentheses",
+    body: 'export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`1 ${and(sql`O`, undefined)}R ${characters.id} = ${"foreign"}`)); }',
+    tokens: ["characters"],
+  },
+  {
+    name: "nested fragments can compose safe parentheses without being individually balanced",
+    body: 'export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`${sql`(`}1 ${sql`O`}${sql`R`} ${characters.id} = ${"foreign"}${sql`)`}`)); }',
+    tokens: [],
+  },
+  {
+    name: "primitive string interpolations remain parameters rather than textual SQL chunks",
+    body: 'export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`${"O"}${"R"} = ${"OR"}`)); }',
+    tokens: [],
+  },
+  {
+    name: "SQL fragments cannot compose a numeric-adjacent line comment",
+    body: "export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`1${sql`-`}${sql`- note`}`)); }",
+    tokens: ["characters"],
+  },
+  {
+    name: "stable nested SQL aliases preserve complete lexical composition",
+    body: 'export async function owned(db: Db, ownerId: string) { const narrow = sql`(${characters.id} = ${"first"} OR ${characters.id} = ${"foreign"})`; return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`${narrow}`)); }',
+    tokens: [],
+  },
+  {
+    name: "owned helper and opaque keyset retain avatar FK ancestry",
+    body: `function owner(ownerId: string) { return and(eq(characters.ownerId, ownerId), sql\`lower(\${characters.id}) like \${ownerId}\`); }
+export async function owned(db: Db, ownerId: string, cursor?: string) { const scope = owner(ownerId); const page = cursor === undefined ? scope : and(scope, sql\`(\${characters.id} > \${cursor})\`); return await db.select().from(characters).leftJoin(assets, eq(characters.avatarAssetId, assets.id)).where(page); }`,
+    tokens: [],
+  },
+  {
+    name: "junction other parent is pinned through an owned helper",
+    body: `function owner(ownerId: string) { return and(eq(characters.ownerId, ownerId), sql\`lower(\${characters.id}) like \${ownerId}\`); }
+export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).innerJoin(characterTags, eq(characterTags.characterId, characters.id)).innerJoin(tags, eq(characterTags.tagId, tags.id)).where(owner(ownerId)); }`,
+    tokens: [],
+  },
+  {
+    name: "hoisted native owner subselect retains its actual pinned membership source",
+    body: `export async function owned(db: Db, ownerId: string) { const owners = db.select({userId: chatParticipants.userId}).from(chatParticipants).where(eq(chatParticipants.chatId, ownerId)); return await db.select().from(characters).where(and(eq(characters.id, "control"), inArray(characters.ownerId, owners))); }`,
+    tokens: [],
+  },
+  {
+    name: "changed native owner subselect cannot retain its original membership pin",
+    escapes: true,
+    body: `export async function owned(db: Db, ownerId: string) { const owners = db.select({userId: chatParticipants.userId}).from(chatParticipants).where(eq(chatParticipants.chatId, ownerId)).$dynamic(); owners.where(eq(chatParticipants.userId, ownerId)); return await db.select().from(characters).where(and(eq(characters.id, "control"), inArray(characters.ownerId, owners))); }`,
+    tokens: ["characters"],
+  },
+  {
+    name: "escaped native owner subselect cannot borrow its original membership pin",
+    escapes: true,
+    body: `declare function opaque(q: object): void; export async function owned(db: Db, ownerId: string) { const owners = db.select({userId: chatParticipants.userId}).from(chatParticipants).where(eq(chatParticipants.chatId, ownerId)).$dynamic(); opaque(owners); return await db.select().from(characters).where(and(eq(characters.id, "control"), inArray(characters.ownerId, owners))); }`,
+    tokens: ["characters"],
+  },
+  {
+    name: "correlated character EXISTS inherits the outer current member room",
+    body: CORRELATED_BODY,
+    tokens: [],
+  },
+  {
+    name: "one unpinned consumer refuses the correlated helper",
+    body: `${CORRELATED_BODY} export async function unsafe(db: Db) { return await db.select().from(chats).where(search(db)); }`,
+    tokens: ["characters"],
+  },
+  {
+    name: "an escaping predicate helper refuses correlation",
+    body: `${CORRELATED_BODY} export function expose() { return search; }`,
+    tokens: ["characters"],
+  },
+  {
+    name: "departed memberships cannot pin the correlated room",
+    body: CORRELATED_BODY.replace("isNull(chatParticipants.leftSeq),", ""),
+    tokens: ["characters"],
+  },
+  {
+    name: "native OR requires current membership on every arm",
+    body: CORRELATED_BODY.replace(
+      "return and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq), search(db));",
+      "return or(and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq), search(db)), sql`1`);",
+    ),
+    tokens: ["characters"],
+  },
+  {
+    name: "missing correlation cannot borrow an outer membership pin",
+    body: CORRELATED_BODY.replace("eq(seats.chatId, chats.id),", ""),
+    tokens: ["characters"],
+  },
+  {
+    name: "raw JOIN OR cannot borrow a readable FK branch",
+    body: `export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).leftJoin(assets, sql\`\${assets.id} = \${characters.avatarAssetId} OR \${assets.id} = \${"foreign"}\`).where(eq(characters.ownerId, ownerId)); }`,
+    tokens: ["assets"],
+  },
+  {
+    name: "native JOIN OR requires the declared FK in every arm",
+    body: `export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).leftJoin(assets, or(eq(assets.id, characters.avatarAssetId), eq(assets.id, "foreign"))).where(eq(characters.ownerId, ownerId)); }`,
+    tokens: ["assets"],
+  },
+  {
+    name: "spread native OR cannot turn one owner arm into AND authority",
+    body: "export async function owned(db: Db, ownerId: string) { const conds = [eq(characters.ownerId, ownerId), eq(characters.id, ownerId)]; return await db.select().from(characters).where(or(...conds)); }",
+    tokens: ["characters"],
+  },
+  {
+    name: "immutable conditions with narrowing pushes retain avatar FK ancestry",
+    body: "export async function owned(db: Db, ownerId: string, cursor?: string) { const conds = [eq(characters.ownerId, ownerId)]; if (cursor !== undefined) conds.push(sql`lower(${characters.id}) like ${cursor}`); const scope = and(...conds); const page = cursor === undefined ? scope : and(scope, sql`(${characters.id} > ${cursor})`); return await db.select().from(characters).leftJoin(assets, eq(assets.id, characters.avatarAssetId)).where(page); }",
+    tokens: [],
+  },
+  {
+    name: "raw OR cannot bypass a mandatory owner conjunct",
+    body: `export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql\`\${characters.id} = \${"first"} OR \${characters.id} = \${"foreign"}\`)); }`,
+    tokens: ["characters"],
+  },
+  {
+    name: "SQL append cannot retain a const fragment's original containment",
+    body: `export async function owned(db: Db, ownerId: string) { const cond = sql\`\${characters.id} = \${"first"}\`; cond.append(sql\` OR \${characters.id} = \${"foreign"}\`); return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), cond)); }`,
+    tokens: ["characters"],
+  },
+  {
+    name: "a driver string containing OR stays a parameter rather than SQL syntax",
+    body: `export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).leftJoin(assets, eq(assets.id, characters.avatarAssetId)).where(and(eq(characters.ownerId, ownerId), sql\`lower(\${characters.id}) like \${"OR ) --"}\`)); }`,
+    tokens: [],
+  },
+  {
+    name: "an unknown SQLWrapper interpolation cannot borrow column containment",
+    body: "const wrapper = { getSQL() { return sql`1 OR 1`; } }; export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), sql`${wrapper}`)); }",
+    tokens: ["characters"],
+  },
+  {
+    name: "an unknown SQL projection refuses correlated EXISTS containment",
+    body: `declare function opaque(): ReturnType<typeof eq>; ${CORRELATED_BODY.replace("named: sql`1`", "named: opaque()")}`,
+    tokens: ["characters"],
+  },
+  {
+    name: "same-spelled distinct SQL aliases cannot pin an inherited avatar",
+    body: `import { alias } from "drizzle-orm/sqlite-core"; const anchored = alias(characters, "a"); function owner(ownerId: string) { const anchored = alias(characters, "b"); return and(eq(anchored.ownerId, ownerId), sql\`lower(\${anchored.id}) like \${ownerId}\`); } export async function owned(db: Db, ownerId: string) { return await db.select().from(anchored).leftJoin(assets, eq(assets.id, anchored.avatarAssetId)).where(owner(ownerId)); }`,
+    tokens: ["anchored", "assets"],
+  },
+  {
+    name: "conditional owner push is not a mandatory condition",
+    body: "export async function owned(db: Db, ownerId: string, flag: boolean) { const conds = [eq(characters.id, ownerId)]; if (flag) conds.push(eq(characters.ownerId, ownerId)); return await db.select().from(characters).where(and(...conds)); }",
+    tokens: ["characters"],
+  },
+  {
+    name: "mutating conditions cannot retain an initial owner predicate",
+    body: "export async function owned(db: Db, ownerId: string) { const conds = [eq(characters.ownerId, ownerId)]; conds.splice(0, 1, eq(characters.id, ownerId)); return await db.select().from(characters).where(and(...conds)); }",
+    tokens: ["characters"],
+  },
+  {
+    name: "escaping conditions cannot retain an initial owner predicate",
+    body: `function replace(conds: ReturnType<typeof eq>[], id: string) { conds.splice(0, 1, eq(characters.id, id)); }
+export async function owned(db: Db, ownerId: string) { const conds = [eq(characters.ownerId, ownerId)]; replace(conds, ownerId); return await db.select().from(characters).where(and(...conds)); }`,
+    tokens: ["characters"],
+  },
+  {
+    name: "unresolved SQL callee cannot preserve owner AND authority",
+    body: `declare function opaque(): ReturnType<typeof eq>;
+export async function owned(db: Db, ownerId: string) { return await db.select().from(characters).where(and(eq(characters.ownerId, ownerId), opaque())); }`,
+    tokens: ["characters"],
+  },
+] as const;
 
 const CASES = [
   {
@@ -276,12 +473,12 @@ const CASES = [
     findings: 0,
   },
   {
-    name: "settled owner and opaque AND conjunct remain admitted",
+    name: "settled owner cannot authorize an unknown SQL-producing AND operand",
     producer: BUILDER.replace("import { eq }", "import { and, eq, type SQL }")
       .replace("export function owned(db: Db, ownerId: string)", "export async function owned(db: Db, ownerId: string, cond: SQL = eq(personas.id, ownerId))")
       .replace(".where(eq(personas.ownerId, ownerId))", ".where(and(eq(personas.ownerId, ownerId), cond))"),
     recipient: `${RECIPIENT_HEAD}export async function read(db: Db, ownerId: string) { return await owned(db, ownerId); }`,
-    findings: 0,
+    findings: 1,
   },
   {
     name: "review unsafe mutable caller remains unproven beside independent direct safe caller",
@@ -337,7 +534,7 @@ async function nativeFixture(
       },
     }),
     [CONFIG]: '{"extends":"../../tsconfig.base.json","include":["src/**/*.ts"]}',
-    "packages/db/src/schema/persona.ts": `${SCHEMA}export const characters = sqliteTable("characters", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull() }); export const chats = sqliteTable("chats", {id: text("id").primaryKey(), anchorPersonaId: text("anchor_persona_id").references(() => personas.id)});`,
+    "packages/db/src/schema/persona.ts": `${SCHEMA}export const chats = sqliteTable("chats", {id: text("id").primaryKey(), anchorPersonaId: text("anchor_persona_id").references(() => personas.id)});${SCOPE_SCHEMA}`,
     "packages/db/src/index.ts": DATABASE,
     [PRODUCER]: scenario.producer,
     [RECIPIENT]: scenario.recipient,
@@ -372,6 +569,45 @@ function statementObservations(root: string, project: Project): ReturnType<typeo
   return observeCallReturns(nodes.filter(Node.isCallExpression), nodes);
 }
 
+const SQL_STABILITY_CASES = [
+  { name: "immutable containing template", body: "const holder = sql`${child}`;", stable: true },
+  { name: "immutable containing native operator", body: "const holder = and(child)!;", stable: true },
+  {
+    name: "immutable template operator and ordinary alias chain",
+    body: "const template = sql`${child}`; const operator = and(template)!; const holder = operator;",
+    stable: true,
+  },
+  { name: "containing template escape", body: "const holder = sql`${child}`; opaque(holder);", stable: false },
+  { name: "containing template append", body: "const holder = sql`${child}`; holder.append(sql`2`);", stable: false },
+  { name: "containing template mutable chunk access", body: "const holder = sql`${child}`; holder.queryChunks.pop();", stable: false },
+  { name: "containing native operator escape", body: "const holder = and(child)!; opaque(holder);", stable: false },
+  { name: "containing native operator append", body: "const holder = and(child)!; holder.append(sql`2`);", stable: false },
+  {
+    name: "mixed containing chain escape",
+    body: "const template = sql`${child}`; const operator = and(template)!; const holder = operator; opaque(holder);",
+    stable: false,
+  },
+  { name: "unprovable containing return", body: "const holder = sql`${child}`;", stable: false, returned: true },
+  { name: "erased containing template escape", body: "const holder: object = sql`${child}`; opaqueObject(holder);", stable: false, erased: true },
+  { name: "erased containing operator escape", body: "const holder: object = and(child)!; opaqueObject(holder);", stable: false, erased: true },
+] as const;
+
+for (const scenario of SQL_STABILITY_CASES) {
+  test(`native SQL alias stability: ${scenario.name}`, async ({ plantedTree, repoRoot }) => {
+    const sink = "returned" in scenario ? "return holder;" : "db.select().from(personas).where(holder);";
+    const finalUse = "erased" in scenario ? "" : sink;
+    const producer =
+      BUILDER.replace("import { eq }", "import { and, eq, sql, type SQL }") +
+      `declare function opaque(value: SQL): void; declare function opaqueObject(value: object): void; export function fragments(db: Db) { const child = sql\`1\`; ${scenario.body} db.select().from(personas).where(child); ${finalUse} }`;
+    const fixture = await nativeFixture({ plantedTree, repoRoot }, { producer, recipient: "" });
+    const child = fixture.source.getDescendantsOfKind(SyntaxKind.VariableDeclaration).find((declaration) => declaration.getName() === "child");
+    if (child === undefined) {
+      throw new Error("the genuine numeric SQL child must exist");
+    }
+    expect(readSqlAliasStability(child.getNameNode())).toBe(scenario.stable);
+  });
+}
+
 for (const scenario of CASES) {
   test(`native Drizzle statement: ${scenario.name}`, async ({ plantedTree, repoRoot }) => {
     const { root, project, anchor } = await nativeFixture({ plantedTree, repoRoot }, scenario);
@@ -386,6 +622,27 @@ for (const scenario of CASES) {
     expect(result.authority.effectiveFindings.map(({ file, token }) => ({ file, token }))).toEqual(
       scenario.findings === 0 ? [] : [{ file: PRODUCER, token: "token" in scenario ? scenario.token : "personas" }],
     );
+  });
+}
+
+for (const scenario of SCOPE_CASES) {
+  test(`native tenancy facts: ${scenario.name}`, async ({ plantedTree, repoRoot }) => {
+    const fixture = await nativeFixture({ plantedTree, repoRoot }, { producer: SCOPE_HEAD + scenario.body, recipient: "" });
+    const statement = readStatementOf(fixture.anchor, statementObservations(fixture.root, fixture.project));
+    expect(statement.refusals).toEqual([]);
+    expect(statement.escapes).toBe("escapes" in scenario ? scenario.escapes : false);
+    const result = runPolicyPass({
+      knownPolicies: [gate],
+      policies: [gate],
+      root: fixture.root,
+      project: fixture.project,
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.policies[0]?.owner.status).toBe("success");
+    expect(result.authority.authorityAlarms).toEqual([]);
+    expect(result.authority.effectiveFindings.map(({ token }) => token)).toEqual(scenario.tokens);
   });
 }
 
@@ -445,4 +702,57 @@ test("installed Drizzle dynamic WHERE replaces its owner filter rather than comb
     .where(and(eq(personas.id, "id-control"), eq(personas.ownerId, "owner-control")));
   expect(scoped.toSQL().sql).toContain('"personas"."owner_id"');
   expect(scoped.toSQL().params).toEqual(["id-control", "owner-control"]);
+});
+
+test("installed Drizzle raw OR can escape a sibling owner predicate", () => {
+  const personas = sqliteTable("personas", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull() });
+  const db = drizzle.mock({ schema: { personas } });
+  const unsafe = db
+    .select()
+    .from(personas)
+    .where(and(eq(personas.ownerId, "owner-control"), sql`${personas.id} = ${"first"} OR ${personas.id} = ${"foreign"}`));
+  expect(unsafe.toSQL()).toMatchObject({
+    sql: 'select "id", "owner_id" from "personas" where ("personas"."owner_id" = ? and "personas"."id" = ? OR "personas"."id" = ?)',
+    params: ["owner-control", "first", "foreign"],
+  });
+  const narrowed = db
+    .select()
+    .from(personas)
+    .where(and(eq(personas.ownerId, "owner-control"), sql`(${personas.id} = ${"first"} OR ${personas.id} = ${"foreign"})`));
+  expect(narrowed.toSQL().sql).toBe(
+    'select "id", "owner_id" from "personas" where ("personas"."owner_id" = ? and ("personas"."id" = ? OR "personas"."id" = ?))',
+  );
+});
+
+test("installed libSQL returns foreign bytes for split SQL OR but not its parenthesized control", async () => {
+  const rows = sqliteTable("owner_containment_rows", { id: text("id").primaryKey(), ownerId: text("owner_id").notNull() });
+  const db = await createDb(":memory:");
+  try {
+    await db.run(sql`CREATE TABLE owner_containment_rows (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL)`);
+    await db.insert(rows).values([
+      { id: "own", ownerId: "alice" },
+      { id: "foreign", ownerId: "bob" },
+    ]);
+    const split = db
+      .select()
+      .from(rows)
+      .where(and(eq(rows.ownerId, "alice"), sql`1 ${sql`O`}${sql`R`} ${rows.id} = ${"foreign"}`));
+    const direct = db
+      .select()
+      .from(rows)
+      .where(and(eq(rows.ownerId, "alice"), sql`1 OR ${rows.id} = ${"foreign"}`));
+    const narrow = db
+      .select()
+      .from(rows)
+      .where(and(eq(rows.ownerId, "alice"), sql`(${sql`1 O`}${sql`R`} ${rows.id} = ${"foreign"})`));
+    expect(split.toSQL()).toEqual(direct.toSQL());
+    expect(await split).toEqual([
+      { id: "own", ownerId: "alice" },
+      { id: "foreign", ownerId: "bob" },
+    ]);
+    expect(await direct).toEqual(await split);
+    expect(await narrow).toEqual([{ id: "own", ownerId: "alice" }]);
+  } finally {
+    closeDb(db);
+  }
 });

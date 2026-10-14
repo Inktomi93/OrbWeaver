@@ -1,0 +1,105 @@
+// @subject tooling/src/verify/ops/policy-conformance.ts
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { resolveTypeIdentityChain } from "@orb/tooling/floor/code-facts/type-member-origin";
+import type { Project } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import { gate } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
+import { readDrizzleClientCall } from "../../../../tooling/src/verify/lib/drizzle-client-call.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+
+const QUERY = "packages/server/src/domain/character/persistence/queries.ts";
+const SCHEMA = {
+  "packages/db/src/schema/character.ts":
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const characters = sqliteTable("characters", {id: text("id").primaryKey(), ownerId: text("owner_id").notNull()});',
+};
+const HEAD = 'import { and, eq } from "drizzle-orm"; import { characters } from "@orb/db";';
+const INITIAL_SCHEMA = {
+  "packages/db/src/schema/character.ts": SCHEMA["packages/db/src/schema/character.ts"].replace(
+    'ownerId: text("owner_id").notNull()',
+    'ownerId: text("owner_id").notNull(), retired: text("retired")',
+  ),
+};
+
+test("the canonical types fixture binds actual schema/client origins without a production Db alias", () => {
+  let observed = 0;
+  let priorDbDeclaration: object | undefined;
+  const aliases: { readonly project: Project; readonly path: string }[] = [];
+  const checked = defineGate({
+    ...gate,
+    create: (context: Parameters<typeof gate.create>[0]) => {
+      const implementation = gate.create(context);
+      return {
+        ...implementation,
+        evaluate: () => {
+          const source = context.sourceFile(QUERY);
+          const project = source.getProject();
+          expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+          const column = source.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression).find((node) => node.getText() === "characters.ownerId");
+          const from = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((node) => node.getExpression().getText().endsWith(".from"));
+          if (column === undefined || from === undefined) {
+            throw new Error("the real owned-column and read anchor must exist");
+          }
+          const identity = resolveTypeIdentityChain(column);
+          expect(column.getType().isAny()).toBe(false);
+          expect(
+            identity.kind === "resolved" &&
+              identity.value.some(
+                (origin) =>
+                  origin.name === "SQLiteColumn" &&
+                  origin.declarations.every((declaration) => declaration.getSourceFile().getFilePath().includes("/drizzle-orm/")),
+              ),
+          ).toBe(true);
+          expect(readDrizzleClientCall(from).kind).toBe("drizzle");
+          const table = source.getImportDeclarationOrThrow("@orb/db").getNamedImports()[0];
+          expect(table?.getType().getProperty("retired") !== undefined).toBe(observed === 0);
+          const db = source.getDescendantsOfKind(SyntaxKind.Identifier).find((node) => node.getText() === "Db");
+          const declarations = db?.getSymbol()?.getDeclarations() ?? [];
+          expect(declarations).toHaveLength(1);
+          const dbDeclaration = declarations[0];
+          if (dbDeclaration === undefined) {
+            throw new Error("the fixture Db alias must be declared");
+          }
+          expect(dbDeclaration.compilerNode).not.toBe(priorDbDeclaration);
+          priorDbDeclaration = dbDeclaration.compilerNode;
+          aliases.push({ project, path: dbDeclaration.getSourceFile().getFilePath() });
+          expect(
+            declarations.every(
+              (declaration) =>
+                declaration.getSourceFile().getFilePath().startsWith(source.getFilePath().slice(0, -QUERY.length)) &&
+                !declaration.getSourceFile().getFilePath().includes("/packages/"),
+            ),
+          ).toBe(true);
+          observed += 1;
+          implementation.evaluate();
+        },
+      };
+    },
+    mustFlag: [
+      {
+        mode: "types" as const,
+        files: {
+          ...INITIAL_SCHEMA,
+          [QUERY]: `${HEAD} export async function read(db: Db, id: string, ownerId: string) { return await db.select({ownerId: characters.ownerId}).from(characters).where(eq(characters.id, id)); }`,
+        },
+        expect: { count: 1, messageIncludes: "by-id READ" },
+        why: "a genuine native by-id query still needs its owner",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "types" as const,
+        files: {
+          ...SCHEMA,
+          [QUERY]: `${HEAD} export async function read(db: Db, id: string, ownerId: string) { return await db.select({ownerId: characters.ownerId}).from(characters).where(and(eq(characters.id, id), eq(characters.ownerId, ownerId))); }`,
+        },
+        why: "a genuine native owner predicate admits the exact owned query",
+      },
+    ],
+  });
+  expect(verifyPolicyProofs([checked])).toEqual([]);
+  expect(observed).toBe(2);
+  for (const { project, path } of aliases) {
+    expect(project.getSourceFile(path)).toBeUndefined();
+  }
+});

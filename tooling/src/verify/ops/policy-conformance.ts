@@ -6,7 +6,7 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SourceFile } from "ts-morph";
-import { Project } from "ts-morph";
+import { Project, ts } from "ts-morph";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation, GatePolicyProofGrant } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
@@ -157,6 +157,48 @@ function* runVirtualExample({ policy, proof, shared, sequence, grantSets = NO_GR
   }
 }
 
+/** Type rows bind real installed packages. Authored files remain unsaved Project inputs, not tree plants. */
+function* runTypeExample({ policy, proof, sequence, grantSets = NO_GRANTS }: ExampleInput): Generator<ExampleRun, void> {
+  const root = join(ROOT, `.orb-policy-types-${String(process.pid)}-${String(sequence)}`);
+  const schemaPaths = Object.keys(proof.files).filter((path) => path.startsWith("packages/db/src/schema/") && path.endsWith(".ts") && !path.endsWith(".d.ts"));
+  const dbIndex = "packages/db/src/index.ts";
+  const project = new Project({
+    skipAddingFilesFromTsConfig: true,
+    compilerOptions: {
+      strict: true,
+      skipLibCheck: true,
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      ...(schemaPaths.length === 0 ? {} : { paths: { "@orb/db": [join(root, dbIndex)] } }),
+    },
+  });
+  try {
+    for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {
+      project.createSourceFile(join(root, path), content);
+    }
+    if (schemaPaths.length > 0) {
+      if (!(dbIndex in proof.files)) {
+        const modules = schemaPaths.map((path) => `./${path.slice("packages/db/src/".length).replace(/\.ts$/u, ".js")}`);
+        const bindings = modules
+          .map((path, index) => `export * from ${JSON.stringify(path)}; import * as schema${String(index)} from ${JSON.stringify(path)};`)
+          .join("\n");
+        project.createSourceFile(
+          join(root, dbIndex),
+          `${bindings}\nimport type { LibSQLDatabase } from "drizzle-orm/libsql";\nexport type Db = LibSQLDatabase<${modules.map((_, index) => `typeof schema${String(index)}`).join(" & ")}>;\n`,
+        );
+      }
+      // Older signatures use bare Db. This aliases the actual fixture client, never a fabricated query shape.
+      project.createSourceFile(join(root, "fixture-db-alias.d.ts"), 'type Db = import("@orb/db").Db;\n');
+    }
+    yield* runPasses({ policy, root, project }, grantSets);
+  } catch (error) {
+    yield { thrown: messageOf(error), root };
+  } finally {
+    removeSources(project);
+  }
+}
+
 function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<ExampleInput, "shared" | "sequence">): Generator<ExampleRun, void> {
   const root = mkdtempSync(join(tmpdir(), POLICY_CONFORMANCE_TEMP_PREFIX));
   // @orb-waive caught-failure-ownership(error): proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status
@@ -216,7 +258,10 @@ function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<Exam
  *  baseline expectation failure, without executing an identity pass whose baseline did not hold. */
 function runExample(input: ExampleInput): Generator<ExampleRun, void> {
   const { policy, proof, grantSets } = input;
-  return proof.mode === "resource" ? runResourceExample({ policy, proof, ...(grantSets === undefined ? {} : { grantSets }) }) : runVirtualExample(input);
+  if (proof.mode === "resource") {
+    return runResourceExample({ policy, proof, ...(grantSets === undefined ? {} : { grantSets }) });
+  }
+  return proof.mode === "types" ? runTypeExample(input) : runVirtualExample(input);
 }
 
 function proofIdentities(proof: GatePolicyProof): ReadonlySet<string> {
