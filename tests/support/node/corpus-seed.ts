@@ -20,6 +20,17 @@ import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
+import type { AutomationRuleRow } from "./factories/automation.ts";
+import {
+  captureAutomationExecution,
+  captureAutomationRule,
+  captureGlobalVariable,
+  seedAutomationOwnerBudget,
+  seedAutomationRule,
+  seedAutomationRun,
+  seedAutomationTestFires,
+  seedGlobalVariable,
+} from "./factories/automation.ts";
 import { seedCharacterPersona, seedCharacterSnapshot } from "./factories/character.ts";
 import type { UserConnectionRow } from "./factories/connection.ts";
 import { seedConnectionBinding, seedUserConnection } from "./factories/connection.ts";
@@ -43,6 +54,9 @@ import {
   seedWorldEntry,
 } from "./factories/world-info.ts";
 import type { createServerHarness } from "./server.ts";
+
+export type { SeededOidcCorpus } from "./corpus-oidc.ts";
+export { seedOidcCorpus } from "./corpus-oidc.ts";
 
 type ServerHarness = Awaited<ReturnType<typeof createServerHarness>>;
 type CorpusCaller = Awaited<ReturnType<ServerHarness["internalCallerFor"]>>;
@@ -135,6 +149,114 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     world: await seedWorldBookTag(root.db, root.services.tag.attachTag, { principal, worldBookId: book.id, tagId: tag.id }),
   };
   return { character, persona, preset, room, snapshot, characterPersona, asset, gallery, world, document, documents, tag, tags };
+}
+
+const AUTOMATION_GATE_KEY = "corpusAssetAutomationEnabled";
+const AUTOMATION_COUNTER_KEY = "corpusAssetEvents";
+const AUTOMATION_OWNER_CAP = 2;
+
+export interface SeededCorpusAutomation {
+  readonly budget: Awaited<ReturnType<typeof seedAutomationOwnerBudget>>;
+  readonly globalRule: AutomationRuleRow;
+  readonly dry: Awaited<ReturnType<typeof seedAutomationTestFires>>;
+  readonly firstMiss: Awaited<ReturnType<typeof captureAutomationCounter>>;
+  readonly firstHit: Awaited<ReturnType<typeof captureAutomationCounter>>;
+  readonly secondMiss: Awaited<ReturnType<typeof captureAutomationCounter>>;
+  readonly secondHit: Awaited<ReturnType<typeof captureAutomationCounter>>;
+  readonly rateLimited: Awaited<ReturnType<typeof captureAutomationCounter>>;
+  readonly manual: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly completed: Awaited<ReturnType<typeof captureAutomationCounter>>;
+  readonly analysisRule: AutomationRuleRow;
+  readonly analysis: Awaited<ReturnType<typeof seedAutomationRun>>;
+}
+
+async function captureAutomationCounter(
+  root: ServerHarness,
+  ruleId: AutomationRuleRow["id"],
+): Promise<{
+  readonly execution: Awaited<ReturnType<typeof captureAutomationExecution>>;
+  readonly variable: NonNullable<Awaited<ReturnType<typeof captureGlobalVariable>>>;
+}> {
+  const [execution, variable] = await Promise.all([
+    captureAutomationExecution(root.db, ruleId),
+    captureGlobalVariable(root.db, root.ownerId, AUTOMATION_COUNTER_KEY),
+  ]);
+  if (variable === undefined) {
+    throw new Error("actual corpus automation counter has no canonical owner/key row");
+  }
+  return { execution, variable };
+}
+
+/** Drive actual watched asset events, manual consent and a hosted analysis pass; private state never becomes portable wire. */
+export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId): Promise<SeededCorpusAutomation> {
+  const principal = await root.principalFor(root.ownerId);
+  const automation = root.services.automation;
+  const budget = await seedAutomationOwnerBudget(root.db, automation.setOwnerBudgets, { principal, maxFiresPerHour: AUTOMATION_OWNER_CAP });
+  await seedGlobalVariable(root.db, automation.setGlobalVariable, { principal, key: AUTOMATION_COUNTER_KEY, value: "0" });
+  const gate = { principal, key: AUTOMATION_GATE_KEY };
+  await seedGlobalVariable(root.db, automation.setGlobalVariable, { ...gate, value: "no" });
+  const globalRule = await seedAutomationRule(root.db, automation.createRule, {
+    principal,
+    chatId: null,
+    name: "Corpus owned asset counter",
+    trigger: { bus: "domain", type: "asset.created" },
+    predicateCel: `has(global.${AUTOMATION_GATE_KEY}) && global.${AUTOMATION_GATE_KEY} == "yes"`,
+    timeZone: UTC_TIME_ZONE,
+    actions: [{ type: "set_variable", scope: "global", key: AUTOMATION_COUNTER_KEY, op: "inc" }],
+  });
+  const params = { principal, ruleId: globalRule.id };
+  const dry = await seedAutomationTestFires(root.db, automation.testRule, params);
+  await automation.setRuleEnabled({ ...params, enabled: true });
+  const watchedAsset = async (): Promise<Awaited<ReturnType<typeof captureAutomationCounter>>> => {
+    await root.app.assets.store({ principal, kind: "gallery", mime: "image/png", bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)) });
+    await root.settleBackground();
+    return captureAutomationCounter(root, globalRule.id);
+  };
+  const firstMiss = await watchedAsset();
+  await automation.setGlobalVariable({ ...gate, value: "yes" });
+  const firstHit = await watchedAsset();
+  await automation.setGlobalVariable({ ...gate, value: "no" });
+  const secondMiss = await watchedAsset();
+  await automation.setGlobalVariable({ ...gate, value: "yes" });
+  const secondHit = await watchedAsset();
+  const rateLimited = await watchedAsset();
+  const manual = await seedAutomationRun(root.db, automation.runRuleNow, params);
+  const completed = await captureAutomationCounter(root, globalRule.id);
+
+  await root.services.chat.commitMessage({ principal, chatId, content: "The keeper preserves the completed orbital ledger." });
+  const analysisRule = await seedAutomationRule(root.db, automation.createRule, {
+    principal,
+    chatId,
+    name: "Corpus private ledger direction",
+    trigger: { bus: "chat", type: "messageCommitted" },
+    predicateCel: "false",
+    timeZone: UTC_TIME_ZONE,
+    actions: [{ type: "run_analysis", brief: "Preserve the orbital ledger's direction.", routes: { steer: { apply: "direct" } } }],
+  });
+  await automation.setRuleEnabled({ principal, ruleId: analysisRule.id, enabled: true });
+  const analysis = await seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: analysisRule.id });
+  if (analysis.result.outcome !== "fired" || analysis.state === undefined) {
+    throw new Error("actual corpus analysis produced no completed private state", { cause: analysis.result });
+  }
+  const storedGlobal = await captureAutomationRule(root.db, globalRule.id);
+  const storedAnalysis = await captureAutomationRule(root.db, analysisRule.id);
+  if (storedGlobal === undefined || storedAnalysis === undefined) {
+    throw new Error("actual corpus automation rule vanished before capture");
+  }
+  return {
+    budget,
+    globalRule: storedGlobal,
+    dry,
+    firstMiss,
+    firstHit,
+    secondMiss,
+    secondHit,
+    rateLimited,
+    manual,
+    completed,
+    analysisRule: storedAnalysis,
+    analysis,
+  };
 }
 
 const RECALL_INTENT = { maxContextTokens: 2048, maxOutputTokens: 64 };
@@ -305,6 +427,7 @@ export async function captureCorpusReads(root: ServerHarness, identities: Corpus
     "worldInfo.countBooks": [{ input: absentInput, output: await caller.worldInfo.countBooks(absentInput) }],
     "regex.countScripts": [{ input: absentInput, output: await caller.regex.countScripts(absentInput) }],
     "rosterPreset.count": [{ input: absentInput, output: await caller.rosterPreset.count(absentInput) }],
+    "automation.getOwnerBudgets": [{ input: absentInput, output: await caller.automation.getOwnerBudgets(absentInput) }],
   };
 }
 

@@ -7,6 +7,7 @@ import process from "node:process";
 import type { MessagePort } from "node:worker_threads";
 import { parentPort, workerData } from "node:worker_threads";
 import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, PluginInvokeArgs } from "@orb/contracts/plugin";
+import { z } from "zod";
 import { createRemoteBridge, createRemoteNetEgress } from "./bridge-rpc.ts";
 import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
 import type { CreateInstanceInputIn } from "./contract/port.ts";
@@ -169,6 +170,13 @@ function callAsync(operation: PluginBridgeOperation, args: readonly unknown[], l
   });
 }
 
+const syncReplySchema = z.discriminatedUnion("ok", [
+  z.object({ ok: z.literal(true), value: z.unknown() }),
+  z.object({ ok: z.literal(false), error: z.object({ name: z.string(), message: z.string() }) }),
+]);
+const syncNumberSchema = z.number();
+const syncStringSchema = z.string();
+
 function callSync(operation: PluginSyncOperation, args: readonly unknown[]): unknown {
   const authorityId = commandAuthority.getStore();
   if (authorityId === undefined) {
@@ -187,11 +195,7 @@ function callSync(operation: PluginSyncOperation, args: readonly unknown[]): unk
     throw new Error(`plugin broker: invalid synchronous ${operation} response`);
   }
   const text = new TextDecoder().decode(new Uint8Array(resultBuffer, 0, length));
-  const response = decodeProcessValue(JSON.parse(text)) as {
-    readonly ok: boolean;
-    readonly value?: unknown;
-    readonly error?: { readonly name: string; readonly message: string };
-  };
+  const response = syncReplySchema.parse(decodeProcessValue(JSON.parse(text)));
   if (!response.ok) {
     throw fromRpcError(response.error, `plugin broker: synchronous ${operation} failed`);
   }
@@ -200,9 +204,9 @@ function callSync(operation: PluginSyncOperation, args: readonly unknown[]): unk
 
 const bridge = createRemoteBridge(callAsync);
 const host = createLocalPluginHost({
-  nowEpochMs: () => callSync("seam.nowEpochMs", []) as number,
-  nextRandom: () => callSync("seam.nextRandom", []) as number,
-  mintId: () => callSync("seam.mintId", []) as string,
+  nowEpochMs: () => syncNumberSchema.parse(callSync("seam.nowEpochMs", [])),
+  nextRandom: () => syncNumberSchema.parse(callSync("seam.nextRandom", [])),
+  mintId: () => syncStringSchema.parse(callSync("seam.mintId", [])),
   mirrorLog: (label, level, message) => post({ kind: "log", label, level, message }),
   netEgress: createRemoteNetEgress(callAsync),
 });
@@ -228,7 +232,7 @@ async function run(message: Extract<BrokerWorkerMessage, { readonly kind: "comma
     const input = message.value as InvokeCommandValue;
     const argsSource = input.argsJson;
     const argsJson: PluginInvokeArgs =
-      typeof argsSource === "string" ? argsSource : (chatHandle): string => callSync("invokeArgs", [argsSource.builderId, chatHandle]) as string;
+      typeof argsSource === "string" ? argsSource : (chatHandle): string => syncStringSchema.parse(callSync("invokeArgs", [argsSource.builderId, chatHandle]));
     return await host.invoke(instance, input.handler, argsJson, input.chat);
   }
   if (message.operation === "snippet") {

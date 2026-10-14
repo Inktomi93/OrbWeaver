@@ -7,13 +7,14 @@
 // The validation checklist mirrors OpenID Connect Back-Channel Logout 1.0 §2.4 (and OW oauth.py:2185-2239):
 //   1. signature verifies against the issuer JWKS with a PINNED asymmetric alg (jose also blocks alg:none);
 //   2. `iss` matches the configured issuer, `aud` contains our client_id (both enforced by jose jwtVerify);
-//   3. `iat` is present;
+//   3. `iat`, `exp` and `jti` are present; native JOSE validates the numeric dates;
 //   4. the `events` claim carries the backchannel-logout member (as an object value);
 //   5. the token carries NO `nonce` (its presence means an ID token was replayed as a logout token);
 //   6. at least one of `sub` / `sid` is present.
 
 import type { JWTPayload } from "jose";
 import { jwtVerify } from "jose";
+import { z } from "zod";
 import { securityEvent } from "#foundation/observability";
 import type { JwksReader } from "./contract.ts";
 import { jwksFor } from "./jwks.ts";
@@ -48,28 +49,28 @@ export interface BackchannelLogoutVerifier {
   readonly verify: (args: BackchannelVerifyArgs) => Promise<LogoutTokenSubject | null>;
 }
 
-/** The `events` claim carries the back-channel-logout member as an object value (OIDC BCL §2.4). */
+const backchannelEventsSchema = z.object({ [BACKCHANNEL_EVENT]: z.object({}).loose() });
+const logoutTokenIdSchema = z.string();
+const logoutSubjectSchema = z.object({ sub: z.string().optional(), sid: z.string().optional() });
+
+/** The custom event is not a standard JWT claim; JOSE verifies the token, then this schema admits its meaning. */
 function hasBackchannelEvent(payload: JWTPayload): boolean {
-  const events = payload["events"];
-  if (events === null || typeof events !== "object") {
-    return false;
-  }
-  return BACKCHANNEL_EVENT in (events as Record<string, unknown>);
+  return backchannelEventsSchema.safeParse(payload["events"]).success;
 }
 
 /** Extract sub/sid; null when NEITHER is present (§2.4 requires at least one). */
 function subjectFrom(payload: JWTPayload): LogoutTokenSubject | null {
-  const rawSid = payload["sid"];
-  const sub = typeof payload.sub === "string" && payload.sub.length > 0 ? payload.sub : null;
-  const sid = typeof rawSid === "string" && rawSid.length > 0 ? rawSid : null;
-  if (sub === null && sid === null) {
+  const parsed = logoutSubjectSchema.safeParse(payload);
+  if (!parsed.success) {
     return null;
   }
-  return { sub, sid };
+  const sub = parsed.data.sub === undefined || parsed.data.sub.length === 0 ? null : parsed.data.sub;
+  const sid = parsed.data.sid === undefined || parsed.data.sid.length === 0 ? null : parsed.data.sid;
+  return sub === null && sid === null ? null : { sub, sid };
 }
 
 /** The back-channel-logout verifier the entry route injects. Returns the validated subject, or null on ANY
- *  violation (bad signature / issuer / audience / missing iat / missing event / present nonce / no subject). */
+ *  violation (bad signature / issuer / audience / required claims / missing event / present nonce / no subject). */
 export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"] = jwksFor): BackchannelLogoutVerifier {
   return {
     verify: async ({ logoutToken, jwks, issuer, audience }: BackchannelVerifyArgs): Promise<LogoutTokenSubject | null> => {
@@ -80,12 +81,12 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
       }
       let payload: JWTPayload;
       try {
-        ({ payload } = await jwtVerify(logoutToken, keyset, { algorithms: [...PINNED_ALGS], issuer, audience }));
+        ({ payload } = await jwtVerify(logoutToken, keyset, { algorithms: [...PINNED_ALGS], issuer, audience, requiredClaims: ["iat", "exp", "jti"] }));
       } catch {
         securityEvent(
           "oidc_backchannel_logout_rejected",
           { reason: "signature" },
-          "security: OIDC back-channel logout_token failed signature / alg / issuer / audience verification — rejecting",
+          "security: OIDC back-channel logout_token failed signature / alg / issuer / audience / required-claim verification — rejecting",
         );
         return null;
       }
@@ -98,8 +99,8 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
         );
         return null;
       }
-      if (typeof payload.iat !== "number") {
-        securityEvent("oidc_backchannel_logout_rejected", { reason: "iat" }, "security: OIDC back-channel logout_token missing iat — rejecting");
+      if (!logoutTokenIdSchema.safeParse(payload.jti).success) {
+        securityEvent("oidc_backchannel_logout_rejected", { reason: "jti" }, "security: OIDC back-channel logout_token has a malformed token id — rejecting");
         return null;
       }
       if (!hasBackchannelEvent(payload)) {

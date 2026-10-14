@@ -112,29 +112,34 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
     mkdirSync(dirname(path), { recursive: true });
   }
   const base = createClient({ url, timeout: BUSY_TIMEOUT_MS, ...(path === undefined ? {} : { concurrency: LOCAL_CONNECTIONS }) });
-  const client = wrap === undefined ? base : wrap(base);
-  await client.execute("PRAGMA foreign_keys = ON");
-  const readback = await client.execute("PRAGMA foreign_keys");
-  const value = readback.rows[0]?.["foreign_keys"];
-  if (value !== FK_ENABLED) {
-    throw new Error(
-      `@orb/db: PRAGMA foreign_keys did not stick (read back ${JSON.stringify(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`,
-    );
-  }
-  for (const pragma of TUNING_PRAGMAS) {
-    await client.execute(`PRAGMA ${pragma}`);
-  }
-  // WAL is file-only; a `:memory:`/non-file db reports `memory` and that's correct, so only assert on files.
-  if (localPath(url) !== undefined) {
-    const mode = await client.execute("PRAGMA journal_mode");
-    const journalMode = mode.rows[0]?.["journal_mode"];
-    if (journalMode !== WAL) {
+  try {
+    const client = wrap === undefined ? base : wrap(base);
+    await client.execute("PRAGMA foreign_keys = ON");
+    const readback = await client.execute("PRAGMA foreign_keys");
+    const value = readback.rows[0]?.["foreign_keys"];
+    if (value !== FK_ENABLED) {
       throw new Error(
-        `@orb/db: PRAGMA journal_mode did not stick (read back ${JSON.stringify(journalMode)}, expected ${WAL}); refusing to boot — the WAL shutdown checkpoint + busy_timeout wait assume WAL on a file db.`,
+        `@orb/db: PRAGMA foreign_keys did not stick (read back ${JSON.stringify(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`,
       );
     }
+    for (const pragma of TUNING_PRAGMAS) {
+      await client.execute(`PRAGMA ${pragma}`);
+    }
+    // WAL is file-only; a `:memory:`/non-file db reports `memory` and that's correct, so only assert on files.
+    if (localPath(url) !== undefined) {
+      const mode = await client.execute("PRAGMA journal_mode");
+      const journalMode = mode.rows[0]?.["journal_mode"];
+      if (journalMode !== WAL) {
+        throw new Error(
+          `@orb/db: PRAGMA journal_mode did not stick (read back ${JSON.stringify(journalMode)}, expected ${WAL}); refusing to boot — the WAL shutdown checkpoint + busy_timeout wait assume WAL on a file db.`,
+        );
+      }
+    }
+    return drizzle(client, { schema });
+  } catch (err) {
+    base.close();
+    throw err;
   }
-  return drizzle(client, { schema });
 }
 
 /**

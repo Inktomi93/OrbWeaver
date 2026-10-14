@@ -32,7 +32,7 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 Production funding (969), identity (972), every-owner tokens (984), type homes (981) and boundary parsing (982) remain production work. Schedule their owner-specific batches after the compose and initial Drizzle work, without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
 
-Contract derivation and the listed stored-value and HTTP boundary recovery are integrated with their required native evidence. The broader wire inventory and remaining runtime qualification stay open. A completed prerequisite does not close its parent program. Complete required production fixes before dependent corpus qualification.
+Contract derivation, stored-value recovery and current wire-boundary admission are integrated with native controls and security review. Complete harness and corpus qualification stay open. A completed prerequisite does not close its parent program. Complete required production fixes before dependent corpus qualification.
 
 ### Foundation boundaries
 
@@ -124,7 +124,7 @@ The fact store is built once per world program, updated from file changes and pe
 
 ### Shared semantic inventory store
 
-The [native inventory store item](../../work/1002-persist-native-semantic-inventory-facts-and-release-world.md) owns qualification. Persisted facts live in `tooling/src/floor/code-facts/` and native worker lifecycle in `tooling/src/floor/compiler/`. Existing inventory collectors retain their judgments and query shared compiler facts. The migration is implemented; complete cold replay and memory qualification remain pending. Unported typed readers still require their native programs.
+The [native inventory store item](../../work/1002-persist-native-semantic-inventory-facts-and-release-world.md) owns qualification. Persisted facts live in `tooling/src/floor/code-facts/` and native worker lifecycle in `tooling/src/floor/compiler/`. Existing inventory collectors retain their judgments and query shared compiler facts. Consumer routing is implemented; bounded persistence and lazy readers remain necessary for complete replay. Unported typed readers still require their native programs.
 
 Each partition belongs to a native compiler program from `compiler-programs.ts`. Preserve its options, roots, resolved closure and unresolved outcomes. Key declarations by canonical file and source span, with the program identity beside the fact. Store export origins, module targets, binding declarations and physical references. Preserve aliases, type/value distinctions, static dynamic-import members and namespace consumption. Keep native interpretations world-specific, including ambiguous and unresolved results. Physical reference spans may deduplicate body locations, but never select a typed meaning. Resolve imported export origins in the importing world, not the target file's primary world. Record product, tooling and test consumers separately.
 

@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { JWTPayload } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import type { ServerHarnessOptions } from "./server.ts";
 
 export const ISSUER = "https://native-issuer.example/";
 export const CLIENT_ID = "orb-native-proof";
@@ -14,13 +15,14 @@ const AUTHORIZE = "/authorize";
 const TOKEN = "/token";
 const JWKS = "/jwks";
 const END_SESSION = "/end-session";
+const TOKEN_LIFETIME_SECONDS = 300;
 
 interface NativeIssuer {
   readonly fetch: typeof fetch;
   readonly calls: string[];
   readonly idTokens: string[];
   readonly authorize: (authorizationUrl: string, claims: JWTPayload) => URL;
-  readonly logoutToken: (claims: JWTPayload) => Promise<string>;
+  readonly logoutToken: (claims: Readonly<Record<string, unknown>>, omittedClaims?: readonly string[]) => Promise<string>;
 }
 
 /** Sign real issuer output; no Configuration, exchange, domain or accepted identity is fabricated. */
@@ -72,7 +74,21 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
       callback.searchParams.set("code", code);
       return callback;
     },
-    logoutToken: (claims) => sign({ iss: ISSUER, aud: CLIENT_ID, ...claims }),
+    logoutToken: (claims, omittedClaims = []): Promise<string> => {
+      const issuedAt = Math.floor(Date.now() / 1000);
+      const payload: Record<string, unknown> = {
+        iss: ISSUER,
+        aud: CLIENT_ID,
+        iat: issuedAt,
+        exp: issuedAt + TOKEN_LIFETIME_SECONDS,
+        jti: randomUUID(),
+        ...claims,
+      };
+      for (const claim of omittedClaims) {
+        delete payload[claim];
+      }
+      return new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY }).sign(keys.privateKey);
+    },
     fetch: async (input, init): Promise<Response> => {
       const request = new Request(input, init);
       const url = new URL(request.url);
@@ -111,3 +127,32 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
     },
   };
 }
+
+export const NATIVE_OIDC_SETTINGS = {
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_ISSUER: ISSUER,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_CLIENT_ID: CLIENT_ID,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_CLIENT_SECRET: CLIENT_SECRET,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_REDIRECT_URIS: CALLBACK,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_SCOPES: "openid profile email",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_USERNAME_CLAIM: "preferred_username",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_UID_CLAIM: "sub",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_GROUPS_CLAIM: "groups",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_EMAIL_CLAIM: "email",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_GROUPS_SEPARATOR: ";",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_SIGNUP: true,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_REQUIRE_APPROVAL: false,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_BACKCHANNEL_LOGOUT: true,
+} satisfies NonNullable<ServerHarnessOptions["oidc"]>;

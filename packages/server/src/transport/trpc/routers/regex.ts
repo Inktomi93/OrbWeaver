@@ -25,6 +25,7 @@
 //     scripts to a non-host member — that is the feature, and the room's opt-in flag is the gate. Off ⇒ [].
 //   • EXEMPT: none.
 
+import { portableTextFileSchema } from "@orb/contracts/portability";
 import {
   bulkResultSchema,
   createRegexScriptSchema,
@@ -107,13 +108,16 @@ export const regexRouter = t.router({
   // Both are thin arms over the backup bundle's own verbs (the `worldInfo.exportBook`/`importFile` shape),
   // so a shared script and a restored one are the same bytes. The regex family's `lifecycle-portability`
   // door cells cite exactly these two names.
-  exportScript: authedProcedure.input(scriptIdInput).query(async ({ ctx, input }) => {
-    const file = await ctx.services.regex.exportScript({ principal: ctx.auth, scriptId: input.scriptId });
-    if (file === null) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "That regex script doesn't exist." });
-    }
-    return { filename: file.filename, fileText: DEC.decode(file.bytes) };
-  }),
+  exportScript: authedProcedure
+    .output(portableTextFileSchema)
+    .input(scriptIdInput)
+    .query(async ({ ctx, input }) => {
+      const file = await ctx.services.regex.exportScript({ principal: ctx.auth, scriptId: input.scriptId });
+      if (file === null) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "That regex script doesn't exist." });
+      }
+      return { filename: file.filename, fileText: DEC.decode(file.bytes) };
+    }),
 
   // The refusal REASON is the serde's own (`DomainOperationError` → BAD_REQUEST with its message), so a file
   // written by a newer orbweaver no longer reads as "not a valid file". The import dialog renders it.

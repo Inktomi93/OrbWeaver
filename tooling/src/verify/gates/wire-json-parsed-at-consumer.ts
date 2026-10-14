@@ -1,9 +1,8 @@
-// Gate: wire-json-parsed-at-consumer — a client response body is parsed through its contract schema, never cast.
-// ts-reset types `Response.json()` as `unknown`, so an `as`/`satisfies` over the body is the one way to skip the parse:
-// `<x>.json()` awaited, parenthesised, through an `as unknown` step, typed `Promise<T>`, returned from a `.then` callback,
-// or held one hop in an unreassigned local binding; and `JSON.parse` over a `<x>.text()` body. A target of `unknown`, or a literal of
-// only `unknown` members, is still unparsed data and passes. Subject: the `json` (or `parse`) name. Population: `@client`.
-// DECLARED LIMIT: the global `JSON` is matched by spelling. FAMILY: singleton.
+// Gate: wire-json-parsed-at-consumer — response-body casts skip the canonical boundary parser.
+// Reads `.json()` and `JSON.parse(.text())`, including await/parentheses, returned `.then` callbacks and one
+// unreassigned local hop. Unknown-only targets remain opaque. Subject: the `json`/`parse` member name.
+// Population port: client plus server and inference, intentionally removing their former exclusion.
+// Limits: global `JSON` is matched by spelling; non-response JSON strings stay outside. FAMILY: singleton.
 import type { Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { inspectBindingReassignment, resolveLexicalValueDeclaration, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
@@ -17,11 +16,11 @@ const PARSE_METHOD = "parse";
 const UNKNOWN = "unknown";
 
 const MESSAGE =
-  "a response body is cast instead of parsed — `.json()` returns `unknown` and the cast trusts a shape the server " +
-  "can change without the client compiling differently. Parse it with the route's contract schema " +
+  "a response body is cast instead of parsed — `.json()` returns `unknown` and the cast trusts a shape the peer " +
+  "can change without the consumer compiling differently. Parse it with the boundary's canonical schema " +
   "(`schema.parse(await res.json())`). See Spine-TypeScript-and-Patterns.md §7.4.";
 const FIX =
-  "mint or import the route's zod schema in @orb/contracts and parse the body with it. A baselined site is waived " +
+  "import the boundary's existing schema or validating native codec; shared route shapes belong in @orb/contracts. A baselined site is waived " +
   "with `@orb-waive wire-json-parsed-at-consumer(json): <reason naming its burn-down item>` on the line above; the " +
   "position is the `json` method name, or `parse` for `JSON.parse(await res.text())`; a bracket-spelled read " +
   'keeps its quotes (`"json"`).';
@@ -121,7 +120,7 @@ export const gate = defineGate({
   family: "wire-json-parsed-at-consumer",
   authority: "ordinary",
   severity: "error",
-  population: "@client",
+  population: ["@client", "@server", "@inference"],
   analysis: "types",
   execution: "selected-files",
   facts: [],
@@ -145,6 +144,26 @@ export const gate = defineGate({
     ],
   }),
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/data/anchor.ts": "export const anchor = 1;\n",
+        "packages/server/src/infra/upstream/read.ts":
+          "export const read = async (res: Response): Promise<{ id: string }> => (await res.json()) as { id: string };\n",
+      },
+      expect: { count: 1, token: "json" },
+      why: "the former server exclusion is intentionally removed: upstream bytes need a parser too",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/data/anchor.ts": "export const anchor = 1;\n",
+        "packages/inference/src/catalog/read.ts":
+          'export const read = async (res: Response): Promise<{ id: string }> => JSON["parse"](await res["text"]()) as { id: string };\n',
+      },
+      expect: { count: 1, token: '"parse"' },
+      why: "inference's plain-fetch response reads are admitted, including bracket-spelled text decoding",
+    },
     {
       mode: "types",
       files: {
@@ -233,9 +252,9 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/client/src/data/anchor.ts": "export const anchor = 1;\n",
-        "packages/server/src/entry/http/x.ts": "export const read = async (res: Response): Promise<{ id: string }> => (await res.json()) as { id: string };\n",
+        "tooling/src/probe/x.ts": "export const read = async (res: Response): Promise<{ id: string }> => (await res.json()) as { id: string };\n",
       },
-      why: "the population: the server reads bodies through its route schemas and is outside this policy",
+      why: "tooling remains outside the application wire-reader population",
     },
     {
       mode: "types",

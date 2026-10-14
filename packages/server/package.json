@@ -29,6 +29,7 @@
     "./foundation/observability": "./src/foundation/observability/index.ts",
     "./infra/plugin-host": "./src/infra/plugin-host/index.ts",
     "./infra/network": "./src/infra/network/index.ts",
+    "./infra/storage/cas": "./src/infra/storage/cas.ts",
     "./infra/timers": "./src/infra/timers/index.ts",
     "./infra/relay": "./src/infra/relay/index.ts",
     "./primitives/content-hash": "./src/primitives/content-hash/index.ts",
