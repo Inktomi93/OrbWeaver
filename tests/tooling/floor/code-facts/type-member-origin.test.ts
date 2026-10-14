@@ -1,9 +1,47 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveReturnTypeIdentityGraph, resolveReturnTypeIdentityOrigin, resolveTypeIdentityOrigin } from "@orb/tooling/floor/code-facts/type-member-origin";
+import { resolveTypePropertyOrigin } from "@orb/tooling/floor/code-facts/type-member-origin-core";
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 
 const CONTRACT = "/repo/contract.ts";
+
+test("native property paths preserve one-name evidence, generic instantiation and every union declaration", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true } });
+  const source = project.createSourceFile(
+    "/repo/paths.ts",
+    `interface First { readonly value: () => string; }
+interface Second { readonly value: () => number; }
+interface Box<T> { readonly nested?: T; }
+declare const root: Box<First | Second>;
+`,
+  );
+  const root = source.getVariableDeclarationOrThrow("root").getNameNode();
+  const one = resolveTypePropertyOrigin(root, "nested");
+  const singlePath = resolveTypePropertyOrigin(root, ["nested"]);
+  expect(singlePath).toEqual(one);
+  const nested = resolveTypePropertyOrigin(root, ["nested", "value"]);
+  if (nested.kind === "unresolved") {
+    throw new Error(nested.detail);
+  }
+  expect(nested.value.map((declaration) => declaration.getText())).toEqual(["readonly value: () => string;", "readonly value: () => number;"]);
+  expect(nested.trace.origin).toBe(root);
+  expect(resolveTypePropertyOrigin(root, [])).toMatchObject({ kind: "unresolved", reason: "unsupported", node: root });
+  expect(resolveTypePropertyOrigin(root, ["nested", "absent"])).toMatchObject({ kind: "unresolved", reason: "missing", node: root });
+  expect(resolveTypePropertyOrigin(root, "absent")).toMatchObject({
+    kind: "unresolved",
+    reason: "missing",
+    node: root,
+    detail: "the checker resolved no property symbol named absent on root",
+  });
+});
+
+test("native property paths refuse a member missing from a union branch instead of selecting the readable branch", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true } });
+  const source = project.createSourceFile("/repo/partial-path.ts", "declare const root: { nested: { value: () => void } | { other: string } };\n");
+  const root = source.getVariableDeclarationOrThrow("root").getNameNode();
+  expect(resolveTypePropertyOrigin(root, ["nested", "value"])).toMatchObject({ kind: "unresolved", reason: "missing", node: root });
+});
 
 function fixture(source: string): { readonly file: SourceFile; readonly call: CallExpression } {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true } });

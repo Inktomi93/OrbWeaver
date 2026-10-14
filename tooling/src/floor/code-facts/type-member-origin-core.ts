@@ -1,6 +1,6 @@
 // Native declaration/identity primitives for type-member readers; graph/containment judgments stay consumers.
 import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { Node as MorphNode, Symbol as MorphSymbol } from "ts-morph";
+import type { Node as MorphNode, Symbol as MorphSymbol, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import type { TypeIdentityOrigin } from "./type-member-origin-contract.ts";
 
@@ -20,7 +20,8 @@ export function symbolDeclarations(symbol: MorphSymbol, node: MorphNode, subject
 /** Resolve `<expression>.<name>` WHEN THERE IS NO MEMBER-ACCESS NODE TO HAND OVER — the BINDING-PATTERN twin
  *  of `resolveTypeMemberOrigin`. A destructure (`const { issues } = failure`) asks the same question
  *  the dotted read asks, but its subject is a `BindingElement`: there is no `PropertyAccessExpression` for
- *  the member reader to normalise, only the initializer expression and a name. Without this door a policy
+ *  the member reader to normalise, only the initializer expression and a name. Supplied paths follow native
+ *  instantiated property types and retain every terminal declaration. Without this door a policy
  *  finishes the chain itself (`type.getProperty(name)?.getDeclarations()`) — the #2097 class, and the exact
  *  reason the audit routes those sites to a shared reader: a `lib/` reader that hands back a `Symbol`
  *  invites the gate to answer the declaration question, so the reader answers it.
@@ -39,12 +40,31 @@ export function symbolDeclarations(symbol: MorphSymbol, node: MorphNode, subject
  *  receiver expression (the coordinate a policy reports), and it needs the property SYMBOL itself for the
  *  `TypeMemberOrigin` it returns, which this reader deliberately does not hand back. Folding it would move
  *  every one of that reader's refusal positions. */
-export function resolveTypePropertyOrigin(expression: MorphNode, name: string): ReferenceFact<readonly MorphNode[]> {
-  const symbol = expression.getType().getNonNullableType().getProperty(name);
-  if (symbol === undefined) {
-    return unresolved("missing", expression, `the checker resolved no property symbol named ${name} on ${expression.getText()}`);
+export function resolveTypePropertyOrigin(expression: MorphNode, name: string | readonly string[]): ReferenceFact<readonly MorphNode[]> {
+  const path = typeof name === "string" ? [name] : name;
+  if (path.length === 0) {
+    return unresolved("unsupported", expression, "a property path must name at least one member");
   }
-  return symbolDeclarations(symbol, expression, `property ${name}`);
+  // A source-file namespace has a module symbol rather than an expression type.
+  const initialType = Node.isSourceFile(expression) ? expression.getSymbol()?.getTypeAtLocation(expression) : expression.getType();
+  if (initialType === undefined) {
+    return unresolved("missing", expression, "the checker resolved no module symbol for the property path");
+  }
+  let type: Type = initialType;
+  let declarations: readonly MorphNode[] = [];
+  for (const member of path) {
+    const symbol = type.getNonNullableType().getProperty(member);
+    if (symbol === undefined) {
+      return unresolved("missing", expression, `the checker resolved no property symbol named ${member} on ${expression.getText()}`);
+    }
+    const origin = symbolDeclarations(symbol, expression, `property ${member}`);
+    if (origin.kind === "unresolved") {
+      return origin;
+    }
+    declarations = origin.value;
+    type = symbol.getTypeAtLocation(expression);
+  }
+  return resolved(declarations, expression, declarations);
 }
 
 /** One authored reference's declaration identity. This is provenance only: the value query below must

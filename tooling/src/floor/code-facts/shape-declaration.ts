@@ -1,7 +1,8 @@
 // Declaration and data-shape recognition over delivered nodes; population and reporting belong to consumers.
 import type { InterfaceDeclaration, Node as MorphNode, SourceFile, Type, TypeAliasDeclaration, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { isFactoryCallFromPackage, ZOD_PACKAGE, zodCandidateCall } from "./zod-origin.ts";
+import { inventoryDeclarationKey, inventoryExports } from "./semantic-inventory-reader.ts";
+import { isFactoryCallFromPackage, ZOD_PACKAGE } from "./zod-origin.ts";
 
 /** True when the interface and every type it nests are data: no call or construct signature anywhere. A hook
  *  result, a service bundle or a deps record carries behaviour and cannot cross a wire; a wire shape cannot.
@@ -35,36 +36,50 @@ export function isPlainDataShape(node: InterfaceDeclaration): boolean {
 const ZOD_SHAPE_FACTORIES: ReadonlySet<string> = new Set(["object", "enum", "discriminatedUnion"]);
 
 function isZodShapeCall(initializer: MorphNode): boolean {
-  const name = zodCandidateCall(initializer)?.name;
-  return name !== undefined && ZOD_SHAPE_FACTORIES.has(name) && isFactoryCallFromPackage(initializer, name, ZOD_PACKAGE);
+  return isFactoryCallFromPackage(initializer, ZOD_SHAPE_FACTORIES, ZOD_PACKAGE);
+}
+
+function isLocallyExported(node: MorphNode): boolean {
+  const key = inventoryDeclarationKey(node);
+  return [...inventoryExports(node.getSourceFile()).values()].some((declarations) =>
+    declarations.some((declaration) => inventoryDeclarationKey(declaration) === key),
+  );
 }
 
 /** The name nodes one delivered declaration owes a finding on: an exported interface's or alias's own name,
  *  and the name of every exported const in a statement whose initializer is a proven zod shape factory. */
 export function inlineShapeNames(node: MorphNode): readonly MorphNode[] {
   if (Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node)) {
-    return node.hasExportKeyword() ? [node.getNameNode()] : [];
+    return node.hasExportKeyword() || isLocallyExported(node) ? [node.getNameNode()] : [];
   }
-  if (Node.isVariableStatement(node) && node.hasExportKeyword()) {
+  if (Node.isVariableStatement(node)) {
     return node
       .getDeclarations()
       .filter((declaration) => {
         const initializer = declaration.getInitializer();
-        return initializer !== undefined && isZodShapeCall(initializer);
+        return (node.hasExportKeyword() || isLocallyExported(declaration)) && initializer !== undefined && isZodShapeCall(initializer);
       })
       .map((declaration) => declaration.getNameNode());
   }
   return [];
 }
 
-/** Types exported by this file, including export-list aliases but excluding re-exported origins. */
+/** Local exported type origins, once each under their first public name; foreign reexports are not local declarations. */
 export function exportedShapeDeclarations(sf: SourceFile): readonly (readonly [string, InterfaceDeclaration | TypeAliasDeclaration])[] {
-  return [...sf.getExportedDeclarations()].flatMap(([name, declarations]) =>
-    declarations.flatMap((declaration) =>
-      (Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration)) && declaration.getSourceFile() === sf
-        ? [[name, declaration] as const]
-        : [],
-    ),
+  const seen = new Set<string>();
+  const home = inventoryDeclarationKey(sf);
+  return [...inventoryExports(sf)].flatMap(([name, declarations]) =>
+    declarations.flatMap((declaration) => {
+      if (!(Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration))) {
+        return [];
+      }
+      const key = inventoryDeclarationKey(declaration);
+      if (inventoryDeclarationKey(declaration.getSourceFile()) !== home || seen.has(key)) {
+        return [];
+      }
+      seen.add(key);
+      return [[name, declaration] as const];
+    }),
   );
 }
 
@@ -76,8 +91,8 @@ export function isHandWrittenShape(node: InterfaceDeclaration | TypeAliasDeclara
 /** Exported interfaces and object-literal aliases. Heritage remains admitted for name-collision policy. */
 export function handWrittenShapeDeclarations(sf: SourceFile): readonly (InterfaceDeclaration | TypeAliasDeclaration)[] {
   return [
-    ...sf.getInterfaces().filter((declaration) => declaration.isExported()),
-    ...sf.getTypeAliases().filter((declaration) => declaration.isExported() && declaration.getTypeNode()?.getKind() === SyntaxKind.TypeLiteral),
+    ...sf.getInterfaces().filter(isLocallyExported),
+    ...sf.getTypeAliases().filter((declaration) => isLocallyExported(declaration) && declaration.getTypeNode()?.getKind() === SyntaxKind.TypeLiteral),
   ];
 }
 
