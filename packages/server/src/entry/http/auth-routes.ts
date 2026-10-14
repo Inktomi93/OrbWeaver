@@ -515,7 +515,7 @@ export interface OidcRoutesDeps {
   readonly getConfig: () => Promise<Configuration>;
   /** #867 — the code→token exchange, injected so the callback's happy path is drivable without an IdP.
    *  Production wires `infra/auth`'s `createOidcExchange(authorizationCodeGrant)` — the real grant — at
-   *  `entry/compose/oidc.ts`. REQUIRED, deliberately: an optional dep would make "no exchange configured"
+   *  `entry/http/oidc.ts`. REQUIRED, deliberately: an optional dep would make "no exchange configured"
    *  a silently loginless OIDC box, and a defaulted one would let a mis-wired root fall back to
    *  something the operator never chose. */
   readonly exchange: OidcExchange;

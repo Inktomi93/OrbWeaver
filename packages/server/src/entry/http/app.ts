@@ -13,7 +13,7 @@ import { createMemoryRecallInspector, createRpgTraceInspector } from "#transport
 import type { AppDeps } from "../app.ts";
 import { createApp } from "../app.ts";
 import { createAuthSeam } from "../auth/index.ts";
-import type { ServicesResult } from "./services.ts";
+import type { ServicesResult } from "../compose/services.ts";
 
 type HttpAppDeps = Pick<
   AppDeps,
