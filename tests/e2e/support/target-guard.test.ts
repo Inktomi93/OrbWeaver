@@ -6,9 +6,11 @@
 // globalSetup's unconditional model-routing pin (`pinChatConnection` today, a `routing.roleDefaults`
 // settings patch back then) rewrote the operator's REAL configuration.
 
-import { describe, expect, test } from "vitest";
+import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe, vi } from "vitest";
 import { LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./modes.ts";
-import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, targetRefusal } from "./target-guard.ts";
+import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, probeTarget, targetRefusal } from "./target-guard.ts";
 
 const HARNESS_TARGET = { name: "single-user", baseUrl: "http://localhost:5181", backendUrl: "http://127.0.0.1:8796" } as const;
 const DEV_TARGET = { name: "single-user", baseUrl: "http://localhost:5173", backendUrl: "http://127.0.0.1:8788" } as const;
@@ -105,4 +107,32 @@ test("boot and seed share exact project selection, leaving unrelated stamped mod
   expect(selectedModeProjects(["--project", "single-user", "local", "--list"]).map((mode) => mode.name)).toEqual(["single-user", "local"]);
   expect(selectedModeProjects([])).toEqual(MODE_PROJECTS);
   expect(selectedModeProjects(["--project=missing"])).toEqual([]);
+});
+
+test("the health consumer refuses a successful foreign or malformed document before accepting its harness claim", async () => {
+  const healthy = healthResponseSchema.parse({ status: HEALTH_STATUSES[0], harness: true });
+  const responses = [
+    Response.json({ harness: true }),
+    Response.json({ ...healthy, status: "another-service" }),
+    Response.json({ ...healthy, harness: "true" }),
+    Response.json({ ...healthy, extra: "not a health field" }),
+    new Response("{", { status: 200 }),
+  ];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation(() => Promise.resolve(responses.shift())),
+  );
+  for (let index = 0; index < 5; index++) {
+    const probe = await probeTarget(HARNESS_TARGET.backendUrl);
+    expect(probe).toEqual({ reachable: true, stamped: false });
+    expect(targetRefusal(HARNESS_TARGET, probe, false)).toContain("REFUSING to seed");
+  }
+});
+
+test("a complete canonical healthy document still admits the genuinely stamped target", async () => {
+  const healthy = healthResponseSchema.parse({ status: HEALTH_STATUSES[0], harness: true });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(healthy)));
+  const probe = await probeTarget(HARNESS_TARGET.backendUrl);
+  expect(probe).toEqual({ reachable: true, stamped: true });
+  expect(targetRefusal(HARNESS_TARGET, probe, false)).toBeUndefined();
 });

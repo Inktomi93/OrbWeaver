@@ -7,6 +7,7 @@
 import { assets, characters, chatParticipants, chats, closeDb, messages, messageVariants, users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { cardTokenSize } from "@orb/server/domain/character";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { cardContentHash } from "@orb/server/primitives/serde/card";
 import { eq } from "drizzle-orm";
@@ -108,6 +109,19 @@ describe("make* — pure, deterministic builders", () => {
     // Untouched defaults survive the merge.
     expect(row.greetings).toEqual([]);
     expect(row.synthetic).toBe(false);
+  });
+
+  test("character token denorm follows the real writer after nonempty content and greeting overrides", () => {
+    const base = makeCharacter({ name: "Aria", description: "A patient archivist." });
+    const greeted = makeCharacter({
+      name: base.name,
+      description: base.description,
+      greetings: [{ text: "The archive is open. Bring every document you found, and we will reconstruct what happened." }],
+    });
+    expect(base.tokenSize).toBe(cardTokenSize(base));
+    expect(base.tokenSize).toBeGreaterThan(0);
+    expect(greeted.tokenSize).toBe(cardTokenSize(greeted));
+    expect(greeted.tokenSize).toBeGreaterThan(base.tokenSize);
   });
 });
 

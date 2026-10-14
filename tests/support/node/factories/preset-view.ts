@@ -2,18 +2,19 @@
 // preset over the contract's default prompt config. An override is spread after the defaults.
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { ID_PREFIX } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import type { TrpcWireOutput } from "../route-trpc.ts";
 
-const ids = createSeededIds();
+const ids = createIdSource(createSeededIds().next);
 
 type PresetDetailWire = TrpcWireOutput<"preset.get">;
 
-export function makePresetDetail(overrides: Partial<PresetDetailWire> = {}): PresetDetailWire {
+export function makePresetDetail(overrides: Partial<PresetDetailWire> = {}, source: IdSource = ids): PresetDetailWire {
   return {
-    id: ids.next(ID_PREFIX.preset),
+    id: source.typeId(ID_PREFIX.preset),
     name: "Preset",
     kind: "generation",
     isSystemDefault: false,
@@ -30,9 +31,9 @@ export function makePresetDetail(overrides: Partial<PresetDetailWire> = {}): Pre
 type PresetSummaryWire = TrpcWireOutput<"preset.list">[number];
 
 /** One `preset.list` row: a user generation preset without its config. */
-export function makePresetSummary(overrides: Partial<PresetSummaryWire> = {}): PresetSummaryWire {
+export function makePresetSummary(overrides: Partial<PresetSummaryWire> = {}, source: IdSource = ids): PresetSummaryWire {
   return {
-    id: ids.next(ID_PREFIX.preset),
+    id: source.typeId(ID_PREFIX.preset),
     name: "Preset",
     kind: "generation",
     isSystemDefault: false,

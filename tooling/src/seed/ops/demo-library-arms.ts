@@ -11,7 +11,7 @@ import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { deriveRegexTierFlags, SubstituteFindRegex } from "@orb/kit/regex";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import type { SeedDemoDeps } from "../contract/types.ts";
+import type { SeedDemoDeps, SeedDemoResult } from "../contract/types.ts";
 import {
   REGEX_DISABLED_SCRIPT_NAME,
   REGEX_DISPLAY_ONLY_SCRIPT_NAME,
@@ -31,7 +31,7 @@ type LibraryArmDeps = Pick<SeedDemoDeps, "services" | "owner" | "log">;
 export async function seedDemoRegexTiers(
   deps: LibraryArmDeps,
   target: { readonly assistantId: CharacterId | undefined; readonly chatId: ChatId },
-): Promise<void> {
+): Promise<NonNullable<SeedDemoResult["regexTiers"]>> {
   const { services, owner, log } = deps;
   const { assistantId, chatId } = target;
   // Regex scripts (#1725 boards 04/05 + the #1742 room Regex section) — one per tier, so the room's
@@ -94,6 +94,7 @@ export async function seedDemoRegexTiers(
   log(
     `regex scripts created + attached: global/${REGEX_FIND_REPLACE_SCRIPT_NAME}, character/${REGEX_DISPLAY_ONLY_SCRIPT_NAME}, chat/${REGEX_PROMPT_ONLY_SCRIPT_NAME}`,
   );
+  return { findReplace: findReplaceScript, displayOnly: displayOnlyScript, promptOnly: promptOnlyScript };
 }
 
 /** Saved rosters (D61 B6) through the same library-create door the rosters panel uses: one matching the demo
@@ -101,12 +102,12 @@ export async function seedDemoRegexTiers(
 export async function seedDemoRosters(
   deps: LibraryArmDeps,
   target: { readonly assistantId: CharacterId | undefined; readonly groupCharIds: readonly CharacterId[] },
-): Promise<void> {
+): Promise<SeedDemoResult["rosters"]> {
   const { services, owner, log } = deps;
   const { assistantId, groupCharIds } = target;
   // Saved rosters (D61 B6) — through the same library-create door the rosters panel uses. One matching
   // the demo group's seated trio, one a different pairing, so the picker shows more than a single row.
-  await services.rosterPreset.create({
+  const matching = await services.rosterPreset.create({
     principal: owner,
     input: {
       name: ROSTER_PRESET_MATCHING_NAME,
@@ -114,21 +115,24 @@ export async function seedDemoRosters(
       members: groupCharIds.map((characterId, position) => ({ kind: "character" as const, characterId, position })),
     },
   });
+  const rosters: SeedDemoResult["rosters"][number][] = [matching];
   if (assistantId !== undefined) {
     const altMembers = [assistantId, groupCharIds[0]]
       .filter((id): id is CharacterId => id !== undefined)
       .map((characterId, position) => ({ kind: "character" as const, characterId, position }));
-    await services.rosterPreset.create({
+    const alternate = await services.rosterPreset.create({
       principal: owner,
       input: { name: ROSTER_PRESET_ALT_NAME, description: "A smaller two-seat pairing.", members: altMembers },
     });
+    rosters.push(alternate);
   }
   log(`saved rosters created: ${ROSTER_PRESET_MATCHING_NAME}, ${ROSTER_PRESET_ALT_NAME}`);
+  return rosters;
 }
 
 /** The FOURTH regex tier: a DISABLED script attached to the demo preset, so the preset leg of the room's Regex
  *  section is populated too and a disabled row stays disabled through the attach. */
-export async function seedDemoPresetRegexTier(deps: LibraryArmDeps, presetId: PresetId): Promise<void> {
+export async function seedDemoPresetRegexTier(deps: LibraryArmDeps, presetId: PresetId): Promise<SeedDemoResult["presetRegex"]> {
   const { services, owner, log } = deps;
   // The FOURTH regex tier: a DISABLED script attached to the demo preset — so the preset leg of the room's
   // Regex section is populated too, and a disabled row stays disabled through the attach.
@@ -149,4 +153,5 @@ export async function seedDemoPresetRegexTier(deps: LibraryArmDeps, presetId: Pr
   });
   await services.regex.attachToPreset({ principal: owner, presetId, scriptId: disabledScript.id });
   log(`regex script created (disabled) + attached: preset/${REGEX_DISABLED_SCRIPT_NAME}`);
+  return disabledScript;
 }

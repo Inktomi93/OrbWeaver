@@ -5,7 +5,7 @@ import { parseUserSettings, resolveImageryCaption, resolveImageryTemplate, USER_
 import { generationOf } from "@orb/inference";
 import type { CaptionImageDeps, ImageProviderDeps } from "@orb/server/domain/imagery";
 import { createCaptionImage, createImageProviderOps, createImageryInstructions } from "@orb/server/domain/imagery";
-import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { makeGenerationUsage } from "@orb/testkit/iso/generation-usage.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";

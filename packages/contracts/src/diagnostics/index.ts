@@ -56,3 +56,6 @@ export const bugReportDiagnosticsSchema = z.strictObject({
   ]),
 });
 export type BugReportDiagnostics = z.infer<typeof bugReportDiagnosticsSchema>;
+
+export type { HealthResponse } from "./health.ts";
+export { HEALTH_STATUSES, healthResponseSchema } from "./health.ts";

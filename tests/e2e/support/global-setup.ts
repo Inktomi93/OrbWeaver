@@ -42,6 +42,7 @@ import {
   E2E_LOCAL_ENGINE_PROVIDER,
   LOCAL_MEMBER,
   LOCAL_OWNER,
+  SELECTED_CORPUS_FIXTURE,
   selectedModeProjects,
 } from "./modes.ts";
 import { probeTarget, targetRefusal } from "./target-guard.ts";
@@ -384,9 +385,11 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     throw new Error(refusals.join("\n"));
   }
   // Routine selection cannot discover or generate against the operator's model engine.
-  const fixture = process.env["E2E_LIVE"] === "1" ? undefined : await startFixtureProvider(0, []);
+  const fixture = process.env["E2E_LIVE"] === "1" || SELECTED_CORPUS_FIXTURE !== undefined ? undefined : await startFixtureProvider(0, []);
   try {
-    await Promise.all(booted.map(({ mode }) => seedMode(mode, fixture?.baseUrl)));
+    if (SELECTED_CORPUS_FIXTURE === undefined) {
+      await Promise.all(booted.map(({ mode }) => seedMode(mode, fixture?.baseUrl)));
+    }
     // AFTER the seed, never before: the `room` warm pass opens a chat from the list, which only exists once
     // `ensureChat` has run.
     await __warmClientsForTest(booted.map(({ mode }) => mode));

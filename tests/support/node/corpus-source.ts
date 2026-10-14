@@ -1,5 +1,6 @@
-import type { ChatId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { ChatId, IdSource } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds } from "../iso/ids.ts";
 import type { TrpcWireOutput } from "./route-trpc.ts";
 
 type Search = TrpcWireOutput<"search.search">;
@@ -11,26 +12,27 @@ const FINGERPRINT = "b".repeat(64);
 const CONTENT_HASH = "c".repeat(64);
 const SOURCE_SEQ_START = 1201;
 const SOURCE_SEQ_END = 1202;
+const ids = createIdSource(createSeededIds().next);
 
-export function corpusDigestSource(blockKey: Digest["blockKey"]): Extract<Digest["source"], { kind: "digest" }> {
+export function corpusDigestSource(blockKey: Digest["blockKey"], source: IdSource = ids): Extract<Digest["source"], { kind: "digest" }> {
   return {
     kind: "digest",
-    rowId: mintTypeId(ID_PREFIX.chatDigest),
+    rowId: source.typeId(ID_PREFIX.chatDigest),
     ...blockKey,
     generationId: GENERATION,
     fingerprint: FINGERPRINT,
     contentHash: CONTENT_HASH,
     seqStart: SOURCE_SEQ_START,
     seqEnd: SOURCE_SEQ_END,
-    messageStartId: mintTypeId(ID_PREFIX.message),
-    messageEndId: mintTypeId(ID_PREFIX.message),
+    messageStartId: source.typeId(ID_PREFIX.message),
+    messageEndId: source.typeId(ID_PREFIX.message),
   };
 }
 
-export function corpusSceneSource(chatId: ChatId, blockIdx: number): Scene["source"] {
+export function corpusSceneSource(chatId: ChatId, blockIdx: number, source: IdSource = ids): Scene["source"] {
   return {
     kind: "segment",
-    rowId: mintTypeId(ID_PREFIX.chatSegment),
+    rowId: source.typeId(ID_PREFIX.chatSegment),
     chatId,
     blockIdx,
     chunkIdx: 0,
@@ -39,8 +41,8 @@ export function corpusSceneSource(chatId: ChatId, blockIdx: number): Scene["sour
     contentHash: CONTENT_HASH,
     seqStart: SOURCE_SEQ_START,
     seqEnd: SOURCE_SEQ_END,
-    messageStartId: mintTypeId(ID_PREFIX.message),
-    messageEndId: mintTypeId(ID_PREFIX.message),
+    messageStartId: source.typeId(ID_PREFIX.message),
+    messageEndId: source.typeId(ID_PREFIX.message),
   };
 }
 

@@ -1,12 +1,16 @@
 import type { PortableImageryCall } from "@orb/contracts/imagery";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 
-export function makeImageryCall(): PortableImageryCall {
+const ids = createIdSource(createSeededIds().next);
+
+export function makeImageryCall(source: IdSource = ids): PortableImageryCall {
   return {
     execution: {
-      sourceCallId: mintTypeId(ID_PREFIX.imageryCall),
+      sourceCallId: source.typeId(ID_PREFIX.imageryCall),
       mode: "free",
       prompt: "Two images of the same blue bird",
       negativePrompt: "text",
@@ -32,8 +36,8 @@ export function makeImageryCall(): PortableImageryCall {
       createdAt: FROZEN_AT_MS,
     },
     images: [
-      { sourceGenerationId: mintTypeId(ID_PREFIX.imageryGeneration), assetId: mintTypeId(ID_PREFIX.asset) },
-      { sourceGenerationId: mintTypeId(ID_PREFIX.imageryGeneration), assetId: mintTypeId(ID_PREFIX.asset) },
+      { sourceGenerationId: source.typeId(ID_PREFIX.imageryGeneration), assetId: source.typeId(ID_PREFIX.asset) },
+      { sourceGenerationId: source.typeId(ID_PREFIX.imageryGeneration), assetId: source.typeId(ID_PREFIX.asset) },
     ],
   };
 }

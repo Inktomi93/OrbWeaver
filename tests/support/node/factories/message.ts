@@ -4,17 +4,19 @@
 // and returns the slot with the pointer set plus the variant id + content. `makeMessage` stays pure —
 // its default `chatId` is MINTED (dangling); `seedMessage` auto-seeds a bare chat when none is given.
 
+import type { TurnOutcome } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { IdSource, MessageVariantId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import { seedChat } from "./chat.ts";
 
 /** The full `messages` SLOT row (derived from the live schema — the factory `X`). */
 export type MessageRow = typeof messages.$inferSelect;
+export type MessageVariantRow = typeof messageVariants.$inferSelect;
 
 /** Slot overrides + the first variant's content (a variant field, so not on `Partial<X>`). */
 export interface SeedMessageOptions extends Partial<MessageRow> {
@@ -74,3 +76,27 @@ export async function seedMessage(db: Db, overrides: SeedMessageOptions = {}, so
 
   return { ...slot, selectedVariantId: variantId, variantId, content: body };
 }
+
+/** Canonical rows come only from the exact message/variant identities returned by the actual turn. */
+export async function captureTurnRows(db: Db, outcome: TurnOutcome): Promise<CapturedTurnRows> {
+  return await Promise.all(
+    outcome.messages.map(async (message) => {
+      const row = await db
+        .select({ slot: messages, variant: messageVariants })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.messageId, messages.id))
+        .where(and(eq(messages.id, message.id), eq(messages.selectedVariantId, message.selectedVariantId), eq(messageVariants.id, message.selectedVariantId)))
+        .get();
+      if (row === undefined) {
+        throw new Error("actual turn message has no matching canonical selected variant");
+      }
+      return row;
+    }),
+  );
+}
+
+export interface CapturedTurnRow {
+  readonly slot: MessageRow;
+  readonly variant: MessageVariantRow;
+}
+export type CapturedTurnRows = readonly CapturedTurnRow[];

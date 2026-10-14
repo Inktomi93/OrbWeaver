@@ -24,10 +24,13 @@ import {
   rosterPresets,
   users,
 } from "@orb/db";
+import { NoConnectionError } from "@orb/inference";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { loadDemoSeed } from "@orb/tooling/seed";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { runFullSeed } from "../../../../tooling/src/seed/ops/demo.ts";
 
@@ -119,4 +122,19 @@ test("seed:demo populates the marquee demo shapes against a fresh db", async () 
   // door, not a raw insert).
   expect(await db.$count(rosterPresets)).toBeGreaterThanOrEqual(2);
   expect(await db.$count(rosterPresetMembers)).toBeGreaterThanOrEqual(3);
+
+  // The CLI's missing-chat-connection skip is not admissible evidence for a generated corpus turn.
+  const { seedDemoContent } = await loadDemoSeed();
+  const principalFor = createHostPrincipalResolver(result.built.sessions);
+  await expect(
+    seedDemoContent({
+      services: result.built.services,
+      built: result.built,
+      owner: await principalFor(result.ownerId),
+      ownerId: result.ownerId,
+      principalFor,
+      runTurn: async (send) => await send(),
+      log: () => undefined,
+    }),
+  ).rejects.toBeInstanceOf(NoConnectionError);
 });

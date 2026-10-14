@@ -17,11 +17,13 @@
 // to that live connection, so a seed run WHILE the stack is up may land in the file yet stay invisible until
 // the stack RESTARTS. Either restart after seeding, or point a fresh DATABASE_URL at a scratch file.
 
+import type { Principal } from "@orb/contracts/identity";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
+import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import {
   createLocalLightUserSeed,
   DB_LAUNCHED,
@@ -42,18 +44,13 @@ import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { warn } from "../../floor/cli/log.ts";
 import type { Db, Services } from "../contract/types.ts";
 import { fakeLocalLightCache } from "../lib/fake-local-light.ts";
-import { CHAT_SEED_SESSION_SECRET, principalOf } from "../lib/fixture.ts";
+import { CHAT_SEED_SESSION_SECRET } from "../lib/fixture.ts";
 import { buildTranscript, parseChatArgs, SEED_HANDLE_PREFIX, transcriptFilename } from "../lib/transcript.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
 
 /** Ensure M heavy-fixture characters exist (reuse by handle, else create); return their ids + names in order. */
-async function ensureCharacters(
-  services: Services,
-  owner: ReturnType<typeof principalOf>,
-  ownerId: UserId,
-  count: number,
-): Promise<{ id: CharacterId; name: string }[]> {
+async function ensureCharacters(services: Services, owner: Principal, ownerId: UserId, count: number): Promise<{ id: CharacterId; name: string }[]> {
   const characters: { id: CharacterId; name: string }[] = [];
   for (let i = 0; i < count; i += 1) {
     const handle = castId<CharacterHandle>(`${SEED_HANDLE_PREFIX}-${i + 1}`);
@@ -119,7 +116,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   if (ownerId === undefined) {
     throw new Error("seed chat: seedOwner returned no owner id");
   }
-  const owner = principalOf(ownerId, handles[0] ?? env.DEFAULT_USER_HANDLE, "owner");
+  const owner = await createHostPrincipalResolver(bootSessions)(ownerId);
 
   const built = await createServices({
     db,
