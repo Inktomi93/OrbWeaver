@@ -16,7 +16,7 @@
 import type { BackfillPassResult, MemoryBackfillResult, MemoryBackfillWorkloadParams } from "@orb/contracts/chat";
 import { memoryBackfillWorkloadParams } from "@orb/contracts/chat";
 import type { ReportProgress, WorkloadRunContext } from "@orb/contracts/workloads";
-import { DEFAULT_ADMISSION_KEY, emptyWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX } from "@orb/contracts/workloads";
+import { DEFAULT_ADMISSION_KEY, emptyWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX, requireWorkloadFunder } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
 import { runUntilSettled } from "#primitives/embedding-generation";
 import type { ChatWorkloadDeps } from "./contract/workloads.ts";
@@ -58,11 +58,13 @@ async function sweepMemoryOnce(deps: ChatWorkloadDeps, { ctx, params, report, si
   report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
   const importWindow = params.importWindow ?? null;
   const segmentsOnly = params.segmentsOnly === true;
+  const funding = segmentsOnly
+    ? { segmentsOnly: true as const, funderUserId: null }
+    : { segmentsOnly: false as const, funderUserId: requireWorkloadFunder(ctx.funderUserId) };
   const counts = await deps.backfillMemory({
     ownerId: ctx.ownerId,
-    funderUserId: ctx.userId,
+    ...funding,
     importWindow,
-    segmentsOnly,
     signal,
     onProgress: (step) => {
       const current = MEMORY_SWEEP_STEPS.indexOf(step) + 1;
@@ -135,7 +137,9 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       admissionKey: memoryAdmissionKey,
       // A segments-only pass embeds and never summarizes, so it costs no Utility-model call.
       modelCalls: async ({ ownerId, funderUserId, params }) =>
-        params.segmentsOnly === true ? 0 : await deps.estimateMemoryBackfill({ ownerId, funderUserId, importWindow: params.importWindow ?? null }),
+        params.segmentsOnly === true
+          ? 0
+          : await deps.estimateMemoryBackfill({ ownerId, funderUserId: requireWorkloadFunder(funderUserId), importWindow: params.importWindow ?? null }),
       // Segment + digest LLM builds per chat × scope bucket — long by construction.
       lane: "sweep",
       // Hash-diff self-healing end to end; the signal aborts cooperatively between chats and at an embed's model wait.
@@ -152,7 +156,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       resume: "idempotent-restart",
       run: async (ctx, _params, report, signal): Promise<BackfillPassResult> => {
         report({ message: "group-character backfill: sweeping group rooms" });
-        const counts = await deps.backfillGroupCharacters({ ownerId: ctx.ownerId, funderUserId: ctx.userId, signal });
+        const counts = await deps.backfillGroupCharacters({ ownerId: ctx.ownerId, signal });
         report({ message: `group-character backfill: ${counts.scanned} group rooms scanned, ${counts.changed} minted` });
         return counts;
       },

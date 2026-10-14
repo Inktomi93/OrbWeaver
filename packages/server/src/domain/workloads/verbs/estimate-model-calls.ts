@@ -37,8 +37,7 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
   // The same gates `retry` applies before it clones: a row the caller cannot see is leak-free NOT_FOUND, and a bulk
   // row is the box owner's alone (a non-owner gets the same NOT_FOUND). A POISON row has no params to count, so it
   // answers `null` like a kind that makes no model call. A row the owning domain would no longer admit makes no
-  // calls. The funder is the row's owner, whose model the runner spends; a bulk sweep has none, so the person
-  // retrying it is the funder, as `start` counts it.
+  // calls. Funding remains the original admission, never the retrying caller.
   async function estimateRetryModelCalls(params: EstimateRetryModelCallsParams): Promise<ModelCallEstimate> {
     const contributions = ctx.getContributions();
     const original = await loadWorkload(ctx.db, contributions, params.id, (access) => canCloneRow(ctx, params.caller, access));
@@ -57,8 +56,8 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
         original.kind,
         original.params,
         original.ownerId === null
-          ? { ownerId: null, everyOwnerEstimate: Object.freeze({}) as EveryOwnerEstimate, funderUserId: params.caller.userId }
-          : { ownerId: original.ownerId, funderUserId: original.ownerId },
+          ? { ownerId: null, everyOwnerEstimate: Object.freeze({}) as EveryOwnerEstimate, funderUserId: original.funderUserId }
+          : { ownerId: original.ownerId, funderUserId: original.funderUserId },
       ),
     };
   }

@@ -100,7 +100,7 @@ const QUEUE_SCAN_PAGE_SIZE = 10;
 // also the transport `.max()` trust boundary, so the wire refusal and this hard cap never drift.
 
 type WorkloadInsert = Readonly<
-  Pick<WorkloadSelectRow, "id" | "kind" | "mode" | "admissionKey" | "lane" | "params" | "ownerId" | "scheduledAt" | "createdAt">
+  Pick<WorkloadSelectRow, "id" | "kind" | "mode" | "admissionKey" | "lane" | "params" | "ownerId" | "funderUserId" | "scheduledAt" | "createdAt">
 > & {
   readonly dependsOn: readonly NonNullable<WorkloadSelectRow["dependsOn"]>[number][] | null;
 };
@@ -130,6 +130,7 @@ function toRowBase(row: WorkloadDecodedRow): Omit<WorkloadRowAnyKind, "kind" | "
     mode: row.mode,
     lane: row.lane,
     ownerId: row.ownerId,
+    funderUserId: row.funderUserId,
     dependsOn: row.dependsOn ?? null,
     error: row.error,
     progress: row.progress,
@@ -201,6 +202,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
     lane: row.lane,
     params: row.params,
     ownerId: row.ownerId,
+    funderUserId: row.funderUserId,
     admissionSystem: row.ownerId === null,
     dependsOn: row.dependsOn,
     scheduledAt: row.scheduledAt,
@@ -253,13 +255,15 @@ export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<
     .update(workloads)
     .set({ status: "running", updatedAt: now })
     .where(and(eq(workloads.id, id), eq(workloads.status, "queued"), or(isNotNull(workloads.ownerId), eq(workloads.admissionSystem, true))))
-    .returning({ ownerId: workloads.ownerId });
+    .returning({ ownerId: workloads.ownerId, funderUserId: workloads.funderUserId });
   const claimed = moved[0];
   if (claimed === undefined) {
     return null;
   }
   // The claim predicate establishes that a null owner originated in an ownerless admission, never FK deletion.
-  return claimed.ownerId === null ? { ownerId: null, admissionSystem: true } : { ownerId: claimed.ownerId };
+  return claimed.ownerId === null
+    ? { ownerId: null, admissionSystem: true, funderUserId: claimed.funderUserId }
+    : { ownerId: claimed.ownerId, funderUserId: claimed.funderUserId };
 }
 
 /** The lease tick: bump `updatedAt` for the in-flight statuses (the reaper's stale key), and — when the run

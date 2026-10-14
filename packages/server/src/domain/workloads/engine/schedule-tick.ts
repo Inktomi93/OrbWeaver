@@ -20,6 +20,7 @@ async function enqueueDue(deps: ScheduleTickDeps, schedule: WorkloadScheduleRow)
     await deps.start({
       input,
       caller: null,
+      funderUserId: schedule.ownerId,
       mode: schedule.mode,
       ownerId: schedule.ownerId,
       targetOwnerId: schedule.ownerId,

@@ -304,7 +304,7 @@ export interface ChatComposeResult extends AsyncDisposable {
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
     readonly memory: (args: Parameters<typeof backfillMemory>[1]) => ReturnType<typeof backfillMemory>;
-    readonly groupCharacters: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillGroupCharacters>;
+    readonly groupCharacters: (args: Parameters<typeof backfillGroupCharacters>[1]) => ReturnType<typeof backfillGroupCharacters>;
     readonly estimateMemory: (args: Parameters<typeof estimateMemoryBackfillCalls>[1]) => ReturnType<typeof estimateMemoryBackfillCalls>;
   };
 }

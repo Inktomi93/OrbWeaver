@@ -149,12 +149,9 @@ interface PlanSweep {
 /** The per-chat plan dependencies (bundled to keep `planOneChat` at ≤4 params). */
 interface PlanDeps {
   readonly signal: AbortSignal;
-  /** False when the funder has no summarize connection bound: digests are not derivable, as with Memory off. */
-  readonly digestsDerivable: boolean;
   readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;
-  /** The WORKLOAD's principal — whose summarize/embed connections the whole sweep spends (§8.5b; the
-   *  corpus batch is flat across chats, so one funder per sweep, never per room). */
-  readonly funderUserId: UserId;
+  /** Null pauses digest planning; each room host supplies its independent encoder. */
+  readonly funderUserId: UserId | null;
 }
 
 /** A cancel or a target move ends the whole sweep and propagates: the runner records the cancel, and the workload's
@@ -195,7 +192,7 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   // asks for: batch by phase, never one awaited embed per block interleaved with db reads.
   const segments = await collectSegments(ctx, {
     chatId,
-    funderUserId: deps.funderUserId,
+    funderUserId: hostUserId,
     embedOwnerId: hostUserId,
     config,
     macroNames,
@@ -206,7 +203,7 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
     recordSpace(sweep, segments.embedSpace);
   }
   sweep.segmentsScanned += 1;
-  if (!deps.digestsDerivable) {
+  if (deps.funderUserId === null) {
     return; // No summarizer: the segments above are the chat's whole memory scope this pass.
   }
   const characterIdSet = new Set<CharacterId>(characterIds);
@@ -232,14 +229,17 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   }
 }
 
-/** The sweep's digest verdict (`digestsDerivable`), read once per sweep. Paused digests still let the sweep record
- *  memory complete, so search is never held behind a digest build that cannot run; one operator note per sweep. */
-async function digestsDerivableFor(ctx: ChatContext, funderUserId: UserId): Promise<boolean> {
+/** Resolve digest funding before planning; unavailable Utility bindings pause digests without blocking segments. */
+async function resolveDigestFunder(ctx: ChatContext, args: MemorySweepArgs): Promise<UserId | null> {
+  if (args.segmentsOnly) {
+    return null;
+  }
+  const { funderUserId } = args;
   if (await digestsDerivable(ctx, funderUserId)) {
-    return true;
+    return funderUserId;
   }
   getLog().warn({ funderUserId }, "memory backfill: no summarize connection is bound, so digests are skipped this pass (segments still embed)");
-  return false;
+  return null;
 }
 
 /** PHASE 1 — plan every (chat × scope) bucket corpus-wide (segments + tier-0 collect; NO summarize). One
@@ -250,9 +250,7 @@ async function planAllBuckets(ctx: ChatContext, args: MemorySweepArgs, resolveMe
   const deps: PlanDeps = {
     signal: args.signal,
     resolveMemoryConfig,
-    funderUserId: args.funderUserId,
-    // A segments-only pass plans no digest, exactly as a funder with no Utility model: it makes no Utility-model call.
-    digestsDerivable: !args.segmentsOnly && (await digestsDerivableFor(ctx, args.funderUserId)),
+    funderUserId: await resolveDigestFunder(ctx, args),
   };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId, args.importWindow)) {
     if (args.signal.aborted) {
@@ -559,6 +557,15 @@ export async function backfillMemory(
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);
   args.onProgress?.("embedding transcripts");
   const segments = await storeAllSegments(ctx, sweep.segments, args.signal);
+  if (args.funderUserId === null) {
+    return {
+      segments: { scanned: sweep.segmentsScanned, changed: segments.written },
+      segmentsSkippedOverWindow: segments.skippedOverWindow,
+      digests: { scanned: sweep.digestsScanned, changed: 0 },
+      failed: sweep.failed + segments.failed,
+      completedSpaces: [],
+    };
+  }
   args.onProgress?.("summarizing");
   const perPlanTexts = await summarizeAllPending(ctx, args.funderUserId, sweep.plans);
   args.onProgress?.("writing digests");
@@ -637,7 +644,7 @@ function inputLen(input: SummarizeInput | undefined): number {
  */
 export async function backfillGroupCharacters(
   ctx: ChatContext,
-  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
+  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
 ): Promise<BackfillPassCounts> {
   const counts = { scanned: 0, changed: 0 };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {

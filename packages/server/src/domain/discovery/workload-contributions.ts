@@ -20,7 +20,7 @@
 import type { AnalyticsResult } from "@orb/contracts/discovery";
 import { computeThemesWorkloadParams, findDuplicatesWorkloadParams } from "@orb/contracts/discovery";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
-import { emptyWorkloadParams } from "@orb/contracts/workloads";
+import { emptyWorkloadParams, requireWorkloadFunder } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { DistillStats } from "./contract/results.ts";
@@ -79,12 +79,13 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       // Seconds-to-tens-of-seconds k-means over the digests — a bulk pass, not a user-facing wait.
       lane: "sweep",
       resume: "idempotent-restart",
-      modelCalls: async (scope) => deps.discovery.countThemeNameCalls({ ...scope, k: await themeK(deps, scope.funderUserId, scope.params.k) }),
+      modelCalls: async (scope) =>
+        deps.discovery.countThemeNameCalls({ ...scope, k: await themeK(deps, requireWorkloadFunder(scope.funderUserId), scope.params.k) }),
       run: async (ctx, params, report, _signal): Promise<AnalyticsResult> => {
         try {
-          const k = await themeK(deps, ctx.userId, params.k);
+          const k = await themeK(deps, requireWorkloadFunder(ctx.funderUserId), params.k);
           report({ message: `computing ${k} themes` });
-          const stats = await deps.discovery.computeThemes({ k, ...ctx, funderUserId: ctx.userId });
+          const stats = await deps.discovery.computeThemes({ k, ...ctx, funderUserId: requireWorkloadFunder(ctx.funderUserId) });
           // THE INPUT PLANE IS MEMORY DIGESTS, NOT DISTILLED CARDS — and a digest-less run must SAY so
           // (issue #166). It used to return a bare `{scanned: 0, written: 0}`, which the runs console renders
           // as "0 rows · 0 written" under a green Succeeded: a pass that could not run reported as one that
@@ -112,7 +113,10 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
     {
       kind: "distill-characters",
       params: emptyWorkloadParams,
-      modelCalls: (scope) => deps.discovery.countDistillCalls(scope),
+      modelCalls: (scope): Promise<number> => {
+        requireWorkloadFunder(scope.funderUserId);
+        return deps.discovery.countDistillCalls(scope);
+      },
       // One LLM call per character — long by construction.
       lane: "sweep",
       resume: "idempotent-restart",
@@ -120,9 +124,9 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
         try {
           report({ message: "distilling character summaries" });
           const stats = await deps.discovery.distillCharacters({
-            funderUserId: ctx.userId,
-            signal,
             ...ctx,
+            funderUserId: requireWorkloadFunder(ctx.funderUserId),
+            signal,
             // N-of-M (issue #166 rider 3) — the pass counts the cards, this turns each position into a row.
             onProgress: (done, total) => {
               report({ message: `distilling character summaries — ${done} of ${total}`, current: done, total });

@@ -36,7 +36,7 @@ import { blockHash, EMPTY_MACRO_NAMES, sliceBlocks } from "./substrate/transcrip
  *  structural literal). Segments are chat-wide, so this takes a bare `chatId` (no scope bucket). */
 interface GenerateSegmentsArgs {
   readonly chatId: ChatId;
-  /** WHOSE embed connection the window guard reads (§8.5b) — the trigger live, the workload's principal on backfill. */
+  /** Fallback vector owner when no explicit owner or pinned embedding space is supplied. */
   readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
   readonly macroNames?: RowMacroNameContext | undefined;
@@ -85,7 +85,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
   const blocks = sliceBlocks(canon, cfg.blockSize);
-  const embedContextTokens = await ctx.embedContextTokens(args.funderUserId);
+  const embedContextTokens = await ctx.embedContextTokens(embedSpace.ownerId);
 
   const pending: StoreSegmentParams[] = [];
   const chunkCounts: { blockIdx: number; chunkCount: number }[] = [];

@@ -53,8 +53,8 @@ function dispatchAndRun(
 function buildRunContext(deps: WorkloadRunnerDeps, row: WorkloadClaim): WorkloadRunContext {
   const userId: UserId = row.ownerId ?? SYSTEM_OWNER_ID;
   return row.ownerId === null
-    ? { userId, ownerId: null, everyOwnerRun: Object.freeze({}) as EveryOwnerRun, now: deps.now }
-    : { userId, ownerId: row.ownerId, everyOwnerRun: null, now: deps.now };
+    ? { userId, funderUserId: row.funderUserId, ownerId: null, everyOwnerRun: Object.freeze({}) as EveryOwnerRun, now: deps.now }
+    : { userId, funderUserId: row.funderUserId, ownerId: row.ownerId, everyOwnerRun: null, now: deps.now };
 }
 
 /**

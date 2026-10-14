@@ -27,6 +27,7 @@ export function createSettleImportMemory(workloads: Pick<ImportPostprocessDeps, 
       await workloads.start({
         input: { kind: "memory-backfill", params: { importWindow, segmentsOnly: true } },
         caller: null,
+        funderUserId: null,
         mode: "singular",
         ownerId,
         adoptActive: true,

@@ -15,7 +15,7 @@ import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { RetryWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
-import { isActiveKindUniqueViolation } from "../persistence/constraints.ts";
+import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
 import { canCloneRow } from "../substrate/authorize.ts";
 import { activeConflictMessage, assertAdmissible, resolveAdmissionKey } from "../substrate/params.ts";
@@ -76,11 +76,17 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         lane: contributions[original.kind].lane,
         params: clone.params,
         ownerId: original.ownerId,
+        funderUserId: original.funderUserId,
         dependsOn: original.dependsOn,
         scheduledAt: now,
         createdAt: now,
       });
     } catch (err) {
+      if (isWorkloadForeignKeyViolation(err)) {
+        const unavailable = new DomainNotFoundError(ENTITY, original.id);
+        unavailable.cause = err;
+        throw unavailable;
+      }
       if (isActiveKindUniqueViolation(err)) {
         const conflict = new DomainConflictError(activeConflictMessage(original.kind));
         conflict.cause = err;

@@ -64,4 +64,5 @@ export type WorkloadReadAccess = Pick<StoredWorkloadRow, "ownerId" | "mode" | "a
 export type AuthorizeWorkloadRead = (row: WorkloadReadAccess) => boolean;
 
 /** Atomic claim output: null ownership is admitted only when the stored original admission was ownerless. */
-export type WorkloadClaim = { readonly ownerId: UserId } | { readonly ownerId: null; readonly admissionSystem: true };
+export type WorkloadClaim = ({ readonly ownerId: UserId } | { readonly ownerId: null; readonly admissionSystem: true }) &
+  Pick<StoredWorkloadRow, "funderUserId">;

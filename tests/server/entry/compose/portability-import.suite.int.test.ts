@@ -98,7 +98,7 @@ test("the actual staged bundle isolates malformed cards, counts unsupported file
   const run = async (): Promise<Awaited<ReturnType<(typeof app.workloadContributions)["import-bundle"]["run"]>>> => {
     await stage();
     return app.workloadContributions["import-bundle"].run(
-      { ownerId: target.userId, userId: target.userId, now: () => clock.now() },
+      { ownerId: target.userId, userId: target.userId, funderUserId: null, now: () => clock.now() },
       { token, source: "dir" },
       () => undefined,
       new AbortController().signal,
@@ -135,7 +135,7 @@ test("the real profile driver performs no dry-run writes and a real run writes o
   const run = async (dryRun: boolean): Promise<Awaited<ReturnType<(typeof app.workloadContributions)["import-st"]["run"]>>> => {
     await stage();
     return app.workloadContributions["import-st"].run(
-      { ownerId: target.userId, userId: target.userId, now: () => clock.now() },
+      { ownerId: target.userId, userId: target.userId, funderUserId: null, now: () => clock.now() },
       { stagedDir: token, dryRun },
       progress,
       new AbortController().signal,
@@ -180,7 +180,7 @@ test("the composed profile reader admits an ordinary settings leaf but refuses a
   await writeFile(settings, '{"power_user":{"personas":{"allowed.png":"Allowed persona"}}}');
   const run = (): ReturnType<(typeof app.workloadContributions)["import-st"]["run"]> =>
     app.workloadContributions["import-st"].run(
-      { ownerId: target.userId, userId: target.userId, now: () => clock.now() },
+      { ownerId: target.userId, userId: target.userId, funderUserId: null, now: () => clock.now() },
       { stagedDir: token },
       () => undefined,
       new AbortController().signal,

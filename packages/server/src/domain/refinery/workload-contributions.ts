@@ -7,6 +7,7 @@
 
 import type { RefineryScoreSweepResult } from "@orb/contracts/refinery";
 import { refineScoreSweepWorkloadParams } from "@orb/contracts/refinery";
+import { requireWorkloadFunder } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { RefineryWorkloadDeps } from "./contract/service.ts";
 import { createCountScoreSweepCalls, createScoreSweep } from "./verbs/score-sweep.ts";
@@ -32,14 +33,17 @@ export function createRefineryWorkloadContributions(deps: RefineryWorkloadDeps):
     {
       kind: "refine-score-sweep",
       params: refineScoreSweepWorkloadParams,
-      modelCalls: ({ ownerId, params }) => countCalls({ ownerId, rescoreAll: params.rescoreAll ?? false }),
+      modelCalls: ({ ownerId, funderUserId, params }): Promise<number> => {
+        requireWorkloadFunder(funderUserId);
+        return countCalls({ ownerId, rescoreAll: params.rescoreAll ?? false });
+      },
       // One model call per card — long by construction, exactly like `distill-characters`.
       lane: "sweep",
       // The stamp is an upsert of one derived scalar: a restarted pass converges on the same scores.
       resume: "idempotent-restart",
       run: async (ctx, params, report, signal): Promise<RefineryScoreSweepResult> => {
         const rescoreAll = params.rescoreAll ?? false;
-        const result = await scoreSweep({ ownerId: ctx.ownerId, funderUserId: ctx.userId, rescoreAll, report, signal });
+        const result = await scoreSweep({ ownerId: ctx.ownerId, funderUserId: requireWorkloadFunder(ctx.funderUserId), rescoreAll, report, signal });
         report({ message: sweepProgressMessage(result, rescoreAll) });
         return result;
       },
