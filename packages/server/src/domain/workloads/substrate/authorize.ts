@@ -74,6 +74,7 @@ export function isVisibleToCaller(isAdmin: IsAdmin, caller: Principal | null, ow
  * May `caller` clone this row (`retry`) or ask what cloning it would cost? The row must be visible to them, and a
  * BULK row is the box owner's alone. An admin who is not the box owner is therefore answered exactly as a caller
  * who cannot see the row, so the refusal is no oracle for whether a bulk row exists.
+ * A deleted owner leaves an audit-only row; cloning must never turn it into system work.
  */
 export function canCloneRow(seams: { readonly isAdmin: IsAdmin; readonly isOwner: IsOwner }, caller: Principal | null, row: WorkloadReadAccess): boolean {
   return (

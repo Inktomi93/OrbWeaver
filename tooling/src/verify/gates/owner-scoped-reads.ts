@@ -79,6 +79,7 @@ import {
   schemaTableIndex,
   scopeParentsOfDerivedTables,
 } from "../lib/tenancy-scope.ts";
+import { resolveTypeValueOrigins } from "../lib/type-member-origin.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const EVERY_OWNER_HOME = "/packages/contracts/src/workloads/execution.ts";
@@ -100,6 +101,25 @@ function everyOwnerAuthority(node: Node): EveryOwnerAuthority | undefined {
             identity.name === name && identity.declarations.every((declaration) => declaration.getSourceFile().getFilePath().endsWith(EVERY_OWNER_HOME)),
         ),
       );
+}
+
+/** Assertion targets can carry authority inside a scope, array or data member; direct read admission remains separate. */
+function assertionAuthorities(assertion: AsExpression): readonly EveryOwnerAuthority[] {
+  const annotation = assertion.getTypeNode();
+  const origins = annotation === undefined ? [] : resolveTypeValueOrigins(annotation);
+  return EVERY_OWNER_AUTHORITIES.filter((authority) =>
+    origins.some((origin) =>
+      origin.kind === "resolved"
+        ? origin.value.name === authority &&
+          origin.value.declarations.every((declaration) => declaration.getSourceFile().getFilePath().endsWith(EVERY_OWNER_HOME))
+        : origin.trace.declarations.some(
+            (declaration) =>
+              declaration.isKind(SyntaxKind.InterfaceDeclaration) &&
+              declaration.getName() === authority &&
+              declaration.getSourceFile().getFilePath().endsWith(EVERY_OWNER_HOME),
+          ),
+    ),
+  );
 }
 
 /** A token in an optional, defaulted or union parameter does not prove that this invocation holds it. */
@@ -260,7 +280,7 @@ function personaRead(chain: string): Readonly<Record<string, string>> {
 const AUTHORITY_PROOF_HOME = "packages/contracts/src/workloads/execution.ts";
 const AUTHORITY_PROOF = {
   [AUTHORITY_PROOF_HOME]:
-    "declare const runBrand: unique symbol; declare const estimateBrand: unique symbol; export interface EveryOwnerRun { readonly [runBrand]: true } export interface EveryOwnerEstimate { readonly [estimateBrand]: true }",
+    "declare const runBrand: unique symbol; declare const estimateBrand: unique symbol; export interface EveryOwnerRun { readonly [runBrand]: true } export interface EveryOwnerEstimate { readonly [estimateBrand]: true } export type WorkloadRunScope = { readonly ownerId: string; readonly everyOwnerRun?: null } | { readonly ownerId: null; readonly everyOwnerRun: EveryOwnerRun }; export type WorkloadEstimateScope = { readonly ownerId: string; readonly everyOwnerEstimate?: null } | { readonly ownerId: null; readonly everyOwnerEstimate: EveryOwnerEstimate };",
 };
 
 /** The same canonical authority declaration is resolved through relative imports and re-export aliases. */
@@ -571,8 +591,7 @@ export const gate = defineGate({
       ],
       evaluate: () => {
         for (const assertion of assertions) {
-          const authority = everyOwnerAuthority(assertion);
-          if (authority !== undefined && !authorizedAuthorityMint(assertion, authority)) {
+          if (assertionAuthorities(assertion).some((authority) => !authorizedAuthorityMint(assertion, authority))) {
             ctx.report.node(assertion, { message: MINT_MESSAGE });
           }
         }
@@ -599,6 +618,22 @@ export const gate = defineGate({
   },
 
   mustFlag: [
+    ...[
+      "export const forged = { ownerId: null, everyOwnerRun: {} } as WorkloadRunScope;",
+      "export const forged = { ownerId: null, everyOwnerEstimate: {} } as WorkloadEstimateScope;",
+      "const tokens = [{}] as EveryOwnerRun[]; const token = tokens[0]; if (token !== undefined) { consume(token); }",
+      "export const forged = { nested: { token: {} } } as Readonly<{ nested: { token: EveryOwnerRun } }>;",
+    ].map((body) => ({
+      mode: "types" as const,
+      files: {
+        ...authorityRead("ownerId: string"),
+        [PERSONA_READ_PATH]: `import type { EveryOwnerRun, WorkloadRunScope, WorkloadEstimateScope } from "../../../../../contracts/src/workloads/execution.ts"; declare function consume(run: EveryOwnerRun): void;
+${body}`,
+      },
+      expect: { count: 1, messageIncludes: MINT_MESSAGE },
+      why: "an assertion to a scope union, array or nested data carrier synthesizes authority just as a direct token assertion does",
+    })),
+
     ...[
       "run?: EveryOwnerRun",
       "run: EveryOwnerRun | null",
@@ -1196,6 +1231,25 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        ...authorityRead("ownerId: string"),
+        [PERSONA_READ_PATH]:
+          'import type { EveryOwnerRun, EveryOwnerEstimate, WorkloadRunScope, WorkloadEstimateScope } from "../../../../../contracts/src/workloads/execution.ts"; export function forwardRun(run: EveryOwnerRun): WorkloadRunScope { return { ownerId: null, everyOwnerRun: run }; } export function forwardEstimate(estimate: EveryOwnerEstimate): WorkloadEstimateScope { return { ownerId: null, everyOwnerEstimate: estimate }; }',
+      },
+      why: "typed forwarding carries an existing admitted token without asserting a new authority",
+    },
+    {
+      mode: "types",
+      files: {
+        ...authorityRead("ownerId: string"),
+        [PERSONA_READ_PATH]:
+          'import type { WorkloadRunScope } from "../../../../../contracts/src/workloads/execution.ts"; export const owner = null as WorkloadRunScope["ownerId"];',
+      },
+      why: "an owner-field projection retains no authority token even though its written annotation references the scope type",
+    },
+
     {
       mode: "types",
       files: authorityRead("run: EveryOwnerRun"),

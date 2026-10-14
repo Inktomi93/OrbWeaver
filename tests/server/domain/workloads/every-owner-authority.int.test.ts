@@ -5,7 +5,7 @@
 import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartWorkloadInput, WorkloadRunnableRow } from "@orb/contracts/workloads";
-import { characterEmbeddings, characterSummaries, characters, themeClusters, users, workloads } from "@orb/db";
+import { characterEmbeddings, characterSummaries, characters, embedGenerations, themeClusters, users, workloads } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -92,6 +92,14 @@ test("only actual NULL-owner execution carries every-owner authority, independen
     await root.app.embeddings.embedCorpus({ ownerId: principal.userId, force: true, signal: new AbortController().signal });
   }
   await root.settleBackground();
+  const storedGenerations = new Map((await root.db.select().from(embedGenerations)).map((row) => [row.id, row.ownerId]));
+  const storedCharacters = new Map((await root.db.select().from(characters)).map((row) => [row.id, row.ownerId]));
+  for (const vector of await root.db.select().from(characterEmbeddings)) {
+    expect(storedGenerations.get(vector.generationId)).toBe(storedCharacters.get(vector.characterId));
+  }
+  for (const principal of [owner, member]) {
+    expect(await root.services.discovery.computeDuplicatePairs({ ownerId: principal.userId })).toMatchObject({ charactersScanned: 2, pairsWritten: 1 });
+  }
   const run = vi.spyOn(root.app.workloadContributions.csls, "run");
   const input = { kind: "csls", params: {} } satisfies StartWorkloadInput;
   const owned = await root.services.workloads.start({ caller: null, mode: "singular", ownerId: member.userId, input });
@@ -144,6 +152,9 @@ test("exact estimates remain count-only and owner/mode admission refuses ordinar
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const owner = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
+  const adminId = (await root.actor()).id;
+  await root.services.admin.setRole({ principal: owner, userId: adminId, role: "admin" });
+  const admin = await root.principalFor(adminId);
   await seedCorpusConnections(root, owner);
   const owned = await root.services.character.create({
     principal: owner,
@@ -165,6 +176,7 @@ test("exact estimates remain count-only and owner/mode admission refuses ordinar
   await root.settleBackground();
   const ownerCaller = await root.internalCallerFor(owner.userId);
   const memberCaller = await root.internalCallerFor(member.userId);
+  const adminCaller = await root.internalCallerFor(admin.userId);
   const input = { kind: "distill-characters", params: {} } satisfies StartWorkloadInput;
   const before = [...wire.requests];
   const beforeJobs = await root.db.select().from(workloads);
@@ -172,6 +184,8 @@ test("exact estimates remain count-only and owner/mode admission refuses ordinar
   expect(await memberCaller.workloads.estimateModelCalls({ input, mode: "singular" })).toEqual({ calls: 1 });
   await expect(memberCaller.workloads.estimateModelCalls({ input, mode: "bulk" })).rejects.toThrow();
   await expect(memberCaller.workloads.start({ input, mode: "bulk" })).rejects.toThrow();
+  await expect(adminCaller.workloads.estimateModelCalls({ input, mode: "bulk" })).rejects.toThrow();
+  await expect(adminCaller.workloads.start({ input, mode: "bulk" })).rejects.toThrow();
   expect(await root.db.select().from(workloads)).toEqual(beforeJobs);
   expect(await root.db.select().from(characterSummaries)).toEqual([]);
   expect(wire.requests).toEqual(before);
@@ -187,6 +201,9 @@ test("exact estimates remain count-only and owner/mode admission refuses ordinar
 
   const bulk = await root.services.workloads.start({ caller: owner, mode: "bulk", ownerId: owner.userId, input });
   expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: bulk.id })).toEqual({ calls: 2 });
+  expect(await root.services.workloads.get({ caller: admin, id: bulk.id })).toMatchObject({ ownerId: null, mode: "bulk" });
+  await expect(root.services.workloads.estimateRetryModelCalls({ caller: admin, id: bulk.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(root.services.workloads.retry({ caller: admin, id: bulk.id })).rejects.toBeInstanceOf(DomainNotFoundError);
   await expect(root.services.workloads.estimateRetryModelCalls({ caller: member, id: bulk.id })).rejects.toThrow();
 });
 

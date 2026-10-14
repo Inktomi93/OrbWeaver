@@ -107,8 +107,7 @@ export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise
 }
 
 // ── duplicate-character pass ──────────────────────────────────────────────────
-/** Every card embedding with its owner, excluding synthetic (per-room group) characters. No owner is the
- *  every-owner duplicate pass (`computeDuplicatePairs`), which runs with no Principal. */
+/** The owner's current card vectors and generation provenance, excluding synthetic characters. */
 export async function readOwnedCharacterVectors(db: Db, ownerId: UserId): Promise<OwnedCharacterVector[]> {
   const scope = ownedRealCharacters(ownerId);
   return await db
@@ -122,7 +121,7 @@ export async function readOwnedCharacterVectors(db: Db, ownerId: UserId): Promis
       contentHash: characterEmbeddings.contentHash,
     })
     .from(characterEmbeddings)
-    .leftJoin(embedGenerations, eq(embedGenerations.id, characterEmbeddings.generationId))
+    .leftJoin(embedGenerations, and(eq(embedGenerations.id, characterEmbeddings.generationId), eq(embedGenerations.ownerId, ownerId)))
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
     .where(and(scope, currentCard));
 }
