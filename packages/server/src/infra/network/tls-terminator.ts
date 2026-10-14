@@ -3,10 +3,11 @@
 // SECURITY: the visitor's forwarding headers are replaced by the socket's own facts; only an origin-form target with
 // its own Host is forwarded; and every body is re-framed explicitly upstream (see `framing`), on a connection of its own.
 
-import type { IncomingHttpHeaders, IncomingMessage, OutgoingHttpHeaders, ServerResponse } from "node:http";
+import type { ClientRequest, IncomingHttpHeaders, IncomingMessage, OutgoingHttpHeaders, ServerResponse } from "node:http";
 import { request as httpRequest } from "node:http";
 import type { Server } from "node:https";
 import { createServer } from "node:https";
+import type { Socket } from "node:net";
 import { pipeline } from "node:stream";
 
 // @orb-waive no-inline-package-interface(TlsTerminatorOptions): baselined when the gate landed; burn-down item 952.
@@ -97,8 +98,16 @@ function upstreamTarget(origin: string): { readonly hostname: string; readonly p
 
 // SECURITY: `agent: false` opens one upstream connection per request and closes it after, so nothing a request leaves
 // on its connection can ever reach another request, another visitor's above all. Loopback connects are cheap.
-function forward(upstream: () => string): (req: IncomingMessage, res: ServerResponse) => void {
+function forward(
+  upstream: () => string,
+  requests: Map<ClientRequest, Promise<void>>,
+  closing: () => boolean,
+): (req: IncomingMessage, res: ServerResponse) => void {
   return (req, res) => {
+    if (closing()) {
+      res.destroy();
+      return;
+    }
     if (!isOriginForm(req.url) || req.headers.host === undefined) {
       res.writeHead(BAD_REQUEST, { "content-length": 0 });
       res.end();
@@ -112,6 +121,23 @@ function forward(upstream: () => string): (req: IncomingMessage, res: ServerResp
         pipeline(answer, res, () => undefined);
       },
     );
+    const closed = new Promise<void>((resolve) => {
+      let socketAssigned = false;
+      const release = (): void => {
+        requests.delete(outbound);
+        resolve();
+      };
+      outbound.once("socket", (socket) => {
+        socketAssigned = true;
+        socket.once("close", release);
+      });
+      outbound.once("close", () => {
+        if (!socketAssigned) {
+          release();
+        }
+      });
+    });
+    requests.set(outbound, closed);
     outbound.on("error", () => {
       if (res.headersSent) {
         res.destroy();
@@ -141,7 +167,19 @@ function closeServer(server: Server): Promise<void> {
 /** Binds the https listener and resolves once it listens.
  *  @throws the bind error (a port in use, a port this process may not bind) when the listener cannot open. */
 export function startTlsTerminator(options: TlsTerminatorOptions): Promise<TlsTerminator> {
-  const server = createServer({ cert: options.certificatePem, key: options.keyPem, minVersion: MIN_TLS_VERSION }, forward(options.upstream));
+  const requests = new Map<ClientRequest, Promise<void>>();
+  const connections = new Set<Socket>();
+  let closing = false;
+  let disposal: Promise<void> | undefined;
+  const server = createServer(
+    { cert: options.certificatePem, key: options.keyPem, minVersion: MIN_TLS_VERSION },
+    forward(options.upstream, requests, () => closing),
+  );
+  // HTTP's closeAllConnections does not own sockets still waiting for a TLS handshake.
+  server.on("connection", (socket) => {
+    connections.add(socket);
+    socket.once("close", () => connections.delete(socket));
+  });
   return new Promise<TlsTerminator>((resolve, reject) => {
     const onError = (err: Error): void => {
       reject(err);
@@ -155,7 +193,20 @@ export function startTlsTerminator(options: TlsTerminatorOptions): Promise<TlsTe
         replaceCertificate: (certificatePem, keyPem): void => {
           server.setSecureContext({ cert: certificatePem, key: keyPem, minVersion: MIN_TLS_VERSION });
         },
-        close: () => closeServer(server),
+        close: (): Promise<void> => {
+          disposal ??= (async (): Promise<void> => {
+            closing = true;
+            const upstreams = [...requests];
+            for (const [request] of upstreams) {
+              request.destroy();
+            }
+            for (const socket of connections) {
+              socket.destroy();
+            }
+            await Promise.all([closeServer(server), ...upstreams.map(([, closed]) => closed)]);
+          })();
+          return disposal;
+        },
       });
     });
   });

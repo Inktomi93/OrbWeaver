@@ -5,13 +5,15 @@ import type { ShareParams } from "../contract/params.ts";
 import type { ShareContext, ShareService } from "../contract/service.ts";
 
 export function createDisableIpCertificate(
-  ctx: Pick<ShareContext, "requireOwner" | "saveCertificateSetting" | "certificate" | "relay" | "statusFor" | "audit" | "now">,
+  ctx: Pick<ShareContext, "certificateTransition" | "requireOwner" | "saveCertificateSetting" | "certificate" | "relay" | "statusFor" | "audit" | "now">,
 ): ShareService["disableIpCertificate"] {
   return async ({ principal }: ShareParams) => {
     ctx.requireOwner(principal);
-    await ctx.saveCertificateSetting(principal, null);
-    await ctx.certificate.disable();
-    await ctx.audit({ actorUserId: principal.userId, action: "share.disableIpCertificate", entityType: "server" }, ctx.now());
-    return ctx.statusFor(principal, ctx.relay.status());
+    return await ctx.certificateTransition(async () => {
+      await ctx.saveCertificateSetting(principal, null);
+      await ctx.certificate.disable();
+      await ctx.audit({ actorUserId: principal.userId, action: "share.disableIpCertificate", entityType: "server" }, ctx.now());
+      return ctx.statusFor(principal, ctx.relay.status());
+    });
   };
 }

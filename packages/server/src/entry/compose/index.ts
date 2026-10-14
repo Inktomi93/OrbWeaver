@@ -20,4 +20,5 @@ export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 export { createRpgRestorePost } from "./rpg.ts";
 export type { ServicesDeps, ServicesResult, ShareComposeDeps } from "./services.ts";
 export { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "./services.ts";
+export { createShareGraph } from "./share.ts";
 export { createUpstreamProbes } from "./update-check.ts";

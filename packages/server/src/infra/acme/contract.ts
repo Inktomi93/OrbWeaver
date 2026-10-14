@@ -2,15 +2,11 @@
 // responder it opens per challenge, and the store that keeps the keys and the certificate as owner-only files.
 
 import type { IpCertificateFailureCode } from "@orb/contracts/identity";
+import { z } from "zod";
 
 /** A certificate chain and its private key, as PEM, with the validity the renewal schedule reads (epoch ms). */
-export interface IssuedCertificate {
-  /** The leaf first, then the chain the certificate authority sent. */
-  readonly certificatePem: string;
-  readonly keyPem: string;
-  readonly notBefore: number;
-  readonly notAfter: number;
-}
+export const issuedCertificateSchema = z.strictObject({ certificatePem: z.string(), keyPem: z.string(), notBefore: z.number(), notAfter: z.number() });
+export type IssuedCertificate = z.infer<typeof issuedCertificateSchema>;
 
 /** One order for one public IP address. The HTTP-01 responder listens on `challengePort` only while the challenge is
  *  pending; `bindHost` is the app listener's own interface, undefined for every interface. */
@@ -25,9 +21,11 @@ export interface IssueRequest {
 export type IssueFailureCode = Extract<IpCertificateFailureCode, "validation_failed" | "issuance_failed">;
 
 /** An order's end: the verified certificate, or a coded failure whose detail is the certificate authority's sentence. */
-export type IssueOutcome =
-  | { readonly ok: true; readonly certificate: IssuedCertificate }
-  | { readonly ok: false; readonly code: IssueFailureCode; readonly detail: string };
+export const issueOutcomeSchema = z.discriminatedUnion("ok", [
+  z.strictObject({ ok: z.literal(true), certificate: issuedCertificateSchema }),
+  z.strictObject({ ok: z.literal(false), code: z.enum(["validation_failed", "issuance_failed"]), detail: z.string() }),
+]);
+export type IssueOutcome = z.infer<typeof issueOutcomeSchema>;
 
 /** A certificate's verdict: its leaf's validity (epoch ms) when it is usable, else the reason it is not. */
 export type CertificateCheck = { readonly ok: true; readonly notBefore: number; readonly notAfter: number } | { readonly ok: false; readonly reason: string };
@@ -35,8 +33,19 @@ export type CertificateCheck = { readonly ok: true; readonly notBefore: number; 
 /** The issuer. `issue` never throws: every failure, the network's included, is an outcome. */
 export interface AcmeIssuer {
   readonly createAccountKey: () => Promise<string>;
-  readonly issue: (request: IssueRequest) => Promise<IssueOutcome>;
+  readonly issue: (request: IssueRequest, signal?: AbortSignal) => Promise<IssueOutcome>;
 }
+
+export interface OwnedAcmeIssuer extends AcmeIssuer, AsyncDisposable {
+  readonly cancel: () => void;
+}
+
+export const acmeWorkerRequestSchema = z.strictObject({
+  directoryUrl: z.url(),
+  polling: z.strictObject({ attempts: z.int().positive(), minMs: z.number().nonnegative(), maxMs: z.number().nonnegative() }),
+  request: z.strictObject({ address: z.string(), challengePort: z.int(), bindHost: z.string().optional(), accountKeyPem: z.string() }),
+});
+export type AcmeWorkerRequest = z.infer<typeof acmeWorkerRequestSchema>;
 
 /** Where the HTTP-01 responder listens and the one token and answer it serves. */
 export interface ChallengeResponse {

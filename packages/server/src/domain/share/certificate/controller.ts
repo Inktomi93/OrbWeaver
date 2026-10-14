@@ -7,7 +7,7 @@ import type { IpCertificateFailure, IpCertificateSetting, IpCertificateStatus } 
 import { getLog } from "#foundation/observability";
 import type { IssuedCertificate } from "#infra/acme";
 import type { TlsTerminator } from "#infra/network";
-import type { CertificateController, CertificateControllerDeps } from "../contract/service.ts";
+import type { CertificateControllerDeps, OwnedCertificateController } from "../contract/service.ts";
 import { nextRenewalAt } from "../substrate/renewal.ts";
 
 // The longest single timer the controller arms; a later wake re-arms, because a node timer past this fires at once.
@@ -26,18 +26,46 @@ function certificateUrl(address: string): string {
   return address.includes(":") ? `https://[${address}]` : `https://${address}`;
 }
 
-export function createCertificateController(deps: CertificateControllerDeps): CertificateController {
+export function createCertificateController(deps: CertificateControllerDeps): OwnedCertificateController {
   const log = getLog();
   let status: IpCertificateStatus = { state: "off" };
   let generation = 0;
   let setting: IpCertificateSetting | null = null;
   let listener: TlsTerminator | null = null;
+  let closing: Promise<void> = Promise.resolve();
   let served: IssuedCertificate | null = null;
   let renewalFailures = 0;
   let cancelRenewal: (() => void) | null = null;
   let cancelExpiry: (() => void) | null = null;
   // One order at a time: an order from an older generation still holds the challenge port until its authority answers.
   let ordering: Promise<void> = Promise.resolve();
+  let orderAbort = new AbortController();
+  const pending = new Set<Promise<IpCertificateStatus | void>>();
+  let disposed = false;
+  let disposal: Promise<void> | undefined;
+
+  function track<T extends IpCertificateStatus | void>(run: () => Promise<T>): Promise<T> {
+    if (disposed) {
+      return Promise.reject(new Error("The certificate controller is disposed"));
+    }
+    const operation = Promise.withResolvers<T>();
+    pending.add(operation.promise);
+    void run().then(operation.resolve, operation.reject);
+    void operation.promise.then(
+      () => pending.delete(operation.promise),
+      () => pending.delete(operation.promise),
+    );
+    return operation.promise;
+  }
+
+  async function settle(): Promise<void> {
+    const results = await Promise.allSettled([...pending]);
+    await ordering;
+    const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason);
+    if (failures.length > 0) {
+      throw new AggregateError(failures, "certificate controller settlement failed");
+    }
+  }
 
   // Runs `run` at `at`, re-arming in steps no longer than MAX_TIMER_MS; the returned function cancels the whole chain.
   function scheduleAt(at: number, run: () => void): () => void {
@@ -57,25 +85,38 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
   }
 
   function cancelTimers(): void {
-    cancelRenewal?.();
+    using cancelling = new DisposableStack();
+    if (cancelRenewal !== null) {
+      cancelling.defer(cancelRenewal);
+    }
     cancelRenewal = null;
-    cancelExpiry?.();
+    if (cancelExpiry !== null) {
+      cancelling.defer(cancelExpiry);
+    }
     cancelExpiry = null;
   }
 
   async function closeListener(): Promise<void> {
     const open = listener;
     listener = null;
-    await open?.close();
+    if (open !== null) {
+      closing = Promise.all([closing, open.close()]).then((): void => undefined);
+    }
+    await closing;
   }
 
   // Everything this generation owns ends; the setting and the stored files are the caller's business.
-  async function halt(): Promise<void> {
+  async function halt(): Promise<number> {
     generation += 1;
-    cancelTimers();
+    const gen = generation;
+    orderAbort.abort();
+    orderAbort = new AbortController();
     served = null;
     renewalFailures = 0;
-    await closeListener();
+    await using stopping = new AsyncDisposableStack();
+    stopping.defer(closeListener);
+    stopping.defer(cancelTimers);
+    return gen;
   }
 
   function activeStatus(
@@ -102,6 +143,9 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
     cancelTimers();
     served = null;
     await closeListener();
+    if (gen !== generation) {
+      return;
+    }
     status = { state: "failed", setting: current, failure };
     log.warn(
       { share: true, security: true, code: failure.code, detail: failure.message },
@@ -117,6 +161,9 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
         ? null
         : scheduleAt(at, () => {
             cancelRenewal = null;
+            if (nextRenewalAt(certificate, 0, deps.now()) === null) {
+              return;
+            }
             order(gen, current);
           });
     return at;
@@ -127,7 +174,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
     cancelExpiry = scheduleAt(certificate.notAfter, () => {
       cancelExpiry = null;
       const cause = lastFailure === null ? "" : ` The last renewal failed: ${lastFailure.message}`;
-      fail(gen, current, { code: "expired", message: `The certificate expired before a renewal succeeded.${cause}` }).catch((err: unknown) => {
+      track(() => fail(gen, current, { code: "expired", message: `The certificate expired before a renewal succeeded.${cause}` })).catch((err: unknown) => {
         log.error({ share: true, err: errorText(err) }, "share: the expired IP certificate could not be closed");
       });
     });
@@ -197,14 +244,22 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
     if (gen !== generation) {
       return;
     }
+    const signal = orderAbort.signal;
     // @orb-waive caught-failure-ownership(err): owned by `orderFailed`, which sets the status the Share card shows (a renewal failure beside the live certificate, or the `failed` fallback) and logs it. Ends if `orderFailed` stops setting that status.
     try {
-      const outcome = await deps.issuer.issue({
-        address: current.address,
-        challengePort: current.challengePort,
-        bindHost: deps.bindHost,
-        accountKeyPem: await accountKey(),
-      });
+      const accountKeyPem = await accountKey();
+      if (gen !== generation) {
+        return;
+      }
+      const outcome = await deps.issuer.issue(
+        {
+          address: current.address,
+          challengePort: current.challengePort,
+          bindHost: deps.bindHost,
+          accountKeyPem,
+        },
+        signal,
+      );
       if (gen !== generation) {
         return;
       }
@@ -252,39 +307,62 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
   }
 
   return {
-    enable: async (next): Promise<IpCertificateStatus> => {
-      if (setting !== null && sameSetting(setting, next) && (status.state === "obtaining" || status.state === "active")) {
+    enable: (next): Promise<IpCertificateStatus> =>
+      track(async () => {
+        if (setting !== null && sameSetting(setting, next) && (status.state === "obtaining" || status.state === "active")) {
+          return status;
+        }
+        setting = next;
+        status = { state: "obtaining", setting: next };
+        const gen = await halt();
+        if (disposed || gen !== generation) {
+          return status;
+        }
+        const stored = await usableStored(next.address);
+        if (gen !== generation) {
+          return status;
+        }
+        if (stored !== null) {
+          await serve(gen, next, stored);
+          return status;
+        }
+        order(gen, next);
         return status;
-      }
-      await halt();
-      const gen = generation;
-      setting = next;
-      status = { state: "obtaining", setting: next };
-      const stored = await usableStored(next.address);
-      if (gen !== generation) {
-        return status;
-      }
-      if (stored !== null) {
-        await serve(gen, next, stored);
-        return status;
-      }
-      order(gen, next);
-      return status;
-    },
-    disable: async (): Promise<void> => {
-      const wasOn = status.state !== "off";
-      await halt();
-      setting = null;
-      status = { state: "off" };
-      await deps.store.removeCertificate();
-      if (wasOn) {
-        log.info({ share: true }, "share: the IP certificate is off and deleted; this server answers over plain http only");
-      }
-    },
-    stop: async (): Promise<void> => {
-      await halt();
-      status = { state: "off" };
-    },
+      }),
+    disable: (): Promise<void> =>
+      track(async () => {
+        const wasOn = status.state !== "off";
+        setting = null;
+        status = { state: "off" };
+        const gen = await halt();
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- a concurrent enable may replace shared setting during awaited halt; TypeScript retains the earlier null narrowing across that await.
+        if (gen !== generation && setting !== null) {
+          return;
+        }
+        await deps.store.removeCertificate();
+        if (wasOn) {
+          log.info({ share: true }, "share: the IP certificate is off and deleted; this server answers over plain http only");
+        }
+      }),
+    stop: (): Promise<void> =>
+      track(async () => {
+        status = { state: "off" };
+        await halt();
+      }),
     status: (): IpCertificateStatus => status,
+    settle,
+    [Symbol.asyncDispose](): Promise<void> {
+      disposal ??= (async (): Promise<void> => {
+        disposed = true;
+        const stopped = halt();
+        status = { state: "off" };
+        const results = await Promise.allSettled([stopped, settle()]);
+        const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason);
+        if (failures.length > 0) {
+          throw new AggregateError(failures, "certificate controller disposal failed");
+        }
+      })();
+      return disposal;
+    },
   };
 }

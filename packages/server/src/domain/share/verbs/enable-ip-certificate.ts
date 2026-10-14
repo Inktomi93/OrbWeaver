@@ -6,30 +6,35 @@ import type { EnableIpCertificateParams } from "../contract/params.ts";
 import type { ShareContext, ShareService } from "../contract/service.ts";
 
 export function createEnableIpCertificate(
-  ctx: Pick<ShareContext, "requireOwner" | "certificateRefusal" | "saveCertificateSetting" | "certificate" | "relay" | "statusFor" | "audit" | "now">,
+  ctx: Pick<
+    ShareContext,
+    "certificateTransition" | "requireOwner" | "certificateRefusal" | "saveCertificateSetting" | "certificate" | "relay" | "statusFor" | "audit" | "now"
+  >,
 ): ShareService["enableIpCertificate"] {
   return async ({ principal, setting }: EnableIpCertificateParams) => {
     ctx.requireOwner(principal);
-    const checked = await ctx.certificateRefusal(setting);
-    if (checked.refusal !== null) {
-      throw new DomainOperationError(checked.refusal.code, checked.refusal.message);
-    }
-    await ctx.saveCertificateSetting(principal, checked.setting);
-    const certificate = await ctx.certificate.enable(checked.setting);
-    await ctx.audit(
-      {
-        actorUserId: principal.userId,
-        action: "share.enableIpCertificate",
-        entityType: "server",
-        metadata: {
-          address: checked.setting.address,
-          httpsPort: checked.setting.httpsPort,
-          challengePort: checked.setting.challengePort,
-          state: certificate.state,
+    return await ctx.certificateTransition(async () => {
+      const checked = await ctx.certificateRefusal(setting);
+      if (checked.refusal !== null) {
+        throw new DomainOperationError(checked.refusal.code, checked.refusal.message);
+      }
+      await ctx.saveCertificateSetting(principal, checked.setting);
+      const certificate = await ctx.certificate.enable(checked.setting);
+      await ctx.audit(
+        {
+          actorUserId: principal.userId,
+          action: "share.enableIpCertificate",
+          entityType: "server",
+          metadata: {
+            address: checked.setting.address,
+            httpsPort: checked.setting.httpsPort,
+            challengePort: checked.setting.challengePort,
+            state: certificate.state,
+          },
         },
-      },
-      ctx.now(),
-    );
-    return ctx.statusFor(principal, ctx.relay.status());
+        ctx.now(),
+      );
+      return ctx.statusFor(principal, ctx.relay.status());
+    });
   };
 }

@@ -4,6 +4,7 @@
 import type { KeyObject } from "node:crypto";
 import { generateKeyPairSync } from "node:crypto";
 import { request } from "node:https";
+import { checkServerIdentity } from "node:tls";
 import { createFrozenClock } from "../iso/clock.ts";
 import { ipCertificatePem } from "./x509.ts";
 
@@ -50,6 +51,8 @@ export function tlsRequest(options: {
   readonly method?: string;
   readonly headers?: Record<string, string>;
   readonly body?: string;
+  readonly identityAddress?: string;
+  readonly allowPartialTrustChain?: boolean;
 }): Promise<TlsAnswer> {
   const length = options.body === undefined ? {} : { "content-length": String(Buffer.byteLength(options.body)) };
   return new Promise((resolve, reject) => {
@@ -61,6 +64,13 @@ export function tlsRequest(options: {
         method: options.method ?? "GET",
         headers: { ...length, ...options.headers },
         ca: options.ca,
+        ...(options.allowPartialTrustChain === undefined ? {} : { allowPartialTrustChain: options.allowPartialTrustChain }),
+        ...(options.identityAddress === undefined
+          ? {}
+          : {
+              checkServerIdentity: (_hostname: string, peer: Parameters<typeof checkServerIdentity>[1]) =>
+                checkServerIdentity(options.identityAddress ?? options.host, peer),
+            }),
         agent: false,
       },
       (res) => {

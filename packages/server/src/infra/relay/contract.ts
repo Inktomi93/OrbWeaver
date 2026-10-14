@@ -32,10 +32,11 @@ export interface CloudflaredPin {
 export type RelayAssetFetch = (url: string, limits: { readonly maxBytes: number; readonly deadlineMs: number }) => Promise<Response>;
 
 /** Unpacks the single `cloudflared` entry of a verified tgz into `intoDir`. Called only after the archive's hash matched. */
-export type ExtractTgz = (archive: string, intoDir: string) => Promise<void>;
+export type ExtractTgz = (archive: string, intoDir: string, signal?: AbortSignal) => Promise<void>;
 
 /** What the binary verifier reads: the pin, this process's target, its private directory and the two I/O seams. */
 export interface CloudflaredBinaryDeps {
+  readonly signal?: AbortSignal;
   readonly pin: CloudflaredPin;
   /** `${process.platform}-${process.arch}`; a pair outside {@link CLOUDFLARED_TARGETS} refuses. */
   readonly target: string;
@@ -61,6 +62,10 @@ export interface RelayProcess {
   readonly stop: () => void;
 }
 
+export interface OwnedRelayProcess extends RelayProcess, AsyncDisposable {
+  readonly settled: Promise<void>;
+}
+
 /** Starts one relay process from a verified executable. */
 export type SpawnRelay = (executable: string, origin: string, events: RelayEvents) => RelayProcess;
 
@@ -74,4 +79,16 @@ export interface RelayLauncher {
 export interface QuickTunnelLauncherDeps {
   readonly binary: CloudflaredBinary;
   readonly spawn: SpawnRelay;
+}
+
+export interface RelayExecutionDeps {
+  readonly pin: CloudflaredPin | null;
+  readonly target: string;
+  readonly dir: string;
+  readonly fetch: RelayAssetFetch;
+  readonly spawn?: SpawnRelay;
+}
+
+export interface OwnedRelayLauncher extends RelayLauncher, AsyncDisposable {
+  readonly cancel: () => void;
 }

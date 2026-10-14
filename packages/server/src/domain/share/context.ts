@@ -5,9 +5,10 @@ import type { ShareContext, ShareServiceDeps } from "./contract/service.ts";
 import { certificateRefusal } from "./substrate/certificate-refusal.ts";
 import { shareRefusal } from "./substrate/refusal.ts";
 
-export function createShareContext(deps: ShareServiceDeps): ShareContext {
+export function createShareContext(deps: ShareServiceDeps, certificateTransition: ShareContext["certificateTransition"]): ShareContext {
   return {
     ...deps,
+    certificateTransition,
     refusal: () => shareRefusal(deps),
     certificateRefusal: (setting) => certificateRefusal(deps, setting),
     statusFor: (principal, relay) => ({

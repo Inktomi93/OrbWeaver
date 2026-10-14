@@ -14,7 +14,9 @@ export type {
   IssueRequest,
   OpenChallenge,
   OpenChallengeResponder,
+  OwnedAcmeIssuer,
 } from "./contract.ts";
+export { createOwnedAcmeIssuer } from "./execution.ts";
 export { openChallengeResponder } from "./http-01.ts";
 export { ACME_POLLING, createAcmeIssuer, IP_IDENTIFIER_TYPE, LETS_ENCRYPT_DIRECTORY, SHORTLIVED_PROFILE } from "./issuer.ts";
 export { createCertificateStore } from "./store.ts";

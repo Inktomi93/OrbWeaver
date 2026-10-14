@@ -5,17 +5,18 @@
 import type { CertificateBootOutcome, ShareContext, ShareService } from "../contract/service.ts";
 
 export function createResumeIpCertificate(
-  ctx: Pick<ShareContext, "certificateSetting" | "certificateRefusal" | "certificate">,
+  ctx: Pick<ShareContext, "certificateTransition" | "certificateSetting" | "certificateRefusal" | "certificate">,
 ): ShareService["resumeIpCertificate"] {
-  return async (): Promise<CertificateBootOutcome> => {
-    const setting = ctx.certificateSetting();
-    if (setting === null) {
-      return { kind: "not_configured" };
-    }
-    const checked = await ctx.certificateRefusal(setting);
-    if (checked.refusal !== null) {
-      return { kind: "refused", refusal: checked.refusal };
-    }
-    return { kind: "started", certificate: await ctx.certificate.enable(checked.setting) };
-  };
+  return (): Promise<CertificateBootOutcome> =>
+    ctx.certificateTransition(async () => {
+      const setting = ctx.certificateSetting();
+      if (setting === null) {
+        return { kind: "not_configured" };
+      }
+      const checked = await ctx.certificateRefusal(setting);
+      if (checked.refusal !== null) {
+        return { kind: "refused", refusal: checked.refusal };
+      }
+      return { kind: "started", certificate: await ctx.certificate.enable(checked.setting) };
+    });
 }
