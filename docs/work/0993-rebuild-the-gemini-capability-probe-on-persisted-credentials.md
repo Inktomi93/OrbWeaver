@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
-updated: 2026-10-12
+status: open
+updated: 2026-10-14
 priority: P2
 area: inference
-blocked: on 958
 plan: test-foundation
 ---
 
