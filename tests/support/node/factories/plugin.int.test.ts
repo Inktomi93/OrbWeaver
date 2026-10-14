@@ -1,9 +1,6 @@
 // @subject tests/support/node/factories/plugin.ts
 
 import { spawn } from "node:child_process";
-import { providerDefSchema } from "@orb/contracts/inference";
-import type { PluginManifest } from "@orb/contracts/plugin";
-import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginKv, pluginProviderClaims } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { PluginNotFoundError } from "@orb/server/domain/plugin";
@@ -13,28 +10,15 @@ import { seedAdminProvider, seedPluginProviders } from "@orb/testkit/node/factor
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { and, eq, inArray } from "drizzle-orm";
-import { strToU8, zipSync } from "fflate";
-
-const STORAGE_KEY = "ledger";
-const STORAGE_VALUE = "archived orbital witness";
-const ASSET_PATH = `${PLUGIN_UI_ASSETS_DIR}ledger.png`;
-const MANIFEST = pluginManifestSchema.parse({
-  id: "corpus-ledger",
-  name: "Corpus ledger",
-  version: "1.0.0",
-  hostVersion: PLUGIN_HOST_VERSIONS[0],
-  entry: PLUGIN_MAIN_ENTRY,
-  description: "Records the synthetic ledger in private guest storage.",
-  capabilities: ["storage.kv"],
-});
-
-function bundle(asset: Uint8Array, manifest: PluginManifest = MANIFEST): Uint8Array {
-  return zipSync({
-    [PLUGIN_MANIFEST_ENTRY]: strToU8(JSON.stringify(manifest)),
-    [PLUGIN_MAIN_ENTRY]: strToU8(`const host = orb.host(1); host.storage.set(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(STORAGE_VALUE)});`),
-    [ASSET_PATH]: asset,
-  });
-}
+import {
+  CORPUS_PLUGIN_ASSET_PATH as ASSET_PATH,
+  corpusPluginBundle as bundle,
+  CORPUS_ADMIN_PROVIDER,
+  CORPUS_PLUGIN_PROVIDER_MANIFEST,
+  CORPUS_PLUGIN_MANIFEST as MANIFEST,
+  CORPUS_PLUGIN_STORAGE_KEY as STORAGE_KEY,
+  CORPUS_PLUGIN_STORAGE_VALUE as STORAGE_VALUE,
+} from "../corpus-plugin.ts";
 
 test("real install retains bundle assets and guest activation writes only the consenting owner's private KV", async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
@@ -76,21 +60,7 @@ test("real install retains bundle assets and guest activation writes only the co
 test("actual plugin activation captures the manifest's precise provider claim and disable leaves the production tombstone", async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const caller = await root.principalFor(root.ownerId);
-  const manifest = pluginManifestSchema.parse({
-    ...MANIFEST,
-    providers: [
-      {
-        id: "plugin:corpus-ledger/text",
-        label: "Corpus text",
-        wire: "openai-compat",
-        dialect: "openai-compatible",
-        auth: "endpoint",
-        apis: ["chat-completions"],
-        catalog: "url",
-        metered: false,
-      },
-    ],
-  });
+  const manifest = CORPUS_PLUGIN_PROVIDER_MANIFEST;
   const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
     caller,
     bundle: bundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), manifest),
@@ -132,16 +102,7 @@ test("actual plugin activation captures the manifest's precise provider claim an
 
 test("admin registry capture retains the actual normalized provider definition and admin origin", async () => {
   await using root = await createServerHarness();
-  const definition = providerDefSchema.parse({
-    id: "corpus-admin",
-    label: "Corpus admin endpoint",
-    wire: "openai-compat",
-    dialect: "openai-compatible",
-    auth: "endpoint",
-    apis: ["chat-completions"],
-    catalog: "url",
-    metered: false,
-  });
+  const definition = CORPUS_ADMIN_PROVIDER;
   const row = await seedAdminProvider(root.db, root.services.connection.registry.register, definition, { admin: root.ownerId });
   expect(row.id).toBe(definition.id);
   expect(row.originKind).toBe("admin");

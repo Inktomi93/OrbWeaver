@@ -41,6 +41,7 @@ export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEnt
       ignoreBudget,
       metadata,
       createdAt: at,
+      updatedAt: at,
     });
 
     await ctx.audit(

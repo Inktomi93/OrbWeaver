@@ -21,6 +21,7 @@ export function createCreate(ctx: WorldInfoContext): WorldInfoService["createBoo
       name: input.name,
       description,
       createdAt: at,
+      updatedAt: at,
     });
 
     await ctx.audit(
