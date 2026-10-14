@@ -190,7 +190,8 @@
     "./node/corpus.ts": "./node/corpus.ts",
     "./node/factories/credentials.ts": "./node/factories/credentials.ts",
     "./node/factories/plugin.ts": "./node/factories/plugin.ts",
-    "./node/factories/sessions.ts": "./node/factories/sessions.ts"
+    "./node/factories/sessions.ts": "./node/factories/sessions.ts",
+    "./node/oidc-issuer.ts": "./node/oidc-issuer.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "catalog:",
@@ -215,7 +216,8 @@
     "typeid-js": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:",
-    "@orb/default-content": "workspace:*"
+    "@orb/default-content": "workspace:*",
+    "jose": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

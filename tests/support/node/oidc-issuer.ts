@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { JWTPayload } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import type { ServerHarnessOptions } from "./server.ts";
 
 export const ISSUER = "https://native-issuer.example/";
 export const CLIENT_ID = "orb-native-proof";
@@ -126,3 +127,32 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
     },
   };
 }
+
+export const NATIVE_OIDC_SETTINGS = {
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_ISSUER: ISSUER,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_CLIENT_ID: CLIENT_ID,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_CLIENT_SECRET: CLIENT_SECRET,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_REDIRECT_URIS: CALLBACK,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_SCOPES: "openid profile email",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_USERNAME_CLAIM: "preferred_username",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_UID_CLAIM: "sub",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_GROUPS_CLAIM: "groups",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_EMAIL_CLAIM: "email",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_GROUPS_SEPARATOR: ";",
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_SIGNUP: true,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_REQUIRE_APPROVAL: false,
+  // biome-ignore lint/style/useNamingConvention: this is the canonical validated startup setting name.
+  OIDC_BACKCHANNEL_LOGOUT: true,
+} satisfies NonNullable<ServerHarnessOptions["oidc"]>;
