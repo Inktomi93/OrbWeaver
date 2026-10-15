@@ -2,7 +2,10 @@
 // @subject tests/support/node/factories/embedding-generation.ts
 // @subject packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts
 import "./composed-real.ts";
+import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { automationRuleUpdateSchema } from "@orb/contracts/automation";
+import { CHAT_WARNING_CODES } from "@orb/contracts/chat";
 import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
@@ -175,6 +178,20 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(result.preset.restoredDefault).toBe(result.preset.previous);
   expect(result.preset.effective.output).toMatchObject({ presetId: library.preset.id, model: CORPUS_TEXT_MODEL });
   expect(result.preset.detail.output.configUnreadable).toBeNull();
+  expect(result.preset.restored.output).toEqual(result.preset.inactive.output);
+  expect(result.preset.restored).not.toBe(result.preset.inactive);
+  expect(result.preset.effective.output.qualityMapping).toBeNull();
+  expect(result.preset.effective.output.knobs).not.toHaveProperty("effort");
+  expect(result.preset.effective.output.cacheWarnings.length).toBeGreaterThan(0);
+  const foreignCaller = await root.internalCallerFor(actors.secondUserId);
+  await expect(foreignCaller.preset.get(result.preset.detail.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(foreignCaller.preset.resolveEffective(result.preset.effective.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(foreignCaller.automation.listRules(roster.repeatedRules.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  expect((await foreignCaller.preset.list()).some((preset) => preset.id === library.preset.id)).toBe(false);
+  const ownForeignPreset = await foreignCaller.preset.create({ name: "Foreign effective witness", kind: "custom" });
+  await expect(foreignCaller.preset.resolveEffective({ ...result.preset.effective.input, id: ownForeignPreset.id })).rejects.toMatchObject({
+    code: "BAD_REQUEST",
+  });
 
   const documents = result.documents;
   expect(documents.created.output).toMatchObject({ outcome: "created", ingest: "queued", document: { chunkCount: 0 } });
@@ -245,7 +262,22 @@ test("native library projections retain canonical usage, ordering, intake and re
       preset: regex.preset,
     },
   };
-  const libraryRelations = result.publication.relations;
+  const libraryRelations = {
+    ...result.publication.relations,
+    ids: { ...result.publication.relations.ids, presetId: library.preset.id, connectionId: actors.connections.text.id },
+    reads: {
+      ...result.publication.relations.reads,
+      presetDetail: result.preset.detail,
+      presetList: result.preset.list,
+      presetInactive: result.preset.inactive,
+      presetActive: result.preset.active,
+      presetRestored: result.preset.restored,
+      presetEffective: result.preset.effective,
+      rulesFirst: roster.firstRules,
+      rulesRepeated: roster.repeatedRules,
+    },
+  };
+  expect.soft(result.publication.relations).toEqual(libraryRelations);
   const captured = { ...base, worldInfoLibrary, regexLibrary, libraryRelations };
   const parsed = parseCorpusWire(serializeCorpusWire(captured, authentication.secrets));
   expect(parsed.worldInfoLibrary).toEqual(worldInfoLibrary);
@@ -280,6 +312,14 @@ test("native library projections retain canonical usage, ordering, intake and re
     rosterAppliedAgain: roster.appliedAgain,
     rosterChat: roster.chat,
     ruleCatalog: roster.ruleCatalog,
+    presetDetail: result.preset.detail,
+    presetList: result.preset.list,
+    presetInactive: result.preset.inactive,
+    presetActive: result.preset.active,
+    presetRestored: result.preset.restored,
+    presetEffective: result.preset.effective,
+    rulesFirst: roster.firstRules,
+    rulesRepeated: roster.repeatedRules,
   });
   for (const index of Object.values(libraryRelations.reads).keys()) {
     const malformed = structuredClone(captured);
@@ -298,6 +338,51 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(() => createCorpusReadResponder("tag.listPendingSuggestions", [tags.pending, tags.pendingAfter])).toThrow("Conflicting corpus captures");
   expect(() => createCorpusReadResponder("tag.listTagsWithUsage", [tags.before, tags.usage])).toThrow("Conflicting corpus captures");
   expect(() => createCorpusReadResponder("rosterPreset.applyToChat", [roster.applied, roster.appliedAgain])).toThrow("Conflicting corpus captures");
+  expect(() => createCorpusReadResponder("preset.listUsage", [result.preset.inactive, result.preset.active])).toThrow("Conflicting corpus captures");
+  const effectiveSnapshot = { viewerUserId: libraryRelations.viewerUserId, read: libraryRelations.reads.presetEffective };
+  const effectiveRespond = createCorpusViewerReadResponder("preset.resolveEffective", root.ownerId, effectiveSnapshot);
+  expect(effectiveRespond(result.preset.effective.input)).toEqual(result.preset.effective.output);
+  expect(() => effectiveRespond({ id: library.preset.id })).toThrow("Uncaptured corpus read");
+  expect(() => createCorpusViewerReadResponder("preset.resolveEffective", actors.secondUserId, effectiveSnapshot)).toThrow("snapshot viewer does not match");
+  const rulesSnapshot = { viewerUserId: libraryRelations.viewerUserId, read: libraryRelations.reads.rulesRepeated };
+  expect(createCorpusViewerReadResponder("automation.listRules", root.ownerId, rulesSnapshot)(roster.repeatedRules.input)).toEqual(roster.repeatedRules.output);
+  expect(() => createCorpusViewerReadResponder("automation.listRules", actors.secondUserId, rulesSnapshot)).toThrow("snapshot viewer does not match");
+  const driftedPreset = structuredClone(captured);
+  Reflect.deleteProperty(driftedPreset.libraryRelations.reads.presetDetail.output, "configUnreadable");
+  expect(() => serializeCorpusWire(driftedPreset, authentication.secrets)).toThrow("configUnreadable");
+  const wrongWarningAxis = structuredClone(captured);
+  const warning = wrongWarningAxis.libraryRelations.reads.presetEffective.output.cacheWarnings[0];
+  assert(warning !== undefined, "native effective preset omitted its cache-warning witness");
+  Object.assign(warning, { code: CHAT_WARNING_CODES[0] });
+  expect(() => serializeCorpusWire(wrongWarningAxis, authentication.secrets)).toThrow("cacheWarnings");
+  const swappedPreset = structuredClone(captured);
+  Object.assign(swappedPreset.libraryRelations.reads.presetEffective.output, { presetId: ownForeignPreset.id });
+  expect(() => serializeCorpusWire(swappedPreset, authentication.secrets)).toThrow("relation identity mismatch");
+  const swappedRule = structuredClone(captured);
+  const rule = swappedRule.libraryRelations.reads.rulesRepeated.output[0];
+  if (rule === undefined) {
+    throw new Error("native live-rule publication omitted its minted witness");
+  }
+  Object.assign(rule, { chatId: library.room.chat.id });
+  expect(() => serializeCorpusWire(swappedRule, authentication.secrets)).toThrow("relation identity mismatch");
+  const effectiveMarker = `"presetId":${JSON.stringify(library.preset.id)},"model":`;
+  expect(published.split(effectiveMarker)).toHaveLength(2);
+  expect(() => parseCorpusWire(published.replace(effectiveMarker, `"presetId":${JSON.stringify(ownForeignPreset.id)},"model":`))).toThrow(
+    "relation identity mismatch",
+  );
+  const ruleMarker = `"rulesRepeated":[{"id":${JSON.stringify(rule.id)},"chatId":${JSON.stringify(roster.room.chat.id)}`;
+  expect(published.split(ruleMarker)).toHaveLength(2);
+  expect(() =>
+    parseCorpusWire(published.replace(ruleMarker, `"rulesRepeated":[{"id":${JSON.stringify(rule.id)},"chatId":${JSON.stringify(library.room.chat.id)}`)),
+  ).toThrow("relation identity mismatch");
+  const liveRule = roster.repeatedRules.output[0];
+  assert(liveRule !== undefined, "native live-rule publication omitted its enabled witness");
+  const ruleCaller = await root.internalCallerFor(root.ownerId);
+  await ruleCaller.automation.setRuleEnabled({ ruleId: liveRule.id, enabled: false });
+  const disabledRules = { input: roster.repeatedRules.input, output: await ruleCaller.automation.listRules(roster.repeatedRules.input) };
+  expect(disabledRules.output.find((entry) => entry.id === liveRule.id)?.enabled).toBe(false);
+  expect(() => createCorpusReadResponder("automation.listRules", [roster.repeatedRules, disabledRules])).toThrow("Conflicting corpus captures");
+  await ruleCaller.automation.setRuleEnabled({ ruleId: liveRule.id, enabled: true });
   const driftedRelations = structuredClone(captured);
   Reflect.deleteProperty(driftedRelations.libraryRelations.reads.rosterApplied.output, "rulesMinted");
   expect(() => serializeCorpusWire(driftedRelations, authentication.secrets)).toThrow("rulesMinted");
@@ -362,6 +447,28 @@ test("native library projections retain canonical usage, ordering, intake and re
     const echoed = structuredClone(captured);
     Object.assign(echoed.worldInfoLibrary.reads.entry, { output });
     expect(() => serializeCorpusWire(echoed, secrets)).toThrow("Corpus publication contains private material");
+    await caller.preset.update({ id: library.preset.id, name: spelling });
+    const presetDetail = await caller.preset.get(result.preset.detail.input);
+    expect(presetDetail.name).toBe(spelling);
+    const echoedPreset = structuredClone(captured);
+    Object.assign(echoedPreset.libraryRelations.reads.presetDetail, { output: presetDetail });
+    expect(() => serializeCorpusWire(echoedPreset, secrets)).toThrow("Corpus publication contains private material");
+    const mintedRule = roster.repeatedRules.output[0];
+    if (mintedRule === undefined) {
+      throw new Error("native live-rule publication omitted its editable witness");
+    }
+    await caller.automation.updateRule(
+      automationRuleUpdateSchema.parse({
+        ...Object.fromEntries(Object.keys(automationRuleUpdateSchema.shape).map((key) => [key, Reflect.get(mintedRule, key)])),
+        ruleId: mintedRule.id,
+        name: spelling,
+      }),
+    );
+    const liveRules = await caller.automation.listRules(roster.repeatedRules.input);
+    expect(liveRules.find((entry) => entry.id === mintedRule.id)?.name).toBe(spelling);
+    Object.assign(echoedPreset.libraryRelations.reads.rulesRepeated, { output: liveRules });
+    Object.assign(echoedPreset.libraryRelations.reads.presetDetail, { output: result.preset.detail.output });
+    expect(() => serializeCorpusWire(echoedPreset, secrets)).toThrow("Corpus publication contains private material");
     await caller.tag.updateTag({ tagId: tags.tag.id, patch: { name: spelling } });
     const tagList = await caller.tag.listTags();
     expect(tagList.find((tag) => tag.id === tags.tag.id)?.name).toBe(spelling);
@@ -387,5 +494,11 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(() => serializeCorpusWire(regexDrift, secrets)).toThrow("Corpus publication contains private material");
   Object.assign(driftedRelations.libraryRelations.reads.rosterApplied.output, { [secret]: true });
   expect(() => serializeCorpusWire(driftedRelations, secrets)).toThrow("Corpus publication contains private material");
+  Object.assign(driftedPreset.libraryRelations.reads.presetDetail.output, { [secret]: true });
+  expect(() => serializeCorpusWire(driftedPreset, secrets)).toThrow("Corpus publication contains private material");
+  Object.assign(wrongWarningAxis.libraryRelations.reads.presetEffective.output, { [secret]: true });
+  expect(() => serializeCorpusWire(wrongWarningAxis, secrets)).toThrow("Corpus publication contains private material");
+  Object.assign(rule, { [secret]: true });
+  expect(() => serializeCorpusWire(swappedRule, secrets)).toThrow("Corpus publication contains private material");
   expect(parseCorpusWire(serializeCorpusWire(base, secrets))).toEqual(base);
 });
