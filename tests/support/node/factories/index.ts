@@ -7,18 +7,24 @@ export type {
   AutomationOwnerBudgetRow,
   AutomationRuleRow,
   AutomationRuleStateRow,
+  CapturedAutomationViews,
   GlobalVariableRow,
+  SeededAutomationConfirmation,
   SeededAutomationRun,
   SeededAutomationTestFires,
+  SeededCreatedAutomationRule,
 } from "./automation.ts";
 export {
   captureAutomationExecution,
   captureAutomationRule,
+  captureAutomationViews,
   captureGlobalVariable,
+  seedAutomationConfirmation,
   seedAutomationOwnerBudget,
   seedAutomationRule,
   seedAutomationRun,
   seedAutomationTestFires,
+  seedCreatedAutomationRule,
   seedGlobalVariable,
 } from "./automation.ts";
 export type { CharacterPersonaRow, CharacterRow, CharacterSnapshotRow, SeededCharacterHistory, SeededCreatedCharacter } from "./character.ts";
