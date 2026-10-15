@@ -23,4 +23,4 @@ Every owned output and callback has a canonical supplier with meaningful native 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Selected native lifecycle, source, HTTP and browser Worker suppliers pass independent security review. Exact log kind, level and payload are asserted. Evidence: `reports/review/1031-plugin-output-delivery.md`. Complete native host return and callback allocations, browser unavailable behavior and shared adoption remain open.
