@@ -93,6 +93,7 @@ export function ambientRootsForProgram(config: string): readonly string[] | unde
 // absent from the authored corpus.
 export const TYPE_CONFIG_EXCLUDES = ["**/node_modules"] as const;
 export const BROWSER_LIB_ADDITIONS = ["dom", "dom.iterable"] as const;
+export const NODE_TEST_COMPILER_OPTIONS = { allowJs: true } as const;
 
 export interface TypeConfigIntentInput {
   readonly packageWorlds: Readonly<Record<string, World>>;

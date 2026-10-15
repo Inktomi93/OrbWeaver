@@ -1,19 +1,24 @@
 // @subject tooling/src/verify/gates/test-determinism.ts
 // @subject tooling/src/verify/gates/test-mock-doctrine.ts
-import { readFileSync, symlinkSync } from "node:fs";
+import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { deriveTypeConfigFiles, executePolicyPlan, planPolicyArgv, policySourceCandidates, projectCtx } from "@orb/tooling/verify";
 import type { Project, SourceFile } from "ts-morph";
-import { Project as MorphProject, SyntaxKind } from "ts-morph";
+import { Project as MorphProject, SyntaxKind, ts } from "ts-morph";
 import { observeCallReturns } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
 import { readCallableInvocation } from "../../../../tooling/src/floor/code-facts/reference-fact-invocation.ts";
-import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
+import { descriptorVersion } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
+import { predictedProgram } from "../../../../tooling/src/floor/compiler/project-worlds.ts";
+import { createSemanticWorkspace, getWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as determinism } from "../../../../tooling/src/verify/gates/test-determinism.ts";
 import { gate as mocks } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { populationIncludes } from "../../../../tooling/src/verify/lib/population-resolver.ts";
+import { nativeTypeFactOptions } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { readPackageExportOrigin } from "../../../../tooling/src/verify/lib/project-home-origin.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
@@ -71,6 +76,193 @@ async function nativePolicy(
 ): Promise<ReturnType<typeof runPolicyPass>> {
   const { project, root } = await nativeProgram(fixtures, body);
   return runPolicyPass({ knownPolicies: [policy], policies: [policy], root, project, reviewedGrants: [], failOnWarnings: false });
+}
+
+test("native MJS helpers retain Node ownership and both semantic policy boundaries", async ({ plantedTree, repoRoot }) => {
+  const configs = deriveTypeConfigFiles(repoRoot);
+  const elapsed = ["performance", "now"].join(".");
+  const business = ["Date", "now"].join(".");
+  const marker = `// @orb-waive test-determinism(${elapsed}): measures actual native work, not product time\n`;
+  const path = "tests/support/node/consumer.mjs";
+  const { project, root } = await nativeProgram({ plantedTree, repoRoot }, "export {mintTypeId,vi};", {
+    "tsconfig.base.json": readFileSync(join(repoRoot, "tsconfig.base.json"), "utf8"),
+    "tsconfig.world-node.json": configs["tsconfig.world-node.json"] ?? "",
+    "tsconfig.json": configs["tsconfig.json"] ?? "",
+    "tests/support/node/crypto-door.mjs": "export {randomUUID as draw} from 'node:crypto';",
+    [path]: `import {draw} from './crypto-door.mjs';
+import {mintTypeId} from '../../../packages/kit/src/ids/index.ts';
+import {vi} from 'vitest';
+import * as subject from '../../../packages/server/src/subject.ts';
+const captured=draw.bind(null);
+export const opaque=captured();
+export const ambient=mintTypeId('chat');
+export const seeded=mintTypeId('chat',prefix=>prefix);
+const {spyOn:watch}=vi;
+watch(subject,'run');
+watch(subject.Subject.prototype,'run');
+const injected={run:()=>1};
+watch(injected,'run');
+watch(String.prototype,'indexOf');
+export const prompt=JSON.parse('[]').map((block)=>block.text).join('\\n');
+${marker}const started=${elapsed}();
+${marker}export const physical={ms:${elapsed}()-started};
+export const businessTime=${business}();`,
+  });
+  expect(predictedProgram(path)).toBe("tsconfig.json");
+  expect(project.getCompilerOptions()).toMatchObject({ allowJs: true });
+  expect(project.getCompilerOptions().checkJs ?? false).toBe(false);
+  const source = project.getSourceFileOrThrow(join(root, path));
+  expect(source.compilerNode).toBe(project.getProgram().compilerObject.getSourceFile(source.getFilePath()));
+  expect(source.getScriptKind()).toBe(ts.ScriptKind.JS);
+  expect(source.getImportDeclarationOrThrow("./crypto-door.mjs").getModuleSpecifierSourceFile()?.getFilePath()).toBe(
+    join(root, "tests/support/node/crypto-door.mjs"),
+  );
+  expect(
+    getWorkspace({ root })
+      .getSourceFiles()
+      .map((file) => file.getFilePath()),
+  ).toContain(join(root, path));
+  expect(policySourceCandidates([path, "tests/support/node-extra/consumer.mjs", "tests/support/browser/consumer.mjs", "eslint.config.js"])).toEqual([path]);
+  expect(populationIncludes({ in: ["@tests"], ext: ["mjs"] }, path)).toBe(true);
+  const policies = [determinism, mocks];
+  const corpus = { gates: policies, families: policies.map(({ family }) => family) };
+  const planned = planPolicyArgv(root, ["--file", path, "--check", determinism.id, "--check", mocks.id, "--strict-scope"], corpus);
+  expect(planned.ok).toBe(true);
+  if (!planned.ok || planned.plan.mode !== "run") {
+    throw new Error("native MJS policy plan did not resolve");
+  }
+  const plan = planned.plan;
+  for (const policy of plan.policies) {
+    expect(policy.population.effectiveSourcePaths).toEqual([path]);
+  }
+  const context = projectCtx(root);
+  const executed = executePolicyPlan({ root, project: context.project, ...nativeTypeFactOptions(context), plan, corpus, reviewedGrants: [] });
+  expect(executed.ok).toBe(true);
+  if (!executed.ok) {
+    throw new Error(executed.message);
+  }
+  expect(executed.exitCode).toBe(1);
+  expect(executed.pass.toolErrors).toEqual([]);
+  expect(executed.pass.authority.withheldPolicyIds).toEqual([]);
+  expect(executed.pass.authority.authorityAlarms).toEqual([]);
+  expect(executed.pass.authority.waivedFindings).toHaveLength(2);
+  const deterministicFindings = executed.pass.authority.effectiveFindings.filter(({ policyId }) => policyId === determinism.id);
+  expect(deterministicFindings.map(({ line }) => line).toSorted((left, right) => left - right)).toEqual(
+    ["opaque", "ambient", "businessTime"].map((name) => source.getVariableDeclarationOrThrow(name).getStartLineNumber()),
+  );
+  const mockFindings = executed.pass.authority.effectiveFindings.filter(({ policyId }) => policyId === mocks.id);
+  expect(mockFindings).toHaveLength(2);
+  expect(mockFindings.map(({ message }) => message)).toEqual(
+    expect.arrayContaining([expect.stringContaining("internal module namespace"), expect.stringContaining("authored class prototype")]),
+  );
+  const rejectNativeSource = (nativeSourceView: NonNullable<Parameters<typeof executePolicyPlan>[0]["nativeSourceView"]>, reason: string): void => {
+    const refused = executePolicyPlan({ root, project: context.project, nativeSourceView, plan, corpus, reviewedGrants: [] });
+    expect(refused.ok).toBe(true);
+    if (!refused.ok) {
+      throw new Error(refused.message);
+    }
+    expect(refused.exitCode).toBe(2);
+    expect(refused.pass.toolErrors).toHaveLength(policies.length);
+    expect(refused.pass.toolErrors.every(({ message }) => message.includes(reason))).toBe(true);
+    expect(refused.pass.authority.withheldPolicyIds).toEqual(policies.map(({ id }) => id));
+  };
+  rejectNativeSource(() => undefined, "no compiler owner");
+  rejectNativeSource(() => context.nativeSourceView?.("tests/support/node/crypto-door.mjs"), "foreign compiler owner");
+  const native = context.nativeSourceView?.(path);
+  if (native === undefined) {
+    throw new Error("the accepted MJS source lost its native owner");
+  }
+  native.sourceFile.insertText(native.sourceFile.getFullWidth(), "\n");
+  rejectNativeSource(() => native, "authored source version");
+  const generated = configs["tsconfig.json"] ?? "";
+  const withoutJavaScript = generated.replace('"allowJs": true', '"allowJs": false');
+  expect(withoutJavaScript).not.toBe(generated);
+  writeFileSync(join(root, "tsconfig.json"), withoutJavaScript);
+  expect(planPolicyArgv(root, ["--file", path, "--check", determinism.id, "--strict-scope"], corpus)).toMatchObject({
+    ok: false,
+    exitCode: 2,
+    message: expect.stringContaining("compiler program membership"),
+  });
+});
+
+for (const altered of ["descriptor", "live-project"] as const) {
+  test(`native MJS rejects altered ${altered} compiler meaning behind the same config and source`, async ({ plantedTree, repoRoot }) => {
+    const configs = deriveTypeConfigFiles(repoRoot);
+    const path = "tests/support/node/consumer.mjs";
+    const { root } = await nativeProgram({ plantedTree, repoRoot }, "export {mintTypeId,vi};", {
+      "tsconfig.base.json": readFileSync(join(repoRoot, "tsconfig.base.json"), "utf8"),
+      "tsconfig.world-node.json": configs["tsconfig.world-node.json"] ?? "",
+      "tsconfig.json": configs["tsconfig.json"] ?? "",
+      [path]: "import {vi} from 'vitest'; vi.mock('./subject.mjs'); export const value=1;",
+      "tests/support/node/subject.mjs": "export const subject=1;",
+      "shadow.mjs": "export const vi={mock:()=>{}};",
+    });
+    const canonical = createSemanticWorkspace({ root }).program("tsconfig.json");
+    if (canonical === undefined) {
+      throw new Error("canonical native compiler owner was not admitted");
+    }
+    const descriptor = canonical.descriptor;
+    const version = descriptorVersion(descriptor);
+    const corpus = { gates: [mocks], families: [mocks.family] };
+    const planned = planPolicyArgv(root, ["--file", path, "--check", mocks.id, "--strict-scope"], corpus);
+    if (!planned.ok || planned.plan.mode !== "run") {
+      throw new Error("native compiler meaning control has no execution plan");
+    }
+    const plan = planned.plan;
+    const context = projectCtx(root);
+    const execute = (owner: typeof canonical): ReturnType<typeof executePolicyPlan> => {
+      const source = owner.sourceFile(path);
+      if (source === undefined) {
+        throw new Error("native compiler meaning control lost its MJS source");
+      }
+      const view = registeredSemanticSourceView(source);
+      expect(view?.sourceFile.getFullText()).toBe(context.project.getSourceFileOrThrow(join(root, path)).getFullText());
+      return executePolicyPlan({ root, project: context.project, nativeSourceView: () => view, plan, corpus, reviewedGrants: [] });
+    };
+    expect(execute(canonical)).toMatchObject({
+      ok: true,
+      exitCode: 1,
+      pass: { toolErrors: [], authority: { effectiveFindings: [{ policyId: mocks.id }], withheldPolicyIds: [] } },
+    });
+    const overlaid = createSemanticWorkspace({ root, overlay: { addedPaths: [], deletedPaths: ["tests/support/node/subject.mjs"] } }).program("tsconfig.json");
+    if (overlaid === undefined) {
+      throw new Error("the native filename overlay lost its compiler owner");
+    }
+    expect(overlaid.descriptor.files).not.toContain("tests/support/node/subject.mjs");
+    expect(
+      runPolicyPass({
+        knownPolicies: [mocks],
+        policies: [mocks],
+        root,
+        project: overlaid.project(),
+        requestedPaths: [path],
+        reviewedGrants: [],
+        failOnWarnings: false,
+      }),
+    ).toMatchObject({ toolErrors: [], authority: { effectiveFindings: [{ policyId: mocks.id }], withheldPolicyIds: [] } });
+    const options = { ...descriptor.commandLine.options, baseUrl: root, paths: { vitest: ["./shadow.mjs"] } };
+    const foreign = createSemanticWorkspace({
+      root,
+      ...(altered === "descriptor" ? { programs: [{ ...descriptor, commandLine: { ...descriptor.commandLine, options } }] } : {}),
+    }).program("tsconfig.json");
+    if (foreign === undefined) {
+      throw new Error("the altered native compiler control was not constructed");
+    }
+    if (altered === "live-project") {
+      foreign.project().compilerOptions.set(options);
+    }
+    expect(descriptorVersion(foreign.descriptor) === version).toBe(altered === "live-project");
+    expect(foreign.sourceFile(path)?.getImportDeclarationOrThrow("vitest").getModuleSpecifierSourceFile()?.getFilePath()).toBe(join(root, "shadow.mjs"));
+    const refused = execute(foreign);
+    expect(refused.ok).toBe(true);
+    if (!refused.ok) {
+      throw new Error(refused.message);
+    }
+    expect(refused.exitCode).toBe(2);
+    expect(refused.pass.toolErrors).toEqual([{ policyId: mocks.id, phase: "visitFile", message: expect.stringContaining("noncanonical compiler meaning") }]);
+    expect(refused.pass.authority.effectiveFindings).toEqual([]);
+    expect(refused.pass.authority.withheldPolicyIds).toEqual([mocks.id]);
+  });
 }
 
 const ORIGIN_CASES = [

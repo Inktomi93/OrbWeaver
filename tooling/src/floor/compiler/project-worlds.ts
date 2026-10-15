@@ -102,9 +102,14 @@ export function isNodeToolSource(rel: string): boolean {
   return NODE_TOOL_RE.test(rel) && !DECLARATION_RE.test(rel) && worldOf(rel) === "node";
 }
 
-/** The compiler-membership universe includes declaration files and all authored TypeScript dialects. */
+/** Native executable helpers retain JavaScript grammar in the Node test program. */
+export function isNodeTestJavaScriptSource(rel: string): boolean {
+  return rel.startsWith(`${HELPER_WORLD_DIRS.node}/`) && rel.endsWith(".mjs");
+}
+
+/** The compiler-membership universe includes authored TypeScript and native Node test executables. */
 export function isTypeWorldSource(rel: string): boolean {
-  return TS_SOURCE_RE.test(rel);
+  return TS_SOURCE_RE.test(rel) || isNodeTestJavaScriptSource(rel);
 }
 
 function authorRuntimeWorld(runtime: string): World | undefined {

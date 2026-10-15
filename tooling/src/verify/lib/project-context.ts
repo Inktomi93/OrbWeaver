@@ -187,6 +187,11 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
 }
 
 /** Share optional acquisition plumbing between both execution doors. */
-export function nativeTypeFactOptions(context: Pick<ProjectContext, "nativeTypeFacts">): Pick<ProjectContext, "nativeTypeFacts"> {
-  return context.nativeTypeFacts === undefined ? {} : { nativeTypeFacts: context.nativeTypeFacts };
+export function nativeTypeFactOptions(
+  context: Pick<ProjectContext, "nativeTypeFacts" | "nativeSourceView">,
+): Pick<ProjectContext, "nativeTypeFacts" | "nativeSourceView"> {
+  return {
+    ...(context.nativeTypeFacts === undefined ? {} : { nativeTypeFacts: context.nativeTypeFacts }),
+    ...(context.nativeSourceView === undefined ? {} : { nativeSourceView: context.nativeSourceView }),
+  };
 }
