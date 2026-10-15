@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-15
 priority: P2
+lane: codex/corpus-stats-publication-959
 plan: test-foundation
 ---
 
