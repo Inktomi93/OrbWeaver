@@ -2,6 +2,8 @@
 import type { Db } from "@orb/db";
 import { oidcPendingSignups, oidcTransactions, rateLimitBuckets, sessions } from "@orb/db";
 import type { ExternalId } from "@orb/kit/ids";
+import type { AdminService } from "@orb/server/domain/admin";
+import { revokeUserSessionsResultSchema, sessionAdminViewSchema } from "@orb/server/domain/admin";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
 import type { ServerTestHarness } from "../server.ts";
@@ -41,6 +43,45 @@ export async function seedBffSession(db: Db, create: SessionsService["create"], 
     throw new Error("production session mint left no canonical BFF row");
   }
   return { created, row };
+}
+
+export interface SeededAdminSession extends SeededBffSession {
+  readonly view: Awaited<ReturnType<AdminService["listSessions"]>>[number];
+}
+
+export interface CapturedRevokedUserSessions {
+  readonly result: Awaited<ReturnType<AdminService["revokeUserSessions"]>>;
+  readonly views: Awaited<ReturnType<AdminService["listSessions"]>>;
+  readonly rows: readonly BffSessionRow[];
+}
+
+/** Retain the minted device's actual admin projection beside its private token and stored bytes. */
+export async function seedAdminSession(
+  db: Db,
+  producers: Pick<SessionsService, "create"> & Pick<AdminService, "listSessions">,
+  params: Parameters<SessionsService["create"]>[0],
+  principal: Parameters<AdminService["listSessions"]>[0]["principal"],
+): Promise<SeededAdminSession> {
+  const seeded = await seedBffSession(db, producers.create, params);
+  const views = await producers.listSessions({ principal, userId: seeded.row.userId });
+  const view = views.find((device) => device.id === seeded.row.id);
+  if (view === undefined) {
+    throw new Error("production admin read omitted the minted session");
+  }
+  return { ...seeded, view: sessionAdminViewSchema.parse(view) };
+}
+
+/** Run the actual kick, then retain its exact public post-state and separate owner-scoped private rows. */
+export async function seedRevokedUserSessions(
+  db: Db,
+  revoke: AdminService["revokeUserSessions"],
+  params: Parameters<AdminService["revokeUserSessions"]>[0],
+  list: AdminService["listSessions"],
+): Promise<CapturedRevokedUserSessions> {
+  const result = revokeUserSessionsResultSchema.parse(await revoke(params));
+  const views = (await list(params)).map((view) => sessionAdminViewSchema.parse(view));
+  const rows = await db.select().from(sessions).where(eq(sessions.userId, params.userId)).orderBy(sessions.id);
+  return { result, views, rows };
 }
 
 /** Drive the real login request and capture opaque producer keys; the fixture never computes a throttle window or identity. */
