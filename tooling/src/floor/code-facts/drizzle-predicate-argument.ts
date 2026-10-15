@@ -1,6 +1,7 @@
 // Native predicate operand provenance, shared by predicate and raw-SQL containment facts.
 import { Node } from "ts-morph";
 import { innerReadAnchorsOf } from "./drizzle-query.ts";
+import { transparentNativeSqlOperand } from "./drizzle-sql-native.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
@@ -47,4 +48,17 @@ export function readPredicateArgument(node: Node, bindings: ReadonlyMap<Node, No
     return supplied === undefined ? resolved(value, value, source.trace.declarations) : readPredicateArgument(supplied, bindings, next);
   }
   return source.value === value ? source : readPredicateArgument(source.value, bindings, next);
+}
+
+/** Column identity can pass through native grammar-free SQL wrapping; containment remains a separate obligation. */
+export function readPredicateColumn(node: Node, bindings: ReadonlyMap<Node, Node>, active = new Set<object>()): ReferenceFact<Node> {
+  const source = readPredicateArgument(node, bindings);
+  if (source.kind === "unresolved") {
+    return source;
+  }
+  if (active.has(source.value.compilerNode)) {
+    return unresolved("cycle", node, "column operand wrappers revisit their source");
+  }
+  const operand = transparentNativeSqlOperand(source.value);
+  return operand === undefined ? source : readPredicateColumn(operand, bindings, new Set(active).add(source.value.compilerNode));
 }

@@ -124,14 +124,19 @@ export function sqlMethod(call: import("ts-morph").CallExpression, name: string)
 /** Default-library map identity with no known receiver write or mutating invocation. */
 export function nativeArrayMap(call: import("ts-morph").CallExpression): boolean {
   const member = staticMemberAccess(call.getExpression());
-  const type = member?.receiver.getType();
-  const declarations = type?.getProperty("map")?.getDeclarations() ?? [];
   const receiver = member?.receiver;
   const stable =
     !Node.isIdentifier(receiver) || (inspectReferenceWrites(receiver).kind === "resolved" && invokedMemberThroughAliases(receiver, new Map()) === undefined);
+  return stable && nativeArrayInvocation(call, "map");
+}
+
+/** Default-library method identity classifies an invocation; the receiver still owes actual value origin. */
+export function nativeArrayInvocation(call: import("ts-morph").CallExpression, name: string): boolean {
+  const member = staticMemberAccess(call.getExpression());
+  const type = member?.receiver.getType();
+  const declarations = type?.getProperty(name)?.getDeclarations() ?? [];
   return (
-    stable &&
-    member?.name === "map" &&
+    member?.name === name &&
     (type?.isArray() === true || type?.isReadonlyArray() === true || type?.isTuple() === true) &&
     declarations.length > 0 &&
     declarations.every((declaration) =>

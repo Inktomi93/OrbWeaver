@@ -7,7 +7,7 @@ import { SyntaxKind } from "ts-morph";
 import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
 import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.ts";
 import { readDrizzlePredicate } from "../../floor/code-facts/drizzle-predicate.ts";
-import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate-argument.ts";
+import { readPredicateArgument, readPredicateColumn } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import type { DrizzlePredicate } from "../../floor/code-facts/drizzle-predicate-contract.ts";
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { ChainTerm, ConjunctLeaves, SchemaTableIndex, TenancySchema } from "../contract/tenancy.ts";
@@ -28,7 +28,8 @@ interface ColumnRead {
 
 /** A column read whose receiver names one declared table: its written receiver, that table and the column. */
 function columnOf(node: Node, index: SchemaTableIndex, bindings: ReadonlyMap<Node, Node> = new Map()): ColumnRead | undefined {
-  const read = staticMemberAccess(unwrapExpression(node));
+  const column = readPredicateColumn(node, bindings);
+  const read = column.kind === "resolved" ? staticMemberAccess(unwrapExpression(column.value)) : undefined;
   const actual = read === undefined ? undefined : readPredicateArgument(read.receiver, bindings);
   const receiver = actual?.kind === "resolved" ? actual.value : undefined;
   const table = receiver === undefined ? undefined : declaredTableOf(receiver, index);
@@ -91,7 +92,8 @@ export function predicatesContained(predicates: readonly (Node | undefined)[], o
 }
 
 function isOwnerColumn(node: Node, ident: string | Node, bindings: ReadonlyMap<Node, Node>): boolean {
-  const read = staticMemberAccess(unwrapExpression(node));
+  const column = readPredicateColumn(node, bindings);
+  const read = column.kind === "resolved" ? staticMemberAccess(unwrapExpression(column.value)) : undefined;
   const actual = read === undefined ? undefined : readPredicateArgument(read.receiver, bindings);
   return read?.name === OWNER_COL && actual?.kind === "resolved" && sameReadReceiver(actual.value, ident);
 }

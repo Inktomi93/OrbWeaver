@@ -23,13 +23,13 @@ import {
   readSqlValueSources,
   sqlValue,
 } from "./drizzle-sql-origin.ts";
-import { readNativeColumnFragments, readSelectedSqlSource } from "./drizzle-sql-projection.ts";
-import { CONTAINED_OPERATORS, sqlBindingStable } from "./drizzle-sql-stability.ts";
+import { readNativeColumnFragments, readSelectedSqlSource, readSqlSelectionCallback } from "./drizzle-sql-projection.ts";
+import { CONTAINED_OPERATORS, sqlBindingStable, sqlSelectionCallbackUsesStable } from "./drizzle-sql-stability.ts";
 import { readStatementOf } from "./drizzle-statement.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { readMemberReference, resolveModuleMemberOrigin, staticMemberAccess } from "./reference-fact.ts";
-import type { CallReturnObservations, CallReturnProgram } from "./reference-fact-contract.ts";
+import type { CallReturnObservations, CallReturnProgram, ReturnedValueSource } from "./reference-fact-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import { terminalCall } from "./schema-value.ts";
 import { sqliteFragmentContained } from "./sqlite-lexical.ts";
@@ -185,6 +185,35 @@ function authoredCallFragments(
   return parts.some((part) => part === undefined) ? undefined : parts.flatMap((part) => part ?? []);
 }
 
+function wrappedSelectFragments(call: import("ts-morph").CallExpression, context: SqlReadContext, active: ReadonlySet<object>): readonly string[] | undefined {
+  const member = staticMemberAccess(call.getExpression());
+  if (member === undefined || !["as", "getSQL"].includes(member.name) || !runtimeDrizzleOrigin(call.getExpression())) {
+    return;
+  }
+  let sources: readonly ReturnedValueSource[] | undefined;
+  if (member.name === "as") {
+    sources = readSelectedSqlSource(call, context);
+  } else {
+    const receivers = readSqlValueSources(member.receiver, context);
+    sources = receivers.kind === "resolved" ? receivers.value : undefined;
+  }
+  return sources !== undefined &&
+    sources.length > 0 &&
+    sources.every((source) => {
+      const selection = readDrizzleSelection(source.value);
+      return (
+        source.present &&
+        source.path.length === 0 &&
+        selection !== undefined &&
+        selection.calls.every((step) => runtimeDrizzleOrigin(step.getExpression())) &&
+        !active.has(source.value.compilerNode) &&
+        selectContained(source.value, { ...context, bindings: source.bindings }, new Set(active).add(source.value.compilerNode))
+      );
+    })
+    ? ["(SELECT ?)"]
+    : undefined;
+}
+
 function callFragments(
   value: import("ts-morph").CallExpression,
   context: SqlReadContext,
@@ -212,7 +241,7 @@ function callFragments(
   if (nativeSelectCall(value)) {
     return selectContained(value, context, active) ? ["(SELECT ?)"] : undefined;
   }
-  return authoredCallFragments(value, context, active);
+  return wrappedSelectFragments(value, context, active) ?? authoredCallFragments(value, context, active);
 }
 
 function primitiveFragments(type: Type): readonly (string | undefined)[] {
@@ -309,6 +338,7 @@ function selectContained(node: MorphNode, context: SqlReadContext, active: Reado
   if (anchors.length === 0) {
     return false;
   }
+  const sources = new Set(anchors.filter((anchor) => anchor.kind === "from").map((anchor) => anchor.table.compilerNode));
   return (
     anchors.every((anchor) => {
       const member = readCalledMember(anchor.call);
@@ -339,18 +369,20 @@ function selectContained(node: MorphNode, context: SqlReadContext, active: Reado
         )
       );
     }) &&
-    selectionContained(node, context, active) &&
+    selectionContained(node, context, active, sources) &&
     node.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression).every((template) => templateContained(template, context, active)) &&
-    node.getDescendantsOfKind(SyntaxKind.CallExpression).every((call) => !sqlValue(call.getType()) || sqlOperandContained(call, context, active))
+    node
+      .getDescendantsOfKind(SyntaxKind.CallExpression)
+      .every((call) => sources.has(call.compilerNode) || !sqlValue(call.getType()) || sqlOperandContained(call, context, active))
   );
 }
 
-function selectionContained(node: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): boolean {
+function selectionContained(node: MorphNode, context: SqlReadContext, active: ReadonlySet<object>, sources: ReadonlySet<object>): boolean {
   const selection = readDrizzleSelection(node);
   if (
     selection === undefined ||
     !selection.calls.every((call) => runtimeDrizzleOrigin(call.getExpression())) ||
-    !selection.sqlOperands.every((operand) => sqlOperandContained(operand, context, active))
+    !selection.calls.every((call) => selectionCallContained(call, context, active, sources))
   ) {
     return false;
   }
@@ -359,6 +391,31 @@ function selectionContained(node: MorphNode, context: SqlReadContext, active: Re
   }
   const fields = readSchemaObjectMembers(selection.projection);
   return fields.kind === "resolved" && fields.value.entries.every((field) => sqlOperandContained(field.value, context, active));
+}
+
+function selectionCallContained(
+  call: import("ts-morph").CallExpression,
+  context: SqlReadContext,
+  active: ReadonlySet<object>,
+  sources: ReadonlySet<object>,
+): boolean {
+  const member = staticMemberAccess(call.getExpression());
+  if (member?.name === "select" || member?.name === "selectDistinct") {
+    return true;
+  }
+  const first = call.getArguments()[0];
+  if (Node.isArrowFunction(first) || Node.isFunctionExpression(first)) {
+    const callback = readSqlSelectionCallback(call, context);
+    const paths = callback === undefined ? undefined : readFunctionReturnPaths(callback.callback);
+    return (
+      callback !== undefined &&
+      sqlSelectionCallbackUsesStable(call, context.program) &&
+      paths?.kind === "resolved" &&
+      callback.bindings.every((bindings) => paths.value.every((value) => sqlOperandContained(value, { ...context, bindings }, active)))
+    );
+  }
+  // The enclosing SELECT already proved these exact FROM sources under this same binding context.
+  return call.getArguments().every((operand) => sources.has(operand.compilerNode) || sqlOperandContained(operand, context, active));
 }
 
 function sqlOperandContained(node: MorphNode, context: SqlReadContext, active: ReadonlySet<object>): boolean {

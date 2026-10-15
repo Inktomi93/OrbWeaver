@@ -5,7 +5,8 @@ import { readObservedCallableConsumers } from "./call-returns.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { readDrizzleSelection, readFollowingSelectChain } from "./drizzle-select.ts";
 import { AGGREGATE_OPERATORS, runtimeDrizzleOrigin } from "./drizzle-sql-native.ts";
-import { columnType, readSqlValueSources, sqlMethod, sqlValue } from "./drizzle-sql-origin.ts";
+import { columnType, nativeArrayInvocation, readSqlValueSources, sqlMethod, sqlValue } from "./drizzle-sql-origin.ts";
+import { readSqlSelectionCallback } from "./drizzle-sql-projection.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { enclosingFn } from "./function-context.ts";
@@ -143,6 +144,10 @@ function authoredArgumentUse(
   return undefined;
 }
 function nativeSqlCallUse(value: MorphNode, call: import("ts-morph").CallExpression, active: ReadonlySet<object>, program?: CallReturnProgram): boolean {
+  const pushed = staticMemberAccess(call.getExpression());
+  if (nativeArrayInvocation(call, "push") && pushed !== undefined && literalCollector(pushed.receiver)) {
+    return sqlBindingStable(pushed.receiver, active, program);
+  }
   if (CONTAINED_OPERATORS.some((name) => callsDrizzleOperator(call, name))) {
     return runtimeDrizzleOrigin(call.getExpression()) && sqlAliasUseStable(call, active, program);
   }
@@ -176,6 +181,9 @@ function nativeSqlMemberUse(parent: MorphNode, value: MorphNode, active: Readonl
     return sqlAliasUseStable(parent, active, program);
   }
   const call = parent.getParent();
+  if (Node.isCallExpression(call) && nativeArrayInvocation(call, "push") && literalCollector(value)) {
+    return true;
+  }
   return (
     ["as", "getSQL"].includes(member.name) &&
     Node.isCallExpression(call) &&
@@ -196,6 +204,11 @@ function returnedSqlUse(owner: MorphNode, active: ReadonlySet<object>, program?:
   if (program === undefined) {
     return false;
   }
+  const call = owner.getParent();
+  const selected = Node.isCallExpression(call) ? readSqlSelectionCallback(call, { bindings: new Map(), program }) : undefined;
+  if (Node.isCallExpression(call) && selected?.callback.compilerNode === owner.compilerNode) {
+    return sqlAliasUseStable(call, active, program);
+  }
   const consumers = readObservedCallableConsumers(owner, program);
   return consumers.kind === "resolved" && consumers.value.every((consumer) => sqlAliasUseStable(consumer.call, active, program));
 }
@@ -214,14 +227,22 @@ function sqlStoredBinding(value: MorphNode): MorphNode | undefined {
   const parent = value.getParent();
   return Node.isVariableDeclaration(parent) && parent.getInitializer() === value ? parent.getNameNode() : undefined;
 }
+function sqlContainingArray(value: MorphNode): MorphNode | undefined {
+  const parent = value.getParent();
+  if (Node.isArrayLiteralExpression(parent) && parent.getElements().some((element) => element.compilerNode === value.compilerNode)) {
+    return parent;
+  }
+  return Node.isSpreadElement(parent) && parent.getExpression() === value && Node.isArrayLiteralExpression(parent.getParent()) ? parent : undefined;
+}
 function sqlContainingUse(value: MorphNode, active: ReadonlySet<object>, program?: CallReturnProgram): boolean {
   const parent = value.getParent();
   const binding = sqlStoredBinding(value);
   if (binding !== undefined) {
     return sqlBindingStable(binding, active, program);
   }
-  if (Node.isArrayLiteralExpression(parent) && parent.getElements().some((element) => element.compilerNode === value.compilerNode)) {
-    return sqlAliasUseStable(parent, active, program);
+  const array = sqlContainingArray(value);
+  if (array !== undefined) {
+    return sqlAliasUseStable(array, active, program);
   }
   if (Node.isPropertyAssignment(parent) && parent.getInitializer() === value) {
     return nativeProjectionUse(parent, active, program) ?? sqlAliasUseStable(parent.getParent(), active, program);
@@ -250,6 +271,18 @@ export function sqlCarrierUseStable(node: MorphNode, program?: CallReturnProgram
   return sqlAliasUseStable(node, new Set(), program);
 }
 
+/** Substituting selected fields cannot erase mutations or opaque uses of their callback formals. */
+export function sqlSelectionCallbackUsesStable(call: import("ts-morph").CallExpression, program?: CallReturnProgram): boolean {
+  const selected = readSqlSelectionCallback(call, { bindings: new Map(), program });
+  return (
+    program !== undefined &&
+    selected !== undefined &&
+    selected.bindings.every((bindings) =>
+      [...bindings.keys()].every((binding) => !Node.isBindingElement(binding) || sqlBindingStable(binding.getNameNode(), new Set(), program)),
+    )
+  );
+}
+
 function sqlBindingDeclaration(node: MorphNode): MorphNode | undefined {
   const symbol = node.getSymbol();
   const declarations = symbol?.getDeclarations() ?? [];
@@ -262,9 +295,15 @@ function sqlBindingDeclaration(node: MorphNode): MorphNode | undefined {
 }
 
 function stableSqlDeclaration(
-  declaration: import("ts-morph").VariableDeclaration | import("ts-morph").ParameterDeclaration,
+  declaration: import("ts-morph").VariableDeclaration | import("ts-morph").ParameterDeclaration | import("ts-morph").BindingElement,
   program?: CallReturnProgram,
 ): boolean {
+  if (Node.isBindingElement(declaration)) {
+    const owner = declaration.getFirstAncestor((node) => Node.isArrowFunction(node) || Node.isFunctionExpression(node));
+    const call = owner?.getParent();
+    const selected = program !== undefined && Node.isCallExpression(call) ? readSqlSelectionCallback(call, { bindings: new Map(), program }) : undefined;
+    return selected?.bindings.every((bindings) => bindings.has(declaration)) === true;
+  }
   if (Node.isParameterDeclaration(declaration)) {
     return program !== undefined && readObservedCallableConsumers(declaration.getParent(), program).kind === "resolved";
   }
@@ -281,7 +320,7 @@ export function sqlBindingStable(node: MorphNode, active: ReadonlySet<object>, p
     return false;
   }
   const declaration = sqlBindingDeclaration(node);
-  if (!(Node.isVariableDeclaration(declaration) || Node.isParameterDeclaration(declaration))) {
+  if (!(Node.isVariableDeclaration(declaration) || Node.isParameterDeclaration(declaration) || Node.isBindingElement(declaration))) {
     return false;
   }
   const name = declaration.getNameNode();
@@ -292,5 +331,36 @@ export function sqlBindingStable(node: MorphNode, active: ReadonlySet<object>, p
     return false;
   }
   const next = new Set(active).add(node.getSymbol()?.compilerSymbol ?? node.compilerNode);
-  return unprovenReferenceUse(name, (use) => sqlAliasUseStable(use, next, program)) === undefined;
+  let copiedEscape = false;
+  const unproven = unprovenReferenceUse(name, (use) => {
+    if (selectedFieldMetadata(declaration, use, program)) {
+      return true;
+    }
+    const stable = sqlAliasUseStable(use, next, program);
+    // Cardinality readers permit copied spreads; SQL consumers must still close their shared element lifetime.
+    copiedEscape ||= Node.isSpreadElement(use.getParent()) && !stable;
+    return stable;
+  });
+  return unproven === undefined && !copiedEscape;
+}
+
+function selectedFieldMetadata(declaration: MorphNode, use: MorphNode, program?: CallReturnProgram): boolean {
+  if (!Node.isBindingElement(declaration)) {
+    return false;
+  }
+  const owner = declaration.getFirstAncestor((node) => Node.isArrowFunction(node) || Node.isFunctionExpression(node));
+  const call = owner?.getParent();
+  const selected = Node.isCallExpression(call) ? readSqlSelectionCallback(call, { bindings: new Map(), program }) : undefined;
+  return (
+    selected?.bindings.some((bindings) => {
+      const value = bindings.get(declaration);
+      const parent = value?.getParent();
+      return Node.isPropertyAssignment(parent) && parent.getInitializer() === value && parent.getNameNode().compilerNode === use.compilerNode;
+    }) === true
+  );
+}
+
+function literalCollector(node: MorphNode): boolean {
+  const source = resolveStableExpression(node);
+  return source.kind === "resolved" && Node.isArrayLiteralExpression(source.value);
 }

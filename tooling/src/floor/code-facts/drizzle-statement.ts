@@ -10,7 +10,7 @@ import type { DrizzleBuilderChain, ReadAnchor, ReadStatement } from "./drizzle-q
 import { readDrizzleSelection, readFollowingSelectChain } from "./drizzle-select.ts";
 import { runtimeDrizzleOrigin } from "./drizzle-sql-native.ts";
 import { sqlValue } from "./drizzle-sql-origin.ts";
-import { nativeQueryThenable, sqlCarrierUseStable } from "./drizzle-sql-stability.ts";
+import { nativeQueryThenable, sqlCarrierUseStable, sqlSelectionCallbackUsesStable } from "./drizzle-sql-stability.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { enclosingFn } from "./function-context.ts";
@@ -137,12 +137,13 @@ function builderEscapes(top: Node, binding: Identifier | undefined, state: Build
     .some(
       (use) =>
         use !== binding &&
+        !use.getAncestors().some(N.isTypeNode) &&
         symbol !== undefined &&
         use.getSymbol()?.compilerSymbol === symbol &&
         !methodUses.has(use) &&
         !(N.isVariableDeclaration(use.getParent()) && use.getParent().getFirstChild() === use) &&
         !selfBuilderAssignment(use) &&
-        (!(nativeSqlCarrier(use) && sqlCarrierUseStable(use, program)) || (state.dynamic && methodUses.size > 0)) &&
+        (!(state.origin !== undefined && sqlCarrierUseStable(use, program)) || (state.dynamic && methodUses.size > 0)) &&
         !use.getParent().isKind(SyntaxKind.AwaitExpression) &&
         !(asyncReturn && use.getParent().isKind(SyntaxKind.ReturnStatement)),
     );
@@ -179,6 +180,14 @@ function builderTransition(calls: readonly CallExpression[], state: BuilderFilte
   const index = calls.findIndex((call) => SEALED_VERBS.has(staticMemberAccess(call.getExpression())?.name ?? "") || sqlValue(call.getType()));
   const prefix = index < 0 ? calls : calls.slice(0, index + 1);
   if (!prefix.every(nativeBuilderCall)) {
+    return { calls, escapes: true, refusals: [] };
+  }
+  if (
+    prefix.some((call) => {
+      const argument = call.getArguments()[0];
+      return (N.isArrowFunction(argument) || N.isFunctionExpression(argument)) && !sqlSelectionCallbackUsesStable(call, program);
+    })
+  ) {
     return { calls, escapes: true, refusals: [] };
   }
   const boundary = calls[index];

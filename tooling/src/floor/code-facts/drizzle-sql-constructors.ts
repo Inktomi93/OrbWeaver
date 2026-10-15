@@ -9,6 +9,8 @@ import { AGGREGATE_OPERATORS, runtimeDrizzleOrigin, sqlDialect } from "./drizzle
 import { sqlMethod, sqlValue } from "./drizzle-sql-origin.ts";
 import { sqlBindingStable } from "./drizzle-sql-stability.ts";
 import { staticMemberAccess } from "./reference-fact.ts";
+import { unwrapTarget } from "./reference-fact-alias.ts";
+import { unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { sqliteFragmentContained } from "./sqlite-lexical.ts";
 import { readStaticAuthoredScalar } from "./static-authored-value.ts";
 
@@ -23,6 +25,19 @@ function rawFragments(call: CallExpression): readonly string[] | undefined {
   const args = call.getArguments();
   const literal = args[0] === undefined ? undefined : readStaticAuthoredScalar(args[0]);
   return args.length === 1 && literal?.kind === "resolved" && typeof literal.value === "string" ? [literal.value] : undefined;
+}
+function finiteJoinedInputStable(input: MorphNode | undefined): boolean {
+  const value = input === undefined ? undefined : unwrapTarget(input);
+  if (!Node.isIdentifier(value)) {
+    return true;
+  }
+  // A closed physical carrier can still receive chunks; finite emission additionally requires unchanged array contents.
+  return (
+    unprovenReferenceUse(value, (use) => {
+      const call = use.getParent();
+      return Node.isCallExpression(call) && call.getArguments()[0] === use && sqlMethod(call, "join");
+    }) === undefined
+  );
 }
 function joinedFragments(
   call: CallExpression,
@@ -46,7 +61,7 @@ function joinedFragments(
     return ["", "?"];
   }
   const source = input === undefined ? undefined : readPredicateArgument(input, bindings);
-  if (source?.kind !== "resolved" || !Node.isArrayLiteralExpression(source.value) || separator === undefined) {
+  if (source?.kind !== "resolved" || !Node.isArrayLiteralExpression(source.value) || separator === undefined || !finiteJoinedInputStable(input)) {
     return;
   }
   return finiteJoinedFragments(source.value, separator, sqlOperandFragments);
