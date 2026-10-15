@@ -28,7 +28,7 @@ Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, p
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
 
-Reviewed `f42d4ba241` integrates supplied callable origins and readonly native references. Actual retained-owner analysis ends with an unsupported destructuring refusal, not a clean policy. Its proposed correction remains unmerged: independent review catches a hidden named callback alias admitted as disjoint data. Repair the canonical direct and destructured judgments without weakening caller completeness. Evidence: `.claude/worktrees/codex-funding-core-integration-969/reports/review/1016-compaction-binding-independent-security-review.md`.
+Reviewed `0b45eda681` retains winning descriptor provenance and closes callable storage per actual allocation. The same reviewer accepts the named-alias correction. Current actual-target observation emits an unsupported callable-use refusal; the outer command times out after that emission. No target or policy qualification follows. Trace the exact refusing native use before another replay. Evidence: `reports/review/1016-selected-provenance-actual-target.md`.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 

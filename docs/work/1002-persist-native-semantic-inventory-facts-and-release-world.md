@@ -32,8 +32,10 @@ The root qualification and independent warm readers are recorded in `.claude/wor
 
 Reviewed `782468ed99` preserves native lexical parity, fallback, cancellation and bounded combined retention. Main uses the matching installed runtime. Protected dependency snapshots remain unchanged. No real-world speedup or complete current replay is established.
 
-Item 1027 owns demand-specific native cast relations through this same store and worker. Preserve explicit family presence, native interpretation and atomic generation identity; syntax carriers cannot supply Type or assignability queries. Cast-only requests must not perform unrequested reference extraction.
+Item 1027 owns native scalar delivery through this store. Syntax carriers cannot supply typed evidence.
 
 Complete demanded-world publication, collector equivalence, cross-world reuse and hosted memory remain open. The complete-demand plan retains the full roster and missing collector phases. Qualified root data remains frozen; diagnostic stages and old partitions cannot become current by relabeling.
 
-The post-lexical diagnostic completes capture and process reaping without publication or a complete replay verdict. Evidence: `reports/review/1002-format4-post-lexical-cost-diagnosis.md`. Current-format qualification follows the physical schema correction in item 1027. Reuse remains partition-level. Actual authored-membership freshness and unnecessary repository-wide existence dependencies require correction before complete qualification.
+The post-lexical diagnostic completes capture and process reaping without publication or a complete replay verdict. Evidence: `reports/review/1002-format4-post-lexical-cost-diagnosis.md`. Current reuse is partition-level.
+
+Reviewed `f3ba84ff5e` records every consulted positive and negative authored decision through canonical inputs, including native JS-depth origins outside source metadata. FORMAT6 and the physical upgrade preserve historical generations. Native controls and independent review pass. Integrated mixed-demand controls and tooling types pass. The complete native kit world qualifies ID-brand publication, indexed reads, stale-source refusal and worker release. Full default-demand qualification remains open. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`.

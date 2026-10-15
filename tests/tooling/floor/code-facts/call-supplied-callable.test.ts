@@ -866,8 +866,8 @@ for (const readonly of [false, true]) {
 
 async function actualCompactionBinding(project: Project, repoRoot: string): Promise<{ owned: string; binding: string; operations: string }> {
   const actual = project.createSourceFile("/actual-engine.ts", await readFile(join(repoRoot, "packages/server/src/domain/chat/engine/engine.ts"), "utf8"));
-  const owned = actual.getFunctionOrThrow("createTurnEngine").getBodyOrThrow().getStatements()[0];
-  const body = actual.getFunctionOrThrow("runPreTurnCompaction").getBodyOrThrow();
+  const owned = actual.getFunctionOrThrow("createTurnEngine").getBodyOrThrow().asKindOrThrow(SyntaxKind.Block).getStatements()[0];
+  const body = actual.getFunctionOrThrow("runPreTurnCompaction").getBodyOrThrow().asKindOrThrow(SyntaxKind.Block);
   const binding = body.getStatements()[0];
   if (!(Node.isVariableStatement(owned) && Node.isVariableStatement(binding))) {
     throw new Error("the actual owned record and compaction binding statements are unavailable");
