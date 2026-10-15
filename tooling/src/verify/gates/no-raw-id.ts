@@ -1,7 +1,7 @@
 // A Zod field in an id-named position cannot remain a raw string unless the exact occurrence is waived.
 //
 // FAMILY (`id-brand-flow`): shared readers, no private door. Zod identity is `zod-origin.ts`
-// `isFactoryCallFromPackage`; callable refusals use `resolveCallableOrigin` and the shared classifier. Kit
+// `resolveFactoryCallFromPackage`; callable refusals use `resolveCallableOrigin` and the shared classifier. Kit
 // identity across the family is `id-brand.ts` (`createKitIdCallMatcher` for `no-mint-via-cast` /
 // `no-fake-disabled-id`, `canonicalIdBrand` for `no-loose-id-cast` / `brand-in-name-position`).
 // `schema-branding` is family `drizzle-schema`, not this one.
@@ -49,7 +49,7 @@ import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
-import { isFactoryCallFromPackage, ZOD_PACKAGE } from "../../floor/code-facts/zod-origin.ts";
+import { resolveFactoryCallFromPackage, ZOD_PACKAGE } from "../../floor/code-facts/zod-origin.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
@@ -98,10 +98,11 @@ function zodStringVerdict(root: CallExpression): "zod" | "other" | "unreadable" 
   if (target.kind !== "module") {
     return "other";
   }
-  if (target.canonical.kind === "external-door") {
+  const factory = resolveFactoryCallFromPackage(root, "string", ZOD_PACKAGE);
+  if (factory.kind === "unresolved") {
     return "unreadable";
   }
-  return isFactoryCallFromPackage(root, "string", ZOD_PACKAGE) ? "zod" : "other";
+  return factory.value ? "zod" : "other";
 }
 
 function idProperty(node: MorphNode): { readonly name: string; readonly nameNode: MorphNode; readonly initializer: MorphNode } | null {
@@ -190,6 +191,15 @@ export const gate = defineGate({
       files: { "packages/contracts/src/opaque.ts": "declare const wire: any;\nexport const schema = { userId: wire.string().optional() };\n" },
       expect: { count: 1, token: "userId", messageIncludes: "CANNOT be established" },
       why: "THE FAIL-CLOSED THIRD ANSWER (#944), and until #2041 this policy FAILED OPEN here: the builder ROOT is a member read off an OPAQUE `any`-typed receiver, so its leaf binds no declaration at all and `classifyOriginRefusal` answers case (b) — an id boundary whose schema cannot be read is REPORTED rather than admitted. It is the exact complement of the `local same-named builder` mustPass row, which is why the refusal is SCOPED and not blanket: a local object's `string` method provably binds a property assignment and still passes, while no binding at all is no evidence. The `messageIncludes` is the whole row — the unreadable arm emits the SAME single finding under the SAME token as the zod verdict",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/opaque.ts": "export declare const bag: { readonly nested: any };\n",
+        "packages/contracts/src/x.ts": 'import { bag } from "./opaque.ts";\nexport const schema = { userId: bag.nested.string() };\n',
+      },
+      expect: { count: 1, token: "userId", messageIncludes: "CANNOT be established" },
+      why: "an imported declaration identifies the root object, not the factory hidden beneath its opaque nested member; the canonical property refusal cannot become unrelated identity",
     },
   ],
   mustPass: [

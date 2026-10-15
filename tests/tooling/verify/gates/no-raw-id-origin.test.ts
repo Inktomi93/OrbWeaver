@@ -33,6 +33,7 @@ import { z as fake } from "./counterfeit.ts";
 export const schema = {
   directId: direct.string(),
   namedId: text(),
+  wrappedId: ((direct.string))(),
   barrelId: viaBarrel.string(),
   renamedId: renamed.string().nullable().optional(),
   namespaceId: namespace.z["string"](),
@@ -72,7 +73,7 @@ export const schema = {
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.authorityAlarms).toEqual([]);
   expect(result.authority.effectiveFindings.map(({ token, message }) => ({ token, message: message ?? gate.message }))).toEqual(
-    ["directId", "namedId", "barrelId", "renamedId", "namespaceId"].map((token) => ({ token, message: gate.message })),
+    ["directId", "namedId", "wrappedId", "barrelId", "renamedId", "namespaceId"].map((token) => ({ token, message: gate.message })),
   );
 });
 
@@ -118,4 +119,35 @@ test("an unresolved Zod package door cannot prove raw-string identity from its s
   const result = drive(project, root);
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toMatchObject([{ token: "userId", message: expect.stringContaining("CANNOT be established") }]);
+});
+
+test("an imported opaque nested factory retains unreadable provenance through dotted, computed and wrapped calls", ({ scratch }) => {
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  const root = join(scratch, "packages/contracts/src");
+  const opaque = project.createSourceFile(join(root, "opaque.ts"), "export declare const bag: { readonly nested: any };\n");
+  const source = project.createSourceFile(
+    join(root, "x.ts"),
+    `import { bag } from "./opaque.ts";
+export const schema = {
+  userId: bag.nested.string(),
+  computedId: bag["nested"]["string"](),
+  wrappedId: ((bag.nested.string))(),
+};
+`,
+  );
+  expect(source.getImportDeclarations()[0]?.getModuleSpecifierSourceFile()).toBe(opaque);
+  const call = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const origin = resolveCallableOrigin(call);
+  expect(origin).toMatchObject({ kind: "resolved", value: { target: { canonical: { kind: "project" }, memberPath: ["nested", "string"] } } });
+  if (origin.kind === "unresolved" || origin.value.target.kind !== "module" || origin.value.target.canonical.kind !== "project") {
+    throw new Error("the opaque member must reach the canonical property reader");
+  }
+  expect(resolveTypePropertyOrigin(origin.value.target.canonical.declaration, origin.value.target.memberPath)).toMatchObject({
+    kind: "unresolved",
+    reason: "missing",
+  });
+  const result = drive(project, scratch);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.map(({ token }) => token)).toEqual(["userId", "computedId", "wrappedId"]);
+  expect(result.authority.effectiveFindings.every(({ message }) => message?.includes("CANNOT be established") === true)).toBe(true);
 });
