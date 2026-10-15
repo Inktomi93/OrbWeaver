@@ -13,6 +13,7 @@ import type {
 import {
   callableDeclarationSchema,
   castRelationResultSchema,
+  computedNameSchema,
   INVENTORY_FACTS,
   inputSchema,
   memberOriginSchema,
@@ -264,6 +265,34 @@ export function* readInventoryDeclarationOutputs(
     )
     .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
     yield { node: spanRow.parse(row), unknown: row["unknownOutput"] === null ? null : boolean.parse(row["unknownOutput"]) };
+  }
+}
+
+/** Computed keys retain the canonical scalar/refusal and every ordered binding hop. */
+export function* readInventoryComputedNames(db: DatabaseSync, id: string, node: InventorySpan): Iterable<InventoryPartition["computedNames"][number]> {
+  requireInventoryFamily(db, id, "computed-names");
+  for (const row of db
+    .prepare(
+      "SELECT c.ordinal,c.origin,c.state,c.value,c.reason,c.detail,c.refusalNode,c.traceCount FROM inventory_computed_name c JOIN inventory_span s ON s.partition=c.partition AND s.ordinal=c.node WHERE c.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY c.ordinal",
+    )
+    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
+    const trace = db
+      .prepare(
+        "SELECT t.ordinal,s.file,s.start,s.end,s.kind FROM inventory_computed_trace t JOIN inventory_span s ON s.partition=t.partition AND s.ordinal=t.node WHERE t.partition=? AND t.owner=? ORDER BY t.ordinal",
+      )
+      .all(id, integer.parse(row["ordinal"]));
+    if (trace.length !== integer.parse(row["traceCount"]) || trace.some((value, index) => value["ordinal"] !== index)) {
+      throw new SemanticInventoryError("native computed-name trace is incomplete");
+    }
+    const span = (column: string): InventorySpan => spanOf(db, id, integer.parse(row[column]));
+    yield computedNameSchema.parse({
+      node,
+      trace: { origin: span("origin"), declarations: trace.map((value) => spanRow.parse(value)) },
+      result:
+        row["state"] === "resolved"
+          ? { kind: "resolved", value: inventoryStringSchema.parse(row["value"]) }
+          : { kind: row["state"], reason: row["reason"], detail: inventoryStringSchema.parse(row["detail"]), node: span("refusalNode") },
+    });
   }
 }
 

@@ -38,8 +38,9 @@
 // dump guard.
 import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile, Statement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
 import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { NativeTypeContext } from "../contract/project-context.ts";
 import { declaredByPackage } from "../lib/type-member-origin.ts";
@@ -62,6 +63,25 @@ const FIX = `route guest values through ${HELPER}; the helper must call ${GUARD}
 /** Is this call `<receiver>.dump(handle)` where `dump` is declared by the installed QuickJS package? */
 function isGuestDumpCall(fact: NativeCallMemberOrigin): boolean {
   return fact.name === DUMP && fact.origin.kind === "resolved" && declaredByPackage(fact.origin.value, QUICKJS_PACKAGE);
+}
+
+function dumpAnchor(call: CallExpression): MorphNode {
+  const callee = referenceResolutionServices.unwrapExpression(call.getExpression());
+  if (Node.isPropertyAccessExpression(callee)) {
+    return callee.getNameNode();
+  }
+  const anchor = Node.isElementAccessExpression(callee) ? callee.getArgumentExpression() : undefined;
+  if (anchor === undefined) {
+    throw new Error("QuickJS dump call has no authored member anchor");
+  }
+  return referenceResolutionServices.unwrapExpression(anchor);
+}
+
+function reportDump(ctx: GatePolicyContext, call: CallExpression): void {
+  const anchor = dumpAnchor(call);
+  const text = anchor.getText();
+  const offset = (Node.isStringLiteral(anchor) || Node.isNoSubstitutionTemplateLiteral(anchor)) && anchor.getLiteralText() === DUMP ? text.indexOf(DUMP) : -1;
+  ctx.report.node(anchor, { token: offset < 0 ? text : DUMP, offset: Math.max(offset, 0), message: MESSAGE, fix: FIX });
 }
 
 /** Does every path through this statement terminate? (a return/throw, a block whose statements do, or an
@@ -198,7 +218,7 @@ export const gate = defineGate({
         }
         dumpSites += 1;
         if (!guardedHelperDump(node, node.getSourceFile(), callables)) {
-          ctx.report.node(node, { token: DUMP, offset: node.getText().indexOf(DUMP), message: MESSAGE, fix: FIX });
+          reportDump(ctx, node);
         }
       }
     };
@@ -211,8 +231,8 @@ export const gate = defineGate({
             if (membrane === undefined || sourceFile.compilerNode !== membrane.compilerNode || !Node.isCallExpression(node)) {
               return;
             }
-            const member = readMemberReference(node.getExpression());
-            if (member.kind !== "resolved" || member.value.name !== DUMP) {
+            const callee = referenceResolutionServices.unwrapExpression(node.getExpression());
+            if (!(Node.isElementAccessExpression(callee) || (Node.isPropertyAccessExpression(callee) && callee.getName() === DUMP))) {
               return;
             }
             if (ctx.nativeTypes === undefined) {

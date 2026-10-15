@@ -22,6 +22,7 @@ import {
   readInventoryBrands,
   readInventoryCallableDeclarations,
   readInventoryCasts,
+  readInventoryComputedNames,
   readInventoryDeclarationOutputs,
   readInventoryExports,
   readInventoryMemberOrigins,
@@ -204,6 +205,22 @@ export function inventoryReader(
     }
     return { partition, span: capturedSpan(node) };
   };
+  const replayFor =
+    (node: Node, program: string, partition: StoredInventoryPartition, label: string) =>
+    (value: InventorySpan): Node => {
+      if (!partition.available.includes(value.file)) {
+        throw new SemanticInventoryError(`native ${label} source is outside its native closure`);
+      }
+      const captured = sourceFile(value.file, [program]);
+      if (captured === undefined) {
+        throw new SemanticInventoryError(`native ${label} source is unavailable`);
+      }
+      const original = value.file === capturedSpan(node).file ? node.getSourceFile() : node.getProject().getSourceFile(value.file);
+      if (original !== undefined && (original.wasForgotten() || original.getFullText() !== captured.getFullText())) {
+        throw new SemanticInventoryError(`native ${label} replay source/epoch is stale`);
+      }
+      return nodeOf(value, [program], original ?? captured);
+    };
   // biome-ignore lint/nursery/useDisposables: the returned corpus delegates ownership to the same caller-owned inventory.
   const corpus: InventorySourceCorpus = {
     getSourceFiles: () =>
@@ -220,6 +237,20 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    computedName: (node, program) => {
+      const { partition, span } = nativeSpan(node, program, "computed-names");
+      const matches = [...readInventoryComputedNames(db, partition.id, span)];
+      const fact = matches[0];
+      if (matches.length !== 1 || fact === undefined) {
+        throw new SemanticInventoryError("native computed-name span is unavailable in its native partition");
+      }
+      const replay = replayFor(node, program, partition, "computed-name");
+      const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
+      const result = fact.result;
+      return result.kind === "resolved"
+        ? { kind: result.kind, value: result.value, trace }
+        : { kind: result.kind, reason: result.reason, detail: result.detail, node: replay(result.node), trace };
+    },
     callableDeclaration: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "callable-declarations");
       const matches = [...readInventoryCallableDeclarations(db, partition.id, span)];
@@ -227,20 +258,7 @@ export function inventoryReader(
       if (matches.length !== 1 || fact === undefined) {
         throw new SemanticInventoryError("native callable declaration span is unavailable in its native partition");
       }
-      const replay = (value: InventorySpan): Node => {
-        if (!partition.available.includes(value.file)) {
-          throw new SemanticInventoryError("native callable declaration source is outside its native closure");
-        }
-        const captured = sourceFile(value.file, [program]);
-        if (captured === undefined) {
-          throw new SemanticInventoryError("native callable declaration source is unavailable");
-        }
-        const original = value.file === span.file ? node.getSourceFile() : node.getProject().getSourceFile(value.file);
-        if (original !== undefined && (original.wasForgotten() || original.getFullText() !== captured.getFullText())) {
-          throw new SemanticInventoryError("native callable declaration replay source/epoch is stale");
-        }
-        return nodeOf(value, [program], original ?? captured);
-      };
+      const replay = replayFor(node, program, partition, "callable declaration");
       const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
       const result = fact.result;
       if (result.kind === "unresolved") {

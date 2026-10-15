@@ -6,6 +6,7 @@ import type { InventoryFactKind, InventoryPartition, InventoryRecord, InventoryR
 import {
   callableDeclarationSchema,
   castRelationResultSchema,
+  computedNameSchema,
   INVENTORY_FAMILIES,
   INVENTORY_FAMILY_FIELDS,
   INVENTORY_INPUT_KINDS,
@@ -32,6 +33,16 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  computedName: {
+    name: "inventory_computed_name",
+    columns: "ordinal,node,origin,state,value,reason,detail,refusalNode,traceCount",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,origin INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('resolved','unresolved')),value TEXT,reason TEXT,detail TEXT,refusalNode INTEGER,traceCount INTEGER NOT NULL CHECK(traceCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE},FOREIGN KEY(partition,origin) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,refusalNode) REFERENCES inventory_span(partition,ordinal),CHECK((state='resolved' AND value IS NOT NULL AND reason IS NULL AND detail IS NULL AND refusalNode IS NULL) OR (state='unresolved' AND value IS NULL AND reason IS NOT NULL AND detail IS NOT NULL AND refusalNode IS NOT NULL))`,
+  },
+  computedTrace: {
+    name: "inventory_computed_trace",
+    columns: "owner,ordinal,node",
+    definition: `${PARTITION},owner INTEGER NOT NULL,${ORDINAL},node INTEGER NOT NULL,PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_computed_name(partition,ordinal),${SPAN_REFERENCE}`,
+  },
   callableDeclaration: {
     name: "inventory_callable_declaration",
     columns: "ordinal,node,origin,state,declaration,body,reason,detail,refusalNode,traceCount",
@@ -318,6 +329,25 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
         emit("memberDeclaration", ordinal, "value", index, spanId(node));
       });
     }
+  });
+  partition.computedNames.forEach((entry, ordinal) => {
+    const fact = computedNameSchema.parse(entry);
+    const result = fact.result;
+    emit(
+      "computedName",
+      ordinal,
+      spanId(fact.node),
+      spanId(fact.trace.origin),
+      result.kind,
+      result.kind === "resolved" ? inventoryString(result.value) : null,
+      result.kind === "unresolved" ? result.reason : null,
+      result.kind === "unresolved" ? inventoryString(result.detail) : null,
+      result.kind === "unresolved" ? spanId(result.node) : null,
+      fact.trace.declarations.length,
+    );
+    fact.trace.declarations.forEach((node, index) => {
+      emit("computedTrace", ordinal, index, spanId(node));
+    });
   });
   partition.callableDeclarations.forEach((entry, ordinal) => {
     const fact = callableDeclarationSchema.parse(entry);
