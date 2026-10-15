@@ -2,6 +2,7 @@
 import "@orb/testkit/node/composed-real.ts";
 // The native clone's module graph belongs to import time, not the case's execution budget.
 import "@orb/tooling/snap";
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node:fs/promises";
@@ -9,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import {
@@ -54,6 +56,9 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { createFrozenClock } from "../iso/clock.ts";
+import { createSeededIds } from "../iso/ids.ts";
+import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { CORPUS_CHAT_MODEL, corpusImageryPhysicalBytes, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_CONNECTION_FOREIGN_KEY, CORPUS_CONNECTION_HOSTED_KEY, CORPUS_CONNECTION_KEY, CORPUS_CONNECTION_MODEL } from "./corpus-connection-wire.ts";
 import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
@@ -62,6 +67,7 @@ import { CORPUS_NOTIFICATION_PLUGIN_ERROR, captureCorpusNotificationRows } from 
 import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 import { CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
+import { captureCookieAuth } from "./corpus-seed.ts";
 import { captureSdkSessionRows } from "./factories/connection.ts";
 import { seedUserCredential } from "./factories/credentials.ts";
 import { captureDocumentChunks } from "./factories/embedding-generation.ts";
@@ -73,6 +79,9 @@ import { captureWorldBookRows } from "./factories/world-info.ts";
 const OWNER_PASSWORD = "synthetic-capsule-owner-password";
 const PROVIDER_KEY = "synthetic-capsule-provider-key";
 const CLONE_MARKER = 123;
+const CLONE_READER_PASSWORD = "fresh-clone-notification-reader-password";
+const CLONE_MEMBER_PASSWORD = "fresh-clone-shared-member-password";
+const CLONE_ROTATED_READER_PASSWORD = "rotated-clone-notification-reader-password";
 
 test("a completed migrated capsule closes its real producers before cloning scrubbed independent DB and CAS bytes", async () => {
   const parent = await mkdtemp(join(tmpdir(), "orb-completed-corpus-"));
@@ -92,10 +101,14 @@ test("a completed migrated capsule closes its real producers before cloning scru
     completion: (body) => rpgFlightWire.completion(body) ?? rpgWire.completion(body) ?? swipes.completion(body) ?? lifecycleWire.completion(body),
   });
   const key = randomBytes(32);
+  const clock = createFrozenClock();
+  const ids = createSeededIds();
   const capsule = ownership.use(
     await createCorpusCapsule({
       directory: join(parent, "capsule root"),
       server: {
+        clock,
+        ids,
         authConfig: { ...authConfigFromEnv(), mode: "local" },
         providerFetch: execution.execute,
         secretBoxKey: key,
@@ -334,6 +347,9 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const source = await createDb(capsule.layout.databaseUrl);
   let sourceMarker: Awaited<ReturnType<typeof source.all>>;
   let notificationPlugin: typeof plugins.$inferSelect | undefined;
+  let sourceMemberUsers: (typeof users.$inferSelect)[];
+  let sourceMemberSessions: (typeof sessions.$inferSelect)[];
+  const memberIds = [notifications.reader.userId, capsule.privateCaptures.sharedMemberAuthentication.identity.viewer.userId];
   try {
     await assertReferentialIntegrity(source);
     expect(
@@ -408,6 +424,8 @@ test("a completed migrated capsule closes its real producers before cloning scru
         .orderBy(documentChunks.chunkIdx),
     ).toEqual(search.canonical.chunks);
     sourceMarker = await source.all(sql`PRAGMA user_version`);
+    sourceMemberUsers = await source.select().from(users).where(inArray(users.id, memberIds)).orderBy(users.id);
+    sourceMemberSessions = await source.select().from(sessions).where(inArray(sessions.userId, memberIds)).orderBy(sessions.id);
     expect((await source.select({ id: sessions.id }).from(sessions)).length).toBeGreaterThan(0);
     expect((await source.select({ id: userCredentials.id }).from(userCredentials)).length).toBeGreaterThan(0);
     expect((await source.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash))).length).toBeGreaterThan(0);
@@ -634,6 +652,79 @@ test("a completed migrated capsule closes its real producers before cloning scru
     expect((await clone.select({ id: userCredentials.id }).from(userCredentials)).length).toBe(0);
     expect((await clone.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash))).length).toBe(0);
     expect((await clone.select({ id: users.id }).from(users).where(eq(users.id, capsule.privateCaptures.oidc.ownerId))).length).toBe(1);
+    {
+      await using cloneRoot = await createServerHarness({
+        db: clone,
+        ownerId: capsule.privateCaptures.baseline.ownerId,
+        authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+        clock,
+        ids,
+        casDir: fixture.layout.assets,
+        variantDir: fixture.layout.variants,
+        importStagingDir: fixture.layout.importStaging,
+        temporaryParentDir: parent,
+        pluginSpawn: spawn,
+      });
+      const identities = loaded.wire.memberIdentities;
+      assert(identities !== undefined, "prepared clone lost its actual member identities");
+      const reader = await cloneRoot.principalFor(identities.notificationReader.viewer.userId);
+      const member = await cloneRoot.principalFor(identities.sharedMember.viewer.userId);
+      const address = await cloneRoot.listen();
+      const origin = `http://${address.address}:${String(address.port)}`;
+      const login = async (handle: string, password: string): Promise<Response> => {
+        const response = await fetch(new URL("/api/auth/login", origin), {
+          method: "POST",
+          headers: { [CSRF_HEADER]: "1", forwarded: "" },
+          body: new URLSearchParams({ handle, password }),
+        });
+        await response.arrayBuffer();
+        return response;
+      };
+      for (const [viewer, sourceAuth] of [
+        [reader, { cookie: notifications.admission.cookie, secrets: notifications.secrets }],
+        [member, capsule.privateCaptures.sharedMemberAuthentication],
+      ] as const) {
+        await expect(captureCorpusCookieIdentity(cloneRoot, viewer, sourceAuth.cookie)).rejects.toThrow("request refused (401)");
+        const sourcePassword = sourceAuth.secrets[0];
+        assert(sourcePassword !== undefined, "source admission omitted its private password witness");
+        const staleLogin = await login(viewer.handle, sourcePassword);
+        expect(staleLogin.status).toBe(401);
+        expect(staleLogin.headers.getSetCookie()).toEqual([]);
+      }
+      await expect(captureCorpusCookieIdentity(cloneRoot, member, "")).rejects.toThrow("request refused (401)");
+      const readerAuthentication = await captureCookieAuth(cloneRoot, reader, CLONE_READER_PASSWORD);
+      const memberAuthentication = await captureCookieAuth(cloneRoot, member, CLONE_MEMBER_PASSWORD);
+      expect(readerAuthentication.identity).toEqual(identities.notificationReader);
+      expect(memberAuthentication.identity).toEqual(identities.sharedMember);
+      expect(readerAuthentication.secrets.filter((value) => notifications.secrets.includes(value))).toEqual([]);
+      expect(memberAuthentication.secrets.filter((value) => capsule.privateCaptures.sharedMemberAuthentication.secrets.includes(value))).toEqual([]);
+      await expect(captureCorpusCookieIdentity(cloneRoot, member, readerAuthentication.cookie)).rejects.toThrow("does not admit the expected viewer");
+      const cloneSessions = await clone.select().from(sessions).where(inArray(sessions.userId, memberIds));
+      expect(cloneSessions).toHaveLength(2);
+      expect(new Set(cloneSessions.map((row) => row.userId))).toEqual(new Set(memberIds));
+      expect(cloneSessions.every((row) => sourceMemberSessions.every((sourceRow) => sourceRow.id !== row.id && sourceRow.tokenHash !== row.tokenHash))).toBe(
+        true,
+      );
+      const rotatedReader = await captureCookieAuth(cloneRoot, reader, CLONE_ROTATED_READER_PASSWORD);
+      expect(rotatedReader.identity).toEqual(identities.notificationReader);
+      await expect(captureCorpusCookieIdentity(cloneRoot, reader, readerAuthentication.cookie)).rejects.toThrow("request refused (401)");
+      expect(await captureCorpusCookieIdentity(cloneRoot, member, memberAuthentication.cookie)).toEqual(identities.sharedMember);
+      const logout = await fetch(new URL("/api/auth/logout", origin), {
+        method: "POST",
+        headers: { [CSRF_HEADER]: "1", cookie: memberAuthentication.cookie, forwarded: "" },
+      });
+      await logout.arrayBuffer();
+      expect(logout.status).toBe(200);
+      await expect(captureCorpusCookieIdentity(cloneRoot, member, memberAuthentication.cookie)).rejects.toThrow("request refused (401)");
+      expect(await captureCorpusCookieIdentity(cloneRoot, reader, rotatedReader.cookie)).toEqual(identities.notificationReader);
+      const afterSetup = await readFile(join(fixture.layout.root, "corpus.json"), "utf8");
+      expect(afterSetup).toBe(published);
+      expect(parseCorpusWire(afterSetup)).toEqual(loaded.wire);
+      for (const secret of [...readerAuthentication.secrets, ...memberAuthentication.secrets, ...rotatedReader.secrets]) {
+        expect(afterSetup).not.toContain(secret);
+      }
+      await cloneRoot.settleBackground();
+    }
     // A physical clone control changes metadata only; it never fabricates domain canon or another graph.
     await clone.run(sql.raw(`PRAGMA user_version = ${CLONE_MARKER}`));
     expect(await clone.all(sql`PRAGMA user_version`)).not.toEqual(sourceMarker);
@@ -657,6 +748,8 @@ test("a completed migrated capsule closes its real producers before cloning scru
   try {
     expect(await unchanged.all(sql`PRAGMA user_version`)).toEqual(sourceMarker);
     expect((await unchanged.select({ id: userCredentials.id }).from(userCredentials)).length).toBeGreaterThan(0);
+    expect(await unchanged.select().from(users).where(inArray(users.id, memberIds)).orderBy(users.id)).toEqual(sourceMemberUsers);
+    expect(await unchanged.select().from(sessions).where(inArray(sessions.userId, memberIds)).orderBy(sessions.id)).toEqual(sourceMemberSessions);
   } finally {
     closeDb(unchanged);
   }
