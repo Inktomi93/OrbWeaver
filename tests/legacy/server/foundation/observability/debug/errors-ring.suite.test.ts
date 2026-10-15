@@ -50,7 +50,7 @@ const TOKEN = "debug-secret-token";
 
 function app(): Hono {
   const hono = new Hono();
-  registerDebugRoutes(hono, { auth: TOKEN });
+  registerDebugRoutes(hono, { appSettingRows: null, auth: TOKEN });
   return hono;
 }
 

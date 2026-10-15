@@ -10,7 +10,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { ownerChatIds } from "#server/domain/stats/substrate/owner-chat-scope.ts";
+import { ownerChatIds } from "#server/domain/stats/persistence/owner-chat-scope.ts";
 import { seedCharacter, seedChat, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

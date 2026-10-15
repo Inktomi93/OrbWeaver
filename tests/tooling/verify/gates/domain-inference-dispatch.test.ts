@@ -181,3 +181,29 @@ export function tableAlias(db:Db){const table=userSettings;const insert=db.inser
     expect(unsupportedTable.authority.withheldPolicyIds).toEqual([ownership.id]);
   }
 });
+
+test("SDK persistence belongs to connection without granting chat the backend's durable table", { timeout: scaledBudget(20_000) }, async ({
+  plantedTree,
+  repoRoot,
+}) => {
+  const { project } = await nativeProgram(
+    { plantedTree, repoRoot },
+    `import {sessionEntries,type Db} from "@orb/db";
+export function demote(db:Db){return db.update(sessionEntries);}
+export function insert(db:Db){return db.insert(sessionEntries);}
+export function promote(db:Db){return db.update(sessionEntries);}
+`,
+  );
+  const foreign = "packages/server/src/domain/chat/persistence/__native-sdk-foreign.ts";
+  project.createSourceFile(
+    join(repoRoot, foreign),
+    'import {sessionEntries,type Db} from "@orb/db"; export function write(db:Db){return db.insert(sessionEntries);}',
+  );
+  const result = runPolicyPass({ knownPolicies: [ownership], policies: [ownership], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  const writes = result.authority.effectiveFindings.filter((finding) => finding.message?.includes("cross-domain WRITE") === true);
+  expect(writes.filter((finding) => finding.file === SUBJECT)).toEqual([]);
+  expect(writes.filter((finding) => finding.file === foreign).map((finding) => finding.token)).toEqual(["sessionEntries"]);
+});

@@ -1,7 +1,7 @@
 // The /api/_debug surface: observability's read side. The two-tier auth gate (admin-session
 // short-circuit → DEBUG_TOKEN fallback), the route registrar, and the structural-injection ports
-// (`AssetInspector`, `AdminAuthChecker`) whose impls entry/ supplies. The DB probes need no port — they
-// read @orb/db directly.
+// (`AssetInspector`, `AdminAuthChecker`) whose impls entry/ supplies. Settings reads use their owner's
+// injected operation; the remaining DB probes read downward.
 //
 // THIS GATE IS THE ENTIRE BOUNDARY for every route below. The probes are deliberately principal-BLIND
 // whole-db reads (`@owner-scope-ok`, D20) — they take ids from QUERY PARAMS, never from auth — so whatever
@@ -24,7 +24,7 @@ import process from "node:process";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import type { DebugErrorsResponse, RpgTracesResponse, WireCapturesResponse } from "@orb/contracts/debug";
 import type { RpgTraceRecord } from "@orb/contracts/rpg";
-import type { EffectiveAppConfig } from "@orb/contracts/settings";
+import type { EffectiveAppConfig, GlobalSettingView } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
@@ -40,7 +40,6 @@ import { logRing, recentRequests, securityEvent } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
 import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
 import {
-  appSettingRows,
   automationFireRows,
   characterDetailRow,
   characterListSummaries,
@@ -286,6 +285,8 @@ export interface DebugAuthOptions {
 /** The /api/_debug registrar options. The `db` handle (optional) adds the /db/* probe surface; `assets`
  *  adds the CAS health check; `auth` overrides the default DEBUG_TOKEN gate (tests pass a known shape). */
 export interface DebugRoutesOptions {
+  /** Required selection prevents a configured app from silently omitting its stored settings view. */
+  readonly appSettingRows: (() => Promise<readonly GlobalSettingView[]>) | null;
   db?: Db;
   assets?: AssetInspector;
   /** The rpg flight-recorder read port (R-OBS). Absent ⇒ the /rpg/traces route is not registered (tracing off). */
@@ -356,8 +357,18 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
 }
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
-export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {}): void {
-  const { db, assets, rpgTrace, memoryRecall, sockets, effectiveConfig, wireCaptureEnabled = isWireCaptureEnabled, auth = env.DEBUG_TOKEN } = options;
+export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { appSettingRows: null }): void {
+  const {
+    db,
+    appSettingRows,
+    assets,
+    rpgTrace,
+    memoryRecall,
+    sockets,
+    effectiveConfig,
+    wireCaptureEnabled = isWireCaptureEnabled,
+    auth = env.DEBUG_TOKEN,
+  } = options;
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
   app.get("/api/_debug/info", (c) => {
@@ -525,6 +536,12 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     return traceRecord === undefined ? c.json({ error: "no trace recorded for that requestId" }, NOT_FOUND) : c.json(traceRecord);
   });
 
+  if (appSettingRows !== null) {
+    app.get("/api/_debug/config/app", async (c) =>
+      c.json({ effective: effectiveConfig === undefined ? null : effectiveConfig(), rows: await appSettingRows() }),
+    );
+  }
+
   if (db !== undefined) {
     app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: getAuditFailureSnapshot() }));
     app.get("/api/_debug/db/integrity", async (c) => c.json(await integrityProbe(db)));
@@ -551,16 +568,6 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       const cfg = effectiveConfig();
       return { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
     };
-
-    app.get("/api/_debug/config/app", async (c) =>
-      c.json({
-        // The RESOLVED config the server actually runs on (null when the getter was not injected)…
-        effective: effectiveConfig === undefined ? null : effectiveConfig(),
-        // …and the raw override rows it was resolved FROM. Both, because a mismatch between them is a bug
-        // class of its own and one without the other cannot show it.
-        rows: await appSettingRows(db),
-      }),
-    );
 
     app.get("/api/_debug/config/user", async (c) => {
       const userId = c.req.query("userId");

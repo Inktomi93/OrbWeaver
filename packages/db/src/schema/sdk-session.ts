@@ -1,21 +1,6 @@
-// schema/sdk-session — the agent-sdk prompt-cache lineage (producer: the agent-sdk backend at
-// infra/providers/backends/agent-sdk/session, D8). This is the SDK "chat session" — the backend-internal
-// canon-derived cache that makes a stateful claude-agent-sdk turn cheap (the prompt-cache survival). It is
-// NOT the BFF browser session (`sessions` table, schema/sessions.ts) — they share only the word "session":
-// separate tables, separate homes, separate tiers (docs/law/Spine-Identity-and-Auth.md "BFF session ≠ SDK chat
-// session"). The chat
-// domain is stateless-first and does NOT own this; only the TABLE lives here (producer-owned schema).
-//
-// THE LOAD-BEARING DECISIONS encoded here:
-//   • D8  — the agent-sdk session store is backend-internal; the lineage is keyed by `chatId`.
-//   • D25 — there is NO `chats.sessionId`/`chats.sessionDirty` back-pointer. The session-cache state left
-//           the `chats` row entirely; staleness is DETECTED vs canon (re-hash the live canon prefix and
-//           compare `canon_hash`), never stored as a `chats` dirty flag. A reseed APPENDS a new lineage
-//           entry rather than mutating a pointer.
-//
-// No enum columns — an SDK session entry is ids + ordinals + a canon hash + timestamps. Timestamps are
-// plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`), born at insert via
-// `(unixepoch() * 1000)`.
+// SDK prompt-cache rows persist through connection; inference alone owns the resume cache lifecycle (D8/D25).
+// The injected writer scopes each primary seat to (chat, connection); chat canon stores no backend session state.
+// The satellite schema avoids the connection/chat FK cycle; BFF browser sessions remain separate identity data.
 
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";

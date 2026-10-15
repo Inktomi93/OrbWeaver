@@ -50,7 +50,7 @@ function stubInspector(): { inspector: RpgTraceInspector; lastFilter: () => unkn
 
 function appWith(inspector?: RpgTraceInspector): Hono {
   const app = new Hono();
-  registerDebugRoutes(app, { auth: TOKEN, ...(inspector !== undefined ? { rpgTrace: inspector } : {}) });
+  registerDebugRoutes(app, { appSettingRows: null, auth: TOKEN, ...(inspector !== undefined ? { rpgTrace: inspector } : {}) });
   return app;
 }
 
@@ -127,7 +127,7 @@ describe("/api/_debug/stream/sockets — the one-socket-per-tab pin", () => {
 
   function socketsApp(inspector?: SocketInspector): Hono {
     const app = new Hono();
-    registerDebugRoutes(app, { auth: TOKEN, ...(inspector === undefined ? {} : { sockets: inspector }) });
+    registerDebugRoutes(app, { appSettingRows: null, auth: TOKEN, ...(inspector === undefined ? {} : { sockets: inspector }) });
     return app;
   }
 

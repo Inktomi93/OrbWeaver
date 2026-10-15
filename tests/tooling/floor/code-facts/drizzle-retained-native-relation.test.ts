@@ -205,7 +205,7 @@ test("native literal batch closes a returned carrier's statement", async ({ plan
 });
 
 test("actual retained relation and selected callback retain native batch origin", async ({ plantedTree, repoRoot }) => {
-  const source = await readFile(join(repoRoot, "packages/server/src/domain/stats/substrate/owner-chat-scope.ts"), "utf8");
+  const source = await readFile(join(repoRoot, "packages/server/src/domain/stats/persistence/owner-chat-scope.ts"), "utf8");
   const contract = await readFile(join(repoRoot, "packages/server/src/domain/stats/contract/retained-chat-accounting.ts"), "utf8");
   const accounting = await readFile(join(repoRoot, "packages/server/src/domain/stats/persistence/retained-chat-accounting.ts"), "utf8");
   const constants = contract.match(/^export const RETAINED_CHAT_(?:MEMBERSHIP|OWNERS)_ALIAS = .+;$/gmu);

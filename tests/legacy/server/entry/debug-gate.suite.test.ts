@@ -48,6 +48,7 @@ import type { ChatId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
+import { readGlobalSettings } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -248,12 +249,12 @@ function gateApp(opts: GateAppOptions): GateApp {
   // widened). Reproducing the production wiring is this suite's whole premise.
   // @orb-waive no-test-fabrication(unknown): not a fabricated VALUE — this is the exact `plain` widening `entry/app.ts` performs. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const widenedApp = app as unknown as Hono;
+  // The real readers share the same unusable DB so registered routes cannot counterfeit an auth refusal with an empty page.
+  // @orb-waive no-test-fabrication(unknown): a deliberately unusable db is the assertion — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const db = {} as unknown as Db;
   registerDebugRoutes(widenedApp, {
-    // The db must be PRESENT so `/db/*` + `/config/*` actually REGISTER — an unregistered route 404s, which
-    // would forge a passing gate — but UNUSABLE, so a request that reaches a handler throws instead of
-    // quietly returning an empty page. A typed factory would defeat the point: this must not answer a query.
-    // @orb-waive no-test-fabrication(unknown): a deliberately unusable db is the assertion — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    db: {} as unknown as Db,
+    db,
+    appSettingRows: () => readGlobalSettings(db),
     auth: {
       expectedToken: opts.expectedToken,
       adminAuth: { isAdmin: (c): boolean => seam.debugGateAdmits((c as Context<PrincipalEnv>).get("principal") ?? null, c.req.raw.headers) },

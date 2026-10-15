@@ -241,6 +241,11 @@ export async function readGlobalSetting(db: Db, key: string): Promise<GlobalSett
   return row === undefined ? null : toView(row);
 }
 
+/** Operator inspection preserves stored JSON without normalizing app overrides or tenant values. */
+export async function readGlobalSettings(db: Db): Promise<GlobalSettingView[]> {
+  return await db.select({ key: settings.key, value: settings.value, updatedAt: settings.updatedAt }).from(settings).orderBy(settings.key);
+}
+
 /** Upsert one raw global-KV row and return its view. The reserved-key guard + audit live in the verb. */
 export async function upsertGlobalSetting(db: Db, key: string, value: JsonValue, at: number): Promise<GlobalSettingView> {
   await db

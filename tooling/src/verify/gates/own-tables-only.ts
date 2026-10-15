@@ -70,11 +70,11 @@ const SCHEMA_OWNERS: Readonly<Record<string, OwnershipRuling>> = {
       "and never will be — the split is a cycle fix, not a second producer.",
   },
   "sdk-session": {
-    owners: [],
+    owners: ["connection"],
     why:
-      "`session_entries` is produced by `infra/providers/backends/agent-sdk/session/` (db-structure's " +
-      "NON_DOMAIN_PRODUCERS), which is INFRA, not a domain — a sealed executor no domain reaches into (D8). " +
-      "Domain-side is RED by construction.",
+      "connection owns the durable `(chat, connection)` lineage adapter in persistence/session-entries.ts, injected through " +
+      "SessionEntryWriter at entry/compose. The inference backend owns cache lifecycle and remains DB-free (D8/D25); " +
+      "chat canon never owns backend session state.",
   },
   "rate-limit": {
     owners: [],

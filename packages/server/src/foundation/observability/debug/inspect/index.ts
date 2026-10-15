@@ -4,7 +4,6 @@
 export { type AutomationFireFilter, type AutomationFireRow, automationFireRows } from "./automation-fires.ts";
 export {
   type AppSettingRow,
-  appSettingRows,
   type CharacterDetailRow,
   type ChatConfigRow,
   type ChatParticipantRow,
