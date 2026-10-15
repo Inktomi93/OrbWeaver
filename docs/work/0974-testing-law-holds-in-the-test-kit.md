@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-15
 priority: P2
-lane: codex/testkit-law-qualification-974
 plan: test-foundation
 ---
 
@@ -33,8 +32,8 @@ Judge maintained fake-timer and spy sites against testing law. Preserve legacy r
 
 The observed callers of `tests/support/node/inference-runtime.ts` remain in legacy embedding and search suites. It scripts connection rows, bindings and accounting instead of the server root. Its replacements must delete this helper and its public testkit door; do not repair it for new foundation qualification.
 
-Source `9f0c36d476` replaces socket polling and random contrast markers and widens canonical-origin checks. Failed HTTP attaches abort the waiting stream; successful completion releases it. Authored class expressions and declarations reject prototype spies. Independent findings have targeted red/green controls. The support scan separates a legacy-only unseeded mint from physical elapsed measurements requiring purpose and checker classification. Native invocation qualification remains partial. Add no fake clock, waiver or budget to hide these limits; this item remains partial.
-
-Reviewed source `616cb8fab6` shares native Function wrapper targets and ordered arguments. Corrected spread normalization, immutable capture refusals and native Date calls have discriminating controls. Canonical package names survive renamed exports. Matching affected tests and tooling checks pass; root types retain adjudicated off-owned failures. Complete maintained-support coverage, executable-child inputs and legacy replacements remain open.
+Reviewed `9f0c36d476` and `616cb8fab6` preserve physical completion and share canonical native invocation, package identity and ordered arguments. Stale captures, native Date calls, seeded mints and prototype substitutions retain discriminating controls. Tooling checks pass; complete maintained-population qualification remains open.
 
 Security-reviewed `071e1b369f` makes private issuer codes and JTIs deterministic while preserving native validation. Native crypto origin controls refute a classifier defect. The focused support verdict retains physical-measurement and legacy-only findings; mock doctrine is clean. Reviewed `217a630473` uses native claim timestamp defaults without repairing malformed, overridden or omitted claims. [D319](../adr/0319-native-protocol-time-in-scripted-test-edges.md) owns the narrow boundary; business and helper clocks remain subject to determinism. Tooling types pass; root retains adjudicated off-owned errors.
+
+The maintained SDK children still mint ambient opaque identifiers. Parent-owned deterministic launch and frame identities need a coherent external-edge seam for custom and direct-native launches. Resetting child-local counters would collide across resumed transcripts. Preserve native Query and canonical resume identity. Physical measurements retain distinct lawful purposes and strict policy outcomes. Evidence: `.claude/worktrees/codex-zod-barrel-identity-1028/reports/review/974-maintained-support-qualification.md`. This source survey supplies no current policy verdict.
