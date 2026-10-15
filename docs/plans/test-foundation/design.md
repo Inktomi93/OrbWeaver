@@ -142,7 +142,7 @@ Keep transaction overlays separate from committed facts. Derive their roots from
 
 The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
 
-Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. The full installed diagnostic completes but refuses a conditional sibling-read origin. Item 1002 owns that precision boundary, measured proof cost, target qualification and dependent replay order. Complete store qualification remains open.
+Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. The full installed diagnostic completes but refuses a conditional sibling-read origin. Canonical inherited-read-effect coverage must precede absence admission. Item 1002 owns that dependency, measured proof cost, target qualification and dependent replay order. Complete store qualification remains open.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
