@@ -76,6 +76,7 @@ export function inventoryReader(
   });
   const contextProjects = new Map<string, Project>();
   const contextWorlds = new WeakMap<Project, readonly string[]>();
+  const capturedTexts = new Map<SourceFile, string>();
   const texts = new Map<string, { partition: string; source: StoredInventorySource }>();
   const aliases = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
@@ -122,7 +123,25 @@ export function inventoryReader(
     const carrier = contextProject(context);
     const existing = carrier.getSourceFile(file);
     const text = texts.get(file);
-    return existing ?? (text === undefined ? undefined : carrier.createSourceFile(file, readInventorySourceText(db, text.partition, text.source)));
+    if (existing !== undefined || text === undefined) {
+      return existing;
+    }
+    const captured = readInventorySourceText(db, text.partition, text.source);
+    const created = carrier.createSourceFile(file, captured);
+    capturedTexts.set(created, captured);
+    return created;
+  };
+  const assertCapturedSource = (node: Node): void => {
+    assertOpen();
+    if (node.wasForgotten() || semanticInventoryOf(node.getProject()) !== inventory) {
+      throw new SemanticInventoryError("native physical source/epoch is not admitted by its captured snapshot");
+    }
+    const source = node.getSourceFile();
+    const captured = capturedTexts.get(source);
+    // The immutable captured text was version-checked at materialization; mutable node identity is not admission.
+    if (captured === undefined || source.getFullText() !== captured) {
+      throw new SemanticInventoryError("native physical source/epoch is not admitted by its captured snapshot");
+    }
   };
   const nodeOf = (span: InventorySpan, context?: readonly string[]): Node => {
     const sf = sourceFile(span.file, context);
@@ -216,6 +235,15 @@ export function inventoryReader(
     },
     programs: partitions.map((partition) => partition.program),
     canonicalPath,
+    sameNode: (left, right) => {
+      assertOpen();
+      if (semanticInventoryOf(left.getProject()) !== inventory || semanticInventoryOf(right.getProject()) !== inventory) {
+        return false;
+      }
+      assertCapturedSource(left);
+      assertCapturedSource(right);
+      return spanKey(capturedSpan(left)) === spanKey(capturedSpan(right));
+    },
     sourceCorpus: () => corpus,
     exports: (source, importer) => {
       const file = canonicalPath(source.getFilePath());
@@ -253,7 +281,7 @@ export function inventoryReader(
       );
     },
     references: (node) => {
-      assertOpen();
+      assertCapturedSource(node);
       const origin = capturedSpan(node);
       if (!authored.has(origin.file)) {
         throw new SemanticInventoryError(
@@ -289,6 +317,7 @@ export function inventoryReader(
       texts.clear();
       aliases.clear();
       authored.clear();
+      capturedTexts.clear();
       for (const source of project.getSourceFiles()) {
         source.forget();
       }
@@ -309,6 +338,12 @@ export function inventoryReader(
 /** Resolve origins in the importing context; ordinary native SourceFiles retain their native reader. */
 export function inventoryExports(source: SourceFile, importer?: Node): ReadonlyMap<string, readonly Node[]> {
   return semanticInventoryOf(source.getProject())?.exports(source, importer) ?? source.getExportedDeclarations();
+}
+
+/** Captured carriers share physical syntax only inside one admitted snapshot; native nodes retain compiler identity. */
+export function samePhysicalNode(left: Node, right: Node): boolean {
+  const inventory = semanticInventoryOf(left.getProject()) ?? semanticInventoryOf(right.getProject());
+  return inventory === undefined ? left.compilerNode === right.compilerNode : inventory.sameNode(left, right);
 }
 
 function inventoryBindingKeys(node: Node, alias = true): readonly string[] | undefined {
