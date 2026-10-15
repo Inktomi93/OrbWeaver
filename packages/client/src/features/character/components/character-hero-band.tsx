@@ -12,7 +12,9 @@
 // `../lib/character-actions.ts`); the star lives on the list row.
 
 import { blobUrl } from "@orb/contracts/assets";
+import type { CharacterDetail } from "@orb/contracts/character";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
+import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import { initialsFor } from "@orb/kit/initials";
@@ -33,7 +35,6 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useUploadAsset, useUplo
 import type { AppFormInstance } from "#forms/editor";
 import { notify, oversizeUploadMessage } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
-import type { CharacterHeroDetail } from "../contract/library.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
@@ -41,7 +42,12 @@ import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
 import { CharacterTagsRow } from "./character-tags-row.tsx";
 
-export type { CharacterHeroDetail } from "../contract/library.ts";
+export type CharacterHeroDetail = Pick<
+  CharacterDetail,
+  "id" | "handle" | "name" | "starred" | "archived" | "trustHtml" | "forbidExternalMedia" | "interactiveHtml" | "avatarHash" | "themeOverride"
+> & {
+  readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard">[];
+};
 
 /** The suggestion strip's first-boot guess: one wrapped row of chips. `reserveKey` replaces it with this
  *  device's own measurement on every subsequent open. */

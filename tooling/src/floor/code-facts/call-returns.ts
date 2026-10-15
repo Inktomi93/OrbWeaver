@@ -537,9 +537,12 @@ function observeAlternatives(
       };
 }
 
-function optionalReceiverInvocation(call: CallExpression): boolean {
+function optionalInvocationSite(call: CallExpression): boolean {
   const expression = unwrapTarget(call.getExpression());
-  return (Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) && expression.hasQuestionDotToken();
+  return (
+    call.hasQuestionDotToken() ||
+    ((Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) && expression.hasQuestionDotToken())
+  );
 }
 
 function capturedCallers(calls: readonly CallReturnObservation[]): ReadonlyMap<import("ts-morph").ts.Node, readonly CallReturnObservation[]> {
@@ -564,7 +567,7 @@ function refinedObservation(
 ): CallReturnObservation {
   const targets = readCallTargets(previous.call, admitted, observed);
   const invocationTargets =
-    targets.kind === "unresolved" && optionalReceiverInvocation(previous.call) ? readCallTargets(previous.call, admitted, observed, true) : undefined;
+    targets.kind === "unresolved" && optionalInvocationSite(previous.call) ? readCallTargets(previous.call, admitted, observed, true) : undefined;
   const first = targets.kind === "resolved" && targets.value.length === 1 ? targets.value[0] : undefined;
   let target: ReferenceFact<MorphNode> = targets.kind === "unresolved" ? targets : readCallTarget(previous.call);
   if (first !== undefined) {
@@ -609,7 +612,7 @@ function incomingCallableCandidate(call: CallExpression, keys: ReadonlySet<strin
     return true;
   }
   const member = staticMemberAccess(callee);
-  return member === undefined || keys.has(member.name) || optionalReceiverInvocation(call);
+  return member === undefined || keys.has(member.name) || optionalInvocationSite(call);
 }
 
 type CapturedCallIndexes = Pick<CallReturnProgram, "calls" | "callers" | "byCall" | "escapingReferences">;
@@ -870,10 +873,10 @@ export function observeCallReturns(
       groups.set(project, group);
     }
     const enumerate =
-      projection.suppliedCallableTargets !== true || (target.kind === "unresolved" && target.reason === "dynamic" && !optionalReceiverInvocation(call));
+      projection.suppliedCallableTargets !== true || (target.kind === "unresolved" && target.reason === "dynamic" && !optionalInvocationSite(call));
     const targets = enumerate ? readCallTargets(call, admitted) : singleCallTargets(target);
     const alternatives = observeAlternatives(targets, projection);
-    if (targets.kind === "resolved" && !optionalReceiverInvocation(call)) {
+    if (targets.kind === "resolved" && !optionalInvocationSite(call)) {
       directCalls.add(call.compilerNode);
     }
     group.calls.push({ call, target, targets, alternatives, returns });

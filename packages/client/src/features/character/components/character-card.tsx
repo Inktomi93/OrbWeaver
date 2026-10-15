@@ -24,6 +24,8 @@
 // path (D121 clause D), now rendered by both kebabs that offer it — this row's and the CONTEXT pane's.
 
 import { blobUrl } from "@orb/contracts/assets";
+import type { CharacterSummary } from "@orb/contracts/character";
+import type { TagView } from "@orb/contracts/tag";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
@@ -36,11 +38,15 @@ import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger 
 import type { ReactElement, ReactNode } from "react";
 import { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP_COARSE_KEEP, RowActionsMenu, RowToggleAction } from "#components";
 import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName } from "#lib";
-import type { CharacterCardItem } from "../contract/library.ts";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
 
-export type { CharacterCardItem } from "../contract/library.ts";
+export type CharacterCardItem = Pick<
+  CharacterSummary,
+  "id" | "name" | "handle" | "nameIsAmbiguous" | "archived" | "starred" | "avatarHash" | "elevatorPitch" | "themeOverride" | "tokenSize"
+> & {
+  readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard" | "folderType">[];
+};
 
 /** File-local — exactly the verbs the `row` scope offers, so a verb added to that scope is a `tsc` error
  *  here until this row wires it. */

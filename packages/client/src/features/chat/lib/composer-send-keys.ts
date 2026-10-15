@@ -4,10 +4,13 @@
 //   • enterSends OFF → Enter is a newline; ⌘/Ctrl+Enter sends; Shift+Enter is a newline.
 // A CJK/IME candidate-confirm Enter (isComposing) never sends.
 
-import type { EnterKeyInput } from "../contract/keyboard.ts";
-
-export type { EnterKeyInput } from "../contract/keyboard.ts";
-
+export interface EnterKeyInput {
+  readonly key: string;
+  readonly shiftKey: boolean;
+  readonly metaKey: boolean;
+  readonly ctrlKey: boolean;
+  readonly isComposing: boolean;
+}
 export function shouldSendOnEnter(event: EnterKeyInput, enterSends: boolean): boolean {
   if (event.key !== "Enter" || event.isComposing || event.shiftKey) {
     return false;

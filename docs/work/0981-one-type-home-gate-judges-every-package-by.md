@@ -1,9 +1,8 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-15
 priority: P1
-lane: codex/corpus-stats-qualification-959
 plan: test-foundation
 ---
 
@@ -32,3 +31,5 @@ Reviewed `f6d8656ea2` sanctions the existing UI token-authoring Node contract an
 The actual generated-family verifier entrypoint and producer freshness pass. Independent review corrected accidental preparation by a skipped alias owner; mixed-policy demand controls then pass. Tooling types and exact lint pass; root and support-package classification limits remain recorded. Evidence: `.claude/worktrees/codex-type-homes-981/reports/review/981-generated-node-homes.md` and its independent review.
 
 The bounded token family does not establish generic verifier delivery, other generated/Node homes, lower-data trust or complete UI placement. Item 1027 owns native delivery before broad activation; remaining component lifetime and ownership judgments stay open.
+
+Reviewed `5d7417fc59` consolidates client-only declarations into existing component, hook and model owners. Illegal feature-root contract buckets are removed. Wire/native derivation, owner exports and runtime initialization remain unchanged. Client types, exact lint and the complete named placement gate pass. Independent review confirms declaration origins and runtime edges. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/981-client-declarations-independent-review.md`. This production repair does not establish complete home-table coverage.

@@ -13,12 +13,25 @@
 // prevent. `listSurfaces` only ever returns the caller's own enabled plugins, so this arm is a race (a disable
 // between the two reads settling), not a state.
 
+import type { PluginView } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { useTRPC } from "#data";
 import type { PluginPageKey } from "#state";
 import { pluginPageKey } from "#state";
-import type { PluginPageView } from "../contract/extension-views.ts";
+
+type RegisteredSurface = inferOutput<Trpc["plugin"]["listSurfaces"]>[number];
+
+export type PluginPageView = Pick<RegisteredSurface, "pluginId" | "title" | "tier"> & {
+  readonly key: PluginPageKey;
+  readonly surfaceId: RegisteredSurface["id"];
+  readonly pluginName: PluginView["name"];
+  readonly grants: PluginView["grantedCapabilities"];
+  readonly scriptedIds: readonly RegisteredSurface["id"][];
+  readonly spec: RegisteredSurface["spec"];
+};
 
 /** Not a surface id: `PLUGIN_SURFACE_ID_RE` refuses `#` at registration, so no page key can equal a review key. */
 const REVIEW_SURFACE = "#review";
@@ -86,5 +99,3 @@ export function usePluginPagesState(): PluginPagesState {
 export function usePluginPages(): readonly PluginPageView[] {
   return usePluginPagesState().pages;
 }
-
-export type { PluginPageView } from "../contract/extension-views.ts";

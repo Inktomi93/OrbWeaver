@@ -18,11 +18,16 @@
 // costs no request, and the alternative (widening `usePluginPages`' return with a pending flag) would put
 // the page list and the reason-for-no-pages behind one shape that two panes consume differently.
 
+import type { PluginView } from "@orb/contracts/plugin";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
-import type { ExtensionsEmptyView } from "../contract/extension-views.ts";
+import type { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
 
-export type { ExtensionsEmptyView } from "../contract/extension-views.ts";
+export interface ExtensionsEmptyView {
+  readonly reason: keyof typeof EXTENSIONS_EMPTY_COPY | null;
+  readonly awaitingPlugins: readonly PluginView[];
+  readonly erroredCount: number;
+}
 
 const PENDING: ExtensionsEmptyView = { reason: null, awaitingPlugins: [], erroredCount: 0 };
 

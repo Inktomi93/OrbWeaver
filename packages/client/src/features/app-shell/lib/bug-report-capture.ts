@@ -34,9 +34,11 @@ import {
   RENDERS_UNFILTERABLE_REASON,
 } from "#src/lib/bug-report-bundle.ts";
 import { consoleErrorRing } from "#src/lib/console-error-ring.ts";
-import type { BugReportCaptureInput } from "../contract/bug-report.ts";
 
-export type { BugReportCaptureInput } from "../contract/bug-report.ts";
+export type BugReportCaptureInput = Pick<Parameters<typeof buildBugReportClientBundle>[0], "note"> & {
+  readonly windowMinutes: Parameters<typeof resolveEvidenceWindow>[1];
+  readonly now?: Parameters<typeof resolveEvidenceWindow>[0];
+};
 
 /** The route the debug capture POSTs to — the same same-origin, gate-behind-`/api/_debug` idiom
  *  `agent-plugin-bridge.ts` uses for its own debug-route read. */

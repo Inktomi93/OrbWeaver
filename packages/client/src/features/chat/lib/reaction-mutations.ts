@@ -12,10 +12,11 @@
 // (`verbs/reactions.ts::groupReactions` drops a token the vocabulary no longer knows), which is what keeps
 // this from being a cast dressed as a type.
 
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
-import type { ToggleReactionVars } from "../contract/presentation.ts";
 
-export type { ToggleReactionVars } from "../contract/presentation.ts";
+export type ToggleReactionVars = inferInput<Trpc["chat"]["toggleReaction"]>;
 
 export const useToggleReactionMutation = createEntityMutation<ToggleReactionVars, unknown>({
   options: (trpc) => trpc.chat.toggleReaction.mutationOptions(),

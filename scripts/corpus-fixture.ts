@@ -10,11 +10,12 @@ import { exportProcessEnv, inheritedProcessEnv } from "@orb/tooling/floor/proces
 import { describeRunMarkerSweep, joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
 
 const CONSUMER_TIMEOUT_MS = 600_000;
+const USAGE = "corpus-fixture requires publish <new-directory> or e2e [published-directory] [--] [native E2E arguments]";
 
 await runTool(async () => {
   const [command, directory, ...nativeArgs] = process.argv.slice(2);
-  if ((command !== "publish" && command !== "e2e") || directory === undefined || (command === "publish" && nativeArgs.length > 0)) {
-    throw new UsageError("corpus-fixture requires publish <new-directory> or e2e <published-directory> [native E2E arguments]");
+  if (command !== "publish" && command !== "e2e") {
+    throw new UsageError(USAGE);
   }
   exportProcessEnv("ORB_ENV_NO_FILE", "1");
   exportProcessEnv("CORPUS_AUTOINDEX", "false");
@@ -30,6 +31,9 @@ await runTool(async () => {
     }
   });
   if (command === "publish") {
+    if (directory === undefined || nativeArgs.length > 0) {
+      throw new UsageError(USAGE);
+    }
     const { createCorpusRecipe } = await import("@orb/testkit/node/corpus-recipe.ts");
     const { options } = await createCorpusRecipe(parent);
     const capsule = ownership.use(await createCorpusCapsule({ ...options, directory: join(parent, "source") }));
@@ -37,7 +41,7 @@ await runTool(async () => {
     process.stdout.write(`Published corpus: ${published.layout.root}\n`);
     return 0;
   }
-  const published = loadCorpusFixture(directory);
+  const published = loadCorpusFixture(directory === "--" ? undefined : directory);
   const clone = await cloneCorpusFixture(published, join(parent, "consumer"));
   ownership.defer(async (): Promise<void> => {
     if (consumerCompleted) {

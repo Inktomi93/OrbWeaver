@@ -13,6 +13,7 @@ import type {
   CallReturnProofContext,
   NativeValueTransferServices,
   ReferenceFact,
+  ResolvedReferenceFact,
   ReturnedValueContext,
   ReturnedValueInputs,
   ReturnedValueSource,
@@ -564,16 +565,34 @@ function callableValue(node: Node): boolean {
   return N.isArrowFunction(node) || N.isFunctionExpression(node) || N.isFunctionDeclaration(node);
 }
 
-function optionalCallableSources(node: Node, sources: ReferenceFact<readonly ReturnedValueSource[]>): ReferenceFact<readonly ReturnedValueSource[]> {
+function absentCallableMember(source: ReturnedValueSource, member: string | undefined): boolean {
+  return !source.present && source.path.length === 1 && source.path[0] === member;
+}
+
+function optionalCallableSources(
+  node: Node,
+  sources: ResolvedReferenceFact<readonly ReturnedValueSource[]>,
+): ResolvedReferenceFact<readonly ReturnedValueSource[]> {
   const nativeOptionalReceiver = (N.isPropertyAccessExpression(node) || N.isElementAccessExpression(node)) && node.hasQuestionDotToken();
-  return sources.kind === "resolved" && nativeOptionalReceiver
-    ? {
-        ...sources,
-        value: sources.value.filter(
-          (source) => !(source.path.length > 0 && (source.value.getKind() === SyntaxKind.NullKeyword || runtimeUndefinedValue(source.value))),
-        ),
+  const call = node.getParent();
+  const nativeOptionalCallee = N.isCallExpression(call) && call.getExpression() === node && call.hasQuestionDotToken();
+  if (!(nativeOptionalReceiver || nativeOptionalCallee)) {
+    return sources;
+  }
+  const member = nativeOptionalCallee ? staticMemberAccess(node) : undefined;
+  return {
+    ...sources,
+    value: sources.value.filter((source) => {
+      const nullish = source.value.getKind() === SyntaxKind.NullKeyword || runtimeUndefinedValue(source.value);
+      if (nativeOptionalReceiver && source.path.length > 0 && nullish) {
+        return false;
       }
-    : sources;
+      // Optional invocation guards the final value, not an earlier missing receiver along its access path.
+      const absentMember = absentCallableMember(source, member?.name);
+      const absentValue = source.present && source.path.length === 0 && nullish;
+      return !(nativeOptionalCallee && (absentMember || absentValue));
+    }),
+  };
 }
 
 interface CallableSuppliedUse {
@@ -1509,7 +1528,7 @@ function callableMemberUse(parent: Node, member: import("./reference-fact-contra
   const projected =
     proof.program === undefined
       ? readAuthoredValueSources(parent, [])
-      : optionalCallableSources(parent, callableSuppliedLeaves(parent, [], proof.program, { bindings: proof.bindings, active: new Set() }));
+      : callableSuppliedLeaves(parent, [], proof.program, { bindings: proof.bindings, active: new Set() });
   return callableProjectedUse(parent, projected, proof);
 }
 
@@ -1520,19 +1539,25 @@ function unprovenCallableReceiverBody(node: Node): boolean {
   );
 }
 
-function callableProjectedUse(parent: Node, projected: ReferenceFact<readonly ReturnedValueSource[]>, proof: CallableUseProof): boolean {
-  if (projected.kind === "unresolved") {
-    return refuseCallableUse(proof, projected);
+function callableProjectedUse(parent: Node, original: ReferenceFact<readonly ReturnedValueSource[]>, proof: CallableUseProof): boolean {
+  if (original.kind === "unresolved") {
+    return refuseCallableUse(proof, original);
+  }
+  const projected = optionalCallableSources(parent, original);
+  if (original.value.length > 0 && projected.value.length === 0) {
+    return true;
   }
   if (projected.value.some((source) => !source.present || source.path.length > 0)) {
     return refuseCallableUse(proof, valueRefusal(parent, "missing", "a containing member has an unresolved actual origin"));
   }
   if (projected.value.every((source) => !callableValue(source.value))) {
     const invocation = parent.getParent();
-    if (proof.program !== undefined && N.isCallExpression(invocation) && invocation.getExpression() === parent) {
-      return refuseCallableUse(proof, valueRefusal(parent, "unsupported", "an invoked containing member has no proven authored receiver body"));
-    }
-    return true;
+    return (
+      proof.program === undefined ||
+      !N.isCallExpression(invocation) ||
+      invocation.getExpression() !== parent ||
+      refuseCallableUse(proof, valueRefusal(parent, "unsupported", "an invoked containing member has no proven authored receiver body"))
+    );
   }
   if (proof.program !== undefined && projected.value.some((source) => unprovenCallableReceiverBody(source.value))) {
     return refuseCallableUse(proof, valueRefusal(parent, "unsupported", "an invoked authored member has no complete authored receiver body"));
@@ -1699,7 +1724,11 @@ function returnedCallableOwnerUses(
       return projected;
     }
     const actual = projected.value.filter(
-      (source) => !(source.path.length > 0 && (source.value.getKind() === SyntaxKind.NullKeyword || runtimeUndefinedValue(source.value))),
+      (source) =>
+        !(
+          absentCallableMember(source, selected) ||
+          (source.path.length > 0 && (source.value.getKind() === SyntaxKind.NullKeyword || runtimeUndefinedValue(source.value)))
+        ),
     );
     if (actual.length === 0 || actual.some((source) => !source.present || source.path.length > 0 || source.value !== owner)) {
       return valueRefusal(consumer.call, "unsupported", "a returned callable owner has an unknown or different actual factory alternative");
@@ -1759,10 +1788,10 @@ export function readAuthoredCallableSources(
     program === undefined
       ? readAuthoredValueSources(node, [])
       : callableSuppliedLeaves(node, [], program, { bindings: new Map(), active: new Set(), uses: suppliedUses });
-  const sources = optionalInvocation ? optionalCallableSources(node, projected) : projected;
-  if (sources.kind === "unresolved") {
-    return sources;
+  if (projected.kind === "unresolved") {
+    return projected;
   }
+  const sources = optionalInvocation ? optionalCallableSources(node, projected) : projected;
   if (sources.value.length === 0 || sources.value.some((source) => !source.present || source.path.length > 0 || !callableValue(source.value))) {
     return valueRefusal(node, "unsupported", "the callee does not close over finite authored function bodies");
   }

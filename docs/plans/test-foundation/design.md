@@ -40,7 +40,7 @@ The legacy folder, maintained lint migration, explicit package exports, native i
 
 Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The server root delegates to production composition. Native HTTP completion joins ordinary peer disconnects and retains unexpected stream faults. The selected notification lifecycle and capsule clone controls pass. Shared facts and builders/corpus remain work. Selected canonical row-builder chains are qualified. Wire-output boundary accounting is complete; supplier qualification and shared corpus adoption remain open. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
-Durable corpus publication and selected native clone, smoke and notification component consumers pass. The committed corpus payload and remaining layer adoption remain open under item 959. These selected cases do not authorize general legacy ports.
+The synthetic corpus is committed under Node testkit support. Default native clone, selected smoke and notification component consumers pass without private directory selectors. Remaining layer and matrix adoption stay open under item 959. These selected cases do not authorize general legacy ports.
 
 SDK execution joins native Query and observed direct-child completion. It does not promise a sandbox for arbitrary trusted executables or universal descendant containment. This scope does not imply a shipped-CLI defect.
 
@@ -142,7 +142,7 @@ Keep transaction overlays separate from committed facts. Derive their roots from
 
 The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
 
-Contextual callable sharing passes independent review, and the actual diagnostic completes with an unresolved optional-member origin. This establishes completion of that diagnostic, not target resolution or complete store qualification. Item 1002 owns the remaining evidence and dependent replay order.
+Contextual callable sharing and optional-invocation correction pass independent review. The actual diagnostic completes, but changed-source target resolution and complete store qualification remain open. Item 1002 owns the evidence and dependent replay order.
 
 | Consumer home | Planned shared-store migration |
 | - | - |

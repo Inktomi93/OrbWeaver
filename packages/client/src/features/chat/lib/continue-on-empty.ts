@@ -9,11 +9,17 @@
 // so it gets a `.test.ts`, not a CT. The ▷ Response icon is the always-visible, tail-agnostic equivalent of
 // both arms; this resolver is only the keyboard convenience.
 
+import type { UserSettings } from "@orb/contracts/settings";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { EmptySendInput } from "../contract/presentation.ts";
 
-export type { EmptySendInput } from "../contract/presentation.ts";
+export type EmptySendInput = Pick<UserSettings["chat"], "continueOnSend" | "generateOnEmptySend"> & {
+  readonly tailRole: MessageRole | null;
+  /** True when the composer has sendable text — a non-empty send is a normal send, never continue/generate. */
+  readonly hasText: boolean;
+  readonly chatId: ChatId | null;
+  readonly tailAssistantMessageId: MessageId | null;
+};
 
 export function isContinueEligible(tailRole: MessageRole | null): boolean {
   return tailRole === "assistant";
