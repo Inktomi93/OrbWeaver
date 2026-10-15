@@ -27,13 +27,13 @@ Builders derive request-specific outputs from production types, schema defaults 
 
 `tests/support/node/corpus.ts` owns the private producer composition. Its typed captures name the actual auth, library, recall, automation, plugin, knowledge, chat, imagery, RPG, search, connection, stats/settings, SDK and notification owners. These execute the production graph with physical external edges, injected clocks and IDs; no test-side domain assembly qualifies them.
 
-Native controls preserve OIDC claims and pending/session transitions; watched/manual automation provenance; plugin consent and failure containment; funded workload execution; retained RPG lineage, checkpoints, cancellation and host handoff; and canonical search, library and ingestion outputs. Each family retains its scoped cases and defect controls. Enabled empty-owner memory completion is integrated through `58e889386b`.
+Native controls preserve OIDC/session transitions, automation provenance, plugin consent/containment, funded execution, RPG lineage and canonical search/library outputs. Scoped cases and defect controls remain. `58e889386b` integrates enabled empty-owner memory completion.
 
 Reviewed `afdd075a66` qualifies routed stats/settings/theme capture through actual writers, reconciliation and parsers. CSS-copy controls discriminate the defect. Foreign timing, differential cost populations and ownerless seed rows remain open.
 
-The aggregate retains closure, sole-WAL, pending/handoff state, secret exclusion and independent DB/CAS clones. Existing guards and portable assertions remain; descriptor observations are Linux-specific.
+The aggregate retains closure, sole-WAL, pending/handoff state, secret exclusion and independent DB/CAS clones. Guards remain; descriptor observations are Linux-specific.
 
-Reviewed source `0a3e773354` adds native SDK lineage to private captures and scrubbed clones. Physical imports prove rewind and re-adoption; admission, cancellation and direct-child disposal remain production-owned. Aggregate and targeted controls pass. Deliberate intervention remains unverified under the reported platform limitation; no replacement-suite qualification is claimed. Complete output coverage remains open. Use the canonical shape reader for coverage.
+Reviewed `0a3e773354` adds native SDK lineage to captures and scrubbed clones. Physical imports prove rewind and re-adoption; production owns admission, cancellation and direct-child disposal. Aggregate and targeted controls pass. Deliberate intervention remains unverified under the platform limitation. Canonical shape coverage and replacement suites remain open.
 
 Reviewed `83380c0db2` and `1a10e499df` preserve native notification, automation and plugin producers. Recipient, reset, replay and peer-cancellation controls discriminate real faults. Canonical rows match scrubbed clones; complete payload coverage remains open.
 
@@ -41,4 +41,6 @@ Reviewed `5270c95e4d` adds native image skips, generation/edit/provenance varian
 
 Reviewed `fa2aac0491` rejects producer-known raw and JSON-escaped private values before schema diagnostics or fixture effects. Native malformed-key controls preserve safe diagnostics; exact request recipes and clean clone controls pass. Native cookie parsing remains production-owned. Arbitrary encodings and complete witness coverage are not established.
 
-Complete owner/stage projections, builders, shared adoption and suite replacement remain open. Private captures do not widen the portable recipe.
+Reviewed `717c8adff2` publishes finite notification and ordinary-member lifecycle snapshots from actual routed reads. Viewer, request and stage remain separate; native inclusive-floor, hidden-byte and known-secret refusal controls pass. Independent security review confirms fixture selection is not authentication. Complete capsule/clone qualification with these sections remains open.
+
+Complete projections, builders, shared adoption and suite replacement remain open. Private captures do not widen the portable recipe.

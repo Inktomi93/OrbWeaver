@@ -23,4 +23,4 @@ The duplicates are deleted and call their owner; the wire gate holds with plante
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed `598a8f3602` integrates runtime-owned coherence, funding and capability decisions, removes the fabricated search fallback and preserves per-waiter cancellation. Native controls and independent security review pass. Main's complete selected domain-inference-dispatch population passes without waivers; persistence ownership still has findings assigned to item 1026. Generic verifier native-world delivery remains item 1027; this result does not establish its completion.

@@ -23,4 +23,4 @@ No module outside domain/settings imports the settings table; a tenant cannot wr
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed `598a8f3602` integrates the registered prefix-scoped settings port, native import restriction and canonical write ownership. Namespace, literal-prefix, cancellation and installed database controls pass. Independent security corrections preserve native undefined identity and non-BMP prefix deletion. The actual import census exposes the debug inspector's direct settings read; item 1026 owns its injected settings-domain replacement. Complete closure remains open.

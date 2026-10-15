@@ -56,7 +56,7 @@ Use a structural gate only for a judgment the compiler and maintained tools cann
 Shared code-facts readers own remaining typed analysis; gates and code commands consume the same facts.
 The test-foundation plan owns reader migration and native replacement qualification.
 
-(337 registered gates)
+(338 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -141,6 +141,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
 | `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
+| `domain-inference-dispatch` | — | hard/error | @server\* | a domain dispatches on an inference… |
 | `duplicate-action-doors` | action-doors | reviewed-grant/error | @client\* | one tRPC mutation is invoked from… |
 | `duplicate-action-doors-health` | action-doors | hard/error | @client\* | the duplicate-action-door family's… |
 | `empty-state-has-action` | — | ordinary/error | @client\* | an \<EmptyState> with no action CTA… |

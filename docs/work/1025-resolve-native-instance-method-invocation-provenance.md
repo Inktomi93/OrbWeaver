@@ -24,4 +24,4 @@ Real installed-method and bound-write controls preserve receiver and ordered arg
 
 ## Evidence
 
-Reviewed source `98dbff8488` separates native declarations, signatures, wrapper arguments and effective receivers from unresolved receiver provenance. Installed database controls and existing strict invocation controls pass. A finding-specific correction preserves legacy binding fields and key order. Tooling types pass; root retains off-owned errors. Ownership-policy consumption and qualification remain open.
+Reviewed source `98dbff8488` separates native declarations, signatures, wrapper arguments and effective receivers from unresolved receiver provenance. Installed database and strict invocation controls pass. A finding-specific correction preserves legacy binding fields and key order. Reviewed `598a8f3602` integrates ownership-policy consumption with native Drizzle declaration identity. Tooling types pass; root retains off-owned errors. Main's selected ownership census exposes remaining placement findings under item 1026. Complete native verifier delivery and qualification remain open under item 1027.
