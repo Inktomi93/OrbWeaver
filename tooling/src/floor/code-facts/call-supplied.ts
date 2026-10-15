@@ -80,8 +80,18 @@ export function readObservedCallableConsumers(owner: MorphNode, program: CallRet
   }
   const callers = program.callers.get(owner.compilerNode) ?? [];
   if (Node.isIdentifier(name)) {
-    const accepted = new Set([name, ...callers.flatMap((caller) => [caller.call.getExpression(), ...caller.call.getExpression().getDescendants()])]);
-    const missing = unprovenReferenceUse(name, (use) => isDocumentationLinkReference(use) || accepted.has(use));
+    const expressions = new Set<import("ts-morph").ts.Node>(callers.map((caller) => caller.call.getExpression().compilerNode));
+    const missing = unprovenReferenceUse(name, (use) => {
+      if (use === name || isDocumentationLinkReference(use)) {
+        return true;
+      }
+      for (let ancestor: MorphNode | undefined = use; ancestor !== undefined; ancestor = ancestor.getParent()) {
+        if (expressions.has(ancestor.compilerNode)) {
+          return true;
+        }
+      }
+      return false;
+    });
     if (missing !== undefined) {
       return unresolved("unsupported", missing, "an actual callable reference has no admitted supplied consumer", [owner]);
     }

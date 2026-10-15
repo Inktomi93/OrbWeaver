@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression, Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
 import {
   observeCallReturns,
   readCallReturnProgram,
@@ -98,5 +99,160 @@ for (const scenario of DOCUMENTED_CALLABLES) {
     } finally {
       endReferencePass();
     }
+  });
+}
+
+for (const expression of ["target", "(target)", "(target as typeof target)"]) {
+  test(`callable consumer membership avoids descendant materialization for ${expression}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    const source = project.createSourceFile("/consumer.ts", `function target(value:string){return value;}const selected=${expression}("value");`);
+    const call = source.getVariableDeclarationOrThrow("selected").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+    const observations = observeCallReturns([call], source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observations.programs[0];
+    if (program === undefined) {
+      throw new Error("the native call capture is missing");
+    }
+    const descendants = vi.spyOn(call.getExpression(), "getDescendants");
+    try {
+      const consumers = readObservedCallableConsumers(source.getFunctionOrThrow("target"), program);
+      expect(consumers.kind).toBe("resolved");
+      expect(consumers.kind === "resolved" && consumers.value.length === 1 && consumers.value[0]?.call === call).toBe(true);
+      expect(descendants).not.toHaveBeenCalled();
+    } finally {
+      descendants.mockRestore();
+    }
+  });
+}
+
+test("settled captured indexes classify unchanged references only after a new call-array revision", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile(
+    "/consumer.ts",
+    "const actions={run:(value:number)=>value};actions.run(1);const unrelated=()=>2;const sentinel=unrelated;",
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const references = source.getDescendants();
+  const sentinel = source.getVariableDeclarationOrThrow("sentinel").getNameNode();
+  const classification = vi.spyOn(sentinel, "getAncestors");
+  try {
+    const observations = observeCallReturns(calls, references, { suppliedCallableTargets: true });
+    const initial = classification.mock.calls.length;
+    expect(initial).toBeGreaterThan(0);
+    classification.mockClear();
+    const program = observations.programs[0];
+    const owner = source.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
+    if (program === undefined || owner === undefined) {
+      throw new Error("the native captured owner is missing");
+    }
+    const prior = program.byCall;
+    const consumers = readObservedCallableConsumers(owner, program);
+    expect(consumers.kind === "resolved" ? consumers.value.map(({ call }) => call.getText()) : []).toEqual(["actions.run(1)"]);
+    expect(program.byCall === prior).toBe(false);
+    expect(classification.mock.calls.length).toBe(initial);
+  } finally {
+    classification.mockRestore();
+  }
+});
+
+test("caller-expression membership does not admit a reference in the same call's argument", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/consumer.ts", "function target(value:object){return value;}const selected=target(()=>target);");
+  const owner = source.getFunctionOrThrow("target");
+  const call = source.getVariableDeclarationOrThrow("selected").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+  const observations = observeCallReturns([call], [owner.getNameNodeOrThrow(), call.getExpression()], { suppliedCallableTargets: true });
+  const program = observations.programs[0];
+  if (program === undefined) {
+    throw new Error("the sparse native capture is missing");
+  }
+  expect(program.escapingReferences.has(owner.compilerNode)).toBe(false);
+  const consumers = readObservedCallableConsumers(owner, program);
+  expect(consumers.kind).toBe("unresolved");
+  expect(consumers.kind === "unresolved" && consumers.node === call.getArguments()[0]?.asKindOrThrow(SyntaxKind.ArrowFunction).getBody()).toBe(true);
+});
+
+test("settled capture invalidates replaced targets while retaining the previously published map", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/consumer.ts", "function invoke(callback:()=>number){return callback();}invoke(()=>1);");
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const callback = calls.find((call) => call.getExpression().getText() === "callback");
+  const observations = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+  const program = observations.programs[0];
+  const owner = source.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
+  if (program === undefined || callback === undefined || owner === undefined) {
+    throw new Error("the supplied callback control is missing");
+  }
+  const prior = program.byCall;
+  const count = program.calls.length;
+  expect(prior.get(callback.compilerNode)?.targets.kind).toBe("unresolved");
+  const consumers = readObservedCallableConsumers(owner, program);
+  expect(consumers.kind === "resolved" && consumers.value.some(({ call }) => call === callback)).toBe(true);
+  expect(program.calls.length).toBe(count);
+  expect(program.byCall === prior).toBe(false);
+  const targets = program.byCall.get(callback.compilerNode)?.targets;
+  expect(targets?.kind === "resolved" && targets.value.length === 1 && targets.value[0] === owner).toBe(true);
+  expect(prior.get(callback.compilerNode)?.targets.kind).toBe("unresolved");
+});
+
+test("settled capture includes newly entered calls and reference escapes without modifying a pinned map", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile(
+    "/consumer.ts",
+    "declare function escape(value:object):void;function leaf(){return 1;}function invoke(callback:()=>number){return callback();}invoke(()=>{escape(leaf);return leaf();});",
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const root = calls.find((call) => call.getExpression().getText() === "invoke");
+  const leafCall = calls.find((call) => call.getExpression().getText() === "leaf");
+  const owner = source.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
+  if (root === undefined || leafCall === undefined || owner === undefined) {
+    throw new Error("the entered-body controls are missing");
+  }
+  const observations = observeCallReturns([root], [root.getExpression()], { suppliedCallableTargets: true });
+  const program = observations.programs[0];
+  if (program === undefined) {
+    throw new Error("the root-only native capture is missing");
+  }
+  const prior = program.byCall;
+  expect(prior.has(leafCall.compilerNode)).toBe(false);
+  expect(program.escapingReferences.has(source.getFunctionOrThrow("leaf").compilerNode)).toBe(false);
+  expect(readObservedCallableConsumers(owner, program).kind).toBe("resolved");
+  expect(program.byCall.has(leafCall.compilerNode)).toBe(true);
+  expect(prior.has(leafCall.compilerNode)).toBe(false);
+  expect(program.escapingReferences.has(source.getFunctionOrThrow("leaf").compilerNode)).toBe(true);
+});
+
+test("settled capture does not reuse indexes after an observed wrapper is forgotten in the same Program", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/consumer.ts", "const actions={run:()=>1};actions.run();const sentinel=1;");
+  const observations = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants(), { suppliedCallableTargets: true });
+  const program = observations.programs[0];
+  const owner = source.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
+  if (program === undefined || owner === undefined) {
+    throw new Error("the native capture is missing");
+  }
+  source.getVariableDeclarationOrThrow("sentinel").getNameNode().forget();
+  expect(project.getProgram().compilerObject === program.program).toBe(true);
+  expect(() => readObservedCallableConsumers(owner, program)).toThrow(/forgotten/);
+});
+
+for (const mutation of ["options", "source", "foreign"] as const) {
+  test(`settled captured consumers refuse ${mutation} native context changes`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    const source = project.createSourceFile("/consumer.ts", "const actions={run:()=>1};actions.run();");
+    const observations = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observations.programs[0];
+    let owner = source.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
+    if (program === undefined || owner === undefined) {
+      throw new Error("the native capture is missing");
+    }
+    if (mutation === "options") {
+      project.compilerOptions.set({ strict: true });
+    } else if (mutation === "source") {
+      source.replaceWithText("const changed=true;");
+    } else {
+      const foreign = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+      owner = foreign.createSourceFile("/consumer.ts", "const actions={run:()=>1};actions.run();").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+    }
+    const result = readObservedCallableConsumers(owner, program);
+    expect({ kind: result.kind, reason: result.kind === "unresolved" ? result.reason : undefined }).toEqual({ kind: "unresolved", reason: "unsupported" });
   });
 }
