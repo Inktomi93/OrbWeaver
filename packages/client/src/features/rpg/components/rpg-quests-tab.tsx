@@ -28,13 +28,14 @@ import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { AddRow, ConfirmDialog, TrackerValue } from "#components";
+import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useDeleteQuest, useEditQuestObjective, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations.ts";
 import { buildPlotEdit } from "../lib/plot-edit.ts";
 import { RpgActRail } from "./rpg-act-rail.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
+import { AddRow, TrackerValue } from "./tracker-blocks/index.ts";
 
 const MIN_CLOCK_SEGMENTS = 2;
 

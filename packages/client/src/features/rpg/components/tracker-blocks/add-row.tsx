@@ -1,17 +1,5 @@
-// The ADD-ROW primitive (RV-8 — the deliberate panel-CRUD set: add-row · inline-edit · hint-editor). Every
-// authoring plane in the takeover was growing its own "draft field + create button" pair — quests, journal
-// entries, checkpoint marks, trackers, relationship hints, attributes, pack items — and they drifted: some
-// submitted on Enter, most did not; some refused a blank name with a disabled button, some sent it. ONE row
-// so the create gesture reads identically on every plane.
-//
-// The grammar: a CREATION draft is NOT a datum at rest, so this is a
-// plain `Input` (never the display-at-rest `TrackerValue`); a blank draft is Tier-2 refusal — nothing sends
-// and every action is disabled; Enter in the field fires the FIRST action (the primary), which is why
-// `actions` is a non-empty tuple rather than an array. A `refusal` (the ≤12-attribute cap) is STATED under
-// the row in destructive tone and disables the whole row — never a silently dead control.
-//
-// Multi-action is the tracker case: one name, three shapes (meter/text/list). The actions row is its own
-// line so a 17rem panel never squeezes the draft field to nothing.
+// RPG creation drafts require a name before any action sends; Enter fires the first action.
+// A stated refusal disables the row and remains visible below it.
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";

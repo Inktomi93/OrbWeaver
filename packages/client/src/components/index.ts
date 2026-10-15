@@ -14,7 +14,6 @@ export { EntryListEditor } from "./entry-list-editor.tsx";
 export { FaceStrip } from "./face-strip.tsx";
 export { FlowDialog } from "./flow-dialog.tsx";
 export { FormDialog, FormSubmitButton } from "./form-dialog.tsx";
-export { GreetingStudio } from "./greeting-studio.tsx";
 export { ImportedChatsMemoryOffer } from "./imported-chats-memory-offer.tsx";
 export { LibraryRow } from "./library-row.tsx";
 export { LibraryListFrame, LibraryListLayout, LibraryListRows, LibrarySurfaceShell } from "./library-surface.tsx";
@@ -70,21 +69,6 @@ export {
   useSetTagOrder,
 } from "./tag-mutations.ts";
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
-export type { AmbientStripProps } from "./tracker-blocks/index.ts";
-export {
-  AddRow,
-  AmbientStrip,
-  BeatLine,
-  GoalLine,
-  HintEditor,
-  MeterRow,
-  NpcCard,
-  StatCell,
-  TrackerChip,
-  TrackerValue,
-  trackerActionName,
-  trackerFieldName,
-} from "./tracker-blocks/index.ts";
 export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";

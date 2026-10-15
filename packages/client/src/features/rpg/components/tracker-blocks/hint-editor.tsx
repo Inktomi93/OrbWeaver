@@ -1,13 +1,4 @@
-// The HINT-EDITOR primitive (RV-8's third block, beside `AddRow` + `TrackerValue`). A hint is not decoration:
-// it is the GLOSS the prompt carries ("Grit (\"resolve you spend to push through\")"), the proven steering
-// lever (R4b — measured Δ −0.12 bare vs −1.00 glossed), which is exactly why the tracked-field unification
-// calls a hint editor NON-NEGOTIABLE on every def surface. Before this, hints were authorable on some planes
-// and unauthorable on others; one block ⇒ every def plane (trackers · attributes · relationship labels)
-// authors its gloss with the same gesture, the same cap, and the same counter.
-//
-// Anatomy: the muted "hint" tag (so an empty hint still reads as an offered field, not a gap) + the inline
-// display-at-rest value + the quiet counter from 80% of the cap. A commit is TRUNCATED to
-// `max` (the wire cap is the same number — the field can't author a rejectable value).
+// RPG definition glosses share one editor; commits truncate to the wire cap.
 
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

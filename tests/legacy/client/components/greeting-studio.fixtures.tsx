@@ -4,12 +4,12 @@
 // output is `onAccept(text)`: the character editor turns it into a form edit that autosaves, so the harness
 // lists what was accepted and does not invent a persistence path of its own.
 
-import { GreetingStudio } from "@orb/client/components";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { GreetingStudio } from "#client/features/character/components/greeting-studio.tsx";
 
 const CHARACTER_ID = castId<CharacterId>("character_ct");
 

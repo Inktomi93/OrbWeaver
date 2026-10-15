@@ -17,8 +17,6 @@ import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
-import type { AmbientStripProps } from "#components";
-import { AmbientStrip, BeatLine, GoalLine, MeterRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -32,6 +30,8 @@ import { Kicker } from "./rpg-kicker.tsx";
 import { RpgSceneCards } from "./rpg-scene-cards.tsx";
 import type { SceneNpcEdit } from "./rpg-scene-npcs.tsx";
 import { SceneKnownCharacters, SceneNpcs } from "./rpg-scene-npcs.tsx";
+import type { AmbientStripProps } from "./tracker-blocks/index.ts";
+import { AmbientStrip, BeatLine, GoalLine, MeterRow } from "./tracker-blocks/index.ts";
 
 const RECENT_BEATS = 3;
 

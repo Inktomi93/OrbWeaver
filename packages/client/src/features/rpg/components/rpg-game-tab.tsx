@@ -28,7 +28,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { AddRow, HintEditor, QueryBoundary, SettingCheckboxRow, TrackerValue } from "#components";
+import { QueryBoundary, SettingCheckboxRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useTRPC } from "#data";
 import { notify } from "#lib";
 import { setContextTab } from "#state";
@@ -44,6 +44,7 @@ import { HostConsoleScalars } from "./rpg-host-scalars.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgRulesetControl } from "./rpg-ruleset-control.tsx";
 import { DEF_ROW_CLASS, RpgStatProfileEditor } from "./rpg-stat-profile-editor.tsx";
+import { AddRow, HintEditor, TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The carrier-class label a def's `appliesTo` reads as. An explicit ref LIST reads as "chosen" and is not
  *  cycled here (this pass authors classes; a per-actor exception is the sheet's grants/revokes) — the list is

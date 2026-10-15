@@ -1,22 +1,5 @@
-// AMBIENT STRIP (tracker block #6 — extracted from tracker-blocks.tsx for the component-size cap):
-// location · date · time-of-day · weather as ONE composed card of label·value pairs ("Scene" —
-// the NOW-window ambient card, editable in place). Values are DISPLAY-AT-REST
-// (static text; input on click via TrackerValue); Time AND Weather are closed vocabularies, so
-// both are click-to-edit PICKERS (Tier-0 — never free text, never a RESTING dropdown). Weather's
-// picker edits the eight-state `weather.type`; the model's free flavor `label` is band text, not a field.
-//
-// A CLOSED VOCAB STILL NEEDS A CLEAR (2026-08-07). The two free-text fields could always be emptied — a
-// picker could only ever swap one member for another, so a sky or an hour the story stopped having was
-// UNSETTABLE by hand while `location`/`date` were not. The clear is NOT a vocabulary member: `none`/`unset`
-// inside `RPG_WEATHER_TYPES` would teach the model (which writes this axis, and whose extraction prompt
-// enumerates the tuple verbatim) to emit it as a weather. It is the FIELD that is nullable — the snapshot
-// stores `weather`/`clock` born-null and the hand door already accepts the clear ("`clock`/`calendarDate`/
-// `weather`/`plot` clear to null", domain/rpg/verbs/edit-snapshot) — so the strip speaks the store's own
-// [merge-clear] vocabulary: `onEditField(field, null)` is the clear, a string is a set.
-//
-// The Clear control renders OUTSIDE the `role="group"` vocabulary row on purpose: that group is the closed
-// set, and a pin that derives its arity from the tuple (the weather CT counts `RPG_WEATHER_TYPES.length`
-// buttons in the group) must keep counting the vocabulary, not the vocabulary plus a verb.
+// RPG scene fields edit in place; closed vocabularies use pickers, never free text.
+// Clear is a nullable field write outside the vocabulary group, not a vocabulary member.
 
 import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";

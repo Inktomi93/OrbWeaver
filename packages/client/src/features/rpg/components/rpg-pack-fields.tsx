@@ -10,8 +10,8 @@ import type { RpgInventoryItem } from "@orb/contracts/rpg";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { TrackerValue } from "#components";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
+import { TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The host's per-item write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
 export interface PackEdit {

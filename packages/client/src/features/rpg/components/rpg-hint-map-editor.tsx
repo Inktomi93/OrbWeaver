@@ -14,10 +14,10 @@ import { Button } from "@orb/ui/button";
 import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
-import { AddRow, HintEditor } from "#components";
 import { removeActionName } from "#lib";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
+import { AddRow, HintEditor } from "./tracker-blocks/index.ts";
 
 export interface RpgHintMapEditorProps {
   /** The section's kicker line. */

@@ -41,7 +41,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { AddRow, ConfirmDialog } from "#components";
+import { ConfirmDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -54,6 +54,7 @@ import { BeatRow } from "./rpg-beat-row.tsx";
 import { RpgCardRow } from "./rpg-card-row.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgCardLightbox } from "./rpg-scene-cards.tsx";
+import { AddRow } from "./tracker-blocks/index.ts";
 
 /** The chronicle page size — one fetch (the archive tab is a reading surface, not an infinite feed). */
 const JOURNAL_PAGE = 100;

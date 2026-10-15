@@ -1,24 +1,5 @@
-// Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting text, homed on the
-// card. A tier-2 `components/` composite (domain-aware, no single feature owner — the CharacterPicker
-// precedent): it is mounted by TWO features (the character editor's greetings section + the chat draft
-// greeting row), so it CANNOT live in either feature (`client-features-no-cross`). ONE component serving
-// both mounts: the character editor's greetings section (inline, primary home) and the draft greeting row's
-// action cluster (in a dialog). Renders the `GREETING_TRANSFORMS` catalog as
-// chips (BLIND from the contract data — grouped by axis), a free-text instruction field, and Rewrite /
-// Make-new actions, then previews the generated text with Accept / Discard.
-//
-// The two studio verbs (`character.rewriteGreeting`/`character.generateGreeting`) RETURN text and NEVER
-// write — on Accept the component calls `onAccept(text)`, and the MOUNT owns persistence: the editor appends
-// via `form.pushFieldValue("greetings", …)` (autosaves through character.update), the draft row appends via
-// the character.update mutation.
-//
-// Both generations are `busDriven` (the verbs emit no bus event and touch no cache — the returned text is
-// displayed, not cached), so no invalidation is wired.
-//
-// FORK NOTE (ARM B, owner 2026-08-09): the steer is no longer composed here. The chips' fragment bytes are
-// `preset.greetingTransform.*` prose slots a host can edit in the preset Templates tab, so the studio sends
-// the picked KINDS + the free text and the greeting verbs resolve+join them against the caller's preset.
-// This component therefore never needs a preset blob — which is exactly why arm B beat arm A.
+// Character greeting generation returns preview text without writing or invalidating cached data.
+// Accept hands persistence to the editor; transform kinds resolve against the caller's preset server-side.
 
 import type { GreetingTransformAxis, GreetingTransformId } from "@orb/contracts/preset";
 import { GREETING_TRANSFORM_AXES, GREETING_TRANSFORMS } from "@orb/contracts/preset";
@@ -61,7 +42,7 @@ export interface GreetingStudioProps {
   /** The existing greeting text (the rewrite base). Empty ⇒ Rewrite is unavailable (nothing to rewrite);
    *  Make-new is always available. */
   readonly baseGreeting: string;
-  /** Accept the previewed text — the mount persists it (editor: form append; draft row: character.update). */
+  /** Accept the previewed text — the character editor appends it to the autosaved form. */
   readonly onAccept: (text: string) => void;
   /** Whether this character's own greeting content is render-trusted (§6.1) — drives the preview Markdown. */
   readonly trusted?: boolean;

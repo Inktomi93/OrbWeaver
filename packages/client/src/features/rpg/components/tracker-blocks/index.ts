@@ -1,3 +1,5 @@
+// The kit's subject-qualification grammar (#1383) — a `.ts` module so it may export non-components.
+export { trackerActionName, trackerFieldName } from "../../lib/tracker-names.ts";
 export type { AddRowAction, AddRowProps } from "./add-row.tsx";
 export { AddRow } from "./add-row.tsx";
 export type { AmbientStripProps } from "./ambient-strip.tsx";
@@ -15,7 +17,5 @@ export { NpcCard } from "./npc-card-slots.tsx";
 export { RelationshipBadge } from "./relationship-badge.tsx";
 export type { BeatLineProps, GoalLineProps, StatCellProps, TrackerChipProps } from "./tracker-blocks.tsx";
 export { BeatLine, GoalLine, StatCell, TrackerChip } from "./tracker-blocks.tsx";
-// The kit's subject-qualification grammar (#1383) — a `.ts` module so it may export non-components.
-export { trackerActionName, trackerFieldName } from "./tracker-names.ts";
 export type { TrackerValueProps } from "./tracker-value.tsx";
 export { TrackerValue } from "./tracker-value.tsx";

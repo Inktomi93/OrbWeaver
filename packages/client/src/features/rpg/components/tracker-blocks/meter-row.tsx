@@ -1,22 +1,13 @@
-// METER ROW — the tracker kit's block 1: `label · value/max` text over a 6px
-// decorative rail, editable in place. Its own module under the component-size cap (the npc-card-slots /
-// ambient-strip precedent): the row is five coupled pieces — the label cluster, the read-only datum, the
-// editable value cell, its `/max` half, and the track — and nothing outside this file composes any of them.
-// The kit's shared doctrine (tokens only · a label always · bars are decoration and the TEXT is the datum ·
-// honest read-only arm) lives in `tracker-blocks.tsx`'s header and applies here unchanged.
-//
-// THE ONE RULE THIS BLOCK OWNS: it never synthesizes a reading (side-eye 08-01). An unset value or ceiling
-// is `null` all the way to the render, where it draws the em-dash arm over an empty rail. A meter that folds
-// unset to `0` publishes an invention as a measurement — and because the text IS the datum, a screen reader
-// reads that invention aloud.
+// RPG meters keep the value text as the datum and the rail decorative.
+// Unset readings and ceilings stay null rather than becoming invented zeroes.
 
 import { Row, Stack } from "@orb/ui/layout";
 import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "../pointer-variants.ts";
-import { trackerFieldName } from "./tracker-names.ts";
+import { VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
+import { trackerFieldName } from "../../lib/tracker-names.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 /** The UNSET datum (side-eye 08-01, the panel's lying-meter class): an em dash, never a synthesized `0`.

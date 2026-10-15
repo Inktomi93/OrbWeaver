@@ -44,7 +44,6 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { AddRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useInventoryDiff } from "../hooks/use-inventory-diff.ts";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -55,6 +54,7 @@ import { Kicker } from "./rpg-kicker.tsx";
 import type { PackEdit } from "./rpg-pack-fields.tsx";
 import { PackBody } from "./rpg-pack-rows.tsx";
 import { RpgSubjectSelect } from "./rpg-subject-select.tsx";
+import { AddRow } from "./tracker-blocks/index.ts";
 
 /** The viewer's own `user` actor, or the first participant actor as a fallback. */
 function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): RpgActorView | undefined {

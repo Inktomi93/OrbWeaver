@@ -30,9 +30,9 @@ import {
 } from "@orb/contracts/automation";
 import type { RoutableTask } from "@orb/contracts/inference";
 import { timeLib } from "#lib";
-import type { FireOutcomeView } from "../contract/fire-outcome.ts";
+import type { FireOutcomeView } from "./fire-outcome.ts";
 
-export type { FireOutcomeView } from "../contract/fire-outcome.ts";
+export type { FireOutcomeView } from "./fire-outcome.ts";
 
 /** The plain-English phrase for a CHAT-bus trigger — "when this rule looks", in the room's own terms. */
 function chatTriggerLabel(type: ChatTriggerType): string {
