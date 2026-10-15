@@ -9,6 +9,17 @@ import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
 import { listInboxResultSchema } from "@orb/contracts/notifications";
 import { personaDetailSchema } from "@orb/contracts/persona";
 import { themeViewSchema, userSettingsViewSchema } from "@orb/contracts/settings";
+import {
+  activityBucketSchema,
+  latencyStatsSchema,
+  leaderboardPageSchema,
+  modelStatRowSchema,
+  momentumBucketSchema,
+  ownerStatsViewSchema,
+  personaUsageRowSchema,
+  statsFreshnessSchema,
+  wrappedSummarySchema,
+} from "@orb/contracts/stats";
 import { tagSuggestionViewSchema } from "@orb/contracts/tag";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -112,6 +123,7 @@ const corpusOidcSchema = z.strictObject({
 export const corpusReadInput = {
   absent: (): undefined => undefined,
   documentList: (): TrpcInput<"databank.list"> => ({}),
+  ownerLatency: (): TrpcInput<"stats.latency"> => ({ kind: "owner" }),
   persona: ({ id }: Pick<z.output<typeof personaDetailSchema>, "id">): TrpcInput<"persona.get"> => ({ personaId: id }),
   chat: ({ id }: Pick<z.output<typeof chatDetailSchema>, "id">): TrpcInput<"chat.getChat"> => ({ chatId: id }),
   document: ({ id }: Pick<z.output<typeof documentDetailViewSchema>, "id">): TrpcInput<"databank.get"> => ({ id, includeText: true }),
@@ -147,6 +159,15 @@ const publishedCorpusSchema = z
       "regex.countScripts": z.int().nonnegative().array(),
       "rosterPreset.count": z.int().nonnegative().array(),
       "automation.getOwnerBudgets": ownerBudgetViewSchema.array(),
+      "stats.overview": ownerStatsViewSchema.nullable().array(),
+      "stats.wrapped": wrappedSummarySchema.nullable().array(),
+      "stats.byModel": modelStatRowSchema.array().array(),
+      "stats.latency": latencyStatsSchema.array(),
+      "stats.personaUsage": personaUsageRowSchema.array().array(),
+      "stats.timeseries": activityBucketSchema.array().array(),
+      "stats.leaderboard": leaderboardPageSchema.array(),
+      "stats.freshness": statsFreshnessSchema.array(),
+      "stats.momentum": momentumBucketSchema.array().array(),
     }),
   })
   .refine(({ memberIdentities, notificationInbox, chatLifecycleMember }) => {
@@ -184,6 +205,15 @@ export interface CorpusReads {
   readonly "regex.countScripts": readonly CorpusRead<"regex.countScripts">[];
   readonly "rosterPreset.count": readonly CorpusRead<"rosterPreset.count">[];
   readonly "automation.getOwnerBudgets": readonly CorpusRead<"automation.getOwnerBudgets">[];
+  readonly "stats.overview": readonly CorpusRead<"stats.overview">[];
+  readonly "stats.wrapped": readonly CorpusRead<"stats.wrapped">[];
+  readonly "stats.byModel": readonly CorpusRead<"stats.byModel">[];
+  readonly "stats.latency": readonly CorpusRead<"stats.latency">[];
+  readonly "stats.personaUsage": readonly CorpusRead<"stats.personaUsage">[];
+  readonly "stats.timeseries": readonly CorpusRead<"stats.timeseries">[];
+  readonly "stats.leaderboard": readonly CorpusRead<"stats.leaderboard">[];
+  readonly "stats.freshness": readonly CorpusRead<"stats.freshness">[];
+  readonly "stats.momentum": readonly CorpusRead<"stats.momentum">[];
 }
 
 /** Serializable input produced by the Node publisher, not an intake for arbitrary procedure requests. */
@@ -265,6 +295,15 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
       "regex.countScripts": hydrateReads(input.reads["regex.countScripts"], z.int().nonnegative()),
       "rosterPreset.count": hydrateReads(input.reads["rosterPreset.count"], z.int().nonnegative()),
       "automation.getOwnerBudgets": hydrateReads(input.reads["automation.getOwnerBudgets"], ownerBudgetViewSchema),
+      "stats.overview": hydrateReads(input.reads["stats.overview"], ownerStatsViewSchema.nullable()),
+      "stats.wrapped": hydrateReads(input.reads["stats.wrapped"], wrappedSummarySchema.nullable()),
+      "stats.byModel": hydrateReads(input.reads["stats.byModel"], modelStatRowSchema.array()),
+      "stats.latency": hydrateReads(input.reads["stats.latency"], latencyStatsSchema),
+      "stats.personaUsage": hydrateReads(input.reads["stats.personaUsage"], personaUsageRowSchema.array()),
+      "stats.timeseries": hydrateReads(input.reads["stats.timeseries"], activityBucketSchema.array()),
+      "stats.leaderboard": hydrateReads(input.reads["stats.leaderboard"], leaderboardPageSchema),
+      "stats.freshness": hydrateReads(input.reads["stats.freshness"], statsFreshnessSchema),
+      "stats.momentum": hydrateReads(input.reads["stats.momentum"], momentumBucketSchema.array()),
     },
   };
 }
@@ -351,6 +390,15 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
       "regex.countScripts": reads["regex.countScripts"].map(inputless),
       "rosterPreset.count": reads["rosterPreset.count"].map(inputless),
       "automation.getOwnerBudgets": reads["automation.getOwnerBudgets"].map(inputless),
+      "stats.overview": reads["stats.overview"].map(inputless),
+      "stats.wrapped": reads["stats.wrapped"].map(inputless),
+      "stats.byModel": reads["stats.byModel"].map(inputless),
+      "stats.latency": reads["stats.latency"].map((output) => ({ input: corpusReadInput.ownerLatency(), output })),
+      "stats.personaUsage": reads["stats.personaUsage"].map(inputless),
+      "stats.timeseries": reads["stats.timeseries"].map(inputless),
+      "stats.leaderboard": reads["stats.leaderboard"].map(inputless),
+      "stats.freshness": reads["stats.freshness"].map(inputless),
+      "stats.momentum": reads["stats.momentum"].map(inputless),
     },
   };
 }
