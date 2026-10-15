@@ -133,16 +133,25 @@ export type { RosterPresetMemberRow, RosterPresetRow, RosterPresetRuleRow, Seede
 export { captureRosterRows, seedRosterPreset } from "./roster-preset.ts";
 export type { RpgCheckpointRow, RpgGameRow, RpgJournalRow, RpgSheetRow, RpgSnapshotRow, RpgTurnToolCallsRow, SeededRpgSheets } from "./rpg.ts";
 export { captureRpgSnapshot, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./rpg.ts";
-export type { BffSessionRow, CapturedLoginBuckets, OidcPendingSignupRow, OidcTransactionRow, RateLimitBucketRow, SeededBffSession } from "./sessions.ts";
-export { captureOidcPendingSignup, captureOidcTransaction, seedBffSession, seedLoginBuckets } from "./sessions.ts";
+export type {
+  BffSessionRow,
+  CapturedLoginBuckets,
+  CapturedRevokedUserSessions,
+  OidcPendingSignupRow,
+  OidcTransactionRow,
+  RateLimitBucketRow,
+  SeededAdminSession,
+  SeededBffSession,
+} from "./sessions.ts";
+export { captureOidcPendingSignup, captureOidcTransaction, seedAdminSession, seedBffSession, seedLoginBuckets, seedRevokedUserSessions } from "./sessions.ts";
 export type { GlobalSettingRow, ThemeRow, UserSeedLedgerRow, UserSettingsRow } from "./settings.ts";
 export { seedGlobalSetting, seedTheme, seedUserContentLedger, seedUserSettings } from "./settings.ts";
 export type { CharacterStatsRow, DailyStatsRow, ModelStatsRow, OwnerStatsRow, SeededStats, StatsCanonVersionRow } from "./stats.ts";
 export { seedStats } from "./stats.ts";
 export type { CharacterTagRow, ChatTagRow, PersonaTagRow, PresetTagRow, SeededCreatedTag, SeededTagPrune, TagRow, WorldBookTagRow } from "./tag.ts";
 export { seedCharacterTag, seedChatTag, seedCreatedTag, seedPersonaTag, seedPresetTag, seedTag, seedTagPrune, seedWorldBookTag } from "./tag.ts";
-export type { UserRow } from "./user.ts";
-export { makeUser, seedUser } from "./user.ts";
+export type { SeededAdminUser, UserRow } from "./user.ts";
+export { makeUser, seedCreatedAdminUser, seedUser } from "./user.ts";
 export type { WorkloadDbRow } from "./workload.ts";
 export { seedWorkload, seedWorkloadSchedule } from "./workload.ts";
 export type { CharacterBookRow, ChatBookRow, GlobalBookRow, PersonaBookRow, WorldBookRow, WorldEntryRow } from "./world-info.ts";

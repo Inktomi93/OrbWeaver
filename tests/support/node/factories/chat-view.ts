@@ -16,7 +16,9 @@ import {
   startChatResultSchema,
   TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
-import { ID_PREFIX } from "@orb/kit/ids";
+import { viewerViewSchema } from "@orb/contracts/identity";
+import type { UserId } from "@orb/kit/ids";
+import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import type { TrpcWireOutput } from "../route-trpc.ts";
@@ -141,7 +143,27 @@ export function makeStartChatResult(overrides: Partial<StartChatWire> = {}): Sta
 
 /** The `invites.redeemInvite` result: the joined room and the new member's own roster row. */
 export function makeRedeemInviteResult(overrides: Partial<RedeemInviteWire> = {}): RedeemInviteWire {
-  return { ...redeemInviteResultSchema.parse({ chat: makeChatDetail(), participant: makeParticipantView() }), ...overrides };
+  const userId = newId<UserId>(ids.next);
+  const handle = viewerViewSchema.shape.handle.parse("invite-member");
+  const chat = makeChatDetail({ viewerIsHost: false, viewerUserId: userId });
+  const participant = makeParticipantView({
+    chatId: chat.id,
+    kind: "human",
+    userId,
+    characterId: null,
+    displayName: handle,
+    handle,
+  });
+  const defaults = redeemInviteResultSchema.parse({ chat: { ...chat, participants: [participant] }, participant });
+  return {
+    ...defaults,
+    ...overrides,
+    participant: overrides.participant ?? {
+      ...defaults.participant,
+      chatId: overrides.chat?.id ?? chat.id,
+      userId: overrides.chat?.viewerUserId ?? chat.viewerUserId,
+    },
+  };
 }
 
 /** The `invites.createInvite` result: a pending open link with one minted token. */
