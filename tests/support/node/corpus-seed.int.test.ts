@@ -45,26 +45,33 @@ test("the sole corpus seed retains actual turns, ingestion, library FKs and cook
   expect(portable.auth).toEqual(corpus.auth);
   expect(portable.reads).toEqual(corpus.reads);
   expect(portable.health).toEqual(health);
-  const published = serializeCorpusWire(portable);
+  const published = serializeCorpusWire(portable, corpus.secrets);
   expect(parseCorpusWire(published)).toEqual(portable);
+  expect(Object.hasOwn(parseCorpusWire(published), "secrets")).toBe(false);
   expect(() => parseCorpusWire(published.replace(/^\{/u, '{"privateCaptures":{},'))).toThrow("Unrecognized key");
   expect(() =>
-    serializeCorpusWire({
-      ...portable,
-      reads: {
-        ...portable.reads,
-        "character.list": portable.reads["character.list"].map(({ output }) => ({ input: {}, output })),
+    serializeCorpusWire(
+      {
+        ...portable,
+        reads: {
+          ...portable.reads,
+          "character.list": portable.reads["character.list"].map(({ output }) => ({ input: {}, output })),
+        },
       },
-    }),
+      corpus.secrets,
+    ),
   ).toThrow("Corpus request does not match its publication recipe");
   expect(() =>
-    serializeCorpusWire({
-      ...portable,
-      reads: {
-        ...portable.reads,
-        "databank.get": portable.reads["databank.get"].map(({ input, output }) => ({ input: { ...input, includeText: false }, output })),
+    serializeCorpusWire(
+      {
+        ...portable,
+        reads: {
+          ...portable.reads,
+          "databank.get": portable.reads["databank.get"].map(({ input, output }) => ({ input: { ...input, includeText: false }, output })),
+        },
       },
-    }),
+      corpus.secrets,
+    ),
   ).toThrow("Corpus request does not match its publication recipe");
   expect("rows" in portable).toBe(false);
   expect("seed" in portable).toBe(false);

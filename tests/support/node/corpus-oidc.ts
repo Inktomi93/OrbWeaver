@@ -9,6 +9,7 @@ import type { ExternalId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { ownerHandles } from "@orb/server/domain/sessions";
+import { oidcPendingJoinCookieFor, readRequestCookie, readSessionCookie } from "@orb/server/entry/auth";
 import { eq } from "drizzle-orm";
 import type { JWTPayload } from "jose";
 import type { CorpusWire } from "../iso/corpus.ts";
@@ -23,6 +24,7 @@ const JOINER_HANDLE = "corpus-oidc-joiner";
 
 export interface SeededOidcCorpus {
   readonly ownerId: UserId;
+  readonly secrets: readonly string[];
   readonly transactions: readonly OidcTransactionRow[];
   readonly pending: OidcPendingSignupRow;
   readonly joiner: typeof users.$inferSelect;
@@ -34,6 +36,7 @@ export interface SeededOidcCorpus {
 interface OidcLoginCapture {
   readonly response: Response;
   readonly transaction: OidcTransactionRow;
+  readonly secrets: readonly string[];
 }
 
 function cookieHeader(response: Response): string {
@@ -72,7 +75,19 @@ async function login(
     throw new Error("actual OIDC login produced no canonical transaction row");
   }
   const response = await root.http.request(callback, { headers: { host: "localhost", cookie: cookieHeader(started) } });
-  return { response, transaction };
+  const cookie = cookieHeader(response);
+  const headers = new Headers({ cookie });
+  const transport = callback.protocol === "https:" ? "https" : "http";
+  return {
+    response,
+    transaction,
+    secrets: [
+      cookie,
+      ...callback.searchParams.values(),
+      readSessionCookie(headers, transport),
+      readRequestCookie(headers, oidcPendingJoinCookieFor(transport).name),
+    ].filter((value) => value !== null),
+  };
 }
 
 /** Claim through the real boot file and join through native callback/CSRF routes; never mint a trusted identity. */
@@ -144,6 +159,16 @@ export async function seedOidcCorpus(root: UnclaimedServerTestHarness, issuer: A
   await root.settleBackground();
   return {
     ownerId,
+    secrets: [
+      claim.href,
+      ...claim.searchParams.values(),
+      invite.token,
+      ...issuer.idTokens,
+      ...ownerLogin.secrets,
+      ...join.secrets,
+      cookieHeader(confirmResponse),
+      readSessionCookie(new Headers({ cookie: cookieHeader(confirmResponse) }), "http"),
+    ].filter((value) => value !== null),
     transactions: [ownerLogin.transaction, join.transaction],
     pending,
     joiner,

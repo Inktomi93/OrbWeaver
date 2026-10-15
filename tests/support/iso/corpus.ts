@@ -10,9 +10,13 @@ import { listInboxResultSchema } from "@orb/contracts/notifications";
 import { personaDetailSchema } from "@orb/contracts/persona";
 import { themeViewSchema, userSettingsViewSchema } from "@orb/contracts/settings";
 import { tagSuggestionViewSchema } from "@orb/contracts/tag";
+import type { JsonValue } from "@orb/kit/json";
+import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "../node/route-trpc.ts";
+
+const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
 
 /** A production route capture; inputs retain their presence and their canonical procedure type. */
 export interface CorpusRead<P extends TrpcProcedurePath> {
@@ -190,8 +194,20 @@ function capturedInputs(reads: CorpusReads): string {
   );
 }
 
-/** Refuse publication when a finite recipe would select a different request than the actual capture. */
-export function serializeCorpusWire(wire: CorpusWire): string {
+/** Refuse changed requests and producer-known private values; publication never repairs captured data. */
+export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]): string {
+  const literals = secretRedactionLiterals(secrets);
+  const containsPrivate = (text: string): boolean => literals.some((literal) => text.includes(literal));
+  // Inspect native captures before schema diagnostics can echo private keys or invalid values.
+  const captured = JSON.stringify(wire, (key, value: JsonValue | undefined) => {
+    if (containsPrivate(key) || (typeof value === "string" && containsPrivate(value))) {
+      throw new Error(PRIVATE_MATERIAL_MESSAGE);
+    }
+    return value;
+  });
+  if (containsPrivate(captured)) {
+    throw new Error(PRIVATE_MATERIAL_MESSAGE);
+  }
   const published = publishedCorpusSchema.parse({
     auth: wire.auth,
     ...(wire.oidc === undefined ? {} : { oidc: wire.oidc }),
@@ -203,7 +219,11 @@ export function serializeCorpusWire(wire: CorpusWire): string {
   if (capturedInputs(wire.reads) !== capturedInputs(hydratePublication(published).reads)) {
     throw new Error("Corpus request does not match its publication recipe");
   }
-  return JSON.stringify(published);
+  const serialized = JSON.stringify(published);
+  if (containsPrivate(serialized)) {
+    throw new Error(PRIVATE_MATERIAL_MESSAGE);
+  }
+  return serialized;
 }
 
 /** Disk/browser intake validates the strict corpus envelope and each output through its canonical owner. */

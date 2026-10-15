@@ -8,6 +8,7 @@ import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { createCharacterSchema } from "@orb/contracts/character";
 import { NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import {
@@ -51,6 +52,7 @@ import {
 } from "@orb/testkit/node/corpus-provider.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
+import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { CORPUS_CHAT_MODEL, corpusImageryPhysicalBytes, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_CONNECTION_FOREIGN_KEY, CORPUS_CONNECTION_HOSTED_KEY, CORPUS_CONNECTION_KEY, CORPUS_CONNECTION_MODEL } from "./corpus-connection-wire.ts";
@@ -61,6 +63,7 @@ import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 import { CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
 import { captureSdkSessionRows } from "./factories/connection.ts";
+import { seedUserCredential } from "./factories/credentials.ts";
 import { captureDocumentChunks } from "./factories/embedding-generation.ts";
 import { captureRegexRows } from "./factories/regex.ts";
 import { captureRosterRows } from "./factories/roster-preset.ts";
@@ -402,10 +405,33 @@ test("a completed migrated capsule closes its real producers before cloning scru
   } finally {
     closeDb(source);
   }
+  {
+    await using echoRoot = await createServerHarness({ secretBoxKey: key });
+    const principal = await echoRoot.principalFor(echoRoot.ownerId);
+    await seedUserCredential(echoRoot.db, echoRoot.services.credentials.add, { principal, provider: "custom-openai", key: PROVIDER_KEY });
+    const caller = await echoRoot.internalCallerFor(echoRoot.ownerId);
+    const card = await caller.character.create({
+      input: createCharacterSchema.parse({ handle: "publication-echo", name: PROVIDER_KEY, description: "A publication boundary witness." }),
+    });
+    const output = await caller.character.list(undefined);
+    expect(output.items.find((item) => item.id === card.id)?.name).toBe(PROVIDER_KEY);
+    const original = capsule.wire.reads["character.list"];
+    const rejected = join(parent, "refused clone");
+    try {
+      // Intervene only at publication with genuine routed bytes; the captured source graph remains untouched.
+      Object.assign(capsule.wire.reads, { "character.list": [{ input: undefined, output }] });
+      expect(() => capsule.publishWire()).toThrow("Corpus publication contains private material");
+      await expect(prepareCorpusFixture(capsule, rejected)).rejects.toThrow("Corpus publication contains private material");
+      await expect(access(rejected)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      Object.assign(capsule.wire.reads, { "character.list": original });
+    }
+  }
   const fixture = ownership.use(await prepareCorpusFixture(capsule, join(parent, "stage clone")));
   const loaded = loadCorpusFixture(fixture.layout.root);
   expect(loaded.wire).toEqual(capsule.wire);
   const published = await readFile(join(fixture.layout.root, "corpus.json"), "utf8");
+  expect(capsule.publishWire()).toBe(published);
   for (const privateMaterial of [
     CORPUS_CONNECTION_KEY,
     CORPUS_CONNECTION_FOREIGN_KEY,
