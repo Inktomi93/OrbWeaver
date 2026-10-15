@@ -8,8 +8,9 @@ import { ProviderError, toChatRequest } from "@orb/inference";
 import { logRing, runInRequest } from "@orb/server/foundation/observability";
 import { sql } from "drizzle-orm";
 import { afterAll, vi } from "vitest";
+import { z } from "zod";
 import { expect, test } from "./fixtures.ts";
-import { createSdkProcessSpawner } from "./sdk-process.ts";
+import { createSdkProcessIdentity, createSdkProcessSpawner } from "./sdk-process.ts";
 import { createServerHarness } from "./server.ts";
 
 // Select the real logger destinations before construction; the runner otherwise disables every log sink.
@@ -348,13 +349,71 @@ test.each(["intact", "split"] as const)("native stderr protects a known sk-shape
 });
 
 function nativeSdkOptions(onNativeProcessCreated?: NonNullable<AgentSdkNativeOptions["onNativeProcessCreated"]>): AgentSdkNativeOptions {
+  const identify = createSdkProcessIdentity();
   return {
     executable: "node",
     executableArgs: ["--no-warnings"],
     pathToClaudeCodeExecutable: new URL("./sdk-timer-process.mjs", import.meta.url).pathname,
-    ...(onNativeProcessCreated === undefined ? {} : { onNativeProcessCreated }),
+    onNativeProcessCreated: (child): void => {
+      identify(child);
+      onNativeProcessCreated?.(child);
+    },
   };
 }
+
+test("physical SDK identity replays deterministically without colliding across custom and direct-native launches", async () => {
+  const frameSchema = z.object({ type: z.string(), uuid: z.uuid(), ["session_id"]: z.uuid() });
+  const replay = async (native: boolean): Promise<z.infer<typeof frameSchema>[][]> => {
+    const launches: string[] = [];
+    const observe = (child: ChildProcessWithoutNullStreams): void => {
+      const index = launches.length;
+      launches.push("");
+      child.stdout.on("data", (bytes: Buffer) => {
+        launches[index] += bytes.toString("utf8");
+      });
+    };
+    const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+    await using harness = await createServerHarness({
+      secretBoxKey: Buffer.alloc(32, 1),
+      ...(native
+        ? { sdkNative: nativeSdkOptions(observe) }
+        : {
+            sdkSpawn: (options) => {
+              const child = execute(options);
+              observe(child);
+              return child;
+            },
+          }),
+    });
+    const connection = await savedSummarizer(harness);
+    for (const userPrompt of ["first deterministic launch", "second deterministic launch"]) {
+      expect((await harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt }] })).items[0]?.text).toBe(
+        "settled native SDK reply",
+      );
+    }
+    return launches.map((output) =>
+      output
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line))
+        .flatMap((frame) => {
+          const parsed = frameSchema.safeParse(frame);
+          return parsed.success ? [parsed.data] : [];
+        }),
+    );
+  };
+  for (const native of [false, true]) {
+    const first = await replay(native);
+    expect(first).toHaveLength(2);
+    expect(first.map((frames) => frames.map((frame) => frame.type))).toEqual([
+      ["system", "assistant", "result"],
+      ["system", "assistant", "result"],
+    ]);
+    expect(new Set(first.flat().map((frame) => frame.uuid)).size).toBe(6);
+    expect(new Set(first.flat().map((frame) => frame.session_id)).size).toBe(2);
+    expect(await replay(native)).toEqual(first);
+  }
+});
 
 test("default native transport retains prepared executable and argv while joining actual child close", async () => {
   let child: ChildProcessWithoutNullStreams | undefined;

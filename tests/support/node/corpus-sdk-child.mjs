@@ -1,10 +1,8 @@
 // Physical CLI protocol only; native Query imports seed bytes and owns transcript mirroring.
-import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { readdir, readFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import process from "node:process";
-import { createInterface } from "node:readline";
 import {
   CORPUS_SDK_DEFER_EXIT,
   CORPUS_SDK_EMPTY,
@@ -16,15 +14,15 @@ import {
   CORPUS_SDK_REPLY,
   CORPUS_SDK_REUSE,
 } from "./corpus-sdk-protocol.ts";
-import { writeSdkControlReply } from "./sdk-process-control.mjs";
+import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
 
 function write(value) {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
-async function importedSeed(config, resume) {
+async function importedSeed(config, resume, sessionId) {
   if (resume === null) {
-    return { file: join(config, "projects", "physical-corpus", `${randomUUID()}.jsonl`), frames: [] };
+    return { file: join(config, "projects", "physical-corpus", `${sessionId}.jsonl`), frames: [] };
   }
   const projects = join(config, "projects");
   for (const project of await readdir(projects)) {
@@ -72,18 +70,17 @@ async function holdPhysicalExit(enabled) {
 }
 
 async function run() {
+  const { sessionId, frameId, lines } = await readSdkProcessInput();
   const resume = process.argv.find((argument) => argument.startsWith("--resume="))?.slice("--resume=".length) ?? null;
   // biome-ignore lint/style/noProcessEnv: the physical CLI consumes the SDK-prepared protocol environment, not application configuration.
   const config = process.env.CLAUDE_CONFIG_DIR;
   if (config === undefined) {
     throw new Error("native SDK provided no owned configuration directory");
   }
-  const imported = await importedSeed(config, resume);
-  const sessionId = resume ?? basename(imported.file, ".jsonl");
+  const imported = await importedSeed(config, resume, sessionId);
   let answered = false;
   let held = false;
   process.on("SIGTERM", () => process.exit(0));
-  const lines = createInterface({ input: process.stdin });
   for await (const line of lines) {
     const input = JSON.parse(line);
     if (writeSdkControlReply(input)) {
@@ -99,18 +96,19 @@ async function run() {
       held = true;
       continue;
     }
-    const common = { ["session_id"]: sessionId, uuid: randomUUID() };
-    write({ ...common, type: "system", subtype: "init", apiKeySource: "none", model: CORPUS_SDK_MODEL });
+    const common = { ["session_id"]: sessionId };
+    write({ ...common, uuid: frameId("init"), type: "system", subtype: "init", apiKeySource: "none", model: CORPUS_SDK_MODEL });
     const assistant = {
       ...common,
+      uuid: frameId("assistant"),
       type: "assistant",
       message: { role: "assistant", content: [{ type: "text", text: CORPUS_SDK_REPLY }], ["stop_reason"]: "end_turn" },
     };
     write(assistant);
-    write({ type: "transcript_mirror", filePath: imported.file, entries: [{ ...input, uuid: randomUUID(), ["sessionId"]: sessionId }, assistant] });
+    write({ type: "transcript_mirror", filePath: imported.file, entries: [{ ...input, uuid: frameId("user"), ["sessionId"]: sessionId }, assistant] });
     write({
       ...common,
-      uuid: randomUUID(),
+      uuid: frameId("result"),
       type: "result",
       subtype: "success",
       ["duration_ms"]: 1,

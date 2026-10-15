@@ -4,12 +4,71 @@
 import "./composed-real.ts";
 import { randomBytes } from "node:crypto";
 import { assertReferentialIntegrity } from "@orb/db";
+import { toChatRequest } from "@orb/inference";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { SDK_SCRIPT_IDENTITY_TYPE } from "./contract/sdk-process.ts";
 import { CORPUS_SDK_HOLD, CORPUS_SDK_QUERY, CORPUS_SDK_REPLY, CORPUS_SDK_REUSE } from "./corpus-sdk-protocol.ts";
 import { seedCorpusSdkActor, seedCorpusSdkSessions } from "./corpus-sdk-sessions.ts";
 import { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
+
+test("native resumed transcript identities replay without dropping distinct child turns", async () => {
+  const replay = async (): Promise<ReturnType<typeof createCorpusSdkExecution>["receipts"]> => {
+    const wire = createCorpusSdkExecution({ prompts: [CORPUS_SDK_QUERY, CORPUS_SDK_REUSE, CORPUS_SDK_REUSE] });
+    await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: wire.spawn });
+    const actor = await seedCorpusSdkActor(root);
+    const caller = await root.internalCallerFor(actor.principal.userId);
+    const { chat } = await caller.chat.startChat({ characterIds: [], opening: "none" });
+    const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
+    if (resolved.task !== "chat") {
+      throw new Error("native SDK identity control lost its chat task");
+    }
+    const connection = { ...resolved, task: resolved.task };
+    const first = await root.app.runtime.executor.runChatTurn(
+      toChatRequest({
+        connection,
+        chatId: chat.id,
+        params: {},
+        systemPrompt: { static: "", dynamic: "" },
+        history: [
+          { role: "user", content: [{ type: "text", text: "The deterministic SDK opening." }] },
+          { role: "assistant", content: [{ type: "text", text: "The canonical seed reply." }] },
+          { role: "user", content: [{ type: "text", text: CORPUS_SDK_QUERY }] },
+        ],
+      }),
+    );
+    const sessionId = wire.receipts[0]?.sessionId;
+    expect(first).toMatchObject({ providerMetadata: { sdkSessionId: sessionId } });
+    for (const prompt of [CORPUS_SDK_REUSE, CORPUS_SDK_REUSE]) {
+      const result = await root.app.runtime.executor.runChatTurn({
+        api: "agent-sdk",
+        connection,
+        chatId: chat.id,
+        params: {},
+        prompt,
+        systemPrompt: { static: "", dynamic: "" },
+      });
+      expect(result.reply).toBe(CORPUS_SDK_REPLY);
+      expect(result).toMatchObject({ providerMetadata: { sdkSessionId: sessionId } });
+    }
+    await wire.settle();
+    const [seed, second, third] = wire.receipts;
+    expect(wire.receipts).toHaveLength(3);
+    expect(seed?.resume).toBe(sessionId);
+    expect(wire.receipts.map((receipt) => receipt.sessionId)).toEqual(wire.receipts.map(() => seed?.resume));
+    expect(third?.frames).toHaveLength((second?.frames.length ?? 0) + 2);
+    const transcript = z.array(z.object({ uuid: z.uuid() })).parse(third?.frames);
+    expect(new Set(transcript.map((frame) => frame.uuid)).size).toBe(transcript.length);
+    expect(JSON.stringify(third?.frames)).toContain(CORPUS_SDK_QUERY);
+    expect(JSON.stringify(third?.frames)).toContain(CORPUS_SDK_REUSE);
+    expect(JSON.stringify(wire.receipts)).not.toContain(SDK_SCRIPT_IDENTITY_TYPE);
+    expect(wire.children.every((child) => child.exitCode === 0 && child.signalCode === null)).toBe(true);
+    return wire.receipts;
+  };
+  expect(await replay()).toEqual(await replay());
+});
 
 test("native SDK canon lineage persists, resumes, branches and returns without foreign ownership or empty-seed fabrication", async () => {
   const wire = createCorpusSdkExecution();

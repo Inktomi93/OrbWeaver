@@ -1,14 +1,11 @@
 // Trusted external process bytes; installed Query owns sessions, decoding and cancellation.
-import { randomUUID } from "node:crypto";
 import process from "node:process";
-import { createInterface } from "node:readline";
-import { writeSdkControlReply } from "./sdk-process-control.mjs";
+import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
 
-const sessionId = randomUUID();
+const { sessionId, frameId, lines } = await readSdkProcessInput();
 const COMPACTION_PROMPT = "Conversation to summarize:";
-const lines = createInterface({ input: process.stdin });
 function write(value) {
-  process.stdout.write(`${JSON.stringify({ ...value, uuid: randomUUID(), ["session_id"]: sessionId })}\n`);
+  process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(value.type === "system" ? "init" : value.type), ["session_id"]: sessionId })}\n`);
 }
 
 for await (const line of lines) {
