@@ -22,8 +22,12 @@
 // which is what makes "these are the same value" decidable rather than a taste call. Dimension ramps
 // step deliberately at the 2pt sub-grid, where a numeric-proximity rule would only relitigate design.
 
+import type { NearDuplicateOptions } from "./token-contract.ts";
+
+export type { NearDuplicateOptions } from "./token-contract.ts";
+
 /** A raw DTCG node (pre-resolution): `$value` is still `{color.x}` for a reference. */
-type RawNode = Record<string, unknown>;
+type RawNode = NonNullable<NearDuplicateOptions["lightSource"]>;
 
 /**
  * The near-duplicate threshold, in Oklab ΔE (√(ΔL² + Δa² + Δb² + Δalpha²), all channels on the same
@@ -158,11 +162,6 @@ function collectLiteralColors(node: RawNode, path: readonly string[], lightValue
     }
     collectLiteralColors(child as RawNode, [...path, key], lightValues, out);
   }
-}
-
-export interface NearDuplicateOptions {
-  readonly lightSource?: RawNode;
-  readonly allowed?: Readonly<Record<string, string>>;
 }
 
 /**

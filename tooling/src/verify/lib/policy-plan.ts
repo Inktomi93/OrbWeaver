@@ -15,7 +15,7 @@ import type {
   PolicySelector,
 } from "../contract/policy-plan.ts";
 import type { PolicyScopeResolution, PolicySemanticPath } from "../contract/policy-scope.ts";
-import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
+import { isUnpopulatedResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { parsePolicyCommand } from "./policy-command.ts";
 import { resolveEffectivePopulation } from "./policy-effective-population.ts";
@@ -26,7 +26,7 @@ import { resolvePolicyScope } from "./policy-scope.ts";
 import { refuseSelection } from "./policy-selection.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertGatePolicyDescriptor, normalizePathSet } from "./policy-validation.ts";
-import { populationIncludes, resolvePopulation } from "./population-resolver.ts";
+import { explicitNonePopulation, populationIncludes, resolvePopulation } from "./population-resolver.ts";
 import { canonicalResourceDeclarations } from "./resource-declaration.ts";
 
 function misuse(message: string): PolicyPlanningResult {
@@ -132,15 +132,11 @@ function assertScopeMatches(request: Extract<PolicyCommandRequest, { readonly mo
   }
 }
 
-function explicitNone(owner: GatePolicy | GateFact): boolean {
-  return typeof owner.population === "object" && !Array.isArray(owner.population) && "of" in owner.population && owner.population.of === "none";
-}
-
 /** A resource owner may legitimately publish no authored path when every missing path is explained by the
  *  resource contract's named unpopulated axis. The declaration is still acquired and receipted by the
  *  ResourceHost during execution; only its authored-path contribution is empty. */
 function permitsEmptyResourcePaths(owner: GatePolicy | GateFact): boolean {
-  return owner.resources.length > 0 && owner.resources.every(({ kind }) => isGateResourceUnpopulatedKind(kind));
+  return owner.resources.length > 0 && owner.resources.every(isUnpopulatedResourceRequest);
 }
 
 export function factsForPolicies(policies: readonly GatePolicy[]): readonly GateFact[] {
@@ -165,7 +161,7 @@ function planFact(fact: GateFact, sourceCandidates: readonly string[], resources
   if (fact.analysis === "resource" && resources.length === 0 && !permitsEmptyResourcePaths(fact) && resourceFailure === undefined) {
     throw new Error(`resource fact ${fact.id} received an empty resource population`);
   }
-  if (explicitNone(fact) && declaredSourcePaths.length > 0) {
+  if (explicitNonePopulation(fact.population) && declaredSourcePaths.length > 0) {
     throw new Error(`resource-only fact ${fact.id} unexpectedly resolved source files`);
   }
   if (declaredSourcePaths.length + resources.length === 0 && !permitsEmptyResourcePaths(fact) && resourceFailure === undefined) {
@@ -266,7 +262,7 @@ function planOne({
   if (!implementationOnly && policy.analysis === "resource" && resources.length === 0 && !permitsEmptyResourcePaths(policy) && resourceFailure === undefined) {
     throw new Error(`resource policy ${policy.id} received an empty resource population`);
   }
-  if (explicitNone(policy) && declaredSourcePaths.length > 0) {
+  if (explicitNonePopulation(policy.population) && declaredSourcePaths.length > 0) {
     throw new Error(`resource-only policy ${policy.id} unexpectedly resolved source files`);
   }
   const factPaths = new Set(facts.flatMap(({ population }) => [...population.declaredSourcePaths, ...population.declaredResourcePaths]));

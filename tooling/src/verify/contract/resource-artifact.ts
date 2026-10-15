@@ -17,8 +17,12 @@
 // adjudicator's input vocabulary, so it is declared beside the algorithm that consumes it and imported here
 // rather than re-spelled — two identical structural declarations would type-check forever and drift the
 // first time the census gains a field.
+
 import type { TokenContractTexts, TokenRemovalBaseline } from "@orb/ui/token-contract";
+import { TOKEN_ARTIFACT_PATHS, TOKEN_ARTIFACT_SOURCE_PATHS, TOKEN_TYPESCRIPT_ARTIFACT_KEYS } from "@orb/ui/token-contract";
+import type { GeneratedTypeHomeContext } from "../../floor/code-facts/type-home-contract.ts";
 import type { DevToolsClosureFile } from "../../floor/devtools/devtools-assets.ts";
+import { UI_PACKAGE_ROOT } from "./css-family.ts";
 
 /** The canonical token bundle, by the same field names the validator takes. Keeping the SHAPE aligned with
  *  `TokenContractTexts` is what lets the consuming gate hand this straight to `validateTokenContractTexts`
@@ -46,6 +50,23 @@ export interface TokenContractResource {
    *  validator turns it into a `removed.baseline` DIAGNOSTIC — never a skip, so a fixture with no history
    *  and a repository with unreadable history answer the same way. */
   readonly removalBaseline: TokenRemovalBaseline;
+}
+
+export const TOKEN_GENERATED_TYPE_REQUEST = { kind: "token-contract", mode: "generated-types" } as const;
+export type TokenGeneratedTypeRequest = typeof TOKEN_GENERATED_TYPE_REQUEST;
+export const TOKEN_GENERATED_TYPE_PATHS = [
+  `${UI_PACKAGE_ROOT}/${TOKEN_ARTIFACT_PATHS[TOKEN_TYPESCRIPT_ARTIFACT_KEYS[0]]}`,
+  ...TOKEN_TYPESCRIPT_ARTIFACT_KEYS.slice(1).map((key) => `${UI_PACKAGE_ROOT}/${TOKEN_ARTIFACT_PATHS[key]}`),
+] as const;
+export const TOKEN_GENERATOR_PATH = `${UI_PACKAGE_ROOT}/${TOKEN_ARTIFACT_SOURCE_PATHS.producer}`;
+export const TOKEN_GENERATION_INPUT_PATHS = [
+  ...Object.values(TOKEN_CONTRACT_PATHS),
+  ...Object.values(TOKEN_ARTIFACT_SOURCE_PATHS).map((path) => `${UI_PACKAGE_ROOT}/${path}`),
+];
+
+export interface TokenGeneratedTypeResource {
+  readonly context: GeneratedTypeHomeContext;
+  readonly observed: ReadonlyMap<string, string>;
 }
 
 /** The committed DevTools frontend closure root. Every member is owned, regular and hashed. */

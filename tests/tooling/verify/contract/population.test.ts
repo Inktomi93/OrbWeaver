@@ -49,7 +49,7 @@ interface ExclusionRow {
 const MEMBERS_WITHOUT_A_ROOT: readonly ExclusionRow[] = [
   {
     key: ".",
-    why: 'the workspace ROOT manifest is a member of the pnpm workspace but is not an authored source tree — it has no `src/`. Its own authored files are NOT all claimed by a root: the repo-root configs and declarations (`knip.ts`, `platform.d.ts`, the vitest/playwright/stryker configs), the package files outside `src/` and `playwright/` join no root. A root for them would widen every `@authored` policy at once, so the gate corpus loads them instead (`floor/compiler/ts-workspace.ts#harnessGlobs`, held by the corpus test below), and a policy that must judge every authored file declares `of: "all"` (`suppressions`, work item 0036).',
+    why: 'the workspace ROOT manifest is a member of the pnpm workspace but is not an authored source tree — it has no `src/`. Its own authored files are NOT all claimed by a root: the repo-root configs and declarations (`knip.ts`, `platform.d.ts`, the vitest/playwright/stryker configs), package files outside declared authoring roots and `playwright/` join no root. A root for them would widen every `@authored` policy at once, so the gate corpus loads them instead (`floor/compiler/ts-workspace.ts#harnessGlobs`, held by the corpus test below), and a policy that must judge every authored file declares `of: "all"` (`suppressions`, work item 0036).',
   },
   {
     key: "packages/plugin-sdk",
@@ -73,11 +73,13 @@ const ROOTS_WITHOUT_A_MEMBER: readonly ExclusionRow[] = [
   },
 ];
 
-/** The member directory a root claims, or `undefined` when its expression is not one member's `src/` tree.
- *  A root carrying several paths, or one path that is not `<dir>/src/`, claims no member by construction. */
+/** A root names one package's source or authoring directory; arbitrary nested paths claim no package. */
 function claimedMember(paths: readonly string[]): string | undefined {
   const single = paths.length === 1 ? paths[0] : undefined;
-  return single !== undefined && single.endsWith("/src/") ? single.slice(0, -"/src/".length) : undefined;
+  if (single?.endsWith("/src/") === true) {
+    return single.slice(0, -"/src/".length);
+  }
+  return single === undefined ? undefined : /^(packages\/[^/]+)\/$/u.exec(single)?.[1];
 }
 
 /** FORWARD — a workspace member with no root is the #2267 defect: it is judged by no policy. */
@@ -187,11 +189,11 @@ test("`@product` is a strict subset of `@authored` — the two classification ma
   // The drive's own positive control: an empty or single-root product set makes the subset vacuously true.
   expect(POPULATION_SETS["@product"].length).toBeGreaterThan(1);
   expect(POPULATION_SETS["@product"].filter((root) => !authored.has(root))).toEqual([]);
-  expect(POPULATION_SETS["@authored"].filter((root) => !product.has(root))).toEqual(["@plugin-toolchain", "@tooling", "@tests", "@scripts"]);
+  expect(POPULATION_SETS["@authored"].filter((root) => !product.has(root))).toEqual(["@ui-authoring", "@plugin-toolchain", "@tooling", "@tests", "@scripts"]);
 });
 
 test("shipped showcase and default-content packages belong to both generic composites", () => {
-  expect(POPULATION_SETS["@authored"]).toHaveLength(13);
+  expect(POPULATION_SETS["@authored"]).toHaveLength(14);
   expect(POPULATION_SETS["@product"]).toHaveLength(9);
   expect(POPULATION_SETS["@authored"]).toEqual(expect.arrayContaining(["@showcase", "@default-content"]));
   expect(POPULATION_SETS["@product"]).toEqual(expect.arrayContaining(["@showcase", "@default-content"]));

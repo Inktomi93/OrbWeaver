@@ -1,16 +1,6 @@
-// Stable DTCG 2025.10 is the token VAULT contract; Style Dictionary is only the emitter. The official
-// schemas are vendored and hash-pinned here, then Orb adds the semantic checks JSON Schema cannot express:
-// inherited types, terminal aliases, closed extensions/output roles, bounded Resolver composition, and
-// removed-token review. Runtime CSS remains concrete data in `orb.cssValues`, never a private token type.
-//
-// NOT SHIPPED, and deliberately absent from the package `exports` map (#1847): this module is node-only
-// (`node:child_process`/`node:fs`) and validates through `ajv`, an @orb/ui devDependency — it is build/
-// verify machinery, the twin of its package-root neighbours tokens.build.ts and tokens.near-duplicate.ts,
-// neither of which carries a subpath either. An `exports` entry is a PRODUCTION-surface declaration, and
-// `knip --production` reads it as one: with `./token-contract` present, ajv/ajv-formats were reported as
-// unlisted production dependencies of a browser package. Its two cross-package readers (the
-// `tokens-contract` gate and tests/tooling) import it by relative path — tools sit above the cake and read
-// down; the module cannot re-home into tooling while tokens.build.ts consumes it (`packages-no-tooling`).
+// DTCG source validation and token-authoring contracts for UI build and verify consumers.
+// The declared @orb/ui/token-contract door is Node-only, separate from generated browser token output.
+// Pinned schemas and semantic checks reject invalid source data before Style Dictionary emits it.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -86,6 +76,19 @@ const TOKEN_FILES = {
   resolverSchema: "src/tokens/schemas/resolver-2025.10.schema.json",
 } as const;
 
+export const TOKEN_ARTIFACT_PATHS = {
+  themeCss: "src/styles/theme.css",
+  tokensTs: "src/tokens/index.ts",
+  themesTs: "src/tokens/themes.gen.ts",
+} as const;
+export const TOKEN_TYPESCRIPT_ARTIFACT_KEYS = ["tokensTs", "themesTs"] as const;
+export const TOKEN_ARTIFACT_SOURCE_PATHS = {
+  producer: "tokens.build.ts",
+  contract: "token-contract.ts",
+  nearDuplicate: "tokens.near-duplicate.ts",
+  emitVars: "src/content/theme-scope/emit-vars.ts",
+} as const;
+
 const TOKEN_TYPES = [
   "color",
   "dimension",
@@ -109,8 +112,20 @@ const CSS_VAR_RE = /var\((--[a-z0-9-]+)(?:\s*,[^)]*)?\)/gu;
 type JsonObject = Record<string, unknown>;
 type AddFormats = (ajv: Ajv) => Ajv;
 type TokenType = (typeof TOKEN_TYPES)[number];
-type OutputRole = "input" | "light-dark" | "percentage" | "snapped";
+export const TOKEN_OUTPUT_ROLES = ["input", "light-dark", "percentage", "snapped"] as const;
+type OutputRole = (typeof TOKEN_OUTPUT_ROLES)[number];
 export type CssValuePlacement = "theme" | "root";
+
+export interface GeneratedCssValue {
+  readonly path: readonly string[];
+  readonly value: string;
+  readonly placement: CssValuePlacement;
+}
+
+export interface NearDuplicateOptions {
+  readonly lightSource?: JsonObject;
+  readonly allowed?: Readonly<Record<string, string>>;
+}
 
 interface TokenContractDiagnostic {
   readonly path: string;
@@ -166,7 +181,7 @@ export interface TokenContractTexts {
 
 const dimensionSchema = z.object({ value: z.number(), unit: z.enum(["px", "rem"]) }).strict();
 const pointerFineSchema = dimensionSchema;
-const outputSchema = z.object({ kind: z.enum(["input", "light-dark", "percentage", "snapped"]) }).strict();
+const outputSchema = z.object({ kind: z.enum(TOKEN_OUTPUT_ROLES) }).strict();
 /** `orb.rootFloor` carries no operand — the floor IS the token's own authored value at the 16px root. */
 const rootFloorSchema = z.literal(true);
 const llmSchema = z

@@ -15,7 +15,7 @@ import type { FactControl, FactRun, PolicyRun } from "./policy-pass-types.ts";
 import { charge, chargeFact, EMPTY_POPULATION, factPhaseRecord, markFactIncomplete, markIncomplete, phaseRecord } from "./policy-pass-types.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertGateFactDescriptor, assertGatePolicyDescriptor, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
-import { resolvePopulation } from "./population-resolver.ts";
+import { explicitNonePopulation, resolvePopulation } from "./population-resolver.ts";
 import { resolveResourceDeclarations } from "./resource-declaration.ts";
 
 function sourcePath(root: string, sourceFile: SourceFile): string {
@@ -26,11 +26,6 @@ function sourcePath(root: string, sourceFile: SourceFile): string {
   }
   assertRepoPathIdentity(normalized, "source file path");
   return normalized;
-}
-
-function isExplicitNone(owner: Pick<GatePolicy, "population"> | Pick<GateFact, "population">): boolean {
-  const population = owner.population;
-  return typeof population === "object" && !Array.isArray(population) && "of" in population && population.of === "none";
 }
 
 export function canonicalFindings(findings: readonly RawGateFinding[]): readonly RawGateFinding[] {
@@ -159,7 +154,7 @@ function resolveRun({ run, candidates, sourceFiles, requested, resources, depend
   if (run.policy.analysis !== "resource" && resources.length > 0) {
     throw new Error(`non-resource policy ${run.policy.id} ${POLICY_PASS_REFUSALS.nonResourceReceivedResources}`);
   }
-  if (!implementationOnly && isExplicitNone(run.policy) && resources.length === 0) {
+  if (!implementationOnly && explicitNonePopulation(run.policy.population) && resources.length === 0) {
     throw new Error(`resource-only policy ${run.policy.id} ${POLICY_PASS_REFUSALS.resourceOnlyNoPaths}`);
   }
   // THE ONE SELECTION CALCULATION (#2309), shared verbatim with the planner: an input is never narrowed, a
@@ -351,7 +346,7 @@ export function resolveFactRuns({ facts, sourceFiles, resources, control }: Reso
       chargeFact(run.timing, "population", () => {
         const declaredSourcePaths = resolvePopulation(fact.population, candidates).paths;
         const declaredResourcePaths = resolveResourceDeclarations(resources, fact.resources);
-        if (isExplicitNone(fact) && declaredResourcePaths.length === 0) {
+        if (explicitNonePopulation(fact.population) && declaredResourcePaths.length === 0) {
           throw new Error(`resource-only fact ${fact.id} ${POLICY_PASS_REFUSALS.resourceOnlyNoPaths}`);
         }
         if (declaredSourcePaths.length + declaredResourcePaths.length === 0) {

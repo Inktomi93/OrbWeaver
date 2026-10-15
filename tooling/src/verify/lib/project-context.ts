@@ -3,7 +3,8 @@
 // Phase F (2026-09-14): the legacy dispatcher died; these two survived it because they describe the
 // WORKSPACE, not the descriptor runtime.
 import { posix } from "node:path";
-import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
+import { createSemanticWorkspace, getWorkspace, registeredSemanticSourceView } from "@orb/tooling/floor/compiler/ts-workspace";
+import type { SemanticSourceView, SemanticWorkspace } from "../../floor/compiler/ts-workspace-contract.ts";
 import type { ProjectContext } from "../contract/project-context.ts";
 
 /** repo-relative posix path for an absolute path under `root`. */
@@ -14,5 +15,15 @@ export function repoRel(root: string, absPath: string): string {
 /** The shared workspace, read once, with its resolved fileset. */
 export function projectCtx(root: string): ProjectContext {
   const project = getWorkspace({ root });
-  return { root, project, files: project.getSourceFiles() };
+  let native: SemanticWorkspace | undefined;
+  return {
+    root,
+    project,
+    files: project.getSourceFiles(),
+    nativeSourceView: (path): SemanticSourceView | undefined => {
+      native ??= createSemanticWorkspace({ root });
+      const source = native.sourceCorpus().getSourceFile(path);
+      return source === undefined ? undefined : registeredSemanticSourceView(source);
+    },
+  };
 }

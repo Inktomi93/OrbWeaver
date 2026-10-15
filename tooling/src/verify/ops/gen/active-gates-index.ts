@@ -149,6 +149,9 @@ function populationSummary(expr: PopulationExpr): string {
   if (Array.isArray(expr)) {
     return expr.join(",");
   }
+  if ("anyOf" in expr) {
+    return expr.anyOf.map(populationSummary).join(" ∪ ");
+  }
   if ("of" in expr) {
     return expr.of;
   }

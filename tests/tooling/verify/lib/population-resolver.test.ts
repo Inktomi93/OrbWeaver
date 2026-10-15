@@ -1,6 +1,8 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { PopulationExpr } from "../../../../tooling/src/verify/contract/population.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../../../../tooling/src/verify/contract/population.ts";
+import { gate as syntaxPolicy } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
+import { assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
 import { assertPopulationExpr, compilePopulation, populationIncludes, resolvePopulation } from "../../../../tooling/src/verify/lib/population-resolver.ts";
 
 test.describe("population vocabulary", () => {
@@ -8,6 +10,7 @@ test.describe("population vocabulary", () => {
     expect(POPULATION_ROOTS).toEqual({
       "@client": ["packages/client/src/"],
       "@ui": ["packages/ui/src/"],
+      "@ui-authoring": ["packages/ui/"],
       "@server": ["packages/server/src/"],
       "@db": ["packages/db/src/"],
       "@contracts": ["packages/contracts/src/"],
@@ -29,6 +32,7 @@ test.describe("population vocabulary", () => {
       "@authored": [
         "@client",
         "@ui",
+        "@ui-authoring",
         "@server",
         "@db",
         "@contracts",
@@ -275,4 +279,60 @@ test.describe("resolvePopulation", () => {
     expect(() => resolvePopulation("@authored", [])).toThrow(/population.*empty/i);
     expect(resolvePopulation({ of: "none", why: "resource-only policy" }, [])).toEqual({ paths: [], admitted: 0, rejected: 0, candidates: 0 });
   });
+});
+
+test("UI authoring joins authored sources without changing browser product or historic composite meanings", () => {
+  const path = "packages/ui/tokens.build.ts";
+  expect(populationIncludes("@authored", path)).toBe(true);
+  expect(populationIncludes("@ui-authoring", path)).toBe(true);
+  expect(populationIncludes("@product", path)).toBe(false);
+  expect(populationIncludes("@frontend", path)).toBe(false);
+  expect(populationIncludes("@packages", path)).toBe(false);
+  expect(populationIncludes("@ui-authoring", "packages/ui/src/tokens/index.ts")).toBe(false);
+  expect(populationIncludes("@ui", "packages/ui/src/tokens/index.ts")).toBe(true);
+  expect(populationIncludes("@product", "packages/ui/src/tokens/index.ts")).toBe(true);
+  expect(populationIncludes("@ui-authoring", "packages/ui-other/tokens.build.ts")).toBe(false);
+});
+
+test("bounded expression union preserves existing admission while adding only exact generated modules", () => {
+  const expression = {
+    anyOf: [{ in: ["@server"] }, { in: ["@ui"], under: ["packages/ui/src/tokens/index.ts", "packages/ui/src/tokens/themes.gen.ts"] }],
+  } as const;
+  expect(
+    resolvePopulation(expression, [
+      "packages/server/src/read.ts",
+      "packages/ui/src/tokens/index.ts",
+      "packages/ui/src/tokens/index.ts",
+      "packages/ui/src/tokens/themes.gen.ts",
+      "packages/ui/src/primitives/button.tsx",
+    ]),
+  ).toEqual({
+    paths: ["packages/server/src/read.ts", "packages/ui/src/tokens/index.ts", "packages/ui/src/tokens/themes.gen.ts"],
+    admitted: 3,
+    rejected: 1,
+    candidates: 4,
+  });
+});
+
+test("expression union validates all branches, refuses cycles and snapshots child operands", () => {
+  expect(() => assertPopulationExpr({ anyOf: ["@server", { in: ["@missing"] }] })).toThrow(/unknown ref/);
+  expect(() => assertPopulationExpr({ anyOf: [] })).toThrow(/non-empty/);
+  expect(() => assertPopulationExpr({ anyOf: ["@server"], in: ["@ui"] })).toThrow(/unknown property/);
+  const cyclic: { anyOf: object[] } = { anyOf: [] };
+  cyclic.anyOf.push(cyclic);
+  expect(() => assertPopulationExpr(cyclic)).toThrow(/cyclic/);
+  const child: Extract<PopulationExpr, { readonly in: readonly string[] }> = { in: ["@ui"], under: ["packages/ui/src/tokens/index.ts"] };
+  const compiled = compilePopulation({ anyOf: ["@server", child] });
+  Object.assign(child, { under: ["packages/ui/src/primitives/**"] });
+  expect(compiled("packages/ui/src/tokens/index.ts")).toBe(true);
+  expect(compiled("packages/ui/src/primitives/button.tsx")).toBe(false);
+  expect(() => resolvePopulation({ anyOf: ["@server", "@ui"] }, [])).toThrow(/empty/);
+  expect(() => resolvePopulation({ anyOf: ["@server", "@ui"] }, ["scripts/other.ts"])).toThrow(/zero/);
+  expect(resolvePopulation({ anyOf: [{ of: "none", why: "no source" }] }, [])).toEqual({ paths: [], admitted: 0, rejected: 0, candidates: 0 });
+});
+
+test("an all-none bounded union cannot bypass resource-only descriptor semantics", () => {
+  expect(() => assertGatePolicyDescriptor({ ...syntaxPolicy, population: { anyOf: [{ of: "none", why: "no source" }] } })).toThrow(
+    "valid only for resource analysis",
+  );
 });

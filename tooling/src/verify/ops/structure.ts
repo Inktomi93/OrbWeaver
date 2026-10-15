@@ -76,6 +76,7 @@ import { finalSide, finalToolErrorCount, structureCountReconciliation } from "..
 import { parseStructureTombstone, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
 import { policyTimingAlarms } from "../lib/timing.ts";
 import { waiverBudgetForRun } from "../lib/waiver-budget-for-run.ts";
+import { prepareTokenTypeGeneration, tokenTypeGenerationOptions } from "./gen/theme-css.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -321,9 +322,14 @@ async function runStructurePopulation(
   const ctx = context();
   // #2069 sample ONE: the tree as it stood when this run took its fileset.
   const plantedAtStart = plantedPaths(root);
+  const tokenTypeGeneration = await prepareTokenTypeGeneration(
+    ctx,
+    plan.policies.find(({ policyId }) => policyId === "no-inline-types"),
+  );
   const executed = executePolicyPlan({
     root,
     project: ctx.project,
+    resourceOptions: tokenTypeGenerationOptions(tokenTypeGeneration),
     corpus,
     plan,
     reviewedGrants: reviewedGrantsFor(corpus.gates),

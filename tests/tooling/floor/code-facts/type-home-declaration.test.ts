@@ -3,15 +3,20 @@ import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { judgeTypeHomeDeclaration } from "@orb/tooling/floor/code-facts/type-home-declaration";
 import { Project } from "ts-morph";
-import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
+import type { TypeHomeNativeSource } from "../../../../tooling/src/floor/code-facts/type-home-contract.ts";
+import { createSemanticWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import { TOKEN_GENERATION_INPUT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import { gate as domainInterfaces } from "../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
 import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as inlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as wireInterfaces } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { prepareTokenTypeGeneration, tokenTypeGenerationOwner } from "../../../../tooling/src/verify/ops/gen/theme-css.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { loadTokenGeneratedTypes } from "../../../../tooling/src/verify/ops/resource-artifact.ts";
+import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 test("declaration judgment preserves local origins and separates direct syntax from semantic exports", () => {
@@ -202,4 +207,170 @@ test("an accidentally admitted sanctioned contract withholds the owner instead o
   expect(result.toolErrors.map(({ message }) => message)).toEqual([expect.stringContaining("admitted a sanctioned package contract home")]);
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual([inlineTypes.id]);
+});
+
+test("UI token authoring has one structural Node contract home without granting browser or generated ownership", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, expected] of [
+    ["packages/ui/token-contract.ts", "owned"],
+    ["packages/ui/tokens.build.ts", "misplaced"],
+    ["packages/ui/tokens.near-duplicate.ts", "misplaced"],
+    ["packages/ui/not-token-contract.ts", "misplaced"],
+    ["packages/ui/src/token-contract.ts", "unqualified"],
+    ["packages/ui/src/tokens/index.ts", "unqualified"],
+  ] as const) {
+    const source = project.createSourceFile(`/repo/${path}`, "export interface TokenInput { readonly value:string; }");
+    const result = judgeTypeHomeDeclaration(source.getInterfaceOrThrow("TokenInput"), { path, claim: "interface" });
+    expect(result.kind).toBe("subject");
+    if (result.kind !== "subject") {
+      throw new Error("missing authoring declaration");
+    }
+    expect(result.ownership.kind, path).toBe(expected);
+  }
+});
+
+test("ordinary placement exposes misplaced authoring types but preserves its single contract and type reexport doors", () => {
+  const root = "/ui-authoring-placement";
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${root}/packages/server/src/infra/anchor.ts`, "export const anchor=1;");
+  project.createSourceFile(`${root}/packages/ui/token-contract.ts`, "export interface Owned { readonly value:string; }");
+  project.createSourceFile(
+    `${root}/packages/ui/tokens.build.ts`,
+    "export interface Misplaced { readonly value:string; } export type Extra=number; export type { Owned } from './token-contract.ts';",
+  );
+  project.createSourceFile(`${root}/packages/ui/src/ordinary.tsx`, "export type BrowserProps={readonly children:string};");
+  const policies = [inlineTypes, packageInterfaces];
+  const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.map(({ fix }) => fix)).toEqual([
+    expect.stringContaining("packages/ui/token-contract.ts"),
+    expect.stringContaining("packages/ui/token-contract.ts"),
+  ]);
+  expect(result.authority.effectiveFindings.map(({ policyId, token }) => [policyId, token]).toSorted((a, b) => a.join(":").localeCompare(b.join(":")))).toEqual(
+    [
+      ["no-inline-package-interface", "Misplaced"],
+      ["no-inline-types", "Extra"],
+    ],
+  );
+});
+
+test("generated vocabulary requires current producer bytes and the local native value binding", async ({ scratch }) => {
+  const outputPath = "packages/ui/src/tokens/index.ts";
+  const producerPath = "packages/ui/tokens.build.ts";
+  const themesPath = "packages/ui/src/tokens/themes.gen.ts";
+  const themesText = "export const FOREIGN={foreign:1};";
+  const text =
+    'import { FOREIGN } from "./themes.gen.ts"; export const TOKENS={a:"a"} as const; export type TokenPath=keyof typeof TOKENS; export type Borrowed=keyof typeof FOREIGN; const COPIED={...TOKENS}; export type Spread=keyof typeof COPIED;';
+  const write = (path: string, value: string): void => {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), value);
+  };
+  write("tsconfig.json", JSON.stringify({ compilerOptions: { types: [] }, files: [producerPath] }));
+  write(
+    "packages/ui/tsconfig.json",
+    JSON.stringify({ compilerOptions: { types: [], lib: ["es2022", "dom"] }, files: ["src/tokens/index.ts", "src/tokens/themes.gen.ts"] }),
+  );
+  write(producerPath, "export async function generateArtifacts(){return {tokensTs:''};}");
+  write(outputPath, text);
+  write(themesPath, themesText);
+  execFixtureGit(scratch, ["init", "-q"]);
+  const workspace = createSemanticWorkspace({ root: scratch });
+  const sources = new Map<string, TypeHomeNativeSource>();
+  for (const path of [producerPath, outputPath, themesPath]) {
+    const source = workspace.sourceCorpus().getSourceFile(path);
+    if (source === undefined) {
+      throw new Error(`missing native source ${path}`);
+    }
+    const view = registeredSemanticSourceView(source);
+    if (view === undefined) {
+      throw new Error("unregistered native source");
+    }
+    sources.set(path, { view, program: source.getProject().getProgram().compilerObject, source: source.compilerNode, text: source.getFullText() });
+  }
+  const syntax = new Project({ useInMemoryFileSystem: true }).createSourceFile(`/syntax/${outputPath}`, text);
+  const declaration = syntax.getTypeAliasOrThrow("TokenPath");
+  const input = {
+    path: outputPath,
+    claim: "alias-or-schema" as const,
+    generated: {
+      sources,
+      outputs: new Map([
+        [outputPath, text],
+        [themesPath, themesText],
+      ]),
+    },
+  };
+  for (const name of ["Borrowed", "Spread"]) {
+    expect(judgeTypeHomeDeclaration(syntax.getTypeAliasOrThrow(name), input)).toMatchObject({ kind: "subject", ownership: { kind: "unqualified" } });
+  }
+  expect(judgeTypeHomeDeclaration(declaration, input)).toMatchObject({ kind: "subject", ownership: { kind: "generated-owned" } });
+  expect(judgeTypeHomeDeclaration(declaration, { ...input, generated: { ...input.generated, outputs: new Map([[outputPath, text + "\n"]]) } })).toMatchObject({
+    kind: "refused",
+  });
+  expect(judgeTypeHomeDeclaration(declaration, { ...input, generated: { ...input.generated, sources: new Map() } })).toMatchObject({ kind: "refused" });
+  const observed = new Map(TOKEN_GENERATION_INPUT_PATHS.map((path) => [path, "{}"]));
+  for (const [path, capture] of sources) {
+    observed.set(path, capture.text);
+  }
+  const reader = createResourceReader({ root: scratch, overlay: Object.fromEntries(observed) });
+  const prepared = { status: "ready" as const, paths: [...observed.keys()], members: observed.size, value: { context: input.generated, observed } };
+  expect(loadTokenGeneratedTypes(reader, prepared).status).toBe("ready");
+  expect(loadTokenGeneratedTypes(reader, { ...prepared, value: { ...prepared.value, observed: new Map() } })).toMatchObject({
+    status: "unresolved",
+    reason: expect.stringContaining("not observed"),
+  });
+  expect(
+    loadTokenGeneratedTypes(reader, {
+      ...prepared,
+      value: {
+        ...prepared.value,
+        context: {
+          ...input.generated,
+          outputs: new Map([
+            [outputPath, text],
+            [themesPath, themesText + "\n"],
+          ]),
+        },
+      },
+    }),
+  ).toMatchObject({ status: "unresolved" });
+  expect(
+    loadTokenGeneratedTypes(createResourceReader({ root: scratch, overlay: { ...Object.fromEntries(observed), [producerPath]: "changed" } }), prepared),
+  ).toMatchObject({ status: "unresolved", reason: expect.stringContaining("changed after preparation") });
+  const copiedPath = "packages/ui/src/tokens/copied.gen.ts";
+  const copied = syntax.getProject().createSourceFile(`/syntax/${copiedPath}`, text);
+  expect(judgeTypeHomeDeclaration(copied.getTypeAliasOrThrow("TokenPath"), { ...input, path: copiedPath })).toMatchObject({
+    kind: "subject",
+    ownership: { kind: "unqualified" },
+  });
+  const producer = sources.get(producerPath);
+  if (producer === undefined) {
+    throw new Error("missing producer capture");
+  }
+  const foreignSources = new Map(sources);
+  foreignSources.set(outputPath, producer);
+  expect(judgeTypeHomeDeclaration(declaration, { ...input, generated: { ...input.generated, sources: foreignSources } })).toMatchObject({ kind: "refused" });
+  for (const [path, contents] of observed) {
+    write(path, contents);
+  }
+  expect(
+    await prepareTokenTypeGeneration(
+      { root: scratch, project: syntax.getProject(), files: [syntax], nativeSourceView: (path) => sources.get(path)?.view },
+      tokenTypeGenerationOwner({
+        root: "/syntax",
+        project: syntax.getProject(),
+        policies: [inlineTypes],
+        knownPolicies: [inlineTypes],
+        requestedPaths: [outputPath],
+        reviewedGrants: [],
+        failOnWarnings: false,
+      }),
+    ),
+  ).toMatchObject({ status: "unresolved", reason: expect.stringContaining("token producer preparation failed") });
+  const nativeOutput = sources.get(outputPath);
+  if (nativeOutput === undefined) {
+    throw new Error("missing captured output");
+  }
+  nativeOutput.view.sourceFile.replaceWithText(text + "\n");
+  expect(judgeTypeHomeDeclaration(declaration, input)).toMatchObject({ kind: "refused" });
 });

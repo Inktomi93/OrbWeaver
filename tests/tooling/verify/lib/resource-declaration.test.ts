@@ -2,7 +2,17 @@
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceFact } from "../../../../tooling/src/verify/contract/resource.ts";
-import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
+import type {
+  TokenContractResource,
+  TokenGeneratedTypeRequest,
+  TokenGeneratedTypeResource,
+} from "../../../../tooling/src/verify/contract/resource-artifact.ts";
+import {
+  DEVTOOLS_CLOSURE_ROOT,
+  TOKEN_CONTRACT_PATHS,
+  TOKEN_GENERATED_TYPE_PATHS,
+  TOKEN_GENERATED_TYPE_REQUEST,
+} from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import type { GateResourceRequest } from "../../../../tooling/src/verify/contract/resource-declaration.ts";
 import type { LedgerDefinition, LedgerId } from "../../../../tooling/src/verify/contract/resource-document.ts";
 import { LEDGER_DEFINITIONS } from "../../../../tooling/src/verify/contract/resource-document.ts";
@@ -10,13 +20,32 @@ import { EXACT_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/re
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
 import type { SchemaFactStatus } from "../../../../tooling/src/verify/contract/schema-fact.ts";
-import { resolveResourceDeclarations } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
+import { assertGateResourceDeclarations } from "../../../../tooling/src/verify/lib/policy-validation.ts";
+import {
+  activeResourceDeclarations,
+  canonicalResourceDeclarations,
+  resolveResourceDeclarations,
+  resourceRequestIdentity,
+} from "../../../../tooling/src/verify/lib/resource-declaration.ts";
 
 function fact<T>(source: string, paths: readonly string[], value: T, status: SchemaFactStatus = "ready"): ResourceFact<T> {
   const receipt = { source, status, paths, members: paths.length, durationMs: 0 };
   return status === "ready"
     ? { status, value, paths, members: paths.length, receipt }
     : { status, reason: `${source} ${status}`, paths, members: paths.length, receipt };
+}
+
+function tokenContract(): ResourceFact<TokenContractResource>;
+function tokenContract(request: TokenGeneratedTypeRequest): ResourceFact<TokenGeneratedTypeResource>;
+function tokenContract(request?: TokenGeneratedTypeRequest): ResourceFact<TokenContractResource> | ResourceFact<TokenGeneratedTypeResource> {
+  if (request !== undefined) {
+    throw new Error("generated token types require an explicit fixture");
+  }
+  return fact("token-contract", [TOKEN_CONTRACT_PATHS.base], {
+    texts: { base: "", light: "", mocha: "", resolver: "", removed: "", formatSchema: "", resolverSchema: "" },
+    paths: [TOKEN_CONTRACT_PATHS.base],
+    removalBaseline: { status: "empty", reason: "fixture host" },
+  });
 }
 
 function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
@@ -105,12 +134,7 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
         declarationFiles: [],
         selectorSources: [],
       }),
-    tokenContract: () =>
-      fact("token-contract", [TOKEN_CONTRACT_PATHS.base], {
-        texts: { base: "", light: "", mocha: "", resolver: "", removed: "", formatSchema: "", resolverSchema: "" },
-        paths: [TOKEN_CONTRACT_PATHS.base],
-        removalBaseline: { status: "empty", reason: "fixture host" },
-      }),
+    tokenContract,
     devtoolsClosure: () =>
       fact("devtools-closure", [`${DEVTOOLS_CLOSURE_ROOT}/pin.json`], {
         root: DEVTOOLS_CLOSURE_ROOT,
@@ -186,4 +210,15 @@ test("refuses a valid repo path returned by the wrong closed fact root", () => {
       { kind: "authored-tree", id: "tooling-slot" },
     ]),
   ).toThrow(/cross-root/i);
+});
+
+test("generated token requests remain distinct, source-demanded and absent from resource planning", () => {
+  const requests = [{ kind: "token-contract" } as const, TOKEN_GENERATED_TYPE_REQUEST];
+  expect(canonicalResourceDeclarations(requests).map(resourceRequestIdentity)).toEqual(["token-contract", "token-contract:generated-types"]);
+  expect(activeResourceDeclarations(requests, ["packages/ui/src/ordinary.ts"])).toEqual([{ kind: "token-contract" }]);
+  expect(activeResourceDeclarations(requests, [TOKEN_GENERATED_TYPE_PATHS[0]])).toEqual(requests);
+  expect(resolveResourceDeclarations(host(), [TOKEN_GENERATED_TYPE_REQUEST])).toEqual([]);
+  expect(resolveResourceDeclarations(host(), [{ kind: "token-contract" }])).toEqual([TOKEN_CONTRACT_PATHS.base]);
+  expect(() => assertGateResourceDeclarations([{ kind: "token-contract", mode: "other" }])).toThrow("mode must be generated-types");
+  expect(() => assertGateResourceDeclarations([{ ...TOKEN_GENERATED_TYPE_REQUEST, id: "borrowed" }])).toThrow();
 });

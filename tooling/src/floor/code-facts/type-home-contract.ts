@@ -1,5 +1,6 @@
-import type { Node } from "ts-morph";
+import type { Node, ts } from "ts-morph";
 import type { PackageName, World } from "../compiler/project-worlds.ts";
+import type { SemanticSourceView } from "../compiler/ts-workspace-contract.ts";
 import type { ComponentLowerDataEvidence, ComponentRenderEvidence, ComponentTypeHomeInput } from "./component-type-home-contract.ts";
 
 export const TYPE_HOME_CATEGORIES = [
@@ -10,6 +11,7 @@ export const TYPE_HOME_CATEGORIES = [
   "client-view",
   "component",
   "package-contract",
+  "authoring-contract",
   "standalone-declarations",
   "unqualified",
 ] as const;
@@ -36,6 +38,7 @@ export type TypeHomeDeclarationPlane = (typeof TYPE_HOME_DECLARATION_PLANES)[num
 
 /** Structural package contracts are proven here; other categories still need declaration-specific evidence. */
 export type DeclarationTypeHomeOwnership =
+  | { readonly kind: "generated-owned"; readonly packageName: PackageName; readonly home: string; readonly producer: Node; readonly value: Node }
   | {
       readonly kind: "component-owned";
       readonly packageName: PackageName;
@@ -47,7 +50,21 @@ export type DeclarationTypeHomeOwnership =
   | { readonly kind: "misplaced"; readonly packageName: PackageName; readonly home: string }
   | { readonly kind: "unqualified"; readonly category: TypeHomeCategory | null; readonly reason: string };
 
+/** Independent native worlds and source epochs; captured data alone supplies no placement permission. */
+export interface TypeHomeNativeSource {
+  readonly view: SemanticSourceView;
+  readonly program: ts.Program;
+  readonly source: ts.SourceFile;
+  readonly text: string;
+}
+
+export interface GeneratedTypeHomeContext {
+  readonly sources: ReadonlyMap<string, TypeHomeNativeSource>;
+  readonly outputs: ReadonlyMap<string, string>;
+}
+
 export interface TypeHomeDeclarationInput {
+  readonly generated?: GeneratedTypeHomeContext;
   readonly path: string;
   /** The existing policy has already admitted this declaration's source population. */
   readonly claim: TypeHomeDeclarationClaim;

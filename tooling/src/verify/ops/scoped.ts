@@ -18,6 +18,7 @@ import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import type { SourceFile } from "ts-morph";
 import { isLegacyTestPath, LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import type { GatePolicy } from "../contract/policy.ts";
+import type { PolicyPassInput } from "../contract/policy-pass.ts";
 import type { ProjectContext } from "../contract/project-context.ts";
 import type { Scope, ScopedPolicyResult } from "../contract/scoped.ts";
 import { loadGateCorpus } from "../lib/loader.ts";
@@ -31,6 +32,7 @@ import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { authoredPathsUnder, workingChangeClassification } from "../lib/selection.ts";
 import { policyReport, policyRows } from "../lib/structure-report.ts";
 import { WAIVER_BUDGET } from "../lib/waiver-budget.ts";
+import { prepareTokenTypeGeneration, tokenTypeGenerationOptions, tokenTypeGenerationOwner } from "./gen/theme-css.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts scoped --scope <folder-glob>");
 
@@ -236,16 +238,16 @@ function scopedFiles(base: Pick<ProjectContext, "root" | "project">, inScope: (r
  *
  *  `failOnWarnings` arrives from the operator's `--fail-on-warnings` and DEFAULTS FALSE: a
  *  `severity: "warning"` finding is reported, counted in `verdict.warnings`, and blocks nothing. */
-function runScopedPolicyPass(
+async function runScopedPolicyPass(
   policies: readonly GatePolicy[],
   base: ProjectContext,
   files: readonly SourceFile[],
   options: { readonly failOnWarnings: boolean; readonly legacyPaths: readonly string[] },
-): ScopedPolicyResult {
+): Promise<ScopedPolicyResult> {
   if (policies.length === 0) {
     return { pass: null, deferred: [] };
   }
-  const raw = runPolicyPass({
+  const input: PolicyPassInput = {
     knownPolicies: policies,
     policies,
     root: base.root,
@@ -254,7 +256,9 @@ function runScopedPolicyPass(
     reviewedGrants: reviewedGrantsFor(policies),
     waiverBudget: WAIVER_BUDGET,
     failOnWarnings: options.failOnWarnings,
-  });
+  };
+  const tokenTypeGeneration = await prepareTokenTypeGeneration(base, tokenTypeGenerationOwner(input));
+  const raw = runPolicyPass({ ...input, resourceOptions: tokenTypeGenerationOptions(tokenTypeGeneration) });
   const pass = processEnvValue("ORB_GATE_FIXTURES") === "1" ? raw : stripProbePolicyFindings(raw);
   const declined = new Set(pass.policies.filter(({ owner }) => owner.status === "not-applicable").map(({ id }) => id));
   return { pass, deferred: policies.filter(({ id }) => declined.has(id)) };
@@ -311,7 +315,7 @@ export async function runScopedCli(root: string, argv: readonly string[]): Promi
   }
   const corpus = await loadGateCorpus(root);
   const files = scopedFiles(base, selection.inScope);
-  const final = runScopedPolicyPass(corpus.gates, base, files, { failOnWarnings: parsed.failOnWarnings, legacyPaths });
+  const final = await runScopedPolicyPass(corpus.gates, base, files, { failOnWarnings: parsed.failOnWarnings, legacyPaths });
 
   process.stdout.write(`check:scope — ${selection.label} · ${files.length} file(s) in scope\n\n`);
   if (final.pass !== null) {

@@ -162,7 +162,7 @@ function assertOperatorExpr(value: Record<string, unknown>): void {
   assertMeaningfulSubtraction(value);
 }
 
-export function assertPopulationExpr(value: unknown): asserts value is PopulationExpr {
+function assertExpression(value: unknown, active: Set<object>): asserts value is PopulationExpr {
   if (typeof value === "string") {
     assertRef(value);
     return;
@@ -174,17 +174,34 @@ export function assertPopulationExpr(value: unknown): asserts value is Populatio
   if (!isRecord(value)) {
     invalid("expected a ref, ref union, operator object, or reasoned sentinel");
   }
-  if ("of" in value) {
-    assertExactKeys(value, value["of"] === "all" ? ALL_SENTINEL_KEYS : SENTINEL_KEYS);
-    if ((value["of"] !== "all" && value["of"] !== "none") || typeof value["why"] !== "string" || value["why"].trim().length === 0) {
-      invalid('sentinel requires of "all" or "none" and a non-empty why');
-    }
-    if (value["of"] === "all") {
-      assertOptionalArray(value["notUnder"], "notUnder", (member) => assertPattern(member, "notUnder"));
-    }
-    return;
+  if (active.has(value)) {
+    invalid("cyclic population expression");
   }
-  assertOperatorExpr(value);
+  active.add(value);
+  try {
+    if ("anyOf" in value) {
+      assertExactKeys(value, new Set(["anyOf"]));
+      assertNonEmptyUniqueArray(value["anyOf"], "anyOf", (member) => assertExpression(member, active));
+      return;
+    }
+    if ("of" in value) {
+      assertExactKeys(value, value["of"] === "all" ? ALL_SENTINEL_KEYS : SENTINEL_KEYS);
+      if ((value["of"] !== "all" && value["of"] !== "none") || typeof value["why"] !== "string" || value["why"].trim().length === 0) {
+        invalid('sentinel requires of "all" or "none" and a non-empty why');
+      }
+      if (value["of"] === "all") {
+        assertOptionalArray(value["notUnder"], "notUnder", (member) => assertPattern(member, "notUnder"));
+      }
+      return;
+    }
+    assertOperatorExpr(value);
+  } finally {
+    active.delete(value);
+  }
+}
+
+export function assertPopulationExpr(value: unknown): asserts value is PopulationExpr {
+  assertExpression(value, new Set());
 }
 
 function assertRepoRelativePosixPath(value: string): void {
@@ -316,6 +333,9 @@ export function compilePopulation(expr: PopulationExpr): (repoRelativePosixPath:
   } else if (isReadonlyArray(expr)) {
     const roots = rootPaths(expr as readonly PopulationRef[]);
     includes = (path): boolean => hasRoot(path, roots);
+  } else if ("anyOf" in expr) {
+    const alternatives = expr.anyOf.map((child) => compilePopulation(child));
+    includes = (path): boolean => alternatives.some((include) => include(path));
   } else if ("of" in expr) {
     const admitted = expr.of === "all";
     const notUnder = expr.of === "all" ? compilePatterns(expr.notUnder) : undefined;
@@ -333,11 +353,18 @@ export function populationIncludes(expr: PopulationExpr, repoRelativePosixPath: 
   return compilePopulation(expr)(repoRelativePosixPath);
 }
 
+export function explicitNonePopulation(expr: PopulationExpr): boolean {
+  if (typeof expr === "string" || isReadonlyArray(expr)) {
+    return false;
+  }
+  return "anyOf" in expr ? expr.anyOf.every(explicitNonePopulation) : "of" in expr && expr.of === "none";
+}
+
 export function resolvePopulation(expr: PopulationExpr, candidatePaths: readonly string[]): ResolvedPopulation {
   const includes = compilePopulation(expr);
   const candidates = [...new Set(candidatePaths)];
   const paths = candidates.filter(includes).sort();
-  const explicitNone = isRecord(expr) && "of" in expr && expr["of"] === "none";
+  const explicitNone = explicitNonePopulation(expr);
   if (!explicitNone && candidates.length === 0) {
     throw new Error(POLICY_PASS_REFUSALS.populationEmptyCorpus);
   }

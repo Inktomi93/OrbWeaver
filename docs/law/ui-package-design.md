@@ -50,6 +50,7 @@ packages/ui/
   package.json          # §3 — the ONLY package depending on the sealed satellites
   tsconfig.json         # extends ../../tsconfig.base.json + dom libs + react-jsx (mirrors client)
   tokens.build.ts       # the DTCG → (@theme CSS + TS map) codegen entry (style-dictionary v5, §4)
+  token-contract.ts     # Node token-authoring contract and validation API
   src/
     tokens/             # tokens.json (DTCG source) · index.ts (GENERATED typed map) — promote to
                         #   @orb/tokens only on a 2nd consumer
@@ -141,6 +142,8 @@ enforces the seal column: a lib may only be imported from its sealed dir.
 (→ tailwind-variants), DOMPurify (sanitize is native inside Streamdown).
 
 ## 4. Tokens — the DTCG pipeline (concrete)
+
+`token-contract.ts` owns the Node token-authoring shapes and validation API. Build helpers derive those shapes and preserve their supported type exports through type-only reexports. The package exports declare the author-time doors separately from browser token output. Type homes follow [Spine-TypeScript section 7.4](Spine-TypeScript-and-Patterns.md#types--schemas--one-home-one-direction-no-inline-spine-74).
 
 - **Source:** `src/tokens/tokens.json` — W3C DTCG (`$value`/`$type`). Seeded from the design seed
   (the DESIGN.md OKLCH Hearth ramp + Ember accent + Geist + the radius/spacing/motion scales —

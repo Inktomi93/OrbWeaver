@@ -4,8 +4,16 @@ import type { SourceFile } from "ts-morph";
 import type { FixtureGitHistoryFoundation } from "../../floor/git/git-fixture.ts";
 import type { ConfigSnapshotByRunner, ConfigSnapshotRunner } from "./config-snapshot.ts";
 import type { OrdinaryWaiverCarriers } from "./ordinary-waiver-source.ts";
-import type { ResourceFact, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedFileModeOverlay, TrackedResourceIndex } from "./resource.ts";
-import type { DevToolsClosure, TokenContractResource } from "./resource-artifact.ts";
+import type {
+  ResourceFact,
+  ResourceLoad,
+  ResourceReaderOptions,
+  ResourceReceipt,
+  ResourceTreeEntry,
+  TrackedFileModeOverlay,
+  TrackedResourceIndex,
+} from "./resource.ts";
+import type { DevToolsClosure, TokenContractResource, TokenGeneratedTypeRequest, TokenGeneratedTypeResource } from "./resource-artifact.ts";
 import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfigResourceId } from "./resource-config.ts";
 import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
 import type { DocumentIndex, LedgerFactsFor, LedgerId } from "./resource-document.ts";
@@ -46,7 +54,10 @@ export interface ResourceHost {
   /** The committed-mirror ↔ installed-vendor comparison surface (`resource-vendor.ts`). */
   readonly vendorCssSurface: () => ResourceFact<VendorCssSurface>;
   /** The two canonical generated artifacts (`resource-artifact.ts`). */
-  readonly tokenContract: () => ResourceFact<TokenContractResource>;
+  readonly tokenContract: {
+    (): ResourceFact<TokenContractResource>;
+    (request: TokenGeneratedTypeRequest): ResourceFact<TokenGeneratedTypeResource>;
+  };
   readonly devtoolsClosure: () => ResourceFact<DevToolsClosure>;
   /** DEMAND doors. They own no population, take their subject at call time, and are fenced by declaration
    *  rather than by path membership — see `resource-declaration.ts` on the two classes of kind. */
@@ -57,6 +68,7 @@ export interface ResourceHost {
 /** Invocation composition only. The parser seam permits the fixture runner's shared workspace; installed
  *  text and tracked-mode overlays permit exact liveness controls without widening authored membership. */
 export interface ResourceHostOptions extends ResourceReaderOptions {
+  readonly tokenTypeGeneration?: ResourceLoad<TokenGeneratedTypeResource>;
   /** Branded isolated-proof composition only; production always uses the pinned founding identity. */
   readonly gitHistoryFixtureFoundation?: FixtureGitHistoryFoundation;
   readonly parseSource?: (path: string, text: string) => SourceFile;
