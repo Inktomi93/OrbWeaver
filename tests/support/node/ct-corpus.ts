@@ -8,7 +8,7 @@ interface CorpusFixtures {
   readonly corpus: CorpusWire;
 }
 
-/** The maintained CT configuration selects a borrowed publication; browser stories receive no path. */
+/** An explicit directory selects alternate published data; absence delegates to the canonical committed input. */
 export interface CtCorpusOptions {
   readonly corpusDirectory: string | undefined;
 }
@@ -17,9 +17,6 @@ export interface CtCorpusOptions {
 export const test = base.extend<CorpusFixtures & CtCorpusOptions>({
   corpusDirectory: [undefined, { option: true }],
   corpus: async ({ corpusDirectory }, use) => {
-    if (corpusDirectory === undefined) {
-      throw new Error("Corpus-backed CT requires CT_CORPUS_FIXTURE to select a published corpus directory");
-    }
     await use(loadCorpusFixture(corpusDirectory).wire);
   },
 });

@@ -21,6 +21,8 @@ docker/secrets/*
 *.db-wal
 *.sqlite
 *.sqlite3
+# This scrubbed synthetic snapshot is a maintained test input, not a local runtime database.
+!/tests/support/node/corpus-data/db/orbweaver.db
 # Root-anchored: the runtime db dir ONLY. Unanchored `data/` silently ate the client's
 # `src/data/` source layer at commit time (git add skipped it; the tree shipped without it).
 /data/

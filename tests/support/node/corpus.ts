@@ -3,6 +3,7 @@
 import { readFileSync, statSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { localPath } from "@orb/db";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
@@ -114,8 +115,8 @@ function corpusDatabaseFile(layout: DataLayout): string {
   return path;
 }
 
-/** Read only a completed, prepared clone; this loader does not construct or boot an application graph. */
-export function loadCorpusFixture(directory: string): CorpusFixture {
+/** Borrow a completed publication; the committed synthetic input is the lazy default, never a writable app root. */
+export function loadCorpusFixture(directory = fileURLToPath(new URL("./corpus-data", import.meta.url))): CorpusFixture {
   const layout = resolveDataLayout({ ["DATA_DIR"]: resolve(directory) });
   const wire = parseCorpusWire(readFileSync(join(layout.root, CORPUS_WIRE_FILE), "utf8"));
   if (!statSync(corpusDatabaseFile(layout)).isFile()) {
