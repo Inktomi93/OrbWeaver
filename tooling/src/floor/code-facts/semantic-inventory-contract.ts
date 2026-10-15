@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compiler-programs-contract.ts";
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
+import type { SourceBindingUsage } from "./binding-usage-contract.ts";
 
 export const INVENTORY_FORMAT = 7;
 export const INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses", "cast-relations", "id-brands", "runtime-exports"] as const;
@@ -166,6 +167,7 @@ export interface SemanticInventory extends Disposable {
   readonly canonicalPath: (path: string) => string;
   /** Compare captured physical syntax, never typed meaning between compiler worlds. */
   readonly sameNode: (left: Node, right: Node) => boolean;
+  readonly bindingUsage: (source: SourceFile) => SourceBindingUsage;
   readonly sourceCorpus: () => InventorySourceCorpus;
   readonly exports: (source: SourceFile, importer?: Node) => ReadonlyMap<string, readonly Node[]>;
   readonly moduleTarget: (node: Node) => SourceFile | undefined;

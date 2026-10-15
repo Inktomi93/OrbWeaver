@@ -3,6 +3,8 @@ import { isDeepStrictEqual } from "node:util";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, Node as TsNode } from "ts-morph";
 import { predictedProgram } from "../compiler/project-worlds.ts";
+import { createSourceBindingUsage } from "./binding-usage.ts";
+import type { DeclarationBindingKeys, SourceBindingUsage } from "./binding-usage-contract.ts";
 import type {
   InventoryFamily,
   InventoryReaderStorage,
@@ -77,6 +79,7 @@ export function inventoryReader(
   const contextProjects = new Map<string, Project>();
   const contextWorlds = new WeakMap<Project, readonly string[]>();
   const capturedTexts = new Map<SourceFile, string>();
+  const bindingUses = new Map<string, SourceBindingUsage>();
   const texts = new Map<string, { partition: string; source: StoredInventorySource }>();
   const aliases = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
@@ -244,6 +247,34 @@ export function inventoryReader(
       assertCapturedSource(right);
       return spanKey(capturedSpan(left)) === spanKey(capturedSpan(right));
     },
+    bindingUsage: (source) => {
+      assertCapturedSource(source);
+      const contextKey = (node: Node): string => {
+        const selected = worlds(node);
+        if (selected.length === 0) {
+          throw new SemanticInventoryError("native binding usage has no admitted compiler context");
+        }
+        requireFamily(selected, "bindings");
+        return `${canonicalPath(node.getSourceFile().getFilePath())}${INVENTORY_KEY_SEPARATOR}${selected.map((partition) => partition.id).join(INVENTORY_KEY_SEPARATOR)}`;
+      };
+      const key = contextKey(source);
+      let usage = bindingUses.get(key);
+      if (usage === undefined) {
+        usage = createSourceBindingUsage(source, {
+          bindings: declarationBindingKeySets,
+          queryNode: inventoryBindingNode,
+          declarationKey: inventoryDeclarationKey,
+          admit: (node) => {
+            assertCapturedSource(node);
+            if (contextKey(node) !== key) {
+              throw new SemanticInventoryError("native binding usage belongs to a foreign compiler context");
+            }
+          },
+        });
+        bindingUses.set(key, usage);
+      }
+      return usage;
+    },
     sourceCorpus: () => corpus,
     exports: (source, importer) => {
       const file = canonicalPath(source.getFilePath());
@@ -318,6 +349,10 @@ export function inventoryReader(
       aliases.clear();
       authored.clear();
       capturedTexts.clear();
+      for (const usage of bindingUses.values()) {
+        usage[Symbol.dispose]();
+      }
+      bindingUses.clear();
       for (const source of project.getSourceFiles()) {
         source.forget();
       }
@@ -346,25 +381,30 @@ export function samePhysicalNode(left: Node, right: Node): boolean {
   return inventory === undefined ? left.compilerNode === right.compilerNode : inventory.sameNode(left, right);
 }
 
-function inventoryBindingKeys(node: Node, alias = true): readonly string[] | undefined {
+/** Lexical and aliased identities share one canonical symbol read. */
+export function declarationBindingKeySets(node: Node): DeclarationBindingKeys {
   const inventory = semanticInventoryOf(node.getProject());
-  if (inventory === undefined) {
-    return;
+  if (inventory !== undefined) {
+    const symbols = inventory.symbols(inventoryBindingNode(node));
+    const keys = (spans: readonly InventorySpan[]): readonly string[] => spans.map((span) => `${span.file}${INVENTORY_KEY_SEPARATOR}${String(span.start)}`);
+    return { lexical: keys(symbols.lexical), origins: keys(symbols.origins) };
   }
-  const name = TsNode.hasName(node) ? node.getNameNode() : undefined;
-  const symbols = inventory.symbols(name ?? node);
-  return (alias ? symbols.origins : symbols.lexical).map((span) => `${span.file}${INVENTORY_KEY_SEPARATOR}${String(span.start)}`);
+  const parent = node.getParent();
+  const symbol = TsNode.isShorthandPropertyAssignment(parent) && parent.getNameNode() === node ? parent.getValueSymbol() : node.getSymbol();
+  return {
+    lexical: (symbol?.getDeclarations() ?? []).map(inventoryDeclarationKey),
+    origins: ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).map(inventoryDeclarationKey),
+  };
+}
+
+function inventoryBindingNode(node: Node): Node {
+  return (TsNode.hasName(node) ? node.getNameNode() : undefined) ?? node;
 }
 
 /** Lexical and aliased bindings remain distinct for namespace identity and origin identity. */
 export function declarationBindingKeys(node: Node, alias = true): readonly string[] {
-  const stored = inventoryBindingKeys(node, alias);
-  if (stored !== undefined) {
-    return stored;
-  }
-  const parent = node.getParent();
-  const symbol = TsNode.isShorthandPropertyAssignment(parent) && parent.getNameNode() === node ? parent.getValueSymbol() : node.getSymbol();
-  return ((alias ? (symbol?.getAliasedSymbol() ?? symbol) : symbol)?.getDeclarations() ?? []).map(inventoryDeclarationKey);
+  const keys = declarationBindingKeySets(node);
+  return alias ? keys.origins : keys.lexical;
 }
 
 /** Read the native module target without asking a syntax carrier to construct a compiler program. */

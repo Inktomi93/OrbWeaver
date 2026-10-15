@@ -3,10 +3,11 @@
 import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { dynamicModuleTarget } from "../../floor/code-facts/module-target.ts";
-import { isDocumentationLinkReference, literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { declarationBindingKeys, inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
+import { sourceBindingUsage } from "../../floor/compiler/ts-workspace.ts";
 import type { ConsumptionArm, Liveness, LivenessOptions, NamespaceSite } from "../contract/types.ts";
 import { dynamicImportTargetOf, recordDeclarationEdges } from "./edges.ts";
 import { declKey, exposedNames } from "./keys.ts";
@@ -102,18 +103,11 @@ interface ConsumptionSink {
  *  (`const Inner = …; export { Inner as Outer }`): the export-map name is `Outer` while every in-file
  *  use says `Inner`. */
 export function isReferencedInOwnFile(sf: SourceFile, _name: string, decl: Node): boolean {
-  const nativeKeys = declarationBindingKeys(decl, false);
+  const nativeKeys = sourceBindingUsage(decl.getSourceFile()).lexical(decl);
   const targetKeys = new Set(nativeKeys.length === 0 ? [declKey(decl)] : nativeKeys);
-  for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    const parent = id.getParent();
-    if (isDocumentationLinkReference(id) || id.getFirstAncestorByKind(SyntaxKind.ExportDeclaration) !== undefined || declKey(parent) === declKey(decl)) {
-      continue;
-    }
-    if (declarationBindingKeys(id).some((key) => targetKeys.has(key))) {
-      return true;
-    }
-  }
-  return false;
+  const parent = declKey(decl);
+  const uses = sourceBindingUsage(sf).parents();
+  return [...targetKeys].some((key) => [...(uses.get(key) ?? [])].some((site) => site !== parent));
 }
 
 /** Dynamic `import()` keeps the whole target module alive (the two rot verbs were blind to it while the

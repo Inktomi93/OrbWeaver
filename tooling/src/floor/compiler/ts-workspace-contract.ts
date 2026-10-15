@@ -1,4 +1,5 @@
 import type { FileSystemHost, Node, Project, ResolutionHostFactory, SourceFile } from "ts-morph";
+import type { SourceBindingUsage } from "../code-facts/binding-usage-contract.ts";
 import type { SemanticInventory } from "../code-facts/semantic-inventory-contract.ts";
 import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
 
@@ -51,6 +52,7 @@ export interface SourceCorpus {
 export interface SemanticWorkspace {
   readonly root: string;
   readonly programs: readonly SemanticProgram[];
+  readonly bindingUsage: (source: SourceFile) => SourceBindingUsage;
   readonly program: (config: string) => SemanticProgram | undefined;
   /** Existing primary-root selection without materializing a Project. */
   readonly primaryOwner: (path: string) => SemanticProgram | undefined;
