@@ -1,25 +1,14 @@
 // A Zod field in an id-named position cannot remain a raw string unless the exact occurrence is waived.
 //
-// FAMILY (`id-brand-flow`): shared readers, no private door. Zod identity is `reference-fact-call.ts`
-// `resolveCallableOrigin` — the SAME reader `no-mint-via-cast` resolves its generator door with — and kit
+// FAMILY (`id-brand-flow`): shared readers, no private door. Zod identity is `zod-origin.ts`
+// `isFactoryCallFromPackage`; callable refusals use `resolveCallableOrigin` and the shared classifier. Kit
 // identity across the family is `id-brand.ts` (`createKitIdCallMatcher` for `no-mint-via-cast` /
 // `no-fake-disabled-id`, `canonicalIdBrand` for `no-loose-id-cast` / `brand-in-name-position`).
 // `schema-branding` is family `drizzle-schema`, not this one.
 //
-// THE PRIVATE WALK THIS REPLACED, and why it could not just be swapped. Until 2026-09-11 `isZodString` was a
-// walk over the CONSUMER'S authored import specifier, so it read a door SPELLING rather than an identity:
-// one `export { z } from "zod"` barrel anywhere in `packages/contracts/src/` would have turned this policy
-// off for every file importing through it, silently and with no declared limit. The obvious swap to the
-// shared reader KILLED the policy on the real tree instead (21 → 0 candidate hits in `packages/contracts`
-// alone, beside 21 `stale ordinary waiver` alarms proving it used to bite): zod 4.4.3 `index.d.cts:1,3` is
-// `import * as z from "./v4/classic/external.cjs";` then `export { z };`, and the shared reader refused that
-// NAMESPACE-forwarding re-export. The refusal was narrowed at its own home in the same commit
-// (`floor/code-facts/reference-fact-module.ts#republishedImport`, whose spec carries the renaming counterfactuals), so the
-// door now resolves `project ms=zod ex=z mp=[string]` and the swap is both safe and barrel-proof: 21 → 21,
-// zero lost sites. The proof harness cannot see any of this — `ops/policy-conformance.ts` runs `types` rows
-// on an in-memory project with NO `node_modules`, so a bare specifier lands `external-door` and the
-// resolution path that refused is never exercised. `mustFlag[2]` is the barrel row; it reported 0 against the
-// pre-fix module, which is its §4.7 planted-break receipt.
+// Module provenance retains the consumer's importing door, including a project barrel. Only canonical
+// installed declarations and callable member ownership establish Zod identity; an unresolved package door
+// proves spelling alone. Native controls retain both answers and the importing door independently.
 //
 // POPULATION PORT: an intentional WIDENING, plus one dead arm dropped. The legacy descriptor
 // (`5550ec4706^:tooling/src/verify/gates/no-raw-id.ts`) declared NO `scanRoot` at all, so it judged whatever
@@ -60,7 +49,7 @@ import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
-import type { ModuleMemberOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
+import { isFactoryCallFromPackage, ZOD_PACKAGE } from "../../floor/code-facts/zod-origin.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
@@ -98,11 +87,6 @@ function builderRoot(node: MorphNode): CallExpression | null {
   return null;
 }
 
-/** The package the origin ultimately enters through: a re-export barrel is a door spelling, never a package. */
-function moduleName(target: ModuleMemberOrigin): string {
-  return target.canonical.kind === "external-door" ? target.canonical.moduleSpecifier : target.moduleSpecifier;
-}
-
 /** Zod's `string` builder, reached as the bare export (`import { string } from "zod"`) or off the `z` object
  *  under any binding spelling — alias, namespace, computed member, or a re-export barrel. */
 function zodStringVerdict(root: CallExpression): "zod" | "other" | "unreadable" {
@@ -111,12 +95,13 @@ function zodStringVerdict(root: CallExpression): "zod" | "other" | "unreadable" 
     return classifyOriginRefusal(origin.reason, root.getExpression());
   }
   const target = origin.value.target;
-  if (target.kind !== "module" || moduleName(target) !== "zod") {
+  if (target.kind !== "module") {
     return "other";
   }
-  const path = [target.exportedName, ...target.memberPath];
-  const named = path.length === 1 ? path[0] === "string" : path.length === 2 && path[0] === "z" && path[1] === "string";
-  return named ? "zod" : "other";
+  if (target.canonical.kind === "external-door") {
+    return "unreadable";
+  }
+  return isFactoryCallFromPackage(root, "string", ZOD_PACKAGE) ? "zod" : "other";
 }
 
 function idProperty(node: MorphNode): { readonly name: string; readonly nameNode: MorphNode; readonly initializer: MorphNode } | null {
