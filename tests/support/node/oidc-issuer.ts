@@ -1,6 +1,6 @@
 // A scripted external issuer: native clients still own discovery, token processing and JWT verification.
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { JWTPayload } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import type { ServerHarnessOptions } from "./server.ts";
@@ -32,6 +32,8 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
   const grants = new Map<string, { readonly authorization: URL; readonly claims: JWTPayload }>();
   const calls: string[] = [];
   const idTokens: string[] = [];
+  let authorizationCount = 0;
+  let logoutCount = 0;
   const sign = (claims: JWTPayload): Promise<string> =>
     new SignJWT(claims).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY }).setIssuedAt().setExpirationTime("5m").sign(keys.privateKey);
   async function tokenResponse(request: Request): Promise<Response> {
@@ -67,7 +69,8 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
     idTokens,
     authorize: (authorizationUrl, claims): URL => {
       const authorization = new URL(authorizationUrl);
-      const code = randomUUID();
+      // This private scripted issuer needs unique grants, not the entropy of a production authorization server.
+      const code = `scripted-code-${String(++authorizationCount)}`;
       grants.set(code, { authorization, claims });
       const callback = new URL(authorization.searchParams.get("redirect_uri") ?? "");
       callback.searchParams.set("state", authorization.searchParams.get("state") ?? "");
@@ -81,7 +84,7 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
         aud: CLIENT_ID,
         iat: issuedAt,
         exp: issuedAt + TOKEN_LIFETIME_SECONDS,
-        jti: randomUUID(),
+        jti: `scripted-logout-${String(++logoutCount)}`,
         ...claims,
       };
       for (const claim of omittedClaims) {
