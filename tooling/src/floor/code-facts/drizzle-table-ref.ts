@@ -95,12 +95,23 @@ function tableTypeName(type: Type, at: MorphNode): string | undefined {
 
 /** The table names the expression's drizzle type carries: one per union member, or none when any member is not one. */
 function typeRefs(node: MorphNode): readonly DrizzleTableRef[] {
-  const type = node.getType();
-  const names = (type.isUnion() ? type.getUnionTypes() : [type]).map((member) => tableTypeName(member, node));
+  const names = tableTypeNames(node.getType(), node, new Set());
   if (names.length === 0 || names.some((name) => name === undefined)) {
     return [unresolved(node)];
   }
   return names.flatMap((sqlName) => (sqlName === undefined ? [] : [{ kind: "sql-name", sqlName }]));
+}
+
+function tableTypeNames(type: Type, at: MorphNode, active: ReadonlySet<object>): readonly (string | undefined)[] {
+  if (active.has(type.compilerType)) {
+    return [undefined];
+  }
+  const next = new Set(active).add(type.compilerType);
+  const constraint = type.isTypeParameter() ? type.getConstraint() : undefined;
+  if (constraint !== undefined) {
+    return tableTypeNames(constraint, at, next);
+  }
+  return type.isUnion() ? type.getUnionTypes().flatMap((member) => tableTypeNames(member, at, next)) : [tableTypeName(type, at)];
 }
 
 function callRefs(call: CallExpression, isTable: IsTable, active: ReadonlySet<object>): readonly DrizzleTableRef[] {

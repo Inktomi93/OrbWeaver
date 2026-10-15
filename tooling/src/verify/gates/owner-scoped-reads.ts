@@ -175,7 +175,6 @@ function authorizedAuthorityMint(assertion: AsExpression, authority: EveryOwnerA
 }
 
 const ID_COL = "id";
-const MAX_SUBQUERY_DEPTH = 4;
 const RELATIONAL_WITH = "with";
 
 const MESSAGE =
@@ -527,16 +526,19 @@ function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string
 }
 
 /** Does the subquery's inner select scope every owner-scoped table it reads with a pinned owner term? */
-function subqueryScoped(select: Node, scope: ReadScope, depth = 0): boolean {
+function subqueryScoped(select: Node, scope: ReadScope, active: ReadonlySet<object> = new Set()): boolean {
+  if (active.has(select.compilerNode)) {
+    return false;
+  }
+  const next = new Set(active).add(select.compilerNode);
   return innerReadAnchorsOf(select).every((anchor) => {
     if (anchor.kind === "relational") {
       return false;
     }
-    // A nested CTE is owner-relevant only when its own inner select is unscoped; the depth cap fails closed.
     const owned = tableRefsOf(anchor.table, scope.index).some(
       (ref) =>
         ref.kind === "unresolved" ||
-        (ref.kind === "subquery" && (depth >= MAX_SUBQUERY_DEPTH || !subqueryScoped(ref.select, scope, depth + 1))) ||
+        (ref.kind === "subquery" && !subqueryScoped(ref.select, scope, next)) ||
         (ref.kind === "table" && scope.ownerTables.has(ref.ident)),
     );
     const judged = judgedOf(anchor, scope);
@@ -675,7 +677,7 @@ export const gate = defineGate({
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const scope: ReadScope = {
-          observations: observeCallReturns(calls, references),
+          observations: observeCallReturns(calls, references, { suppliedCallableTargets: true }),
           schema: schemaFact.value,
           ownerTables: ownerScopedTableIdents(schemaFact.value),
           index: schemaTableIndex(schemaFact.value),

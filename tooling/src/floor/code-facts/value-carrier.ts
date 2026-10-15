@@ -1185,7 +1185,9 @@ function callableProjectionUse(use: Node, proof: CallableUseProof): boolean {
 }
 
 function selectedCallableValueUse(use: Node, proof: CallableUseProof): boolean | undefined {
-  return proof.selectedValue === true && proof.path.length === 0 && proof.program !== undefined
+  const invocation = use.getParent();
+  const calledFormal = N.isCallExpression(invocation) && invocation.getExpression() === use && callableFormalLeaf(use) !== undefined;
+  return (proof.selectedValue === true || calledFormal) && proof.path.length === 0 && proof.program !== undefined
     ? callableProjectedUse(use, callableSuppliedLeaves(use, [], proof.program, { bindings: proof.bindings, active: new Set() }), proof)
     : undefined;
 }
@@ -1314,6 +1316,15 @@ function callableOwnerUses(
   program: CallReturnProgram,
   admits?: (call: CallExpression) => boolean,
 ): UnresolvedReferenceFact | undefined {
+  const argument = valueSite(owner);
+  const argumentCall = argument.getParent();
+  if (carryingLiterals(owner).length === 0 && N.isCallExpression(argumentCall) && argumentCall.getArguments().includes(argument)) {
+    return callableContainingUseRefusal(sources, admits, program, {
+      continuation: { site: owner, path: [], bindings: new Map() },
+      completeInvocations: true,
+      selectedValue: true,
+    });
+  }
   const property = owner.getParent();
   const literal = property?.getParent();
   if (!(N.isPropertyAssignment(property) && property.getInitializer() === owner && N.isObjectLiteralExpression(literal))) {
