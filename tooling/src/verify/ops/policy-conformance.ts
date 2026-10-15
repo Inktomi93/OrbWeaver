@@ -6,20 +6,22 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import type { SourceFile } from "ts-morph";
+import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { Project, ts } from "ts-morph";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/code-facts/assignability.ts";
+import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation, GatePolicyProofGrant } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
 import { POLICY_REFUSAL_PREFIXES } from "../contract/policy-conformance.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
-import type { NativeCastRelations } from "../contract/project-context.ts";
+import type { NativeTypeFactReader, NativeTypeFacts } from "../contract/project-context.ts";
 import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { declaresModuleName } from "../lib/policy-descriptor-read.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyProofRows } from "../lib/policy-proof-rows.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
+import { nativeTypeFactSession } from "../lib/project-context.ts";
 import { ROOT } from "../lib/repo-paths.ts";
 import { invocationPolicies, messageOf } from "./policy-conformance-validation.ts";
 
@@ -104,19 +106,16 @@ const NO_GRANTS: GrantSets = [[]];
 
 /** One materialized fixture, ready to be passed over. `resourceOptions` is absent for the virtual substrates. */
 interface PassTarget {
-  readonly nativeCastRelations?: () => NativeCastRelations;
+  readonly nativeTypeFacts?: () => NativeTypeFacts;
   readonly policy: GatePolicy;
   readonly root: string;
   readonly project: Project;
   readonly resourceOptions?: Omit<ResourceHostOptions, "root">;
 }
 
-function runPass(
-  { policy, root, project, resourceOptions, nativeCastRelations }: PassTarget,
-  reviewedGrants: readonly ReviewedGateGrant[] = [],
-): PolicyPassResult {
+function runPass({ policy, root, project, resourceOptions, nativeTypeFacts }: PassTarget, reviewedGrants: readonly ReviewedGateGrant[] = []): PolicyPassResult {
   return runPolicyPass({
-    ...(nativeCastRelations === undefined ? {} : { nativeCastRelations }),
+    ...(nativeTypeFacts === undefined ? {} : { nativeTypeFacts }),
     knownPolicies: [policy],
     policies: [policy],
     root,
@@ -199,7 +198,7 @@ function* runTypeExample({ policy, proof, sequence, grantSets = NO_GRANTS }: Exa
       // Older signatures use bare Db. This aliases the actual fixture client, never a fabricated query shape.
       project.createSourceFile(join(root, "fixture-db-alias.d.ts"), 'type Db = import("@orb/db").Db;\n');
     }
-    yield* runPasses({ policy, root, project, nativeCastRelations: () => isolatedCastRelations(project) }, grantSets);
+    yield* runPasses({ policy, root, project, nativeTypeFacts: () => isolatedTypeFacts(project) }, grantSets);
   } catch (error) {
     yield { thrown: messageOf(error), root };
   } finally {
@@ -504,42 +503,50 @@ export function verifyPolicyProofs(policies: readonly GatePolicy[]): readonly Po
   return failures;
 }
 
-function isolatedCastRelations(project: Project): NativeCastRelations {
+function isolatedTypeFacts(project: Project): NativeTypeFacts {
   let program: ReturnType<Project["getProgram"]>["compilerObject"] | undefined;
   const sources = new Map(project.getSourceFiles().map((source) => [source, { node: source.compilerNode, text: source.getFullText() }]));
-  let open = true;
-  return {
-    read: (nodes): ReturnType<NativeCastRelations["read"]> => {
-      if (!open) {
-        throw new Error("isolated type proof checker epoch is unavailable");
+  const checkerFor = (nodes: readonly Node[]): TypeChecker => {
+    program ??= project.getProgram().compilerObject;
+    const capturedProgram = program;
+    if (project.getProgram().compilerObject !== capturedProgram) {
+      throw new Error("isolated type proof checker epoch is unavailable");
+    }
+    for (const node of nodes) {
+      const source = node.getSourceFile();
+      const captured = sources.get(source);
+      const leaf = source.getDescendantAtPos(node.getStart());
+      if (
+        node.wasForgotten() ||
+        node.getProject() !== project ||
+        captured === undefined ||
+        source.compilerNode !== captured.node ||
+        source.getFullText() !== captured.text ||
+        capturedProgram.getSourceFile(source.getFilePath()) !== source.compilerNode ||
+        !(leaf === node || leaf?.getAncestors().includes(node) === true)
+      ) {
+        throw new Error("isolated type proof query is outside its captured fixture source/epoch/span");
       }
-      program ??= project.getProgram().compilerObject;
-      const capturedProgram = program;
-      const checker = readAssignabilityChecker(project.getTypeChecker());
-      if (project.getProgram().compilerObject !== program || checker === undefined) {
-        throw new Error("isolated type proof checker epoch is unavailable");
-      }
-      return new Map(
-        nodes.map((node) => {
-          const source = node.getSourceFile();
-          const captured = sources.get(source);
-          if (
-            node.wasForgotten() ||
-            node.getProject() !== project ||
-            captured === undefined ||
-            source.compilerNode !== captured.node ||
-            source.getFullText() !== captured.text ||
-            capturedProgram.getSourceFile(source.getFilePath()) !== source.compilerNode ||
-            source.getDescendantAtStartWithWidth(node.getStart(), node.getWidth()) !== node
-          ) {
-            throw new Error("isolated type proof cast is outside its captured fixture source/epoch/span");
-          }
-          return [node, readNativeTypeRelation(checker, node.getExpression().getType(), node.getType())];
-        }),
-      );
-    },
-    [Symbol.dispose]: (): void => {
-      open = false;
-    },
+    }
+    return project.getTypeChecker();
   };
+  return nativeTypeFactSession(
+    (): NativeTypeFactReader => ({
+      castRelations: (nodes): ReturnType<NativeTypeFactReader["castRelations"]> => {
+        const checker = readAssignabilityChecker(checkerFor(nodes));
+        if (checker === undefined) {
+          throw new Error("isolated type proof checker epoch is unavailable");
+        }
+        return new Map(nodes.map((node) => [node, readNativeTypeRelation(checker, node.getExpression().getType(), node.getType())]));
+      },
+      idBrands: (nodes): ReturnType<NativeTypeFactReader["idBrands"]> => {
+        const checker = checkerFor(nodes);
+        return new Map(nodes.map((node) => [node, canonicalIdBrand(checker.getTypeAtLocation(node), node, checker)]));
+      },
+      [Symbol.dispose]: (): void => {
+        sources.clear();
+        program = undefined;
+      },
+    }),
+  );
 }

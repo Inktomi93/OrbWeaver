@@ -9,6 +9,10 @@ import type { InventoryFamily, InventoryPartition, StoredInventoryPartition } fr
 import { INVENTORY_FORMAT, INVENTORY_LISTS, INVENTORY_RECORD_TABLES, storedPartitionSchema } from "./semantic-inventory-contract.ts";
 import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInventoryRecords } from "./semantic-inventory-records.ts";
 
+const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
+// Partition format describes facts; this marker owns physical constraints.
+const STORAGE_SCHEMA_VERSION = 1;
+
 const generationRow = z.object({ generation: z.number() });
 const memberRow = z.object({ program: inventoryStringSchema, partition: z.string() });
 const stringRow = z.object({ value: inventoryStringSchema });
@@ -30,21 +34,57 @@ export function openInventoryDatabase(path: string): DatabaseSync {
   try {
     db.exec("PRAGMA busy_timeout=1000; PRAGMA foreign_keys=ON;");
     execWithBusyRetry(db, "PRAGMA journal_mode=WAL;");
-    execWithBusyRetry(
-      db,
-      `
-      CREATE TABLE IF NOT EXISTS inventory_partition(id TEXT PRIMARY KEY, program TEXT NOT NULL, format INTEGER NOT NULL, payload TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS inventory_generation(id INTEGER PRIMARY KEY, format INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS inventory_member(generation INTEGER NOT NULL REFERENCES inventory_generation(id), program TEXT NOT NULL, partition TEXT NOT NULL REFERENCES inventory_partition(id), PRIMARY KEY(generation,program));
-      ${INVENTORY_RECORD_TABLES.map((table) => `CREATE TABLE IF NOT EXISTS ${inventoryRecordTables[table].name}(${inventoryRecordTables[table].definition}) STRICT;`).join("\n")}
-      CREATE INDEX IF NOT EXISTS inventory_fact_file ON inventory_fact(partition,kind,file,ordinal);
-      CREATE INDEX IF NOT EXISTS inventory_fact_node ON inventory_fact(partition,kind,node,ordinal);
-      CREATE INDEX IF NOT EXISTS inventory_reference_origin ON inventory_reference(partition,declaration,ordinal);
-    `,
-    );
+    initializeStorageSchema(db);
     return db;
   } catch (error) {
     db.close();
+    throw error;
+  }
+}
+
+function storageSchemaVersion(db: DatabaseSync): number {
+  const version = storageVersionRow.parse(db.prepare("PRAGMA user_version").get()).user_version;
+  if (version !== 0 && version !== STORAGE_SCHEMA_VERSION) {
+    throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
+  }
+  return version;
+}
+
+function initializeStorageSchema(db: DatabaseSync): void {
+  // Current readers must not wait for a publication writer holding another connection.
+  if (storageSchemaVersion(db) === STORAGE_SCHEMA_VERSION) {
+    return;
+  }
+  beginInventoryWrite(db);
+  try {
+    // A competing opener may have completed the bootstrap while this connection waited.
+    if (storageSchemaVersion(db) === 0) {
+      const familyExists = db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='inventory_family'").get() !== undefined;
+      execWithBusyRetry(
+        db,
+        `
+        CREATE TABLE IF NOT EXISTS inventory_partition(id TEXT PRIMARY KEY, program TEXT NOT NULL, format INTEGER NOT NULL, payload TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS inventory_generation(id INTEGER PRIMARY KEY, format INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS inventory_member(generation INTEGER NOT NULL REFERENCES inventory_generation(id), program TEXT NOT NULL, partition TEXT NOT NULL REFERENCES inventory_partition(id), PRIMARY KEY(generation,program));
+        ${INVENTORY_RECORD_TABLES.map((table) => `CREATE TABLE IF NOT EXISTS ${inventoryRecordTables[table].name}(${inventoryRecordTables[table].definition}) STRICT;`).join("\n")}
+        CREATE INDEX IF NOT EXISTS inventory_fact_file ON inventory_fact(partition,kind,file,ordinal);
+        CREATE INDEX IF NOT EXISTS inventory_fact_node ON inventory_fact(partition,kind,node,ordinal);
+        CREATE INDEX IF NOT EXISTS inventory_reference_origin ON inventory_reference(partition,declaration,ordinal);
+      `,
+      );
+      if (familyExists) {
+        db.exec(`CREATE TABLE inventory_family_upgrade(${inventoryRecordTables.family.definition}) STRICT;`);
+        db.exec("INSERT INTO inventory_family_upgrade(partition,ordinal,name) SELECT partition,ordinal,name FROM inventory_family;");
+        db.exec("DROP TABLE inventory_family;");
+        db.exec("ALTER TABLE inventory_family_upgrade RENAME TO inventory_family;");
+      }
+      db.exec(`PRAGMA user_version=${String(STORAGE_SCHEMA_VERSION)};`);
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    if (db.isTransaction) {
+      db.exec("ROLLBACK");
+    }
     throw error;
   }
 }

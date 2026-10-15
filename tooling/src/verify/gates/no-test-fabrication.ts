@@ -120,6 +120,7 @@ export const gate = defineGate({
               return;
             }
             if (valueCastTarget(node) !== undefined) {
+              ctx.nativeTypes?.request({ kind: "cast-relations", nodes: [node] });
               candidates.push(node);
             }
           },
@@ -129,10 +130,10 @@ export const gate = defineGate({
         if (candidates.length === 0) {
           return;
         }
-        if (ctx.castRelations === undefined) {
+        if (ctx.nativeTypes === undefined) {
           throw new Error("no-test-fabrication: native cast relation context is unavailable");
         }
-        const relations = ctx.castRelations(candidates);
+        const relations = ctx.nativeTypes.castRelations(candidates);
         for (const node of candidates) {
           const relation = relations.get(node);
           if (relation === undefined) {

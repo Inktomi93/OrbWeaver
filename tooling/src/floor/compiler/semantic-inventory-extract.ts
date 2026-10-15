@@ -8,6 +8,7 @@ import type { FileSystemHost, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, ts } from "ts-morph";
 import type { AssignabilityChecker } from "../code-facts/assignability.ts";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../code-facts/assignability.ts";
+import { nativeIdBrand } from "../code-facts/id-brand.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
@@ -150,6 +151,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
+    ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
     ...(families.includes("cast-relations")
       ? [
           fileURLToPath(new URL("../code-facts/assignability.ts", import.meta.url)),
@@ -282,7 +284,7 @@ function assertAuthoredSyntax(original: SourceFile, admitted: SourceFile, spans:
   }
 }
 
-type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses" | "casts">;
+type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands">;
 interface SourceFactCollection {
   readonly families: ReadonlySet<InventoryFamily>;
   readonly spans: InventorySpans;
@@ -328,6 +330,16 @@ function collectCastFact(node: MorphNode, context: SourceFactCollection): void {
   });
 }
 
+function collectBrandFact(node: MorphNode, context: SourceFactCollection): void {
+  if (!(Node.isAsExpression(node) || Node.isTypeAliasDeclaration(node))) {
+    throw new Error("native brand visitor received another node kind");
+  }
+  const target = node.getTypeNode();
+  if (target !== undefined) {
+    context.values.brands.push({ node: context.spans.node(target), brand: nativeIdBrand(target) });
+  }
+}
+
 function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): void {
   const { families, spans, values } = context;
   if (families.has("modules")) {
@@ -343,6 +355,10 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
   if (families.has("cast-relations")) {
     visitors.set(SyntaxKind.AsExpression, [(node): void => collectCastFact(node, context)]);
   }
+  if (families.has("id-brands")) {
+    visitors.set(SyntaxKind.TypeAliasDeclaration, [(node): void => collectBrandFact(node, context)]);
+    visitors.set(SyntaxKind.AsExpression, [...(visitors.get(SyntaxKind.AsExpression) ?? []), (node): void => collectBrandFact(node, context)]);
+  }
   collectByKinds([sf], visitors);
 }
 
@@ -356,7 +372,7 @@ function extractSourceFacts(
   const context: SourceFactCollection = {
     ...input,
     authored,
-    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [] },
+    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [] },
     referenceDeclarations: new Map(),
     checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),
   };

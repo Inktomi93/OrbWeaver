@@ -130,6 +130,7 @@ test("unqualified syntax carriers refuse native importer, test and runtime reach
     format: INVENTORY_FORMAT,
     families: DEFAULT_INVENTORY_FAMILIES,
     casts: [],
+    brands: [],
     program: "tooling/tsconfig.json",
     descriptorVersion: "syntax-only-control",
     compilerOptionsJson: "{}",

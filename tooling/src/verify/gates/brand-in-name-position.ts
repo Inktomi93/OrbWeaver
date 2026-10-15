@@ -2,6 +2,7 @@
 // Compiler-resolved brand identity and the central ordinary-waiver plane replace the legacy text vocabulary,
 // three descendant walks, module-global pass state, @foreign-id-ok parser, and local stale-marker logic.
 //
+// Native context/epoch failure withholds the census; it never becomes a missing canonical position.
 // NO #944 THIRD ANSWER EXISTS HERE, audited #2041 — recorded rather than faked. The subject is a CENSUS
 // join, not a reference: canonical positions are collected from the type aliases declared in
 // `ID_BRAND_HOME` (with a `population` receipt naming their count) and joined by NAME against bare-string
@@ -12,7 +13,7 @@
 // for a census, since a partial roster would silently stop claiming positions. Its family siblings
 // (`no-mint-via-cast`, `no-fake-disabled-id`, `no-raw-id`) DO resolve origins and each carries the arm.
 //
-// FAMILY (`id-brand-flow`): the shared reader is `lib/id-brand.ts` — `canonicalIdBrand` (the checker-backed
+// FAMILY (`id-brand-flow`): the shared reader is `floor/code-facts/id-brand.ts` — `canonicalIdBrand` (the checker-backed
 // `[brand]`-property test, shared with `no-loose-id-cast`) and `ID_BRAND_HOME`, the one spelling of the ids
 // module every member of the family resolves against. The per-pass accumulators in `create` are invocation
 // state, which the contract allows; there is no private reader, table, walk or filesystem read.
@@ -68,10 +69,11 @@
 // `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
-import type { Node as MorphNode, TypeChecker, TypeNode } from "ts-morph";
+import type { Node as MorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { canonicalIdBrand, ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
+import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { defineGate } from "../contract/policy.ts";
+import type { NativeTypeContext } from "../contract/project-context.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 /** #2047, §5b.2: this text used to end *"wrong-id values therefore type-check AT THIS BOUNDARY."* That clause
@@ -137,26 +139,47 @@ function declaredBarePosition(node: MorphNode): BarePosition | null {
   return Node.isIdentifier(name) && type !== undefined && isBareString(type) ? { name: name.getText(), node: name } : null;
 }
 
-function collectCanonicalPosition(node: MorphNode, sourcePath: string, getChecker: () => TypeChecker, brands: Map<string, BrandPosition>): boolean {
+interface CanonicalPosition {
+  readonly typeName: string;
+  readonly target: TypeNode;
+}
+
+function canonicalPositionDeclaration(node: MorphNode, sourcePath: string): CanonicalPosition | undefined {
   if (!Node.isTypeAliasDeclaration(node) || sourcePath !== ID_BRAND_HOME) {
-    return false;
+    return;
   }
-  const typeNode = node.getTypeNode();
-  if (typeNode === undefined) {
+  const target = node.getTypeNode();
+  if (target === undefined) {
     throw new Error(`canonical id type ${node.getName()} has no type node`);
   }
-  const checker = getChecker();
-  const brand = canonicalIdBrand(checker.getTypeAtLocation(typeNode), typeNode, checker);
-  if (brand === null) {
-    return true;
+  return { typeName: node.getName(), target };
+}
+
+function canonicalPositions(declarations: readonly CanonicalPosition[], nativeTypes: NativeTypeContext | undefined): ReadonlyMap<string, BrandPosition> {
+  const brands = new Map<string, BrandPosition>();
+  if (declarations.length === 0) {
+    return brands;
   }
-  const name = positionName(node.getName());
-  const prior = brands.get(name);
-  if (prior !== undefined && (prior.typeName !== node.getName() || prior.brand !== brand)) {
-    throw new Error(`duplicate canonical id-brand position ${name}`);
+  if (nativeTypes === undefined) {
+    throw new Error("brand-in-name-position: native brand context is unavailable");
   }
-  brands.set(name, { typeName: node.getName(), brand });
-  return true;
+  const answers = nativeTypes.idBrands(declarations.map(({ target }) => target));
+  for (const { typeName, target } of declarations) {
+    const brand = answers.get(target);
+    if (brand === undefined) {
+      throw new Error("brand-in-name-position: native brand query is unavailable");
+    }
+    if (brand === null) {
+      continue;
+    }
+    const name = positionName(typeName);
+    const prior = brands.get(name);
+    if (prior !== undefined && (prior.typeName !== typeName || prior.brand !== brand)) {
+      throw new Error(`duplicate canonical id-brand position ${name}`);
+    }
+    brands.set(name, { typeName, brand });
+  }
+  return brands;
 }
 
 export const gate = defineGate({
@@ -172,14 +195,17 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const brands = new Map<string, BrandPosition>();
+    const declarations: CanonicalPosition[] = [];
     const bare: BarePosition[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.TypeAliasDeclaration, SyntaxKind.Parameter, SyntaxKind.PropertySignature, SyntaxKind.PropertyDeclaration],
           visit: (node, sourceFile) => {
-            if (collectCanonicalPosition(node, ctx.relativePath(sourceFile), ctx.checker, brands)) {
+            const declaration = canonicalPositionDeclaration(node, ctx.relativePath(sourceFile));
+            if (declaration !== undefined) {
+              ctx.nativeTypes?.request({ kind: "id-brands", nodes: [declaration.target] });
+              declarations.push(declaration);
               return;
             }
             const candidate = declaredBarePosition(node);
@@ -190,6 +216,7 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
+        const brands = canonicalPositions(declarations, ctx.nativeTypes);
         ctx.receipt({ kind: "population", source: "kit-id-brand-positions", members: brands.size });
         for (const candidate of bare) {
           const expected = brands.get(candidate.name);

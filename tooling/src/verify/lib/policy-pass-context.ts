@@ -14,7 +14,7 @@ import type {
 import type { PolicyFactValueRegistry, PolicySemanticReceipt } from "../contract/policy-pass.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { GatePolicyReceipt } from "../contract/policy-primitives.ts";
-import type { NativeCastRelations } from "../contract/project-context.ts";
+import type { NativeTypeContext, NativeTypeFacts, NativeTypeRequest } from "../contract/project-context.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { declarationHome } from "./declaration-home.ts";
@@ -38,7 +38,7 @@ interface ContextInput {
   readonly resources: ResourceHost;
   readonly resourceRequests: readonly GateResourceRequest[];
   readonly checker: () => TypeChecker;
-  readonly castRelations?: NativeCastRelations["read"];
+  readonly nativeTypes?: NativeTypeFacts;
   readonly findings: RawGateFinding[];
   readonly factValues: PolicyFactValueRegistry;
   readonly applicationPaths?: ReadonlySet<string>;
@@ -63,7 +63,7 @@ interface CapabilityContextInput {
   readonly resources: ResourceHost;
   readonly resourceRequests: readonly GateResourceRequest[];
   readonly checker: () => TypeChecker;
-  readonly castRelations?: NativeCastRelations["read"];
+  readonly nativeTypes?: NativeTypeFacts;
 }
 
 export interface FactContextRuntime extends Omit<PolicyContextRuntime, "context" | "unconsumedFacts"> {
@@ -210,6 +210,18 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     return found;
   };
   const receipt = (value: GatePolicyReceipt): void => acceptReceipt(receipts, value);
+  const nativeFacts = (nodes: readonly Node[]): NativeTypeFacts => {
+    if (input.analysis === "syntax") {
+      throw new Error(`syntax owner ${input.ownerId} ${POLICY_PASS_REFUSALS.syntaxOwnerNativeType}`);
+    }
+    if (input.nativeTypes === undefined) {
+      throw new Error(POLICY_PASS_REFUSALS.nativeTypeContextAbsent);
+    }
+    for (const node of nodes) {
+      relativePath(node.getSourceFile());
+    }
+    return input.nativeTypes;
+  };
   const context: GateFactContext = Object.freeze({
     files,
     resourcePaths,
@@ -226,17 +238,15 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     }),
     relativePath,
     sourceFile,
-    castRelations: (nodes: Parameters<NativeCastRelations["read"]>[0]): ReturnType<NativeCastRelations["read"]> => {
-      if (input.analysis === "syntax") {
-        throw new Error(`syntax owner ${input.ownerId} ${POLICY_PASS_REFUSALS.syntaxOwnerNativeCast}`);
-      }
-      if (input.castRelations === undefined) {
-        throw new Error(POLICY_PASS_REFUSALS.nativeCastContextAbsent);
-      }
-      for (const node of nodes) {
-        relativePath(node.getSourceFile());
-      }
-      return input.castRelations(nodes);
+    nativeTypes: {
+      request: (query: NativeTypeRequest): void => {
+        const facts = nativeFacts(query.nodes);
+        facts.request(input.ownerId, query);
+      },
+      castRelations: (nodes: Parameters<NativeTypeContext["castRelations"]>[0]): ReturnType<NativeTypeContext["castRelations"]> =>
+        nativeFacts(nodes).castRelations(input.ownerId, nodes),
+      idBrands: (nodes: Parameters<NativeTypeContext["idBrands"]>[0]): ReturnType<NativeTypeContext["idBrands"]> =>
+        nativeFacts(nodes).idBrands(input.ownerId, nodes),
     },
     checker: () => {
       if (input.analysis === "syntax") {
@@ -311,7 +321,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     resources: input.resources,
     resourceRequests: input.resourceRequests,
     checker: input.checker,
-    ...(input.castRelations === undefined ? {} : { castRelations: input.castRelations }),
+    ...(input.nativeTypes === undefined ? {} : { nativeTypes: input.nativeTypes }),
   });
   const deliveredPaths = new Set(capability.context.files.map(capability.context.relativePath));
   const effectivePaths = new Set([...deliveredPaths, ...capability.context.resourcePaths]);

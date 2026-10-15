@@ -17,6 +17,7 @@ import { INVENTORY_KEY_SEPARATOR, SemanticInventoryError } from "./semantic-inve
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 import {
   readInventoryBindings,
+  readInventoryBrands,
   readInventoryCasts,
   readInventoryExports,
   readInventoryModules,
@@ -150,6 +151,27 @@ export function inventoryReader(
       throw new SemanticInventoryError(`native semantic inventory family unavailable: ${family}`);
     }
   };
+  const nativeSpan = (node: Node, program: string, family: InventoryFamily): { readonly partition: StoredInventoryPartition; readonly span: InventorySpan } => {
+    assertOpen();
+    const selected = indexes.filter((candidate) => candidate.program === program);
+    const partition = selected[0];
+    if (selected.length !== 1 || partition === undefined) {
+      throw new SemanticInventoryError("native compiler partition is unavailable");
+    }
+    requireFamily(selected, family);
+    const source = node.getSourceFile();
+    const file = canonicalPath(source.getFilePath());
+    const recorded = texts.get(file);
+    if (
+      node.wasForgotten() ||
+      recorded === undefined ||
+      inventoryTextVersion(inventoryTextParts(source.getFullText())) !== recorded.source.textVersion ||
+      !partition.roots.includes(file)
+    ) {
+      throw new SemanticInventoryError("native typed source/epoch is not admitted by its captured native partition");
+    }
+    return { partition, span: capturedSpan(node) };
+  };
   // biome-ignore lint/nursery/useDisposables: the returned corpus delegates ownership to the same caller-owned inventory.
   const corpus: InventorySourceCorpus = {
     getSourceFiles: () =>
@@ -166,26 +188,18 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    idBrand: (node, program) => {
+      const { partition, span } = nativeSpan(node, program, "id-brands");
+      const matches = [...readInventoryBrands(db, partition.id, span)];
+      const match = matches[0];
+      if (matches.length !== 1 || match === undefined) {
+        throw new SemanticInventoryError("native id brand span is unavailable in its native partition");
+      }
+      return match.brand;
+    },
     castRelation: (node, program) => {
-      assertOpen();
-      const selected = indexes.filter((partition) => partition.program === program);
-      if (selected.length !== 1) {
-        throw new SemanticInventoryError("native cast compiler partition is unavailable");
-      }
-      requireFamily(selected, "cast-relations");
-      const source = node.getSourceFile();
-      const file = canonicalPath(source.getFilePath());
-      const recorded = texts.get(file);
-      if (
-        node.wasForgotten() ||
-        recorded === undefined ||
-        inventoryTextVersion(inventoryTextParts(source.getFullText())) !== recorded.source.textVersion ||
-        selected[0]?.roots.includes(file) !== true
-      ) {
-        throw new SemanticInventoryError("native cast source/epoch is not admitted by its captured native partition");
-      }
-      const captured = capturedSpan(node);
-      const matches = selected.flatMap((partition) => [...readInventoryCasts(db, partition.id, captured)]);
+      const { partition, span } = nativeSpan(node, program, "cast-relations");
+      const matches = [...readInventoryCasts(db, partition.id, span)];
       const match = matches[0];
       if (matches.length !== 1 || match === undefined) {
         throw new SemanticInventoryError("native cast relation span is unavailable in its native partition");

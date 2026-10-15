@@ -26,6 +26,11 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  brand: {
+    name: "inventory_brand",
+    columns: "ordinal,node,brand",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,brand TEXT,PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE}`,
+  },
   family: {
     name: "inventory_family",
     columns: "ordinal,name",
@@ -210,6 +215,10 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     const fact = witnessRecordSchema.parse(entry);
     emit("fact", "witnesses", ordinal, null, inventoryString(fact.name), spanId(entry.node), null, null, null);
     declarations("witnesses", ordinal, "declarations", entry.declarations);
+  });
+  partition.brands.forEach((entry, ordinal) => {
+    const fact = partitionSchema.shape.brands.element.parse(entry);
+    emit("brand", ordinal, spanId(fact.node), fact.brand === null ? null : inventoryString(fact.brand));
   });
   partition.casts.forEach((entry, ordinal) => {
     const result = castRelationResultSchema.parse(entry.result);

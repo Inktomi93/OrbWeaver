@@ -5,7 +5,7 @@ import type { GateFact } from "./fact.ts";
 import type { GateAuthorityBatchResult, GateOwnerCompletion, RawGateFinding, ReviewedGateGrant, WaiverBudget } from "./gate-authority.ts";
 import type { OrdinaryWaiverCarrierRefusal } from "./ordinary-waiver-source.ts";
 import type { GatePolicy } from "./policy.ts";
-import type { NativeCastRelations } from "./project-context.ts";
+import type { NativeTypeFacts } from "./project-context.ts";
 import type { ResourceHostOptions } from "./resource-host.ts";
 
 export const POLICY_PHASES = ["population", "create", "visitFile", "visit", "evaluate", "receipt"] as const;
@@ -98,8 +98,8 @@ export const POLICY_PASS_REFUSALS = Object.freeze({
   factUndeclared: "requested undeclared fact",
   factAbsent: "declared fact is absent from this pass",
   factNotFinished: "declared fact is not finished",
-  nativeCastContextAbsent: "native cast relation context is unavailable",
-  syntaxOwnerNativeCast: "cannot access native cast relations",
+  nativeTypeContextAbsent: "native type fact context is unavailable",
+  syntaxOwnerNativeType: "cannot access native type facts",
   syntaxOwnerChecker: "cannot access the type checker",
   resourceDeclaration: "resource declaration",
   resourceDeclarationEmpty: "resolved an empty fact",
@@ -178,7 +178,7 @@ export interface PolicyPassTiming {
 
 /** Internal invocation input. Project/root stop here and never enter GatePolicyContext. */
 export interface PolicyPassInput {
-  readonly nativeCastRelations?: () => NativeCastRelations;
+  readonly nativeTypeFacts?: () => NativeTypeFacts;
   /** Full loaded policy roster. Authority reconciliation needs unselected policy metadata. */
   readonly knownPolicies: readonly GatePolicy[];
   readonly policies: readonly GatePolicy[];

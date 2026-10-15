@@ -1,5 +1,5 @@
 // Canonical kit phantom-brand data derived from native declarations.
-import type { Node as MorphNode, SourceFile, Type, TypeChecker } from "ts-morph";
+import type { Node as MorphNode, SourceFile, Symbol as TsSymbol, Type, TypeChecker } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 
 export const ID_BRAND_HOME = "packages/kit/src/ids/index.ts";
@@ -31,9 +31,9 @@ export function deriveCanonicalTypeIdPrefixes(files: readonly SourceFile[], rela
   return prefixes;
 }
 
-/** Literal type carried by the canonical `[brand]` property, or null for an unrelated structural type. */
-export function canonicalIdBrand(type: Type, node: MorphNode, checker: TypeChecker): string | null {
-  const property = type
+/** Canonical declaration provenance, never a type-name or structural lookalike. */
+function canonicalBrandProperty(type: Type): TsSymbol | undefined {
+  return type
     .getProperties()
     .find((candidate) =>
       candidate
@@ -45,7 +45,18 @@ export function canonicalIdBrand(type: Type, node: MorphNode, checker: TypeCheck
             declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${ID_BRAND_HOME}`),
         ),
     );
+}
+
+/** Literal brand through the caller-owned checker; preserve the existing unrelated/error-type null answer. */
+export function canonicalIdBrand(type: Type, node: MorphNode, checker: TypeChecker): string | null {
+  const property = canonicalBrandProperty(type);
   return property === undefined ? null : checker.getTypeOfSymbolAtLocation(property, node).getText(node);
+}
+
+/** Standalone native wrappers retain their owning checker on the symbol, without acquiring a Project. */
+export function nativeIdBrand(node: MorphNode): string | null {
+  const property = canonicalBrandProperty(node.getType());
+  return property === undefined ? null : property.getTypeAtLocation(node).getText(node);
 }
 
 /** Canonical TypeID prefix carried by this type, or null for a prefixless/noncanonical brand. */

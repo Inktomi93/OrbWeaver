@@ -123,7 +123,7 @@ export interface PolicyPlannerInput {
   readonly applicationPaths?: readonly string[];
 }
 
-export interface PolicyPlanExecutionInput extends Pick<PolicyPassInput, "reviewedGrants" | "waiverBudget" | "resourceOptions" | "nativeCastRelations"> {
+export interface PolicyPlanExecutionInput extends Pick<PolicyPassInput, "reviewedGrants" | "waiverBudget" | "resourceOptions" | "nativeTypeFacts"> {
   readonly root: string;
   readonly project: Project;
   readonly corpus: PolicyPlannerCorpus;
