@@ -1,10 +1,12 @@
 // Cookie bytes stay Node-owned; HTTP proves admission, while internal account reads retain their resolved caller.
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { Principal } from "@orb/contracts/identity";
-import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
+import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
+import { readSessionCookie } from "@orb/server/entry/auth";
 import { z } from "zod";
-import type { CorpusCookieIdentity } from "../iso/corpus.ts";
+import type { CorpusCookieIdentity, CorpusWire } from "../iso/corpus.ts";
 import { corpusCookieIdentitySchema } from "../iso/corpus.ts";
+import { seedLoginBuckets } from "./factories/sessions.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -40,4 +42,73 @@ export async function captureCorpusCookieIdentity(root: ServerTestHarness, expec
     throw new Error("Corpus cookie does not admit the expected viewer");
   }
   return identity;
+}
+
+export interface CapturedCookieAuth {
+  readonly auth: CorpusWire["auth"];
+  readonly identity: Awaited<ReturnType<typeof captureCorpusCookieIdentity>>;
+  readonly cookie: string;
+  readonly loginBuckets: Awaited<ReturnType<typeof seedLoginBuckets>>["buckets"];
+  readonly secrets: readonly string[];
+}
+
+/** Capture the actual HTTP cookie path for Node corpus readers. */
+export async function captureCookieAuth(root: ServerTestHarness, viewer: Principal, password: string): Promise<CapturedCookieAuth> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.admin.resetPassword({ userId: viewer.userId, password });
+  const anonymousConfigResponse = await root.http.request("/api/auth/config");
+  if (!anonymousConfigResponse.ok) {
+    throw new Error(`synthetic corpus auth-config request failed (${anonymousConfigResponse.status})`);
+  }
+  const anonymousConfig = authConfigSchema.parse(await anonymousConfigResponse.json());
+  if (anonymousConfig.mode !== "local") {
+    throw new Error("synthetic corpus cookie capture requires the actual local-auth server configuration");
+  }
+  const anonymousMeResponse = await root.http.request("/api/auth/me");
+  if (!anonymousMeResponse.ok) {
+    throw new Error(`synthetic corpus anonymous identity request failed (${anonymousMeResponse.status})`);
+  }
+  const anonymousMe = authMeSchema.parse(await anonymousMeResponse.json());
+  if (anonymousMe.authenticated) {
+    throw new Error("synthetic corpus anonymous identity request unexpectedly admitted a principal");
+  }
+  const { response: login, buckets: loginBuckets } = await seedLoginBuckets(root.db, root.http.request, [
+    "/api/auth/login",
+    {
+      method: "POST",
+      headers: { [CSRF_HEADER]: "1", "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ handle: viewer.handle, password }),
+    },
+  ]);
+  if (!login.ok) {
+    throw new Error(`synthetic corpus viewer login failed (${login.status})`);
+  }
+  await login.arrayBuffer();
+  const cookie = login.headers
+    .getSetCookie()
+    .map((line) => line.split(";", 1).join(""))
+    .join("; ");
+  if (cookie === "") {
+    throw new Error("synthetic corpus viewer login returned no session cookie");
+  }
+  const signedInMeResponse = await root.http.request("/api/auth/me", { headers: { cookie } });
+  if (!signedInMeResponse.ok) {
+    throw new Error(`synthetic corpus signed-in identity request failed (${signedInMeResponse.status})`);
+  }
+  const signedInMe = authMeSchema.parse(await signedInMeResponse.json());
+  if (!signedInMe.authenticated || signedInMe.handle !== viewer.handle || signedInMe.role !== viewer.role) {
+    throw new Error("synthetic corpus login cookie did not admit the actual seeded viewer");
+  }
+  const signedInConfigResponse = await root.http.request("/api/auth/config", { headers: { cookie } });
+  if (!signedInConfigResponse.ok) {
+    throw new Error(`synthetic corpus signed-in auth-config request failed (${signedInConfigResponse.status})`);
+  }
+  const signedInConfig = authConfigSchema.parse(await signedInConfigResponse.json());
+  return {
+    auth: { anonymousConfig, anonymousMe, signedInConfig, signedInMe },
+    identity: await captureCorpusCookieIdentity(root, viewer, cookie),
+    cookie,
+    loginBuckets,
+    secrets: [password, cookie, readSessionCookie(new Headers({ cookie }), "http")].filter((value) => value !== null),
+  };
 }

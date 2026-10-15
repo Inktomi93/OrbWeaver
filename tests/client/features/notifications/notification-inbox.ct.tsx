@@ -1,13 +1,28 @@
+import { blobUrl } from "@orb/contracts/assets";
 import { createCorpusViewerReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { NotificationInboxStory } from "./_ct-stories.tsx";
+
+test.use({
+  corpusViewer: async ({ corpus }, provide) => {
+    const viewer = corpus.memberIdentities?.notificationReader.viewer;
+    if (viewer === undefined) {
+      throw new Error("The shared corpus omitted its native notification reader");
+    }
+    await provide(viewer);
+  },
+});
 
 test("the registered bell settles a held native inbox read into the captured unread state", async ({ corpus, mount, page }) => {
   const snapshots = corpus.notificationInbox;
   const reader = corpus.memberIdentities?.notificationReader.viewer;
   if (snapshots === undefined || reader === undefined) {
     throw new Error("The shared corpus omitted its native notification reader cohort");
+  }
+  const ownerAvatar = corpus.reads["character.list"][0]?.output.items.find((row) => row.avatarHash !== null)?.avatarHash;
+  if (ownerAvatar === undefined || ownerAvatar === null) {
+    throw new Error("The shared corpus omitted its owner-only media control");
   }
   const respond = createCorpusViewerReadResponder("notifications.list", reader.userId, snapshots.readerRaised);
   const hold = trpcHold<"notifications.list">();
@@ -22,6 +37,11 @@ test("the registered bell settles a held native inbox read into the captured unr
   await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
   hold.release(respond({}));
   await expect(page.getByRole("button", { name: "Notifications (2 unread)", exact: true })).toBeVisible();
+  const foreign = await page.evaluate(async (path) => {
+    const response = await fetch(path);
+    return { status: response.status, bytes: (await response.arrayBuffer()).byteLength };
+  }, blobUrl(ownerAvatar));
+  expect(foreign).toEqual({ status: 404, bytes: 0 });
   expect(trpc.inputs("notifications.list")).toEqual([{}]);
   expect(trpc.unstubbed()).toEqual([]);
 });

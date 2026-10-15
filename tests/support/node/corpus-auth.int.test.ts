@@ -2,16 +2,61 @@
 // @subject tests/support/node/corpus-auth.ts
 // @subject packages/server/src/entry/auth/seam.ts
 import "./composed-real.ts";
+import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { sessions } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { authConfigFromEnv, readSessionCookie } from "@orb/server/entry/auth";
+import { createCas } from "@orb/server/infra/storage/cas";
 import { eq } from "drizzle-orm";
+import { createCorpusHarness, loadCorpusFixture } from "./corpus.ts";
 import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 const PASSWORD = "native-shared-member-login-password";
+
+test("committed media uses native cookie ownership, exact CAS bytes and native variant refusals", { tags: "slow" }, async () => {
+  const source = loadCorpusFixture();
+  await using root = await createCorpusHarness();
+  const hash = source.wire.reads["character.list"][0]?.output.items.find((row) => row.avatarHash !== null)?.avatarHash;
+  const reader = source.wire.memberIdentities?.notificationReader.viewer;
+  if (hash === undefined || hash === null || reader === undefined) {
+    throw new Error("The committed corpus has no native media ownership cohort");
+  }
+  const bytes = Buffer.from(await createCas(source.layout.assets).read(root.ownerId, hash));
+  const owner = await root.principalFor(root.ownerId);
+  const ownerAuth = await captureCookieAuth(root, owner, PASSWORD);
+  const member = await root.principalFor(brandedId<UserId>().parse(reader.userId));
+  const memberAuth = await captureCookieAuth(root, member, PASSWORD);
+  const request = (path: string, cookie: string): Promise<Response> => Promise.resolve(root.http.request(path, { headers: { cookie, forwarded: "" } }));
+  const original = await request(blobUrl(hash), ownerAuth.cookie);
+  expect(original.status).toBe(200);
+  expect(original.headers.get("cache-control")).toBe("private, immutable");
+  expect(original.headers.get("x-content-type-options")).toBe("nosniff");
+  expect(Buffer.from(await original.arrayBuffer()).equals(bytes)).toBe(true);
+  const variant = await request(blobIconUrl(hash, 64), ownerAuth.cookie);
+  expect(variant.status).toBe(200);
+  expect(variant.headers.get("content-type")).toBe("image/webp");
+  expect((await variant.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  const refusals = [
+    await request(blobUrl(hash), memberAuth.cookie),
+    await request(blobIconUrl(hash, 64), memberAuth.cookie),
+    await request(blobUrl("0".repeat(64)), ownerAuth.cookie),
+    await request(`${blobUrl(hash)}?w=-1`, ownerAuth.cookie),
+    await request(`${blobIconUrl(hash, 64)}&v=unsupported`, ownerAuth.cookie),
+  ];
+  for (const response of refusals) {
+    expect(response.status).toBe(404);
+    expect((await response.arrayBuffer()).byteLength).toBe(0);
+  }
+  const anonymous = await request(blobUrl(hash), "");
+  expect(anonymous.status).toBe(401);
+  await anonymous.arrayBuffer();
+  expect(Buffer.from(await createCas(source.layout.assets).read(root.ownerId, hash)).equals(bytes)).toBe(true);
+});
 
 test("corpus cookie capture provisions and admits the actual member rather than resetting only the owner", async () => {
   await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });

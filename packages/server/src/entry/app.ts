@@ -186,6 +186,7 @@ export interface AppDeps {
   readonly physicalPeer?: PhysicalPeerRead;
   readonly liveBuses: LiveBuses;
   readonly importStagingDir?: string;
+  readonly clientDistDir?: Parameters<typeof resolveSpaDistDir>[0]["distDir"];
   readonly authConfig?: Pick<AuthConfig, "mode" | "defaultHandle">;
   readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
   readonly now: () => number;
@@ -514,7 +515,8 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   // The SPA static-serve registers LAST — every route above wins by order; only unmatched non-/api GETs
   // reach the bundle/fallback. No bundle: prod boot-fatal (inside resolve), dev skipped (vite serves it).
-  const spaDistDir = resolveSpaDistDir({ distDir: env.CLIENT_DIST_DIR, prod: env.NODE_ENV === "production" });
+  const { clientDistDir = env.CLIENT_DIST_DIR } = deps;
+  const spaDistDir = resolveSpaDistDir({ distDir: clientDistDir, prod: env.NODE_ENV === "production" });
   if (spaDistDir !== null) {
     registerSpa(plain, { distDir: spaDistDir });
   }

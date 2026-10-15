@@ -1,17 +1,21 @@
 // A capsule owns a new synthetic directory and the actual persisted graph. Private rows stay Node-owned;
 // only owner-validated wire captures may feed a later, separately authorized portable publication.
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { localPath } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { z } from "zod";
+import { createFrozenClock } from "../iso/clock.ts";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
-import { SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
+import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
 import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import type { seedCorpusConnection as produceCorpusConnection } from "./corpus-connection.ts";
 import type { seedCorpusImageVariants as produceCorpusImageVariants } from "./corpus-image-variants.ts";
@@ -45,7 +49,7 @@ import type {
 import type { seedCorpusStatsSettings as produceCorpusStatsSettings } from "./corpus-stats-settings.ts";
 import type { seedUserCredential as produceCredential } from "./factories/credentials.ts";
 import type { seedStats as produceSearchStats } from "./factories/stats.ts";
-import type { ServerHarnessOptions } from "./server.ts";
+import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
 const CORPUS_REPLAY_FILE = "replay.json";
@@ -115,8 +119,55 @@ export interface CorpusFixture {
 
 export interface PreparedCorpusFixture extends CorpusFixture, AsyncDisposable {}
 
-/** Resolve the shared corpus execution policy for producers and resumed graphs. @internal */
-export function corpusServerOptions(options: ServerHarnessOptions): ServerHarnessOptions {
+export interface CorpusServerHarness extends ServerTestHarness {
+  readonly corpus: PreparedCorpusFixture;
+}
+
+export type CorpusHarnessOptions = Omit<
+  ServerHarnessOptions,
+  "db" | "clock" | "ids" | "timers" | "ownerId" | "casDir" | "variantDir" | "importStagingDir" | "temporaryParentDir" | "relayDir" | "secretsDir" | "random"
+>;
+
+/** Resume a publication through the existing graph, joining it before closing and deleting its independent clone. */
+export async function createCorpusHarness(directory?: string, options: CorpusHarnessOptions = {}): Promise<CorpusServerHarness> {
+  const source = loadCorpusFixture(directory);
+  if (source.replay === undefined) {
+    throw new Error("Corpus server continuation requires replay state; publish this fixture with the canonical producer");
+  }
+  const owner = source.wire.reads["sessions.me"][0]?.output;
+  if (owner === undefined) {
+    throw new Error("Corpus server continuation requires its captured owner");
+  }
+  await using ownership = new AsyncDisposableStack();
+  const parent = await mkdtemp(join(tmpdir(), "orb-corpus-server-"));
+  ownership.defer(() => rm(parent, { recursive: true, force: true }));
+  const corpus = ownership.use(await cloneCorpusFixture(source, join(parent, "consumer")));
+  const { createDb, preCloseHousekeeping } = await import("@orb/db");
+  const db = await createDb(corpus.layout.databaseUrl);
+  ownership.defer(() => preCloseHousekeeping(db));
+  const { authConfigFromEnv } = await import("@orb/server/entry/auth");
+  const { createServerHarness } = await import("./server.ts");
+  const { timers: _timers, relayDir: _relayDir, secretsDir: _secretsDir, ...execution } = corpusServerOptions(options);
+  const root = ownership.use(
+    await createServerHarness({
+      ...execution,
+      db,
+      ownerId: brandedId<UserId>().parse(owner.userId),
+      clock: createFrozenClock(source.replay.nowMs),
+      ids: createSeededIds(source.replay.idCursor),
+      authConfig: options.authConfig ?? { ...authConfigFromEnv(), mode: "local", fallback: "deny", defaultHandle: owner.handle },
+      casDir: corpus.layout.assets,
+      variantDir: corpus.layout.variants,
+      importStagingDir: corpus.layout.importStaging,
+      temporaryParentDir: parent,
+    }),
+  );
+  const lifetime = ownership.move();
+  return { ...root, corpus, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+}
+
+// Producers and resumed graphs share the canonical stateless corpus random, not caller overrides.
+function corpusServerOptions(options: ServerHarnessOptions): ServerHarnessOptions {
   const { random: _random, ...server } = options;
   return server;
 }
@@ -234,9 +285,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusImageVariants } = await import("./corpus-image-variants.ts");
   const { createCorpusImageWire } = await import("./corpus-image-wire.ts");
   const { createServerHarness } = await import("./server.ts");
-  const { createFrozenClock } = await import("../iso/clock.ts");
   const { createControlledTimers } = await import("../iso/timers.ts");
-  const { createSeededIds } = await import("../iso/ids.ts");
   const { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
   const { seedUserCredential } = await import("./factories/credentials.ts");
   const { seedCorpusPlugins } = await import("./corpus-plugin.ts");
