@@ -7,7 +7,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult } from "@orb/testkit/node/sdk-process.ts";
-import { SDK_PRIVATE_DIAGNOSTIC_SINKS, sdkPrivateDiagnosticResultSchema } from "@orb/testkit/node/sdk-process.ts";
+import { SDK_PRIVATE_DIAGNOSTIC_SINKS, SDK_SCRIPT_IDENTITY_TYPE, sdkPrivateDiagnosticResultSchema } from "@orb/testkit/node/sdk-process.ts";
 
 const TOKEN = 'private-sdk-"<opaque>\\credential-material';
 const JSON_TOKEN = JSON.stringify(TOKEN).slice(1, -1);
@@ -88,6 +88,8 @@ for (const sink of SDK_PRIVATE_DIAGNOSTIC_SINKS) {
     expect(result.appLogs.join("\n")).not.toContain(TOKEN);
     expect(bytes).not.toContain(TOKEN);
     expect(bytes).not.toContain(JSON_TOKEN);
+    expect(bytes).not.toContain(SDK_SCRIPT_IDENTITY_TYPE);
+    expect(result.appLogs.join("\n")).not.toContain(SDK_SCRIPT_IDENTITY_TYPE);
   });
 }
 

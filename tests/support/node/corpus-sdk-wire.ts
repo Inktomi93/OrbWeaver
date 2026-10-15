@@ -16,7 +16,7 @@ import { createSdkProcessSpawner } from "./sdk-process.ts";
 const receiptSchema = z.object({ sessionId: z.uuid(), resume: z.uuid().nullable(), frames: z.array(z.json()), prompt: z.string() });
 
 /** Observe external protocol receipts and physical close without replacing a native process or Query. */
-export function createCorpusSdkExecution(controls: { readonly deferHoldExit?: boolean } = {}): {
+export function createCorpusSdkExecution(controls: { readonly deferHoldExit?: boolean; readonly prompts?: readonly string[] } = {}): {
   readonly spawn: AgentSdkSpawn;
   readonly receipts: readonly z.infer<typeof receiptSchema>[];
   readonly children: readonly ChildProcessWithoutNullStreams[];
@@ -25,12 +25,13 @@ export function createCorpusSdkExecution(controls: { readonly deferHoldExit?: bo
   readonly eof: Promise<void>;
   readonly releaseHeldExit: () => void;
 } {
+  const execute = createSdkProcessSpawner(new URL("./corpus-sdk-child.mjs", import.meta.url), controls.deferHoldExit === true ? [CORPUS_SDK_DEFER_EXIT] : []);
   const receipts: z.infer<typeof receiptSchema>[] = [];
   const children: ChildProcessWithoutNullStreams[] = [];
   const closes: Promise<void>[] = [];
   const holding = Promise.withResolvers<void>();
   const eof = Promise.withResolvers<void>();
-  const pendingPrompts =
+  const defaultPrompts =
     controls.deferHoldExit === true
       ? [CORPUS_SDK_HOLD]
       : [
@@ -45,6 +46,7 @@ export function createCorpusSdkExecution(controls: { readonly deferHoldExit?: bo
           CORPUS_SDK_QUERY,
           CORPUS_SDK_HOLD,
         ];
+  const pendingPrompts = [...(controls.prompts ?? defaultPrompts)];
   const failures: Error[] = [];
   const observeLine = (line: string): void => {
     if (line === CORPUS_SDK_EOF) {
@@ -75,8 +77,7 @@ export function createCorpusSdkExecution(controls: { readonly deferHoldExit?: bo
       }
     },
     spawn: (options): ChildProcessWithoutNullStreams => {
-      const args = controls.deferHoldExit === true ? [...options.args, CORPUS_SDK_DEFER_EXIT] : options.args;
-      const child = createSdkProcessSpawner(new URL("./corpus-sdk-child.mjs", import.meta.url), args)(options);
+      const child = execute(options);
       children.push(child);
       closes.push(new Promise((resolve) => child.once("close", () => resolve())));
       let pending = "";

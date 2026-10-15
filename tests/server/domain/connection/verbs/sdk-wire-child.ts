@@ -1,8 +1,9 @@
 // Raw external process bytes only; the installed SDK still owns Query, control routing and JSON decoding.
-import { randomUUID } from "node:crypto";
 import process from "node:process";
-import { createInterface } from "node:readline";
+import { readSdkProcessInput } from "@orb/testkit/node/sdk-process.ts";
 import { z } from "zod";
+
+const { sessionId, frameId, lines } = await readSdkProcessInput();
 
 const inputSchema = z.object({
   type: z.string(),
@@ -77,16 +78,17 @@ function writeMetadata(model: string, mode: string, common: Readonly<Record<stri
     },
   ];
   for (const entry of mode === "metadata" ? frames : frames.filter((candidate) => candidate.mode === mode)) {
-    write({ ...common, ...entry.frame });
+    write({ ...common, uuid: frameId(entry.mode), ...entry.frame });
   }
 }
 
-function writeTurn(model: string, mode: string, sessionId: string): void {
-  const common = { ["session_id"]: sessionId, uuid: randomUUID() };
-  write({ ...common, type: "system", subtype: "init", apiKeySource: "none", model });
+function writeTurn(model: string, mode: string): void {
+  const common = { ["session_id"]: sessionId };
+  write({ ...common, uuid: frameId("init"), type: "system", subtype: "init", apiKeySource: "none", model });
   writeMetadata(model, mode, common);
   write({
     ...common,
+    uuid: frameId("assistant"),
     type: "assistant",
     message: {
       role: "assistant",
@@ -128,6 +130,7 @@ function writeTurn(model: string, mode: string, sessionId: string): void {
   };
   write({
     ...common,
+    uuid: frameId("result"),
     type: "result",
     subtype: "success",
     ["duration_ms"]: 1,
@@ -167,8 +170,6 @@ async function run(): Promise<void> {
   if (mode === undefined || model === undefined) {
     throw new Error("SDK wire child requires its explicit case and model");
   }
-  const sessionId = randomUUID();
-  const lines = createInterface({ input: process.stdin });
   for await (const line of lines) {
     const message = inputSchema.parse(JSON.parse(line));
     if (message.type === "control_request") {
@@ -179,7 +180,7 @@ async function run(): Promise<void> {
     if (message.type !== "user") {
       throw new Error("unscripted SDK wire input");
     }
-    writeTurn(model, mode, sessionId);
+    writeTurn(model, mode);
   }
 }
 

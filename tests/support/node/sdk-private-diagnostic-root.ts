@@ -7,9 +7,11 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { logRing } from "@orb/server/foundation/observability";
 import type { SdkPrivateDiagnosticResult } from "./contract/sdk-private-diagnostics.ts";
 import { sdkPrivateDiagnosticInputSchema } from "./contract/sdk-private-diagnostics.ts";
+import { createSdkProcessIdentity } from "./sdk-process.ts";
 import { createServerHarness } from "./server.ts";
 
 const input = sdkPrivateDiagnosticInputSchema.parse(JSON.parse(process.argv[2] ?? ""));
+const identify = createSdkProcessIdentity();
 const children: ChildProcessWithoutNullStreams[] = [];
 const closes: Promise<void>[] = [];
 await using harness = await createServerHarness({
@@ -19,6 +21,7 @@ await using harness = await createServerHarness({
     executableArgs: ["--no-warnings"],
     pathToClaudeCodeExecutable: fileURLToPath(new URL("./sdk-timer-process.mjs", import.meta.url)),
     onNativeProcessCreated: (child): void => {
+      identify(child);
       children.push(child);
       closes.push(new Promise<void>((resolve) => child.once("close", () => resolve())));
     },

@@ -1,12 +1,10 @@
 // Native Query reads these external process bytes; this script owns no SDK session or decoder.
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import process from "node:process";
-import { createInterface } from "node:readline";
 import { setImmediate } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { writeSdkControlReply } from "./sdk-process-control.mjs";
+import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
 
 if (process.argv[2] === "late-diagnostic") {
   process.stderr.write("sdk-late-diagnostic: café complete\n", () => process.exit(0));
@@ -36,10 +34,9 @@ process.on("SIGTERM", () => {
 });
 // biome-ignore lint/style/noProcessEnv: this external executable consumes the actual prepared subprocess credential to prove split raw/JSON stderr scrubbing, not app configuration.
 const token = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-const sessionId = randomUUID();
-const lines = createInterface({ input: process.stdin });
+const { sessionId, frameId, lines } = await readSdkProcessInput();
 function write(value) {
-  process.stdout.write(`${JSON.stringify(value)}\n`);
+  process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(value.type === "system" ? value.subtype : value.type) })}\n`);
 }
 
 for await (const line of lines) {
@@ -126,7 +123,7 @@ for await (const line of lines) {
     process.stderr.write("sdk-owned:holding\n");
     continue;
   }
-  const common = { ["session_id"]: sessionId, uuid: randomUUID() };
+  const common = { ["session_id"]: sessionId };
   write({
     ...common,
     type: "system",

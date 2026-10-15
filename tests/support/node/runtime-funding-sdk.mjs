@@ -1,9 +1,9 @@
 // A trusted physical SDK executable: native Query still owns decoding, sessions and cancellation.
 
-import { randomUUID } from "node:crypto";
 import process from "node:process";
-import { createInterface } from "node:readline";
-import { writeSdkControlReply } from "./sdk-process-control.mjs";
+import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
+
+const { sessionId, frameId, lines } = await readSdkProcessInput();
 
 const MODEL = "funding-model";
 const PRE_MARKER = "pre-compaction";
@@ -12,8 +12,8 @@ const COMPACTION_PROMPT = "Conversation to summarize:";
 const NORMAL_REPLY = "native funding reply";
 const REJECTION = "the physical compaction credential was rejected";
 
-function write(frame) {
-  process.stdout.write(`${JSON.stringify({ ...frame, uuid: randomUUID() })}\n`);
+function write(frame, identity = frame.type === "system" ? "init" : frame.type) {
+  process.stdout.write(`${JSON.stringify({ ...frame, uuid: frameId(identity) })}\n`);
 }
 
 function textOf(message) {
@@ -42,7 +42,7 @@ function answer(message) {
   }
   const compaction = prompt.includes(COMPACTION_PROMPT);
   const rejected = compaction || prompt.includes("native-auth-rejection");
-  const common = { ["session_id"]: randomUUID() };
+  const common = { ["session_id"]: sessionId };
   write({
     ...common,
     type: "system",
@@ -67,13 +67,16 @@ function answer(message) {
       clearTimeout(deadline);
       writeTerminal(common, true, 0);
     });
-    write({ ...common, type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "partial funding response" }] } });
-    write({
-      ...common,
-      type: "stream_event",
-      ["parent_tool_use_id"]: null,
-      event: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "partial funding response" } },
-    });
+    write({ ...common, type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "partial funding response" }] } }, "partial");
+    write(
+      {
+        ...common,
+        type: "stream_event",
+        ["parent_tool_use_id"]: null,
+        event: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "partial funding response" } },
+      },
+      "stream",
+    );
     return;
   }
   writeTerminal(common, rejected, pre ? 1 : 10_000);
@@ -110,8 +113,7 @@ function writeTerminal(common, failed, inputTokens) {
   });
 }
 
-const input = createInterface({ input: process.stdin });
-for await (const line of input) {
+for await (const line of lines) {
   if (line.length > 0) {
     answer(JSON.parse(line));
   }
