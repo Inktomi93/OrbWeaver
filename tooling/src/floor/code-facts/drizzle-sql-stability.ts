@@ -1,6 +1,6 @@
 // Mutable native SQL and subquery carriers require a closed set of read-only local composition uses.
 import type { Node as MorphNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node } from "ts-morph";
 import { readObservedCallableConsumers } from "./call-returns.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { readDrizzleSelection, readFollowingSelectChain } from "./drizzle-select.ts";
@@ -13,6 +13,7 @@ import { enclosingFn } from "./function-context.ts";
 import { inspectReferenceWrites, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import type { CallReturnProgram } from "./reference-fact-contract.ts";
 import { unprovenReferenceUse } from "./reference-fact-writes.ts";
+import { isIdentityObservation } from "./value-carrier.ts";
 export const CONTAINED_OPERATORS = [
   "and",
   "or",
@@ -36,12 +37,6 @@ export const CONTAINED_OPERATORS = [
   "asc",
   "desc",
 ] as const;
-
-function identityObservation(node: MorphNode | undefined): boolean {
-  return (
-    Node.isBinaryExpression(node) && [SyntaxKind.EqualsEqualsEqualsToken, SyntaxKind.ExclamationEqualsEqualsToken].includes(node.getOperatorToken().getKind())
-  );
-}
 
 function transparentSqlUse(use: MorphNode): MorphNode {
   let value = use;
@@ -251,7 +246,7 @@ function sqlContainingUse(value: MorphNode, active: ReadonlySet<object>, program
   if (returnedOwner !== undefined) {
     return returnedSqlUse(returnedOwner, active, program);
   }
-  if (identityObservation(parent)) {
+  if (isIdentityObservation(parent)) {
     return true;
   }
   if (Node.isAwaitExpression(parent)) {

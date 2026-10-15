@@ -160,6 +160,8 @@ export interface CallReturnObservation {
   readonly call: CallExpression;
   readonly target: ReferenceFact<Node>;
   readonly targets: ReferenceFact<readonly Node[]>;
+  /** Possible bodies of a native optional invocation; never a returned-data or mandatory-execution fact. */
+  readonly invocationTargets?: ReferenceFact<readonly Node[]>;
   readonly alternatives: ReferenceFact<readonly CallReturnAlternative[]>;
   readonly returns: ReferenceFact<readonly Node[]>;
 }
@@ -181,6 +183,9 @@ export interface CallReturnProgram {
   };
   readonly nativeReturnPaths?: (node: Node, explicitAbsentReturns: boolean) => ReferenceFact<readonly Node[]>;
   readonly nativeValueTransfers?: true;
+  readonly suppliedCallableTargets?: true;
+  readonly suppliedCallableUses?: (owner: Node) => ReferenceFact<true>;
+  readonly suppliedCallableValue?: (node: Node) => ReferenceFact<CallableDeclaration>;
   readonly program: ts.Program;
   readonly sources: ReadonlyMap<SourceFile, ts.SourceFile>;
   readonly calls: readonly CallReturnObservation[];
@@ -214,6 +219,7 @@ export interface ReturnedValueSource {
 
 /** Shared traversal state; the native concern receives the same captured world, bindings and cycle set. */
 export interface ReturnedValueContext {
+  readonly callableValues?: true;
   readonly nativeValueTransfers: boolean;
   readonly nativeIterations: ReadonlyMap<Node, NativeValueIteration>;
   readonly explicitAbsentReturns: boolean;
@@ -239,6 +245,11 @@ export interface ReturnedValueInputs {
   readonly explicitAbsentReturns?: true;
   readonly terminals: ReturnedValueTerminals;
   readonly bindings: ReadonlyMap<Node, Node>;
+}
+
+/** Target refinement is independent of returned-data projection and remains explicitly requested. */
+export interface CallReturnCaptureOptions extends Pick<ReturnedValueInputs, "explicitAbsentReturns" | "nativeValueTransfers"> {
+  readonly suppliedCallableTargets?: true;
 }
 
 /** Consumers identify actual native terminal calls on demand, without an additional call inventory. */

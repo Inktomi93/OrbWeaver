@@ -204,7 +204,7 @@ test("native literal batch closes a returned carrier's statement", async ({ plan
   expect(statement.escapes).toBe(false);
 });
 
-test("actual retained relation and selected callback retain native batch origin", async ({ plantedTree, repoRoot }) => {
+test("actual retained relation reaches the native owner policy", async ({ plantedTree, repoRoot }) => {
   const source = await readFile(join(repoRoot, "packages/server/src/domain/stats/persistence/owner-chat-scope.ts"), "utf8");
   const contract = await readFile(join(repoRoot, "packages/server/src/domain/stats/contract/retained-chat-accounting.ts"), "utf8");
   const accounting = await readFile(join(repoRoot, "packages/server/src/domain/stats/persistence/retained-chat-accounting.ts"), "utf8");
@@ -214,6 +214,8 @@ test("actual retained relation and selected callback retain native batch origin"
     throw new Error("the actual retained producers changed their declaration shape");
   }
   const producer = source
+    .replace('import type { ChatId } from "@orb/kit/ids";', "")
+    .replaceAll(": ChatId", ": typeof chats.$inferSelect.id")
     .replace('import type { RetainedChatOwnersQuery } from "../contract/retained-chat-accounting.ts";', "")
     .replace(": RetainedChatOwnersQuery =>", " =>")
     .replace('from "../contract/retained-chat-accounting.ts"', 'from "../contract/retained-chat-accounting.js"');
@@ -240,11 +242,17 @@ export async function read(db:Db,ownerId:string,chatId:Parameters<typeof retaine
   if (selected === undefined) {
     throw new Error("the actual retained selected callback was not loaded");
   }
-  beginReferencePass();
-  try {
-    const observations = statementObservations(fixture.root, fixture.project);
-    expect(readSqlOperandContainment(selected, new Map(), observations)).toBe(true);
-  } finally {
-    endReferencePass();
-  }
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: fixture.root,
+    project: fixture.project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  console.log("actual retained owner policy", result.authority.effectiveFindings);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.owner.status).toBe("success");
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
 });

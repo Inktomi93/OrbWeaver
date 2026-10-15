@@ -2,7 +2,7 @@
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import { isDocumentationLinkReference, resolveStableExpression } from "./reference-fact.ts";
-import { unwrapTarget } from "./reference-fact-alias.ts";
+import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
 import type {
   CallReturnObservation,
   CallReturnObservations,
@@ -43,8 +43,17 @@ function suppliedArgument(parameter: import("ts-morph").ParameterDeclaration, ar
   return { kind: "resolved", value, trace: { declarations: [parameter], origin: argument ?? parameter } };
 }
 
+function suppliedEpochRefusal(node: MorphNode, program: CallReturnProgram | undefined): UnresolvedReferenceFact | undefined {
+  const admitted = program?.suppliedCallableTargets === true ? readCallReturnProgram(node, { programs: [program] }) : undefined;
+  return admitted?.kind === "unresolved" ? admitted : undefined;
+}
+
 /** Complete observed consumers of one actual callable; sparse or escaping reference coverage refuses. */
 export function readObservedCallableConsumers(owner: MorphNode, program: CallReturnProgram): ReferenceFact<readonly CallReturnObservation[]> {
+  const epoch = suppliedEpochRefusal(owner, program);
+  if (epoch !== undefined) {
+    return epoch;
+  }
   if (
     !(Node.isFunctionDeclaration(owner) || Node.isArrowFunction(owner) || Node.isFunctionExpression(owner) || Node.isMethodDeclaration(owner)) ||
     owner.getBody() === undefined
@@ -54,11 +63,6 @@ export function readObservedCallableConsumers(owner: MorphNode, program: CallRet
   if (!program.referencesObserved) {
     return unresolved("missing", owner, "callable reference coverage was not supplied", [owner]);
   }
-  const escaped = program.escapingReferences.get(owner.compilerNode)?.[0];
-  if (escaped !== undefined) {
-    return escaped;
-  }
-  const callers = program.callers.get(owner.compilerNode) ?? [];
   const parent = owner.getParent();
   let name: MorphNode | undefined;
   if (Node.isFunctionDeclaration(owner)) {
@@ -66,6 +70,15 @@ export function readObservedCallableConsumers(owner: MorphNode, program: CallRet
   } else if (Node.isVariableDeclaration(parent)) {
     name = parent.getNameNode();
   }
+  const containing = !Node.isIdentifier(name) ? program.suppliedCallableUses?.(owner) : undefined;
+  if (containing?.kind === "unresolved") {
+    return containing;
+  }
+  const escaped = program.escapingReferences.get(owner.compilerNode)?.[0];
+  if (escaped !== undefined) {
+    return escaped;
+  }
+  const callers = program.callers.get(owner.compilerNode) ?? [];
   if (Node.isIdentifier(name)) {
     const accepted = new Set([name, ...callers.flatMap((caller) => [caller.call.getExpression(), ...caller.call.getExpression().getDescendants()])]);
     const missing = unprovenReferenceUse(name, (use) => isDocumentationLinkReference(use) || accepted.has(use));
@@ -84,7 +97,11 @@ export function readSuppliedParameter(
   bindings: ReadonlyMap<MorphNode, MorphNode>,
   program: CallReturnProgram | undefined,
 ): ReferenceFact<readonly import("./reference-fact-contract.ts").ReturnedValueSource[]> {
-  const parameter = node.getSymbol()?.getValueDeclaration();
+  const epoch = suppliedEpochRefusal(node, program);
+  if (epoch !== undefined) {
+    return epoch;
+  }
+  const parameter = (Node.isIdentifier(node) ? lexicalReferenceSymbol(node) : node.getSymbol())?.getValueDeclaration();
   if (!Node.isParameterDeclaration(parameter)) {
     return unresolved("unsupported", node, "the value is not a formal parameter", []);
   }
