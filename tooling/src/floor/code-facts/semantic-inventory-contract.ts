@@ -164,6 +164,8 @@ export interface SemanticInventory extends Disposable {
   readonly generation: number;
   readonly programs: readonly string[];
   readonly canonicalPath: (path: string) => string;
+  /** Compare captured physical syntax, never typed meaning between compiler worlds. */
+  readonly sameNode: (left: Node, right: Node) => boolean;
   readonly sourceCorpus: () => InventorySourceCorpus;
   readonly exports: (source: SourceFile, importer?: Node) => ReadonlyMap<string, readonly Node[]>;
   readonly moduleTarget: (node: Node) => SourceFile | undefined;

@@ -1,6 +1,6 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleKind, ModuleResolutionKind, Project, SyntaxKind } from "ts-morph";
-import { buildLiveness, deadEvidenceFor } from "../../../../tooling/src/ast/index.ts";
+import { buildLiveness, collectApiSurface, collectOrphanCandidates, deadEvidenceFor } from "../../../../tooling/src/ast/index.ts";
 import { INVENTORY_VERBS } from "../../../../tooling/src/ast/ops/verbs.ts";
 import { dynamicModuleTarget, importerModulePath, relativeModuleTarget as resolveModule } from "../../../../tooling/src/floor/code-facts/module-target.ts";
 import { declarationsNamed } from "../../../../tooling/src/floor/code-facts/reference-declarations.ts";
@@ -10,6 +10,7 @@ import {
   literalTypeIndex,
   readMemberAccess,
 } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
+import { declarationBindingKeys } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { semanticReferenceNodes } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 
 function sourceOf(text: string): ReturnType<Project["createSourceFile"]> {
@@ -129,4 +130,78 @@ export function consuming(value: Shape): void { callable(); }
   const live = buildLiveness(project);
   expect(deadEvidenceFor(project, source.getFunctionOrThrow("callable"), "callable", live)).toMatchObject({ prodCount: 1, verdict: "ALIVE" });
   expect(deadEvidenceFor(project, source.getInterfaceOrThrow("Shape"), "Shape", live)).toMatchObject({ prodCount: 1, verdict: "ALIVE" });
+});
+
+test("own-file liveness excludes every documentation link spelling without excluding code, types or explicit markers", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/repo/packages/kit/src/documentation.ts",
+    `
+/** See {@link beforeFunction}, {@linkcode beforeValue}, {@linkplain BeforeType}. */
+export const introduction = 0;
+export function beforeFunction(): void {}
+export const beforeValue = 1;
+export interface BeforeType { value: number }
+export function afterFunction(): void {}
+export const afterValue = 2;
+export type AfterType = string;
+/** See {@linkplain afterFunction}, {@link afterValue}, {@linkcode AfterType}. */
+export function documentation(): void {}
+export function shadow(beforeFunction: () => void): void { beforeFunction(); }
+export function called(): void {}
+export interface Shape { value: string }
+export function consumer(value: Shape): void { called(); }
+export function recursive(): void { recursive(); }
+/** @public future: supported external consumer */
+export function supported(): void {}
+`,
+  );
+  const live = buildLiveness(project);
+  const api = collectApiSurface(project, () => true, live);
+  const orphans = collectOrphanCandidates(project, live, () => true);
+  const documentedNames = ["beforeFunction", "beforeValue", "BeforeType", "afterFunction", "afterValue", "AfterType"];
+  for (const name of documentedNames) {
+    const declaration = declarationsNamed([source], name)[0];
+    if (declaration === undefined) {
+      throw new Error(`missing documented declaration: ${name}`);
+    }
+    const links = semanticReferenceNodes(declaration).filter(isDocumentationLinkReference);
+    expect(
+      links.map((node) => [node.getKind(), node.getText()]),
+      name,
+    ).toEqual([[SyntaxKind.Identifier, name]]);
+    expect(
+      links.every((node) => declarationBindingKeys(node).some((key) => declarationBindingKeys(declaration).includes(key))),
+      name,
+    ).toBe(true);
+    expect(api.find((entry) => entry.name === name)?.klass, name).toBe("unused");
+    expect(
+      orphans.some((entry) => entry.name === name),
+      name,
+    ).toBe(true);
+    expect(deadEvidenceFor(project, declaration, name, live), name).toMatchObject({ prodCount: 0, verdict: "CANDIDATE" });
+  }
+  for (const name of ["called", "Shape", "recursive"]) {
+    expect(api.find((entry) => entry.name === name)?.klass, name).toBe("internal");
+    const declaration = declarationsNamed([source], name)[0];
+    if (declaration === undefined) {
+      throw new Error(`missing consumed declaration: ${name}`);
+    }
+    expect(deadEvidenceFor(project, declaration, name, live), name).toMatchObject({ prodCount: 1, verdict: "ALIVE" });
+  }
+  expect(deadEvidenceFor(project, source.getFunctionOrThrow("supported"), "supported", live)).toMatchObject({ prodCount: 0, verdict: "TAGGED-KEEP" });
+});
+
+test("documentation-link exclusion preserves genuine JSDoc type references", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } });
+  const source = project.createSourceFile(
+    "/repo/packages/kit/src/annotations.js",
+    "export class Shape {}\n/** @type {Shape} */\nexport const annotated = null;\n",
+  );
+  const declaration = source.getClassOrThrow("Shape");
+  const references = semanticReferenceNodes(declaration);
+  expect(references.map((node) => [node.getText(), isDocumentationLinkReference(node)])).toEqual([["Shape", false]]);
+  const live = buildLiveness(project);
+  expect(collectApiSurface(project, () => true, live).find((entry) => entry.name === "Shape")?.klass).toBe("internal");
+  expect(deadEvidenceFor(project, declaration, "Shape", live)).toMatchObject({ prodCount: 1, verdict: "ALIVE" });
 });

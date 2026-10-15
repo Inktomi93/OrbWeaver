@@ -14,7 +14,7 @@ import {
 } from "@orb/tooling/ast";
 import { runCodemod } from "@orb/tooling/codemod";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
-import { resolveExportedDeclarations } from "@orb/tooling/floor/code-facts/reference-fact";
+import { isDocumentationLinkReference, resolveExportedDeclarations } from "@orb/tooling/floor/code-facts/reference-fact";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { SemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { SemanticInventoryError } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
@@ -23,10 +23,11 @@ import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
 import { createSemanticWorkspace, nativeCompilerSourceFiles, semanticReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { Project } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { declarationsNamed } from "../../../../tooling/src/floor/code-facts/reference-declarations.ts";
 import { readInventoryInputs, readInventoryModules, readInventorySourceMetadata } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { declarationBindingKeys, samePhysicalNode } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 
 function fixtureValue<T>(value: T | undefined): T {
   if (value === undefined) {
@@ -159,6 +160,123 @@ test("stored native collectors preserve aliases, namespace bindings, lazy member
     "HTMLButtonElement",
   );
 });
+
+test("stored dead evidence excludes only its exact defining name across contextual and default carriers", ({ scratch }) => {
+  initialize(scratch);
+  write(
+    scratch,
+    "packages/kit/src/documented.ts",
+    `
+/** See {@link unused}, {@linkcode value}, {@linkplain Shape}. */
+export const introduction = 0;
+export function unused(): void {}
+export const value = 1;
+export interface Shape { value: string }
+/** See {@link called} and {@link recursive}. */
+export function called(): void {}
+export function recursive(): void { recursive(); }
+export function consumer(): void { called(); }
+`,
+  );
+  write(scratch, "packages/kit/src/documented-barrel.ts", "export { unused as renamedUnused } from './documented';\n");
+  const native = createSemanticWorkspace({ root: scratch });
+  using stored = createSemanticInventory({ root: scratch });
+  const corpus = stored.sourceCorpus();
+  const file = source(stored, "packages/kit/src/documented.ts");
+  const live = buildLiveness(corpus);
+  for (const name of ["unused", "value", "Shape", "called", "recursive"]) {
+    const declaration = fixtureValue([...ownExports(file)].find((entry) => entry.name === name)).decl;
+    const nameNode = fixtureValue(Node.hasName(declaration) ? declaration.getNameNode() : undefined);
+    const references = semanticReferenceNodes(declaration);
+    const definingReference = fixtureValue(
+      references.find((node) => node.getSourceFile().getFilePath() === file.getFilePath() && node.getStart() === nameNode.getStart()),
+    );
+    expect(definingReference.getSourceFile()).not.toBe(declaration.getSourceFile());
+    expect(definingReference.getSourceFile().getFullText()).toBe(declaration.getSourceFile().getFullText());
+    expect([definingReference.getStart(), definingReference.getEnd(), definingReference.getKind()]).toEqual([
+      nameNode.getStart(),
+      nameNode.getEnd(),
+      SyntaxKind.Identifier,
+    ]);
+    expect(declarationBindingKeys(definingReference, false)).toEqual(declarationBindingKeys(declaration, false));
+    const physical = (nodes: readonly Node[]): object[] =>
+      nodes.map((node) => ({ file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() }));
+    const nativeDeclaration = fixtureValue(
+      declarationsNamed(native.sourceCorpus().getSourceFiles(), name).find((node) => node.getSourceFile().getFilePath() === file.getFilePath()),
+    );
+    expect(physical(references)).toEqual(physical(semanticReferenceNodes(nativeDeclaration)));
+    expect(references.some(isDocumentationLinkReference), name).toBe(true);
+    const used = name === "called" || name === "recursive";
+    expect(deadEvidenceFor(corpus, declaration, name, live), name).toMatchObject({ prodCount: used ? 1 : 0, verdict: used ? "ALIVE" : "CANDIDATE" });
+    const code = references.filter((node) => node.getParentIfKind(SyntaxKind.CallExpression)?.getExpression() === node);
+    expect(code).toHaveLength(used ? 1 : 0);
+    expect(deadEvidenceFor(corpus, declaration, name, live).prodRefs).toEqual(code.map((node) => `${file.getFilePath()}:${String(node.getStartLineNumber())}`));
+  }
+});
+
+test("physical self-name identity refuses foreign, modified and closed captured snapshots", ({ scratch }) => {
+  initialize(scratch);
+  using stored = createSemanticInventory({ root: scratch });
+  using foreign = createSemanticInventory({
+    root: scratch,
+    buildPartition: () => {
+      throw new Error("unchanged snapshot rebuilt a Program");
+    },
+  });
+  const file = source(stored, "packages/kit/src/base.ts");
+  const local = file.getVariableDeclarationOrThrow("unused").getNameNode();
+  const contextual = fixtureValue([...ownExports(file)].find((entry) => entry.name === "unused")).decl;
+  const contextualName = fixtureValue(Node.hasName(contextual) ? contextual.getNameNode() : undefined);
+  const foreignName = source(foreign, "packages/kit/src/base.ts").getVariableDeclarationOrThrow("unused").getNameNode();
+  expect(stored.generation).toBe(foreign.generation);
+  expect(samePhysicalNode(local, contextualName)).toBe(true);
+  expect(samePhysicalNode(local, foreignName)).toBe(false);
+  expect(stored.sameNode(local, foreignName)).toBe(false);
+  expect(samePhysicalNode(local, file.getVariableDeclarationOrThrow("alive").getNameNode())).toBe(false);
+  expect(samePhysicalNode(local, contextual)).toBe(false);
+  const native = new Project({ useInMemoryFileSystem: true }).createSourceFile(file.getFilePath(), file.getFullText());
+  const changed = new Project({ useInMemoryFileSystem: true }).createSourceFile(file.getFilePath(), file.getFullText().replace("unused=4", "unused=9"));
+  const nativeName = native.getVariableDeclarationOrThrow("unused").getNameNode();
+  expect(samePhysicalNode(nativeName, nativeName)).toBe(true);
+  expect(samePhysicalNode(nativeName, changed.getVariableDeclarationOrThrow("unused").getNameNode())).toBe(false);
+  expect(samePhysicalNode(nativeName, local)).toBe(false);
+  file.replaceWithText(file.getFullText().replace("unused=4", "unused=9"));
+  const modified = file.getVariableDeclarationOrThrow("unused").getNameNode();
+  expect([modified.getStart(), modified.getEnd(), modified.getKind()]).toEqual([contextualName.getStart(), contextualName.getEnd(), contextualName.getKind()]);
+  expect(() => samePhysicalNode(modified, contextualName)).toThrow("physical source/epoch is not admitted");
+  stored[Symbol.dispose]();
+  expect(() => stored.sameNode(modified, contextualName)).toThrow("disposed");
+});
+
+test.for(["comparison", "live-origin", "empty-origin", "dead-evidence"] as const)(
+  "captured references refuse shifted source before %s can establish absence",
+  (operation, { scratch }) => {
+    initialize(scratch);
+    write(
+      scratch,
+      "packages/kit/src/shifted.ts",
+      "export function unused(): void {} export function consumer(): void { unused(); } export function isolated(): void {}\n",
+    );
+    using stored = createSemanticInventory({ root: scratch });
+    const corpus = stored.sourceCorpus();
+    const file = source(stored, "packages/kit/src/shifted.ts");
+    const contextual = fixtureValue([...ownExports(file)].find((entry) => entry.name === "unused")).decl;
+    const contextualName = fixtureValue(Node.hasName(contextual) ? contextual.getNameNode() : undefined);
+    const live = buildLiveness(corpus);
+    expect(deadEvidenceFor(corpus, contextual, "unused", live)).toMatchObject({ verdict: "ALIVE", prodCount: 1 });
+    expect(stored.references(file.getFunctionOrThrow("isolated"))).toEqual([]);
+    file.replaceWithText(`/*shift*/${file.getFullText()}`);
+    const changed = file.getFunctionOrThrow("unused");
+    expect(changed.getNameNode()?.getStart()).not.toBe(contextualName.getStart());
+    const attempts = {
+      comparison: () => samePhysicalNode(changed.getNameNodeOrThrow(), contextualName),
+      "live-origin": () => stored.references(changed),
+      "empty-origin": () => stored.references(file.getFunctionOrThrow("isolated")),
+      "dead-evidence": () => deadEvidenceFor(corpus, changed, "unused", live),
+    };
+    expect(attempts[operation]).toThrow("physical source/epoch is not admitted");
+  },
+);
 
 test("partitions retain native options, closure, failed resolution and importing-world package targets", { tags: ["slow"] }, ({ scratch }) => {
   initialize(scratch);

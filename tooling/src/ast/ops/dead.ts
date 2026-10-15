@@ -4,6 +4,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { declarationsNamed } from "../../floor/code-facts/reference-declarations.ts";
 import { isDocumentationLinkReference } from "../../floor/code-facts/reference-fact.ts";
+import { samePhysicalNode } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { DeadEvidence, DeadVerdict, Flags, Hit, Liveness, PublicMarker } from "../contract/types.ts";
@@ -105,9 +106,10 @@ function isReexportPassthroughRef(ref: Node): boolean {
  *  never disagree about what "namespace-swallowed" means. */
 export function deadEvidenceFor(project: SourceCorpus, decl: Node, name: string, live: Liveness): DeadEvidence {
   const sf = decl.getSourceFile();
+  const nameNode = Node.hasName(decl) ? decl.getNameNode() : undefined;
   const refs = Node.isReferenceFindable(decl)
     ? semanticReferenceNodes(decl)
-        .filter((r) => !(r.getSourceFile() === sf && r.getParent()?.getStart() === decl.getStart()))
+        .filter((r) => nameNode === undefined || !samePhysicalNode(r, nameNode))
         .filter((r) => !(isReexportPassthroughRef(r) || isDocumentationLinkReference(r)))
     : [];
   const prodNodes = refs.filter((r) => PRODUCT_SOURCE_RE.test(r.getSourceFile().getFilePath()));

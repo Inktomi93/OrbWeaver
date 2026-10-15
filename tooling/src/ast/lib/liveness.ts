@@ -3,7 +3,7 @@
 import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { dynamicModuleTarget } from "../../floor/code-facts/module-target.ts";
-import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { isDocumentationLinkReference, literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import { declarationBindingKeys, inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
@@ -106,7 +106,7 @@ export function isReferencedInOwnFile(sf: SourceFile, _name: string, decl: Node)
   const targetKeys = new Set(nativeKeys.length === 0 ? [declKey(decl)] : nativeKeys);
   for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
     const parent = id.getParent();
-    if (id.getFirstAncestorByKind(SyntaxKind.ExportDeclaration) !== undefined || (parent !== undefined && declKey(parent) === declKey(decl))) {
+    if (isDocumentationLinkReference(id) || id.getFirstAncestorByKind(SyntaxKind.ExportDeclaration) !== undefined || declKey(parent) === declKey(decl)) {
       continue;
     }
     if (declarationBindingKeys(id).some((key) => targetKeys.has(key))) {
