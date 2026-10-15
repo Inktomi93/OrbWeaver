@@ -1,22 +1,30 @@
 // Indexed queries read one native fact family or origin; no adapter reconstructs a complete partition.
 
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
+import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
 import type {
   InventoryFactKind,
   InventoryFamily,
   InventoryInput,
+  InventoryInvocationAtom,
+  InventoryInvocationEvidence,
+  InventoryInvocationQuery,
   InventoryPartition,
   InventorySpan,
   StoredInventorySource,
 } from "./semantic-inventory-contract.ts";
 import {
+  assertInvocationEvidence,
   callableDeclarationSchema,
   castRelationResultSchema,
   computedNameSchema,
   globalOriginSchema,
   INVENTORY_FACTS,
   inputSchema,
+  invocationAtomSchema,
+  invocationEvidenceSchema,
+  invocationQueryKey,
   memberOriginSchema,
   partitionSchema,
   SemanticInventoryError,
@@ -173,23 +181,55 @@ export function* readInventoryModules(db: DatabaseSync, id: string, node?: Inven
 }
 
 export function* readInventoryBindings(db: DatabaseSync, id: string, node?: InventorySpan): Iterable<InventoryPartition["bindings"][number]> {
+  if (node !== undefined) {
+    capturedBindingSource(db, id, node.file);
+  }
   for (const row of facts(db, id, "bindings", node)) {
+    const span = spanOf(db, id, row.node);
+    const source = capturedBindingSource(db, id, span.file);
+    if (!source.authored) {
+      requireAuxiliaryBindingSource(db, id, span.file);
+      if ([...readInventoryGlobalBindings(db, id, span)].length !== 1) {
+        throw new SemanticInventoryError("native auxiliary binding lacks closed row coverage");
+      }
+      continue;
+    }
     yield {
-      node: spanOf(db, id, row.node),
+      node: span,
       symbols: { lexical: declarations(db, id, row, "lexical"), origins: declarations(db, id, row, "origins") },
     };
   }
 }
 
+function capturedBindingSource(db: DatabaseSync, id: string, file: string): StoredInventorySource {
+  const rows = db
+    .prepare("SELECT ordinal,file,path,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=? AND file=?")
+    .all(id, inventoryString(file));
+  if (rows.length !== 1) {
+    throw new SemanticInventoryError("native binding source ownership is unavailable");
+  }
+  return sourceRow.parse(rows[0]);
+}
+function requireAuxiliaryBindingSource(db: DatabaseSync, id: string, file: string): void {
+  requireInventoryFamily(db, id, "invocation-evidence");
+  if (db.prepare("SELECT owner FROM inventory_invocation_source WHERE partition=? AND file=?").get(id, inventoryString(file)) === undefined) {
+    throw new SemanticInventoryError("native auxiliary binding source has no closed invocation owner");
+  }
+}
+
 /** Closed global binding metadata never grants the complete default binding family. */
-export function* readInventoryGlobalBindings(db: DatabaseSync, id: string, node: InventorySpan): Iterable<InventoryPartition["bindings"][number]> {
+export function* readInventoryGlobalBindings(db: DatabaseSync, id: string, node: InventorySpan | string): Iterable<InventoryPartition["bindings"][number]> {
   requireInventoryFamily(db, id, "global-origins");
   for (const row of db
     .prepare(
-      "SELECT b.lexicalCount,b.originCount FROM inventory_global_binding b JOIN inventory_span s ON s.partition=b.partition AND s.ordinal=b.node WHERE b.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=?",
+      `SELECT s.file,s.start,s.end,s.kind,b.lexicalCount,b.originCount FROM inventory_global_binding b JOIN inventory_span s ON s.partition=b.partition AND s.ordinal=b.node WHERE b.partition=? AND s.file=?${typeof node === "string" ? "" : " AND s.start=? AND s.end=? AND s.kind=?"}`,
     )
-    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
-    const matches = [...facts(db, id, "bindings", { node, family: "global-origins" })];
+    .iterate(...(typeof node === "string" ? [id, inventoryString(node)] : [id, inventoryString(node.file), node.start, node.end, node.kind]))) {
+    const selectedSpan = spanRow.parse(row);
+    if (!capturedBindingSource(db, id, selectedSpan.file).authored) {
+      requireAuxiliaryBindingSource(db, id, selectedSpan.file);
+    }
+    const matches = [...facts(db, id, "bindings", { node: selectedSpan, family: "global-origins" })];
     const fact = matches[0];
     if (matches.length !== 1 || fact === undefined) {
       throw new SemanticInventoryError("native global binding record is unavailable");
@@ -205,7 +245,10 @@ export function* readInventoryGlobalBindings(db: DatabaseSync, id: string, node:
       }
       return rows.map((value) => spanRow.parse(value));
     };
-    yield { node, symbols: { lexical: read("lexical", integer.parse(row["lexicalCount"])), origins: read("origins", integer.parse(row["originCount"])) } };
+    yield {
+      node: selectedSpan,
+      symbols: { lexical: read("lexical", integer.parse(row["lexicalCount"])), origins: read("origins", integer.parse(row["originCount"])) },
+    };
   }
 }
 
@@ -252,6 +295,163 @@ export function* readInventoryGlobalOrigins(db: DatabaseSync, id: string, node: 
               node: spanOf(db, id, integer.parse(row["refusalNode"])),
             },
     });
+  }
+}
+
+function invocationScalar(row: InventoryInvocationAtom): JsonValue {
+  if (row.size > 0) {
+    throw new SemanticInventoryError("native invocation scalar carries children");
+  }
+  switch (row.kind) {
+    case "string":
+      if (row.number !== null) {
+        throw new SemanticInventoryError("native invocation string carries a number");
+      }
+      return inventoryStringSchema.parse(row.text);
+    case "number":
+      if (row.text !== null || row.number === null) {
+        throw new SemanticInventoryError("native invocation number is missing");
+      }
+      return row.number;
+    case "boolean":
+      if (row.text !== null || (row.number !== 0 && row.number !== 1)) {
+        throw new SemanticInventoryError("native invocation boolean is invalid");
+      }
+      return row.number === 1;
+    case "null":
+      if (row.text !== null || row.number !== null) {
+        throw new SemanticInventoryError("native invocation null carries scalar data");
+      }
+      return null;
+    case "object":
+    case "array":
+      throw new SemanticInventoryError("native invocation scalar has a container kind");
+  }
+}
+
+function assertInvocationContainer(row: InventoryInvocationAtom): void {
+  if (row.text !== null || row.number !== null) {
+    throw new SemanticInventoryError("native invocation container carries scalar data");
+  }
+}
+function assertInvocationChild(row: InventoryInvocationAtom, key: string, index: number, entries: readonly (readonly [string, JsonValue])[]): void {
+  if ((row.kind === "array" && key !== String(index)) || entries.some(([existing]) => existing === key)) {
+    throw new SemanticInventoryError("native invocation container identity is ambiguous");
+  }
+}
+function invocationValue(atoms: readonly InventoryInvocationAtom[]): JsonValue {
+  let cursor = 0;
+  const read = (parent: number | null): readonly [string, JsonValue] => {
+    const row = atoms[cursor++];
+    if (row === undefined || row.ordinal !== cursor - 1 || row.parent !== parent) {
+      throw new SemanticInventoryError("native invocation atom sequence is incomplete");
+    }
+    if (row.kind === "array" || row.kind === "object") {
+      assertInvocationContainer(row);
+      const entries: (readonly [string, JsonValue])[] = [];
+      for (let index = 0; index < row.size; index++) {
+        const child = read(row.ordinal);
+        assertInvocationChild(row, child[0], index, entries);
+        entries.push(child);
+      }
+      return [row.key, row.kind === "array" ? entries.map(([, value]) => value) : Object.fromEntries(entries)];
+    }
+    return [row.key, invocationScalar(row)];
+  };
+  const [rootKey, rootValue] = read(null);
+  if (rootKey !== "" || cursor !== atoms.length) {
+    throw new SemanticInventoryError("native invocation atom root is incomplete");
+  }
+  return rootValue;
+}
+
+/** One closed query and its related-value graph; absent rows never stand in for empty facts. */
+export function* readInventoryInvocationEvidence(db: DatabaseSync, id: string, query: InventoryInvocationQuery): Iterable<InventoryInvocationEvidence> {
+  requireInventoryFamily(db, id, "invocation-evidence");
+  const key = invocationQueryKey(query);
+  for (const row of db
+    .prepare("SELECT ordinal,node,atomCount FROM inventory_invocation_evidence WHERE partition=? AND key=?")
+    .iterate(id, inventoryString(key))) {
+    const atoms = db
+      .prepare("SELECT ordinal,parent,key,kind,text,number,size FROM inventory_invocation_atom WHERE partition=? AND owner=? ORDER BY ordinal")
+      .all(id, integer.parse(row["ordinal"]))
+      .map((value) => invocationAtomSchema.extend({ key: inventoryStringSchema }).parse(value));
+    if (atoms.length !== integer.parse(row["atomCount"])) {
+      throw new SemanticInventoryError("native invocation fact graph is incomplete");
+    }
+    const decoded = invocationValue(atoms);
+    assertInvocationSpans(db, id, decoded);
+    const fact = invocationEvidenceSchema.parse(decoded);
+    if (invocationQueryKey({ ...fact.query, node: spanOf(db, id, integer.parse(row["node"])) }) !== key) {
+      throw new SemanticInventoryError("native invocation root span is foreign");
+    }
+    if (invocationQueryKey(fact.query) !== key) {
+      throw new SemanticInventoryError("native invocation query identity is stale");
+    }
+    assertInvocationEvidence(fact);
+    const owned = db
+      .prepare("SELECT ordinal,file,bindingCount FROM inventory_invocation_source WHERE partition=? AND owner=? ORDER BY ordinal")
+      .all(id, integer.parse(row["ordinal"]));
+    if (
+      owned.length !== fact.sources.length ||
+      owned.some((source, index) => {
+        const captured = fact.sources.at(index);
+        return (
+          captured === undefined ||
+          source["ordinal"] !== index ||
+          inventoryStringSchema.parse(source["file"]) !== captured.file ||
+          source["bindingCount"] !== captured.bindings
+        );
+      })
+    ) {
+      throw new SemanticInventoryError("native invocation source ownership is incomplete");
+    }
+    assertInvocationChildren(db, id, fact);
+    yield fact;
+  }
+}
+
+function assertInvocationSpans(db: DatabaseSync, id: string, value: JsonValue): void {
+  if (typeof value !== "object" || value === null) {
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const child of value) {
+      assertInvocationSpans(db, id, child);
+    }
+    return;
+  }
+  const parsed = spanSchema.safeParse(value);
+  if (parsed.success) {
+    const span = parsed.data;
+    const source = capturedBindingSource(db, id, span.file);
+    if (
+      span.start < 0 ||
+      span.end < span.start ||
+      span.end > source.textLength ||
+      db.prepare("SELECT ordinal FROM inventory_list WHERE partition=? AND kind='available' AND value=?").get(id, inventoryString(span.file)) === undefined
+    ) {
+      throw new SemanticInventoryError("native invocation span is outside its captured source closure");
+    }
+    return;
+  }
+  for (const child of Object.values(value)) {
+    assertInvocationSpans(db, id, child);
+  }
+}
+
+function assertInvocationChildren(db: DatabaseSync, id: string, fact: InventoryInvocationEvidence): void {
+  for (const source of fact.sources) {
+    capturedBindingSource(db, id, source.file);
+    if ([...readInventoryGlobalBindings(db, id, source.file)].length !== source.bindings) {
+      throw new SemanticInventoryError("native invocation binding-source coverage is incomplete");
+    }
+    if (source.computed.some((node) => [...readInventoryComputedNames(db, id, node)].length !== 1)) {
+      throw new SemanticInventoryError("native invocation computed-name coverage is incomplete");
+    }
+  }
+  if (fact.profiles.some((profile) => profile.global === true && [...readInventoryGlobalOrigins(db, id, profile.node)].length !== 1)) {
+    throw new SemanticInventoryError("native invocation global-origin coverage is incomplete");
   }
 }
 

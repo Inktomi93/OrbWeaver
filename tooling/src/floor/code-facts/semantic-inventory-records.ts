@@ -1,9 +1,19 @@
 // Native facts retain their order and multiplicity; only physical spans are interned for storage.
 
 import { createHash } from "node:crypto";
+import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
 import { z } from "zod";
-import type { InventoryFactKind, InventoryPartition, InventoryRecord, InventoryRecordTable, InventorySpan } from "./semantic-inventory-contract.ts";
+import type {
+  InventoryFactKind,
+  InventoryInvocationAtom,
+  InventoryPartition,
+  InventoryRecord,
+  InventoryRecordTable,
+  InventorySpan,
+} from "./semantic-inventory-contract.ts";
 import {
+  assertInvocationEvidence,
   callableDeclarationSchema,
   castRelationResultSchema,
   computedNameSchema,
@@ -13,6 +23,9 @@ import {
   INVENTORY_INPUT_KINDS,
   INVENTORY_LISTS,
   inputSchema,
+  inventoryNodeQueryKey,
+  invocationEvidenceSchema,
+  invocationQueryKey,
   memberOriginSchema,
   partitionMetadataSchema,
   partitionSchema,
@@ -34,6 +47,21 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  invocationEvidence: {
+    name: "inventory_invocation_evidence",
+    columns: "ordinal,node,key,atomCount",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,key TEXT NOT NULL,atomCount INTEGER NOT NULL CHECK(atomCount>0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,key),${SPAN_REFERENCE}`,
+  },
+  invocationAtom: {
+    name: "inventory_invocation_atom",
+    columns: "owner,ordinal,parent,key,kind,text,number,size",
+    definition: `${PARTITION},owner INTEGER NOT NULL,${ORDINAL},parent INTEGER,key TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('object','array','string','number','boolean','null')),text TEXT,number REAL,size INTEGER NOT NULL CHECK(size>=0),PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_invocation_evidence(partition,ordinal),FOREIGN KEY(partition,owner,parent) REFERENCES inventory_invocation_atom(partition,owner,ordinal)`,
+  },
+  invocationSource: {
+    name: "inventory_invocation_source",
+    columns: "owner,ordinal,file,bindingCount",
+    definition: `${PARTITION},owner INTEGER NOT NULL,${ORDINAL},file TEXT NOT NULL,bindingCount INTEGER NOT NULL CHECK(bindingCount>=0),PRIMARY KEY(partition,owner,ordinal),UNIQUE(partition,owner,file),FOREIGN KEY(partition,owner) REFERENCES inventory_invocation_evidence(partition,ordinal)`,
+  },
   globalOrigin: {
     name: "inventory_global_origin",
     columns: "ordinal,node,origin,state,name,reason,detail,refusalNode,valueCount,traceCount,memberCount",
@@ -181,6 +209,51 @@ export function inventoryString(value: string): string {
   return JSON.stringify(value);
 }
 
+function invocationAtomKind(value: JsonValue): InventoryInvocationAtom["kind"] {
+  if (value === null) {
+    return "null";
+  }
+  if (Array.isArray(value)) {
+    return "array";
+  }
+  if (typeof value === "string") {
+    return "string";
+  }
+  if (typeof value === "number") {
+    return "number";
+  }
+  if (typeof value === "boolean") {
+    return "boolean";
+  }
+  return "object";
+}
+
+/** One requested fact graph streams scalar/container atoms, never a serialized fact population. */
+export function* invocationAtoms(value: JsonValue): Iterable<InventoryInvocationAtom> {
+  let ordinal = 0;
+  function* visit(input: JsonValue, parent: number | null, key: string): Iterable<InventoryInvocationAtom> {
+    const at = ordinal++;
+    let children: readonly (readonly [string, JsonValue])[] = [];
+    if (typeof input === "object" && input !== null) {
+      children = Array.isArray(input) ? input.map((item, index) => [String(index), item] as const) : Object.entries(input);
+    }
+    const numeric = typeof input === "boolean" ? Number(input) : null;
+    yield {
+      ordinal: at,
+      parent,
+      key,
+      kind: invocationAtomKind(input),
+      text: typeof input === "string" ? inventoryString(input) : null,
+      number: typeof input === "number" ? input : numeric,
+      size: children.length,
+    };
+    for (const [child, childValue] of children) {
+      yield* visit(childValue, at, child);
+    }
+  }
+  yield* visit(value, null, "");
+}
+
 export const inventoryStringSchema = z.string().transform((value) => z.string().parse(JSON.parse(value)));
 
 /** JSON is bounded to one source-text fragment, never a source collection or a partition. */
@@ -222,6 +295,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
       throw new Error("native closed bindings exceed their global-origin demand");
     }
   }
+  assertBindingSourceOwnership(partition);
   const emit = (table: InventoryRecordTable, ...values: InventoryRecord["values"]): void => write({ table, values });
   emit(
     "descriptor",
@@ -356,6 +430,18 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
         emit("globalMember", ordinal, index, inventoryString(name));
       });
     }
+  });
+  partition.invocationEvidence.forEach((entry, ordinal) => {
+    const fact = invocationEvidenceSchema.parse(entry);
+    assertInvocationEvidence(fact);
+    const atoms = [...invocationAtoms(jsonValueSchema.parse(fact))];
+    emit("invocationEvidence", ordinal, spanId(fact.query.node), inventoryString(invocationQueryKey(fact.query)), atoms.length);
+    for (const atom of atoms) {
+      emit("invocationAtom", ordinal, atom.ordinal, atom.parent, inventoryString(atom.key), atom.kind, atom.text, atom.number, atom.size);
+    }
+    fact.sources.forEach((source, index) => {
+      emit("invocationSource", ordinal, index, inventoryString(source.file), source.bindings);
+    });
   });
   partition.witnesses.forEach((entry, ordinal) => {
     const fact = witnessRecordSchema.parse(entry);
@@ -497,4 +583,23 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     const fact = referenceRecordSchema.parse(entry);
     emit("reference", ordinal, spanId(entry.declaration), spanId(entry.reference), fact.consumerClass);
   });
+}
+
+/** Auxiliary dependency rows cannot expand the complete authored binding population. */
+function assertBindingSourceOwnership(partition: InventoryPartition): void {
+  const sources = new Map(partition.sources.map((source) => [source.file, source]));
+  const closed = new Set(partition.globalBindings.map(inventoryNodeQueryKey));
+  const related = new Set(partition.invocationEvidence.flatMap((fact) => fact.sources.map((source) => source.file)));
+  for (const { node } of partition.bindings) {
+    const source = sources.get(node.file);
+    if (source === undefined) {
+      throw new Error("native binding source ownership is unavailable");
+    }
+    if (source.authored) {
+      continue;
+    }
+    if (!(partition.families.includes("invocation-evidence") && closed.has(inventoryNodeQueryKey(node)) && related.has(node.file))) {
+      throw new Error("native auxiliary binding source exceeds its closed invocation demand");
+    }
+  }
 }

@@ -5,15 +5,25 @@
 
 import type { CallExpression, Node as MorphNode, NewExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import type { CallableInvocation, ReferenceFact, ReferenceOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
-import { readCallableBinding, readCallableInvocation } from "../../floor/code-facts/reference-fact-invocation.ts";
+import type { InventoryInvocationPlan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SealedOriginVerdict } from "../contract/sealed-origin.ts";
-import { bindsProvenNonModuleDeclaration, classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
+import { invocationOriginServices, requiredInvocationFact } from "../lib/native-invocation.ts";
+import { bindsProvenNonModuleDeclarations, classifyOriginRefusal, originRefusalDeclarations, referenceNamesExport } from "../lib/origin-verdict.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
 import { readSealedOrigin } from "../lib/sealed-origin.ts";
+
+const INVOCATION_PLAN: InventoryInvocationPlan = {
+  mode: "invocation",
+  facets: ["module"],
+  arguments: [
+    { index: 0, facets: ["module", "global", "binding", "undefined"] },
+    { index: 1, facets: ["module", "global", "binding", "undefined"] },
+  ],
+};
+const MEMBER_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["global"], arguments: [] };
 
 const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
   {
@@ -63,46 +73,47 @@ function ambientOriginToken(origin: ReferenceOrigin): string | undefined {
     : undefined;
 }
 
-function ambientToken(node: MorphNode): string | undefined {
-  const origin = resolveGlobalMemberOrigin(node);
+function ambientToken(node: MorphNode, evidence: NativeInvocationEvidence): string | undefined {
+  const origin = requiredInvocationFact(evidence.globals, node);
   return origin.kind === "resolved" ? ambientOriginToken(origin.value) : undefined;
 }
 
-function canUseAmbientGenerator(node: MorphNode): boolean {
-  const type = node.getType();
-  const binding = readCallableBinding(node);
+function canUseAmbientGenerator(node: MorphNode, evidence: NativeInvocationEvidence): boolean {
+  const binding = requiredInvocationFact(evidence.callableBindings, node);
+  const services = invocationOriginServices(evidence);
   if (binding.kind === "unresolved" && ["write", "cycle", "ambiguous"].includes(binding.reason)) {
     throw new Error(`test-determinism cannot prove id generator capture: ${binding.detail}`);
   }
   const boundAmbient =
     binding.kind === "resolved" &&
-    (ambientOriginToken(binding.value.target) !== undefined || readPackageExportOrigin(binding.value.callee, ["typeid-js"], VENDOR_MINTS).verdict === "home");
+    (ambientOriginToken(binding.value.target) !== undefined ||
+      readPackageExportOrigin(binding.value.callee, ["typeid-js"], VENDOR_MINTS, services).verdict === "home");
   return (
-    type.isUndefined() ||
-    type.getUnionTypes().some((part) => part.isUndefined()) ||
-    readPackageExportOrigin(node, ["typeid-js"], VENDOR_MINTS).verdict === "home" ||
-    ambientToken(node) !== undefined ||
+    requiredInvocationFact(evidence.undefinedMembers, node) ||
+    readPackageExportOrigin(node, ["typeid-js"], VENDOR_MINTS, services).verdict === "home" ||
+    ambientToken(node, evidence) !== undefined ||
     boundAmbient
   );
 }
 
-function rejectUnreadableMint(callee: MorphNode, kit: SealedOriginVerdict): void {
+function rejectUnreadableMint(callee: MorphNode, kit: SealedOriginVerdict, evidence: NativeInvocationEvidence): void {
   if (
     kit.kind === "unresolved" &&
-    [...KIT_MINTS].some((name) => referenceNamesExport(callee, name)) &&
-    classifyOriginRefusal(kit.fact.reason, callee) === "unreadable"
+    [...KIT_MINTS].some((name) => referenceNamesExport(callee, name, invocationOriginServices(evidence))) &&
+    classifyOriginRefusal(kit.fact.reason, callee, evidence.declarations) === "unreadable"
   ) {
     throw new Error("test-determinism cannot establish the canonical id mint behind this invocation");
   }
 }
 
-function mintToken(invocation: CallableInvocation): string | undefined {
+function mintToken(invocation: CallableInvocation, evidence: NativeInvocationEvidence): string | undefined {
   const { target, callee } = invocation;
+  const services = invocationOriginServices(evidence);
   if (target.kind !== "module") {
     return;
   }
-  const kit = readSealedOrigin(callee, { pathInfix: "/packages/kit/src/ids/", exportedNames: KIT_MINTS });
-  rejectUnreadableMint(callee, kit);
+  const kit = readSealedOrigin(callee, { pathInfix: "/packages/kit/src/ids/", exportedNames: KIT_MINTS }, services.moduleOrigin);
+  rejectUnreadableMint(callee, kit, evidence);
   const nativeKit =
     target.canonical.kind === "project" &&
     target.canonical.sourceFile.getFilePath().includes("/packages/kit/src/ids/") &&
@@ -114,18 +125,21 @@ function mintToken(invocation: CallableInvocation): string | undefined {
     }
     const name = target.canonical.exportedName;
     const generator = invocation.arguments.value[name === "mintTypeId" ? 1 : 0];
-    return generator === undefined || canUseAmbientGenerator(generator) ? name : undefined;
+    return generator === undefined || canUseAmbientGenerator(generator, evidence) ? name : undefined;
   }
-  const vendor = readPackageExportOrigin(callee, ["typeid-js"], VENDOR_MINTS);
+  const vendor = readPackageExportOrigin(callee, ["typeid-js"], VENDOR_MINTS, services);
   if (vendor.verdict === "home") {
     return vendor.exportedName ?? undefined;
   }
-  return readPackageExportOrigin(callee, ["node:crypto", "crypto"], CRYPTO_MINTS).verdict === "home" ? "randomUUID" : undefined;
+  return readPackageExportOrigin(callee, ["node:crypto", "crypto"], CRYPTO_MINTS, services).verdict === "home" ? "randomUUID" : undefined;
 }
 
-function invocationToken(node: CallExpression | NewExpression): string | undefined {
+function invocationToken(node: CallExpression | NewExpression, evidence: NativeInvocationEvidence): string | undefined {
   const callee = node.getExpression();
-  const invocation = readCallableInvocation(node);
+  const invocation = evidence.invocation;
+  if (invocation === undefined) {
+    throw new Error("test-determinism native invocation capture is unavailable");
+  }
   if (invocation.kind === "unresolved" && "capture" in invocation) {
     throw new Error(`test-determinism cannot prove native bound callable capture: ${invocation.detail}`);
   }
@@ -134,19 +148,23 @@ function invocationToken(node: CallExpression | NewExpression): string | undefin
   }
   const token =
     invocation.kind === "resolved" && invocation.value.invocation !== "bind"
-      ? (dateClockToken(invocation) ?? ambientOriginToken(invocation.value.target) ?? mintToken(invocation.value) ?? fakeTimerToken(invocation.value))
+      ? (dateClockToken(invocation) ??
+        ambientOriginToken(invocation.value.target) ??
+        mintToken(invocation.value, evidence) ??
+        fakeTimerToken(invocation.value, evidence))
       : undefined;
   if (token !== undefined) {
     return token;
   }
-  const fakeTimers = readPackageExportOrigin(callee, ["vitest"], new Set(["useFakeTimers"]));
+  const fakeTimers = readPackageExportOrigin(callee, ["vitest"], new Set(["useFakeTimers"]), invocationOriginServices(evidence));
   if (fakeTimers.verdict === "home") {
     return "vi.useFakeTimers";
   }
   // Syntax-only fixture references have no ambient declarations; keep their existing refusal surface.
   const syntax = `${callee.getText()}(`;
   const banned = BANNED.find(({ re }) => re.test(syntax));
-  return banned !== undefined && (!bindsProvenNonModuleDeclaration(callee) || BANNED.slice(-2).includes(banned))
+  return banned !== undefined &&
+    (!bindsProvenNonModuleDeclarations(originRefusalDeclarations(callee, evidence.declarations)) || BANNED.slice(-2).includes(banned))
     ? banned.re.exec(syntax)?.[0].replace(/[()]+$/u, "")
     : undefined;
 }
@@ -169,8 +187,10 @@ function dateClockToken(invocation: ReferenceFact<CallableInvocation>): string |
   return arguments_.value.length === 0 ? "new Date" : undefined;
 }
 
-function fakeTimerToken(invocation: CallableInvocation): string | undefined {
-  return readPackageExportOrigin(invocation.callee, ["vitest"], new Set(["useFakeTimers"])).verdict === "home" ? "vi.useFakeTimers" : undefined;
+function fakeTimerToken(invocation: CallableInvocation, evidence: NativeInvocationEvidence): string | undefined {
+  return readPackageExportOrigin(invocation.callee, ["vitest"], new Set(["useFakeTimers"]), invocationOriginServices(evidence)).verdict === "home"
+    ? "vi.useFakeTimers"
+    : undefined;
 }
 
 function reportSourceString(node: MorphNode, ctx: GatePolicyContext, reported: Set<string>): void {
@@ -189,11 +209,23 @@ function reportSourceString(node: MorphNode, ctx: GatePolicyContext, reported: S
   }
 }
 
-function nodeToken(node: MorphNode): string | undefined {
+function nodeToken(node: MorphNode, evidence: NativeInvocationEvidence): string | undefined {
   if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
-    return ambientToken(node) === "performance.timeOrigin" ? "performance.timeOrigin" : undefined;
+    return ambientToken(node, evidence) === "performance.timeOrigin" ? "performance.timeOrigin" : undefined;
   }
-  return Node.isCallExpression(node) || Node.isNewExpression(node) ? invocationToken(node) : undefined;
+  return Node.isCallExpression(node) || Node.isNewExpression(node) ? invocationToken(node, evidence) : undefined;
+}
+
+function reportInvocationNode(node: MorphNode, evidence: NativeInvocationEvidence, ctx: GatePolicyContext): void {
+  const token = nodeToken(node, evidence);
+  if (token !== undefined) {
+    const offset = node.getText().indexOf(token);
+    const position = offset < 0 ? {} : { token, offset };
+    ctx.report.node(node, {
+      ...position,
+      message: `ambient nondeterminism: ${token === "new Date" ? "new Date()" : token} — inject the frozen clock / seeded ids via the fixture seam (Spine-Testing.md §3).`,
+    });
+  }
 }
 
 export const gate = defineGate({
@@ -216,6 +248,7 @@ export const gate = defineGate({
     "`process.hrtime`, `performance.timeOrigin`).",
   create: (ctx) => {
     const reportedStrings = new Set<string>();
+    const pending: MorphNode[] = [];
     return {
       visitors: [
         {
@@ -241,18 +274,31 @@ export const gate = defineGate({
               reportSourceString(node, ctx, reportedStrings);
               return;
             }
-            const token = nodeToken(node);
-            if (token !== undefined) {
-              const offset = node.getText().indexOf(token);
-              const position = offset < 0 ? {} : { token, offset };
-              ctx.report.node(node, {
-                ...position,
-                message: `ambient nondeterminism: ${token === "new Date" ? "new Date()" : token} — inject the frozen clock / seeded ids via the fixture seam (Spine-Testing.md §3).`,
-              });
+            pending.push(node);
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native invocation context is unavailable");
             }
+            ctx.nativeTypes.request({
+              kind: "invocation-evidence",
+              nodes: [node],
+              plan: Node.isCallExpression(node) || Node.isNewExpression(node) ? INVOCATION_PLAN : MEMBER_PLAN,
+            });
           },
         },
       ],
+      evaluate: (): void => {
+        if (pending.length === 0) {
+          return;
+        }
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native invocation context is unavailable");
+        }
+        for (const node of pending) {
+          const plan = Node.isCallExpression(node) || Node.isNewExpression(node) ? INVOCATION_PLAN : MEMBER_PLAN;
+          const evidence = requiredInvocationFact(ctx.nativeTypes.invocationEvidence([node], plan), node);
+          reportInvocationNode(node, evidence, ctx);
+        }
+      },
     };
   },
   mustFlag: [

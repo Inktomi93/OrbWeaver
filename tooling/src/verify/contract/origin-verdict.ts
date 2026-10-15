@@ -19,12 +19,17 @@
 // nobody has taken, not a re-home.
 
 import type { Node } from "ts-morph";
-import type { ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
 
 /** Existing origin/name algorithms may consume captured native binding and key facts after seal. */
 export interface OriginReferenceServices {
   readonly declarations: (node: Node) => readonly Node[];
   readonly readComputedName: ReferenceResolutionServices["readComputedName"];
+}
+
+/** Canonical origin judgments may consume a closed native module fact instead of a syntax checker. */
+export interface ModuleOriginServices extends OriginReferenceServices {
+  readonly moduleOrigin: (node: Node) => ReferenceFact<ModuleMemberOrigin>;
 }
 
 /** The two answers a refusal resolves to: a PROVEN different identity, or a read that could not be made.

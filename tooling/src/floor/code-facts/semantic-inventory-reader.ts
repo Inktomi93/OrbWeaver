@@ -1,12 +1,17 @@
 import { resolve } from "node:path";
+import type { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, Node as TsNode } from "ts-morph";
 import { predictedProgram } from "../compiler/project-worlds.ts";
 import { createSourceBindingUsage } from "./binding-usage.ts";
 import type { DeclarationBindingKeys, SourceBindingUsage } from "./binding-usage-contract.ts";
+import { replayInvocationEvidence } from "./invocation-evidence-replay.ts";
+import type { GlobalMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
 import type {
   InventoryFamily,
+  InventoryInvocationEvidence,
+  InventoryPartition,
   InventoryReaderStorage,
   InventorySourceCorpus,
   InventorySpan,
@@ -27,6 +32,7 @@ import {
   readInventoryExports,
   readInventoryGlobalBindings,
   readInventoryGlobalOrigins,
+  readInventoryInvocationEvidence,
   readInventoryMemberOrigins,
   readInventoryModules,
   readInventoryPairs,
@@ -239,6 +245,34 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    invocationEvidence: (node, program, plan) => {
+      const { partition, span } = nativeSpan(node, program, "invocation-evidence");
+      const matches = [...readInventoryInvocationEvidence(db, partition.id, { ...plan, node: span })];
+      const wire = matches[0];
+      if (matches.length !== 1 || wire === undefined) {
+        throw new SemanticInventoryError("native invocation query is unavailable in its captured native partition");
+      }
+      const replay = replayFor(node, program, partition, "invocation");
+      const bindings = invocationBindings(db, partition.id, wire, replay);
+      const computed = invocationComputed(db, partition.id, wire, replay);
+      const globals = invocationGlobals(db, partition.id, wire, replay);
+      const required = <T>(map: ReadonlyMap<Node, T>, subject: Node): T => {
+        // Replaying again checks both query epoch and each related-source epoch on every callback read.
+        if (replay(capturedSpan(subject)) !== subject || !map.has(subject)) {
+          throw new SemanticInventoryError("native invocation related-value coverage is unavailable");
+        }
+        const value = map.get(subject);
+        if (value === undefined) {
+          throw new SemanticInventoryError("native invocation related-value fact is missing");
+        }
+        return value;
+      };
+      return replayInvocationEvidence(wire, replay, {
+        globals,
+        declarations: (subject) => required(bindings, subject),
+        computedName: (subject) => required(computed, subject),
+      });
+    },
     globalOrigin: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "global-origins");
       const matches = [...readInventoryGlobalOrigins(db, partition.id, span)];
@@ -247,15 +281,7 @@ export function inventoryReader(
         throw new SemanticInventoryError("native global origin span is unavailable in its native partition");
       }
       const replay = replayFor(node, program, partition, "global origin");
-      const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
-      const result = fact.result;
-      return result.kind === "resolved"
-        ? {
-            kind: result.kind,
-            value: { kind: "global", globalName: result.globalName, memberPath: result.memberPath, declarations: result.declarations.map(replay) },
-            trace,
-          }
-        : { kind: result.kind, reason: result.reason, detail: result.detail, node: replay(result.node), trace };
+      return replayGlobalFact(fact, replay);
     },
     globalBinding: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "global-origins");
@@ -554,6 +580,75 @@ export function inventoryReader(
   inventories.set(project, inventory);
   inventories.set(corpus, inventory);
   return inventory;
+}
+
+function invocationBindings(
+  db: DatabaseSync,
+  id: string,
+  wire: InventoryInvocationEvidence,
+  replay: (span: InventorySpan) => Node,
+): ReadonlyMap<Node, readonly Node[]> {
+  const bindings = new Map<Node, readonly Node[]>();
+  for (const source of wire.sources) {
+    for (const fact of readInventoryGlobalBindings(db, id, source.file)) {
+      bindings.set(replay(fact.node), fact.symbols.lexical.map(replay));
+    }
+  }
+  return bindings;
+}
+function invocationComputed(
+  db: DatabaseSync,
+  id: string,
+  wire: InventoryInvocationEvidence,
+  replay: (span: InventorySpan) => Node,
+): ReadonlyMap<Node, ReferenceFact<string>> {
+  const computed = new Map<Node, ReferenceFact<string>>();
+  for (const source of wire.sources) {
+    for (const key of source.computed) {
+      const [fact] = readInventoryComputedNames(db, id, key);
+      if (fact === undefined) {
+        throw new SemanticInventoryError("native invocation computed name is unavailable");
+      }
+      const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
+      computed.set(
+        replay(key),
+        fact.result.kind === "resolved"
+          ? { kind: fact.result.kind, value: fact.result.value, trace }
+          : { ...fact.result, node: replay(fact.result.node), trace },
+      );
+    }
+  }
+  return computed;
+}
+function invocationGlobals(
+  db: DatabaseSync,
+  id: string,
+  wire: InventoryInvocationEvidence,
+  replay: (span: InventorySpan) => Node,
+): ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>> {
+  const globals = new Map<Node, ReferenceFact<GlobalMemberOrigin>>();
+  for (const profile of wire.profiles) {
+    if (profile.global !== true) {
+      continue;
+    }
+    const [fact] = readInventoryGlobalOrigins(db, id, profile.node);
+    if (fact === undefined) {
+      throw new SemanticInventoryError("native invocation global origin is unavailable");
+    }
+    globals.set(replay(profile.node), replayGlobalFact(fact, replay));
+  }
+  return globals;
+}
+function replayGlobalFact(fact: InventoryPartition["globalOrigins"][number], replay: (span: InventorySpan) => Node): ReferenceFact<GlobalMemberOrigin> {
+  const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
+  const result = fact.result;
+  return result.kind === "resolved"
+    ? {
+        kind: result.kind,
+        value: { kind: "global", globalName: result.globalName, memberPath: result.memberPath, declarations: result.declarations.map(replay) },
+        trace,
+      }
+    : { ...result, node: replay(result.node), trace };
 }
 
 /** Resolve origins in the importing context; ordinary native SourceFiles retain their native reader. */

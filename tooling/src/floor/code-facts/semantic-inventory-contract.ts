@@ -1,15 +1,23 @@
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import type { FileSystemHost, Node, SourceFile } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import { z } from "zod";
 import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compiler-programs-contract.ts";
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
 import type { SourceBindingUsage } from "./binding-usage-contract.ts";
-import type { CallableDeclaration, GlobalMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
+import type {
+  CallableBinding,
+  CallableDeclaration,
+  CallableInvocationFact,
+  GlobalMemberOrigin,
+  ModuleMemberOrigin,
+  ReferenceFact,
+} from "./reference-fact-contract.ts";
 import { REFERENCE_UNRESOLVED_REASONS } from "./reference-fact-contract.ts";
 import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
 
-export const INVENTORY_FORMAT = 13;
+export const INVENTORY_FORMAT = 14;
 export const INVENTORY_FAMILIES = [
   "exports",
   "modules",
@@ -26,6 +34,7 @@ export const INVENTORY_FAMILIES = [
   "callable-declarations",
   "computed-names",
   "global-origins",
+  "invocation-evidence",
 ] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
@@ -87,6 +96,209 @@ export const globalOriginSchema = z.object({
     z.object({ kind: z.literal("unresolved"), reason: z.enum(REFERENCE_UNRESOLVED_REASONS), detail: z.string(), node: spanSchema }),
   ]),
 });
+export const INVOCATION_VALUE_FACETS = ["module", "global", "binding", "undefined", "namespace", "string", "stable"] as const;
+export const invocationPlanSchema = z.object({
+  mode: z.enum(["invocation", "value"]),
+  facets: z.array(z.enum(INVOCATION_VALUE_FACETS)),
+  arguments: z.array(z.object({ index: z.union([z.literal(0), z.literal(1)]), facets: z.array(z.enum(INVOCATION_VALUE_FACETS)) })),
+});
+export type InventoryInvocationPlan = z.infer<typeof invocationPlanSchema>;
+export const invocationQuerySchema = invocationPlanSchema.extend({ node: spanSchema });
+export type InventoryInvocationQuery = z.infer<typeof invocationQuerySchema>;
+export interface InventoryNativeInvocationQuery {
+  readonly program: string;
+  readonly query: InventoryInvocationQuery;
+}
+
+export function invocationQueryKey(query: InventoryInvocationQuery): string {
+  const parsed = invocationQuerySchema.parse(query);
+  if (new Set(parsed.arguments.map((argument) => argument.index)).size !== parsed.arguments.length) {
+    throw new SemanticInventoryError("native invocation argument projection is ambiguous");
+  }
+  return JSON.stringify({
+    ...parsed,
+    facets: [...new Set(parsed.facets)].sort(),
+    arguments: parsed.arguments
+      .map((argument) => ({ ...argument, facets: [...new Set(argument.facets)].sort() }))
+      .sort((left, right) => left.index - right.index),
+  });
+}
+const invocationTraceSchema = z.object({ origin: spanSchema, declarations: z.array(spanSchema) });
+const invocationRefusalSchema = z.object({
+  kind: z.literal("unresolved"),
+  reason: z.enum(REFERENCE_UNRESOLVED_REASONS),
+  detail: z.string(),
+  node: spanSchema,
+  trace: invocationTraceSchema,
+  capture: z.literal("native-bind").optional(),
+});
+export type InventoryInvocationTrace = z.infer<typeof invocationTraceSchema>;
+export type InventoryInvocationRefusal = z.infer<typeof invocationRefusalSchema>;
+export type InventoryInvocationReference<T> =
+  | { readonly kind: "resolved"; readonly value: T; readonly trace: InventoryInvocationTrace }
+  | InventoryInvocationRefusal;
+const moduleValueSchema = z.object({
+  kind: z.literal("module"),
+  moduleSpecifier: z.string(),
+  exportedName: z.string(),
+  memberPath: z.array(z.string()),
+  declaration: spanSchema,
+  canonical: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("project"), sourceFile: spanSchema, exportedName: z.string(), declaration: spanSchema }),
+    z.object({ kind: z.literal("external-door"), moduleSpecifier: z.string(), exportedName: z.string(), declaration: spanSchema }),
+  ]),
+});
+const originValueSchema = z.discriminatedUnion("kind", [
+  moduleValueSchema,
+  z.object({ kind: z.literal("global"), globalName: z.string(), memberPath: z.array(z.string()), declarations: z.array(spanSchema) }),
+]);
+const argumentFactSchema = z.union([
+  invocationRefusalSchema,
+  z.object({ kind: z.literal("resolved"), value: z.array(spanSchema), trace: invocationTraceSchema }),
+]);
+const callableBindingValueSchema = z.object({
+  target: originValueSchema,
+  callee: spanSchema,
+  arguments: argumentFactSchema,
+  invocation: z.literal("bind").optional(),
+});
+const callableInvocationFactSchema = z.union([
+  invocationRefusalSchema,
+  z.object({
+    kind: z.literal("resolved"),
+    value: callableBindingValueSchema.omit({ invocation: true }).extend({ invocation: z.enum(["call", "construct", "bind"]) }),
+    trace: invocationTraceSchema,
+  }),
+]);
+const callableBindingFactSchema = z.union([
+  invocationRefusalSchema,
+  z.object({ kind: z.literal("resolved"), value: callableBindingValueSchema, trace: invocationTraceSchema }),
+]);
+const moduleFactSchema = z.union([invocationRefusalSchema, z.object({ kind: z.literal("resolved"), value: moduleValueSchema, trace: invocationTraceSchema })]);
+const nodeFactSchema = z.union([invocationRefusalSchema, z.object({ kind: z.literal("resolved"), value: spanSchema, trace: invocationTraceSchema })]);
+const stringFactSchema = z.union([invocationRefusalSchema, z.object({ kind: z.literal("resolved"), value: z.string(), trace: invocationTraceSchema })]);
+export const invocationEvidenceSchema = z.object({
+  query: invocationQuerySchema,
+  callee: spanSchema.nullable(),
+  invocation: callableInvocationFactSchema.nullable(),
+  profiles: z.array(
+    z.object({
+      node: spanSchema,
+      module: moduleFactSchema.optional(),
+      global: z.literal(true).optional(),
+      binding: callableBindingFactSchema.optional(),
+      undefined: z.boolean().optional(),
+      namespace: z.array(spanSchema).optional(),
+      string: stringFactSchema.optional(),
+      stable: nodeFactSchema.optional(),
+      canonicalValue: z.object({ declaration: spanSchema, fact: nodeFactSchema }).optional(),
+    }),
+  ),
+  sources: z.array(z.object({ file: z.string(), bindings: z.number().int().nonnegative(), computed: z.array(spanSchema) })),
+});
+export type InventoryInvocationEvidence = z.infer<typeof invocationEvidenceSchema>;
+export interface NativeInvocationEvidence {
+  readonly invocation: CallableInvocationFact | undefined;
+  readonly modules: ReadonlyMap<Node, ReferenceFact<ModuleMemberOrigin>>;
+  readonly globals: ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>>;
+  readonly callableBindings: ReadonlyMap<Node, ReferenceFact<CallableBinding>>;
+  readonly undefinedMembers: ReadonlyMap<Node, boolean>;
+  readonly namespaces: ReadonlyMap<Node, readonly Node[]>;
+  readonly strings: ReadonlyMap<Node, ReferenceFact<string>>;
+  readonly stableValues: ReadonlyMap<Node, ReferenceFact<Node>>;
+  readonly canonicalValues: ReadonlyMap<Node, ReferenceFact<Node>>;
+  readonly declarations: (node: Node) => readonly Node[];
+  readonly computedName: (node: Node) => ReferenceFact<string>;
+}
+export interface CapturedInvocationEvidence extends NativeInvocationEvidence {
+  readonly sources: readonly SourceFile[];
+}
+export const invocationAtomSchema = z.object({
+  ordinal: z.number().int().nonnegative(),
+  parent: z.number().int().nonnegative().nullable(),
+  key: z.string(),
+  kind: z.enum(["object", "array", "string", "number", "boolean", "null"]),
+  text: z.string().nullable(),
+  number: z.number().nullable(),
+  size: z.number().int().nonnegative(),
+});
+export type InventoryInvocationAtom = z.infer<typeof invocationAtomSchema>;
+
+/** Coverage is derived from the captured argument fact and requested facets, never family presence alone. */
+export function assertInvocationEvidence(entry: InventoryInvocationEvidence): void {
+  const profiles = new Map(entry.profiles.map((profile) => [inventoryNodeQueryKey(profile.node), profile]));
+  if (profiles.size !== entry.profiles.length) {
+    throw new SemanticInventoryError("native invocation profile identity is ambiguous");
+  }
+  const requireFacets = (node: InventorySpan, facets: InventoryInvocationPlan["facets"]): void => {
+    if (facets.length === 0) {
+      return;
+    }
+    const profile = profiles.get(inventoryNodeQueryKey(node));
+    if (profile === undefined || facets.some((facet) => profile[facet] === undefined)) {
+      throw new SemanticInventoryError("native invocation facet coverage is incomplete");
+    }
+  };
+  assertInvocationProjection(entry, requireFacets);
+  for (const profile of entry.profiles) {
+    if (profile.binding?.kind === "resolved") {
+      requireFacets(profile.binding.value.callee, ["module"]);
+    }
+    assertCanonicalVariableProfile(profile);
+  }
+}
+function assertInvocationProjection(
+  entry: InventoryInvocationEvidence,
+  requireFacets: (node: InventorySpan, facets: InventoryInvocationPlan["facets"]) => void,
+): void {
+  const plan = entry.query;
+  if (plan.mode === "value") {
+    if (entry.invocation !== null || entry.callee !== null || plan.arguments.length > 0) {
+      throw new SemanticInventoryError("native value demand carries invocation meaning");
+    }
+    requireFacets(plan.node, plan.facets);
+    return;
+  }
+  const invocation = entry.invocation;
+  if (invocation === null || entry.callee === null) {
+    throw new SemanticInventoryError("native invocation capture is missing");
+  }
+  requireFacets(entry.callee, plan.facets);
+  if (invocation.kind !== "resolved") {
+    return;
+  }
+  requireFacets(invocation.value.callee, plan.facets);
+  assertInvocationArguments(invocation.value.arguments, plan, requireFacets);
+}
+function assertInvocationArguments(
+  arguments_: InventoryInvocationReference<InventorySpan[]>,
+  plan: InventoryInvocationPlan,
+  requireFacets: (node: InventorySpan, facets: InventoryInvocationPlan["facets"]) => void,
+): void {
+  if (arguments_.kind !== "resolved") {
+    return;
+  }
+  for (const projection of plan.arguments) {
+    const argument = arguments_.value[projection.index];
+    if (argument !== undefined) {
+      requireFacets(argument, projection.facets);
+    }
+  }
+}
+function assertCanonicalVariableProfile(profile: InventoryInvocationEvidence["profiles"][number]): void {
+  const module = profile.module;
+  if (profile.stable === undefined || module?.kind !== "resolved" || module.value.canonical.kind !== "project") {
+    return;
+  }
+  const declaration = module.value.canonical.declaration;
+  if (
+    declaration.kind === SyntaxKind.VariableDeclaration &&
+    (profile.canonicalValue === undefined || inventoryNodeQueryKey(profile.canonicalValue.declaration) !== inventoryNodeQueryKey(declaration))
+  ) {
+    throw new SemanticInventoryError("native canonical variable value is missing or foreign");
+  }
+}
+
 export interface InventoryNativeQuery {
   readonly program: string;
   readonly node: InventorySpan;
@@ -161,6 +373,7 @@ export const partitionSchema = z.object({
   computedNames: z.array(computedNameSchema),
   globalOrigins: z.array(globalOriginSchema),
   globalBindings: z.array(spanSchema),
+  invocationEvidence: z.array(invocationEvidenceSchema),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
   format: z.literal(INVENTORY_FORMAT),
@@ -188,6 +401,7 @@ export const partitionSchema = z.object({
 export const partitionMetadataSchema = partitionSchema.omit({
   globalOrigins: true,
   globalBindings: true,
+  invocationEvidence: true,
   computedNames: true,
   callableDeclarations: true,
   memberOrigins: true,
@@ -224,6 +438,7 @@ export const INVENTORY_FAMILY_FIELDS = {
   "callable-declarations": "callableDeclarations",
   "computed-names": "computedNames",
   "global-origins": "globalOrigins",
+  "invocation-evidence": "invocationEvidence",
 } as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
@@ -256,6 +471,9 @@ export const INVENTORY_RECORD_TABLES = [
   "globalDeclaration",
   "globalMember",
   "globalBinding",
+  "invocationEvidence",
+  "invocationAtom",
+  "invocationSource",
 ] as const;
 export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
 export interface InventoryRecord {
@@ -283,6 +501,7 @@ export interface InventoryOverlay {
 }
 
 export interface InventoryBuildRequest {
+  readonly invocationQueries?: readonly InventoryInvocationQuery[];
   readonly globalOriginQueries?: readonly InventorySpan[];
   readonly globalBindingQueries?: readonly InventorySpan[];
   readonly computedNameQueries?: readonly InventorySpan[];
@@ -297,6 +516,7 @@ export interface InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
+  readonly invocationQueries?: readonly InventoryNativeInvocationQuery[];
   readonly globalOriginQueries?: readonly InventoryNativeQuery[];
   readonly globalBindingQueries?: readonly InventoryNativeQuery[];
   readonly callableQueries?: readonly InventoryNativeQuery[];
@@ -320,6 +540,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly invocationEvidence: (node: Node, program: string, plan: InventoryInvocationPlan) => NativeInvocationEvidence;
   readonly globalOrigin: (node: Node, program: string) => ReferenceFact<GlobalMemberOrigin>;
   readonly globalBinding: (node: Node, program: string) => readonly Node[];
   readonly computedName: (node: Node, program: string) => ReferenceFact<string>;

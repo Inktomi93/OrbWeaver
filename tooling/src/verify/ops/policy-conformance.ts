@@ -16,6 +16,7 @@ import { lexicalReferenceSymbol } from "../../floor/code-facts/reference-fact-al
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
+import { captureInvocationEvidence } from "../../floor/compiler/invocation-evidence-extract.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation, GatePolicyProofGrant } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
@@ -540,6 +541,10 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (): NativeTypeFactReader => ({
+      invocationEvidence: (nodes, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
+        checkerFor(nodes);
+        return new Map(nodes.map((node) => [node, captureInvocationEvidence(node, plan)]));
+      },
       globalOrigins: (nodes): ReturnType<NativeTypeFactReader["globalOrigins"]> => {
         checkerFor(nodes);
         return new Map(nodes.map((node) => [node, resolveGlobalMemberOrigin(node)]));

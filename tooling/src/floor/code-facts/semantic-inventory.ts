@@ -8,6 +8,7 @@ import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-work
 import type {
   InventoryBuildRequest,
   InventoryFamily,
+  InventoryInvocationQuery,
   InventoryOverlay,
   InventoryShapeQuery,
   InventorySpan,
@@ -15,7 +16,7 @@ import type {
   SemanticInventoryOptions,
   StoredInventoryPartition,
 } from "./semantic-inventory-contract.ts";
-import { inventoryFamilies, inventoryNodeQueryKey, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
+import { inventoryFamilies, inventoryNodeQueryKey, invocationQueryKey, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
 import {
   beginInventoryWrite,
   importInventoryPartition,
@@ -32,6 +33,7 @@ import {
   readInventoryGlobalBindings,
   readInventoryGlobalOrigins,
   readInventoryInputs,
+  readInventoryInvocationEvidence,
   readInventoryPairs,
 } from "./semantic-inventory-queries.ts";
 import { inventoryReader } from "./semantic-inventory-reader.ts";
@@ -81,6 +83,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     assertCallableDemand(options, descriptors, families);
     assertComputedDemand(options, descriptors, families);
     assertGlobalDemand(options, descriptors, families);
+    assertInvocationDemand(options, descriptors, families);
     const previous = latestInventoryPartitions(db, families);
     const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
     assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
@@ -174,6 +177,7 @@ function buildPartition(
     if (!coversGlobalDemand(staging, candidate, request)) {
       throw new Error(`native inventory worker supplied incomplete global-origin/binding coverage: ${request.descriptor.id}`);
     }
+    assertInvocationCoverage(staging, candidate, request);
     partition = candidate;
   }
   importInventoryPartition(db, request.destination, partition.id);
@@ -462,8 +466,9 @@ function nativeDemandRequest(
   options: SemanticInventoryOptions,
   program: string,
   families: readonly InventoryFamily[],
-): Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries"> {
+): Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries" | "invocationQueries"> {
   return {
+    ...(families.includes("invocation-evidence") ? { invocationQueries: invocationDemand(options, program) } : {}),
     ...(families.includes("callable-declarations") ? { callableQueries: callableDemand(options, program) } : {}),
     ...(families.includes("computed-names") ? { computedNameQueries: computedDemand(options, program) } : {}),
     ...(families.includes("global-origins")
@@ -477,12 +482,13 @@ function nativeDemandRequest(
 function coversNativeDemand(
   db: ReturnType<typeof openInventoryDatabase>,
   partition: StoredInventoryPartition,
-  demand: Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries">,
+  demand: Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries" | "invocationQueries">,
 ): boolean {
   return (
     coversCallableDemand(db, partition, demand.callableQueries ?? []) &&
     coversComputedDemand(db, partition, demand.computedNameQueries ?? []) &&
-    coversGlobalDemand(db, partition, demand)
+    coversGlobalDemand(db, partition, demand) &&
+    coversInvocationDemand(db, partition, demand.invocationQueries ?? [])
   );
 }
 
@@ -492,7 +498,7 @@ function globalDemand(options: SemanticInventoryOptions, program: string, kind: 
 function coversGlobalDemand(
   db: ReturnType<typeof openInventoryDatabase>,
   partition: StoredInventoryPartition,
-  queries: Pick<InventoryBuildRequest, "globalOriginQueries" | "globalBindingQueries">,
+  queries: Pick<InventoryBuildRequest, "globalOriginQueries" | "globalBindingQueries" | "invocationQueries">,
 ): boolean {
   return (
     (queries.globalOriginQueries ?? []).every((query) => [...readInventoryGlobalOrigins(db, partition.id, query)].length === 1) &&
@@ -513,5 +519,38 @@ function assertGlobalDemand(
     ) {
       throw new Error("native global origins and bindings require closed demand in admitted native programs");
     }
+  }
+}
+
+function invocationDemand(options: SemanticInventoryOptions, program: string): readonly InventoryInvocationQuery[] {
+  return [
+    ...new Map((options.invocationQueries ?? []).filter((query) => query.program === program).map(({ query }) => [invocationQueryKey(query), query])).values(),
+  ];
+}
+function coversInvocationDemand(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  queries: readonly InventoryInvocationQuery[],
+): boolean {
+  return queries.every((query) => [...readInventoryInvocationEvidence(db, partition.id, query)].length === 1);
+}
+function assertInvocationDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  if (
+    (options.invocationQueries ?? []).some((query) => !descriptors.some((descriptor) => descriptor.id === query.program)) ||
+    (options.invocationQueries !== undefined && !families.includes("invocation-evidence")) ||
+    (families.includes("invocation-evidence") &&
+      (options.invocationQueries === undefined || !families.includes("computed-names") || !families.includes("global-origins")))
+  ) {
+    throw new Error("native invocation evidence requires closed demand and related fact capabilities in admitted native programs");
+  }
+}
+
+function assertInvocationCoverage(db: ReturnType<typeof openInventoryDatabase>, candidate: StoredInventoryPartition, request: InventoryBuildRequest): void {
+  if (!coversInvocationDemand(db, candidate, request.invocationQueries ?? [])) {
+    throw new Error(`native inventory worker supplied incomplete invocation coverage: ${request.descriptor.id}`);
   }
 }
