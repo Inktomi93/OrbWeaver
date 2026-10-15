@@ -60,12 +60,24 @@ export function makeParticipantView(overrides: Partial<ParticipantWire> = {}): P
   };
 }
 
-/** The full `chat.getChat` read: an empty roster, the contract's default group config and room overrides, and
- *  a viewer who is the host (the un-gated arm). */
+/** The full read carries the default host's human seat; explicit rosters remain caller-owned. */
 export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDetailWire {
+  const chatId = overrides.id ?? ids.next(ID_PREFIX.chat);
+  const userId = overrides.viewerUserId ?? newId<UserId>(ids.next);
+  const handle = viewerViewSchema.shape.handle.parse("chat-host");
+  const participant = makeParticipantView({
+    chatId,
+    kind: "human",
+    userId,
+    characterId: null,
+    role: overrides.viewerIsHost === false ? "member" : "host",
+    displayName: handle,
+    handle,
+    joinSeq: 0,
+  });
   return {
     ...chatDetailSchema.parse({
-      id: ids.next(ID_PREFIX.chat),
+      id: chatId,
       title: null,
       starred: false,
       archived: false,
@@ -74,10 +86,10 @@ export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDet
       forkedAt: null,
       anchorPersonaId: null,
       anchorState: "none",
-      participants: [],
+      participants: [participant],
       viewerActivePersonaId: null,
       viewerIsHost: true,
-      viewerUserId: ids.next("user"),
+      viewerUserId: userId,
       viewerOwnedCharacterIds: [],
       viewerGalleryCharacterId: null,
       pendingHostUserId: null,
