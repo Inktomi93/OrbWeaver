@@ -1,4 +1,5 @@
 // Real world-info operations own admission, role transitions and stamps; these seeds capture their canonical rows.
+import { backfillResultSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
@@ -12,6 +13,22 @@ export type CharacterBookRow = typeof characterBooks.$inferSelect;
 export type ChatBookRow = typeof chatBooks.$inferSelect;
 export type GlobalBookRow = typeof globalBooks.$inferSelect;
 export type PersonaBookRow = typeof personaBooks.$inferSelect;
+
+export interface SeededWorldTitleBackfill {
+  readonly result: Awaited<ReturnType<WorldInfoService["backfillTitles"]>>;
+  readonly entries: readonly WorldEntryRow[];
+}
+
+/** Keep repair results tied to their actual book children, including unchanged entries. */
+export async function seedBackfilledWorldTitles(
+  db: Db,
+  backfill: WorldInfoService["backfillTitles"],
+  params: Parameters<WorldInfoService["backfillTitles"]>[0],
+): Promise<SeededWorldTitleBackfill> {
+  const result = backfillResultSchema.parse(await backfill(params));
+  const entries = await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, params.bookId)).orderBy(worldEntries.id);
+  return { result, entries };
+}
 
 /** Produces the book through its owner operation; persisted stamps are not replaced by fixture time. */
 export async function seedWorldBook(

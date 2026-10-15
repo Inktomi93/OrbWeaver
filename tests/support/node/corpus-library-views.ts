@@ -259,7 +259,8 @@ async function effects(root: ServerTestHarness, world: WorldViews, regex: RegexV
   };
 }
 
-async function worldViews(root: ServerTestHarness, library: Library, caller: Caller, other: Caller): Promise<WorldViews> {
+/** Isolate the actual world-library stages from unrelated corpus producers. */
+export async function seedWorldInfoLibraryViews(root: ServerTestHarness, library: Library, caller: Caller, other: Caller): Promise<WorldViews> {
   const principal = await root.principalFor(root.ownerId);
   const character = await caller.character.create({
     input: createCharacterSchema.parse({
@@ -337,7 +338,8 @@ async function worldViews(root: ServerTestHarness, library: Library, caller: Cal
   };
 }
 
-async function regexViews(root: ServerTestHarness, library: Library, caller: Caller, other: Caller): Promise<RegexViews> {
+/** Isolate the actual regex-library stages from unrelated corpus producers. */
+export async function seedRegexLibraryViews(root: ServerTestHarness, library: Library, caller: Caller, other: Caller): Promise<RegexViews> {
   const principal = await root.principalFor(root.ownerId);
   const scripts: Awaited<ReturnType<typeof seedRegexScript>>[] = [];
   const placement = ["DISPLAY"] as const;
@@ -412,7 +414,8 @@ async function regexViews(root: ServerTestHarness, library: Library, caller: Cal
   };
 }
 
-async function tagViews(root: ServerTestHarness, library: Library, caller: Caller): Promise<TagViews> {
+/** Keep pending and adopted observations before later library changes. */
+export async function seedTagLibraryViews(root: ServerTestHarness, library: Library, caller: Caller): Promise<TagViews> {
   const principal = await root.principalFor(root.ownerId);
   const tag = await seedTag(root.db, root.services.tag.createTag, {
     principal,
@@ -441,7 +444,8 @@ async function tagViews(root: ServerTestHarness, library: Library, caller: Calle
   };
 }
 
-async function personaViews(library: Library, caller: Caller, other: Caller): Promise<PersonaViews> {
+/** Isolate native persona portability and relation stages from unrelated corpus producers. */
+export async function seedPersonaLibraryViews(library: Library, caller: Caller, other: Caller): Promise<PersonaViews> {
   const duplicate = await read<"persona.duplicate">({ personaId: library.persona.id }, caller.persona.duplicate);
   const exported = await read<"persona.export">({ personaId: duplicate.output.id }, caller.persona.export);
   const imported = await read<"persona.import">({ fileText: exported.output.fileText }, other.persona.import);
@@ -579,10 +583,10 @@ async function documentViews(root: ServerTestHarness, library: Library, caller: 
 export async function seedCorpusLibraryViews(root: ServerTestHarness, library: Library, actors: Actors): Promise<LibraryViews> {
   const caller = await root.internalCallerFor(root.ownerId);
   const other = await root.internalCallerFor(actors.secondUserId);
-  const world = await worldViews(root, library, caller, other);
-  const regex = await regexViews(root, library, caller, other);
-  const tags = await tagViews(root, library, caller);
-  const persona = await personaViews(library, caller, other);
+  const world = await seedWorldInfoLibraryViews(root, library, caller, other);
+  const regex = await seedRegexLibraryViews(root, library, caller, other);
+  const tags = await seedTagLibraryViews(root, library, caller);
+  const persona = await seedPersonaLibraryViews(library, caller, other);
   const roster = await rosterViews(root, library, caller);
   const preset = await presetViews(library, actors, caller);
   const documents = await documentViews(root, library, caller);

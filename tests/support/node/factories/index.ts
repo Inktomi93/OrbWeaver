@@ -154,5 +154,14 @@ export type { SeededAdminUser, UserRow } from "./user.ts";
 export { makeUser, seedCreatedAdminUser, seedUser } from "./user.ts";
 export type { WorkloadDbRow } from "./workload.ts";
 export { seedWorkload, seedWorkloadSchedule } from "./workload.ts";
-export type { CharacterBookRow, ChatBookRow, GlobalBookRow, PersonaBookRow, WorldBookRow, WorldEntryRow } from "./world-info.ts";
-export { captureWorldBookRows, seedCharacterBook, seedChatBook, seedGlobalBook, seedPersonaBook, seedWorldBook, seedWorldEntry } from "./world-info.ts";
+export type { CharacterBookRow, ChatBookRow, GlobalBookRow, PersonaBookRow, SeededWorldTitleBackfill, WorldBookRow, WorldEntryRow } from "./world-info.ts";
+export {
+  captureWorldBookRows,
+  seedBackfilledWorldTitles,
+  seedCharacterBook,
+  seedChatBook,
+  seedGlobalBook,
+  seedPersonaBook,
+  seedWorldBook,
+  seedWorldEntry,
+} from "./world-info.ts";
