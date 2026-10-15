@@ -273,7 +273,7 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
 /** Map a node's children to SurfaceNode. */
 function renderChildren(children: readonly PluginSurfaceNode[], depth: number, ctx: RenderCtx): ReactNode {
   return children.map((child, index) => (
-    // biome-ignore lint/suspicious/noArrayIndexKey: a plugin spec node carries no id and the tree is static per render (re-validated, never reordered), so the index IS a stable key here.
+    // biome-ignore lint/suspicious/noArrayIndexKey: field-set identity scopes drafts and confirm actions scope their own consent; broader dynamic subtree state remains unqualified.
     <SurfaceNode ctx={ctx} depth={depth + 1} key={index} node={child} />
   ));
 }

@@ -1,6 +1,6 @@
 // A capsule owns a new synthetic directory and the actual persisted graph. Private rows stay Node-owned;
 // only owner-validated wire captures may feed a later, separately authorized portable publication.
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,8 +8,10 @@ import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { localPath } from "@orb/db";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
+import { z } from "zod";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import { SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
 import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import type { seedCorpusConnection as produceCorpusConnection } from "./corpus-connection.ts";
 import type { seedCorpusImageVariants as produceCorpusImageVariants } from "./corpus-image-variants.ts";
@@ -46,13 +48,17 @@ import type { seedStats as produceSearchStats } from "./factories/stats.ts";
 import type { ServerHarnessOptions } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
+const CORPUS_REPLAY_FILE = "replay.json";
 const SHARED_MEMBER_PASSWORD = "synthetic-corpus-shared-member-password";
+
+const corpusReplaySchema = z.strictObject({ version: z.literal(1), nowMs: z.int().nonnegative(), idCursor: z.int().min(0).max(SEEDED_ID_MAX_CURSOR) });
+export type CorpusReplayState = z.output<typeof corpusReplaySchema>;
 
 export interface CorpusCapsuleOptions {
   readonly directory: string;
   readonly server: Omit<
     ServerHarnessOptions,
-    "db" | "ownerId" | "physicalPeer" | "authConfig" | "casDir" | "variantDir" | "importStagingDir" | "timers" | "oidc"
+    "db" | "ownerId" | "physicalPeer" | "authConfig" | "casDir" | "variantDir" | "importStagingDir" | "timers" | "oidc" | "random"
   > & {
     readonly authConfig: NonNullable<ServerHarnessOptions["authConfig"]> & { readonly mode: "local" };
     readonly pluginSpawn: NonNullable<ServerHarnessOptions["pluginSpawn"]>;
@@ -98,14 +104,22 @@ export interface CorpusCapsule extends AsyncDisposable {
   readonly wire: CorpusWire;
   readonly privateCaptures: CorpusPrivateCaptures;
   readonly publishWire: () => string;
+  readonly replay: CorpusReplayState;
 }
 
 export interface CorpusFixture {
   readonly layout: DataLayout;
   readonly wire: CorpusWire;
+  readonly replay?: CorpusReplayState;
 }
 
 export interface PreparedCorpusFixture extends CorpusFixture, AsyncDisposable {}
+
+/** Resolve the shared corpus execution policy for producers and resumed graphs. @internal */
+export function corpusServerOptions(options: ServerHarnessOptions): ServerHarnessOptions {
+  const { random: _random, ...server } = options;
+  return server;
+}
 
 function corpusDatabaseFile(layout: DataLayout): string {
   const path = localPath(layout.databaseUrl);
@@ -122,20 +136,43 @@ export function loadCorpusFixture(directory = fileURLToPath(new URL("./corpus-da
   if (!statSync(corpusDatabaseFile(layout)).isFile()) {
     throw new Error("Prepared corpus fixture has no database file");
   }
-  return { layout, wire };
+  const replayFile = join(layout.root, CORPUS_REPLAY_FILE);
+  if (!existsSync(replayFile)) {
+    return { layout, wire };
+  }
+  const replayText = readFileSync(replayFile, "utf8");
+  // This Node-only boundary reports no malformed field values or keys that could contain private input.
+  let replay: ReturnType<typeof corpusReplaySchema.safeParse> | null;
+  try {
+    replay = corpusReplaySchema.safeParse(JSON.parse(replayText));
+  } catch {
+    replay = null;
+  }
+  if (replay === null || !replay.success) {
+    throw new Error("Corpus replay state is malformed");
+  }
+  return { layout, wire, replay: replay.data };
 }
 
 type CloneOptions = Parameters<typeof import("@orb/tooling/snap")["cloneStageDb"]>[2];
 
-async function copyCorpusFixture(source: DataLayout, published: string, directory: string, options: CloneOptions = {}): Promise<CorpusFixture> {
+async function copyCorpusFixture(
+  source: Pick<CorpusFixture, "layout" | "replay">,
+  published: string,
+  directory: string,
+  options: CloneOptions = {},
+): Promise<CorpusFixture> {
   const root = resolve(directory);
   await mkdir(root);
   let completed = false;
   try {
     const layout = resolveDataLayout({ ["DATA_DIR"]: root });
     const { cloneStageDb } = await import("@orb/tooling/snap");
-    cloneStageDb(corpusDatabaseFile(source), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets }, options);
+    cloneStageDb(corpusDatabaseFile(source.layout), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets }, options);
     await writeFile(join(root, CORPUS_WIRE_FILE), published, { encoding: "utf8", flag: "wx" });
+    if (source.replay !== undefined) {
+      await writeFile(join(root, CORPUS_REPLAY_FILE), JSON.stringify(corpusReplaySchema.parse(source.replay)), { encoding: "utf8", flag: "wx" });
+    }
     const fixture = loadCorpusFixture(root);
     completed = true;
     return fixture;
@@ -152,27 +189,26 @@ function ownedCorpusFixture(fixture: CorpusFixture): PreparedCorpusFixture {
 
 /** A private stage clone retains backend lineage; its caller owns deletion after every stage process stops. */
 export async function prepareCorpusFixture(capsule: CorpusCapsule, directory: string): Promise<PreparedCorpusFixture> {
-  return ownedCorpusFixture(await copyCorpusFixture(capsule.layout, capsule.publishWire(), directory));
+  return ownedCorpusFixture(await copyCorpusFixture(capsule, capsule.publishWire(), directory));
 }
 
 /** Publish a durable, completed DB/CAS and portable envelope; source runtime identities and known echoes cannot leave. */
 export async function publishCorpusFixture(capsule: CorpusCapsule, directory: string): Promise<CorpusFixture> {
-  return await copyCorpusFixture(capsule.layout, capsule.publishWire(), directory, {
+  return await copyCorpusFixture(capsule, capsule.publishWire(), directory, {
     publication: { privateLiterals: capsule.privateCaptures.publicationSecrets },
   });
 }
 
 /** Each consumer owns an independent writable copy; disposing it never deletes or modifies the durable publication. */
 export async function cloneCorpusFixture(fixture: CorpusFixture, directory: string): Promise<PreparedCorpusFixture> {
-  return ownedCorpusFixture(
-    await copyCorpusFixture(fixture.layout, serializeCorpusWire(fixture.wire, []), directory, { publication: { privateLiterals: [] } }),
-  );
+  return ownedCorpusFixture(await copyCorpusFixture(fixture, serializeCorpusWire(fixture.wire, []), directory, { publication: { privateLiterals: [] } }));
 }
 
 interface CapturedCapsule {
   readonly wire: CorpusWire;
   readonly privateCaptures: CorpusPrivateCaptures;
   readonly publishWire: CorpusCapsule["publishWire"];
+  readonly snapshotReplay: () => CorpusReplayState;
 }
 
 /** Create only a new directory; teardown removes only this capsule, never a pre-existing data root. */
@@ -182,12 +218,14 @@ export async function createCorpusCapsule(options: CorpusCapsuleOptions): Promis
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(directory, { recursive: true, force: true }));
   const layout = resolveDataLayout({ ["DATA_DIR"]: directory });
-  const captured = await captureCapsule(options, layout);
+  const { snapshotReplay, ...captured } = await captureCapsule(options, layout);
+  const replay = corpusReplaySchema.parse(snapshotReplay());
   const lifetime = ownership.move();
-  return { layout, ...captured, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+  return { layout, ...captured, replay, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout): Promise<CapturedCapsule> {
+  const server = corpusServerOptions(options.server);
   const { assertReferentialIntegrity, createDb, preCloseHousekeeping, runMigrations } = await import("@orb/db");
   const { SHIPPED_MIGRATIONS, createDbStatementHold } = await import("./db.ts");
   const { createCorpusChatWire } = await import("./corpus-chat-wire.ts");
@@ -254,7 +292,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   let oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
   {
     await using authentication = await createServerHarness({
-      ...options.server,
+      ...server,
       db,
       clock,
       ids,
@@ -279,7 +317,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   }
   const root = lifetimes.use(
     await createServerHarness({
-      ...options.server,
+      ...server,
       db,
       clock,
       ids,
@@ -397,6 +435,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   ].filter((value) => value !== null && value !== undefined);
   return {
     wire,
+    snapshotReplay: () => ({ version: 1, nowMs: clock.now(), idCursor: ids.snapshot() }),
     publishWire: () => serializeCorpusWire(wire, secrets),
     privateCaptures: {
       publicationSecrets: secrets,

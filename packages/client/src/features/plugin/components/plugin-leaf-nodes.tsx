@@ -1,18 +1,5 @@
-// The LEAF node renderers — the display leaves and the form/action leaves —
-// split out of `plugin-surface-renderer.tsx`, which owns the walk, the caps and the container dispatch.
-//
-// THE SPLIT FOLLOWS `plugin-browse-nodes.tsx`: the one exported entry `SurfaceLeaf` takes the CONCRETE values a
-// leaf needs (surface state, the resolved owner-scoped image urls, the form draft + its setter, the action
-// submitter, the in-flight flag) rather than the renderer's own `RenderCtx` object. That keeps the renderer the
-// single owner of the walk, gives this module NO import back into it (so there is no cycle to unpick), and keeps
-// `RenderCtx` private to the renderer.
-//
-// The WHOLE leaf concern lives HERE and behind one door: the display/form partition, the `isFormNode` guard, and
-// both leaf families are module-private, so each leaf renderer stays exhaustive over its own SMALL union (a new
-// node kind still fails `tsc` in the switch that owns it) without the union alias ever being exported — which
-// `no-inline-types` forbids for a feature module, and which is why the renderer delegates every leaf to
-// `SurfaceLeaf` instead of dispatching the two families itself. Exporting only a component also satisfies the
-// react-refresh `useComponentExportOnlyModules` rule (a guard export would break it).
+// Plugin display and form leaves share one dispatch; the surface renderer owns traversal and context.
+// Stateful controls own their consent and native focus lifecycle beside their leaf implementation.
 
 import type {
   PluginBadgeNode,
@@ -49,7 +36,7 @@ import { Slider } from "@orb/ui/slider";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useId } from "react";
+import { useId, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
 import {
@@ -228,7 +215,7 @@ function DisplayLeaf({
       <Stack gap="tight">
         {node.items.map((item, index) => (
           <Text
-            // biome-ignore lint/suspicious/noArrayIndexKey: a list item is a bindable string with no id and the list is static per render — index is a stable key here.
+            // biome-ignore lint/suspicious/noArrayIndexKey: bound strings render as Text only; replacing a slot cannot transfer row-local state or actions.
             key={index}
             prose={true}
           >
@@ -410,15 +397,37 @@ function FormLeaf({
       </Button>
     );
   }
-  // confirmButton — last in the chain, so it is also the safe fallback over an untrusted (post-validation) spec.
+  return <ConfirmButtonLeaf node={node} submit={submit} submitting={submitting} />;
+}
+
+/** A confirmation belongs to its action, not the tree position a guest republishes. */
+function ConfirmButtonLeaf({
+  node,
+  submit,
+  submitting,
+}: {
+  readonly node: PluginConfirmButtonNode;
+  readonly submit: SubmitAction;
+  readonly submitting: boolean;
+}): ReactElement {
+  const confirmTrigger = useRef<HTMLButtonElement>(null);
+  const actionId = node.actionId;
+  const [confirmation, setConfirmation] = useState({ actionId, open: false });
+  if (confirmation.actionId !== actionId) {
+    setConfirmation({ actionId, open: false });
+  }
   return (
     <ConfirmDialog
+      // A new publication may reuse this tree position for a different action, not its consent.
+      open={confirmation.actionId === node.actionId && confirmation.open}
+      onOpenChange={(open): void => setConfirmation({ actionId: node.actionId, open })}
       confirmLabel={node.label}
       description={node.confirmBody ?? ""}
+      finalFocus={confirmTrigger}
       onConfirm={(): void => submit(node.actionId)}
       title={node.confirmTitle}
       trigger={
-        <Button intent="destructive" loading={submitting} size="sm">
+        <Button ref={confirmTrigger} intent="destructive" loading={submitting} size="sm">
           {node.label}
         </Button>
       }

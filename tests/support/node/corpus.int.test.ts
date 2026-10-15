@@ -104,6 +104,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
       ...options,
     }),
   );
+  expect(capsule.replay).toEqual({ version: 1, nowMs: clock.now(), idCursor: ids.snapshot() });
   expect(await readdir(parent)).toEqual(["capsule root"]);
   expect(capsule.privateCaptures.oidc.ownerId).toBe(capsule.privateCaptures.baseline.ownerId);
   expect(capsule.privateCaptures.recall.traces.some((trace) => trace.queryEmbedded && trace.poolSize > 0)).toBe(true);

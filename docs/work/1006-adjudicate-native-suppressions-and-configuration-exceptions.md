@@ -24,8 +24,6 @@ Every observed entry has source evidence and a retain, remove, fix or unresolved
 
 ## Evidence
 
-The frozen checkpoint retains unresolved questions. Preserve runtime behavior, retain verified limitations and repair real findings before removing directives.
-
 Reviewed source `ba07cbab45` preserves native `Response.formData` passthrough with owner-approved line-local deprecation exceptions. Bounded native lint controls reject adjacent deprecated calls and expose the warnings when those exceptions are removed. No parser or configuration replaces the native protocol.
 
 Tracing uses explicit rejection handlers without a known-safe grant. Runtime controls and independent review confirm operation settlement and reporting failures. Whole-application qualification remains open.
@@ -38,4 +36,6 @@ Reviewed `375e0c81e6` restores native duplicate-dependency errors while preservi
 
 Integrated `25dc5d0222`, `7d00abce67` and `823016997e` remove inert DB import and client/server condition suppressions. Native typed deprecation, condition and nullish checks remain enabled. Exact lint and affected DB, server, client and maintained DOM types pass. Executable source remains unchanged. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-db-primary-key-suppressions.md` and adjacent client-union/condition-family reports. The checkpoint remainder and global configuration judgment stay open.
 
-Native naming retains verified API and framework permissions. Reviewed `713047bfef` narrows protocol scopes to exact files and selectors while preserving legacy compatibility. Unused production scopes and unrelated casing permissions are removed. Complete affected native naming checks pass; executable source is unchanged. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-protocol-naming-delivery.md` and adjacent application/framework reports. Broader configuration liveness and the remaining checkpoint stay open.
+Reviewed `713047bfef` narrows native naming permissions to actual API and framework subjects without executable changes. Native checks pass. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-protocol-naming-delivery.md`.
+
+Reviewed `7e0cd225be` and `b48f2dfc25` bind destructive consent and payload expansion to their actual owners. Native rendered controls pass, including schema-preview pending, error and replacement states. Bounded retentions and unresolved cases remain in `.claude/worktrees/codex-native-config-999/reports/review/1006-index-key-cohort.md`. The adjacent side-eye review qualifies only this lifetime scope; configuration liveness and the remaining checkpoint stay open.

@@ -359,7 +359,7 @@ function SceneBeats({ beats }: { readonly beats: readonly string[] }): ReactElem
     <Stack gap="field">
       <Kicker>Just now</Kicker>
       {beats.map((beat, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: recentBeats is a positional, id-less READ-ONLY log (a plain string[]) — beats can repeat verbatim, so content is not unique; immutable within one render, the index IS the beat identity (the character-greeting-preview positional-alternate precedent).
+        // biome-ignore lint/suspicious/noArrayIndexKey: the rolling beat window renders plain BeatLine text; its slots hold no local state or actions.
         <BeatLine key={i}>{beat}</BeatLine>
       ))}
     </Stack>

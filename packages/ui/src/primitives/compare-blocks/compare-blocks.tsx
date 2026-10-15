@@ -264,7 +264,7 @@ export function CompareBlocks({ blocks, accepted, onAcceptedChange, acceptAllLab
           return (
             <CollapsedRow
               decision={state.decision}
-              // biome-ignore lint/suspicious/noArrayIndexKey: blocks is a fixed-order review snapshot for the lifetime of the review — no reorder/insert case.
+              // biome-ignore lint/suspicious/noArrayIndexKey: decisions address positions; the active-field caller disables collapse state while replacing its single slot.
               key={index}
               name={state.name}
               onExpand={(): void => setReExpanded((prev) => new Set([...prev, index]))}
@@ -278,7 +278,7 @@ export function CompareBlocks({ blocks, accepted, onAcceptedChange, acceptAllLab
             block={block}
             count={blocks.length}
             index={index}
-            // biome-ignore lint/suspicious/noArrayIndexKey: blocks is a fixed-order review snapshot for the lifetime of the review — no reorder/insert case.
+            // biome-ignore lint/suspicious/noArrayIndexKey: decisions address positions; the active-field caller disables collapse state while replacing its single slot.
             key={index}
             onAcceptedChange={onAcceptedChange}
             onDecide={

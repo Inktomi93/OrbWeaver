@@ -69,7 +69,7 @@ export function AvatarStack({ className, items, max = DEFAULT_MAX, size = "md", 
           className={slots.item()}
           data-slot="avatar-stack-item"
           hueSeed={item.name}
-          // biome-ignore lint/suspicious/noArrayIndexKey: the item shape ({src?, name}) carries no stable id; render order is positional for a given props.items array.
+          // biome-ignore lint/suspicious/noArrayIndexKey: Base UI resets image loading by src; names/fallbacks are controlled and these slots expose no row actions.
           key={index}
           role="img"
           shape={shape}

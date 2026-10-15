@@ -8,7 +8,7 @@ import { join } from "node:path";
 import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { brandedId, castId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import type { createCaller, Services } from "@orb/server/transport/trpc";
 import { test as base } from "vitest";
@@ -16,6 +16,7 @@ import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
 import { createSeededIds } from "../iso/ids.ts";
+import type { PreparedCorpusFixture } from "./corpus.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 // Side-effect: register the custom matchers (toThrowTRPCError / toThrowProviderError) + their types.
 import "./matchers.ts";
@@ -25,6 +26,7 @@ export type AppCaller = ReturnType<typeof createCaller>;
 
 export interface Fixtures {
   harness: ServerTestHarness;
+  corpusHarness: CorpusServerHarness;
   clock: Clock;
   ids: SeededIds;
   db: Db;
@@ -42,6 +44,54 @@ export interface Fixtures {
   otherCaller: AppCaller;
   adminCaller: AppCaller;
   anonCaller: AppCaller;
+}
+
+export interface CorpusServerHarness extends ServerTestHarness {
+  readonly corpus: PreparedCorpusFixture;
+}
+
+export type CorpusHarnessOptions = Omit<
+  ServerHarnessOptions,
+  "db" | "clock" | "ids" | "timers" | "ownerId" | "casDir" | "variantDir" | "importStagingDir" | "temporaryParentDir" | "relayDir" | "secretsDir" | "random"
+>;
+
+/** Resume a publication through the existing graph, joining it before closing and deleting its independent clone. */
+export async function createCorpusHarness(directory?: string, options: CorpusHarnessOptions = {}): Promise<CorpusServerHarness> {
+  const { cloneCorpusFixture, loadCorpusFixture, corpusServerOptions } = await import("./corpus.ts");
+  const source = loadCorpusFixture(directory);
+  if (source.replay === undefined) {
+    throw new Error("Corpus server continuation requires replay state; publish this fixture with the canonical producer");
+  }
+  const owner = source.wire.reads["sessions.me"][0]?.output;
+  if (owner === undefined) {
+    throw new Error("Corpus server continuation requires its captured owner");
+  }
+  await using ownership = new AsyncDisposableStack();
+  const parent = await mkdtemp(join(tmpdir(), "orb-corpus-server-"));
+  ownership.defer(() => rm(parent, { recursive: true, force: true }));
+  const corpus = ownership.use(await cloneCorpusFixture(source, join(parent, "consumer")));
+  const { createDb, preCloseHousekeeping } = await import("@orb/db");
+  const db = await createDb(corpus.layout.databaseUrl);
+  ownership.defer(() => preCloseHousekeeping(db));
+  const { authConfigFromEnv } = await import("@orb/server/entry/auth");
+  const { createServerHarness } = await import("./server.ts");
+  const { timers: _timers, relayDir: _relayDir, secretsDir: _secretsDir, ...execution } = corpusServerOptions(options);
+  const root = ownership.use(
+    await createServerHarness({
+      ...execution,
+      db,
+      ownerId: brandedId<UserId>().parse(owner.userId),
+      clock: createFrozenClock(source.replay.nowMs),
+      ids: createSeededIds(source.replay.idCursor),
+      authConfig: options.authConfig ?? { ...authConfigFromEnv(), mode: "local", fallback: "deny", defaultHandle: owner.handle },
+      casDir: corpus.layout.assets,
+      variantDir: corpus.layout.variants,
+      importStagingDir: corpus.layout.importStaging,
+      temporaryParentDir: parent,
+    }),
+  );
+  const lifetime = ownership.move();
+  return { ...root, corpus, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 // The caller identities — FIXED ids (never the factory counters, so they can't collide with seeded
@@ -98,6 +148,18 @@ async function seedInternalCaller(
 // FixtureParseError); `{}` = depends on no other fixture. noEmptyPattern is off for tests/** (biome.json
 // override) precisely so this idiom needs no per-fixture suppression.
 export const test = base.extend<Fixtures>({
+  corpusHarness: async ({ providerFetch, networkExecution, authConfig, sdkQuery, sdkSpawn, runtimeSpan, secretBoxKey }, use): Promise<void> => {
+    await using root = await createCorpusHarness(undefined, {
+      providerFetch,
+      networkExecution,
+      secretBoxKey,
+      ...(authConfig === undefined ? {} : { authConfig }),
+      ...(sdkQuery === undefined ? {} : { sdkQuery }),
+      ...(sdkSpawn === undefined ? {} : { sdkSpawn }),
+      ...(runtimeSpan === undefined ? {} : { runtimeSpan }),
+    });
+    await use(root);
+  },
   clock: async ({}, use): Promise<void> => {
     await use(createFrozenClock());
   },

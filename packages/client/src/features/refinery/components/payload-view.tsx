@@ -337,7 +337,7 @@ function BulletsBlock({ field, value }: { field: PlanField; value: unknown }): R
       ) : (
         <Stack gap="tight" role="list">
           {items.map((item, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a read-only payload list never reorders.
+            // biome-ignore lint/suspicious/noArrayIndexKey: bullet slots contain controlled text only, without row-local state.
             <Row align="start" gap="field" key={i} role="listitem">
               <Text voice="gloss">•</Text>
               <Text>{scalarText(item)}</Text>
@@ -404,7 +404,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
         const scoreValue = row.score !== null && typeof item[row.score.key] === "number" ? (item[row.score.key] as number) : null;
         const open = openIndex === i;
         return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a read-only payload list never reorders.
+          // biome-ignore lint/suspicious/noArrayIndexKey: assay positions belong to the immutable payload owner; production mounts reset that owner between results.
           <Fragment key={i}>
             {i === 0 ? null : <Separator />}
             <Stack gap="tight">

@@ -14,17 +14,22 @@ const UUID_VERSION_INDEX = 6;
 const UUID_VARIANT_INDEX = 8;
 const UUID_VERSION_4 = 0x40;
 const UUID_RFC_VARIANT = 0x80;
+export const SEEDED_ID_MAX_CURSOR = 2 ** (COUNTER_BYTE_LENGTH * 8) - 1;
 
 export interface SeededIds {
   readonly next: (prefix?: string) => string;
   /** Deterministic opaque business UUIDs, never security tokens or cryptographic nonces. */
   readonly uuid: () => string;
+  readonly snapshot: () => number;
   readonly reset: () => void;
 }
 
-export function createSeededIds(): SeededIds {
-  let n = 0;
+export function createSeededIds(cursor = 0): SeededIds {
+  let n = cursor;
   const nextBytes = (): Uint8Array => {
+    if (n >= SEEDED_ID_MAX_CURSOR) {
+      throw new RangeError("Seeded business ID sequence is exhausted");
+    }
     n += 1;
     const bytes = new Uint8Array(UUID_BYTE_LENGTH);
     new DataView(bytes.buffer).setUint32(UUID_BYTE_LENGTH - COUNTER_BYTE_LENGTH, n, false);
@@ -38,8 +43,9 @@ export function createSeededIds(): SeededIds {
       bytes[UUID_VARIANT_INDEX] = UUID_RFC_VARIANT;
       return toUUID(fromUUIDBytes("", bytes));
     },
+    snapshot: (): number => n,
     reset: (): void => {
-      n = 0;
+      n = cursor;
     },
   };
 }

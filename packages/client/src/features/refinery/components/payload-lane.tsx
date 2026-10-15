@@ -81,7 +81,7 @@ function LaneBody({ stage, run, running, arrived }: { stage: RefineryStage; run:
     const custom = run.payloadConfig.kind === "custom";
     const schema = custom ? (run.payloadConfig as { schema: Record<string, unknown> }).schema : FIXED_SCHEMAS[run.stage];
     const plan = buildRenderPlan(schema, custom ? {} : BUILTIN_STAGE_HINTS[run.stage]);
-    return <PayloadView arrived={arrived} payload={run.payload as Record<string, unknown>} pending={running} plan={plan} />;
+    return <PayloadView key={run.id} arrived={arrived} payload={run.payload as Record<string, unknown>} pending={running} plan={plan} />;
   }
   if (running) {
     // No plan to shape a skeleton from on a first run (the plan comes off the run's own payload config), so

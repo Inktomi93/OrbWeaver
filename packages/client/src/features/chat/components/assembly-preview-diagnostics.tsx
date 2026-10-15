@@ -46,9 +46,7 @@ export function AssemblyPreviewDiagnostics({
                 {injections.map((injection, index) => (
                   <Text
                     voice="datum"
-                    // The afterHistory entries are positional + contentful, with no stable id on the wire;
-                    // the index is the stable key within one immutable preview render.
-                    // biome-ignore lint/suspicious/noArrayIndexKey: afterHistory entries are positional + id-less; the index is stable within one immutable preview render.
+                    // biome-ignore lint/suspicious/noArrayIndexKey: injection rows render controlled text only, with no row-local state or interactive descendants.
                     key={index}
                     className="whitespace-pre-wrap"
                   >

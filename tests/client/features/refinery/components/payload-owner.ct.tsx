@@ -1,0 +1,67 @@
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { REFINERY_SCORE_MODES, refineryRunViewSchema, refineryScorePayloadSchema } from "@orb/contracts/refinery";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
+import { expect, test } from "@playwright/experimental-ct-react";
+import { PayloadOwnerStory } from "./_payload-stories.tsx";
+
+test("assay expansion survives a same-run clone but not a different immutable run", async ({ mount, page }) => {
+  const ids = createSeededIds();
+  const payload = refineryScorePayloadSchema.parse({
+    fieldScores: [{ field: "description", score: 7, strengths: "Recognizable voice", weaknesses: "Missing context", suggestions: "Add a scene anchor" }],
+    overallScore: 7,
+    priorityImprovements: [],
+    summary: "A readable card",
+  });
+  const parsedRun = refineryRunViewSchema.options[0].parse({
+    id: ids.next(ID_PREFIX.refineryRun),
+    sessionId: ids.next(ID_PREFIX.refinerySession),
+    iteration: 0,
+    model: testModelId("fixture-model"),
+    promptTokens: null,
+    outputTokens: null,
+    durationMs: 0,
+    sourceRunId: null,
+    strippedKeys: [],
+    createdAt: FROZEN_AT_MS,
+    stage: "score",
+    payloadConfig: { kind: "fixed", mode: REFINERY_SCORE_MODES[0] },
+    payload,
+  });
+  const run = {
+    ...parsedRun,
+    payload: {
+      ...parsedRun.payload,
+      fieldScores: parsedRun.payload.fieldScores.map(({ greetingIndex, ...score }) => ({
+        ...score,
+        ...(greetingIndex === undefined ? {} : { greetingIndex }),
+      })),
+    },
+  };
+  const settings = userSettingsView();
+  const caller = principal(settings.userId);
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": () => settings,
+    "sessions.me": () => viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role }),
+  });
+  const component = await mount(<PayloadOwnerStory run={run} />);
+  const assay = page.getByRole("button", { name: "description — 7", exact: true });
+  await assay.click();
+  await expect(assay).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
+
+  await component.update(<PayloadOwnerStory run={structuredClone(run)} />);
+  await expect(assay).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
+
+  const nextRun = { ...run, id: refineryRunViewSchema.options[0].shape.id.parse(ids.next(ID_PREFIX.refineryRun)), createdAt: FROZEN_AT_MS + 1 };
+  await component.update(<PayloadOwnerStory run={nextRun} />);
+  await expect(assay).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByText("Recognizable voice", { exact: true })).toHaveCount(0);
+  expect(trpc.unstubbed()).toEqual([]);
+});

@@ -114,7 +114,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
             data-slot="slider-thumb"
             {...variantAttrs(sliderVariants, { tone })}
             index={isRange ? index : undefined}
-            // biome-ignore lint/suspicious/noArrayIndexKey: thumbs are a fixed positional set (one per value slot), never reordered.
+            // biome-ignore lint/suspicious/noArrayIndexKey: Base UI Thumb.index identifies the value slot; changing its numeric value does not change thumb identity.
             key={index}
           />
         ))}

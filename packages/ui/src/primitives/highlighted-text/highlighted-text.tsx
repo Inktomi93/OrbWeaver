@@ -94,12 +94,12 @@ export function HighlightedText({ className, text, ranges, skin, ...props }: Hig
     <div {...props} className={cn(slots.root(), className)} data-slot="highlighted-text-root">
       {runs.map((run, index) => {
         if (!run.highlighted) {
-          // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional text segments derived fresh from text+ranges every render — no stabler identity exists.
+          // biome-ignore lint/suspicious/noArrayIndexKey: runs render plain span/mark text with no per-run state or controls; the first-mark ref follows current ranges.
           return <span key={index}>{run.text}</span>;
         }
         return (
           <mark
-            // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional text segments derived fresh from text+ranges every render — no stabler identity exists.
+            // biome-ignore lint/suspicious/noArrayIndexKey: runs render plain span/mark text with no per-run state or controls; the first-mark ref follows current ranges.
             key={index}
             ref={index === firstHighlightIndex ? firstMarkRef : undefined}
             className={slots.mark()}

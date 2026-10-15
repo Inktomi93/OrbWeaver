@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-15
 priority: P1
 area: tooling
+lane: codex/wire-chat-rpg-959
 plan: test-foundation
 ---
 
