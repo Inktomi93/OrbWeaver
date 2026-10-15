@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-15
 priority: P1
 area: tooling
-lane: codex/native-lexical-profile-1002
+lane: codex/inventory-authored-dependencies-1002
 plan: test-foundation
 ---
 
@@ -30,10 +30,10 @@ Frozen `7394d01aaf` qualifies complete tests-DOM extraction, worker release, pub
 
 The root qualification and independent warm readers are recorded in `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md` and `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-warm-reuse-qualification.md`. Warm readers agree during overlapping pinned lifetimes without rebuilding. Acquisition includes input validation and serialized admission; indexed-read time is not total latency.
 
-The completed post-memo diagnostic isolates remaining lexical and token-lookup cost after real memo reuse. It intentionally stops native extraction after capture; no partition or publication qualifies. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-postmemo-native-cost-diagnosis.md`. Reviewed `782468ed99` preserves native lexical parity, fallback, cancellation and bounded combined retention. Main integrates the correction and uses its matching installed runtime. Protected dependency snapshots remain unchanged. No real-world speedup or complete replay is established.
+Reviewed `782468ed99` preserves native lexical parity, fallback, cancellation and bounded combined retention. Main uses the matching installed runtime. Protected dependency snapshots remain unchanged. No real-world speedup or complete current replay is established.
 
 Item 1027 owns demand-specific native cast relations through this same store and worker. Preserve explicit family presence, native interpretation and atomic generation identity; syntax carriers cannot supply Type or assignability queries. Cast-only requests must not perform unrequested reference extraction.
 
 Complete demanded-world publication, collector equivalence, cross-world reuse and hosted memory remain open. The complete-demand plan retains the full roster and missing collector phases. Qualified root data remains frozen; diagnostic stages and old partitions cannot become current by relabeling.
 
-The post-lexical diagnostic completes capture and process reaping without publication or a complete replay verdict. Evidence: `reports/review/1002-format4-post-lexical-cost-diagnosis.md`. Current-format qualification follows the physical schema correction in item 1027. Demand routing and invalidation costs remain under source investigation.
+The post-lexical diagnostic completes capture and process reaping without publication or a complete replay verdict. Evidence: `reports/review/1002-format4-post-lexical-cost-diagnosis.md`. Current-format qualification follows the physical schema correction in item 1027. Reuse remains partition-level. Actual authored-membership freshness and unnecessary repository-wide existence dependencies require correction before complete qualification.
