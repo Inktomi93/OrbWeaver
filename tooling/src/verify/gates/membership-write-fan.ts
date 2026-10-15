@@ -32,12 +32,12 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { isDrizzleWriteStatement, tableTargetOf } from "../lib/tenancy-read.ts";
 import { membershipScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex } from "../lib/tenancy-scope.ts";
-import { resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 
 /** The drizzle write verbs whose first argument is the table. `insert` is IN (unlike `owner-scoped-writes`,
  *  whose question is a WHERE predicate `insert` cannot carry): attaching a row to a room is precisely the
@@ -55,7 +55,7 @@ const OPERATION = "membership-write-per-person-emit";
 const DOCUMENT_FAN_HOME = "packages/server/src/domain/databank/contract/service.ts";
 const DOCUMENT_FAN = "fanDatabankRoomsForDocument";
 
-function isAwaitedDocumentFan(call: CallExpression): boolean {
+function isAwaitedDocumentFan(call: CallExpression, member: NativeCallMemberOrigin): boolean {
   let parent = call.getParent();
   while (parent !== undefined && Node.isParenthesizedExpression(parent)) {
     parent = parent.getParent();
@@ -63,11 +63,10 @@ function isAwaitedDocumentFan(call: CallExpression): boolean {
   if (parent === undefined || !Node.isAwaitExpression(parent)) {
     return false;
   }
-  const member = resolveTypeMemberOrigin(call.getExpression());
-  if (member.kind !== "resolved" || member.value.name !== DOCUMENT_FAN) {
+  if (member.origin.kind !== "resolved" || member.name !== DOCUMENT_FAN) {
     return false;
   }
-  return member.value.declarations.every(
+  return member.origin.value.every(
     (declaration) =>
       Node.isPropertySignature(declaration) &&
       declaration.getName() === DOCUMENT_FAN &&
@@ -150,6 +149,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const byFile = new Map<object, FileFacts>();
+    const fanCandidates: CallExpression[] = [];
     const candidates: { readonly file: SourceFile; readonly arg: MorphNode; readonly call: CallExpression }[] = [];
     const factsFor = (sourceFile: SourceFile): FileFacts => {
       const key = sourceFile.compilerNode;
@@ -160,6 +160,31 @@ export const gate = defineGate({
       const created: FileFacts = { writeIdent: undefined, perPersonEmit: undefined, roomFan: false };
       byFile.set(key, created);
       return created;
+    };
+    const registerFan = (node: CallExpression): void => {
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native call member origin context is unavailable");
+      }
+      fanCandidates.push(node);
+      ctx.nativeTypes.request({ kind: "type-member-origins", nodes: [node] });
+    };
+    const inspectFans = (): void => {
+      if (fanCandidates.length === 0) {
+        return;
+      }
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native call member origin context is unavailable");
+      }
+      const origins = ctx.nativeTypes.callMemberOrigins(fanCandidates);
+      for (const node of fanCandidates) {
+        const origin = origins.get(node);
+        if (origin === undefined) {
+          throw new Error("native call member origin is unavailable");
+        }
+        if (isAwaitedDocumentFan(node, origin)) {
+          factsFor(node.getSourceFile()).roomFan = true;
+        }
+      }
     };
 
     return {
@@ -174,8 +199,8 @@ export const gate = defineGate({
             if (name === undefined) {
               return;
             }
-            if (isAwaitedDocumentFan(node)) {
-              factsFor(sourceFile).roomFan = true;
+            if (name === DOCUMENT_FAN) {
+              registerFan(node);
               return;
             }
             if (name.startsWith(EMIT_PREFIX)) {
@@ -198,6 +223,7 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
+        inspectFans();
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const membershipIdents = membershipScopedTableIdents(schemaFact.value);

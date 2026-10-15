@@ -40,8 +40,9 @@ import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
+import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
+import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { quickjsLookalikeProof, quickjsProof } from "./_proof/quickjs.ts";
 
 const PLUGIN_HOST_DIR = "packages/server/src/infra/plugin-host/";
@@ -59,16 +60,8 @@ const MESSAGE =
 const FIX = `route guest values through ${HELPER}; the helper must call ${GUARD} and RETURN on its false path before its one ctx.dump.`;
 
 /** Is this call `<receiver>.dump(handle)` where `dump` is declared by the installed QuickJS package? */
-function isGuestDumpCall(node: MorphNode): node is CallExpression {
-  if (!Node.isCallExpression(node)) {
-    return false;
-  }
-  const member = readMemberReference(node.getExpression());
-  if (member.kind === "unresolved" || member.value.name !== DUMP) {
-    return false;
-  }
-  const origin = resolveTypeMemberOrigin(node.getExpression());
-  return origin.kind === "resolved" && declaredByPackage(origin.value.declarations, QUICKJS_PACKAGE);
+function isGuestDumpCall(fact: NativeCallMemberOrigin): boolean {
+  return fact.name === DUMP && fact.origin.kind === "resolved" && declaredByPackage(fact.origin.value, QUICKJS_PACKAGE);
 }
 
 /** Does every path through this statement terminate? (a return/throw, a block whose statements do, or an
@@ -168,24 +161,53 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    const candidates: CallExpression[] = [];
     let dumpSites = 0;
+    const inspectDumps = (): void => {
+      if (candidates.length === 0) {
+        return;
+      }
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native call member origin context is unavailable");
+      }
+      const origins = ctx.nativeTypes.callMemberOrigins(candidates);
+      for (const node of candidates) {
+        const origin = origins.get(node);
+        if (origin === undefined) {
+          throw new Error("native call member origin is unavailable");
+        }
+        if (!isGuestDumpCall(origin)) {
+          continue;
+        }
+        dumpSites += 1;
+        if (!guardedHelperDump(node, node.getSourceFile())) {
+          ctx.report.node(node, { token: DUMP, offset: node.getText().indexOf(DUMP), message: MESSAGE, fix: FIX });
+        }
+      }
+    };
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node, sourceFile): void => {
             const membrane = ctx.files.find((file) => ctx.relativePath(file) === MEMBRANE);
-            if (membrane === undefined || sourceFile.compilerNode !== membrane.compilerNode || !isGuestDumpCall(node)) {
+            if (membrane === undefined || sourceFile.compilerNode !== membrane.compilerNode || !Node.isCallExpression(node)) {
               return;
             }
-            dumpSites += 1;
-            if (!guardedHelperDump(node, membrane)) {
-              ctx.report.node(node, { token: DUMP, offset: node.getText().indexOf(DUMP), message: MESSAGE, fix: FIX });
+            const member = readMemberReference(node.getExpression());
+            if (member.kind !== "resolved" || member.value.name !== DUMP) {
+              return;
             }
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native call member origin context is unavailable");
+            }
+            candidates.push(node);
+            ctx.nativeTypes.request({ kind: "type-member-origins", nodes: [node] });
           },
         },
       ],
       evaluate: (): void => {
+        inspectDumps();
         // THE BLINDNESS ARM, as a receipt rather than a finding: zero measured guest-dump sites means the
         // boundary moved (or the membrane is gone) and this policy is judging nothing. The runtime refuses
         // a zero-member population receipt, so the run fails instead of reporting a clean pass.
