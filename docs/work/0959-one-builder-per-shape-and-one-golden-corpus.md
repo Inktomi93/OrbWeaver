@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-15
 priority: P1
+lane: codex/identity-notification-suppliers-1036
 plan: test-foundation
 ---
 
@@ -38,4 +39,4 @@ Reviewed suppliers cover each canonical parser-output root in the frozen invento
 
 The committed corpus has lazy defaults, Node replay state and independent writable clones. Selected Node, CT, smoke and stage consumers pass without private selectors. Reviewed `08bdafe2ef` serves CT media through native viewer admission and production blob policy. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-ct-corpus-media-delivery.md` and adjacent security review.
 
-Reviewed `8f390f927f` and `87237ed150` add actual public plugin stages to the shared publication and default native clone/Extensions consumers. Independent comparison accounts for the complete DB, wire, replay and CAS delta. Default consumers pass without selectors. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-plugin-shared-adoption-payload-delivery.md` and adjacent source/delta reviews. The ordinary capsule times out; its instrumented functional case passes with unchanged limits. Stable cost, complete adoption and matrix qualification remain open; Snap performance stays withheld.
+Reviewed plugin stages feed the shared corpus and default native clone/Extensions consumers. Complete DB, wire, replay and CAS comparison preserves private state. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-plugin-shared-adoption-payload-delivery.md` and adjacent reviews. The ordinary capsule times out; its instrumented functional case passes unchanged limits. Clock-correct corpus republishing is assigned. Stable cost, complete adoption, matrix qualification and Snap performance remain open.
