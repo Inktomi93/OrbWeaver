@@ -11,6 +11,7 @@ import { Project, ts } from "ts-morph";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/code-facts/assignability.ts";
 import { readDeclarationOutput } from "../../floor/code-facts/declaration-output.ts";
 import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
+import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
@@ -537,6 +538,10 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (): NativeTypeFactReader => ({
+      callableDeclarations: (nodes): ReturnType<NativeTypeFactReader["callableDeclarations"]> => {
+        checkerFor(nodes);
+        return new Map(nodes.map((node) => [node, resolveCallableDeclaration(node)]));
+      },
       callMemberOrigins: (nodes): ReturnType<NativeTypeFactReader["callMemberOrigins"]> => {
         checkerFor(nodes);
         return new Map(

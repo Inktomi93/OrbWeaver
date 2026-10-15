@@ -11,9 +11,11 @@ import { readAssignabilityChecker, readNativeTypeRelation } from "../code-facts/
 import { readDeclarationOutput } from "../code-facts/declaration-output.ts";
 import { nativeIdBrand } from "../code-facts/id-brand.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
+import { beginReferencePass, endReferencePass } from "../code-facts/reference-fact.ts";
+import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
 import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
-import { INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
+import { callableQueryKey, INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
@@ -168,6 +170,23 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
       : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
     ...(families.includes("declaration-outputs") ? [fileURLToPath(new URL("../code-facts/declaration-output.ts", import.meta.url))] : []),
+    ...(families.includes("callable-declarations")
+      ? [
+          "reference-fact.ts",
+          "reference-fact-call.ts",
+          "reference-fact-alias.ts",
+          "reference-fact-binding-name.ts",
+          "reference-fact-global.ts",
+          "reference-fact-member.ts",
+          "reference-fact-module.ts",
+          "reference-fact-module-helpers.ts",
+          "reference-fact-overload.ts",
+          "reference-fact-same-file-merge.ts",
+          "reference-fact-state.ts",
+          "reference-fact-writes.ts",
+          "reference-fact-contract.ts",
+        ].map((name) => fileURLToPath(new URL(`../code-facts/${name}`, import.meta.url)))
+      : []),
     ...(families.includes("type-member-origins")
       ? [
           fileURLToPath(new URL("../code-facts/type-member-origin.ts", import.meta.url)),
@@ -223,6 +242,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     sf.forgetDescendants();
   }
   const roots = request.descriptor.files.map((path) => spans.path(resolve(request.root, path)));
+  const callableQueries = callableDemandFor(request, families, roots);
   const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
   const authored = (path: string): boolean => {
     const version = inputVersion(path, "authored", authoredFiles);
@@ -252,11 +272,12 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           runtimeExports: [],
           declarationOutputs: [],
           memberOrigins: [],
+          callableDeclarations: [],
           shapes: [],
           pairs: [],
           references: [],
         }
-      : extractTypedFacts(project, { sources, authored, spans, families, queries: request.shapeQueries ?? [] });
+      : extractTypedFacts(project, { sources, authored, spans, families, queries: request.shapeQueries ?? [], callableQueries });
   return {
     intent: request.intent ?? "facts",
     available,
@@ -297,20 +318,31 @@ function extractTypedFacts(
     readonly spans: InventorySpans;
     readonly families: readonly InventoryFamily[];
     readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryShapeQuery[];
+    readonly callableQueries: readonly InventorySpan[];
   },
 ): SourceFactValues & Pick<InventoryPartition, "pairs" | "references"> {
-  const { sources, authored, spans, families, queries } = input;
+  const { sources, authored, spans, families, queries, callableQueries } = input;
   const service = project.getLanguageService().compilerObject;
   const program = service.getProgram();
   if (program === undefined) {
     throw new Error("native inventory language service has no Program");
   }
-  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, { spans, families: new Set(families) });
-  return {
-    ...sourceFacts,
-    pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
-    references: families.includes("references") ? extractReferenceFacts(service, program, referenceDeclarations, spans) : [],
-  };
+  const callablePass = families.includes("callable-declarations");
+  if (callablePass) {
+    beginReferencePass();
+  }
+  try {
+    const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, { spans, families: new Set(families), callableQueries });
+    return {
+      ...sourceFacts,
+      pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
+      references: families.includes("references") ? extractReferenceFacts(service, program, referenceDeclarations, spans) : [],
+    };
+  } finally {
+    if (callablePass) {
+      endReferencePass();
+    }
+  }
 }
 
 function registerReferenceDeclarations(
@@ -363,7 +395,17 @@ function assertAuthoredSyntax(original: SourceFile, admitted: SourceFile, spans:
 
 type SourceFactValues = Pick<
   InventoryPartition,
-  "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands" | "runtimeExports" | "declarationOutputs" | "memberOrigins" | "shapes"
+  | "exports"
+  | "modules"
+  | "bindings"
+  | "witnesses"
+  | "casts"
+  | "brands"
+  | "runtimeExports"
+  | "declarationOutputs"
+  | "memberOrigins"
+  | "callableDeclarations"
+  | "shapes"
 >;
 interface SourceFactCollection {
   readonly families: ReadonlySet<InventoryFamily>;
@@ -373,6 +415,7 @@ interface SourceFactCollection {
   readonly referenceDeclarations: Map<InventorySpan, ReferenceDeclaration>;
   readonly shapeNodes: WeakSet<ts.Node>;
   readonly checker: AssignabilityChecker | undefined;
+  readonly callableQueries: Set<string>;
 }
 
 function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void {
@@ -460,6 +503,26 @@ function collectMemberOriginFact(node: MorphNode, context: SourceFactCollection)
   });
 }
 
+function collectCallableDeclarationFact(node: MorphNode, context: SourceFactCollection): void {
+  const query = context.spans.node(node);
+  if (!context.callableQueries.delete(callableQueryKey(query))) {
+    return;
+  }
+  const fact = resolveCallableDeclaration(node);
+  context.values.callableDeclarations.push({
+    node: query,
+    trace: { origin: context.spans.node(fact.trace.origin), declarations: fact.trace.declarations.map(context.spans.node) },
+    result:
+      fact.kind === "resolved"
+        ? {
+            kind: fact.kind,
+            declaration: context.spans.node(fact.value.declaration),
+            body: fact.value.body === undefined ? null : context.spans.node(fact.value.body),
+          }
+        : { kind: fact.kind, reason: fact.reason, detail: fact.detail, node: context.spans.node(fact.node) },
+  });
+}
+
 function collectFileFacts(sf: SourceFile, context: SourceFactCollection): void {
   const { families, spans, values } = context;
   if (families.has("runtime-exports")) {
@@ -515,6 +578,12 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
   if (families.has("type-member-origins")) {
     visitors.set(SyntaxKind.CallExpression, [(node): void => collectMemberOriginFact(node, context)]);
   }
+  if (families.has("callable-declarations")) {
+    visitors.set(SyntaxKind.CallExpression, [
+      ...(visitors.get(SyntaxKind.CallExpression) ?? []),
+      (node): void => collectCallableDeclarationFact(node, context),
+    ]);
+  }
   collectByKinds([sf], visitors);
 }
 
@@ -522,12 +591,13 @@ function extractSourceFacts(
   program: ts.Program,
   sources: InventorySources,
   authored: (path: string) => boolean,
-  input: Pick<SourceFactCollection, "families" | "spans">,
+  input: Pick<SourceFactCollection, "families" | "spans"> & { readonly callableQueries: readonly InventorySpan[] },
 ): SourceFactValues & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
   const { spans } = input;
   const context: SourceFactCollection = {
     ...input,
     authored,
+    callableQueries: new Set(input.callableQueries.map(callableQueryKey)),
     values: {
       exports: [],
       modules: [],
@@ -538,6 +608,7 @@ function extractSourceFacts(
       runtimeExports: [],
       declarationOutputs: [],
       memberOrigins: [],
+      callableDeclarations: [],
       shapes: [],
     },
     referenceDeclarations: new Map(),
@@ -561,6 +632,9 @@ function extractSourceFacts(
         collectAuthoredFacts(sf, context);
       }
       sf.forgetDescendants();
+    }
+    if (context.callableQueries.size > 0) {
+      throw new Error("native callable query span is unavailable in its captured native program");
     }
   } finally {
     for (const sf of standaloneSources) {
@@ -641,4 +715,15 @@ function referenceQueryNode(declaration: MorphNode): MorphNode {
 function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan, spans: InventorySpans): InventorySpan {
   const best = nativeReferenceNode(source, span);
   return spans.span(source.fileName, best.getStart(source), best.end, best.kind);
+}
+
+function callableDemandFor(request: InventoryBuildRequest, families: readonly InventoryFamily[], roots: readonly string[]): readonly InventorySpan[] {
+  const callableQueries = request.callableQueries ?? [];
+  if (families.includes("callable-declarations") && request.callableQueries === undefined) {
+    throw new Error("native callable declarations require closed call demand");
+  }
+  if (callableQueries.some((query) => !roots.includes(query.file)) || (callableQueries.length > 0 && !families.includes("callable-declarations"))) {
+    throw new Error("native callable query is outside its demanded native roots/family");
+  }
+  return callableQueries;
 }

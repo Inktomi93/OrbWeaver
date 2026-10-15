@@ -11,6 +11,7 @@ import type {
   StoredInventorySource,
 } from "./semantic-inventory-contract.ts";
 import {
+  callableDeclarationSchema,
   castRelationResultSchema,
   INVENTORY_FACTS,
   inputSchema,
@@ -263,6 +264,38 @@ export function* readInventoryDeclarationOutputs(
     )
     .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
     yield { node: spanRow.parse(row), unknown: row["unknownOutput"] === null ? null : boolean.parse(row["unknownOutput"]) };
+  }
+}
+
+/** Callable traces retain their full ordered chain; missing tails cannot impersonate a shorter origin. */
+export function* readInventoryCallableDeclarations(
+  db: DatabaseSync,
+  id: string,
+  node: InventorySpan,
+): Iterable<InventoryPartition["callableDeclarations"][number]> {
+  requireInventoryFamily(db, id, "callable-declarations");
+  for (const row of db
+    .prepare(
+      "SELECT c.ordinal,c.origin,c.state,c.declaration,c.body,c.reason,c.detail,c.refusalNode,c.traceCount FROM inventory_callable_declaration c JOIN inventory_span s ON s.partition=c.partition AND s.ordinal=c.node WHERE c.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY c.ordinal",
+    )
+    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
+    const trace = db
+      .prepare(
+        "SELECT t.ordinal,s.file,s.start,s.end,s.kind FROM inventory_callable_trace t JOIN inventory_span s ON s.partition=t.partition AND s.ordinal=t.node WHERE t.partition=? AND t.owner=? ORDER BY t.ordinal",
+      )
+      .all(id, integer.parse(row["ordinal"]));
+    if (trace.length !== integer.parse(row["traceCount"]) || trace.some((value, index) => value["ordinal"] !== index)) {
+      throw new SemanticInventoryError("native callable declaration trace is incomplete");
+    }
+    const span = (column: string): InventorySpan => spanOf(db, id, integer.parse(row[column]));
+    yield callableDeclarationSchema.parse({
+      node,
+      trace: { origin: span("origin"), declarations: trace.map((value) => spanRow.parse(value)) },
+      result:
+        row["state"] === "resolved"
+          ? { kind: "resolved", declaration: span("declaration"), body: row["body"] === null ? null : span("body") }
+          : { kind: row["state"], reason: row["reason"], detail: inventoryStringSchema.parse(row["detail"]), node: span("refusalNode") },
+    });
   }
 }
 

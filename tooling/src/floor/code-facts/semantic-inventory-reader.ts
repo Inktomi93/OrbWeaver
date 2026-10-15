@@ -20,6 +20,7 @@ import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 import {
   readInventoryBindings,
   readInventoryBrands,
+  readInventoryCallableDeclarations,
   readInventoryCasts,
   readInventoryDeclarationOutputs,
   readInventoryExports,
@@ -153,8 +154,8 @@ export function inventoryReader(
       throw new SemanticInventoryError("native physical source/epoch is not admitted by its captured snapshot");
     }
   };
-  const nodeOf = (span: InventorySpan, context?: readonly string[]): Node => {
-    const sf = sourceFile(span.file, context);
+  const nodeOf = (span: InventorySpan, context?: readonly string[], source?: SourceFile): Node => {
+    const sf = source ?? sourceFile(span.file, context);
     const leaf = sf?.getDescendantAtPos(span.start);
     const node = [sf, leaf, ...(leaf?.getAncestors() ?? [])].find(
       (candidate) => candidate?.getStart() === span.start && candidate.getEnd() === span.end && candidate.getKind() === span.kind,
@@ -219,6 +220,50 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    callableDeclaration: (node, program) => {
+      const { partition, span } = nativeSpan(node, program, "callable-declarations");
+      const matches = [...readInventoryCallableDeclarations(db, partition.id, span)];
+      const fact = matches[0];
+      if (matches.length !== 1 || fact === undefined) {
+        throw new SemanticInventoryError("native callable declaration span is unavailable in its native partition");
+      }
+      const replay = (value: InventorySpan): Node => {
+        if (!partition.available.includes(value.file)) {
+          throw new SemanticInventoryError("native callable declaration source is outside its native closure");
+        }
+        const captured = sourceFile(value.file, [program]);
+        if (captured === undefined) {
+          throw new SemanticInventoryError("native callable declaration source is unavailable");
+        }
+        const original = value.file === span.file ? node.getSourceFile() : node.getProject().getSourceFile(value.file);
+        if (original !== undefined && (original.wasForgotten() || original.getFullText() !== captured.getFullText())) {
+          throw new SemanticInventoryError("native callable declaration replay source/epoch is stale");
+        }
+        return nodeOf(value, [program], original ?? captured);
+      };
+      const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
+      const result = fact.result;
+      if (result.kind === "unresolved") {
+        return { kind: result.kind, reason: result.reason, detail: result.detail, node: replay(result.node), trace };
+      }
+      const declaration = replay(result.declaration);
+      if (
+        !(
+          TsNode.isFunctionDeclaration(declaration) ||
+          TsNode.isArrowFunction(declaration) ||
+          TsNode.isFunctionExpression(declaration) ||
+          TsNode.isMethodDeclaration(declaration)
+        )
+      ) {
+        throw new SemanticInventoryError("native callable declaration is not a function-like source");
+      }
+      const body = result.body === null ? undefined : replay(result.body);
+      const expectedBody = declaration.getBody();
+      if (body?.compilerNode !== expectedBody?.compilerNode) {
+        throw new SemanticInventoryError("native callable declaration body is incomplete or foreign");
+      }
+      return { kind: "resolved", value: { declaration, body, sourceFile: declaration.getSourceFile() }, trace };
+    },
     callMemberOrigin: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "type-member-origins");
       requireFamily([partition], "bindings");

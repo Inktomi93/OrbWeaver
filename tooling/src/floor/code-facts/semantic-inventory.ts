@@ -10,11 +10,12 @@ import type {
   InventoryFamily,
   InventoryOverlay,
   InventoryShapeQuery,
+  InventorySpan,
   SemanticInventory,
   SemanticInventoryOptions,
   StoredInventoryPartition,
 } from "./semantic-inventory-contract.ts";
-import { inventoryFamilies, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
+import { callableQueryKey, inventoryFamilies, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
 import {
   beginInventoryWrite,
   importInventoryPartition,
@@ -25,7 +26,7 @@ import {
   readInventoryGeneration,
 } from "./semantic-inventory-database.ts";
 import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurrent, inventoryAuthoredFiles } from "./semantic-inventory-inputs.ts";
-import { readInventoryInputs, readInventoryPairs } from "./semantic-inventory-queries.ts";
+import { readInventoryCallableDeclarations, readInventoryInputs, readInventoryPairs } from "./semantic-inventory-queries.ts";
 import { inventoryReader } from "./semantic-inventory-reader.ts";
 
 function authoredVersion(root: string): string {
@@ -70,6 +71,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
       throw new Error(`native semantic inventory found no runnable TypeScript programs under ${root}`);
     }
     const families = inventoryFamilies(options.families);
+    assertCallableDemand(options, descriptors, families);
     const previous = latestInventoryPartitions(db, families);
     const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
     assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
@@ -154,6 +156,9 @@ function buildPartition(
         throw new Error(`native inventory worker supplied incomplete pair coverage: ${request.descriptor.id}`);
       }
     }
+    if (!coversCallableDemand(staging, candidate, request.callableQueries ?? [])) {
+      throw new Error(`native inventory worker supplied incomplete callable coverage: ${request.descriptor.id}`);
+    }
     partition = candidate;
   }
   importInventoryPartition(db, request.destination, partition.id);
@@ -175,11 +180,13 @@ function demandPartitions(
   const partitions: StoredInventoryPartition[] = [];
   let rebuilt = false;
   for (const descriptor of descriptors) {
+    const callableQueries = callableDemand(options, descriptor.id);
     const existing = previous.get(descriptor.id);
     if (
       existing !== undefined &&
       existing.descriptorVersion === descriptorVersion(descriptor) &&
-      inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem })
+      inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
+      coversCallableDemand(db, existing, callableQueries)
     ) {
       partitions.push(existing);
       continue;
@@ -192,6 +199,7 @@ function demandPartitions(
           root,
           descriptor,
           families: inventoryFamilies(options.families),
+          ...(options.callableQueries === undefined ? {} : { callableQueries }),
           destination: join(scratch, `partition-${String(partitions.length)}.sqlite`),
           ...(overlay === undefined ? {} : { overlay }),
         },
@@ -246,6 +254,7 @@ function demandShapePartitions(
     families: readonly InventoryFamily[],
     pairRequests: readonly InventoryShapeQuery[],
   ): void => {
+    const callableQueries = families.includes("callable-declarations") ? callableDemand(options, descriptor.id) : [];
     const existing = partitions.get(descriptor.id) ?? previous.get(descriptor.id);
     const covered =
       existing !== undefined && pairRequests.length > 0 && existing.families.includes("shape-pairs")
@@ -256,7 +265,8 @@ function demandShapePartitions(
       existing.descriptorVersion === descriptorVersion(descriptor) &&
       inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
       families.every((family) => existing.families.includes(family)) &&
-      pairRequests.every((query) => covered.has(shapePairKey(query)))
+      pairRequests.every((query) => covered.has(shapePairKey(query))) &&
+      coversCallableDemand(db, existing, callableQueries)
     ) {
       partitions.set(descriptor.id, existing);
       return;
@@ -268,6 +278,7 @@ function demandShapePartitions(
       intent: families.length === 0 ? "membership" : "facts",
       families,
       shapeQueries: pairRequests,
+      ...(families.includes("callable-declarations") ? { callableQueries } : {}),
       ...(overlay === undefined ? {} : { overlay }),
     };
     const partition = buildPartition(db, request, options);
@@ -379,5 +390,27 @@ function assertShapeRoot(root: string, options: SemanticInventoryOptions): void 
   const sources = options.shapePlan?.sources ?? [];
   if (sources.some((source) => !canonicalInventoryPath(source.getFilePath()).startsWith(`${root}/`))) {
     throw new SemanticInventoryError("native shape demand source is outside its explicit repository");
+  }
+}
+
+function callableDemand(options: SemanticInventoryOptions, program: string): readonly InventorySpan[] {
+  return [...new Map((options.callableQueries ?? []).filter((query) => query.program === program).map(({ node }) => [callableQueryKey(node), node])).values()];
+}
+
+function coversCallableDemand(db: ReturnType<typeof openInventoryDatabase>, partition: StoredInventoryPartition, queries: readonly InventorySpan[]): boolean {
+  return queries.every((query) => [...readInventoryCallableDeclarations(db, partition.id, query)].length === 1);
+}
+
+function assertCallableDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  if (
+    (options.callableQueries ?? []).some((query) => !descriptors.some((descriptor) => descriptor.id === query.program)) ||
+    (options.callableQueries !== undefined && !families.includes("callable-declarations")) ||
+    (families.includes("callable-declarations") && options.callableQueries === undefined)
+  ) {
+    throw new Error("native callable declarations require closed demand in admitted native programs");
   }
 }

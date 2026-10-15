@@ -58,6 +58,9 @@ CREATE TABLE inventory_shape_origin(partition TEXT NOT NULL REFERENCES inventory
 CREATE TABLE inventory_pair(partition TEXT NOT NULL REFERENCES inventory_partition(id),ordinal INTEGER NOT NULL,key TEXT NOT NULL,leftNode INTEGER NOT NULL,rightNode INTEGER NOT NULL,leftField TEXT,rightField TEXT,projection TEXT NOT NULL CHECK(projection IN ('mutual','relation')),lenient INTEGER NOT NULL CHECK(lenient IN (0,1)),state TEXT NOT NULL CHECK(state IN ('answer','no-comparable','unavailable')),reason TEXT,a INTEGER CHECK(a IN (0,1)),b INTEGER CHECK(b IN (0,1)),c INTEGER CHECK(c IN (0,1)),d INTEGER CHECK(d IN (0,1)),CHECK((state='answer' AND reason IS NULL AND a IS NOT NULL AND ((projection='mutual' AND b IS NULL AND c IS NULL AND d IS NULL) OR (projection='relation' AND b IS NOT NULL AND c IS NOT NULL AND d IS NOT NULL))) OR (state='no-comparable' AND projection='relation' AND reason IS NULL AND a IS NULL AND b IS NULL AND c IS NULL AND d IS NULL) OR (state='unavailable' AND reason IN ('primitive-absent','node-absent') AND a IS NULL AND b IS NULL AND c IS NULL AND d IS NULL)),PRIMARY KEY(partition,ordinal),UNIQUE(partition,key),FOREIGN KEY(partition,leftNode) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,rightNode) REFERENCES inventory_span(partition,ordinal)) STRICT;`;
 const FORMAT9_DDL = `${FORMAT8_DDL.replace("'shape-catalog','shape-pairs'", "'shape-catalog','shape-pairs','declaration-outputs'")}
 CREATE TABLE inventory_declaration_output(partition TEXT NOT NULL REFERENCES inventory_partition(id),ordinal INTEGER NOT NULL,node INTEGER NOT NULL,unknownOutput INTEGER CHECK(unknownOutput IN (0,1)),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)) STRICT;`;
+const FORMAT10_DDL = `${FORMAT9_DDL.replace("'shape-pairs','declaration-outputs'", "'shape-pairs','declaration-outputs','type-member-origins'")}
+CREATE TABLE inventory_member_origin(partition TEXT NOT NULL REFERENCES inventory_partition(id),ordinal INTEGER NOT NULL,node INTEGER NOT NULL,name TEXT,leaf INTEGER,origin INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('resolved','unresolved')),reason TEXT,detail TEXT,refusalNode INTEGER,valueCount INTEGER NOT NULL CHECK(valueCount>=0),traceCount INTEGER NOT NULL CHECK(traceCount>=0),leafCount INTEGER CHECK(leafCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,leaf) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,origin) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,refusalNode) REFERENCES inventory_span(partition,ordinal),CHECK((state='resolved' AND name IS NOT NULL AND reason IS NULL AND detail IS NULL AND refusalNode IS NULL AND valueCount>0) OR (state='unresolved' AND reason IS NOT NULL AND detail IS NOT NULL AND refusalNode IS NOT NULL AND valueCount=0))) STRICT;
+CREATE TABLE inventory_member_declaration(partition TEXT NOT NULL REFERENCES inventory_partition(id),owner INTEGER NOT NULL,role TEXT NOT NULL CHECK(role IN ('value','trace')),ordinal INTEGER NOT NULL,node INTEGER NOT NULL,PRIMARY KEY(partition,owner,role,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_member_origin(partition,ordinal),FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)) STRICT;`;
 
 function legacyRows(db: DatabaseSync): ReturnType<StatementSync["all"]>[] {
   return [
@@ -72,11 +75,11 @@ function legacyRows(db: DatabaseSync): ReturnType<StatementSync["all"]>[] {
   ];
 }
 
-function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5): ReturnType<typeof legacyRows> {
+function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5 | 6): ReturnType<typeof legacyRows> {
   mkdirSync(dirname(path), { recursive: true });
   using db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;");
-  db.exec(([FORMAT4_DDL, FORMAT5_DDL, FORMAT6_DDL, FORMAT7_DDL, FORMAT8_DDL, FORMAT9_DDL] as const)[version]);
+  db.exec(([FORMAT4_DDL, FORMAT5_DDL, FORMAT6_DDL, FORMAT7_DDL, FORMAT8_DDL, FORMAT9_DDL, FORMAT10_DDL] as const)[version]);
   db.exec(`PRAGMA user_version=${String(version)}`);
   const program = inventoryString("tsconfig.legacy.json");
   const file = inventoryString("/fixture/legacy.ts");
@@ -127,7 +130,7 @@ function brandPartition(program: string): InventoryPartition {
       },
     ],
     format: INVENTORY_FORMAT,
-    families: ["id-brands", "runtime-exports", "shape-catalog", "shape-pairs", "declaration-outputs", "type-member-origins"],
+    families: ["id-brands", "runtime-exports", "shape-catalog", "shape-pairs", "declaration-outputs", "type-member-origins", "callable-declarations"],
     program,
     descriptorVersion: "current-version",
     compilerOptionsJson: "{}",
@@ -142,6 +145,7 @@ function brandPartition(program: string): InventoryPartition {
     sources: [{ file, path: file, text, consumerClass: "product", authored: true }],
     brands: [{ node: { file, start: text.indexOf("string &"), end: text.length - 1, kind: SyntaxKind.IntersectionType }, brand: '"chat"' }],
     memberOrigins: [],
+    callableDeclarations: [],
     declarationOutputs: [{ node: { file, start: 0, end: text.length, kind: SyntaxKind.SourceFile }, unknown: false }],
     runtimeExports: [
       {
@@ -169,7 +173,7 @@ function inputDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {
   return db.prepare("SELECT sql FROM sqlite_schema WHERE name='inventory_input'").get();
 }
 
-test.for([0, 1, 2, 3, 4, 5] as const)(
+test.for([0, 1, 2, 3, 4, 5, 6] as const)(
   "physical schema %s accepts current authored inputs and brands while old reader snapshots and identities survive",
   (version, { scratch }) => {
     const path = join(scratch, "old.sqlite");
@@ -193,7 +197,7 @@ test.for([0, 1, 2, 3, 4, 5] as const)(
       current.exec("COMMIT");
       const direct = readInventoryGeneration(current, generation)[0];
       expect(direct?.id).toBe(freshId);
-      expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 6 });
+      expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 7 });
       expect(legacyRows(current)).toEqual(before);
       expect(legacyRows(pinned)).toEqual(before);
       expect(familyDdl(pinned)).toEqual(oldDdl);
@@ -220,7 +224,7 @@ test.for([0, 1, 2, 3, 4, 5] as const)(
       try {
         using reader = openInventoryDatabase(path);
         expect(legacyRows(reader)).toEqual(before);
-        expect(reader.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 6 });
+        expect(reader.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 7 });
       } finally {
         readerLock.mockRestore();
       }
@@ -275,6 +279,7 @@ test.for([
   { version: 3, table: "list" },
   { version: 4, table: "family" },
   { version: 5, table: "family" },
+  { version: 6, table: "family" },
 ] as const)("post-drop failure rolls back physical schema and rows: %j", ({ version, table }, { scratch }) => {
   const path = join(scratch, "rollback.sqlite");
   const before = createPriorStorage(path, version);
@@ -304,11 +309,11 @@ test.for([
   expect(observer.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").all()).toEqual(oldTables);
   expect(observer.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   using retried = openInventoryDatabase(path);
-  expect(retried.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 6 });
+  expect(retried.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 7 });
   expect(legacyRows(retried)).toEqual(before);
 });
 
-test.for([0, 1, 2, 3, 4, 5] as const)("competing physical upgrades preserve schema %s rows and converge", async (version, { scratch }) => {
+test.for([0, 1, 2, 3, 4, 5, 6] as const)("competing physical upgrades preserve schema %s rows and converge", async (version, { scratch }) => {
   const path = join(scratch, "racing.sqlite");
   const before = createPriorStorage(path, version);
   const module = import.meta.resolve("@orb/tooling/floor/code-facts/semantic-inventory-database");
@@ -321,7 +326,7 @@ test.for([0, 1, 2, 3, 4, 5] as const)("competing physical upgrades preserve sche
     results.map(({ code }) => code),
     JSON.stringify(results),
   ).toEqual([0, 0]);
-  expect(results.map(({ stdout }) => JSON.parse(stdout))).toEqual([{ ["user_version"]: 6 }, { ["user_version"]: 6 }]);
+  expect(results.map(({ stdout }) => JSON.parse(stdout))).toEqual([{ ["user_version"]: 7 }, { ["user_version"]: 7 }]);
   using db = openInventoryDatabase(path);
   expect(legacyRows(db)).toEqual(before);
   expect(db.prepare("SELECT name FROM sqlite_schema WHERE name IN ('inventory_family_upgrade','inventory_input_upgrade')").all()).toEqual([]);
@@ -331,10 +336,10 @@ test("an unsupported future physical schema is refused rather than downgraded", 
   const path = join(scratch, "future.sqlite");
   const before = createPriorStorage(path, 0);
   using db = new DatabaseSync(path);
-  db.exec("PRAGMA user_version=7");
+  db.exec("PRAGMA user_version=8");
   const oldDdl = familyDdl(db);
-  expect(() => openInventoryDatabase(path)).toThrow("unsupported native inventory storage schema: 7");
-  expect(db.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 7 });
+  expect(() => openInventoryDatabase(path)).toThrow("unsupported native inventory storage schema: 8");
+  expect(db.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 8 });
   expect(familyDdl(db)).toEqual(oldDdl);
   expect(legacyRows(db)).toEqual(before);
 });
