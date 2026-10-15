@@ -29,3 +29,9 @@ export interface SqlReadContext {
   readonly bindings: ReadonlyMap<Node, Node>;
   readonly program: CallReturnProgram | undefined;
 }
+
+/** Each actual selection alternative supplies its own callback field bindings. */
+export interface SqlSelectionCallback {
+  readonly callback: Node;
+  readonly bindings: readonly ReadonlyMap<Node, Node>[];
+}

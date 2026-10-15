@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import { readDrizzleSelection } from "./drizzle-select.ts";
-import type { SqlFragmentsReader, SqlReadContext, SqlSelectContainment } from "./drizzle-sql-contract.ts";
+import type { SqlFragmentsReader, SqlReadContext, SqlSelectContainment, SqlSelectionCallback } from "./drizzle-sql-contract.ts";
 import { runtimeDrizzleOrigin, sqlDialect } from "./drizzle-sql-native.ts";
 import { columnType, nativeTableFragment, readSqlValueSources } from "./drizzle-sql-origin.ts";
 import { staticMemberAccess } from "./reference-fact.ts";
@@ -83,4 +83,71 @@ export function readSelectedSqlSource(node: MorphNode, context: SqlReadContext):
   }
   const selected = sources.value.map((source) => selectedQueries(source, context));
   return selected.some((part) => part === undefined) ? undefined : selected.flatMap((part) => part ?? []);
+}
+
+function callbackProjectionSources(call: import("ts-morph").CallExpression, context: SqlReadContext): readonly ReturnedValueSource[] | undefined {
+  const selection = readDrizzleSelection(call);
+  if (selection === undefined || !selection.calls.every((step) => runtimeDrizzleOrigin(step.getExpression()))) {
+    return;
+  }
+  if (selection.projection !== undefined) {
+    return [{ value: call, path: [], present: true, bindings: context.bindings }];
+  }
+  return selection.source === undefined ? undefined : readSelectedSqlSource(selection.source, context);
+}
+
+function callbackBindings(
+  callback: import("ts-morph").ArrowFunction | import("ts-morph").FunctionExpression,
+  source: ReturnedValueSource,
+): ReadonlyMap<MorphNode, MorphNode> | undefined {
+  if (callback.getParameters().length > 1) {
+    return;
+  }
+  const parameter = callback.getParameters()[0];
+  const pattern = parameter?.getNameNode();
+  if (parameter?.isRestParameter() === true || (pattern !== undefined && !Node.isObjectBindingPattern(pattern))) {
+    return;
+  }
+  const projected = readDrizzleSelection(source.value)?.projection;
+  const fields = projected === undefined ? undefined : readSchemaObjectMembers(projected);
+  if (fields?.kind !== "resolved") {
+    return;
+  }
+  const mapped = new Map(source.bindings);
+  for (const binding of Node.isObjectBindingPattern(pattern) ? pattern.getElements() : []) {
+    const key = binding.getPropertyNameNode()?.getText() ?? binding.getName();
+    const field = fields.value.entries.findLast((entry) => entry.name === key);
+    if (
+      field === undefined ||
+      !Node.isIdentifier(binding.getNameNode()) ||
+      binding.getDotDotDotToken() !== undefined ||
+      binding.getInitializer() !== undefined
+    ) {
+      return;
+    }
+    mapped.set(binding, field.value);
+  }
+  return mapped;
+}
+
+/** Installed selection callbacks read actual authored fields, never a signature's property names. */
+export function readSqlSelectionCallback(call: import("ts-morph").CallExpression, context: SqlReadContext): SqlSelectionCallback | undefined {
+  const member = staticMemberAccess(call.getExpression());
+  const callback = call.getArguments()[0];
+  if (member?.name !== "orderBy" || !runtimeDrizzleOrigin(call.getExpression()) || !(Node.isArrowFunction(callback) || Node.isFunctionExpression(callback))) {
+    return;
+  }
+  const sources = callbackProjectionSources(call, context);
+  if (sources === undefined || sources.length === 0) {
+    return;
+  }
+  const bindings: ReadonlyMap<MorphNode, MorphNode>[] = [];
+  for (const source of sources) {
+    const binding = callbackBindings(callback, source);
+    if (binding === undefined) {
+      return;
+    }
+    bindings.push(binding);
+  }
+  return { callback, bindings };
 }

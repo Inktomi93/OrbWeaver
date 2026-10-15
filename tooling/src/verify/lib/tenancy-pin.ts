@@ -5,7 +5,7 @@ import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact
 import type { Node, Type } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.ts";
-import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate-argument.ts";
+import { readPredicateArgument, readPredicateColumn } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import { readDrizzleValueSources } from "../../floor/code-facts/drizzle-query.ts";
 import type { ForeignKeyParentRead, SchemaTableIndex, TenancySchema, ValuePinTarget, ValueReceiver, ValueSources } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
@@ -86,7 +86,8 @@ export function valuePinTerm(
   }
   const [left, right] = conjunct.getArguments();
   const pins = (side: Node | undefined, value: Node | undefined): boolean => {
-    const read = side === undefined ? undefined : staticMemberAccess(unwrapExpression(side));
+    const columnSource = side === undefined ? undefined : readPredicateColumn(side, bindings);
+    const read = columnSource?.kind === "resolved" ? staticMemberAccess(unwrapExpression(columnSource.value)) : undefined;
     const actualReceiver = read === undefined ? undefined : readPredicateArgument(read.receiver, bindings);
     const actualValue = value === undefined ? undefined : readPredicateArgument(value, bindings);
     return (
@@ -114,7 +115,8 @@ export function parentReadOf(
     return;
   }
   const sides = conjunct.getArguments().map((argument) => {
-    const member = staticMemberAccess(unwrapExpression(argument));
+    const column = readPredicateColumn(argument, bindings);
+    const member = column.kind === "resolved" ? staticMemberAccess(unwrapExpression(column.value)) : undefined;
     const actual = member === undefined ? undefined : readPredicateArgument(member.receiver, bindings);
     return member === undefined || actual?.kind !== "resolved" ? undefined : { ...member, receiver: actual.value };
   });

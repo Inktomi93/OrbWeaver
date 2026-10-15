@@ -30,7 +30,9 @@ import {
 } from "drizzle-orm";
 import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import type { Node as MorphNode } from "ts-morph";
+import { Node } from "ts-morph";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
+import { drizzleExportOf } from "./drizzle-table-ref.ts";
 export const sqlDialect = new SQLiteSyncDialect();
 const runtimeDrizzleRoot = dirname(fileURLToPath(import.meta.resolve("drizzle-orm")));
 const BINARY_OPERATORS = { eq, ne, gt, gte, lt, lte, inArray, notInArray, like, notLike, ilike, notIlike } as const;
@@ -50,6 +52,20 @@ export function runtimeDrizzleOrigin(node: MorphNode): boolean {
       return existsSync(path) && realpathSync(path).startsWith(runtimeDrizzleRoot + sep);
     })
   );
+}
+
+/** A native template with one interpolation and no authored grammar carries that exact operand. */
+export function transparentNativeSqlOperand(node: MorphNode): MorphNode | undefined {
+  if (!Node.isTaggedTemplateExpression(node) || drizzleExportOf(node.getTag()) !== "sql" || !runtimeDrizzleOrigin(node.getTag())) {
+    return;
+  }
+  const template = node.getTemplate();
+  if (!Node.isTemplateExpression(template) || template.getHead().getLiteralText() !== "") {
+    return;
+  }
+  const spans = template.getTemplateSpans();
+  const span = spans[0];
+  return spans.length === 1 && span?.getLiteral().getLiteralText() === "" ? span.getExpression() : undefined;
 }
 
 function fixedOperator(call: import("ts-morph").CallExpression, chunks: readonly SQL[]): SQL | undefined {
