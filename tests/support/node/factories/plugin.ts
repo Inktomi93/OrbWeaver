@@ -116,7 +116,8 @@ export async function seedDistributedPlugin(
   return { outcome, distribution, installs };
 }
 
-async function capturePluginRows(db: Db, ownerId: UserId, pluginId: PluginId): Promise<CapturedPluginRows> {
+/** Read canonical private rows after a native guest operation; these bytes never form portable fixture data. */
+export async function capturePluginRows(db: Db, ownerId: UserId, pluginId: PluginId): Promise<CapturedPluginRows> {
   const plugin = await db
     .select()
     .from(plugins)

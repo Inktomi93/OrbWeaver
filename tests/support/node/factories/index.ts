@@ -116,7 +116,7 @@ export type {
   SeededDistributedPlugin,
   SeededInstalledPlugin,
 } from "./plugin.ts";
-export { capturePluginOutputs, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./plugin.ts";
+export { capturePluginOutputs, capturePluginRows, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./plugin.ts";
 export type { PresetRow, SeededCreatedPreset, SeededImportedPreset } from "./preset.ts";
 export { makePreset, seedCreatedPreset, seedImportedPreset, seedPreset, seedUpdatedPreset } from "./preset.ts";
 export { principal } from "./principal.ts";
