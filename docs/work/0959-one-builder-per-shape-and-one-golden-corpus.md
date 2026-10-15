@@ -3,7 +3,7 @@ kind: work
 status: doing
 updated: 2026-10-15
 priority: P1
-lane: codex/share-acme-harness-958
+lane: codex/corpus-library-builders-959
 plan: test-foundation
 ---
 
@@ -27,16 +27,16 @@ Builders derive outputs from production types, defaults or actual writers. Respo
 
 `tests/support/node/corpus.ts` owns the genuine producer graph. Native cases cover identity/session transitions, automation, plugin consent and containment, funded execution, retained RPG lineage, SDK sessions, search and library operations. Private rows, credentials and physical observations remain outside portable DTOs.
 
-Reviewed `fa2aac0491`, `717c8adff2` and `98b54e0ce0` preserve finite viewer/request/stage projections and reject known raw or JSON-escaped private values before diagnostics. Fixture identity is not authentication. Unknown secrets and arbitrary encodings are not covered by this refusal guarantee.
+Reviewed publication batches preserve finite viewer/request/stage projections and reject known raw or JSON-escaped private values before diagnostics. Fixture identity is not authentication. Unknown secrets and arbitrary encodings are not covered by this refusal guarantee. Notification, member-chat, world-info and regex projections preserve their native outputs through independent scrubbed DB/CAS clones.
 
-Source `d4226546af` qualifies notification, member-chat, world-info and regex projections together through the complete integrated capsule and independent scrubbed DB/CAS clone. Explicit equality uses actual producer outputs. Existing privacy, closure, pending-state, SDK/stats, row and teardown assertions remain. Matching omission controls and affected checks pass. Evidence: `.claude/worktrees/share-acme-harness-958/reports/review/959-owner-stage-publication.md`.
+Reviewed `b29020315d` captures production-created library rows and fixes character creation to use injected time for both stamps. Reviewed `323cf89045` captures actual character snapshot references, historical views, summaries and paginated library output while preserving the row-only API. Lawful database fixtures remain unchanged.
 
-SDK rewind/re-adoption and native child disposal retain their scoped controls; the deliberate SDK intervention remains unverified under its recorded platform limitation. Stats foreign timing, differential cost populations and ownerless seed rows remain open. Native root checks retain off-owned diagnostics; complete application qualification is not established.
+Reviewed `7c087293c8` captures actual member cookie identities and excludes ambient owner fallback as admission proof. Reviewed `97cbc929f5` qualifies fresh private login on the scrubbed clone through native credential setup and verification. Source credentials refuse. Scoped password reset and logout preserve the other viewer. Publication bytes and source rows remain unchanged; clone disposal joins before database close. Public identities do not authenticate clones or carry credentials.
 
-The native schema denominator is `reports/review/959-native-table-inventory.json`. Reference leads in `reports/review/959-table-builder-map.json` do not prove builders or writers. Semantic qualification in `reports/review/959-table-builder-semantics.json` distinguishes production-backed captures, database fixtures and unresolved paths. Contract-output coverage is a separate unmeasured denominator.
+The combined main capsule and clone pass under the unchanged guard. Evidence: `reports/runs/test/main-243895-2026-10-15T05-26-44-771Z/test-report.json`. The complete root compiler log retains off-owned diagnostics and no changed-file diagnostic: `reports/review/current-foundation-integration-types.log`. This does not establish a clean application verdict.
 
-Reviewed `7c087293c8` captures actual member cookie identities and excludes ambient owner fallback as cookie proof. Public identity DTOs preserve native consistency and secret refusal; they do not authenticate scrubbed clones. Reviewed `b29020315d` adds production-created library row captures and corrects character creation to use injected business time for both stamps. Lawful database fixtures remain unchanged.
+Schema population is recorded in `reports/review/959-native-table-inventory.json`. Reference leads in `reports/review/959-table-builder-map.json` do not prove builders or writers. `reports/review/959-table-builder-semantics.json` separates production captures, lawful database fixtures and unresolved paths. Mounted uses in `reports/review/959-mounted-output-uses.json` establish parser presence, not canonical output or builder completeness.
 
-The combined main capsule and clone pass with these integrations. Evidence: `reports/runs/test/main-3075446-2026-10-15T04-54-00-790Z/test-report.json`. Root types retain off-owned errors in `reports/review/root-corpus-integration-types.log`; complete application qualification is not established.
+SDK rewind/re-adoption and native child disposal retain scoped controls; the deliberate SDK intervention remains unverified under its platform limitation. Stats foreign timing, differential cost populations and ownerless seed rows remain open.
 
-Complete projections/builders, contract-output coverage, clone login setup and shared adoption remain open. Replacement suites follow complete foundations; no general legacy port is authorized by these captures.
+Complete projections/builders, canonical contract-output coverage and shared adoption remain open. Replacement suites follow complete foundations; these captures do not authorize general legacy ports.

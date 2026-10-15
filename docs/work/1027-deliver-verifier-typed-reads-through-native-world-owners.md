@@ -26,4 +26,8 @@ Actual structure and scoped entrypoints preserve native options, roots, closure 
 
 Reviewed `f6d8656ea2` adds run-owned lazy native source acquisition and qualifies actual generated-token delivery through structure and scoped preparation. Its skipped-owner demand defect is corrected. This bounded family preserves separate Node/browser contexts and does not replace the ordinary syntax checker.
 
-The generic dispatcher still supplies its input Project checker and syntax nodes to non-syntax owners. The inventory exposes stored identity/reference facts, not native Type, signature or assignability queries. Replacing every typed reader with syntax carriers would lose meaning; retaining every native world in the parent would lose the memory boundary. The active lane owns the first concrete semantic-family delivery proposal through the existing floor and compiler-worker owners.
+Reviewed `c5718256ff` delivers native value-cast relations through the existing worker and normalized store to the actual structure and scoped consumers. Explicit family presence separates missing facts from empty results. Requests retain native roots, closure and importing-world meaning; workers exit before publication. Cast-only demand performs no reference extraction.
+
+Actual Node/browser controls distinguish the demonstrated Node false-clean, pin mixed-world generations and withhold missing services or failed workers. Stale, foreign, absent and disposed inputs refuse. Tooling types and exact lint pass; root types retain off-owned diagnostics. Evidence: `.claude/worktrees/codex-type-homes-981/reports/review/1027-native-verifier-delivery.md`.
+
+Other typed families still use their existing checker or explicit native views. Complete migration, multi-consumer demand orchestration and real-root cost qualification remain open. Syntax carriers cannot supply native Type or signature meaning; retaining every native world in the parent is not an alternative.
