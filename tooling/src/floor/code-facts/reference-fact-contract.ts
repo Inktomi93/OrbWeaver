@@ -32,6 +32,19 @@ export interface UnresolvedReferenceFact {
 /** A positive value with its proof, or one precise refusal. Absence is never a reader verdict. */
 export type ReferenceFact<T> = ResolvedReferenceFact<T> | UnresolvedReferenceFact;
 
+/** Source-local effects share the reference pass lifetime; prototype exposure is not an own-field write. */
+export interface SourceWriteFacts {
+  readonly written: ReadonlySet<object>;
+  readonly reassigned: ReadonlySet<object>;
+  readonly inheritedReads: readonly Node[];
+}
+
+/** Effect projection consumes actual captured alternatives, including their paired argument bindings. */
+export interface InheritedReadEffectContext {
+  readonly program: CallReturnProgram;
+  readonly values: (node: Node, path: readonly string[], bindings: ReadonlyMap<Node, Node>) => ReferenceFact<readonly ReturnedValueSource[]>;
+}
+
 /** One property or qualified type read, normalized across dotted, optional, computed-literal, and
  *  namespace-qualified type spellings. */
 export interface MemberReference {

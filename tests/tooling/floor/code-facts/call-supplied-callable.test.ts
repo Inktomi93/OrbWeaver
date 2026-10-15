@@ -1844,6 +1844,236 @@ test("native async resource registration retains the production background-work 
   }
 });
 
+for (const handoff of [false, true]) {
+  test(`conditional background data preserves ${handoff ? "argument handoff" : "local read"} and exact projection alternatives`, async ({ repoRoot }) => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts", "lib.dom.d.ts"] } });
+    const base = "packages/server/src/infra/tasks";
+    const producer = project.createSourceFile(`/repo/${base}/background.ts`, await readFile(join(repoRoot, base, "background.ts"), "utf8"));
+    project.createSourceFile(`/repo/${base}/contract/background.ts`, await readFile(join(repoRoot, base, "contract/background.ts"), "utf8"));
+    const composition = project.createSourceFile("/composition.ts", await readFile(join(repoRoot, "packages/server/src/entry/compose/chat.ts"), "utf8"));
+    const spreads = composition
+      .getDescendantsOfKind(SyntaxKind.SpreadAssignment)
+      .filter((candidate) => candidate.getExpression().getText().startsWith("(input.backgroundSignal"));
+    expect(spreads.length).toBe(1);
+    const spread = spreads[0]?.getText();
+    if (spread === undefined) {
+      throw new Error("the production background signal spread is missing");
+    }
+    project.removeSourceFile(composition);
+    const source = project.createSourceFile(
+      "/repo/background-data.ts",
+      `
+    import {createBackgroundWork} from "./${base}/background.ts";
+    interface Context{settle:()=>number;backgroundSignal?:AbortSignal}
+    function consume(ctx:Context){return ctx.settle();}
+    function generateSegments(ctx:Context,args:{signal?:AbortSignal}){return args.signal===undefined;}
+    function engine(ctx:Context,deps:{generateSegments:typeof generateSegments}){${handoff ? "deps.generateSegments(ctx,{signal:ctx.backgroundSignal});" : "const signal=ctx.backgroundSignal;"}return consume(ctx);}
+    function service(ctx:Context){return engine(ctx,{generateSegments});}
+    function compose(input:{backgroundSignal?:AbortSignal}){const ctx={settle:()=>1,${spread}};return service(ctx);}
+    const construction=new AsyncDisposableStack();const resources=new AsyncDisposableStack();construction.defer(()=>resources.disposeAsync());
+    const background=resources.use(createBackgroundWork());compose({backgroundSignal:background.signal});
+  `,
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const target = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+    const signal = source.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression).find((member) => member.getText() === "ctx.backgroundSignal");
+    const expected = source.getFunctionOrThrow("compose").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+    const registration = calls.find((call) => call.getExpression().getText() === "resources.use");
+    if (target === undefined || signal === undefined || registration === undefined) {
+      throw new Error("the actual resource and data invocation is missing");
+    }
+    const native = project.getTypeChecker().getResolvedSignature(registration)?.getDeclaration();
+    expect(native !== undefined && project.getProgram().compilerObject.isSourceFileDefaultLibrary(native.getSourceFile().compilerNode)).toBe(true);
+    beginReferencePass();
+    try {
+      const references = [...source.getDescendants(), ...producer.getDescendants()];
+      const observed = observeCallReturns(calls, references, { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the captured actual program is missing");
+      }
+      const fact = readAuthoredCallableSources(target.getExpression(), (candidate) => program.byCall.has(candidate.compilerNode), observed);
+      const dataObserved = observeCallReturns(calls, references, { suppliedCallableTargets: true, nativeValueTransfers: true });
+      const context = source.getFunctionOrThrow("compose").getFirstDescendantByKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+      const input = source.getFunctionOrThrow("compose").getParameters()[0];
+      const compositionCall = calls.find((call) => call.getExpression().getText() === "compose");
+      const argument = compositionCall?.getArguments()[0];
+      if (input === undefined || argument === undefined) {
+        throw new Error("the actual composition binding is missing");
+      }
+      const data = readReturnedValue(context, ["backgroundSignal"], dataObserved, {
+        terminals: new Set(),
+        bindings: new Map([[input, argument]]),
+        nativeValueTransfers: true,
+      });
+      expect(data.kind, data.kind === "unresolved" ? data.detail : "resolved").toBe("resolved");
+      expect(data.kind === "resolved" ? data.value.map((leaf) => ({ present: leaf.present, path: leaf.path, kind: leaf.value.getKindName() })) : []).toEqual([
+        { present: true, path: ["signal"], kind: "NewExpression" },
+        { present: false, path: ["backgroundSignal"], kind: "ObjectLiteralExpression" },
+      ]);
+      const controller = producer.getFirstDescendantByKindOrThrow(SyntaxKind.NewExpression);
+      expect(data.kind === "resolved" && data.value[0]?.value === controller && data.value[1]?.value === context).toBe(true);
+      expect(fact.kind, fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail} at ${fact.node.getText()}` : "resolved").toBe("resolved");
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(true);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+const OWN_DATA_RECEIVER_CASES = [
+  { name: "plain own data argument", use: "consume(ctx.db);", property: "db,", target: "ctx.settle", resolved: true },
+  { name: "nested own data receiver", use: "ctx.db.batch();", property: "db,", target: "ctx.settle", resolved: true },
+  { name: "asserted own data receiver", use: "ctx.db!.batch();", property: "db,", target: "ctx.settle", resolved: true },
+  { name: "parenthesized own data receiver", use: "(ctx.db).batch();", property: "db,", target: "ctx.settle", resolved: true },
+  { name: "absent nested receiver", use: "ctx.db.batch();", property: "...(choose?{db}:{}),", target: "ctx.settle", resolved: false },
+  { name: "getter nested receiver", use: "ctx.db.batch();", property: "get db(){this.settle=()=>2;return db;},", target: "ctx.settle", resolved: false },
+  { name: "requested mutable-origin callee", use: "ctx.db.batch();", property: "db,", target: "ctx.db.batch", resolved: false },
+] as const;
+for (const scenario of OWN_DATA_RECEIVER_CASES) {
+  test(`own sibling projection preserves ${scenario.name} through mutable lifecycle wiring`, async () => {
+    const referenceFacts = await import("../../../../tooling/src/floor/code-facts/reference-fact.ts");
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/lifecycle-data.ts",
+      `
+      interface Db{batch():void;}interface Context{db?:Db;settle:()=>number;optional?:object;}
+      declare const choose:boolean;
+      function consume(value:object|undefined){return value;}
+      function commitHandoffSwap(ctx:Context){${scenario.use}consume({value:ctx.optional});return ctx.settle();}
+      function acceptHostHandoff(ctx:Context){return commitHandoffSwap(ctx);}
+      function createParticipants(ctx:Context){return acceptHostHandoff(ctx);}
+      function createChatService(ctx:Context){return createParticipants(ctx);}
+      function buildChatService(input:{db:Db;optional?:object}){
+        const {db}=input;const chatCtx={${scenario.property}settle:()=>1,...(input.optional===undefined?{}:{optional:input.optional})};
+        return createChatService(chatCtx);
+      }
+      function createServices(deps:{db:Db}){const {db}=deps;return buildChatService({db});}
+      async function createDb():Promise<Db>{return {batch(){}};}
+      function createLifecycle(){
+        let db:Db|null=null;
+        async function boot(){db=await createDb();return createServices({db});}
+        function shutdown(){db=null;}
+        return {boot,shutdown};
+      }
+      const lifecycle=createLifecycle();lifecycle.boot();
+    `,
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const target = calls.find((call) => call.getExpression().getText() === scenario.target);
+    const mutable = source.getFunctionOrThrow("createLifecycle").getVariableDeclarationOrThrow("db");
+    const expected = source
+      .getFunctionOrThrow("buildChatService")
+      .getDescendantsOfKind(SyntaxKind.ArrowFunction)
+      .find((node) => node.getText() === "()=>1");
+    if (target === undefined || expected === undefined) {
+      throw new Error("the real selected fixture target is missing");
+    }
+    beginReferencePass();
+    const inherited = vi.spyOn(referenceFacts, "inspectInheritedReadEffects");
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the captured composition program is missing");
+      }
+      inherited.mockClear();
+      const fact = readAuthoredCallableSources(target.getExpression(), (candidate) => program.byCall.has(candidate.compilerNode), observed);
+      expect(fact.kind, fact.kind === "unresolved" ? `${fact.detail} at ${fact.node.getText()}` : "resolved").toBe(
+        scenario.resolved ? "resolved" : "unresolved",
+      );
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(scenario.resolved);
+      expect(inherited.mock.calls.length > 0).toBe(scenario.resolved);
+      expect(scenario.target !== "ctx.db.batch" || (fact.kind === "unresolved" && fact.reason === "write" && fact.node === mutable)).toBe(true);
+    } finally {
+      inherited.mockRestore();
+      endReferencePass();
+    }
+  });
+}
+
+const CONDITIONAL_SIBLING_READ_CASES = [
+  { name: "finite optional data", properties: "...(choose?{payload:{}}:{}),", use: "consume({value:ctx.payload});", effect: "", resolved: true },
+  { name: "known undefined data", properties: "payload:undefined,", use: "consume({value:ctx.payload});", effect: "", resolved: true },
+  { name: "absent data", properties: "", use: "consume({value:ctx.payload});", effect: "", resolved: true },
+  { name: "earlier absent receiver", properties: "", use: "consume({value:ctx.payload.value});", effect: "", resolved: false },
+  { name: "asserted absent receiver", properties: "", use: "consume({value:ctx.payload!.value});", effect: "", resolved: false },
+  { name: "parenthesized absent receiver", properties: "", use: "consume({value:(ctx.payload).value});", effect: "", resolved: false },
+  { name: "asserted type absent receiver", properties: "", use: "consume({value:(ctx.payload as object).value});", effect: "", resolved: false },
+  { name: "parenthesized missing callee", properties: "", use: "(ctx.payload)();", effect: "", resolved: false },
+  { name: "invoked optional data", properties: "...(choose?{payload:()=>1}:{}),", use: "ctx.payload();", effect: "", resolved: false },
+  {
+    name: "getter selected write",
+    properties: "get payload(){this.settle=()=>2;return {};},",
+    use: "consume({value:ctx.payload});",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "conditional getter",
+    properties: "...(choose?{get payload(){context.settle=()=>2;return {};}}:{}),",
+    use: "consume({value:ctx.payload});",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "prototype getter",
+    properties: "__proto__:{get payload(){this.settle=()=>2;return {}; }},",
+    use: "consume({value:ctx.payload});",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "global prototype getter",
+    properties: "",
+    use: "consume({value:ctx.payload});",
+    effect: "Object.defineProperty(Object.prototype,'payload',{get(){this.settle=()=>2;return {};}});",
+    resolved: false,
+  },
+  { name: "opaque spread", properties: "...foreign,", use: "consume({value:ctx.payload});", effect: "", resolved: false },
+  { name: "containing escape", properties: "...(choose?{payload:{}}:{}),", use: "consume({value:ctx.payload});", effect: "leak(context);", resolved: false },
+  {
+    name: "containing write",
+    properties: "...(choose?{payload:{}}:{}),",
+    use: "consume({value:ctx.payload});",
+    effect: "context.settle=()=>2;",
+    resolved: false,
+  },
+] as const;
+for (const scenario of CONDITIONAL_SIBLING_READ_CASES) {
+  test(`conditional sibling data retains ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/sibling-data.ts",
+      `
+      declare const choose:boolean;declare const foreign:object;declare function leak(value:object):void;
+      function consume(args:{value:object|undefined}){return args.value;}
+      function select(ctx:{settle:()=>number;payload?:object}){${scenario.use}return ctx.settle();}
+      const context={settle:()=>1,${scenario.properties}};${scenario.effect}select(context);
+    `,
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+    const expected = source.getVariableDeclarationOrThrow("context").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+    if (selected === undefined) {
+      throw new Error("the selected sibling call is missing");
+    }
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the sibling native context is missing");
+      }
+      const fact = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      expect(fact.kind, fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail}` : "resolved").toBe(scenario.resolved ? "resolved" : "unresolved");
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(scenario.resolved);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
 const RESOURCE_REGISTRATION_CASES = [
   {
     name: "constructor alias",
