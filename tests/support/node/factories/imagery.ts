@@ -1,5 +1,6 @@
 // Generation provenance comes from the real imagery operation, including rows returned by a reuse hit.
 
+import type { GeneratedPicture } from "@orb/contracts/imagery";
 import type { PortableEntity } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { imageryGenerations, imageryImportCalls } from "@orb/db";
@@ -23,7 +24,12 @@ export async function seedImageryGenerations(
   params: Parameters<ImageryService["generatePicture"]>[0],
 ): Promise<SeededImageryGeneration> {
   const picture = await generatePicture(params);
-  const generations = await Promise.all(
+  return { picture, generations: await captureImageryGenerationRows(db, picture) };
+}
+
+/** Capture the writer's returned identities, including a picture returned through the native edit route. */
+export async function captureImageryGenerationRows(db: Db, picture: GeneratedPicture): Promise<readonly ImageryGenerationRow[]> {
+  return await Promise.all(
     picture.images.map(async (image): Promise<ImageryGenerationRow> => {
       const row = await db.select().from(imageryGenerations).where(eq(imageryGenerations.id, image.generationId)).get();
       if (row === undefined) {
@@ -32,7 +38,6 @@ export async function seedImageryGenerations(
       return row;
     }),
   );
-  return { picture, generations };
 }
 
 interface SeededNativeImageryImport {

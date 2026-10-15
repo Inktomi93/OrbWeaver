@@ -11,6 +11,7 @@ import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import type { seedCorpusConnection as produceCorpusConnection } from "./corpus-connection.ts";
+import type { seedCorpusImageVariants as produceCorpusImageVariants } from "./corpus-image-variants.ts";
 import type { seedCorpusImagery as produceCorpusImagery } from "./corpus-imagery.ts";
 import type { seedCorpusKnowledge as produceCorpusKnowledge } from "./corpus-knowledge.ts";
 import type { seedCorpusKnowledgeVariants as produceCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
@@ -52,6 +53,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly imageVariants: Awaited<ReturnType<typeof produceCorpusImageVariants>>;
   readonly notifications: Awaited<ReturnType<typeof produceCorpusNotifications>>;
   readonly sdkSessions: Awaited<ReturnType<typeof produceCorpusSdkSessions>>;
   readonly statsSettings: Awaited<ReturnType<typeof produceCorpusStatsSettings>>;
@@ -145,6 +147,8 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { createCorpusChatWire } = await import("./corpus-chat-wire.ts");
   const { seedCorpusChatLifecycle } = await import("./corpus-chat-lifecycle.ts");
   const { seedCorpusImagery } = await import("./corpus-imagery.ts");
+  const { seedCorpusImageVariants } = await import("./corpus-image-variants.ts");
+  const { createCorpusImageWire } = await import("./corpus-image-wire.ts");
   const { createServerHarness } = await import("./server.ts");
   const { createFrozenClock } = await import("../iso/clock.ts");
   const { createControlledTimers } = await import("../iso/timers.ts");
@@ -181,6 +185,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const rpgFlightTimers = createRpgFlightTimers(createControlledTimers(clock));
   const rpgFlightWire = createRpgFlightWire();
   const connectionWire = createCorpusConnectionWire();
+  const imageWire = await createCorpusImageWire();
   const sdkExecution = createCorpusSdkExecution();
   const ids = options.server.ids ?? createSeededIds();
   const issuer = await createNativeIssuer();
@@ -218,9 +223,11 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       ids,
       ownerId: oidc.ownerId,
       sdkSpawn: sdkExecution.spawn,
-      providerFetch: connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch))),
+      providerFetch: imageWire.wrap(connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch)))),
       networkExecution: {
-        fetch: connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch))),
+        fetch: imageWire.wrap(
+          connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch))),
+        ),
         resolver: (hostname) => {
           if (hostname === connectionWire.hostname) {
             return connectionWire.resolver(hostname);
@@ -266,6 +273,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     throw new Error("completed native connection corpus left unspent physical recipes");
   }
   const libraryViews = await seedCorpusLibraryViews(root, libraries, actors);
+  const imageVariants = await seedCorpusImageVariants(root, imageWire, options.seed.ownerPassword);
   const statsSettings = await seedCorpusStatsSettings(root, {
     characterId: knowledgeVariants.character.id,
     personaId: libraries.persona.id,
@@ -284,6 +292,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   return {
     wire: hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads }),
     privateCaptures: {
+      imageVariants,
       notifications,
       sdkSessions,
       oidc,

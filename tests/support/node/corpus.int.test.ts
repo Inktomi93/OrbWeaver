@@ -12,6 +12,7 @@ import { NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import {
   assertReferentialIntegrity,
+  assets,
   automationFires,
   chatHandoffResumptions,
   chatImportClaims,
@@ -21,6 +22,7 @@ import {
   createDb,
   detachWal,
   documentChunks,
+  imageIndexSkips,
   imageryGenerations,
   imageryImportCalls,
   messageReactions,
@@ -181,6 +183,29 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const statsSettings = capsule.privateCaptures.statsSettings;
   const sdkSessions = capsule.privateCaptures.sdkSessions;
   const notifications = capsule.privateCaptures.notifications;
+  const imageVariants = capsule.privateCaptures.imageVariants;
+  expect(imageVariants.skips.map(({ first }) => first.skip)).toMatchObject([
+    { reason: "below-dimension-floor", width: 8, height: 8 },
+    { reason: "below-dimension-floor", width: 8, height: 64 },
+  ]);
+  for (const { first, repeated, forced } of imageVariants.skips) {
+    expect(first).toMatchObject({ result: null, vectors: [], analysis: undefined });
+    expect(repeated).toEqual(first);
+    expect(forced).toEqual(first);
+  }
+  expect(imageVariants.skipPostsAfter).toEqual(imageVariants.skipPostsBefore);
+  expect(imageVariants.captioned.picture).toMatchObject({ promptSource: "captioned", costUsd: null });
+  expect(imageVariants.previews.captioned.output.costUsd).toBeGreaterThan(0);
+  expect(imageVariants.warning.picture.warnings.map((warning) => warning.code)).toEqual(["image_edit_dropped"]);
+  expect(imageVariants.edited.generations).toMatchObject([{ edited: true, tokensIn: 23, tokensOut: 11, costUsd: null, costProvenance: "unrecorded" }]);
+  expect(imageVariants.rows).toHaveLength(4);
+  expect(imageVariants.nullProvenance.map((read) => read.output)).toEqual([null, null, null]);
+  expect(imageVariants.afterRefusals).toEqual(imageVariants.beforeRefusals);
+  expect(imageVariants.physical.remaining).toBe(0);
+  expect(imageVariants.physical.images.every(({ authenticated }) => authenticated)).toBe(true);
+  expect(imageVariants.bindings.after.map(({ task, binding }) => [task, binding?.connectionId ?? null])).toEqual(
+    imageVariants.bindings.before.map(({ task, binding }) => [task, binding?.connectionId ?? null]),
+  );
   expect(notifications.rows.length).toBeGreaterThan(0);
   expect(notifications.inbox.afterRefusal).toEqual(notifications.inbox.beforeRefusal);
   expect(notifications.inbox.foreignAfter).toEqual(notifications.inbox.foreignBefore);
@@ -295,6 +320,47 @@ test("a completed migrated capsule closes its real producers before cloning scru
   let notificationPlugin: typeof plugins.$inferSelect | undefined;
   try {
     await assertReferentialIntegrity(source);
+    expect(
+      await source
+        .select()
+        .from(imageryGenerations)
+        .where(
+          inArray(
+            imageryGenerations.id,
+            imageVariants.rows.map((row) => row.id),
+          ),
+        )
+        .orderBy(imageryGenerations.id),
+    ).toEqual(imageVariants.rows);
+    expect(
+      await source
+        .select()
+        .from(assets)
+        .where(
+          inArray(
+            assets.id,
+            imageVariants.assetRows.map((row) => row.id),
+          ),
+        )
+        .orderBy(assets.id),
+    ).toEqual(imageVariants.assetRows);
+    expect(
+      await source
+        .select()
+        .from(imageIndexSkips)
+        .where(
+          inArray(
+            imageIndexSkips.assetId,
+            imageVariants.skips.map(({ asset }) => asset.id),
+          ),
+        )
+        .orderBy(imageIndexSkips.assetId),
+    ).toEqual(
+      imageVariants.skips
+        .map(({ first }) => first.skip)
+        .filter((row) => row !== undefined)
+        .toSorted((left, right) => left.assetId.localeCompare(right.assetId)),
+    );
     expect(await captureCorpusNotificationRows(source, notifications.recipientIds)).toEqual(notifications.rows);
     notificationPlugin = await source.select().from(plugins).where(eq(plugins.id, notifications.producers.plugin.outcome.id)).get();
     expect(notificationPlugin).toMatchObject({
@@ -359,6 +425,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(portable.oidc?.confirmation.chatId).toBe(capsule.privateCaptures.oidc.wire.confirmation.chatId);
   expect(portable.auth.signedInMe).toEqual(capsule.wire.auth.signedInMe);
   const privateValues = [
+    ...imageVariants.secrets,
     ...notifications.secrets,
     OWNER_PASSWORD,
     PROVIDER_KEY,
@@ -379,6 +446,47 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const clone = await createDb(fixture.layout.databaseUrl);
   try {
     await assertReferentialIntegrity(clone);
+    expect(
+      await clone
+        .select()
+        .from(imageryGenerations)
+        .where(
+          inArray(
+            imageryGenerations.id,
+            imageVariants.rows.map((row) => row.id),
+          ),
+        )
+        .orderBy(imageryGenerations.id),
+    ).toEqual(imageVariants.rows);
+    expect(
+      await clone
+        .select()
+        .from(assets)
+        .where(
+          inArray(
+            assets.id,
+            imageVariants.assetRows.map((row) => row.id),
+          ),
+        )
+        .orderBy(assets.id),
+    ).toEqual(imageVariants.assetRows);
+    expect(
+      await clone
+        .select()
+        .from(imageIndexSkips)
+        .where(
+          inArray(
+            imageIndexSkips.assetId,
+            imageVariants.skips.map(({ asset }) => asset.id),
+          ),
+        )
+        .orderBy(imageIndexSkips.assetId),
+    ).toEqual(
+      imageVariants.skips
+        .map(({ first }) => first.skip)
+        .filter((row) => row !== undefined)
+        .toSorted((left, right) => left.assetId.localeCompare(right.assetId)),
+    );
     expect(await captureCorpusNotificationRows(clone, notifications.recipientIds)).toEqual(notifications.rows);
     expect(await clone.select().from(plugins).where(eq(plugins.id, notifications.producers.plugin.outcome.id)).get()).toEqual(notificationPlugin);
     expect(
@@ -471,6 +579,10 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const hash = capsule.privateCaptures.libraries.asset.hash;
   const sourceCas = createCas(capsule.layout.assets);
   const cloneCas = createCas(fixture.layout.assets);
+  for (const row of imageVariants.assetRows) {
+    expect(await sourceCas.verify(row.ownerId, row.hash)).toBe(true);
+    expect(await cloneCas.read(row.ownerId, row.hash)).toEqual(await sourceCas.read(row.ownerId, row.hash));
+  }
   expect(await sourceCas.verify(ownerId, hash)).toBe(true);
   expect(await cloneCas.read(ownerId, hash)).toEqual(await sourceCas.read(ownerId, hash));
   await cloneCas.remove(ownerId, hash);
