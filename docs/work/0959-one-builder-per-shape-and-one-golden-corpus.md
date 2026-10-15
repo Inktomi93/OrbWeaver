@@ -3,7 +3,7 @@ kind: work
 status: doing
 updated: 2026-10-15
 priority: P1
-lane: codex/canonical-table-builders-959
+lane: codex/identity-notification-suppliers-1036
 plan: test-foundation
 ---
 
@@ -39,4 +39,6 @@ The combined native capsule passes with its unchanged guard on `0bac3b7799`: `re
 
 Canonical row-builder chains and database fixtures are qualified within their selected cases, not every persistence verb. Evidence: `reports/review/959-table-builder-semantics.json`. Native output boundaries are inventoried; current supplier allocations and limits live in `reports/review/959-mounted-output-uses.json`.
 
-Reviewed suppliers cover admin/session, library, chat/RPG, knowledge and selected plugin protocols. Defaults retain browser-safe value closures. Evidence: `reports/review/959-canonical-output-builder-evidence.md`, `reports/review/959-library-output-delivery.md`, `reports/review/1030-knowledge-output-delivery.md`, `reports/review/1032-chat-rpg-output-delivery.md` and `reports/review/1031-plugin-output-delivery.md`. Plugin host and unavailable paths remain open. Selected supplier qualification does not establish every alias or variant. Shared adoption remains open; these captures do not authorize general legacy ports.
+Reviewed suppliers cover each canonical parser-output root in the frozen inventory. Defaults retain browser-safe value closures. Selected native Host returns and callbacks also pass. Evidence and per-root scope live in `reports/review/959-mounted-output-uses.json`; cohort deliveries and independent reviews remain linked there. Unallocated aliases, variants, protocol hard states and shared adoption remain open. These captures do not authorize general legacy ports.
+
+Durable publication and actual consumer loading use the existing capsule, strict portable projection and scrubbed clone owners. Keep private captures separate. Publishing must preserve fixture bytes beyond the producer's lifetime and give consumers explicit cleanup ownership.

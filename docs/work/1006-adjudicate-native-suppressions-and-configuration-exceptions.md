@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-15
 priority: P2
 area: tooling
+lane: codex/wire-chat-rpg-959
 plan: test-foundation
 ---
 
@@ -34,3 +35,5 @@ Reviewed sources `0534d11010` and `88fd25fdcc` route diagnostics, load budgets a
 Reviewed `159dd24975` removes actual native complexity exceptions from the CSS and SQL mirror scanners through quoted/comment span consumption. Lexical bytes, directives, newline positions and existing language dispatch remain unchanged. Original-source native findings, maintained boundary cases, corrupt-span rejection and independent differential execution qualify this family. No replacement exception or configuration change is added; the remaining population stays open.
 
 Reviewed `375e0c81e6` restores native duplicate-dependency errors while preserving legitimate peer and development declarations. Resolved graph, matcher and native CLI controls pass. Integration retains only existing off-owned root type diagnostics: `reports/review/ready-train-root-types.log`. The remaining suppression population stays open.
+
+Integrated `25dc5d0222` and `7d00abce67` remove inert DB import and client union-dispatch suppressions. Native typed deprecation and condition checks remain enabled. Exact lint, DB, client and maintained DOM types pass. Executable source remains unchanged. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-db-primary-key-suppressions.md` and the adjacent client-union report. The checkpoint remainder and global configuration judgment stay open.
