@@ -31,11 +31,19 @@ import { createSeededIds } from "../iso/ids.ts";
 import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 import { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
-import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { captureCorpusSearchPublication, seedCorpusSearch } from "./corpus-search.ts";
+import {
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_PROVIDER_ENDPOINT,
+  CORPUS_STRUCTURED_REPLIES,
+  CORPUS_TEXT_MODEL,
+  createCorpusProviderExecution,
+} from "./corpus-provider.ts";
+import { captureCorpusSearchPublication, seedCorpusSearch, settleCorpusSearchImages } from "./corpus-search.ts";
 import { createCorpusSearchWire, replayCorpusSearchWire } from "./corpus-search-wire.ts";
 import { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusLibraries, seedRecallCorpus } from "./corpus-seed.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
+import { seedUserConnection } from "./factories/connection.ts";
 import { seedUserCredential } from "./factories/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -201,7 +209,44 @@ test("settled search publication survives native authenticated clone reads and r
       await caller.character.update({ characterId: witness.id, input: { name: witness.name } });
       Object.assign(malformed.searchLibrary.reads.fields.output, { [secret]: true });
       expect(() => serializeCorpusWire(malformed, secrets)).toThrow("Corpus publication contains private material");
+      const temporary = await seedUserConnection(root.db, root.services.connection.create, {
+        principal: actors.owner,
+        providerId: "custom-openai",
+        credentialId: null,
+        baseUrl: CORPUS_PROVIDER_ENDPOINT,
+        model: CORPUS_EMBED_MODEL,
+        allowBackground: true,
+        declared: {
+          kind: "embedding",
+          embedding: { dims: CORPUS_EMBEDDING_VECTOR.length, maxInputTokens: 8192, input: ["text", "image"] },
+          features: { detectServer: false },
+        },
+      });
+      await caller.connection.setBinding({ task: "imageEmbed", connectionId: temporary.id });
+      await caller.connection.setBinding({ task: "imageEmbed", connectionId: images.connection.id });
+      await root.settleBackground();
+      expect(await caller.search.spaceStatus()).toEqual({ paused: true, embed: false, imageEmbed: true });
+      const restoredJobs = await settleCorpusSearchImages(root);
+      expect(restoredJobs).toMatchObject([{ kind: "index", status: "succeeded", params: { source: "image" } }]);
+      const restored = await captureCorpusSearchPublication(root, source);
+      assert(restored.reads.imagesRaw.output.over === "images");
+      expect(restored.reads.imagesRaw.output.hits.length).toBeGreaterThan(0);
+      expect(restored.reads.imagesRaw.output.hits.every((hit) => hit.lens === "image-raw")).toBe(true);
+      expect(restored.reads.status.output).toEqual({ paused: false, embed: false, imageEmbed: false });
+      await caller.connection.setBinding({ task: "imageEmbed", connectionId: null });
+      await root.settleBackground();
+      // Clearing retains the completed generation until the next native sweep selects captioned fallback.
+      expect(await caller.search.spaceStatus()).toEqual({ paused: false, embed: false, imageEmbed: false });
+      const fallbackJobs = await settleCorpusSearchImages(root);
+      expect(fallbackJobs).toMatchObject([{ kind: "index", status: "succeeded", params: { source: "image" } }]);
       const final = await physical.capture(() => captureCorpusSearchPublication(root, source));
+      assert(final.value.reads.imagesRaw.output.over === "images");
+      expect(final.value.reads.imagesRaw.output.hits.length).toBeGreaterThan(0);
+      expect(final.value.reads.imagesRaw.output.hits.every((hit) => hit.lens === "image-captioned")).toBe(true);
+      expect(final.value.reads.similarRaw.output.length).toBeGreaterThan(0);
+      expect(final.value.reads.similarRaw.output.every((hit) => hit.lens === "image-captioned")).toBe(true);
+      expect(final.value.reads.imagesRaw.input.lens).toBe("image-raw");
+      expect(final.value.reads.status.output).toEqual({ paused: false, embed: false, imageEmbed: false });
       const wire = { ...base, searchLibrary: final.value };
       expect(parseCorpusWire(serializeCorpusWire(wire, secrets)).searchLibrary).toEqual(final.value);
       await root.settleBackground();

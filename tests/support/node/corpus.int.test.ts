@@ -235,6 +235,9 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.wire.libraryRelations).toBeDefined();
   expect(capsule.wire.libraryRelations).toEqual(libraryViews.publication.relations);
   expect(capsule.wire.searchLibrary).toEqual(capsule.privateCaptures.searchPublication);
+  expect(capsule.privateCaptures.searchImageJobs).toMatchObject([
+    { ownerId: capsule.privateCaptures.baseline.ownerId, kind: "index", status: "succeeded", params: { source: "image" } },
+  ]);
   expect(capsule.wire.memberIdentities).toBeDefined();
   expect(capsule.wire.memberIdentities).toEqual({
     notificationReader: notifications.admission.identity,
