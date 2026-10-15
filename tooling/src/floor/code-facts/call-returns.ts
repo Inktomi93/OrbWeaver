@@ -23,6 +23,7 @@ import type {
   CallReturnObservation,
   CallReturnObservations,
   CallReturnProgram,
+  CallReturnProofContext,
   ReferenceFact,
   ReferenceUnresolvedReason,
   ReturnedValueInputs,
@@ -832,7 +833,7 @@ function suppliedCallableUseReader(
       if (Node.isCallExpression(owner)) {
         return settledCallableUse(owner, program);
       }
-      const sources = readAuthoredCallableSources(owner, (call) => program.byCall.has(call.compilerNode), { programs: [program] });
+      const sources = readAuthoredCallableSources(owner, { captured: program }, { programs: [program] });
       return sources.kind === "unresolved" ? sources : { ...sources, value: true };
     } finally {
       activeOwners.delete(owner.compilerNode);
@@ -886,6 +887,25 @@ export function observeCallReturns(
   const publishers: (() => void)[] = [];
   let refining = false;
   let settledDemandCount = 0;
+  const callableContext: CallReturnProofContext = {
+    admitted,
+    activeOwners,
+    get referenceRevision(): number {
+      return observedReferences.length;
+    },
+    get demandRevision(): number {
+      return demandedOwners.size;
+    },
+    get directRevision(): number {
+      return directCalls.size;
+    },
+    get settledDemandRevision(): number {
+      return settledDemandCount;
+    },
+    get refining(): boolean {
+      return refining;
+    },
+  };
   const demand = (owner: MorphNode): void => {
     demandedOwners.add(owner);
     if (refining || demandedOwners.size === settledDemandCount) {
@@ -965,6 +985,7 @@ export function observeCallReturns(
         ...(projection.suppliedCallableTargets === true
           ? {
               suppliedCallableTargets: true as const,
+              callableContext,
               suppliedCallableUses: suppliedCallableUseReader(() => captured, { activeOwners, demand }),
               suppliedCallableValue: (node: MorphNode) => captureCallableValue(node, captured, group),
             }

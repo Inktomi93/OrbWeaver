@@ -375,8 +375,12 @@ class BrokerClient {
   cancelStartup(): void {
     this.closed = true;
     this.connectChasePause?.resume();
+    // Teardown retires Workers before closeManaged joins the watchdog. Idle children are unref'ed,
+    // but those retirement acknowledgments still belong to this process after its HTTP listener closes.
+    for (const child of this.children.keys()) {
+      child.ref();
+    }
     if (this.generation === undefined && this.connecting !== undefined) {
-      this.managedChild?.ref();
       this.managedChild?.kill("SIGTERM");
     }
   }
