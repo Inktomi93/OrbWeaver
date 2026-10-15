@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-15
 priority: P1
 area: tooling
+lane: codex/native-reference-reuse-1002
 plan: test-foundation
 ---
 
@@ -35,4 +36,4 @@ Reviewed native reference storage, guarded bindings, settled capture indexes and
 
 Reviewed `34ed85d7bb` shares completed successes within the existing callable proof owner. Native admission, binding contents, allocation identity, active cycles, refusal order and capture invalidation remain authoritative. Opaque callbacks remain uncached. Evidence: `.claude/worktrees/codex-native-reference-reuse-1002/reports/review/1002-contextual-obligation-sharing.md` and its independent review.
 
-Reviewed `83b2382756` preserves optional invocation. Reviewed `1486b4a545` and `2ed8e97058` preserve native resource registration, allocation bindings, disposal descriptors and executable parameter effects. Scoped controls and independent review pass. The actual driver still requires changed-source qualification. Evidence: `.claude/worktrees/codex-native-reference-reuse-1002/reports/review/1002-native-resource-registration.md`. Complete publication, collector equivalence, cross-world reuse and hosted memory remain open. Item 1027 owns typed-family delivery.
+Reviewed `83b2382756` preserves optional invocation. Reviewed `1486b4a545` and `2ed8e97058` preserve native registration, allocation bindings, disposal descriptors and executable parameters. Scoped controls and review pass. The actual query times out on `d9624cce70`; measure proof obligations before another repair. Evidence: `reports/review/native-resource-integrated.md`. Complete publication, collector equivalence, cross-world reuse and hosted memory remain open. Item 1027 owns typed-family delivery.
