@@ -35,7 +35,7 @@ Reviewed preset and automation wire schemas live in canonical contracts. Public 
 
 Integrated `0f010719c1` publishes native preset list/detail/effective reads, independently captured usage stages and live rules. Security review confirms native clone HTTP equality and ownership/member-splice rejection controls. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/959-preset-publication-independent-security-review.md`.
 
-The combined native capsule passes with its unchanged guard on `e1d018555b`: `reports/runs/test/main-2224631-2026-10-15T12-37-53-280Z/test-report.json`. Owner-funded indexing settles before final search capture. Canonical identity breaks equal-distance image ties before candidate limits. Independent review accepts both corrections. Earlier failed runs remain preserved; this selected capsule does not establish complete application qualification.
+The combined native capsule passes with its unchanged guard on `0bac3b7799`: `reports/runs/test/main-2645238-2026-10-15T14-10-00-445Z/test-report.json`. Owner-funded indexing settles before final search capture. Canonical identity breaks equal-distance image ties before candidate limits. Independent review accepts both corrections. Earlier failed runs remain preserved; this selected capsule does not establish complete application qualification.
 
 Canonical row-builder chains and database fixtures are qualified within their selected cases, not every persistence verb. Evidence: `reports/review/959-table-builder-semantics.json`. Native output boundaries are inventoried; current supplier allocations and limits live in `reports/review/959-mounted-output-uses.json`.
 
