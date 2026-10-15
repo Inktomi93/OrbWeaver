@@ -43,7 +43,7 @@ import type { JsxOpeningElement, JsxSelfClosingElement, Node as MorphNode } from
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
-import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+import { prepareSealedReference, readSealedOrigin, sealedOriginReports, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const TAG = "EmptyState";
 const ACTION = "action";
@@ -88,28 +88,38 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
-        visit: (node): void => {
-          const element = jsxElement(node);
-          if (element === undefined || hasAction(element)) {
-            return;
-          }
-          const tagName = element.getTagNameNode();
+  create: (ctx) => {
+    const pending: MorphNode[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
+          visit: (node): void => {
+            const element = jsxElement(node);
+            if (element === undefined || hasAction(element)) {
+              return;
+            }
+            const tagName = element.getTagNameNode();
+            pending.push(tagName);
+            prepareSealedReference(ctx, tagName);
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const tagName of pending) {
+          const services = sealedReferenceServices(ctx, tagName);
           // The NAME PREFILTER that keeps fail-closure honest: only a tag that could name the primitive is
           // ever resolved, so an unreadable verdict accuses a candidate rather than every opaque tag.
-          if (!referenceNamesExport(tagName, TAG)) {
-            return;
+          if (!referenceNamesExport(tagName, TAG, services)) {
+            continue;
           }
-          if (sealedOriginReports(readSealedOrigin(tagName, EMPTY_STATE_HOME), tagName)) {
+          if (sealedOriginReports(readSealedOrigin(tagName, EMPTY_STATE_HOME, services.moduleOrigin), tagName, services.declarations)) {
             ctx.report.node(tagName, { token: tagName.getText(), offset: 0, message: MESSAGE, fix: FIX });
           }
-        },
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

@@ -950,8 +950,11 @@ function assertInvocationSource(source: SourceFile, program: ts.Program): void {
 function collectInvocationQuery(query: InventoryInvocationQuery, state: InvocationCollection): void {
   const { context, byFile, program } = state;
   const source = byFile.get(query.node.file);
-  const node = source?.getDescendantAtStartWithWidth(query.node.start, query.node.end - query.node.start);
-  if (node === undefined || node.getKind() !== query.node.kind) {
+  const leaf = source?.getDescendantAtPos(query.node.start);
+  const node = [source, leaf, ...(leaf?.getAncestors() ?? [])].find(
+    (candidate) => candidate?.getStart() === query.node.start && candidate.getEnd() === query.node.end && candidate.getKind() === query.node.kind,
+  );
+  if (node === undefined) {
     throw new Error("native invocation query span is unavailable in its captured native program");
   }
   assertInvocationSource(node.getSourceFile(), program);

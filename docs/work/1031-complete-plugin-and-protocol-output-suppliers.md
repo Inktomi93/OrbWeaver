@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-15
 priority: P1
+lane: codex/identity-notification-suppliers-1036
 plan: test-foundation
 ---
 

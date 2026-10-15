@@ -19,10 +19,18 @@
 // `packages/server/src/domain/chat/engine/__cbbhr_in_auto-mode.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";
+import type { OriginReferenceServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+import {
+  possibleSealedReference,
+  prepareSealedReference,
+  readSealedOrigin,
+  reportSealedReference,
+  sealedOriginReports,
+  sealedReferenceServices,
+} from "../lib/sealed-origin.ts";
 
 const PRINCIPAL_TYPE = "Principal";
 const PRINCIPAL_OBJECT = "principal";
@@ -50,14 +58,14 @@ const ENGINE_POPULATION = { in: ["@server"], under: ["packages/server/src/domain
 /** The IDENTITY arm's candidate set: an import specifier (whose `getName()` is the exported name even under
  *  an alias) or a member read spelled with the exported name (the namespace door). A bare identifier USE of
  *  an already-reported import is deliberately not a second occurrence. */
-function identityCandidate(node: Node): Node | null {
+function identityCandidate(node: Node, services: OriginReferenceServices): Node | null {
   if (Node.isImportSpecifier(node)) {
     return node.getName() === PRINCIPAL_TYPE ? node : null;
   }
   if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
     return null;
   }
-  const member = readMemberReference(node);
+  const member = readMemberReferenceWithName(node, services.readComputedName);
   return member.kind === "resolved" && member.value.name === PRINCIPAL_TYPE ? node : null;
 }
 
@@ -73,36 +81,48 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-        visit: (node) => {
-          const anchor = identityCandidate(node);
+  create: (ctx) => {
+    const pending: Node[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node) => {
+            if (possibleSealedReference(node, IDENTITY_HOME.exportedNames)) {
+              pending.push(node);
+              prepareSealedReference(ctx, node);
+            }
+          },
+        },
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node) => {
+            // THE VOCABULARY ARM IS A NAME BAN BY DESIGN, and it is the backstop that makes the identity arm's
+            // narrowing safe: a local object named `principal` carries the caller's id just as well as the
+            // contracts type does, and the engine may not name it either way.
+            if (node.getText() === PRINCIPAL_OBJECT) {
+              ctx.report.node(node, { token: PRINCIPAL_OBJECT, offset: 0 });
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const node of pending) {
+          const services = sealedReferenceServices(ctx, node);
+          const anchor = identityCandidate(node, services);
           if (anchor === null) {
-            return;
+            continue;
           }
           // FAIL-CLOSED THROUGH THE SHARED DECISION: an unreadable `Principal` import DOOR is reported,
           // while a proven foreign origin and a candidate that provably binds a non-module declaration both
           // acquit. `readSealedOrigin` returns the VERDICT; `sealedOriginReports` is the decision.
-          if (sealedOriginReports(readSealedOrigin(anchor, IDENTITY_HOME), anchor)) {
-            ctx.report.node(anchor, { token: PRINCIPAL_TYPE, offset: anchor.getText().indexOf(PRINCIPAL_TYPE) });
+          if (sealedOriginReports(readSealedOrigin(anchor, IDENTITY_HOME, services.moduleOrigin), anchor, services.declarations)) {
+            reportSealedReference(ctx, anchor, PRINCIPAL_TYPE);
           }
-        },
+        }
       },
-      {
-        kinds: [SyntaxKind.Identifier],
-        visit: (node) => {
-          // THE VOCABULARY ARM IS A NAME BAN BY DESIGN, and it is the backstop that makes the identity arm's
-          // narrowing safe: a local object named `principal` carries the caller's id just as well as the
-          // contracts type does, and the engine may not name it either way.
-          if (node.getText() === PRINCIPAL_OBJECT) {
-            ctx.report.node(node, { token: PRINCIPAL_OBJECT, offset: 0 });
-          }
-        },
-      },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

@@ -20,10 +20,25 @@
 // `packages/server/src/domain/chat/__cbbhr_in_active-turns.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import {
+  computedMemberNameInputs,
+  computedNameNeedsBindings,
+  readMemberReferenceWithName,
+  referenceResolutionServices,
+} from "../../floor/code-facts/reference-fact.ts";
+import type { ReferenceFact, ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { OriginReferenceServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+import {
+  possibleSealedReference,
+  prepareSealedReference,
+  readSealedOrigin,
+  reportSealedReference,
+  sealedOriginReports,
+  sealedReferenceServices,
+} from "../lib/sealed-origin.ts";
 
 const OWNER_ID = "ownerId";
 const EQUALITY_OPS = new Set([
@@ -66,15 +81,15 @@ const CHAT_SCOPE_POPULATION = {
 /** Does this operand NAME the `ownerId` property, in any spelling? A bare identifier counts (the legacy
  *  `text === "ownerId"` arm), and every member spelling — dotted, optional and computed-literal — is
  *  normalized by the shared reader, so `row["ownerId"]` is no longer a silent escape (#1506). */
-function namesOwnerId(operand: Node): boolean {
+function namesOwnerId(operand: Node, readComputedName: ReferenceResolutionServices["readComputedName"]): boolean {
   if (Node.isIdentifier(operand)) {
     return operand.getText() === OWNER_ID;
   }
-  const member = readMemberReference(operand);
+  const member = readMemberReferenceWithName(operand, readComputedName);
   return member.kind === "resolved" && member.value.name === OWNER_ID;
 }
 
-function ownedHelperCandidate(node: Node): { readonly name: string; readonly anchor: Node } | null {
+function ownedHelperCandidate(node: Node, services: OriginReferenceServices): { readonly name: string; readonly anchor: Node } | null {
   if (Node.isImportSpecifier(node)) {
     const name = node.getName();
     return OWNED_HELPER_HOME.exportedNames.has(name) ? { name, anchor: node } : null;
@@ -82,7 +97,7 @@ function ownedHelperCandidate(node: Node): { readonly name: string; readonly anc
   if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
     return null;
   }
-  const member = readMemberReference(node);
+  const member = readMemberReferenceWithName(node, services.readComputedName);
   return member.kind === "resolved" && OWNED_HELPER_HOME.exportedNames.has(member.value.name) ? { name: member.value.name, anchor: node } : null;
 }
 
@@ -98,43 +113,92 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.BinaryExpression],
-        visit: (node) => {
-          if (!(Node.isBinaryExpression(node) && EQUALITY_OPS.has(node.getOperatorToken().getKind()))) {
-            return;
-          }
-          if (namesOwnerId(node.getLeft()) || namesOwnerId(node.getRight())) {
-            ctx.report.node(node, { token: OWNER_ID, offset: node.getText().indexOf(OWNER_ID) });
-          }
+  create: (ctx) => {
+    const pending: Node[] = [];
+    const keys = new Set<Node>();
+    const computedNames = (): ReferenceResolutionServices["readComputedName"] => {
+      if (keys.size > 0 && ctx.nativeTypes === undefined) {
+        throw new Error("native computed-name context is unavailable");
+      }
+      const names = keys.size === 0 ? new Map<Node, ReferenceFact<string>>() : ctx.nativeTypes?.computedNames([...keys]);
+      const readComputedName: ReferenceResolutionServices["readComputedName"] = (key) => {
+        if (!computedNameNeedsBindings(key)) {
+          return referenceResolutionServices.readComputedName(key);
+        }
+        if (names === undefined) {
+          throw new Error("native computed-name facts are unavailable");
+        }
+        return requiredInvocationFact(names, key);
+      };
+      return readComputedName;
+    };
+    const inspectHelper = (node: Node): void => {
+      const services = sealedReferenceServices(ctx, node);
+      const hit = ownedHelperCandidate(node, services);
+      if (hit === null) {
+        return;
+      }
+      // FAIL-CLOSED THROUGH THE SHARED DECISION: an unreadable import DOOR for a single-owned helper
+      // is reported — the arm the legacy name-only match never had — while a proven foreign declaration
+      // and a candidate that provably binds a non-module declaration (a local object's key) both acquit.
+      // `readSealedOrigin` returns the VERDICT; `sealedOriginReports` is the decision.
+      const verdict = readSealedOrigin(hit.anchor, OWNED_HELPER_HOME, services.moduleOrigin);
+      if (!sealedOriginReports(verdict, hit.anchor, services.declarations)) {
+        return;
+      }
+      // Past the decision, `unresolved` can only be the UNREADABLE half of it — a `foreign` verdict
+      // already returned and a refusal that provably binds elsewhere is not a subject.
+      const unreadable = verdict.kind === "unresolved";
+      reportSealedReference(ctx, hit.anchor, hit.name, unreadable ? UNREADABLE : undefined);
+    };
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.BinaryExpression],
+          visit: (node) => {
+            if (!(Node.isBinaryExpression(node) && EQUALITY_OPS.has(node.getOperatorToken().getKind()))) {
+              return;
+            }
+            pending.push(node);
+            const inputs = [node.getLeft(), node.getRight()].flatMap((operand) =>
+              computedMemberNameInputs(referenceResolutionServices.unwrapExpression(operand)),
+            );
+            for (const key of inputs) {
+              keys.add(key);
+            }
+            if (inputs.length > 0) {
+              if (ctx.nativeTypes === undefined) {
+                throw new Error("native computed-name context is unavailable");
+              }
+              ctx.nativeTypes.request({ kind: "computed-names", nodes: inputs });
+            }
+          },
         },
-      },
-      {
-        kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-        visit: (node) => {
-          const hit = ownedHelperCandidate(node);
-          if (hit === null) {
-            return;
-          }
-          // FAIL-CLOSED THROUGH THE SHARED DECISION: an unreadable import DOOR for a single-owned helper
-          // is reported — the arm the legacy name-only match never had — while a proven foreign declaration
-          // and a candidate that provably binds a non-module declaration (a local object's key) both acquit.
-          // `readSealedOrigin` returns the VERDICT; `sealedOriginReports` is the decision.
-          const verdict = readSealedOrigin(hit.anchor, OWNED_HELPER_HOME);
-          if (!sealedOriginReports(verdict, hit.anchor)) {
-            return;
-          }
-          // Past the decision, `unresolved` can only be the UNREADABLE half of it — a `foreign` verdict
-          // already returned and a refusal that provably binds elsewhere is not a subject.
-          const unreadable = verdict.kind === "unresolved";
-          const offset = hit.anchor.getText().indexOf(hit.name);
-          ctx.report.node(hit.anchor, unreadable ? { token: hit.name, offset, message: UNREADABLE } : { token: hit.name, offset });
+        {
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node) => {
+            if (possibleSealedReference(node, OWNED_HELPER_HOME.exportedNames)) {
+              pending.push(node);
+              prepareSealedReference(ctx, node);
+            }
+          },
         },
+      ],
+      evaluate: () => {
+        const readComputedName = computedNames();
+        for (const node of pending) {
+          if (Node.isBinaryExpression(node)) {
+            const operand = [node.getLeft(), node.getRight()].find((value) => namesOwnerId(value, readComputedName));
+            if (operand !== undefined) {
+              reportSealedReference(ctx, operand, OWNER_ID);
+            }
+            continue;
+          }
+          inspectHelper(node);
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",
