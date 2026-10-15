@@ -335,6 +335,13 @@ async function capture<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke:
   return { input, output: await invoke(input) };
 }
 
+/** Restored encoder bindings still owe a real sweep; joining detached admission does not promote the image generation. */
+export async function settleCorpusSearchImages(root: ServerTestHarness): ReturnType<typeof settleCorpusWorkloads> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const started = await caller.workloads.start({ input: { kind: "index", params: { source: "image" } }, mode: "singular" });
+  return await settleCorpusWorkloads(root, caller, [started]);
+}
+
 /** Refresh through the real owners after later producers; earlier lexical, scoped and moving captures stay separate. */
 export async function captureCorpusSearchPublication(root: ServerTestHarness, source: Pick<CorpusSearch, "publicationIds">): Promise<CorpusSearchLibrary> {
   await root.settleBackground();
