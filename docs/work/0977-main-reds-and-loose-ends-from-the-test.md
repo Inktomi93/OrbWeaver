@@ -35,7 +35,7 @@ Each listed check is green on main or has a recorded cause and owner.
 
 Remaining findings: legacy disposal and typed-lint errors; maintained classes; client formatting/imports; caught-failure census; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Application Knip findings do not reconcile production debt. Preserve supported doors.
 
-Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-2512975-2026-10-15T03-56-18-210Z/check-structure.json`. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
+Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-475700-2026-10-15T21-42-39-968Z/check-structure.json`. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
 
 Legacy export-floor findings concern optional RPG, profile and tag inputs in seed-user-content, profile-directory and run-profile-import. Preserve cases for replacement, not fixture retrofits.
 
