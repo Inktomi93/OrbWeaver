@@ -106,7 +106,11 @@ test("native stats preserve nonzero retained history and user preferences surviv
   expect(result.afterRepeat.character.output).toEqual(stats.character.output);
   expect(result.afterRepeat.byModel.output).toEqual(stats.byModel.output);
   expect(result.afterRepeat.timeseries.output).toEqual(stats.timeseries.output);
-  expect(result.foreign.rows.owner.userTurns).toBe(1);
+  expect(result.foreign.turn.aborted).toBe(false);
+  expect(result.foreign.turn.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+  expect(result.foreign.rows.owner).toMatchObject({ userTurns: 1, assistantTurns: 1, swipes: 0 });
+  expect(result.foreign.latency.output.avgGenMs).not.toBeNull();
+  expect(result.foreign.latency.output.avgTtftMs).not.toBeNull();
   expect(result.foreign.projection.rowsAfter.owner).toEqual(result.foreign.rows.owner);
   expect(result.foreign.projection.ownerCharacter.output).toBeNull();
   expect(result.foreign.projection.foreignCharacter.output).toBeNull();

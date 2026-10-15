@@ -1,8 +1,9 @@
 // Rollups are rebuilt by the real stats operation; the live-write canon fence is captured, never synthesized.
 import type { Db } from "@orb/db";
-import { characterStats, characters, dailyStats, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
+import { characterStats, characters, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 type Reconcile = ServicesResult["services"]["stats"]["reconcile"];
 export type StatsCanonVersionRow = typeof statsCanonVersions.$inferSelect;
@@ -37,4 +38,53 @@ export interface SeededStats {
   readonly characters: readonly CharacterStatsRow[];
   readonly daily: readonly DailyStatsRow[];
   readonly models: readonly ModelStatsRow[];
+}
+
+type StatsService = ServicesResult["services"]["stats"];
+
+export interface CapturedStatsPopulations {
+  readonly rows: SeededStats;
+  readonly chats: readonly (typeof chats.$inferSelect)[];
+  readonly messages: readonly (typeof messages.$inferSelect)[];
+  readonly variants: readonly (typeof messageVariants.$inferSelect)[];
+  readonly overview: Awaited<ReturnType<StatsService["overview"]>>;
+  readonly ownerLatency: Awaited<ReturnType<StatsService["latency"]>>;
+  readonly models: Awaited<ReturnType<StatsService["byModel"]>>;
+  readonly economics: Awaited<ReturnType<StatsService["characterEconomics"]>>;
+  readonly modelEconomics: Awaited<ReturnType<StatsService["characterModelEconomics"]>>;
+  readonly characters: readonly Awaited<ReturnType<StatsService["character"]>>[];
+  readonly latency: readonly Awaited<ReturnType<StatsService["latency"]>>[];
+}
+
+/** Capture native retained and unstarted populations without reconstructing the stats owner's scope. */
+export async function captureStatsPopulations(
+  db: Db,
+  stats: ServicesResult["services"]["stats"],
+  ownerId: UserId,
+  subjects: { readonly chatIds: readonly ChatId[]; readonly characterIds: readonly CharacterId[] },
+): Promise<CapturedStatsPopulations> {
+  const { chatIds, characterIds } = subjects;
+  const canon = await db.select().from(messages).where(inArray(messages.chatId, chatIds)).orderBy(messages.id);
+  return {
+    rows: await seedStats(db, stats.reconcile, ownerId),
+    chats: await db.select().from(chats).where(inArray(chats.id, chatIds)).orderBy(chats.id),
+    messages: canon,
+    variants: await db
+      .select()
+      .from(messageVariants)
+      .where(
+        inArray(
+          messageVariants.messageId,
+          canon.map((row) => row.id),
+        ),
+      )
+      .orderBy(messageVariants.id),
+    overview: await stats.overview(ownerId),
+    ownerLatency: await stats.latency(ownerId, { kind: "owner" }),
+    models: await stats.byModel(ownerId),
+    economics: await stats.characterEconomics(ownerId),
+    modelEconomics: await stats.characterModelEconomics(ownerId),
+    characters: await Promise.all(characterIds.map((id) => stats.character(ownerId, id))),
+    latency: await Promise.all(characterIds.map((characterId) => stats.latency(ownerId, { kind: "character", characterId }))),
+  };
 }
