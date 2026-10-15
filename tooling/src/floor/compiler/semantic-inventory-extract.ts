@@ -11,7 +11,7 @@ import { readAssignabilityChecker, readNativeTypeRelation } from "../code-facts/
 import { readDeclarationOutput } from "../code-facts/declaration-output.ts";
 import { nativeIdBrand } from "../code-facts/id-brand.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
-import { beginReferencePass, endReferencePass, referenceResolutionServices } from "../code-facts/reference-fact.ts";
+import { beginReferencePass, endReferencePass, referenceResolutionServices, resolveGlobalMemberOrigin } from "../code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
 import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
@@ -170,7 +170,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
       : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
     ...(families.includes("declaration-outputs") ? [fileURLToPath(new URL("../code-facts/declaration-output.ts", import.meta.url))] : []),
-    ...(families.includes("callable-declarations") || families.includes("computed-names")
+    ...(families.includes("callable-declarations") || families.includes("computed-names") || families.includes("global-origins")
       ? [
           "reference-fact.ts",
           "reference-fact-call.ts",
@@ -244,6 +244,8 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const roots = request.descriptor.files.map((path) => spans.path(resolve(request.root, path)));
   const callableQueries = callableDemandFor(request, families, roots);
   const computedNameQueries = computedDemandFor(request, families, roots);
+  const globalOriginQueries = globalDemandFor(request, families, roots, "globalOriginQueries");
+  const globalBindingQueries = globalDemandFor(request, families, roots, "globalBindingQueries");
   const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
   const authored = (path: string): boolean => {
     const version = inputVersion(path, "authored", authoredFiles);
@@ -253,14 +255,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     }
     return version === "true";
   };
-  const available = [
-    ...new Set(
-      project
-        .getSourceFiles()
-        .map((source) => spans.path(source.getFilePath()))
-        .filter((path) => project.getSourceFile(path) !== undefined),
-    ),
-  ];
+  const available = [...new Set(sources.files.map((source) => spans.path(source.getFilePath())))];
   const facts =
     request.intent === "membership"
       ? {
@@ -275,11 +270,23 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           memberOrigins: [],
           callableDeclarations: [],
           computedNames: [],
+          globalOrigins: [],
+          globalBindings: [],
           shapes: [],
           pairs: [],
           references: [],
         }
-      : extractTypedFacts(project, { sources, authored, spans, families, queries: request.shapeQueries ?? [], callableQueries, computedNameQueries });
+      : extractTypedFacts(project, {
+          sources,
+          authored,
+          spans,
+          families,
+          queries: request.shapeQueries ?? [],
+          callableQueries,
+          computedNameQueries,
+          globalOriginQueries,
+          globalBindingQueries,
+        });
   return {
     intent: request.intent ?? "facts",
     available,
@@ -322,15 +329,17 @@ function extractTypedFacts(
     readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryShapeQuery[];
     readonly callableQueries: readonly InventorySpan[];
     readonly computedNameQueries: readonly InventorySpan[];
+    readonly globalOriginQueries: readonly InventorySpan[];
+    readonly globalBindingQueries: readonly InventorySpan[];
   },
 ): SourceFactValues & Pick<InventoryPartition, "pairs" | "references"> {
-  const { sources, authored, spans, families, queries, callableQueries, computedNameQueries } = input;
+  const { sources, authored, spans, families, queries, callableQueries, computedNameQueries, globalOriginQueries, globalBindingQueries } = input;
   const service = project.getLanguageService().compilerObject;
   const program = service.getProgram();
   if (program === undefined) {
     throw new Error("native inventory language service has no Program");
   }
-  const callablePass = families.includes("callable-declarations") || families.includes("computed-names");
+  const callablePass = families.includes("callable-declarations") || families.includes("computed-names") || families.includes("global-origins");
   if (callablePass) {
     beginReferencePass();
   }
@@ -340,6 +349,8 @@ function extractTypedFacts(
       families: new Set(families),
       callableQueries,
       computedNameQueries,
+      globalOriginQueries,
+      globalBindingQueries,
     });
     return {
       ...sourceFacts,
@@ -414,6 +425,8 @@ type SourceFactValues = Pick<
   | "memberOrigins"
   | "callableDeclarations"
   | "computedNames"
+  | "globalOrigins"
+  | "globalBindings"
   | "shapes"
 >;
 interface SourceFactCollection {
@@ -427,6 +440,9 @@ interface SourceFactCollection {
   readonly callableQueries: Set<string>;
   readonly computedNameQueries: Set<string>;
   readonly computedKinds: ReadonlySet<SyntaxKind>;
+  readonly globalOriginQueries: Set<string>;
+  readonly globalBindingQueries: Set<string>;
+  readonly globalKinds: ReadonlySet<SyntaxKind>;
 }
 
 function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void {
@@ -464,8 +480,13 @@ function collectExportShapes(sf: SourceFile, declarations: readonly MorphNode[],
 }
 
 function collectIdentifierFacts(node: MorphNode, context: SourceFactCollection): void {
-  if (context.families.has("bindings")) {
+  const span = context.spans.node(node);
+  const closed = context.globalBindingQueries.delete(inventoryNodeQueryKey(span));
+  if (context.families.has("bindings") || closed) {
     context.values.bindings.push({ node: context.spans.node(node), symbols: bindingFacts(node, context.spans) });
+  }
+  if (closed) {
+    context.values.globalBindings.push(span);
   }
   if (context.families.has("references")) {
     registerReferenceDeclarations(node.getSymbol()?.getDeclarations() ?? [], context.authored, context.referenceDeclarations, context.spans);
@@ -550,6 +571,27 @@ function collectComputedNameFact(node: MorphNode, context: SourceFactCollection)
   });
 }
 
+function collectGlobalOriginFact(node: MorphNode, context: SourceFactCollection): void {
+  const query = context.spans.node(node);
+  if (!context.globalOriginQueries.delete(inventoryNodeQueryKey(query))) {
+    return;
+  }
+  const fact = resolveGlobalMemberOrigin(node);
+  context.values.globalOrigins.push({
+    node: query,
+    trace: { origin: context.spans.node(fact.trace.origin), declarations: fact.trace.declarations.map(context.spans.node) },
+    result:
+      fact.kind === "resolved"
+        ? {
+            kind: fact.kind,
+            globalName: fact.value.globalName,
+            memberPath: [...fact.value.memberPath],
+            declarations: fact.value.declarations.map(context.spans.node),
+          }
+        : { kind: fact.kind, reason: fact.reason, detail: fact.detail, node: context.spans.node(fact.node) },
+  });
+}
+
 function collectFileFacts(sf: SourceFile, context: SourceFactCollection): void {
   const { families, spans, values } = context;
   if (families.has("runtime-exports")) {
@@ -585,7 +627,7 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
       ]);
     }
   }
-  if (families.has("bindings") || families.has("references")) {
+  if (families.has("bindings") || families.has("references") || context.globalBindingQueries.size > 0) {
     visitors.set(SyntaxKind.Identifier, [(node): void => collectIdentifierFacts(node, context)]);
   }
   if (families.has("cast-relations")) {
@@ -612,6 +654,7 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
     ]);
   }
   addComputedVisitors(visitors, context);
+  addGlobalVisitors(visitors, context);
   collectByKinds([sf], visitors);
 }
 
@@ -622,6 +665,8 @@ function extractSourceFacts(
   input: Pick<SourceFactCollection, "families" | "spans"> & {
     readonly callableQueries: readonly InventorySpan[];
     readonly computedNameQueries: readonly InventorySpan[];
+    readonly globalOriginQueries: readonly InventorySpan[];
+    readonly globalBindingQueries: readonly InventorySpan[];
   },
 ): SourceFactValues & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
   const { spans } = input;
@@ -631,6 +676,9 @@ function extractSourceFacts(
     callableQueries: new Set(input.callableQueries.map(inventoryNodeQueryKey)),
     computedNameQueries: new Set(input.computedNameQueries.map(inventoryNodeQueryKey)),
     computedKinds: new Set(input.computedNameQueries.map(({ kind }) => kind)),
+    globalOriginQueries: new Set(input.globalOriginQueries.map(inventoryNodeQueryKey)),
+    globalBindingQueries: new Set(input.globalBindingQueries.map(inventoryNodeQueryKey)),
+    globalKinds: new Set(input.globalOriginQueries.map(({ kind }) => kind)),
     values: {
       exports: [],
       modules: [],
@@ -643,6 +691,8 @@ function extractSourceFacts(
       memberOrigins: [],
       callableDeclarations: [],
       computedNames: [],
+      globalOrigins: [],
+      globalBindings: [],
       shapes: [],
     },
     referenceDeclarations: new Map(),
@@ -672,6 +722,9 @@ function extractSourceFacts(
     }
     if (context.computedNameQueries.size > 0) {
       throw new Error("native computed-name query span is unavailable in its captured native program");
+    }
+    if (context.globalOriginQueries.size > 0 || context.globalBindingQueries.size > 0) {
+      throw new Error("native global-origin/binding query span is unavailable in its captured native program");
     }
   } finally {
     for (const sf of standaloneSources) {
@@ -780,4 +833,27 @@ function addComputedVisitors(visitors: Map<SyntaxKind, ((node: MorphNode) => voi
   for (const kind of context.computedKinds) {
     visitors.set(kind, [...(visitors.get(kind) ?? []), (node): void => collectComputedNameFact(node, context)]);
   }
+}
+
+function addGlobalVisitors(visitors: Map<SyntaxKind, ((node: MorphNode) => void)[]>, context: SourceFactCollection): void {
+  for (const kind of context.globalKinds) {
+    visitors.set(kind, [...(visitors.get(kind) ?? []), (node): void => collectGlobalOriginFact(node, context)]);
+  }
+}
+
+function globalDemandFor(
+  request: InventoryBuildRequest,
+  families: readonly InventoryFamily[],
+  roots: readonly string[],
+  kind: "globalOriginQueries" | "globalBindingQueries",
+): readonly InventorySpan[] {
+  const queries = request[kind] ?? [];
+  if (
+    (families.includes("global-origins") && request[kind] === undefined) ||
+    (queries.length > 0 && !families.includes("global-origins")) ||
+    queries.some((query) => !roots.includes(query.file) || (kind === "globalBindingQueries" && query.kind !== SyntaxKind.Identifier))
+  ) {
+    throw new Error("native global origins and bindings require closed demand in native roots/family");
+  }
+  return queries;
 }

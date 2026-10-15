@@ -430,7 +430,15 @@ export function computedMemberNameInputs(node: MorphNode): readonly MorphNode[] 
 }
 
 export function readMemberReference(node: MorphNode): ReferenceFact<MemberReference> {
-  return readMemberReferenceWith(node, { unwrapExpression, readComputedName: (member) => computedName(member, state()) });
+  return readMemberReferenceWithName(node, (member) => computedName(member, state()));
+}
+
+/** Preserve the canonical member/read grammar while injecting sealed computed-name facts. */
+export function readMemberReferenceWithName(
+  node: MorphNode,
+  readComputedName: ReferenceResolutionServices["readComputedName"],
+): ReferenceFact<MemberReference> {
+  return readMemberReferenceWith(node, { unwrapExpression, readComputedName });
 }
 
 /** Read a static member's syntax, including assignment, update and delete targets; identity is separate. */

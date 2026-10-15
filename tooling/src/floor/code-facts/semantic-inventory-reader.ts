@@ -25,6 +25,8 @@ import {
   readInventoryComputedNames,
   readInventoryDeclarationOutputs,
   readInventoryExports,
+  readInventoryGlobalBindings,
+  readInventoryGlobalOrigins,
   readInventoryMemberOrigins,
   readInventoryModules,
   readInventoryPairs,
@@ -237,6 +239,33 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    globalOrigin: (node, program) => {
+      const { partition, span } = nativeSpan(node, program, "global-origins");
+      const matches = [...readInventoryGlobalOrigins(db, partition.id, span)];
+      const fact = matches[0];
+      if (matches.length !== 1 || fact === undefined) {
+        throw new SemanticInventoryError("native global origin span is unavailable in its native partition");
+      }
+      const replay = replayFor(node, program, partition, "global origin");
+      const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
+      const result = fact.result;
+      return result.kind === "resolved"
+        ? {
+            kind: result.kind,
+            value: { kind: "global", globalName: result.globalName, memberPath: result.memberPath, declarations: result.declarations.map(replay) },
+            trace,
+          }
+        : { kind: result.kind, reason: result.reason, detail: result.detail, node: replay(result.node), trace };
+    },
+    globalBinding: (node, program) => {
+      const { partition, span } = nativeSpan(node, program, "global-origins");
+      const matches = [...readInventoryGlobalBindings(db, partition.id, span)];
+      const fact = matches[0];
+      if (matches.length !== 1 || fact === undefined) {
+        throw new SemanticInventoryError("native global binding span is unavailable in its native partition");
+      }
+      return fact.symbols.lexical.map(replayFor(node, program, partition, "global binding"));
+    },
     computedName: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "computed-names");
       const matches = [...readInventoryComputedNames(db, partition.id, span)];

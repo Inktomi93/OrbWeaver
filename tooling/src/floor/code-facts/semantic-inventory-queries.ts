@@ -14,6 +14,7 @@ import {
   callableDeclarationSchema,
   castRelationResultSchema,
   computedNameSchema,
+  globalOriginSchema,
   INVENTORY_FACTS,
   inputSchema,
   memberOriginSchema,
@@ -121,17 +122,24 @@ function requireInventoryFamily(db: DatabaseSync, id: string, family: InventoryF
   }
 }
 
-function* facts(db: DatabaseSync, id: string, kind: InventoryFactKind, query?: string | InventorySpan): Iterable<z.infer<typeof factRow>> {
-  requireInventoryFamily(db, id, kind);
+function* facts(
+  db: DatabaseSync,
+  id: string,
+  kind: InventoryFactKind,
+  query?: string | InventorySpan | { readonly node: InventorySpan; readonly family: InventoryFamily },
+): Iterable<z.infer<typeof factRow>> {
+  const family = typeof query === "object" && "node" in query ? query.family : kind;
+  const selected = typeof query === "object" && "node" in query ? query.node : query;
+  requireInventoryFamily(db, id, family);
   const values: SQLInputValue[] = [id, kind];
   let filter = "";
-  if (typeof query === "string") {
+  if (typeof selected === "string") {
     filter += " AND f.file=?";
-    values.push(inventoryString(query));
+    values.push(inventoryString(selected));
   }
-  if (typeof query === "object") {
+  if (typeof selected === "object") {
     filter += " AND f.node=(SELECT ordinal FROM inventory_span WHERE partition=? AND file=? AND start=? AND end=? AND kind=?)";
-    values.push(id, inventoryString(query.file), query.start, query.end, query.kind);
+    values.push(id, inventoryString(selected.file), selected.start, selected.end, selected.kind);
   }
   for (const row of db
     .prepare(
@@ -170,6 +178,80 @@ export function* readInventoryBindings(db: DatabaseSync, id: string, node?: Inve
       node: spanOf(db, id, row.node),
       symbols: { lexical: declarations(db, id, row, "lexical"), origins: declarations(db, id, row, "origins") },
     };
+  }
+}
+
+/** Closed global binding metadata never grants the complete default binding family. */
+export function* readInventoryGlobalBindings(db: DatabaseSync, id: string, node: InventorySpan): Iterable<InventoryPartition["bindings"][number]> {
+  requireInventoryFamily(db, id, "global-origins");
+  for (const row of db
+    .prepare(
+      "SELECT b.lexicalCount,b.originCount FROM inventory_global_binding b JOIN inventory_span s ON s.partition=b.partition AND s.ordinal=b.node WHERE b.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=?",
+    )
+    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
+    const matches = [...facts(db, id, "bindings", { node, family: "global-origins" })];
+    const fact = matches[0];
+    if (matches.length !== 1 || fact === undefined) {
+      throw new SemanticInventoryError("native global binding record is unavailable");
+    }
+    const read = (role: string, count: number): InventorySpan[] => {
+      const rows = db
+        .prepare(
+          "SELECT d.ordinal,s.file,s.start,s.end,s.kind FROM inventory_declaration d JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node WHERE d.partition=? AND d.kind='bindings' AND d.owner=? AND d.role=? ORDER BY d.ordinal",
+        )
+        .all(id, fact.ordinal, role);
+      if (rows.length !== count || rows.some((value, index) => value["ordinal"] !== index)) {
+        throw new SemanticInventoryError("native global binding declarations are incomplete");
+      }
+      return rows.map((value) => spanRow.parse(value));
+    };
+    yield { node, symbols: { lexical: read("lexical", integer.parse(row["lexicalCount"])), origins: read("origins", integer.parse(row["originCount"])) } };
+  }
+}
+
+/** Ambient origin values and traces retain their complete canonical declaration populations. */
+export function* readInventoryGlobalOrigins(db: DatabaseSync, id: string, node: InventorySpan): Iterable<InventoryPartition["globalOrigins"][number]> {
+  requireInventoryFamily(db, id, "global-origins");
+  for (const row of db
+    .prepare(
+      "SELECT g.ordinal,g.origin,g.state,g.name,g.reason,g.detail,g.refusalNode,g.valueCount,g.traceCount,g.memberCount FROM inventory_global_origin g JOIN inventory_span s ON s.partition=g.partition AND s.ordinal=g.node WHERE g.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY g.ordinal",
+    )
+    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
+    const owner = integer.parse(row["ordinal"]);
+    const read = (role: string, count: number): InventorySpan[] => {
+      const rows = db
+        .prepare(
+          "SELECT d.ordinal,s.file,s.start,s.end,s.kind FROM inventory_global_declaration d JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node WHERE d.partition=? AND d.owner=? AND d.role=? ORDER BY d.ordinal",
+        )
+        .all(id, owner, role);
+      if (rows.length !== count || rows.some((value, index) => value["ordinal"] !== index)) {
+        throw new SemanticInventoryError("native global origin declarations are incomplete");
+      }
+      return rows.map((value) => spanRow.parse(value));
+    };
+    const members = db.prepare("SELECT ordinal,name FROM inventory_global_member WHERE partition=? AND owner=? ORDER BY ordinal").all(id, owner);
+    if (members.length !== integer.parse(row["memberCount"]) || members.some((value, index) => value["ordinal"] !== index)) {
+      throw new SemanticInventoryError("native global member path is incomplete");
+    }
+    const valueDeclarations = read("value", integer.parse(row["valueCount"]));
+    yield globalOriginSchema.parse({
+      node,
+      trace: { origin: spanOf(db, id, integer.parse(row["origin"])), declarations: read("trace", integer.parse(row["traceCount"])) },
+      result:
+        row["state"] === "resolved"
+          ? {
+              kind: "resolved",
+              globalName: inventoryStringSchema.parse(row["name"]),
+              memberPath: members.map((value) => inventoryStringSchema.parse(value["name"])),
+              declarations: valueDeclarations,
+            }
+          : {
+              kind: row["state"],
+              reason: row["reason"],
+              detail: inventoryStringSchema.parse(row["detail"]),
+              node: spanOf(db, id, integer.parse(row["refusalNode"])),
+            },
+    });
   }
 }
 
