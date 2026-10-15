@@ -24,7 +24,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-The worker/store retains native descriptors, roots, closure, input versions, atomic generations, last-good data and overlay isolation. Indexed readers preserve native source meaning, ordered references, cancellation and lazy consumption. Unported typed consumers require native evidence.
+The worker/store retains descriptors, roots, closure, input versions, atomic generations, last-good data and overlay isolation. Unported typed consumers require native evidence.
 
 Frozen tests-DOM and root qualifications establish their selected extraction, publication and release paths, not current complete-demand acceptance. Preserve their source, dependencies, databases and reports. Root warm readers agree across overlapping pinned lifetimes without rebuilding. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md` and its adjacent warm-reuse report. Admission and input validation remain part of acquisition cost.
 
@@ -36,4 +36,4 @@ Integrated `3b24fcf1c0` corrects native documentation-link false usage and store
 
 Corrected comparison from frozen `638adf6e65` completes the store, but its native phase reaches the fixed deadline. Completed phases match byte-for-byte, including the previous mismatches; full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`. Repeated binding-read cost is assigned separately; original outputs remain preserved.
 
-Reviewed `997db1225d` is installed only in its isolated lane; the lock selects the byte-identical candidate. The retained production query exceeds its fixed bound without a target verdict. Inspector diagnosis continues; production cost remains unqualified. Complete demanded-world publication, collector equivalence, cross-world reuse and hosted memory remain open. Item 1027 owns remaining typed-family delivery; syntax carriers cannot replace it.
+Reviewed `997db1225d` is installed only in its isolated lane. The production query exceeds its fixed bound. Inspector samples establish repeated-path string quota starvation; representation repair retains existing limits. Evidence: `reports/review/1002-raw-reference-live-causal-diagnosis.md`. Reviewed `453d01dd08` reuses source/context-owned binding facts with stale-input refusal and disposal, not final liveness verdicts. Combined qualification remains open, as do complete publication, collector equivalence, cross-world reuse and hosted memory. Item 1027 owns typed-family delivery.

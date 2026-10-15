@@ -90,15 +90,23 @@ test("a physically shared importer with differing native targets refuses world s
   write(scratch, "node_modules/fixture-platform/browser.ts", "export const platform='browser';\n");
   write(scratch, "node_modules/fixture-platform/node.ts", "export const platform='node';\n");
   const native = createSemanticWorkspace({ root: scratch });
-  const targets = native
-    .sourceViews("src/consumer.ts")
+  const views = native.sourceViews("src/consumer.ts");
+  const targets = views
     .map((view) => view.sourceFile.getImportDeclarationOrThrow("fixture-platform").getModuleSpecifierSourceFile()?.getFilePath())
     .toSorted((left, right) => String(left).localeCompare(String(right)));
   expect(targets).toEqual([join(scratch, "node_modules/fixture-platform/browser.ts"), join(scratch, "node_modules/fixture-platform/node.ts")]);
+  const usages = views.map(({ sourceFile }) => native.bindingUsage(sourceFile));
+  expect(usages[0]).not.toBe(usages[1]);
+  expect(
+    usages
+      .map((usage) => [...usage.parents().keys()].filter((key) => key.includes("/fixture-platform/")))
+      .toSorted((left, right) => String(left).localeCompare(String(right))),
+  ).toEqual(targets.map((target) => [`${target}\0${String("export const ".length)}`]).toSorted((left, right) => String(left).localeCompare(String(right))));
   using stored = createSemanticInventory({ root: scratch });
   const importing = fixtureValue(stored.sourceCorpus().getSourceFile("src/consumer.ts")).getImportDeclarationOrThrow("fixture-platform");
   expect(() => stored.moduleTarget(importing)).toThrow("native semantic inventory ambiguity");
   expect(() => buildLiveness(stored.sourceCorpus())).toThrow("native semantic inventory ambiguity");
+  expect(() => stored.bindingUsage(importing.getSourceFile()).parents()).toThrow("native semantic inventory ambiguity");
 });
 
 test("config mutation rejects captured descriptors while workspace inventory uses current native options", ({ scratch }) => {
