@@ -139,6 +139,7 @@ interface PresetViews {
   readonly detail: CorpusRead<"preset.get">;
   readonly inactive: CorpusRead<"preset.listUsage">;
   readonly active: CorpusRead<"preset.listUsage">;
+  readonly restored: CorpusRead<"preset.listUsage">;
   readonly previous: TrpcWireOutput<"settings.getUserSettings">["config"]["seeds"]["defaultPresetId"];
   readonly restoredDefault: PresetViews["previous"];
   readonly list: CorpusRead<"preset.list">;
@@ -523,6 +524,7 @@ async function presetViews(library: Library, actors: Actors, caller: Caller): Pr
     detail,
     inactive,
     active,
+    restored: await read<"preset.listUsage">({ id: library.preset.id }, caller.preset.listUsage),
     previous,
     restoredDefault: (await caller.settings.getUserSettings()).config.seeds.defaultPresetId,
     list: await read<"preset.list">(undefined, caller.preset.list),
@@ -628,6 +630,8 @@ export async function seedCorpusLibraryViews(root: ServerTestHarness, library: L
           personaId: library.persona.id,
           rosterPresetId: roster.persisted.preset.id,
           rosterChatId: roster.room.chat.id,
+          presetId: library.preset.id,
+          connectionId: actors.connections.text.id,
         },
         reads: {
           tagPending: tags.pending,
@@ -649,6 +653,14 @@ export async function seedCorpusLibraryViews(root: ServerTestHarness, library: L
           rosterAppliedAgain: roster.appliedAgain,
           rosterChat: roster.chat,
           ruleCatalog: roster.ruleCatalog,
+          presetDetail: preset.detail,
+          presetList: preset.list,
+          presetInactive: preset.inactive,
+          presetActive: preset.active,
+          presetRestored: preset.restored,
+          presetEffective: preset.effective,
+          rulesFirst: roster.firstRules,
+          rulesRepeated: roster.repeatedRules,
         },
       },
       worldInfo: {

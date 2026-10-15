@@ -1,7 +1,8 @@
 // Named native library stages retain their owner and exact requests; rows and credentials remain Node-owned.
-import { rulePresetViewSchema } from "@orb/contracts/automation";
+import { rulePresetViewSchema, ruleViewSchema } from "@orb/contracts/automation";
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { connectedCharacterViewSchema, personaDetailSchema } from "@orb/contracts/persona";
+import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema } from "@orb/contracts/preset";
 import { applyRosterPresetResultSchema, rosterPresetSummarySchema, rosterPresetViewSchema } from "@orb/contracts/roster-preset";
 import { tagFilterVocabularyEntrySchema, tagReachViewSchema, tagSuggestionViewSchema, tagViewSchema, tagWithUsageSchema } from "@orb/contracts/tag";
 import type { UserId } from "@orb/kit/ids";
@@ -19,6 +20,8 @@ export const libraryRelationsSchema = z
       personaId: typeIdSchema(ID_PREFIX.persona),
       rosterPresetId: typeIdSchema(ID_PREFIX.rosterPreset),
       rosterChatId: typeIdSchema(ID_PREFIX.chat),
+      presetId: typeIdSchema(ID_PREFIX.preset),
+      connectionId: typeIdSchema(ID_PREFIX.userConnection),
     }),
     reads: z.strictObject({
       tagPending: tagSuggestionViewSchema.array(),
@@ -40,13 +43,27 @@ export const libraryRelationsSchema = z
       rosterAppliedAgain: applyRosterPresetResultSchema,
       rosterChat: chatDetailSchema,
       ruleCatalog: rulePresetViewSchema.array(),
+      presetDetail: presetDetailSchema,
+      presetList: presetSummarySchema.array(),
+      presetInactive: presetUsageViewSchema,
+      presetActive: presetUsageViewSchema,
+      presetRestored: presetUsageViewSchema,
+      presetEffective: effectivePresetSchema,
+      rulesFirst: ruleViewSchema.array(),
+      rulesRepeated: ruleViewSchema.array(),
     }),
   })
   .refine(
     ({ viewerUserId, ids, reads }) =>
       reads.rosterChat.viewerUserId === viewerUserId &&
+      reads.rosterChat.viewerIsHost &&
       reads.rosterDetail.id === ids.rosterPresetId &&
       reads.rosterChat.id === ids.rosterChatId &&
+      reads.presetDetail.id === ids.presetId &&
+      reads.presetEffective.presetId === ids.presetId &&
+      reads.presetList.some((preset) => preset.id === ids.presetId) &&
+      reads.rulesFirst.every((rule) => rule.chatId === ids.rosterChatId) &&
+      reads.rulesRepeated.every((rule) => rule.chatId === ids.rosterChatId) &&
       reads.tagPending.every((tag) => tag.characterId === ids.characterId) &&
       reads.tagPendingAfter.every((tag) => tag.characterId === ids.characterId) &&
       reads.characterReach.entities.every((entity) => entity.targetType === "character") &&
@@ -78,6 +95,14 @@ export interface CorpusLibraryRelations extends Omit<z.output<typeof libraryRela
     readonly rosterAppliedAgain: CorpusRead<"rosterPreset.applyToChat">;
     readonly rosterChat: CorpusRead<"chat.getChat">;
     readonly ruleCatalog: CorpusRead<"automation.listRulePresets">;
+    readonly presetDetail: CorpusRead<"preset.get">;
+    readonly presetList: CorpusRead<"preset.list">;
+    readonly presetInactive: CorpusRead<"preset.listUsage">;
+    readonly presetActive: CorpusRead<"preset.listUsage">;
+    readonly presetRestored: CorpusRead<"preset.listUsage">;
+    readonly presetEffective: CorpusRead<"preset.resolveEffective">;
+    readonly rulesFirst: CorpusRead<"automation.listRules">;
+    readonly rulesRepeated: CorpusRead<"automation.listRules">;
   };
 }
 
@@ -119,6 +144,17 @@ export function hydrateLibraryRelations(section: z.output<typeof libraryRelation
       rosterAppliedAgain: { input: apply, output: reads.rosterAppliedAgain },
       rosterChat: { input: { chatId: ids.rosterChatId }, output: reads.rosterChat },
       ruleCatalog: { input: undefined, output: reads.ruleCatalog },
+      presetDetail: { input: { id: ids.presetId }, output: reads.presetDetail },
+      presetList: { input: undefined, output: reads.presetList },
+      presetInactive: { input: { id: ids.presetId }, output: reads.presetInactive },
+      presetActive: { input: { id: ids.presetId }, output: reads.presetActive },
+      presetRestored: { input: { id: ids.presetId }, output: reads.presetRestored },
+      presetEffective: {
+        input: { id: ids.presetId, target: { kind: "connection", connectionId: ids.connectionId } },
+        output: reads.presetEffective,
+      },
+      rulesFirst: { input: { chatId: ids.rosterChatId }, output: reads.rulesFirst },
+      rulesRepeated: { input: { chatId: ids.rosterChatId }, output: reads.rulesRepeated },
     },
   };
 }

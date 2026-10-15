@@ -673,6 +673,11 @@ test("a completed migrated capsule closes its real producers before cloning scru
       assert(relations !== undefined, "prepared clone lost its native library relation stages");
       const ownerCaller = await cloneRoot.internalCallerFor(relations.viewerUserId);
       const relationReads = relations.reads;
+      expect(await ownerCaller.preset.get(relationReads.presetDetail.input)).toEqual(relationReads.presetDetail.output);
+      expect(await ownerCaller.preset.list(relationReads.presetList.input)).toEqual(relationReads.presetList.output);
+      expect(await ownerCaller.preset.listUsage(relationReads.presetRestored.input)).toEqual(relationReads.presetRestored.output);
+      expect(await ownerCaller.preset.resolveEffective(relationReads.presetEffective.input)).toEqual(relationReads.presetEffective.output);
+      expect(await ownerCaller.automation.listRules(relationReads.rulesRepeated.input)).toEqual(relationReads.rulesRepeated.output);
       expect(await ownerCaller.rosterPreset.get(relationReads.rosterDetail.input)).toEqual(relationReads.rosterDetail.output);
       expect((await ownerCaller.rosterPreset.list(relationReads.rosterList.input)).find((row) => row.id === relations.ids.rosterPresetId)).toEqual(
         relationReads.rosterList.output.find((row) => row.id === relations.ids.rosterPresetId),
@@ -694,6 +699,9 @@ test("a completed migrated capsule closes its real producers before cloning scru
       expect(nativeUsage).not.toEqual(relationReads.tagBefore.output.find((tag) => tag.id === relations.ids.tagId));
       expect(await ownerCaller.rosterPreset.applyToChat(relationReads.rosterAppliedAgain.input)).toEqual(relationReads.rosterAppliedAgain.output);
       const foreignCaller = await cloneRoot.internalCallerFor(capsule.privateCaptures.sharedMemberAuthentication.identity.viewer.userId);
+      await expect(foreignCaller.preset.get(relationReads.presetDetail.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(foreignCaller.preset.resolveEffective(relationReads.presetEffective.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(foreignCaller.automation.listRules(relationReads.rulesRepeated.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
       await expect(foreignCaller.rosterPreset.get(relationReads.rosterDetail.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
       await expect(foreignCaller.tag.listAttachedEntities(relationReads.characterReach.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
       await expect(foreignCaller.persona.listConnectedCharacters(relationReads.personaCharacters.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
