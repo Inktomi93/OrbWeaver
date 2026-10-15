@@ -146,6 +146,7 @@ export {
   loadPresentCharacterSeats,
   loadPresentRole,
 } from "./persistence/participants-read.ts";
+export { loadPluginCharacters, loadPluginMessages } from "./persistence/plugin-reads.ts";
 export { loadTurnOrigin } from "./persistence/queries.ts";
 // The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
 // host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
@@ -209,7 +210,6 @@ export { createLoadCoParticipantOwner } from "./verbs/load-co-participant-owner.
 export { createChatMemorySearchOps } from "./verbs/memory-search.ts";
 export { setParticipantActivePersona } from "./verbs/participants.ts";
 export { createPluginChatAuthority } from "./verbs/plugin-authority.ts";
-export { loadPluginCharacters, loadPluginMessages } from "./verbs/plugin-reads.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
 export { createReactToolHandler } from "./verbs/react-tool-handler.ts";
 // B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is

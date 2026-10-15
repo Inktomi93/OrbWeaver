@@ -15,6 +15,7 @@ import { automationFires, automationRules, chats, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { readGlobalSettings } from "@orb/server/domain/settings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
@@ -44,6 +45,7 @@ function makeApp(): { app: Hono; seen: RecallFilter[] } {
   const seen: RecallFilter[] = [];
   const app = new Hono();
   registerDebugRoutes(app, {
+    appSettingRows: null,
     auth: { expectedToken: TOKEN },
     memoryRecall: {
       recent: (filter: RecallFilter): readonly object[] => {
@@ -80,7 +82,7 @@ describe("/api/_debug/memory/recalls", () => {
 
   test("the route does not exist when no recorder is injected (the rpgTrace contract)", async () => {
     const app = new Hono();
-    registerDebugRoutes(app, { auth: { expectedToken: TOKEN } });
+    registerDebugRoutes(app, { appSettingRows: null, auth: { expectedToken: TOKEN } });
     const res = await app.request("/api/_debug/memory/recalls", { headers: { "x-debug-token": TOKEN } });
     expect(res.status).toBe(NOT_FOUND);
   });
@@ -89,9 +91,9 @@ describe("/api/_debug/memory/recalls", () => {
 describe("/api/_debug/wire — the recorder-state field (#412)", () => {
   /** The suite runs with `WIRE_CAPTURE` unset, so the env half of the gate is OFF. That is the arm that
    *  matters: it is the state a reader must be able to tell apart from a quiet-but-live recorder. */
-  async function readWire(path: string, options: Parameters<typeof registerDebugRoutes>[1] = {}): Promise<unknown> {
+  async function readWire(path: string, options: Pick<NonNullable<Parameters<typeof registerDebugRoutes>[1]>, "wireCaptureEnabled"> = {}): Promise<unknown> {
     const app = new Hono();
-    registerDebugRoutes(app, { auth: { expectedToken: TOKEN }, ...options });
+    registerDebugRoutes(app, { appSettingRows: null, auth: { expectedToken: TOKEN }, ...options });
     const res = await app.request(path, { headers: { "x-debug-token": TOKEN } });
     expect(res.status).toBe(OK);
     return await res.json();
@@ -222,7 +224,7 @@ describe("/api/_debug/automation/fires — the durable fire log behind the gate"
       },
     ]);
     const app = new Hono();
-    registerDebugRoutes(app, { auth: { expectedToken: TOKEN }, db });
+    registerDebugRoutes(app, { appSettingRows: () => readGlobalSettings(db), auth: { expectedToken: TOKEN }, db });
     return { app, chatA, chatB };
   }
 
@@ -254,7 +256,7 @@ describe("/api/_debug/automation/fires — the durable fire log behind the gate"
 
   test("the route does not exist without a db (it rides the db arm)", async () => {
     const app = new Hono();
-    registerDebugRoutes(app, { auth: { expectedToken: TOKEN } });
+    registerDebugRoutes(app, { appSettingRows: null, auth: { expectedToken: TOKEN } });
     expect((await app.request("/api/_debug/automation/fires", { headers: { "x-debug-token": TOKEN } })).status).toBe(NOT_FOUND);
   });
 });
@@ -267,7 +269,7 @@ describe("/api/_debug/automation/fires — the durable fire log behind the gate"
 describe("POST /api/_debug/bug-report — the body cap in front of the JSON parse", () => {
   function capApp(): Hono {
     const app = new Hono();
-    registerDebugRoutes(app, { auth: { expectedToken: TOKEN } });
+    registerDebugRoutes(app, { appSettingRows: null, auth: { expectedToken: TOKEN } });
     return app;
   }
 
@@ -318,7 +320,7 @@ describe("POST /api/_debug/bug-report — the body cap in front of the JSON pars
 describe("POST /api/_debug/bug-report — the CSRF content-type belt (#2376)", () => {
   function beltApp(): Hono {
     const app = new Hono();
-    registerDebugRoutes(app, { auth: { expectedToken: TOKEN } });
+    registerDebugRoutes(app, { appSettingRows: null, auth: { expectedToken: TOKEN } });
     return app;
   }
 

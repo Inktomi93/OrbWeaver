@@ -33,7 +33,7 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     policyId: "db-structure-producer-home",
     subject: "packages/db/src/schema/sdk-session.ts",
     operation: "non-domain-schema-producer",
-    why: "the agent-sdk backend owns its internal session cache.",
+    why: "connection owns durable SDK lineage through its injected persistence writer; the backend alone owns cache lifecycle (D8/D25). The satellite schema avoids a connection/chat FK cycle: chat.ts imports userConnections, while SDK rows reference chats.",
     endsWhen: "the schema module gains a same-named producer domain, moves under its producer, or packages/db/src/schema/sdk-session.ts is removed.",
   },
   {

@@ -1,5 +1,5 @@
 // foundation/observability/debug/inspect/config — the CONFIG probes: the stored settings planes a live
-// debugging session has to prove rather than assume (app KV, per-user blob, per-chat rpg game, and the whole
+// debugging session has to prove rather than assume (per-user blob, per-chat rpg game, and the whole
 // character row including its render-policy tri-states). Reads @orb/db DOWN, same ledger allowance as the
 // sibling list/inspect probes.
 //
@@ -15,17 +15,11 @@
 import type { DeploymentRenderPolicy, RenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import { rendersTrustedHtml, resolveRenderPolicy } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { characters, chatParticipants, chats, personas, presets, rpgGames, settings, userSettings } from "@orb/db";
+import { characters, chatParticipants, chats, personas, presets, rpgGames, userSettings } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
 
-// @orb-waive no-inline-package-interface(AppSettingRow): baselined when the gate landed; burn-down item 952.
-/** One `settings` KV row (the app-override blob and its siblings — e.g. the OpenRouter catalog snapshot). */
-export interface AppSettingRow {
-  key: string;
-  value: unknown;
-  updatedAt: number;
-}
+export type { GlobalSettingView as AppSettingRow } from "@orb/contracts/settings";
 
 // @orb-waive no-inline-package-interface(UserSettingsRow): baselined when the gate landed; burn-down item 952.
 /** One `user_settings` row — the per-user blob plus the STORED schema version that beats the in-blob probe
@@ -113,12 +107,6 @@ export interface CharacterDetailRow {
   refinery: unknown;
   avatarAssetId: string | null;
   createdAt: number;
-}
-
-/** Every `settings` KV row. Small table (a handful of keys) — no limit needed. */
-export async function appSettingRows(db: Db): Promise<AppSettingRow[]> {
-  const rows = await db.select().from(settings).orderBy(settings.key);
-  return rows.map((r) => ({ key: r.key, value: r.value, updatedAt: r.updatedAt }));
 }
 
 /** Every `user_settings` row, or just one principal's when `userId` is given. A never-touched account has NO

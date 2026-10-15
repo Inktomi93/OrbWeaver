@@ -23,7 +23,7 @@ NOT owned: business logic (verbs/ownership/dispatch → `server`); the vector wr
 
 > **A schema file is named for the domain that PRODUCES/OWNS its rows, never for a consumer.**
 
-A consumer-named schema file hides its real producer (the port-from-neo antipattern). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `gallery` → `domain/assets`, `sdk-session` → the agent-sdk backend).
+A consumer-named schema file hides its real producer (the port-from-neo antipattern). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `gallery` → `domain/assets`, `sdk-session` → `domain/connection`'s injected persistence adapter). The inference backend owns the session-cache lifecycle and imports no database (D8/D25).
 
 ## Cross-tier composition (who reads `db`)
 

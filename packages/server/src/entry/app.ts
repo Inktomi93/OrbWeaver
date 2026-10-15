@@ -24,6 +24,7 @@ import type { ImportCharacterPort } from "#domain/character";
 import type { ExportService } from "#domain/export";
 import type { SettleImportMemory } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
+import { readGlobalSettings } from "#domain/settings";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 import { allowedHostsInput, env, resolveAllowedHosts } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
@@ -484,6 +485,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   registerDebugRoutes(plain, {
     db: deps.db,
+    appSettingRows: () => readGlobalSettings(deps.db),
     // The multiplexed-socket counter (SSE-1 §12) — the starvation regression pin. Injected as data because
     // foundation sits BELOW transport in the tier list and may not import it.
     sockets: { liveSocketCount: (userId) => deps.sockets.liveSocketCount(userId === undefined ? undefined : castId<UserId>(userId)) },

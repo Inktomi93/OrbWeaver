@@ -20,8 +20,8 @@ import type { SQL } from "drizzle-orm";
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import type { RetainedOwnersRead } from "../contract/retained-chat-accounting.ts";
 import { RETAINED_CHAT_OWNERS_ALIAS } from "../contract/retained-chat-accounting.ts";
-import { chatOwnerIds, ownerChatIds, retainedCharacterSeatPredicate, retainedChatOwners } from "../substrate/owner-chat-scope.ts";
 import { retainedRebaseProjection } from "../substrate/retained-chat-accounting.ts";
+import { chatOwnerIds, ownerChatIds, retainedCharacterSeatPredicate, retainedChatOwners } from "./owner-chat-scope.ts";
 
 /** Compose-built private accounting scope; caller has already admitted the retained source operation. */
 export function createResolveRetainedChatAccountingScope(db: Db): ResolveRetainedChatAccountingScope<SQL> {

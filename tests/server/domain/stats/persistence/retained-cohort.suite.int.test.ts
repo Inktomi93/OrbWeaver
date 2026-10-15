@@ -1,4 +1,4 @@
-// @subject packages/server/src/domain/stats/substrate/owner-chat-scope.ts
+// @subject packages/server/src/domain/stats/persistence/owner-chat-scope.ts
 // @subject packages/server/src/domain/stats/persistence/retained-chat-accounting.ts
 // @subject packages/server/src/domain/stats/persistence/messages-economics.ts
 // @subject packages/server/src/domain/chat/persistence/retained-canon.ts

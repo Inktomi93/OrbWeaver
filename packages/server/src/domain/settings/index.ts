@@ -35,6 +35,7 @@ export { createEffectiveConfigCache } from "./effective-config/cache.ts";
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";
 export { createSettingsKvPort } from "./persistence/kv.ts";
 export { migrateSeededBackgroundPicks } from "./persistence/migrate-seeded-background-picks.ts";
+export { readGlobalSettings } from "./persistence/queries.ts";
 export { createReadSeededKeys, listSeededItemKeys, recordSeededItemKeys } from "./persistence/seed-ledger.ts";
 export { ensureSeedThemes } from "./seed-themes.ts";
 export { createDefaultBackgroundSeeder } from "./seeder/backgrounds.ts";

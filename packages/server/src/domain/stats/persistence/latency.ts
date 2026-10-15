@@ -3,7 +3,7 @@
 // Timing lives on `message_variants`, not `messages`; a message's latency is its selected variant's.
 //
 // Every scan here is husk-excluded through the domain's one owner-chat definition
-// (`substrate/owner-chat-scope.ts`): `readByModel` merges these latencies onto `model_stats` ROLLUP rows,
+// (`persistence/owner-chat-scope.ts`): `readByModel` merges these latencies onto `model_stats` ROLLUP rows,
 // which the rebuild built from that same scope, so a latency computed over a wider population would print a
 // number for a room the generations column denies (#1477).
 
@@ -11,8 +11,8 @@ import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
 import type { LatencyScope } from "../contract/params.ts";
 import type { LatencyStats } from "../contract/views.ts";
-import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 import { percentiles } from "../substrate/percentiles.ts";
+import { ownerChatIds } from "./owner-chat-scope.ts";
 
 // The "(unknown)" provider sentinel — coalesced at every key site so a null-provider variant matches the
 // model_stats bucket.
