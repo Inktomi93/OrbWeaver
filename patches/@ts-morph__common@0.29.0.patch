@@ -19,7 +19,7 @@ index 5af00c34c0dd35cf9436f09040219463a487033e..c30c63c59bbfd46e6690811bfbc67b7a
          realpath: languageServiceHost.realpath,
      };
 diff --git a/dist/typescript.js b/dist/typescript.js
-index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3cd0b16ad 100644
+index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac1f3c6d2da0378b4fc0e15792caec1744185edc 100644
 --- a/dist/typescript.js
 +++ b/dist/typescript.js
 @@ -153369,6 +153369,7 @@ var invalidOperationsInSyntacticMode = [
@@ -30,7 +30,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    "getDocumentHighlights",
    "getNavigateToItems",
    "getRenameInfo",
-@@ -153376,6 +153377,26 @@ var invalidOperationsInSyntacticMode = [
+@@ -153376,6 +153377,29 @@ var invalidOperationsInSyntacticMode = [
    "getApplicableRefactors",
    "preparePasteEditsForFile"
  ];
@@ -38,6 +38,9 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
 +const maximumReadonlyReferenceNames = 65536;
 +const maximumReadonlyReferencePositions = 1048576;
 +const maximumReadonlyReferenceNameUnits = 8388608;
++const maximumReadonlyReferenceResults = 4096;
++const maximumReadonlyReferenceResultObjects = 32768;
++const maximumReadonlyReferenceResultUnits = 1048576;
 +class ReadonlyReferencePass {
 +  constructor(query, release) {
 +    this.query = query;
@@ -57,7 +60,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
  function createLanguageService(host, documentRegistry = createDocumentRegistry(host.useCaseSensitiveFileNames && host.useCaseSensitiveFileNames(), host.getCurrentDirectory(), host.jsDocParsingMode), syntaxOnlyOrLanguageServiceMode) {
    var _a;
    let languageServiceMode;
-@@ -153387,6 +153408,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+@@ -153387,6 +153411,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
      languageServiceMode = syntaxOnlyOrLanguageServiceMode;
    }
    const syntaxTreeCache = new SyntaxTreeCache(host);
@@ -65,7 +68,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    let program;
    let lastProjectVersion;
    let lastTypesRootVersion = 0;
-@@ -153661,6 +153683,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+@@ -153661,6 +153686,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
      }
    }
    function cleanupSemanticCache() {
@@ -73,7 +76,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
      if (program) {
        const key = documentRegistry.getKeyForCompilationSettings(program.getCompilerOptions());
        forEach(program.getSourceFiles(), (f) => documentRegistry.releaseDocumentWithKey(f.resolvedPath, key, f.scriptKind, f.impliedNodeFormat));
-@@ -154001,9 +154024,78 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+@@ -154001,9 +154027,129 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
      const sourceFiles = options && options.use === ts_FindAllReferences_exports.FindReferencesUse.Rename ? program.getSourceFiles().filter((sourceFile) => !program.isSourceFileDefaultLibrary(sourceFile)) : program.getSourceFiles();
      return ts_FindAllReferences_exports.findReferenceOrRenameEntries(program, cancellationToken, sourceFiles, node, position, options, cb);
    }
@@ -120,6 +123,46 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
 +      }
 +      return positions;
 +    };
++    const referenceResults = /* @__PURE__ */ new Map();
++    let referenceResultCount = 0;
++    let referenceResultObjects = 0;
++    let referenceResultUnits = 0;
++    const retainReferenceResult = (sourceFile, position, display, result) => {
++      if (!admittedSources.has(sourceFile) || referenceResultCount >= maximumReadonlyReferenceResults) return;
++      let objects = 0;
++      let units = 0;
++      const seen = /* @__PURE__ */ new Set();
++      const fits = (value) => {
++        if (typeof value === "string") {
++          units += value.length;
++          return referenceResultUnits + units <= maximumReadonlyReferenceResultUnits;
++        }
++        if (!value || typeof value !== "object" || seen.has(value)) return true;
++        if (referenceResultObjects + ++objects > maximumReadonlyReferenceResultObjects) return false;
++        seen.add(value);
++        if (Array.isArray(value)) {
++          for (let i = 0; i < value.length; i++) {
++            units += String(i).length;
++            if (referenceResultUnits + units > maximumReadonlyReferenceResultUnits || !fits(value[i])) return false;
++          }
++        } else {
++          for (const key in value) {
++            units += key.length;
++            if (referenceResultUnits + units > maximumReadonlyReferenceResultUnits || !fits(value[key])) return false;
++          }
++        }
++        return true;
++      };
++      if (!fits(result)) return;
++      // Native public results contain only plain data; callers may mutate every returned layer.
++      const retained = { value: structuredClone(result) };
++      let modes = referenceResults.get(sourceFile);
++      if (!modes) referenceResults.set(sourceFile, modes = { rich: /* @__PURE__ */ new Map(), lean: /* @__PURE__ */ new Map() });
++      (display ? modes.rich : modes.lean).set(position, retained);
++      referenceResultCount++;
++      referenceResultObjects += objects;
++      referenceResultUnits += units;
++    };
 +    let directImports;
 +    const getDirectImports = () => {
 +      if (!directImports) {
@@ -135,7 +178,14 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
 +        throw new Error("Readonly reference pass was invalidated by a native Program change");
 +      }
 +      cancellationToken.throwIfCancellationRequested();
-+      return ts_FindAllReferences_exports.findReferencedSymbols(program, cancellationToken, sourceFiles, getValidSourceFile(fileName), position, options?.includeDefinitionDisplay !== false, getDirectImports, getReferenceLocation, getReferencePositions);
++      const sourceFile = getValidSourceFile(fileName);
++      const display = options?.includeDefinitionDisplay !== false;
++      const modes = referenceResults.get(sourceFile);
++      const retained = modes && (display ? modes.rich : modes.lean).get(position);
++      if (retained) return structuredClone(retained.value);
++      const result = ts_FindAllReferences_exports.findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFile, position, display, getDirectImports, getReferenceLocation, getReferencePositions);
++      retainReferenceResult(sourceFile, position, display, result);
++      return result;
 +    }, () => {
 +      referenceLocations.clear();
 +      referenceLocationCount = 0;
@@ -143,6 +193,10 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
 +      referenceNameCount = 0;
 +      referencePositionCount = 0;
 +      referenceNameUnits = 0;
++      referenceResults.clear();
++      referenceResultCount = 0;
++      referenceResultObjects = 0;
++      referenceResultUnits = 0;
 +      readonlyReferencePasses.delete(pass);
 +    });
 +    readonlyReferencePasses.add(pass);
@@ -154,7 +208,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    }
    function getFileReferences(fileName) {
      synchronizeHostData();
-@@ -154652,6 +154744,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+@@ -154652,6 +154798,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
      getTypeDefinitionAtPosition: getTypeDefinitionAtPosition2,
      getReferencesAtPosition,
      findReferences,
@@ -162,7 +216,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
      getFileReferences,
      getDocumentHighlights,
      getNameOrDottedNameSpan,
-@@ -172590,8 +172683,7 @@ __export(ts_FindAllReferences_exports, {
+@@ -172590,8 +172737,7 @@ __export(ts_FindAllReferences_exports, {
  });
  
  // src/services/importTracker.ts
@@ -172,7 +226,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    return (exportSymbol, exportInfo, isForRename) => {
      const { directImports, indirectUsers } = getImportersForExport(sourceFiles, sourceFilesSet, allDirectImports, exportInfo, checker, cancellationToken);
      return { indirectUsers, ...getSearchesFromDirectImports(directImports, exportSymbol, exportInfo.exportKind, checker, isForRename) };
-@@ -173237,9 +173329,12 @@ var FindReferencesUse = /* @__PURE__ */ ((FindReferencesUse2) => {
+@@ -173237,9 +173383,12 @@ var FindReferencesUse = /* @__PURE__ */ ((FindReferencesUse2) => {
    FindReferencesUse2[FindReferencesUse2["Rename"] = 2] = "Rename";
    return FindReferencesUse2;
  })(FindReferencesUse || {});
@@ -186,7 +240,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    const referencedSymbols = Core.getReferencedSymbolsForNode(position, node, program, sourceFiles, cancellationToken, options);
    const checker = program.getTypeChecker();
    const adjustedNode = Core.getAdjustedNode(node, options);
-@@ -173247,7 +173342,7 @@ function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFi
+@@ -173247,7 +173396,7 @@ function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFi
    return !referencedSymbols || !referencedSymbols.length ? void 0 : mapDefined(referencedSymbols, ({ definition, references }) => (
      // Only include referenced symbols that have a valid definition.
      definition && {
@@ -195,7 +249,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
        references: references.map((r) => toReferencedSymbolEntry(r, symbol))
      }
    ));
-@@ -173304,12 +173399,12 @@ function getReferenceEntriesForNode(position, node, program, sourceFiles, cancel
+@@ -173304,12 +173453,12 @@ function getReferenceEntriesForNode(position, node, program, sourceFiles, cancel
  function flattenEntries(referenceSymbols) {
    return referenceSymbols && flatMap(referenceSymbols, (r) => r.references);
  }
@@ -210,7 +264,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
          const name2 = displayParts2.map((p) => p.text).join("");
          const declaration = symbol.declarations && firstOrUndefined(symbol.declarations);
          const node = declaration ? getNameOfDeclaration(declaration) || declaration : originalNode;
-@@ -173333,13 +173428,13 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
+@@ -173333,13 +173482,13 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
        case 3 /* This */: {
          const { node } = def;
          const symbol = checker.getSymbolAtLocation(node);
@@ -226,7 +280,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
          return { ...getFileAndTextSpanFromNode(node), name: "this", kind: "var" /* variableElement */, displayParts: displayParts2 };
        }
        case 4 /* String */: {
-@@ -173370,9 +173465,9 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
+@@ -173370,9 +173519,9 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
      containerName: "",
      fileName: sourceFile.fileName,
      kind,
@@ -238,7 +292,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
      ...toContextSpan(textSpan, sourceFile, context)
    };
  }
-@@ -173383,10 +173478,10 @@ function getFileAndTextSpanFromNode(node) {
+@@ -173383,10 +173532,10 @@ function getFileAndTextSpanFromNode(node) {
      textSpan: getTextSpan(isComputedPropertyName(node) ? node.expression : node, sourceFile)
    };
  }
@@ -251,7 +305,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    return { displayParts, kind: symbolKind };
  }
  function toRenameLocation(entry, originalNode, checker, providePrefixAndSuffixText, quotePreference) {
-@@ -174008,7 +174103,7 @@ var Core;
+@@ -174008,7 +174157,7 @@ var Core;
      }
      /** Gets every place to look for references of an exported symbols. See `ImportsResult` in `importTracker.ts` for more documentation. */
      getImportSearches(exportSymbol, exportInfo) {
@@ -260,7 +314,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
        return this.importTracker(exportSymbol, exportInfo, this.options.use === 2 /* Rename */);
      }
      /** @param allSearchSymbols set of additional symbols for use by `includes`. */
-@@ -174317,7 +174412,8 @@ var Core;
+@@ -174317,7 +174466,8 @@ var Core;
      if (!state.markSearchedSymbols(sourceFile, search.allSearchSymbols)) {
        return;
      }
@@ -270,7 +324,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
        getReferencesAtLocation(sourceFile, position, search, state, addReferencesHere);
      }
    }
-@@ -174325,7 +174421,7 @@ var Core;
+@@ -174325,7 +174475,7 @@ var Core;
      return !!(getMeaningFromLocation(referenceLocation) & state.searchMeaning);
    }
    function getReferencesAtLocation(sourceFile, position, search, state, addReferencesHere) {
@@ -279,7 +333,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
      if (!isValidReferencePosition(referenceLocation, search.text)) {
        if (!state.options.implementations && (state.options.findInStrings && isInString(sourceFile, position) || state.options.findInComments && isInNonReferenceComment(sourceFile, position))) {
          state.addStringOrCommentReference(sourceFile.fileName, createTextSpan(position, search.text.length));
-@@ -179062,9 +179158,13 @@ function getSymbolModifiers(typeChecker, symbol) {
+@@ -179062,9 +179212,13 @@ function getSymbolModifiers(typeChecker, symbol) {
    }
    return modifiers.size > 0 ? arrayFrom(modifiers.values()).join(",") : "" /* none */;
  }
@@ -294,7 +348,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    let documentation = [];
    let tags = [];
    const symbolFlags = getCombinedLocalAndExportSymbolFlags(symbol);
-@@ -179077,7 +179177,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179077,7 +179231,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
    const typeWriterOut = { canIncreaseExpansionDepth: false, truncated: false };
    let symbolWasExpanded = false;
    if (location.kind === 110 /* ThisKeyword */ && !isThisExpression) {
@@ -303,7 +357,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    }
    if (symbolKind !== "" /* unknown */ || symbolFlags & 32 /* Class */ || symbolFlags & 2097152 /* Alias */) {
      if (symbolKind === "getter" /* memberGetAccessorElement */ || symbolKind === "setter" /* memberSetAccessorElement */) {
-@@ -179157,7 +179257,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179157,7 +179311,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
              displayParts.push(punctuationPart(59 /* ColonToken */));
              displayParts.push(spacePart());
              if (!(getObjectFlags(type) & 16 /* Anonymous */) && type.symbol) {
@@ -312,7 +366,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
                  typeChecker,
                  type.symbol,
                  enclosingDeclaration,
-@@ -179247,7 +179347,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179247,7 +179401,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      displayParts.push(spacePart());
      addRange(
        displayParts,
@@ -321,7 +375,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
          typeChecker,
          location.parent && isConstTypeReference(location.parent) ? typeChecker.getTypeAtLocation(location.parent) : typeChecker.getDeclaredTypeOfSymbol(symbol),
          enclosingDeclaration,
-@@ -179309,7 +179409,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179309,7 +179463,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            } else if (declaration.kind !== 180 /* CallSignature */ && declaration.name) {
              addFullSymbolName(declaration.symbol);
            }
@@ -330,7 +384,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
          } else if (isTypeAliasDeclaration(declaration)) {
            addInPrefix();
            displayParts.push(keywordPart(156 /* TypeKeyword */));
-@@ -179334,7 +179434,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179334,7 +179488,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        }
      }
    }
@@ -339,7 +393,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
      prefixNextMeaning();
      if (!hasAddedSymbolInfo || documentation.length === 0 && tags.length === 0) {
        const resolvedSymbol = typeChecker.getAliasedSymbol(symbol);
-@@ -179427,7 +179527,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179427,7 +179581,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            displayParts.push(punctuationPart(59 /* ColonToken */));
            displayParts.push(spacePart());
            if (type.symbol && type.symbol.flags & 262144 /* TypeParameter */ && symbolKind !== "index" /* indexSignatureElement */) {
@@ -348,7 +402,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
                const param = typeChecker.typeParameterToDeclaration(
                  type,
                  enclosingDeclaration,
-@@ -179446,7 +179546,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179446,7 +179600,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            } else {
              addRange(
                displayParts,
@@ -357,7 +411,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
                  typeChecker,
                  type,
                  enclosingDeclaration,
-@@ -179478,6 +179578,9 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179478,6 +179632,9 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        symbolKind = getSymbolKind(typeChecker, symbol, location);
      }
    }
@@ -367,7 +421,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    if (documentation.length === 0 && !hasMultipleSignatures) {
      documentation = symbol.getContextualDocumentationComment(enclosingDeclaration, typeChecker);
    }
-@@ -179584,7 +179687,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179584,7 +179741,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
      if (canExpandSymbol(symbol2, typeWriterOut)) {
        const symbolMeaning = semanticToSymbolMeaning(meaning);
@@ -376,7 +430,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
          const nodes = typeChecker.getEmitResolver().symbolToDeclarations(
            symbol2,
            symbolMeaning,
-@@ -179617,11 +179720,11 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179617,11 +179774,11 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      let fullSymbolDisplayParts = [];
      if (symbolToDisplay.flags & 131072 /* Signature */ && indexInfos) {
        if (symbolToDisplay.parent) {
@@ -390,7 +444,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
          if (i !== indexInfos.length - 1) {
            fullSymbolDisplayParts.push(spacePart());
            fullSymbolDisplayParts.push(punctuationPart(52 /* BarToken */));
-@@ -179630,7 +179733,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179630,7 +179787,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        });
        fullSymbolDisplayParts.push(punctuationPart(24 /* CloseBracketToken */));
      } else {
@@ -399,7 +453,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
          typeChecker,
          symbolToDisplay,
          enclosingDeclaration2 || sourceFile,
-@@ -179673,7 +179776,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179673,7 +179830,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
    }
    function addSignatureDisplayParts(signature, allSignatures, flags = 0 /* None */) {
@@ -409,7 +463,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
      if (allSignatures.length > 1) {
        displayParts.push(spacePart());
        displayParts.push(punctuationPart(21 /* OpenParenToken */));
-@@ -179691,14 +179795,14 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179691,14 +179849,14 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
    }
    function writeTypeParametersOfSymbol(symbol2, enclosingDeclaration2) {
@@ -426,7 +480,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..ac985bd6a31e4099e314bfbedd20bca3
    return getSymbolDisplayPartsDocumentationAndSymbolKindWorker(
      typeChecker,
      symbol,
-@@ -179710,7 +179814,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, so
+@@ -179710,7 +179868,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, so
      semanticMeaning,
      alias,
      maximumLength,
@@ -449,7 +503,7 @@ index fc9c9023b451eb20b214794744abde1a928dee3c..d745ef8409462b2356f9136efd304f0a
      getResolvedModuleWithFailedLookupLocationsFromCache?: ts.LanguageServiceHost["getResolvedModuleWithFailedLookupLocationsFromCache"];
      resolveTypeReferenceDirectives?: ts.LanguageServiceHost["resolveTypeReferenceDirectives"];
 diff --git a/lib/typescript.d.ts b/lib/typescript.d.ts
-index 05326adf9d574e7b1ca54f5839471cb17dfd3559..e484c17b4f41d50f22d7d054b04ef221f87bda48 100644
+index 05326adf9d574e7b1ca54f5839471cb17dfd3559..86f24cf89352aafcae4a52092a3a156b177b0f81 100644
 --- a/lib/typescript.d.ts
 +++ b/lib/typescript.d.ts
 @@ -10234,7 +10234,9 @@ declare namespace ts {
@@ -468,9 +522,9 @@ index 05326adf9d574e7b1ca54f5839471cb17dfd3559..e484c17b4f41d50f22d7d054b04ef221
          textSpan: TextSpan;
      }
 +    interface ReadonlyReferencePass {
-+        /** Preserves native results; refuses after disposal or a Program/checker/source-population change. */
++        /** Returns detached native results; checks cancellation and Program/checker/source-population identity on every call. */
 +        findReferences(fileName: string, position: number, options?: FindReferencesOptions): ReferencedSymbol[] | undefined;
-+        /** Releases this pass's native import map, bounded syntax memos, and owner references. Idempotent. */
++        /** Releases this pass's native import map, bounded syntax/result memos, and owner references. Idempotent. */
 +        dispose(): void;
 +    }
 +    interface FindReferencesOptions {

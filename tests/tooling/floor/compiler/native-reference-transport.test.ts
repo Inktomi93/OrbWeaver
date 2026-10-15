@@ -1,11 +1,88 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { observeCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
+import { observeCallReturns, readSuppliedParameter } from "@orb/tooling/floor/code-facts/call-returns";
 import { beginReferencePass, endReferencePass, isDocumentationLinkReference } from "@orb/tooling/floor/code-facts/reference-fact";
 import { unprovenReferenceUse } from "@orb/tooling/floor/code-facts/reference-fact-writes";
 import { readAuthoredCallableSources } from "@orb/tooling/floor/code-facts/value-carrier";
 import { nativeReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
 import { Project, SyntaxKind, ts } from "ts-morph";
 import { vi } from "vitest";
+
+function expectNativeOriginContext(
+  actual: ReturnType<typeof readAuthoredCallableSources>,
+  inputs: {
+    readonly callback: import("ts-morph").ArrowFunction;
+    readonly parameter: import("ts-morph").ParameterDeclaration;
+    readonly argument: import("ts-morph").Node | undefined;
+    readonly resolved: boolean;
+  },
+): void {
+  const { callback, parameter, argument, resolved } = inputs;
+  expect(actual.kind === "resolved" && actual.value.length > 0 && actual.value.every((origin) => origin.value.compilerNode === callback.compilerNode)).toBe(
+    resolved,
+  );
+  expect(actual.kind === "resolved" ? actual.value.map((origin) => origin.bindings.get(parameter)?.compilerNode === argument?.compilerNode) : []).toEqual(
+    resolved ? [true] : [],
+  );
+}
+
+for (const scenario of [
+  { name: "distinct safe allocations and aliases", extra: "", resolved: true },
+  { name: "an escaped first allocation alias", extra: "escape(one);", resolved: false },
+  { name: "a written first allocation alias", extra: "one.settle=()=>0;", resolved: false },
+] as const) {
+  test(`readonly reference reuse preserves ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    const implementation = project.createSourceFile("/factory.ts", "export function factory(seed:object){return {settle:(batch:number[])=>batch.push(1)};}");
+    const consumer = project.createSourceFile(
+      "/consumer.ts",
+      `import {factory as make} from './factory';declare function escape(value:object):void;
+      const firstOwner={};const secondOwner={};const first=make(firstOwner);const second=make(secondOwner);
+      const one=first;const two=second;const firstBatch=[1];const secondBatch=[2];
+      one.settle(firstBatch);${scenario.extra}two.settle(secondBatch);`,
+    );
+    beginReferencePass();
+    try {
+      const sources = [implementation, consumer];
+      const calls = sources.flatMap((source) => source.getDescendantsOfKind(SyntaxKind.CallExpression));
+      const observed = observeCallReturns(
+        calls,
+        sources.flatMap((source) => source.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      const callback = implementation.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
+      const batch = callback?.getParameters()[0]?.getNameNode();
+      if (program === undefined || callback === undefined || batch === undefined) {
+        throw new Error("the actual shared callable and captured native program are unavailable");
+      }
+      const supplied = readSuppliedParameter(batch, new Map(), program);
+      expect(supplied.kind).toBe(scenario.resolved ? "resolved" : "unresolved");
+      expect(supplied.kind === "resolved" ? supplied.value.map((actual) => actual.value.getText()).toSorted() : []).toEqual(
+        scenario.resolved ? ["firstBatch", "secondBatch"] : [],
+      );
+      const factoryParameter = implementation.getFunctionOrThrow("factory").getParameters()[0];
+      const factoryArguments = calls.filter((call) => call.getExpression().getText() === "make").map((call) => call.getArguments()[0]);
+      if (factoryParameter === undefined || factoryArguments.length !== 2) {
+        throw new Error("the two actual factory binding contexts are unavailable");
+      }
+      for (const [index, invocation] of [
+        { expression: "one.settle", resolved: scenario.resolved },
+        { expression: "two.settle", resolved: true },
+      ].entries()) {
+        const { expression, resolved } = invocation;
+        const call = calls.find((candidate) => candidate.getExpression().getText() === expression);
+        if (call === undefined) {
+          throw new Error("a distinct actual allocation invocation is missing");
+        }
+        const actual = readAuthoredCallableSources(call.getExpression(), (candidate) => program.byCall.has(candidate.compilerNode), observed);
+        expect(actual.kind, expression).toBe(resolved ? "resolved" : "unresolved");
+        expectNativeOriginContext(actual, { callback, parameter: factoryParameter, argument: factoryArguments[index], resolved });
+      }
+    } finally {
+      endReferencePass();
+    }
+  });
+}
 
 test("distinct complete-use queries share only the readonly native import scan", () => {
   const project = new Project({

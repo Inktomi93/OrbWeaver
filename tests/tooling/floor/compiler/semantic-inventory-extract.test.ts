@@ -1293,6 +1293,164 @@ function nativeReferenceFixture(mode: ts.LanguageServiceMode = ts.LanguageServic
   };
 }
 
+test("readonly native results avoid repeated computation without sharing mutable answers", () => {
+  const { service } = nativeReferenceFixture();
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/base.ts"));
+  const position = source.text.indexOf("first");
+  const oracle = fixtureValue(service.findReferences(source.fileName, position));
+  const pass = service.createReadonlyReferencePass();
+  const lookup = vi.spyOn(source, "getChildren");
+  try {
+    const miss = fixtureValue(pass.findReferences(source.fileName, position));
+    expect(miss).toStrictEqual(oracle);
+    expect(lookup.mock.calls.length).toBeGreaterThan(0);
+    const definition = fixtureValue(miss[0]).definition;
+    definition.textSpan.start++;
+    definition.name = "caller mutation";
+    definition.displayParts.push({ text: "caller mutation", kind: "text" });
+    const reference = fixtureValue(fixtureValue(miss[0]).references[0]);
+    reference.textSpan.length++;
+    reference.isDefinition = reference.isDefinition !== true;
+    reference.isWriteAccess = !reference.isWriteAccess;
+    reference.isInString = true;
+    const context = fixtureValue(definition.contextSpan);
+    context.start++;
+    fixtureValue(definition.displayParts[0]).text = "caller mutation";
+    fixtureValue(miss[0]).references.reverse();
+    miss.reverse();
+    lookup.mockClear();
+    const hit = fixtureValue(pass.findReferences(source.fileName, position, { includeDefinitionDisplay: true }));
+    expect(hit).toStrictEqual(oracle);
+    expect(lookup.mock.calls.length).toBe(0);
+    fixtureValue(hit[0]).references.length = 0;
+    fixtureValue(hit[0]).definition.displayParts.length = 0;
+    hit.length = 0;
+    expect(pass.findReferences(source.fileName, position)).toStrictEqual(oracle);
+    lookup.mockClear();
+    expect(service.findReferences(source.fileName, position)).toStrictEqual(oracle);
+    expect(lookup.mock.calls.length).toBeGreaterThan(0);
+  } finally {
+    lookup.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test("readonly native result keys preserve source, position and normalized presentation", () => {
+  const { service } = nativeReferenceFixture();
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/base.ts"));
+  const first = source.text.indexOf("first");
+  const second = source.text.indexOf("second");
+  const rich = service.findReferences(source.fileName, first);
+  const lean = service.findReferences(source.fileName, first, { includeDefinitionDisplay: false });
+  expect(rich).not.toEqual(lean);
+  const pass = service.createReadonlyReferencePass();
+  const lookup = vi.spyOn(source, "getChildren");
+  try {
+    expect(pass.findReferences(source.fileName, first)).toEqual(rich);
+    lookup.mockClear();
+    expect(pass.findReferences(source.fileName, first, { includeDefinitionDisplay: false })).toEqual(lean);
+    expect(lookup.mock.calls.length).toBeGreaterThan(0);
+    lookup.mockClear();
+    expect(pass.findReferences(source.fileName, first, { includeDefinitionDisplay: true })).toEqual(rich);
+    expect(pass.findReferences(source.fileName, first, { includeDefinitionDisplay: false })).toEqual(lean);
+    expect(lookup.mock.calls.length).toBe(0);
+    expect(pass.findReferences(source.fileName, second)).toEqual(service.findReferences(source.fileName, second));
+    expect(pass.findReferences("/consumer.ts", first)).toEqual(service.findReferences("/consumer.ts", first));
+    expect(() => pass.findReferences("/missing.ts", first)).toThrow();
+  } finally {
+    lookup.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test("readonly native undefined results consume bounded entries and saturation remains native", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  project.createSourceFile("/empty.ts", " ".repeat(4097));
+  const service = project.getLanguageService().compilerObject;
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/empty.ts"));
+  const pass = service.createReadonlyReferencePass();
+  const lookup = vi.spyOn(source, "getChildren");
+  try {
+    for (let position = 0; position < 4097; position++) {
+      expect(pass.findReferences(source.fileName, position)).toBeUndefined();
+    }
+    lookup.mockClear();
+    expect(pass.findReferences(source.fileName, 0)).toBeUndefined();
+    expect(lookup.mock.calls.length).toBe(0);
+    expect(pass.findReferences(source.fileName, 4096)).toBeUndefined();
+    expect(lookup.mock.calls.length).toBeGreaterThan(0);
+    lookup.mockClear();
+    expect(service.findReferences(source.fileName, 0)).toBeUndefined();
+    expect(lookup.mock.calls.length).toBeGreaterThan(0);
+  } finally {
+    lookup.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test("readonly native result admission bounds the aggregate of individually small answers", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  project.createSourceFile("/a.ts", `export interface T{${Array.from({ length: 4095 }, (_, index) => `p${index}:number;`).join("")}}`);
+  const service = project.getLanguageService().compilerObject;
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/a.ts"));
+  const declaration = fixtureValue(source.statements.find(ts.isInterfaceDeclaration));
+  const positions = declaration.members.map((member) => fixtureValue(member.name).getStart(source));
+  const first = fixtureValue(positions[0]);
+  const last = fixtureValue(positions.at(-1));
+  const options = { includeDefinitionDisplay: false };
+  const expected = service.findReferences(source.fileName, last, options);
+  const pass = service.createReadonlyReferencePass();
+  const lookup = vi.spyOn(source, "getChildren");
+  try {
+    for (const position of positions) {
+      expect(pass.findReferences(source.fileName, position, options)?.length).toBe(1);
+    }
+    lookup.mockClear();
+    expect(pass.findReferences(source.fileName, first, options)?.length).toBe(1);
+    expect(lookup.mock.calls.length).toBe(0);
+    expect(pass.findReferences(source.fileName, last, options)).toStrictEqual(expected);
+    expect(lookup.mock.calls.length).toBeGreaterThan(0);
+  } finally {
+    lookup.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test.for(["objects", "strings"] as const)("readonly native result %s saturation preserves complete native fallback", { timeout: 20_000 }, (dimension) => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  project.createSourceFile("/base.ts", "export const value=1;");
+  const files = dimension === "objects" ? 180 : 1;
+  for (let index = 0; index < files; index++) {
+    const name = dimension === "strings" ? "x".repeat(4096) : `consumer${index}`;
+    project.createSourceFile(
+      `/${name}.ts`,
+      `import {value} from './base'; export const uses=[${Array.from({ length: dimension === "objects" ? 100 : 300 }, () => "value").join(",")}];`,
+    );
+  }
+  const service = project.getLanguageService().compilerObject;
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/base.ts"));
+  const position = source.text.indexOf("value");
+  const options = { includeDefinitionDisplay: false };
+  const expected = fixtureValue(service.findReferences(source.fileName, position, options));
+  expect(expected.flatMap((group) => group.references).length).toBeGreaterThan(dimension === "objects" ? 18_000 : 300);
+  const pass = service.createReadonlyReferencePass();
+  const lookup = vi.spyOn(source, "getChildren");
+  try {
+    expect(pass.findReferences(source.fileName, position, options)).toEqual(expected);
+    lookup.mockClear();
+    expect(pass.findReferences(source.fileName, position, options)).toEqual(expected);
+    expect(lookup.mock.calls.length).toBeGreaterThan(0);
+  } finally {
+    lookup.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
 test("cancelled native import-map construction never survives into a later query", () => {
   const fixture = nativeReferenceFixture();
   const service = fixture.service;
@@ -1931,7 +2089,7 @@ test("native lexical lists leave local containers, rename and highlights uncache
     const cold = scan.count;
     expect(cold).toBeGreaterThan(0);
     scan.reset();
-    expect(pass.findReferences(source.fileName, position)).toEqual(expected);
+    expect(pass.findReferences(source.fileName, position + 1)).toEqual(expected);
     expect(scan.count).toBe(cold);
     scan.reset();
     expect(service.findRenameLocations(source.fileName, position, false, false, {})).toEqual(rename);
@@ -2066,7 +2224,7 @@ test("native lexical reuse retains a complete empty candidate list without inven
     expect(pass.findReferences(source.fileName, 13)).toEqual(expected);
     expect(scan.count).toBe(1);
     scan.reset();
-    expect(pass.findReferences(source.fileName, 13)).toEqual(expected);
+    expect(pass.findReferences(source.fileName, 14)).toEqual(expected);
     expect(scan.count).toBe(0);
   } finally {
     pass.dispose();

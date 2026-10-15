@@ -122,7 +122,7 @@ await test("native lexical admission bounds and combined retained ownership", ()
     const long = [{ file: "/long.ts", position: 13 }];
     const nativeLong = measure(service, long);
     const coldLong = measure(pass, long);
-    const warmLong = measure(pass, long);
+    const warmLong = measure(pass, [{ file: "/long.ts", position: 14 }]);
     assert.deepEqual(coldLong, nativeLong);
     assert.deepEqual(warmLong, nativeLong);
     assert.ok(warmLong.scans > 0, "name-unit saturation must retain native fallback even with key room");
