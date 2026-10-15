@@ -141,7 +141,16 @@ function returnedPropertyValue(
   }
   const projected = returnedValue(value, rest, context);
   // The outer key exists even if its nested projection does not; a later `{manifest:{}}` shadows manifest.
-  return projected.kind === "unresolved" ? projected : { ...projected, value: projected.value.map((source) => ({ ...source, present: true })) };
+  return projected.kind === "unresolved"
+    ? projected
+    : {
+        ...projected,
+        value: projected.value.map((source) => ({
+          ...source,
+          present: true,
+          ...(context.callableValues === true ? { selectedDescriptors: [{ value, bindings: context.bindings }, ...(source.selectedDescriptors ?? [])] } : {}),
+        })),
+      };
 }
 
 function returnedPropertyName(
@@ -656,13 +665,26 @@ function callableSuppliedLeaves(
           : { ...supplied, value: [{ ...actual, path: source.path }] },
       ),
     );
-    return { ...refined, trace: { ...refined.trace, declarations: [...supplied.trace.declarations, ...refined.trace.declarations] } };
+    return {
+      ...refined,
+      ...(refined.kind === "resolved" && source.selectedDescriptors !== undefined
+        ? {
+            value: refined.value.map((actual) => ({
+              ...actual,
+              selectedDescriptors: [...(source.selectedDescriptors ?? []), ...(actual.selectedDescriptors ?? [])],
+            })),
+          }
+        : {}),
+      trace: { ...refined.trace, declarations: [...supplied.trace.declarations, ...refined.trace.declarations] },
+    };
   });
   const result = valueAlternatives(node, facts);
   return { ...result, trace: { ...result.trace, declarations: [...projected.trace.declarations, ...result.trace.declarations] } };
 }
 
 interface CallableUseProof {
+  // This obligation ends at the callable, so it cannot fall back to a containing-record data exemption.
+  readonly selectedValue?: true;
   readonly selectedKey: string | undefined;
   readonly origins: readonly ReturnedValueSource[];
   readonly completeInvocations?: true;
@@ -742,8 +764,122 @@ function selectedCallableReceiver(receiver: ReturnedValueSource, key: string, pr
         source.present &&
         source.path.length === 0 &&
         proof.origins.some((origin) => source.value.compilerNode === origin.value.compilerNode && matchingAllocationBindings(literal, source, origin)),
-    )
+    ) &&
+    selected.value.every((source) => selectedCallableOriginUses(source, receiver, proof))
   );
+}
+
+function selectedCallableEndpoints(
+  origin: ReturnedValueSource,
+  receiver: ReturnedValueSource,
+  proof: CallableUseProof,
+): readonly NonNullable<ReturnedValueSource["selectedDescriptors"]>[number][] {
+  const endpoints: NonNullable<ReturnedValueSource["selectedDescriptors"]>[number][] = [];
+  const program = proof.program;
+  const key = proof.selectedKey;
+  if (program === undefined || key === undefined) {
+    return endpoints;
+  }
+  const origins = [origin, ...proof.origins.filter((source) => source.value.compilerNode === origin.value.compilerNode)];
+  for (const source of origins) {
+    const selected = callableSuppliedLeaves(receiver.value, [key], program, { bindings: source.bindings, active: new Set() });
+    if (selected.kind === "resolved") {
+      endpoints.push(
+        ...selected.value.flatMap((actual) =>
+          actual.present &&
+          actual.path.length === 0 &&
+          actual.value.compilerNode === source.value.compilerNode &&
+          N.isObjectLiteralExpression(receiver.value) &&
+          matchingAllocationBindings(receiver.value, actual, source)
+            ? (actual.selectedDescriptors ?? [])
+            : [],
+        ),
+      );
+    }
+  }
+  return endpoints;
+}
+
+function unrelatedCallableOriginReference(use: Node, binding: Identifier, proof: CallableUseProof): boolean | undefined {
+  if (!N.isIdentifier(use)) {
+    return;
+  }
+  const expected = callableCarrierSymbol(binding);
+  const actual = callableCarrierSymbol(use);
+  if (expected === undefined || actual === undefined) {
+    return proof.refuse(valueRefusal(use, "ambiguous", "the selected callable reference has no exact lexical binding"));
+  }
+  return expected !== actual ? true : undefined;
+}
+
+function selectedCallableOriginUses(origin: ReturnedValueSource, receiver: ReturnedValueSource, proof: CallableUseProof): boolean {
+  if (!N.isFunctionDeclaration(origin.value)) {
+    return true;
+  }
+  const name = origin.value.getNameNode();
+  if (name === undefined || proof.program === undefined) {
+    return false;
+  }
+  const program = proof.program;
+  const endpoints = selectedCallableEndpoints(origin, receiver, proof);
+  const missing = unprovenReferenceUse(name, (use, binding) => {
+    const admitted = readCallReturnProgram(use, { programs: [program] });
+    if (admitted.kind === "unresolved") {
+      return proof.refuse(admitted);
+    }
+    const unrelated = unrelatedCallableOriginReference(use, binding, proof);
+    if (unrelated !== undefined) {
+      return unrelated;
+    }
+    if (isDocumentationLinkReference(use) || isIdentityObservation(use.getParent())) {
+      return true;
+    }
+    if (isReferenceWriteTarget(use)) {
+      return false;
+    }
+    const endpointsForUse = endpoints.filter((endpoint) => endpoint.value.compilerNode === use.compilerNode);
+    if (endpointsForUse.length > 0) {
+      return endpointsForUse.every((endpoint) => selectedCallableStorageUse(use, origin, { ...proof, bindings: endpoint.bindings }));
+    }
+    if (carryingLiterals(use).length > 0) {
+      return selectedCallableStorageUse(use, origin, proof);
+    }
+    const call = use.getParent();
+    return (
+      N.isCallExpression(call) &&
+      call.getExpression() === use &&
+      callableProjectedUse(use, { kind: "resolved", value: [origin], trace: { declarations: [], origin: use } }, { ...proof, completeInvocations: true })
+    );
+  });
+  return missing === undefined || proof.refuse(valueRefusal(missing, "unsupported", "the selected callable has an unproven containing value use"));
+}
+
+function selectedCallableStorageUse(use: Node, origin: ReturnedValueSource, proof: CallableUseProof): boolean {
+  const containers = carryingLiterals(use);
+  if (containers.length === 0 || containers.some(({ literal, key }) => key === undefined || !ordinaryCallableRecord(literal))) {
+    return false;
+  }
+  const site = valueSite(use);
+  const path = [...containers].reverse().flatMap(({ key }) => (key === undefined ? [] : [key]));
+  const next = { ...proof, path, selectedValue: true as const, active: new Set([site.compilerNode]) };
+  const parent = site.getParent();
+  if (N.isReturnStatement(parent) && parent.getExpression() === site && proof.program !== undefined) {
+    const selected = path.at(-1);
+    return (
+      selected !== undefined &&
+      returnedCallableOwnerUses(parent, {
+        owner: origin.value,
+        sources: { kind: "resolved", value: [origin], trace: { declarations: [], origin: use } },
+        program: proof.program,
+        admits: proof.admits,
+        path: path.slice(0, -1),
+        selected,
+        selectedPath: true,
+        ...(proof.completeInvocations === true ? { completeInvocations: true } : {}),
+      }) === undefined
+    );
+  }
+  return callableProjectionUse(site, next);
 }
 
 function ordinarySpreadDataPresence(expression: Node, key: string, receiver: ReturnedValueSource, program: CallReturnProgram): readonly boolean[] | undefined {
@@ -924,7 +1060,13 @@ function ordinaryCallableDataRead(node: Node, key: string, proof: CallableUsePro
   return (
     receivers.kind === "resolved" &&
     receivers.value.length > 0 &&
-    receivers.value.every((receiver) => receiver.present && receiver.path.length === 0 && ownDataProperty(receiver, key, program))
+    receivers.value.every(
+      (receiver) =>
+        receiver.present &&
+        receiver.path.length === 0 &&
+        ownDataProperty(receiver, key, program) &&
+        (proof.path.length > 0 || (proof.selectedKey !== undefined && proof.selectedKey !== key && freshCallableReceiver(receiver, key, proof))),
+    )
   );
 }
 
@@ -949,7 +1091,13 @@ function callableBindingUse(use: Node, proof: CallableUseProof): boolean | undef
   }
   return pattern.getElements().every((element) => {
     const name = element.getNameNode();
-    if (element.getDotDotDotToken() !== undefined || element.getInitializer() !== undefined || !N.isIdentifier(name)) {
+    const property = element.getPropertyNameNode();
+    if (
+      element.getDotDotDotToken() !== undefined ||
+      element.getInitializer() !== undefined ||
+      !N.isIdentifier(name) ||
+      (property !== undefined && !N.isIdentifier(property))
+    ) {
       return proof.refuse(valueRefusal(element, "unsupported", "the callable carrier binding is not a closed ordinary member"));
     }
     const key = returnedBindingKey(element, pattern);
@@ -958,7 +1106,10 @@ function callableBindingUse(use: Node, proof: CallableUseProof): boolean | undef
       return ordinaryCallableDataRead(use, key, proof);
     }
     if (selected === undefined) {
-      return proof.refuse(valueRefusal(element, "unsupported", "a callable record binding does not retain a selected containing path"));
+      return (
+        ordinaryCallableDataRead(use, key, proof) ||
+        proof.refuse(valueRefusal(element, "unsupported", "a callable record binding does not retain a selected containing path"))
+      );
     }
     if (!ordinaryCallableDataRead(use, key, proof)) {
       return proof.refuse(valueRefusal(element, "unsupported", "the selected callable carrier binding has no ordinary own data descriptor"));
@@ -1021,11 +1172,21 @@ function callableProjectionUse(use: Node, proof: CallableUseProof): boolean {
       return binding;
     }
   }
+  const selectedValue = selectedCallableValueUse(use, proof);
+  if (selectedValue !== undefined) {
+    return selectedValue;
+  }
   const member = parent === undefined ? undefined : staticMemberAccess(parent);
   if (parent === undefined || member?.receiver !== use) {
     return false;
   }
   return callableMemberUse(parent, member, proof);
+}
+
+function selectedCallableValueUse(use: Node, proof: CallableUseProof): boolean | undefined {
+  return proof.selectedValue === true && proof.path.length === 0 && proof.program !== undefined
+    ? callableProjectedUse(use, callableSuppliedLeaves(use, [], proof.program, { bindings: proof.bindings, active: new Set() }), proof)
+    : undefined;
 }
 
 function callableMemberUse(parent: Node, member: import("./reference-fact-contract.ts").MemberReference, proof: CallableUseProof): boolean {
@@ -1106,12 +1267,14 @@ function callableContainingUseRefusal(
     readonly suppliedUses?: ReadonlyMap<Node, readonly CallableSuppliedUse[]>;
     readonly completeInvocations?: true;
     readonly selectedKey?: string;
+    readonly selectedValue?: true;
   } = {},
 ): UnresolvedReferenceFact | undefined {
   const { continuation, suppliedUses } = inputs;
   let refusal: UnresolvedReferenceFact | undefined;
   const proof: CallableUseProof = {
     origins: sources.value,
+    ...(inputs.selectedValue === true ? { selectedValue: true as const } : {}),
     selectedKey: inputs.selectedKey,
     ...(inputs.completeInvocations === true ? { completeInvocations: true as const } : {}),
     bindings: continuation?.bindings ?? new Map(),
@@ -1200,9 +1363,11 @@ function returnedCallableOwnerUses(
     readonly admits: ((call: CallExpression) => boolean) | undefined;
     readonly path: readonly string[];
     readonly selected: string;
+    readonly selectedPath?: true;
+    readonly completeInvocations?: true;
   },
 ): UnresolvedReferenceFact | undefined {
-  const { owner, sources, program, admits, path, selected } = inputs;
+  const { owner, program, path, selected } = inputs;
   const factory = statement.getFirstAncestor(
     (node) => N.isFunctionDeclaration(node) || N.isFunctionExpression(node) || N.isArrowFunction(node) || N.isMethodDeclaration(node),
   );
@@ -1225,21 +1390,39 @@ function returnedCallableOwnerUses(
     if (actual.length === 0 || actual.some((source) => !source.present || source.path.length > 0 || source.value !== owner)) {
       return valueRefusal(consumer.call, "unsupported", "a returned callable owner has an unknown or different actual factory alternative");
     }
-    const continued = callableOwnerContinuation(consumer.call);
-    if (continued.kind === "unresolved") {
-      return continued;
+    refusal = returnedCallableContinuationUses(consumer.call, actual, inputs);
+    if (refusal !== undefined) {
+      return refusal;
     }
-    const { site: continuation, path: prefix } = continued.value;
-    for (const source of actual) {
-      const facts = { ...sources, value: [source], trace: { ...sources.trace, declarations: [] } };
-      refusal = callableContainingUseRefusal(facts, admits, program, {
-        continuation: { site: continuation, path: [...prefix, ...path], bindings: source.bindings },
-        completeInvocations: true,
-        selectedKey: selected,
-      });
-      if (refusal !== undefined) {
-        return refusal;
-      }
+  }
+  return refusal;
+}
+
+function returnedCallableContinuationUses(
+  call: CallExpression,
+  actual: readonly ReturnedValueSource[],
+  inputs: Parameters<typeof returnedCallableOwnerUses>[1],
+): UnresolvedReferenceFact | undefined {
+  const { sources, program, admits, path, selected } = inputs;
+  const continued = callableOwnerContinuation(call);
+  if (continued.kind === "unresolved") {
+    return continued;
+  }
+  const { site: continuation, path: prefix } = continued.value;
+  const selectedPath = inputs.selectedPath === true;
+  const continuationPath = selectedPath ? [...path, selected] : path;
+  const completeInvocations = !selectedPath || inputs.completeInvocations === true;
+  let refusal: UnresolvedReferenceFact | undefined;
+  for (const source of actual) {
+    const facts = { ...sources, value: [source], trace: { ...sources.trace, declarations: [] } };
+    refusal = callableContainingUseRefusal(facts, admits, program, {
+      continuation: { site: continuation, path: [...prefix, ...continuationPath], bindings: source.bindings },
+      ...(completeInvocations ? { completeInvocations: true as const } : {}),
+      ...(selectedPath ? { selectedValue: true as const } : {}),
+      selectedKey: selected,
+    });
+    if (refusal !== undefined) {
+      return refusal;
     }
   }
   return refusal;

@@ -1,8 +1,10 @@
 // @subject tooling/src/floor/code-facts/call-supplied.ts
 // @subject tooling/src/floor/code-facts/call-returns.ts
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import type { CallExpression } from "ts-morph";
-import { Project, SyntaxKind } from "ts-morph";
+import type { CallExpression, SourceFile } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
 import { observeCallReturns, readCallTargets, readSuppliedParameter } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
 import { beginReferencePass, endReferencePass } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
 import type { CallReturnObservations } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
@@ -853,6 +855,356 @@ for (const readonly of [false, true]) {
         const targets = queriedTargets(selected, observed);
         expect(targets.kind).toBe(scenario.resolved ? "resolved" : "unresolved");
         expect(targets.kind === "resolved" ? targets.value.map((target) => target.getText()) : []).toEqual(scenario.resolved ? ["()=>1"] : []);
+      } finally {
+        if (readonly) {
+          endReferencePass();
+        }
+      }
+    });
+  }
+}
+
+async function actualCompactionBinding(project: Project, repoRoot: string): Promise<{ owned: string; binding: string; operations: string }> {
+  const actual = project.createSourceFile("/actual-engine.ts", await readFile(join(repoRoot, "packages/server/src/domain/chat/engine/engine.ts"), "utf8"));
+  const owned = actual.getFunctionOrThrow("createTurnEngine").getBodyOrThrow().getStatements()[0];
+  const body = actual.getFunctionOrThrow("runPreTurnCompaction").getBodyOrThrow();
+  const binding = body.getStatements()[0];
+  if (!(Node.isVariableStatement(owned) && Node.isVariableStatement(binding))) {
+    throw new Error("the actual owned record and compaction binding statements are unavailable");
+  }
+  const operations = ["has", "add", "delete"].map((member) => {
+    const call = body
+      .getDescendantsOfKind(SyntaxKind.CallExpression)
+      .find((candidate) => candidate.getExpression().getText() === `compactionInFlight.${member}`);
+    if (call === undefined) {
+      throw new Error(`the actual compaction ${member} operation is unavailable`);
+    }
+    return `${call.getText()};`;
+  });
+  const source = { owned: owned.getText(), binding: binding.getText(), operations: operations.join("\n") };
+  actual.forget();
+  return source;
+}
+
+for (const readonly of [false, true]) {
+  for (const scenario of [
+    { name: "unused supplied sibling", extra: "", supplied: true, factory: false, resolved: true },
+    { name: "escaped supplied sibling", extra: "escape(other);", supplied: true, factory: false, resolved: false },
+    { name: "escaped supplied sibling const alias", extra: "const alias=other;escape(alias);", supplied: true, factory: false, resolved: false },
+    { name: "escaped nonsupplied sibling", extra: "escape(other);", supplied: false, factory: false, resolved: false },
+    { name: "recursive supplied carrier", extra: "create(ctx,other);", supplied: true, factory: false, resolved: false },
+    { name: "two unused same-body factory instances", extra: "", supplied: true, factory: true, resolved: true },
+    { name: "escaped same-body factory instance", extra: "escape(other);", supplied: true, factory: true, resolved: false },
+    { name: "escaped same-body factory instance const alias", extra: "const alias=other;escape(alias);", supplied: true, factory: true, resolved: false },
+    { name: "returned carrier alias", extra: "", supplied: true, factory: true, returnedAlias: true, resolved: false },
+    { name: "factory-local other record escape", extra: "", supplied: true, factory: true, localEscape: true, resolved: false },
+  ] as const) {
+    test(`${readonly ? "readonly" : "raw"} selected descriptor closure retains ${scenario.name}`, () => {
+      const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+      const source = project.createSourceFile(
+        "/repo/producer.ts",
+        `
+        declare function escape(value:object):void;
+        function chosen(){return 1;}
+        function create(ctx:{settle:()=>number;payload:object}${scenario.supplied ? ",other:{settle:()=>number}" : ""}){
+          const {payload}=ctx;escape(payload);${scenario.extra}return ctx.settle();
+        }
+        ${scenario.factory ? `function make(){${"localEscape" in scenario ? "const local={settle:chosen};escape(local);" : ""}${"returnedAlias" in scenario ? "const returned={settle:chosen,payload:{}};return returned;" : "return {settle:chosen,payload:{}};"}}const context=make();const other=make();` : "const context={settle:chosen,payload:{}};const other={settle:chosen};"}
+        create(context${scenario.supplied ? ",other" : ""});
+        `,
+      );
+      const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+      const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+      if (selected === undefined) {
+        throw new Error("the selected descriptor invocation is missing");
+      }
+      if (readonly) {
+        beginReferencePass();
+      }
+      try {
+        const observations = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+        const targets = queriedTargets(selected, observations);
+        expect(targets.kind, compactionTargetDescription(targets)).toBe(scenario.resolved ? "resolved" : "unresolved");
+        const chosen = source.getFunctionOrThrow("chosen");
+        expect(targets.kind === "resolved" && targets.value.length > 0 && targets.value.every((target) => target.compilerNode === chosen.compilerNode)).toBe(
+          scenario.resolved,
+        );
+      } finally {
+        if (readonly) {
+          endReferencePass();
+        }
+      }
+    });
+  }
+}
+
+for (const readonly of [false, true]) {
+  for (const scenario of [
+    { name: "overridden descriptor", expression: "{settle:()=>1,...{settle:()=>2}}", expected: ["()=>2"] },
+    { name: "absent spread inherits earlier descriptor", expression: "{settle:()=>1,...(choose?{settle:()=>2}:{})}", expected: ["()=>1", "()=>2"] },
+  ] as const) {
+    test(`${readonly ? "readonly" : "raw"} selected descriptor provenance retains ${scenario.name}`, () => {
+      const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+      const source = project.createSourceFile(
+        "/repo/producer.ts",
+        `declare const choose:boolean;function create(ctx:{settle:()=>number}){return ctx.settle();}
+        const context=${scenario.expression};create(context);`,
+      );
+      const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+      const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+      if (selected === undefined) {
+        throw new Error("the selected provenance invocation is missing");
+      }
+      const expected = scenario.expected.map((text) => source.getDescendantsOfKind(SyntaxKind.ArrowFunction).find((node) => node.getText() === text));
+      if (readonly) {
+        beginReferencePass();
+      }
+      try {
+        const observations = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+        const origins = readAuthoredCallableSources(selected.getExpression(), undefined, observations);
+        expect(origins.kind).toBe("resolved");
+        expect(origins.kind === "resolved" ? origins.value.length : 0).toBe(expected.length);
+        expect(origins.kind === "resolved" && expected.every((node) => origins.value.some((origin) => origin.value.compilerNode === node?.compilerNode))).toBe(
+          true,
+        );
+        expect(
+          origins.kind === "resolved" &&
+            origins.value.every(
+              (origin) => origin.selectedDescriptors?.length === 1 && origin.selectedDescriptors[0]?.value.compilerNode === origin.value.compilerNode,
+            ),
+        ).toBe(true);
+      } finally {
+        if (readonly) {
+          endReferencePass();
+        }
+      }
+    });
+  }
+  test(`${readonly ? "readonly" : "raw"} selected descriptor provenance retains each factory's actual binding`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    const source = project.createSourceFile(
+      "/repo/producer.ts",
+      `declare const choose:boolean;function create(ctx:{settle:()=>number}){return ctx.settle();}
+      function make(marker:number){return {settle:()=>marker};}
+      const context=choose?make(1):make(2);create(context);`,
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+    const actuals = calls.filter((call) => call.getExpression().getText() === "make").map((call) => call.getArguments()[0]);
+    const make = source.getFunctionOrThrow("make");
+    const parameter = make.getParameters()[0];
+    const descriptor = make.getDescendantsOfKind(SyntaxKind.PropertyAssignment)[0]?.getInitializer();
+    if (selected === undefined || parameter === undefined || descriptor === undefined || actuals.length !== 2) {
+      throw new Error("the two actual descriptor allocations are missing");
+    }
+    if (readonly) {
+      beginReferencePass();
+    }
+    try {
+      const observations = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const origins = readAuthoredCallableSources(selected.getExpression(), undefined, observations);
+      expect(origins.kind).toBe("resolved");
+      const allocations =
+        origins.kind === "resolved"
+          ? origins.value.flatMap((origin) => origin.selectedDescriptors ?? []).filter((hop) => hop.value.compilerNode === descriptor.compilerNode)
+          : [];
+      expect(allocations.length).toBe(2);
+      expect(actuals.map((actual) => allocations.filter((hop) => hop.bindings.get(parameter)?.compilerNode === actual?.compilerNode).length)).toEqual([1, 1]);
+    } finally {
+      if (readonly) {
+        endReferencePass();
+      }
+    }
+  });
+}
+
+const COMPACTION_BINDING_CASES = [
+  { name: "direct member baseline", binding: "const compactionInFlight=deps.compactionInFlight;", extra: "", value: "", resolved: true },
+  { name: "actual disjoint shorthand", binding: "", extra: "", value: "", resolved: true },
+  { name: "renamed disjoint data", binding: "const {compactionInFlight:running}=deps;", extra: "", value: "rename", resolved: true },
+  { name: "selected write", binding: "", extra: "deps.recallMemory=()=>({});", value: "", resolved: false },
+  { name: "selected alias write", binding: "", extra: "const alias=deps;alias.recallMemory=()=>({});", value: "", resolved: false },
+  { name: "receiver escape", binding: "", extra: "escape(deps);", value: "", resolved: false },
+  { name: "receiver alias escape", binding: "", extra: "const alias=deps;escape(alias);", value: "", resolved: false },
+  { name: "selected callable escape", binding: "", extra: "const {recallMemory:copy}=deps;escape(copy);", value: "", resolved: false },
+  { name: "hidden callable alias", binding: "", extra: "escape(compactionInFlight);", value: "deps.recallMemory", resolved: false },
+  { name: "hidden receiver alias", binding: "", extra: "escape(compactionInFlight);", value: "deps", resolved: false },
+  { name: "hidden named callable alias", binding: "", extra: "escape(compactionInFlight);", value: "recallMemory", resolved: false },
+  {
+    name: "direct hidden named callable alias",
+    binding: "const compactionInFlight=deps.compactionInFlight;",
+    extra: "escape(compactionInFlight);",
+    value: "recallMemory",
+    resolved: false,
+  },
+  { name: "reassigned hidden named callable alias", binding: "", extra: "escape(compactionInFlight);", value: "holder", resolved: false },
+  {
+    name: "direct reassigned hidden named callable alias",
+    binding: "const compactionInFlight=deps.compactionInFlight;",
+    extra: "escape(compactionInFlight);",
+    value: "holder",
+    resolved: false,
+  },
+  { name: "hidden selected containing receiver", binding: "", extra: "escape(compactionInFlight);", value: "context", resolved: false },
+  {
+    name: "direct hidden selected containing receiver",
+    binding: "const compactionInFlight=deps.compactionInFlight;",
+    extra: "escape(compactionInFlight);",
+    value: "context",
+    resolved: false,
+  },
+  { name: "defaulted data", binding: "const {compactionInFlight=new Set<ChatId>()}=deps;", extra: "", value: "", resolved: false },
+  { name: "rest receiver", binding: "const {compactionInFlight,...rest}=deps;", extra: "escape(rest);", value: "", resolved: false },
+  { name: "computed data", binding: 'const key="compactionInFlight";const {[key]:compactionInFlight}=deps;', extra: "", value: "", resolved: false },
+  { name: "getter data", binding: "", extra: "", value: "getter", resolved: false },
+  { name: "opaque receiver alternative", binding: "", extra: "", value: "opaque", resolved: false },
+  { name: "unsafe first factory instance", binding: "", extra: "", value: "first", resolved: false },
+  { name: "all safe factory instances", binding: "", extra: "", value: "both", resolved: true },
+] as const;
+
+type CompactionBindingCase = (typeof COMPACTION_BINDING_CASES)[number];
+
+function compactionOwnedStatement(value: CompactionBindingCase["value"], ordinary: string): string {
+  switch (value) {
+    case "getter":
+      return "const owned={...deps,get compactionInFlight(){deps.recallMemory=()=>({});return new Set<ChatId>();}};";
+    case "opaque":
+      return "const owned=choose?{...deps,compactionInFlight:new Set<ChatId>()}:foreign;";
+    case "deps":
+    case "deps.recallMemory":
+    case "recallMemory":
+    case "context":
+    case "holder":
+      return `const owned={...deps,compactionInFlight:${value}};`;
+    case "":
+    case "first":
+    case "rename":
+    case "both":
+      return ordinary;
+  }
+}
+
+function compactionFixtureSource(project: Project, actual: Awaited<ReturnType<typeof actualCompactionBinding>>, scenario: CompactionBindingCase): SourceFile {
+  const binding = scenario.binding || actual.binding;
+  const operations = ["deps", "deps.recallMemory", "recallMemory", "context", "holder"].some((value) => value === scenario.value)
+    ? ""
+    : actual.operations.replaceAll("compactionInFlight", scenario.value === "rename" ? "running" : "compactionInFlight");
+  const owned = compactionOwnedStatement(scenario.value, actual.owned);
+  const instances =
+    scenario.value === "first" || scenario.value === "both"
+      ? `const first={recallMemory};const second={recallMemory};createTurnEngine(context,first);${scenario.value === "first" ? "first.recallMemory=()=>({});" : ""}createTurnEngine(context,second);`
+      : "createChatService(context);";
+  const service =
+    scenario.value === "first" || scenario.value === "both" ? "" : "function createChatService(ctx:Context){return createTurnEngine(ctx,{recallMemory});}";
+  return project.createSourceFile(
+    "/repo/producer.ts",
+    `
+        type ChatId=string;type Context={db:object;settle:()=>number};type Deps={recallMemory:(ctx:Context)=>object};
+        type OwnedEngineDeps=Deps&{compactionInFlight:${["recallMemory", "context", "holder"].some((value) => value === scenario.value) ? "object" : "Set<ChatId>"}};
+        declare function escape(value:object):void;declare const choose:boolean;declare const foreign:OwnedEngineDeps;
+        function recallMemory(ctx:Context){return ctx.db;}
+        ${scenario.value === "holder" ? "let holder:object={};holder=recallMemory;" : ""}
+        function resolveSpeakerMemory(ctx:Context,deps:Deps){return deps.recallMemory(ctx);}
+        function runPreTurnCompaction(ctx:Context,deps:OwnedEngineDeps,prep:{chatId:ChatId}){
+          const chatId=prep.chatId;${binding}${scenario.extra}${operations}
+        }
+        function createTurnEngine(ctx:Context,deps:Deps){
+          ${owned}runPreTurnCompaction(ctx,owned,{chatId:"room"});resolveSpeakerMemory(ctx,owned);return ctx.settle();
+        }
+        ${service}
+        const context={db:{},settle:()=>1};${instances}
+      `,
+  );
+}
+
+function compactionTargetDescription(targets: ReturnType<typeof queriedTargets>): string {
+  return JSON.stringify(
+    targets.kind === "resolved" ? targets.kind : { kind: targets.kind, detail: targets.detail, node: targets.node.getText().slice(0, 240) },
+  );
+}
+
+function expectCompactionAllocations(
+  source: SourceFile,
+  dependency: CallExpression,
+  observations: CallReturnObservations,
+  factoryArguments: readonly (import("ts-morph").Node | undefined)[],
+): void {
+  const program = observations.programs[0];
+  const authored =
+    factoryArguments.length > 0
+      ? readAuthoredCallableSources(dependency.getExpression(), (call) => program?.byCall.has(call.compilerNode) === true, observations)
+      : undefined;
+  const parameter = source.getFunctionOrThrow("createTurnEngine").getParameters()[1];
+  const actualAllocations =
+    authored?.kind === "resolved"
+      ? authored.value.map((value) => {
+          const supplied = parameter === undefined ? undefined : value.bindings.get(parameter);
+          return factoryArguments.findIndex((argument) => argument !== undefined && argument.compilerNode === supplied?.compilerNode);
+        })
+      : [];
+  expect(actualAllocations.toSorted((left, right) => left - right)).toEqual(factoryArguments.map((_argument, index) => index));
+}
+
+function expectCompactionTargets(
+  source: SourceFile,
+  calls: readonly CallExpression[],
+  inputs: {
+    readonly dependency: CallExpression;
+    readonly selected: CallExpression;
+    readonly observations: CallReturnObservations;
+    readonly resolved: boolean;
+    readonly dependencyResolved: boolean;
+  },
+): { readonly dependency: string; readonly selected: string } {
+  const { dependency, selected, observations, resolved, dependencyResolved } = inputs;
+  const dependencyTargets = queriedTargets(dependency, observations);
+  const selectedTargets = queriedTargets(selected, observations);
+  expect(
+    { dependency: dependencyTargets.kind, selected: selectedTargets.kind },
+    JSON.stringify({ dependency: compactionTargetDescription(dependencyTargets), selected: compactionTargetDescription(selectedTargets) }),
+  ).toEqual({ dependency: dependencyResolved ? "resolved" : "unresolved", selected: resolved ? "resolved" : "unresolved" });
+  const factoryArguments = dependencyResolved
+    ? calls.filter((call) => call.getExpression().getText() === "createTurnEngine").map((call) => call.getArguments()[1])
+    : [];
+  const actualDeclaration = source.getFunctionOrThrow("recallMemory");
+  expect(dependencyTargets.kind === "resolved" ? dependencyTargets.value.map((target) => target.compilerNode === actualDeclaration.compilerNode) : []).toEqual(
+    factoryArguments.map(() => true),
+  );
+  const context = source.getVariableDeclarationOrThrow("context").getInitializerOrThrow().asKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+  const suppliedSettle = context
+    .getPropertyOrThrow("settle")
+    .asKindOrThrow(SyntaxKind.PropertyAssignment)
+    .getInitializerOrThrow()
+    .asKindOrThrow(SyntaxKind.ArrowFunction);
+  expect(selectedTargets.kind === "resolved" ? selectedTargets.value.map((target) => target.compilerNode === suppliedSettle.compilerNode) : []).toEqual(
+    resolved ? factoryArguments.map(() => true) : [],
+  );
+  expectCompactionAllocations(source, dependency, observations, factoryArguments);
+  return { dependency: dependencyTargets.kind, selected: selectedTargets.kind };
+}
+
+for (const readonly of [false, true]) {
+  for (const scenario of COMPACTION_BINDING_CASES) {
+    test(`${readonly ? "readonly" : "raw"} source-derived compaction binding retains ${scenario.name}`, async ({ repoRoot }) => {
+      const project = new Project({ useInMemoryFileSystem: true });
+      const actual = await actualCompactionBinding(project, repoRoot);
+      const source = compactionFixtureSource(project, actual, scenario);
+      const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+      const dependency = calls.find((call) => call.getExpression().getText() === "deps.recallMemory");
+      const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+      if (dependency === undefined || selected === undefined) {
+        throw new Error("the actual dependency and selected context invocations are missing");
+      }
+      if (readonly) {
+        beginReferencePass();
+      }
+      try {
+        const observations = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+        const dependencyResolved = scenario.resolved || scenario.value === "context";
+        expect(expectCompactionTargets(source, calls, { dependency, selected, observations, resolved: scenario.resolved, dependencyResolved })).toEqual({
+          dependency: dependencyResolved ? "resolved" : "unresolved",
+          selected: scenario.resolved ? "resolved" : "unresolved",
+        });
       } finally {
         if (readonly) {
           endReferencePass();
