@@ -16,8 +16,6 @@
 // verdict is local to one AsExpression and its checker types, and no finalizer or shared fact exists.
 import type { AsExpression, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { AgreementContext, AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
-import { readAssignabilityChecker, typeRelationAcross } from "../../floor/code-facts/assignability.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
@@ -66,17 +64,11 @@ function literalCastAnchor(node: AsExpression): TypeNode | undefined {
 
 // A value cast fabricates when the checker cannot prove the value already has the asserted type: an `any` or
 // `unknown` operand, or a type the target is not assignable from. An up-cast the checker proves is no claim.
-function valueCastAnchor(node: AsExpression, context: AgreementContext): TypeNode | undefined {
+function valueCastTarget(node: AsExpression): TypeNode | undefined {
   const type = node.getTypeNode();
-  // `no-loose-id-cast` owns `as never` everywhere, tests included.
-  if (type === undefined || type.isKind(SyntaxKind.NeverKeyword) || NON_FABRICATING_CAST_TARGETS.has(type.getText()) || isLiteralOperand(node)) {
-    return;
-  }
-  const relation = typeRelationAcross(context, node.getExpression(), node, (left, right) => [left.getType(), right.getType()]);
-  if (relation === undefined) {
-    throw new Error("no-test-fabrication: the value cast has no comparable native types");
-  }
-  return relation.leftIsAny || !relation.leftToRight ? type : undefined;
+  return type === undefined || type.isKind(SyntaxKind.NeverKeyword) || NON_FABRICATING_CAST_TARGETS.has(type.getText()) || isLiteralOperand(node)
+    ? undefined
+    : type;
 }
 
 function reportTyped(ctx: GatePolicyContext, node: AsExpression, type: TypeNode, message: string): void {
@@ -103,21 +95,7 @@ export const gate = defineGate({
   message: DOUBLE_CAST_MSG,
   fix: FIX,
   create: (ctx) => {
-    const assignability = readAssignabilityChecker(ctx.checker());
-    if (assignability === undefined) {
-      throw new Error(
-        "no-test-fabrication: this TypeScript build exposes no `checker.isTypeAssignableTo`, so a value cast cannot be judged (tooling/src/floor/code-facts/assignability.ts)",
-      );
-    }
-    const refuse = (kind: AssignabilityRefusalKind): never => {
-      const reasons: Readonly<Record<AssignabilityRefusalKind, string>> = {
-        "primitive-absent": "this native program exposes no checker.isTypeAssignableTo, so a value cast cannot be judged",
-        "no-shared-program": "the value and asserted type share no native compiler program",
-        "programs-disagree": "native compiler programs disagree about value cast assignability",
-      };
-      throw new Error(`no-test-fabrication: ${reasons[kind]}`);
-    };
-    const context = { checker: assignability, refuse };
+    const candidates: AsExpression[] = [];
     return {
       visitors: [
         {
@@ -141,13 +119,31 @@ export const gate = defineGate({
               reportTyped(ctx, node, literal, LITERAL_CAST_MSG(literal.getText()));
               return;
             }
-            const value = valueCastAnchor(node, context);
-            if (value !== undefined) {
-              reportTyped(ctx, node, value, VALUE_CAST_MSG(value.getText()));
+            if (valueCastTarget(node) !== undefined) {
+              candidates.push(node);
             }
           },
         },
       ],
+      evaluate: () => {
+        if (candidates.length === 0) {
+          return;
+        }
+        if (ctx.castRelations === undefined) {
+          throw new Error("no-test-fabrication: native cast relation context is unavailable");
+        }
+        const relations = ctx.castRelations(candidates);
+        for (const node of candidates) {
+          const relation = relations.get(node);
+          if (relation === undefined) {
+            throw new Error("no-test-fabrication: the value cast has no comparable native types");
+          }
+          if (relation.leftIsAny || !relation.leftToRight) {
+            const type = node.getTypeNodeOrThrow();
+            reportTyped(ctx, node, type, VALUE_CAST_MSG(type.getText()));
+          }
+        }
+      },
     };
   },
   mustFlag: [

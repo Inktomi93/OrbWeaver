@@ -3,8 +3,22 @@ import type { FileSystemHost, Node, SourceFile } from "ts-morph";
 import { z } from "zod";
 import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compiler-programs-contract.ts";
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
+import { typeRelationSchema } from "./assignability-contract.ts";
 
-export const INVENTORY_FORMAT = 3;
+export const INVENTORY_FORMAT = 4;
+export const INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses", "cast-relations"] as const;
+export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
+export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
+const familySchema = z
+  .array(z.enum(INVENTORY_FAMILIES))
+  .min(1)
+  .refine((values) => new Set(values).size === values.length, "duplicate inventory family")
+  .readonly();
+
+/** Normalize a closed demand before worker acquisition; omitted demand preserves the existing inventory. */
+export function inventoryFamilies(families: unknown): readonly InventoryFamily[] {
+  return familySchema.parse(families ?? DEFAULT_INVENTORY_FAMILIES).toSorted();
+}
 export const INVENTORY_KEY_SEPARATOR = "\0";
 export const INVENTORY_CONSUMER_CLASSES = ["product", "tooling", "test"] as const;
 export type InventoryConsumerClass = (typeof INVENTORY_CONSUMER_CLASSES)[number];
@@ -15,7 +29,14 @@ export const spanSchema = z.object({ file: z.string(), start: z.number().int(), 
 export const INVENTORY_INPUT_KINDS = ["file", "directory", "exists"] as const;
 export const inputSchema = z.object({ path: z.string(), kind: z.enum(INVENTORY_INPUT_KINDS), version: z.string() });
 export const symbolSchema = z.object({ lexical: z.array(spanSchema), origins: z.array(spanSchema) });
+export const castRelationResultSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("resolved"), value: typeRelationSchema }),
+  z.object({ kind: z.literal("unavailable"), reason: z.literal("primitive-absent") }),
+]);
+export type InventoryCastRelationResult = z.infer<typeof castRelationResultSchema>;
 export const partitionSchema = z.object({
+  families: familySchema,
+  casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
   format: z.literal(INVENTORY_FORMAT),
   program: z.string(),
   descriptorVersion: z.string(),
@@ -39,6 +60,7 @@ export const partitionSchema = z.object({
 });
 
 export const partitionMetadataSchema = partitionSchema.omit({
+  casts: true,
   inputs: true,
   sources: true,
   exports: true,
@@ -50,9 +72,17 @@ export const partitionMetadataSchema = partitionSchema.omit({
 export const storedPartitionSchema = partitionMetadataSchema.extend({ id: z.string() });
 export type StoredInventoryPartition = z.infer<typeof storedPartitionSchema>;
 export const INVENTORY_LISTS = ["configPaths", "projectReferences", "roots", "nativeRoots"] as const;
+export const INVENTORY_FAMILY_FIELDS = {
+  exports: "exports",
+  modules: "modules",
+  bindings: "bindings",
+  references: "references",
+  witnesses: "witnesses",
+  "cast-relations": "casts",
+} as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
-export const INVENTORY_RECORD_TABLES = ["descriptor", "list", "input", "source", "text", "span", "fact", "declaration", "reference"] as const;
+export const INVENTORY_RECORD_TABLES = ["descriptor", "family", "list", "input", "source", "text", "span", "fact", "declaration", "reference", "cast"] as const;
 export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
 export interface InventoryRecord {
   readonly table: InventoryRecordTable;
@@ -75,6 +105,7 @@ export interface InventoryOverlay {
 }
 
 export interface InventoryBuildRequest {
+  readonly families?: readonly InventoryFamily[];
   readonly root: string;
   readonly descriptor: CompilerProgram;
   readonly destination: string;
@@ -82,6 +113,7 @@ export interface InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
+  readonly families?: readonly InventoryFamily[];
   readonly root: string;
   readonly programs?: readonly CompilerProgram[];
   readonly databasePath?: string;
@@ -94,6 +126,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly castRelation: (node: Node, program: string) => InventoryCastRelationResult;
   readonly generation: number;
   readonly programs: readonly string[];
   readonly canonicalPath: (path: string) => string;

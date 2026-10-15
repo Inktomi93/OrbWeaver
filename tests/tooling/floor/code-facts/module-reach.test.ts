@@ -5,7 +5,7 @@ import { collectModuleImporters } from "../../../../tooling/src/floor/code-facts
 import { modulePositionSpecifier } from "../../../../tooling/src/floor/code-facts/module-specifier.ts";
 import { reachableDeclarations } from "../../../../tooling/src/floor/code-facts/production-reach.ts";
 import type { InventoryPartition } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
-import { INVENTORY_FORMAT, SemanticInventoryError } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { DEFAULT_INVENTORY_FAMILIES, INVENTORY_FORMAT, SemanticInventoryError } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
   openInventoryDatabase,
   publishInventoryGeneration,
@@ -128,6 +128,8 @@ test("unqualified syntax carriers refuse native importer, test and runtime reach
 
   const partition: InventoryPartition = {
     format: INVENTORY_FORMAT,
+    families: DEFAULT_INVENTORY_FAMILIES,
+    casts: [],
     program: "tooling/tsconfig.json",
     descriptorVersion: "syntax-only-control",
     compilerOptionsJson: "{}",

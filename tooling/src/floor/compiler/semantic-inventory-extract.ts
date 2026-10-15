@@ -6,13 +6,15 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { FileSystemHost, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, ts } from "ts-morph";
+import type { AssignabilityChecker } from "../code-facts/assignability.ts";
+import { readAssignabilityChecker, readNativeTypeRelation } from "../code-facts/assignability.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
-import type { InventoryBuildRequest, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
-import { INVENTORY_FORMAT } from "../code-facts/semantic-inventory-contract.ts";
+import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
+import { INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion } from "../code-facts/semantic-inventory-inputs.ts";
 import { readAuthoredRepositoryInventory } from "./authored-repository.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
-import { descendantsOfKind, nativeCompilerSourceFiles } from "./ts-workspace.ts";
+import { collectByKinds, descendantsOfKind, nativeCompilerSourceFiles } from "./ts-workspace.ts";
 
 interface InventorySpans {
   readonly path: (path: string) => string;
@@ -141,12 +143,19 @@ function witnessFacts(sf: SourceFile, spans: InventorySpans): InventoryPartition
 
 /** Extract primitive compiler facts without running any consumer classification. */
 export function extractInventoryPartition(request: InventoryBuildRequest): InventoryPartition {
+  const families = inventoryFamilies(request.families);
   const inputs = new Map<string, InventoryInput>();
   const base = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
   const fileSystem = inventoryFileSystem(base, request.overlay, inputs);
   const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
+    ...(families.includes("cast-relations")
+      ? [
+          fileURLToPath(new URL("../code-facts/assignability.ts", import.meta.url)),
+          fileURLToPath(new URL("../code-facts/assignability-contract.ts", import.meta.url)),
+        ]
+      : []),
     ts.sys.getExecutingFilePath(),
     fileURLToPath(new URL("./ts-workspace.ts", import.meta.url)),
     fileURLToPath(new URL("./semantic-inventory-filesystem.ts", import.meta.url)),
@@ -194,10 +203,11 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   if (program === undefined) {
     throw new Error("native inventory language service has no Program");
   }
-  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, spans);
-  const facts = { ...sourceFacts, references: extractReferenceFacts(service, program, referenceDeclarations, spans) };
+  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, { spans, families: new Set(families) });
+  const facts = { ...sourceFacts, references: families.includes("references") ? extractReferenceFacts(service, program, referenceDeclarations, spans) : [] };
   return {
     format: INVENTORY_FORMAT,
+    families,
     program: request.descriptor.id,
     descriptorVersion: descriptorVersion(request.descriptor),
     compilerOptionsJson: JSON.stringify(request.descriptor.commandLine.options),
@@ -272,17 +282,84 @@ function assertAuthoredSyntax(original: SourceFile, admitted: SourceFile, spans:
   }
 }
 
+type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses" | "casts">;
+interface SourceFactCollection {
+  readonly families: ReadonlySet<InventoryFamily>;
+  readonly spans: InventorySpans;
+  readonly authored: ReadonlySet<string>;
+  readonly values: SourceFactValues;
+  readonly referenceDeclarations: Map<InventorySpan, ReferenceDeclaration>;
+  readonly checker: AssignabilityChecker | undefined;
+}
+
+function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void {
+  if (!(context.families.has("exports") || context.families.has("references"))) {
+    return;
+  }
+  for (const [name, declarations] of sf.getExportedDeclarations()) {
+    if (context.families.has("exports")) {
+      context.values.exports.push({ file: context.spans.path(sf.getFilePath()), name, declarations: declarations.map(context.spans.node) });
+    }
+    if (context.families.has("references")) {
+      registerReferenceDeclarations(declarations, context.authored, context.referenceDeclarations, context.spans);
+    }
+  }
+}
+
+function collectIdentifierFacts(node: MorphNode, context: SourceFactCollection): void {
+  if (context.families.has("bindings")) {
+    context.values.bindings.push({ node: context.spans.node(node), symbols: bindingFacts(node, context.spans) });
+  }
+  if (context.families.has("references")) {
+    registerReferenceDeclarations(node.getSymbol()?.getDeclarations() ?? [], context.authored, context.referenceDeclarations, context.spans);
+  }
+}
+
+function collectCastFact(node: MorphNode, context: SourceFactCollection): void {
+  if (!Node.isAsExpression(node)) {
+    throw new Error("native cast visitor received another node kind");
+  }
+  context.values.casts.push({
+    node: context.spans.node(node),
+    result:
+      context.checker === undefined
+        ? { kind: "unavailable", reason: "primitive-absent" }
+        : { kind: "resolved", value: readNativeTypeRelation(context.checker, node.getExpression().getType(), node.getType()) },
+  });
+}
+
+function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): void {
+  const { families, spans, values } = context;
+  if (families.has("modules")) {
+    values.modules.push(...moduleFacts(sf, spans));
+  }
+  if (families.has("witnesses")) {
+    values.witnesses.push(...witnessFacts(sf, spans));
+  }
+  const visitors = new Map<SyntaxKind, ((node: MorphNode) => void)[]>();
+  if (families.has("bindings") || families.has("references")) {
+    visitors.set(SyntaxKind.Identifier, [(node): void => collectIdentifierFacts(node, context)]);
+  }
+  if (families.has("cast-relations")) {
+    visitors.set(SyntaxKind.AsExpression, [(node): void => collectCastFact(node, context)]);
+  }
+  collectByKinds([sf], visitors);
+}
+
 function extractSourceFacts(
   program: ts.Program,
   sources: InventorySources,
   authored: ReadonlySet<string>,
-  spans: InventorySpans,
-): Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses"> & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
-  const exports: InventoryPartition["exports"] = [];
-  const modules: InventoryPartition["modules"] = [];
-  const bindings: InventoryPartition["bindings"] = [];
-  const witnesses: InventoryPartition["witnesses"] = [];
-  const referenceDeclarations = new Map<InventorySpan, ReferenceDeclaration>();
+  input: Pick<SourceFactCollection, "families" | "spans">,
+): SourceFactValues & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
+  const { spans } = input;
+  const context: SourceFactCollection = {
+    ...input,
+    authored,
+    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [] },
+    referenceDeclarations: new Map(),
+    checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),
+  };
   const standaloneSources = nativeCompilerSourceFiles(program);
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
   try {
@@ -295,30 +372,18 @@ function extractSourceFacts(
       if (authored.has(file)) {
         assertAuthoredSyntax(original, sf, spans);
       }
-      // Dependency exports are required because importing worlds can resolve a package to a distinct closure.
-      for (const [name, declarations] of sf.getExportedDeclarations()) {
-        exports.push({ file, name, declarations: declarations.map(spans.node) });
-        registerReferenceDeclarations(declarations, authored, referenceDeclarations, spans);
-      }
+      collectExportFacts(sf, context);
       if (authored.has(file)) {
-        modules.push(...moduleFacts(sf, spans));
-        witnesses.push(...witnessFacts(sf, spans));
-        for (const id of descendantsOfKind(sf, SyntaxKind.Identifier)) {
-          const symbols = bindingFacts(id, spans);
-          bindings.push({ node: spans.node(id), symbols });
-          const symbol = id.getSymbol();
-          registerReferenceDeclarations(symbol?.getDeclarations() ?? [], authored, referenceDeclarations, spans);
-        }
+        collectAuthoredFacts(sf, context);
       }
       sf.forgetDescendants();
     }
   } finally {
-    // These wrappers belong to the standalone checker context, never either native Program's host.
     for (const sf of standaloneSources) {
       sf.forget();
     }
   }
-  return { exports, modules, bindings, witnesses, referenceDeclarations };
+  return { ...context.values, referenceDeclarations: context.referenceDeclarations };
 }
 
 function extractReferenceFacts(

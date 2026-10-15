@@ -52,6 +52,8 @@ export interface SemanticWorkspace {
   readonly root: string;
   readonly programs: readonly SemanticProgram[];
   readonly program: (config: string) => SemanticProgram | undefined;
+  /** Existing primary-root selection without materializing a Project. */
+  readonly primaryOwner: (path: string) => SemanticProgram | undefined;
   readonly rootOwners: (path: string) => readonly SemanticProgram[];
   readonly containingPrograms: (path: string) => readonly SemanticProgram[];
   readonly sourceViews: (path: string) => readonly SemanticSourceView[];

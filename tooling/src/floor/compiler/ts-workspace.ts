@@ -301,6 +301,10 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
     inventory: (): ReturnType<typeof createSemanticInventory> => createSemanticInventory({ ...options, root }),
     programs,
     program: (config): SemanticProgram | undefined => byConfig.get(repoRelative(root, config)),
+    primaryOwner: (path): SemanticProgram | undefined => {
+      const config = primaryConfig(repoRelative(root, path));
+      return config === undefined ? undefined : byConfig.get(config);
+    },
     rootOwners,
     containingPrograms,
     sourceViews,
