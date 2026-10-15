@@ -16,9 +16,9 @@
 // GRANTS ON SURVIVING ROWS ARE NEVER TOUCHED. The only writes here are the record delete and the real
 // uninstall (deactivate → delete row → reap the bundle asset); a diverged row is read and left alone.
 
+import type { PluginFanoutSkip } from "@orb/contracts/plugin";
 import { PluginNotDistributedError } from "../contract/errors.ts";
 import type { UninstallForAllUsersParams } from "../contract/params.ts";
-import type { PluginFanoutSkip } from "../contract/results.ts";
 import type { PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
 import { deleteDistribution, getDistribution } from "../persistence/distributed-plugins.ts";
 import { getByOwnerSlug } from "../persistence/plugins.ts";

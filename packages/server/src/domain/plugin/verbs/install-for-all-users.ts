@@ -26,8 +26,8 @@
 // (the `already-installed` arm) and completes the rest. That is why the skip arm is a reported outcome rather
 // than an error — it is also the retry mechanism.
 
+import type { PluginFanoutSkip } from "@orb/contracts/plugin";
 import type { InstallForAllUsersParams } from "../contract/params.ts";
-import type { PluginFanoutSkip } from "../contract/results.ts";
 import type { DistributionInstallDeps, PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
 import { upsertDistribution } from "../persistence/distributed-plugins.ts";
 

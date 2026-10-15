@@ -8,8 +8,8 @@
 // calls, and the only way to know that cheaply is one room-level query whose empty answer the transcript can
 // hold. Empty result ⇒ the client renders exactly as it did before this seam existed.
 
+import type { PluginDisplayTransformView } from "@orb/contracts/plugin";
 import type { ListDisplayTransformsParams } from "../contract/params.ts";
-import type { PluginDisplayTransformView } from "../contract/results.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
 

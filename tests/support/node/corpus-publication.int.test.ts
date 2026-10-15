@@ -19,6 +19,8 @@ import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { captureCorpusMemberMessages, seedCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import { CORPUS_CHAT_MODEL, CORPUS_CHAT_REPLY, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_NOTIFICATION_RULE_MESSAGE, seedCorpusNotifications } from "./corpus-notifications.ts";
+import { captureCorpusPluginStage, seedCorpusPlugins } from "./corpus-plugin.ts";
+import { CORPUS_PLUGIN_OUTPUT_PRIVATE_VALUE } from "./corpus-plugin-outputs.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -43,6 +45,77 @@ async function publication(root: ServerTestHarness): Promise<CorpusWire> {
   const health = healthResponseSchema.parse(await (await root.http.request("/healthz")).json());
   return hydrateCorpusWire({ auth: authentication.auth, reads, health });
 }
+
+test("portable plugin stages preserve native viewers and finite requests while refusing private guest echoes", async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn, authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  const wire = await publication(root);
+  const recipient = await root.actor();
+  const captured = await seedCorpusPlugins(root, recipient.id);
+  const extended = { ...wire, pluginLibrary: captured.library };
+  const secrets = [OWNER_PASSWORD, ...captured.wirePrivateLiterals];
+  const bytes = serializeCorpusWire(extended, secrets);
+  const parsed = parseCorpusWire(bytes);
+  expect(parsed).toEqual(extended);
+  expect(parseCorpusWire(serializeCorpusWire(wire, secrets)).pluginLibrary).toBeUndefined();
+  const library = parsed.pluginLibrary;
+  if (library === undefined) {
+    throw new Error("Portable plugin lifecycle captures disappeared");
+  }
+  const active = library.ownerActive;
+  const state = { viewerUserId: active.viewerUserId, read: active.reads.state };
+  const respond = createCorpusViewerReadResponder("plugin.getSurfaceState", root.ownerId, state);
+  expect(respond(active.reads.state.input)).toEqual({ entry: "Initial ledger entry" });
+  expect(() => createCorpusViewerReadResponder("plugin.getSurfaceState", recipient.id, state)).toThrow("snapshot viewer does not match");
+  expect(() => respond(library.recipientActive.reads.state.input)).toThrow("Uncaptured corpus read");
+  // Decoded malformed input must not collapse to an inputless native request.
+  expect(() => Reflect.apply(createCorpusReadResponder("plugin.list", [active.reads.plugins]), undefined, [{}])).toThrow("Uncaptured corpus read");
+  expect(() => createCorpusReadResponder("plugin.getLog", [active.reads.log])({ ...active.reads.log.input, limit: 1 })).toThrow("Uncaptured corpus read");
+  expect(() => createCorpusReadResponder("plugin.getSurfaceState", [active.reads.state, library.ownerDisabled.reads.state])).toThrow(
+    "Conflicting corpus captures",
+  );
+  for (const read of ["plugins", "surfaces", "commands", "displayTransforms"] as const) {
+    const changed = structuredClone(extended);
+    Object.assign(changed.pluginLibrary.ownerActive.reads[read], { input: {} });
+    expect(() => serializeCorpusWire(hydrateCorpusWire(changed), secrets)).toThrow("publication recipe");
+  }
+  for (const read of ["assets", "log", "state"] as const) {
+    const changed = structuredClone(extended);
+    Object.assign(changed.pluginLibrary.ownerActive.reads[read].input, { pluginId: captured.recipient.outcome.id });
+    expect(() => serializeCorpusWire(hydrateCorpusWire(changed), secrets)).toThrow("publication recipe");
+  }
+  const changedLimit = structuredClone(extended);
+  Object.assign(changedLimit.pluginLibrary.ownerActive.reads.log.input, { limit: 1 });
+  expect(() => serializeCorpusWire(changedLimit, secrets)).toThrow("publication recipe");
+  const changedRoom = structuredClone(extended);
+  Object.assign(changedRoom.pluginLibrary.ownerActive.reads.state.input, { chatId: wire.reads["chat.getChat"][0]?.output.id });
+  expect(() => serializeCorpusWire(changedRoom, secrets)).toThrow("publication recipe");
+  const swapped = structuredClone(extended);
+  Object.assign(swapped.pluginLibrary.ownerActive, { viewerUserId: recipient.id });
+  expect(() => serializeCorpusWire(swapped, secrets)).toThrow("viewer or lifecycle cohort mismatch");
+  const mixed = structuredClone(extended);
+  Object.assign(mixed.pluginLibrary.ownerActive.reads.surfaces.output[0] ?? {}, { pluginId: captured.recipient.outcome.id });
+  expect(() => serializeCorpusWire(mixed, secrets)).toThrow("registration catalog mismatch");
+  const wrongStage = structuredClone(extended);
+  Object.assign(wrongStage.pluginLibrary.ownerActive, { reads: wrongStage.pluginLibrary.ownerDisabled.reads });
+  expect(() => serializeCorpusWire(wrongStage, secrets)).toThrow("lifecycle stage mismatch");
+  const changedAdmin = structuredClone(extended);
+  Object.assign(changedAdmin.pluginLibrary.distribution.read, { input: {} });
+  expect(() => serializeCorpusWire(changedAdmin, secrets)).toThrow("publication recipe");
+  const missingField = structuredClone(extended);
+  Reflect.deleteProperty(missingField.pluginLibrary.ownerActive.reads.log.output[0] ?? {}, "level");
+  expect(() => serializeCorpusWire(missingField, secrets)).toThrow("level");
+  const rpc = await root.internalCallerFor(recipient.id);
+  for (const value of [CORPUS_PLUGIN_OUTPUT_PRIVATE_VALUE, JSON.stringify({ echo: CORPUS_PLUGIN_OUTPUT_PRIVATE_VALUE })]) {
+    await rpc.plugin.invokeUiCommand({ pluginId: captured.recipient.outcome.id, name: "record", args: "", values: { entry: value }, chatId: null });
+    const echoed = await captureCorpusPluginStage(root, recipient.id, library.recipientActive.ids);
+    expect(echoed.reads.state.output).toEqual({ args: "", values: { entry: value } });
+    const leaked = { ...extended, pluginLibrary: { ...library, recipientActive: echoed } };
+    expect(() => serializeCorpusWire(leaked, secrets)).toThrow("Corpus publication contains private material");
+    Reflect.deleteProperty(echoed.reads, "commands");
+    expect(() => serializeCorpusWire(leaked, secrets)).toThrow("Corpus publication contains private material");
+  }
+  expect(serializeCorpusWire(extended, secrets)).toBe(bytes);
+});
 
 test("portable stats publish final native owner reads with exact request recipes and canonical schemas", async () => {
   const execution = createCorpusProviderExecution({

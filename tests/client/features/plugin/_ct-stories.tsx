@@ -6,11 +6,11 @@ import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 
-function NativePluginPage({ pluginId }: { readonly pluginId: PluginId }): ReactElement {
+function NativePluginPage({ pluginId, surfaceId }: { readonly pluginId: PluginId; readonly surfaceId: string }): ReactElement {
   const sections = useSectionRegistry();
   useEffect(() => {
-    selectPluginPageFromList(pluginPageKey(pluginId, "protocol"));
-  }, [pluginId]);
+    selectPluginPageFromList(pluginPageKey(pluginId, surfaceId));
+  }, [pluginId, surfaceId]);
   const content = sections.get("extensions").content;
   if (typeof content !== "function") {
     throw new Error("the Extensions contribution must provide its production content");
@@ -19,10 +19,10 @@ function NativePluginPage({ pluginId }: { readonly pluginId: PluginId }): ReactE
 }
 
 /** Mount only the production Extensions content contribution; its normal page path owns the real Worker. */
-export function PluginProtocolStory({ pluginId }: { readonly pluginId: PluginId }): ReactElement {
+export function PluginProtocolStory({ pluginId, surfaceId = "protocol" }: { readonly pluginId: PluginId; readonly surfaceId?: string }): ReactElement {
   return (
     <CtClientProviders>
-      <NativePluginPage pluginId={pluginId} />
+      <NativePluginPage pluginId={pluginId} surfaceId={surfaceId} />
     </CtClientProviders>
   );
 }

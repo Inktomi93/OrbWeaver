@@ -1,12 +1,15 @@
 import type { UiGuestInbound, UiGuestOutbound } from "@orb/client/lib";
 import { viewerViewSchema } from "@orb/contracts/identity";
 import { PLUGIN_LOG_LEVELS, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
+import type { UserId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "@orb/server/infra/plugin-host";
+import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
+import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
-import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { PluginProtocolStory } from "./_ct-stories.tsx";
 
@@ -183,4 +186,47 @@ test("a native guest boot failure publishes ready:false and reports the original
   expect(messages).toContain('"kind":"ready","ok":false');
   expect(messages).toContain("TypeError: Native boot refusal");
   expect(trpc.unstubbed()).toEqual([]);
+});
+
+test("the default shared corpus renders its native Ledger publication and captured disable through Extensions", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
+  const library = corpus.pluginLibrary;
+  if (library === undefined) {
+    throw new Error("The committed corpus has no plugin adoption cohort");
+  }
+  const active = library.ownerActive;
+  const plugin = active.reads.plugins.output.find(({ id }) => id === active.ids.pluginId);
+  const surface = active.reads.surfaces.output.find(({ pluginId, id }) => pluginId === active.ids.pluginId && id === active.ids.surfaceId);
+  if (plugin === undefined || surface === undefined) {
+    throw new Error("The shared corpus omitted its native Ledger page");
+  }
+  const viewerId = brandedId<UserId>().parse(corpusViewer.userId);
+  let stage = active;
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "plugin.list": (input) => createCorpusViewerReadResponder("plugin.list", viewerId, { viewerUserId: stage.viewerUserId, read: stage.reads.plugins })(input),
+    "plugin.listSurfaces": (input) =>
+      createCorpusViewerReadResponder("plugin.listSurfaces", viewerId, { viewerUserId: stage.viewerUserId, read: stage.reads.surfaces })(input),
+    "plugin.getSurfaceState": (input) =>
+      createCorpusViewerReadResponder("plugin.getSurfaceState", viewerId, { viewerUserId: stage.viewerUserId, read: stage.reads.state })(input),
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const component = await mount(<PluginProtocolStory key="active" pluginId={active.ids.pluginId} surfaceId={surface.id} />);
+  const attribution = page.getByRole("group", { name: `${plugin.name} — ${surface.title}`, exact: true });
+  await expect(attribution.getByText("Initial ledger entry", { exact: true })).toBeVisible();
+  await expect(page.getByText(plugin.name, { exact: true })).toBeVisible();
+  await expect(page.getByText("Plugin", { exact: true })).toBeVisible();
+  expect(trpc.lastInput("plugin.getSurfaceState")).toEqual(active.reads.state.input);
+  stage = library.ownerDisabled;
+  await component.update(<PluginProtocolStory key="disabled" pluginId={active.ids.pluginId} surfaceId={surface.id} />);
+  await expect(page.getByText("That page is no longer available", { exact: true })).toBeVisible();
+  await expect(attribution).toHaveCount(0);
+  expect(trpc.unstubbed()).toEqual([]);
+  expect(errors).toEqual([]);
 });

@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-15
 priority: P1
-lane: codex/identity-notification-suppliers-1036
 plan: test-foundation
 ---
 
@@ -25,11 +24,7 @@ A builder exists per contract output and table; the corpus is committed and load
 
 The world-split kit calls the real server root. Builders derive values from canonical types, defaults or actual producers. Database-subject fixtures remain distinct from composed production evidence.
 
-Native corpus producers cover identity/session transitions, funded execution, automation, plugin containment, RPG lineage, SDK sessions, search and library operations. Private rows, credentials and physical observations stay outside portable DTOs.
-
-Portable projections preserve exact finite requests, native viewer identity and stage. Known raw and JSON-escaped private literals refuse before parser diagnostics. This guarantee excludes unknown secrets and arbitrary encodings. Fixture identities select data; they do not authenticate clones.
-
-Fresh native clone login, credential rotation and logout controls preserve independent viewers and unchanged publication bytes. Source credentials refuse on scrubbed DB/CAS clones. Disposal joins before database close.
+Native producers cover identity, funded execution, automation, plugins, RPG, SDK sessions, search and libraries. Private rows, credentials and physical observations remain Node-only. Portable projections preserve exact requests, viewer identity and stage. Known private literals refuse before diagnostics; unknown secrets and arbitrary encodings remain outside the claim. Clone authentication uses fresh credentials and joins disposal before database close.
 
 Reviewed preset and automation wire schemas live in canonical contracts. Public index APIs remain; private facades are removed. Reviewed native tag, persona and roster projections retain exact viewer binding.
 
@@ -41,4 +36,6 @@ Canonical row-builder chains and database fixtures are qualified within their se
 
 Reviewed suppliers cover each canonical parser-output root in the frozen inventory. Defaults retain browser-safe value closures. Selected native Host returns, callbacks, lifecycle refusals and log bounds pass. Evidence and per-root scope live in `reports/review/959-mounted-output-uses.json`; cohort deliveries and independent reviews remain linked there. Unallocated aliases, variants, protocol hard states and shared adoption remain open. These captures do not authorize general legacy ports.
 
-The committed corpus has lazy defaults, Node replay state and independent writable clones. Selected Node, CT, smoke and stage consumers pass without private selectors. Reviewed `08bdafe2ef` serves CT media through native viewer admission and production blob policy, using the actual frontend input. Credentials and layout remain Node-only; payload bytes are unchanged. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-ct-corpus-media-delivery.md` and adjacent security review. Capsule timing remains marginal; Snap performance is withheld. Complete adoption and matrix qualification remain open.
+The committed corpus has lazy defaults, Node replay state and independent writable clones. Selected Node, CT, smoke and stage consumers pass without private selectors. Reviewed `08bdafe2ef` serves CT media through native viewer admission and production blob policy. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-ct-corpus-media-delivery.md` and adjacent security review.
+
+Reviewed `8f390f927f` and `87237ed150` add actual public plugin stages to the shared publication and default native clone/Extensions consumers. Independent comparison accounts for the complete DB, wire, replay and CAS delta. Default consumers pass without selectors. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-plugin-shared-adoption-payload-delivery.md` and adjacent source/delta reviews. The ordinary capsule times out; its instrumented functional case passes with unchanged limits. Stable cost, complete adoption and matrix qualification remain open; Snap performance stays withheld.

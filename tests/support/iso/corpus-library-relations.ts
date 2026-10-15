@@ -9,7 +9,7 @@ import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { z } from "zod";
-import type { CorpusRead } from "./corpus.ts";
+import type { CorpusRead } from "./corpus-read.ts";
 
 export const libraryRelationsSchema = z
   .strictObject({

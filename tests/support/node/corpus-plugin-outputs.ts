@@ -45,6 +45,7 @@ export const CORPUS_PLUGIN_OUTPUT_MANIFEST = pluginManifestSchema.parse({
 });
 
 export const CORPUS_PLUGIN_OUTPUT_SURFACE = "ledger";
+export const CORPUS_PLUGIN_OUTPUT_PRIVATE_VALUE = "private ledger value";
 export const CORPUS_PLUGIN_OUTPUT_SOURCE = `
 const h = orb.host(1);
 h.log.info("ledger activated");
@@ -67,7 +68,7 @@ h.transforms.registerDisplay({ name: "annotate", apply: async ({ text, env }) =>
   if (text === "skip failed transform") throw new TypeError("display refusal");
   return text + " [ledger]";
 }});
-h.storage.set("entry", "private ledger value");
+h.storage.set("entry", ${JSON.stringify(CORPUS_PLUGIN_OUTPUT_PRIVATE_VALUE)});
 h.ui.setState("ledger", { entry: "Initial ledger entry" });
 `;
 
