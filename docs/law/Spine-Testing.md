@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Orbweaver — Spine: Testing
@@ -81,6 +81,8 @@ A test lives in the directory that mirrors the source directory it covers, and i
 - **DB:** real libSQL `:memory:` for `.int` (`freshDb`). Never mocked — the point of the cake is that persistence is real, cheap, in-process.
 - **External execution:** script raw provider transport, SDK subprocess protocol, plugin-host or network inputs through the production root's execution seams. Keep native parsing, admission, funding, accounting and domain orchestration in production. A fake `RunChatTurnOp`, role client, Query or domain service does not replace these paths in rebuilt tests. Exhausted scripts refuse instead of cycling into a fabricated success.
 - **Cross-feature dependencies:** wire actual production owners through the root. Inject only external edges, not a copied rule or a fake collaborator that stands in for business behavior. Never mock an internal module.
+
+For signed external-protocol test inputs, use native timestamp defaults and verification under [D319](../adr/0319-native-protocol-time-in-scripted-test-edges.md). Business clocks, IDs and helper reads retain the determinism rule above.
 
 Injected clocks model product time. External process, socket and browser completion require their actual lifecycle signals; a frozen clock does not establish physical completion.
 

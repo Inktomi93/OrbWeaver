@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
-updated: 2026-10-14
+status: open
+updated: 2026-10-15
 priority: P1
-lane: lane/959-rpg-variants
 plan: test-foundation
 ---
 
@@ -29,14 +28,16 @@ Builders derive request-specific outputs from production types, schema defaults 
 
 Native controls preserve OIDC claims and pending/session transitions; watched/manual automation provenance; plugin consent and failure containment; funded workload execution; retained RPG lineage, checkpoints, cancellation and host handoff; and canonical search, library and ingestion outputs. Each family retains its scoped cases and defect controls. Enabled empty-owner memory completion is integrated through `58e889386b`.
 
-Reviewed `afdd075a66` adds routed stats and settings/theme captures through actual generations, reconciliation, parser import and refusal owners. Native CSS-copy controls fail with the defect and pass after restoration. Selected owner snapshots do not qualify foreign timing isolation, differential percentile/cost populations or ownerless seed rows.
+Reviewed `afdd075a66` qualifies routed stats/settings/theme capture through actual writers, reconciliation and parsers. CSS-copy controls discriminate the defect. Foreign timing, differential cost populations and ownerless seed rows remain open.
 
-Aggregate `3473032` preserves producer closure, sole-WAL, locks/pending/handoff, secret exclusion and independent DB/CAS clones. The expanded case completes in 19.028 seconds under its local 20-second guard, with every operation and assertion inside. Earlier 15-second attempts time out; no 15-second performance qualification follows. Required clone dependency initialization remains import-time. Portable assertions run everywhere; descriptor observations are Linux-specific.
+The aggregate retains closure, sole-WAL, pending/handoff state, secret exclusion and independent DB/CAS clones. Existing guards and portable assertions remain; descriptor observations are Linux-specific.
 
-Reviewed source `0a3e773354` adds native SDK lineage to private captures and scrubbed clones. Physical imports prove rewind and re-adoption; admission, cancellation and direct-child disposal remain production-owned. Aggregate and targeted controls pass. Deliberate intervention remains unverified under the reported platform limitation; no replacement-suite qualification is claimed. Image-skip, output variants and genuine plugin outputs remain open. Use the canonical shape reader for coverage.
+Reviewed source `0a3e773354` adds native SDK lineage to private captures and scrubbed clones. Physical imports prove rewind and re-adoption; admission, cancellation and direct-child disposal remain production-owned. Aggregate and targeted controls pass. Deliberate intervention remains unverified under the reported platform limitation; no replacement-suite qualification is claimed. Complete output coverage remains open. Use the canonical shape reader for coverage.
 
-Reviewed `83380c0db2` adds native invite, kick, handoff and consent captures. Actual cookie admission, recipient refusal, replay/live correction/retraction and canonical clone rows pass. The network owner joins ordinary peer cancellation while retaining genuine stream faults; its unchanged-source control fails. Remaining notification producers still need native coverage.
+Reviewed `83380c0db2` adds native invite, kick, handoff and consent captures. Actual cookie admission, recipient refusal, replay/live correction/retraction and canonical clone rows pass. The network owner joins ordinary peer cancellation while retaining genuine stream faults; its unchanged-source control fails. Complete payload-axis coverage remains open.
 
 Reviewed `1a10e499df` adds real automation, resident plugin notice/crash-disable and deferred hostless-drop producers. Recipient and reset cuts fail; canonical rows match source and scrubbed clone. Native request retention preserves abort through collection and releases on physical close. Genuine faults remain failures. Native and aggregate controls pass under unchanged local guards.
+
+Reviewed `5270c95e4d` adds native image skips, generation/edit/provenance variants, host-funded previews, refusal-before-effects and honest unknown cost. Source and scrubbed clone rows/CAS agree. Semantic and schema-drift controls fail as intended, then pass after exact restoration. Native multipart parsing remains confined to controlled outbound SDK bytes. Existing cases and guards remain intact.
 
 Secret-reviewed publication and adoption remain open. Private captures do not widen the portable recipe. Complete builders, smoke and suite replacement are not claimed.

@@ -1,9 +1,9 @@
 ---
 kind: tooling
-status: blocked
-updated: 2026-10-14
+status: doing
+updated: 2026-10-15
 priority: P1
-blocked: on 955
+lane: codex/type-homes-981
 plan: test-foundation
 ---
 

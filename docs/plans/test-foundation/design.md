@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Tests on one harness and one code-facts engine
@@ -254,7 +254,7 @@ A CT stubs every wire, so a CT can stay green while the real wire is broken; onl
 1. It calls production through a public entry: the router, a domain front door, a contract or kit export. It never copies a production function, query or rule.
 2. It builds data through a builder or the corpus, so every value is one production can produce.
 3. It takes its types from contracts and production; it declares no shape a lower package owns.
-4. Clock, ids and random come injected from the composition root, so the result is deterministic without fake timers.
+4. Business clocks, ids and randomness come injected from the composition root, without fake timers. Native protocol time follows [Spine-Testing section 3](../../law/Spine-Testing.md#3-determinism--mock-doctrine).
 5. It fakes only an edge: the database driver, the provider, the plugin host, the network.
 6. It asserts behaviour a user or a caller sees, never a literal it built itself and never help or copy text.
 7. A port keeps every case of the file it replaces, regression cases first, and a production mutant turns it red.

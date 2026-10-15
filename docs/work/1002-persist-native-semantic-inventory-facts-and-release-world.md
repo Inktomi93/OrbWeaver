@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: doing
-updated: 2026-10-14
+updated: 2026-10-15
 priority: P1
 area: tooling
-lane: codex/ast-wrapper-lifetime-1002
+lane: codex/native-token-memo-1002
 plan: test-foundation
 ---
 
@@ -24,20 +24,16 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Native extraction uses ts-morph's bundled checker. Root, client and test programs retain their own descriptors, roots and closure.
+Native extraction uses ts-morph's bundled checker. Each world retains its descriptor, roots and resolved closure. Reviewed SQLite persistence preserves native scalars, ordering, multiplicity, input versions, atomic generations, last-good data and overlay isolation.
 
-Pinned patch `0450353ca5` skips unused definition formatting only for opted-in native queries. Independent controls preserve reference kinds, selection, metadata, aliases and lean parity. The fixed-heap client queries pass.
+Reviewed `0450353ca5` avoids unused definition formatting only for opted-in queries. Reviewed `49d607fd3c` shares extraction-local physical identities and completed import maps through a typed readonly reference pass. Native parity, cancellation, invalidation and refusal controls pass.
 
-Reviewed indexed SQLite persistence preserves native UTF-16 scalars, ordering, multiplicity, input versions, atomic generations, last-good data and overlay isolation. Bounded native controls, tooling types and scoped lint pass.
+Source `53a485a41c` corrects unredirected wrappers through checker-admitted source identity. Complete tests-DOM extraction, release, publication, lazy reading and disposal pass at frozen `7394d01aaf`, not complete demand. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`.
 
-Source `f109dc2abd` qualifies client extraction, FORMAT3 staging, parent import, input rechecks, publication and disposal at frozen `77c78fa141`. The run completes in 58:17; GNU time maximum RSS is 11,187,848 KiB. Parent high water is 294,456 KiB. These are process measurements, not aggregate memory. Evidence: `/tmp/ast-memory-format3-client-1002/result-summary.md`.
+Reviewed `e70114404e` repairs syntax-carrier library collisions. Fingerprints remain intact; historical partitions need a new current-source generation. Old stages, profiles and databases remain preserved, not silently revalidated.
 
-Source `53a485a41c`, integrated by `4de2122c1a`, corrects cached unredirected wrappers through checker-admitted source identity. Different physical syntax refuses. This invalidates historical client reuse for a new generation.
+The completed root diagnostic identifies native token-location lookup as the dominant reference cost. Tracked identities remain stable; saturated counters do not establish a full hit rate. Profiling pauses prevent interpreting raw wall time as recoverable CPU. Its worker was stopped after capture; extraction and publication did not complete. The diagnostic at frozen `13e9674c64` retains its source, profile and process-release artifacts.
 
-Frozen `4de2122c1a` full replay reaches its fixed deadline without an OOM or source-identity diagnostic. Worker staging and parent import complete for the preceding worlds; the tests-DOM worker does not finish. Remaining worlds and collectors never start. The target generation stays zero; staged partitions are not published facts.
+The active isolated candidate adds bounded exact-source token lookup reuse within the existing readonly native pass. Normal native fallback, fresh query interpretation, disposal, mutation and memory controls are required. Representation memory and actual improvement remain unqualified. Frozen runtime guards must remain unchanged.
 
-The terminal report preserves exact populations, timings, per-process RSS and swap observations: `/tmp/ast-native-full-current-1002/result-summary.md`. All owned processes are absent. Source, dependency and workspace-link guards pass. Staged input currency is not revalidated, so reuse is not yet authorized.
-
-Reviewed `49d607fd3c` reuses extraction-local physical identities and completed native import maps through a typed readonly reference pass. Bounded parity, cancellation, invalidation and refusal controls pass. Complete tests-DOM cold extraction, staging, worker release, import, generation publication, lazy reading and disposal pass at frozen `7394d01aaf`; recorded inputs revalidate. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. This qualifies that native world, not complete demand. Multi-world replay, collector equivalence, concurrent reuse and hosted memory remain open.
-
-Reviewed `e70114404e` repairs syntax-carrier virtual library collisions with captured text. Native ordered parity, refusal and error disposal pass. Reader fingerprints remain intact; historical partitions need a new current-source generation.
+Current complete-demand publication, collector equivalence, concurrent reuse and hosted memory remain open. A diagnostic stage is not reusable production data.
