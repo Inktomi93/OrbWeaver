@@ -102,39 +102,48 @@ test("supplied callable retains every swapped actual body", () => {
   expect(targets.kind === "resolved" ? targets.value.map((target) => target.getText()).sort() : []).toEqual(["()=>1", "()=>2"]);
 });
 
-test("optional returned callback indexes possible actual arguments without returned-data permission", () => {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const source = project.createSourceFile(
-    "/repo/producer.ts",
-    `
-    function prepare(choose:boolean) { if (choose) return null; return {settle:(batch:number[])=>batch.length}; }
-    const rebase=prepare(false); const pending=[1]; rebase?.settle(pending);
+for (const optional of [
+  { name: "receiver", absent: "null", expression: "rebase?.settle", invoke: "", possible: true },
+  { name: "callee", absent: "{}", expression: "rebase.settle", invoke: "?.", possible: true },
+  { name: "unguarded callee", absent: "{}", expression: "rebase.settle", invoke: "", possible: false },
+] as const) {
+  test(`optional ${optional.name} indexes possible actual arguments without returned-data permission`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/repo/producer.ts",
+      `
+    function prepare(choose:boolean) { if (choose) return ${optional.absent}; return {settle:(batch:number[])=>batch.length}; }
+    const rebase=prepare(false); const pending=[1]; ${optional.expression}${optional.invoke}(pending);
   `,
-  );
-  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
-  const call = calls.find((candidate) => candidate.getExpression().getText() === "rebase?.settle");
-  if (call === undefined) {
-    throw new Error("the actual optional invocation is missing");
-  }
-  const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
-  const program = observed.programs[0];
-  const callback = source.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
-  const batch = callback?.getParameters()[0]?.getNameNode();
-  if (callback === undefined || batch === undefined || program === undefined) {
-    throw new Error("the possible callback body was not authored");
-  }
-  const before = program.byCall;
-  expect(program.callers.get(callback.compilerNode)).toBeUndefined();
-  const supplied = readSuppliedParameter(batch, new Map(), program);
-  const invocation = program.byCall.get(call.compilerNode);
-  expect(invocation?.targets.kind).toBe("unresolved");
-  expect(invocation?.target.kind).toBe("unresolved");
-  expect(invocation?.alternatives.kind).toBe("unresolved");
-  expect(invocation?.returns.kind).toBe("unresolved");
-  expect(invocation?.invocationTargets?.kind).toBe("resolved");
-  expect(before.get(call.compilerNode)?.invocationTargets).toBeUndefined();
-  expect(supplied.kind === "resolved" ? supplied.value.map((actual) => actual.value.getText()) : []).toEqual(["pending"]);
-});
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const call = calls.find((candidate) => candidate.getExpression().getText() === optional.expression);
+    if (call === undefined) {
+      throw new Error("the actual optional invocation is missing");
+    }
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observed.programs[0];
+    const callback = source.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
+    const batch = callback?.getParameters()[0]?.getNameNode();
+    if (callback === undefined || batch === undefined || program === undefined) {
+      throw new Error("the possible callback body was not authored");
+    }
+    const before = program.byCall;
+    expect(program.callers.get(callback.compilerNode)).toBeUndefined();
+    const supplied = readSuppliedParameter(batch, new Map(), program);
+    const invocation = program.byCall.get(call.compilerNode);
+    expect(invocation?.targets.kind).toBe("unresolved");
+    expect(invocation?.target.kind).toBe("unresolved");
+    expect(invocation?.alternatives.kind).toBe("unresolved");
+    expect(invocation?.returns.kind).toBe("unresolved");
+    expect(invocation?.invocationTargets?.kind).toBe(optional.possible ? "resolved" : undefined);
+    expect(before.get(call.compilerNode)?.invocationTargets).toBeUndefined();
+    expect(supplied.kind).toBe(optional.possible ? "resolved" : "unresolved");
+    expect(supplied.kind === "resolved" ? supplied.value.map((actual) => actual.value.getText()) : []).toEqual(optional.possible ? ["pending"] : []);
+    expect(readCallTargets(call, undefined, observed, true).kind).toBe(optional.possible ? "resolved" : "unresolved");
+    expect(readCallTargets(call, undefined, observed).kind).toBe("unresolved");
+  });
+}
 
 test("returned callable cannot erase a supplied formal member overwrite", () => {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -1642,3 +1651,140 @@ for (const effects of [
     }
   });
 }
+
+test("an optional containing callback permits the actual recall recorder conditional spread", async ({ repoRoot }) => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const base = "packages/server/src/domain/chat";
+  const producer = project.createSourceFile(
+    `/repo/${base}/memory/recall/recorder.ts`,
+    await readFile(join(repoRoot, base, "memory/recall/recorder.ts"), "utf8"),
+  );
+  project.createSourceFile(`/repo/${base}/memory/types.ts`, await readFile(join(repoRoot, base, "memory/types.ts"), "utf8"));
+  project.createSourceFile(`/repo/${base}/contract/memory.ts`, await readFile(join(repoRoot, base, "contract/memory.ts"), "utf8"));
+  const composition = project.createSourceFile("/composition.ts", await readFile(join(repoRoot, "packages/server/src/entry/compose/chat.ts"), "utf8"));
+  const spreads = composition
+    .getDescendantsOfKind(SyntaxKind.SpreadAssignment)
+    .filter((candidate) => candidate.getExpression().getText().startsWith("(input.recallRecorder"));
+  expect(spreads.length).toBe(1);
+  const spread = spreads[0]?.getText();
+  if (spread === undefined) {
+    throw new Error("the production recall recorder spread is missing");
+  }
+  project.removeSourceFile(composition);
+  const source = project.createSourceFile(
+    "/repo/consumer.ts",
+    `import {createMemoryRecallRecorder} from "./${base}/memory/recall/recorder.ts";
+    function settle(){return 1;}
+    function consume(ctx:{settle:()=>number;recordRecall?:(record:object)=>void}){ctx.recordRecall?.({});return ctx.settle();}
+    function compose(input:{recallRecorder?:ReturnType<typeof createMemoryRecallRecorder>}){const ctx={settle,${spread}};consume(ctx);}
+    const recorder=createMemoryRecallRecorder({now:()=>0});compose({recallRecorder:recorder});`,
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const target = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+  if (target === undefined) {
+    throw new Error("the selected actual callback is missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, [...source.getDescendants(), ...producer.getDescendants()], { suppliedCallableTargets: true });
+    const fact = readAuthoredCallableSources(target.getExpression(), undefined, observed);
+    expect(fact.kind === "resolved" ? "resolved" : `${fact.reason}: ${fact.detail}`).toBe("resolved");
+    expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === source.getFunctionOrThrow("settle")).toBe(true);
+  } finally {
+    endReferencePass();
+  }
+});
+
+const OPTIONAL_CONTAINING_CASES = [
+  { name: "absent own callback", properties: "", use: "ctx.recordRecall?.({});", resolved: true },
+  { name: "explicit undefined callback", properties: "recordRecall:undefined,", use: "ctx.recordRecall?.({});", resolved: true },
+  { name: "explicit null callback", properties: "recordRecall:null,", use: "ctx.recordRecall?.({});", resolved: true },
+  { name: "conditional actual callback", properties: "...(choose?{recordRecall:(value:object)=>{}}:{}),", use: "ctx.recordRecall?.({});", resolved: true },
+  { name: "literal bracket callback", properties: "", use: 'ctx["recordRecall"]?.({});', resolved: true },
+  { name: "alias callback", properties: "", use: "const alias=ctx;alias.recordRecall?.({});", resolved: true },
+  { name: "final absent nested callback", properties: "nested:{},", use: "ctx.nested.recordRecall?.({});", resolved: true },
+  { name: "earlier absent receiver", properties: "", use: "ctx.nested.recordRecall?.({});", resolved: false },
+  { name: "opaque present callback", properties: "recordRecall:foreign,", use: "ctx.recordRecall?.({});", resolved: false },
+  { name: "opaque present alternative beside absence", properties: "recordRecall:choose?foreign:undefined,", use: "ctx.recordRecall?.({});", resolved: false },
+  { name: "present callback containing write", properties: "recordRecall:()=>{context.settle=()=>2;},", use: "ctx.recordRecall?.({});", resolved: false },
+  { name: "noncallable present value", properties: "recordRecall:7,", use: "ctx.recordRecall?.({});", resolved: false },
+  { name: "getter callback", properties: "get recordRecall(){return undefined;},", use: "ctx.recordRecall?.({});", resolved: false },
+  { name: "containing write", properties: "", use: "ctx.recordRecall=()=>{};ctx.recordRecall?.({});", resolved: false },
+  { name: "containing escape", properties: "", use: "escape(ctx);ctx.recordRecall?.({});", resolved: false },
+  { name: "opaque spread", properties: "...foreignRecord,", use: "ctx.recordRecall?.({});", resolved: false },
+  { name: "ordinary missing callback", properties: "", use: "ctx.recordRecall({});", resolved: false },
+  { name: "optional then required callback", properties: "", use: "ctx.recordRecall?.({});ctx.recordRecall({});", resolved: false },
+] as const;
+for (const scenario of OPTIONAL_CONTAINING_CASES) {
+  test(`optional containing invocation retains ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/optional.ts",
+      `declare const choose:boolean;declare const foreign:(value:object)=>void;declare const foreignRecord:{recordRecall?:(value:object)=>void};declare function escape(value:object):void;function settle(){return 1;}function consume(ctx:{settle:()=>number;recordRecall?:((value:object)=>void)|null;nested?:{recordRecall?:(value:object)=>void}|null}){${scenario.use}return ctx.settle();}const context={settle,${scenario.properties}};consume(context);`,
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+    if (selected === undefined) {
+      throw new Error("the selected containing invocation is missing");
+    }
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const fact = readAuthoredCallableSources(selected.getExpression(), undefined, observed);
+      expect(fact.kind, fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail}` : "resolved").toBe(scenario.resolved ? "resolved" : "unresolved");
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === source.getFunctionOrThrow("settle")).toBe(scenario.resolved);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const actual of ["{}", "{nested:null}"]) {
+  test(`an optional callee cannot erase an earlier missing receiver in ${actual}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/earlier-receiver.ts",
+      `function consume(ctx:{nested?:{recordRecall?:(record:object)=>void}|null}){ctx.nested.recordRecall?.({});}consume(${actual});`,
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const call = calls.find((candidate) => candidate.getExpression().getText() === "ctx.nested.recordRecall");
+    if (call === undefined) {
+      throw new Error("the optional callee is missing");
+    }
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      expect(readCallTargets(call, undefined, observed, true).kind).toBe("unresolved");
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("optional invocation keeps a definite callable identity without granting escaped argument provenance", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/optional-identity.ts",
+    "declare function escape(value:object):void;const callback=(value:object)=>value;const actual={};escape(callback);callback?.(actual);",
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const call = calls.find((candidate) => candidate.getExpression().getText() === "callback");
+  const callback = source.getVariableDeclarationOrThrow("callback").getInitializerOrThrow().asKindOrThrow(SyntaxKind.ArrowFunction);
+  const parameter = callback.getParameters()[0]?.getNameNode();
+  if (call === undefined || parameter === undefined) {
+    throw new Error("the optional callback identity is missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observed.programs[0];
+    if (program === undefined) {
+      throw new Error("the captured program is missing");
+    }
+    const target = readCallTargets(call, undefined, observed);
+    expect(target.kind === "resolved" && target.value.length === 1 && target.value[0] === callback).toBe(true);
+    expect(readSuppliedParameter(parameter, new Map(), program).kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
