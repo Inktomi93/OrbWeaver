@@ -1647,7 +1647,6 @@ async function commitUserTurn(
       presentHumanUserIds: room.presentHumanUserIds,
       humanSeats: room.humanSeats,
       anchorPersonaId: membership.chat.anchorPersonaId,
-      // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       pendingUserText: content,
       // A send's AI response directly responds to the just-committed user message (docs/plans/rpg/design.md): the
@@ -1680,7 +1679,6 @@ async function commitUserTurn(
     macroFreezes: sendOut.sendMacroFreezes ?? [],
     authorUserId: principal.userId,
     // An omitted personaId stamps the acting participant's active persona; an explicit id (or null) wins.
-    // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
     personaId: personaId !== undefined ? personaId : membership.activePersonaId,
     hostUserId: room.hostUserId,
     attachmentAssetIds: attachments,
@@ -2374,7 +2372,6 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       kind: "impersonate",
       anchorPersonaId: membership.chat.anchorPersonaId,
       chatMetadata: membership.chat.metadata,
-      // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       guided,
       timeZone,

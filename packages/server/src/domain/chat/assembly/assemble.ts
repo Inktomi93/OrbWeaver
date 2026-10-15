@@ -521,12 +521,6 @@ function renderServerMarker(section: TemplatedMarkerSection, marker: ServerMarke
   return renderMacros(templateFor(section, env.ctx), env.ctx, env.ctx.activePersona, { registry: env.registry });
 }
 
-// biome-ignore-start lint/suspicious/noUnnecessaryConditions: biome's cross-package zod-union inference
-// (the same false positive documented in credentials/substrate/parse-metadata.ts) mis-resolves the
-// `@orb/contracts/preset` `PromptSection.marker` union → it flags every reachable `case` as "unreachable"
-// and the nullable card fields (`personality`/`scenario`/`exampleMessages` are `string | null`) as
-// non-null (calling `?? ""` redundant). tsc confirms the switches are exhaustive + reachable and the
-// `?? ""` guards are required (removing them is a tsc error). biome is the false positive here.
 function renderMarker(section: MarkerSection, env: BuildEnv): string {
   const { ctx, trace } = env;
   switch (section.marker) {
@@ -627,7 +621,6 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
       return [templateFor(section, ctx), ctx.character.exampleMessages ?? ""];
   }
 }
-// biome-ignore-end lint/suspicious/noUnnecessaryConditions: see the matching -start above.
 
 /** The persona marker's static sources: the template, plus every description the marker actually renders — the
  *  voice's when its placement keeps it in the marker, and each person's `in_prompt` one. A description routed to

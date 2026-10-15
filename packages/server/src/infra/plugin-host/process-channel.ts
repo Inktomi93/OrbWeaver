@@ -44,7 +44,6 @@ export class PluginIpcSender {
   }
 
   send(message: PluginIpcMessage): void {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: close() mutates this field between send calls; the analyzer misses cross-method writes.
     if (this.closed) {
       throw new Error("plugin broker: inherited channel is closed");
     }

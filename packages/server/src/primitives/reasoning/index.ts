@@ -37,7 +37,6 @@ export function parseReasoningTags(content: string, options: ReasoningParseOptio
   const anchor = strict ? "^\\s*?" : "";
   const pattern = new RegExp(`${anchor}${RegExp.escape(prefix)}(?<body>.*?)${RegExp.escape(suffix)}`, "su");
   const match = pattern.exec(content);
-  // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — biome models `RegExp.exec` non-nullable, but it returns `RegExpExecArray | null` (no match → null), so the guard is real.
   if (match === null) {
     return null;
   }
