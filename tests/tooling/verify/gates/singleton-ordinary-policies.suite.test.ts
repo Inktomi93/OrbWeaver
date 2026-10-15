@@ -3,7 +3,6 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as baseuiRenderPropComposition } from "../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
 import { gate as membershipFanGuard } from "../../../../tooling/src/verify/gates/membership-fan-guard.ts";
 import { gate as testFactoryContract } from "../../../../tooling/src/verify/gates/test-factory-contract.ts";
@@ -13,7 +12,7 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 
 const ROOT = "/singleton-ordinary-policies";
 
-const FAMILY: readonly GatePolicy[] = [baseuiRenderPropComposition, busOnDataNoStoreWrite, membershipFanGuard, testFactoryContract];
+const FAMILY: readonly GatePolicy[] = [busOnDataNoStoreWrite, membershipFanGuard, testFactoryContract];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -75,23 +74,11 @@ test("every relative import in every proof resolves inside the proof's own file 
 //
 // The position each policy reports is NOT uniformly "the thing the message names", which is why each needs
 // its own arm:
-//   baseui-render-prop-composition  the ATTRIBUTE NAME, not the tag or the whole attribute
 //   bus-on-data-no-store-write      the bare `setState` identifier — the marker grammar forbids parens
 //   membership-fan-guard            each banned identifier OCCURRENCE
 //   test-factory-contract           the FACTORY'S OWN NAME, not the `db` parameter the message names
 // ---------------------------------------------------------------------------------------------------
 const REASON = "the proof's stand-in reason; ends when this fixture stops flagging.";
-
-test("baseui-render-prop-composition: a waiver naming the ATTRIBUTE binds to its own finding", () => {
-  const waived = passOf(baseuiRenderPropComposition, {
-    "packages/ui/src/primitives/menu/waived.tsx": `// @orb-waive baseui-render-prop-composition(asChild): ${REASON}\nexport const G = <Menu.Trigger asChild />;\n`,
-  });
-
-  expect(waived.toolErrors).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
 
 test("bus-on-data-no-store-write: a waiver naming the bare setState identifier binds to its own finding", () => {
   const waived = passOf(busOnDataNoStoreWrite, {
@@ -138,12 +125,6 @@ const DEAD = "names a position this carrier does not declare.";
 
 test("a waiver naming a DEAD position suppresses nothing and alarms, for every policy", () => {
   const arms: readonly (readonly [GatePolicy, Readonly<Record<string, string>>])[] = [
-    [
-      baseuiRenderPropComposition,
-      {
-        "packages/ui/src/primitives/menu/dead.tsx": `// @orb-waive baseui-render-prop-composition(asChildElement): ${DEAD}\nexport const G = <Menu.Trigger asChild />;\n`,
-      },
-    ],
     [
       busOnDataNoStoreWrite,
       {

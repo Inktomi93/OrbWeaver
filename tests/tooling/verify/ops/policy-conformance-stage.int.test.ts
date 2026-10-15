@@ -25,7 +25,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as baseuiRenderProp } from "../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
+import { gate as mutatingRegisterApi } from "../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as toolingRootConfigImport } from "../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
 import { policyGrantIdentityRowCount } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -86,7 +86,7 @@ export const gate = defineGate({
 
 test("a corpus whose policies all prove is CLEAN, and the summary names the counts", { timeout: CLI_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
   const root = await plantedTree({
-    [`${GATES}/baseui-render-prop-composition.ts`]: realPolicyShim(repoRoot, "baseui-render-prop-composition"),
+    [`${GATES}/no-mutating-register-api.ts`]: realPolicyShim(repoRoot, "no-mutating-register-api"),
     [`${GATES}/planted-unregistered.ts`]: UNREGISTERED_MODULE,
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
@@ -94,7 +94,7 @@ test("a corpus whose policies all prove is CLEAN, and the summary names the coun
   // The real policy's OWN row count is the denominator; the unregistered module is counted, never proven. The
   // grant table is NOT part of this planted world, so only rows naming loaded policies are judged — none here.
   expect(res.stdout).toContain(
-    `policy-conformance: 1 policies · ${String(proofRows(baseuiRenderProp))} proof rows · 0 refusal rows · ${String(identityRows(baseuiRenderProp))} identity-proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
+    `policy-conformance: 1 policies · ${String(proofRows(mutatingRegisterApi))} proof rows · 0 refusal rows · ${String(identityRows(mutatingRegisterApi))} identity-proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
   );
   expect(res.stdout).toContain("(corpus: 2 module(s), 1 unregistered)");
 });
@@ -141,13 +141,13 @@ test("a policy whose own proof fails is a TOOL ERROR naming policy, arm, row ind
   runCli,
 }) => {
   const root = await plantedTree({
-    [`${GATES}/baseui-render-prop-composition.ts`]: realPolicyShim(repoRoot, "baseui-render-prop-composition"),
+    [`${GATES}/no-mutating-register-api.ts`]: realPolicyShim(repoRoot, "no-mutating-register-api"),
     [`${GATES}/planted-broken.ts`]: brokenPolicy(repoRoot),
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
   expect(res.stdout).toContain(
-    `2 policies · ${String(proofRows(baseuiRenderProp) + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · ${String(identityRows(baseuiRenderProp))} identity-proof rows · 1 failure(s)`,
+    `2 policies · ${String(proofRows(mutatingRegisterApi) + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · ${String(identityRows(mutatingRegisterApi))} identity-proof rows · 1 failure(s)`,
   );
   expect(res.stdout).toContain(`✗ planted-broken · mustFlag[0] · ${BROKEN_WHY}`);
   expect(res.stdout).toContain("expected at least one effective finding but got 0");

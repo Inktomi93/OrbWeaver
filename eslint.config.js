@@ -456,7 +456,15 @@ const NO_MAIN_DOM_HTML = {
   message: "D294: render raw HTML through SandboxFrame, never inject it into the main document. New injection permissions require security review.",
 };
 // The all-tag selector keeps HTML policy independent of Biome's DOM tag recognition.
-const BROWSER_SYNTAX = [NO_LAYOUT_CONTEXT_PROPS, NO_MAIN_DOM_HTML];
+const NO_AS_CHILD_COMPOSITION = {
+  selector:
+    "JSXAttribute[name.type='JSXIdentifier'][name.name='asChild'], " +
+    "TSPropertySignature[computed=false][key.type='Identifier'][key.name='asChild'], " +
+    "TSPropertySignature[key.type='Literal'][key.value='asChild'], " +
+    "TSPropertySignature[key.type='TemplateLiteral'][key.expressions.length=0][key.quasis.0.value.cooked='asChild']",
+  message: "asChild is Radix's composition prop, not Base UI's. Use the render prop instead.",
+};
+const BROWSER_SYNTAX = [NO_LAYOUT_CONTEXT_PROPS, NO_MAIN_DOM_HTML, NO_AS_CHILD_COMPOSITION];
 const memberNamed = (name, prefix = "") =>
   `:matches([${prefix}computed=false][${prefix}property.name='${name}'], [${prefix}computed=true][${prefix}property.type='Literal'][${prefix}property.value='${name}'], [${prefix}computed=true][${prefix}property.type='TemplateLiteral'][${prefix}property.expressions.length=0][${prefix}property.quasis.0.value.cooked='${name}'])`;
 const EFFECT_CALL = `CallExpression[arguments.length=2]:matches([callee.type='Identifier'][callee.name='useEffect'], [callee.type='MemberExpression']${memberNamed("useEffect", "callee.")})`;

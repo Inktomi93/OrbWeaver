@@ -235,3 +235,58 @@ test("later state, shell and intrinsic-style overrides preserve the preceding re
   expect(await findings("packages/client/src/state/probe.tsx", "useFooStore.getState();")).toEqual([]);
   expect(await findings("packages/client/src/features/app-shell/probe.tsx", '<div className="x" style={{}} />;')).toEqual([]);
 });
+
+test("Base UI composition rejects direct asChild syntax without expanding into inherited or computed-value semantics", async () => {
+  const banned = [
+    "<Menu.Trigger asChild>child</Menu.Trigger>;",
+    "<Base.Menu.Trigger asChild={true} />;",
+    "<Other asChild={false} />;",
+    "<div asChild />;",
+    "export interface Props { asChild?: boolean; }",
+    "type Props = Readonly<{ readonly asChild: boolean }>;",
+    'export interface Props { "asChild"?: boolean; }',
+    "interface Props { ['asChild']?: boolean; }",
+    "interface Props { [('asChild')]: boolean; }",
+    "interface Props { [`asChild`]: boolean; }",
+    "interface Props { as\\u0043hild?: boolean; }",
+    "const view = ((<Menu.Trigger asChild={(true as boolean)!} />));",
+    "// @orb-waive baseui-render-prop-composition(asChild): obsolete marker cannot excuse native syntax.\n<Menu.Trigger asChild />;",
+  ];
+  const admitted = [
+    "<Menu.Trigger render={<Button />} />;",
+    "<Menu.Trigger {...props} />;",
+    "<Menu.Trigger {...{ asChild: true }} />;",
+    "<Menu.Trigger asChildElement data-as-child />;",
+    "<Menu.Trigger other:asChild />;",
+    "interface Props { asChildElement?: boolean; }",
+    "const key = 'asChild'; interface Props { [key]?: boolean; }",
+    "const tail = ''; interface Props { [`asChild${tail}`]: boolean; }",
+    "const props = { asChild: true }; class Other { asChild = true; }",
+    "interface Props { asChild(): void; }",
+    'import type { OtherProps } from "other"; interface Props extends OtherProps {} type Mixed = OtherProps & { render?: string };',
+    "// <Menu.Trigger asChild />\nconst description = 'asChild';",
+  ];
+  for (const path of ["packages/client/src/features/probe.tsx", "packages/ui/src/primitives/probe.tsx"]) {
+    for (const source of banned) {
+      expect(await findings(path, source), source).toHaveLength(1);
+    }
+    for (const source of admitted) {
+      expect(await findings(path, source), source).toEqual([]);
+    }
+  }
+  for (const path of [
+    "packages/client/src/state/probe.ts",
+    "packages/client/src/features/app-shell/probe.ts",
+    "packages/client/src/routes/probe.ts",
+    "packages/client/src/compose/probe.ts",
+    "packages/client/src/probe.d.ts",
+    "packages/ui/src/probe.d.ts",
+    "packages/ui/src/tokens/index.ts",
+    "packages/ui/src/tokens/probe.gen.ts",
+  ]) {
+    expect(await findings(path, "interface Props { asChild?: boolean; }"), path).toHaveLength(1);
+  }
+  for (const path of ["packages/server/src/probe.tsx", "tooling/src/probe.tsx", "tests/client/probe.ct.tsx"]) {
+    expect(await findings(path, "<Menu.Trigger asChild />; interface Props { asChild?: boolean; }"), path).toEqual([]);
+  }
+});
