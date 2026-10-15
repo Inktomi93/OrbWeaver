@@ -52,6 +52,8 @@ import type { ProcessEntry } from "../host/platform.ts";
 import { listProcesses } from "../host/platform.ts";
 import type { TranscriptTeardown } from "./proc-contract.ts";
 import { exportProcessEnv, processEnvValue } from "./process-env.ts";
+import type { RunMarkerJoinDeps } from "./run-marker-join.ts";
+import { sweepAndJoin } from "./run-marker-join.ts";
 
 /** The variable every marked child carries. Spelled ONCE; the launchers set it, this module reads it. */
 export const RUN_MARKER_ENV = "ORB_RUN_MARKER";
@@ -79,6 +81,7 @@ export interface RunMarkerSweep {
 
 /** The reads and signals a sweep performs — injected so a test drives the whole decision without a box. */
 export interface RunMarkerDeps {
+  readonly processTable?: () => readonly ProcessEntry[];
   readonly listPids?: () => readonly number[];
   /** Every identity one pid carries — its outer RUN marker and its LEASE, either channel, 0-2 values. */
   readonly identitiesOf?: (pid: number) => readonly string[];
@@ -163,7 +166,7 @@ function tableReaders(deps: RunMarkerDeps): Required<Pick<RunMarkerDeps, "listPi
   if (deps.listPids !== undefined && deps.identitiesOf !== undefined && deps.parentOf !== undefined) {
     return { listPids: deps.listPids, identitiesOf: deps.identitiesOf, parentOf: deps.parentOf };
   }
-  const table = new Map(listProcesses().map((entry) => [entry.pid, entry] as const));
+  const table = new Map((deps.processTable ?? listProcesses)().map((entry) => [entry.pid, entry] as const));
   return {
     listPids: deps.listPids ?? ((): readonly number[] => [...table.keys()]),
     identitiesOf:
@@ -266,6 +269,11 @@ export async function sweepRunMarker(marker: string, deps: RunMarkerDeps = {}): 
     signal(pid, "SIGKILL");
   }
   return { marker, terminated, killed };
+}
+
+/** Join exact signalled identities before deleting data an escaped consumer could still use. */
+export async function joinRunMarkerSweep(marker: string, deps: RunMarkerJoinDeps = {}): Promise<RunMarkerSweep> {
+  return await sweepAndJoin(marker, deps, { ownerPid: runMarkerOwnerPid, sweep: sweepRunMarker, select: markedPids, signal: signalPid, sleep: defaultSleep });
 }
 
 /** The SYNCHRONOUS form, for a process that is itself dying (a SIGINT/SIGTERM handler re-raising the

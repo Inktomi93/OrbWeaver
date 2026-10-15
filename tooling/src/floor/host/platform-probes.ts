@@ -2,7 +2,8 @@
 // quota files the load budget needs and the `/proc/net/tcp{,6}` socket table Linux falls back to without `ss`. It imports nothing from `proc.ts` or `load-budget*`, because the load
 // budget sits under the process doors (proc.ts takes its timeouts from it) and reads these files through here.
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
-import type { ProcessEntry, SocketRow } from "./platform-parse.ts";
+import process from "node:process";
+import type { ProcessCompletion, ProcessCompletionOwner, ProcessEntry, SocketRow } from "./platform-parse.ts";
 import { nulJoined, parseProcNetTcp, parseProcStatCpuMs, parseProcStatGroup, parseProcStatusParent, parseSocketInode } from "./platform-parse.ts";
 
 /** The reads a Linux door performs, injected so a test drives them with a fake `/proc`. */
@@ -11,6 +12,113 @@ export interface ProcReads {
   readonly readFile?: (path: string) => string | null;
   readonly readDir?: (path: string) => readonly string[];
   readonly readLink?: (path: string) => string | null;
+}
+
+/** A targeted identity/state read, never a process scanner; unsupported platforms refuse completion. */
+export function processCompletion(pid: number, deps: ProcReads & { readonly platform?: NodeJS.Platform } = {}): ProcessCompletion {
+  if ((deps.platform ?? process.platform) !== "linux") {
+    return { kind: "unknown" };
+  }
+  let stat: string | null;
+  try {
+    stat = deps.readFile === undefined ? readFileSync(`${PROC}/${String(pid)}/stat`, "utf8") : deps.readFile(`${PROC}/${String(pid)}/stat`);
+  } catch (error) {
+    if (gone(error)) {
+      return { kind: "gone" };
+    }
+    return { kind: "unknown" };
+  }
+  const close = stat?.lastIndexOf(")") ?? -1;
+  const fields =
+    close < 0
+      ? []
+      : (stat
+          ?.slice(close + 2)
+          .trim()
+          .split(/\s+/u) ?? []);
+  const state = fields[0];
+  const identity = fields[STAT_STARTTIME_AFTER_COMM];
+  if (state === undefined || !/^[RSDZTtXxKWPI]$/u.test(state) || identity === undefined || !PID_DIR_RE.test(identity)) {
+    return { kind: "unknown" };
+  }
+  return { kind: state === "Z" || state === "X" ? "zombie" : "live", identity };
+}
+
+/** Reuse the native table walk, but a failed directory read is not a completed empty sweep. */
+export function completionProcesses(
+  deps: ProcReads & { readonly platform?: NodeJS.Platform; readonly owner?: ProcessCompletionOwner } = {},
+): readonly ProcessEntry[] {
+  if ((deps.platform ?? process.platform) !== "linux") {
+    throw new Error("process completion table unavailable on this platform");
+  }
+  if (deps.owner !== undefined) {
+    const current = processCompletion(process.pid, deps);
+    if (deps.owner.pid !== process.pid || current.kind !== "live" || current.identity !== deps.owner.identity) {
+      throw new Error("process completion owner identity unavailable");
+    }
+  }
+  return linuxProcesses({
+    ...deps,
+    readFile: completionFileReader(deps, deps.owner),
+    readDir: deps.readDir ?? ((path): readonly string[] => readdirSync(path)),
+  });
+}
+
+function gone(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && (error.code === "ENOENT" || error.code === "ESRCH");
+}
+
+/** Native runners keep their real/effective UID. Inaccessible foreign users cannot be their children;
+ *  ambiguous ownership under this UID must retain the clone, not become an empty marker selection. */
+function completionFileReader(deps: ProcReads, owner: ProcessCompletionOwner | undefined): (path: string) => string | null {
+  const read = deps.readFile ?? ((path: string): string => readFileSync(path, "utf8"));
+  return (path): string | null => {
+    try {
+      const value = read(path);
+      if (value !== null) {
+        return value;
+      }
+    } catch (error) {
+      if (gone(error)) {
+        return null;
+      }
+    }
+    if (excludeInaccessibleProcess(path, read, owner)) {
+      return null;
+    }
+    throw new Error(`process completion metadata unavailable: ${path}`);
+  };
+}
+
+function excludeInaccessibleProcess(path: string, read: (path: string) => string | null, owner: ProcessCompletionOwner | undefined): boolean {
+  const pid = /^\/proc\/(?<pid>\d+)\//u.exec(path)?.groups?.["pid"];
+  if (owner !== undefined && pid !== undefined) {
+    const candidate = processCompletion(Number(pid), { readFile: read });
+    if (candidate.kind !== "unknown" && (candidate.kind === "gone" || BigInt(candidate.identity) < BigInt(owner.identity))) {
+      return true;
+    }
+  }
+  let status: string | null;
+  try {
+    status = pid === undefined ? null : read(`${PROC}/${pid}/status`);
+  } catch (error) {
+    if (gone(error)) {
+      return true;
+    }
+    throw new Error(`process completion metadata unavailable: ${path}`, { cause: error });
+  }
+  const ids = /^Uid:\s+(?<real>\d+)\s+(?<effective>\d+)\s+\d+\s+\d+/mu.exec(status ?? "")?.groups;
+  const userId = process.getuid?.();
+  const effectiveId = process.geteuid?.();
+  return (
+    ids !== undefined &&
+    userId !== undefined &&
+    effectiveId !== undefined &&
+    Number(ids["real"]) !== userId &&
+    Number(ids["real"]) !== effectiveId &&
+    Number(ids["effective"]) !== userId &&
+    Number(ids["effective"]) !== effectiveId
+  );
 }
 
 const PROC = "/proc";

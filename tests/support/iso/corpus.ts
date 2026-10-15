@@ -128,6 +128,7 @@ const corpusOidcSchema = z.strictObject({
 /** The finite corpus requests, not a replacement for the production routers' input parsers. */
 export const corpusReadInput = {
   absent: (): undefined => undefined,
+  notificationInbox: (): TrpcInput<"notifications.list"> => ({}),
   documentList: (): TrpcInput<"databank.list"> => ({}),
   ownerLatency: (): TrpcInput<"stats.latency"> => ({ kind: "owner" }),
   persona: ({ id }: Pick<z.output<typeof personaDetailSchema>, "id">): TrpcInput<"persona.get"> => ({ personaId: id }),
@@ -347,7 +348,7 @@ function publishMemberMessages(section: CorpusChatLifecycleMember): z.output<typ
 }
 
 function hydrateInboxSnapshot(snapshot: z.output<typeof inboxSnapshotSchema>): CorpusViewerRead<"notifications.list"> {
-  return { viewerUserId: snapshot.viewerUserId, read: inputless(snapshot.output) };
+  return { viewerUserId: snapshot.viewerUserId, read: { input: corpusReadInput.notificationInbox(), output: snapshot.output } };
 }
 
 function hydrateInbox(section: z.output<typeof notificationInboxSchema>): CorpusNotificationInbox {
