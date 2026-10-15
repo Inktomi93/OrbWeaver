@@ -37,8 +37,11 @@ import {
   regexLibrarySchema,
   worldInfoLibrarySchema,
 } from "./corpus-library.ts";
+import type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
+import { hydrateLibraryRelations, libraryRelationsSchema, publishLibraryRelations } from "./corpus-library-relations.ts";
 
 export type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
+export type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
 
 const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
 
@@ -138,6 +141,7 @@ const publishedCorpusSchema = z
     chatLifecycleMember: chatLifecycleMemberSchema.optional(),
     worldInfoLibrary: worldInfoLibrarySchema.optional(),
     regexLibrary: regexLibrarySchema.optional(),
+    libraryRelations: libraryRelationsSchema.optional(),
     memberIdentities: memberIdentitiesSchema.optional(),
     reads: z.strictObject({
       "sessions.me": viewerViewSchema.array(),
@@ -218,6 +222,7 @@ export interface CorpusReads {
 
 /** Serializable input produced by the Node publisher, not an intake for arbitrary procedure requests. */
 export interface CorpusWireInput {
+  readonly libraryRelations?: CorpusLibraryRelations;
   readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
   readonly regexLibrary?: CorpusRegexLibrary;
@@ -230,6 +235,7 @@ export interface CorpusWireInput {
 }
 
 export interface CorpusWire {
+  readonly libraryRelations?: CorpusLibraryRelations;
   readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
   readonly regexLibrary?: CorpusRegexLibrary;
@@ -250,6 +256,9 @@ function hydrateReads<P extends TrpcProcedurePath>(
 
 /** Validate published captures through their real owners while preserving each exact captured input. */
 export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
+  if (input.libraryRelations !== undefined) {
+    publishLibraryRelations(input.libraryRelations);
+  }
   if (input.memberIdentities !== undefined) {
     memberIdentitiesSchema.parse(input.memberIdentities);
   }
@@ -270,6 +279,7 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
     auth: corpusAuthSchema.parse(input.auth),
     ...(input.oidc === undefined ? {} : { oidc: corpusOidcSchema.parse(input.oidc) }),
     health: healthResponseSchema.parse(input.health),
+    ...(input.libraryRelations === undefined ? {} : { libraryRelations: input.libraryRelations }),
     ...(input.memberIdentities === undefined ? {} : { memberIdentities: input.memberIdentities }),
     ...(input.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: input.worldInfoLibrary }),
     ...(input.regexLibrary === undefined ? {} : { regexLibrary: input.regexLibrary }),
@@ -365,6 +375,7 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
     auth: published.auth,
     ...(published.oidc === undefined ? {} : { oidc: published.oidc }),
     health: published.health,
+    ...(published.libraryRelations === undefined ? {} : { libraryRelations: hydrateLibraryRelations(published.libraryRelations) }),
     ...(published.memberIdentities === undefined ? {} : { memberIdentities: published.memberIdentities }),
     ...(published.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: hydrateWorldInfoLibrary(published.worldInfoLibrary) }),
     ...(published.regexLibrary === undefined ? {} : { regexLibrary: hydrateRegexLibrary(published.regexLibrary) }),
@@ -418,6 +429,7 @@ function capturedSnapshotInputs(wire: CorpusWire): string {
   const request = <T>(input: T): { readonly present: boolean; readonly value?: T } =>
     input === undefined ? { present: false } : { present: true, value: input };
   return stableStringify({
+    libraryRelations: Object.fromEntries(Object.entries(wire.libraryRelations?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     worldInfoLibrary: Object.fromEntries(Object.entries(wire.worldInfoLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     regexLibrary: Object.fromEntries(Object.entries(wire.regexLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     notificationInbox: Object.fromEntries(Object.entries(wire.notificationInbox ?? {}).map(([name, snapshot]) => [name, request(snapshot.read.input)])),
@@ -443,6 +455,7 @@ export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]
     auth: wire.auth,
     ...(wire.oidc === undefined ? {} : { oidc: wire.oidc }),
     health: wire.health,
+    ...(wire.libraryRelations === undefined ? {} : { libraryRelations: publishLibraryRelations(wire.libraryRelations) }),
     ...(wire.memberIdentities === undefined ? {} : { memberIdentities: wire.memberIdentities }),
     ...(wire.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: publishWorldInfoLibrary(wire.worldInfoLibrary) }),
     ...(wire.regexLibrary === undefined ? {} : { regexLibrary: publishRegexLibrary(wire.regexLibrary) }),

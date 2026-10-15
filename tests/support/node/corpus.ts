@@ -316,6 +316,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     chatLifecycleMember: chatLifecycle.publication,
     worldInfoLibrary: libraryViews.publication.worldInfo,
     regexLibrary: libraryViews.publication.regex,
+    libraryRelations: libraryViews.publication.relations,
     memberIdentities: { notificationReader: notifications.admission.identity, sharedMember: sharedMemberAuthentication.identity },
   });
   const secrets = [
