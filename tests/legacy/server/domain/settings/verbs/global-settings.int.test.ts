@@ -22,11 +22,11 @@ describe("global settings (raw KV)", () => {
   test("a normal key round-trips and audits as a system event", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const view = await h.svc.setGlobalSetting("openrouter-model-catalog", { models: ["a", "b"] });
-    expect(view.key).toBe("openrouter-model-catalog");
+    const view = await h.svc.setGlobalSetting("application:marker", { models: ["a", "b"] });
+    expect(view.key).toBe("application:marker");
     expect(view.value).toEqual({ models: ["a", "b"] });
     expect(view.updatedAt).toBe(h.clock.now());
-    const read = await h.svc.getGlobalSetting("openrouter-model-catalog");
+    const read = await h.svc.getGlobalSetting("application:marker");
     expect(read?.value).toEqual({ models: ["a", "b"] });
     const audit = h.audits.find((x) => x.entry.action === "settings.setGlobalSetting");
     expect(audit?.entry.actorUserId).toBeNull();

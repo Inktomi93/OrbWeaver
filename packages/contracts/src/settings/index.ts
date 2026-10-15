@@ -41,6 +41,8 @@ export {
   DEFAULT_BLUR_SURFACES,
   SURFACE_TEXTURES,
 } from "./appearance.ts";
+export type { SettingsKvPort, SettingsTenantPrefix } from "./kv.ts";
+export { CATALOG_SETTINGS_PREFIX, SETTINGS_TENANT_PREFIXES } from "./kv.ts";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 // LogLevel — the ONE tuple (foundation/env imports it DOWN for its `z.enum`; kills the hand-kept mirror).

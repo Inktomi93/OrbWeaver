@@ -219,7 +219,15 @@ function annotationAliasBodies(origin: TypeIdentityOrigin, visited: Set<object>)
  *  before a recursive boundary is still a valid scope: recursion makes only actual data candidates on that
  *  prefix unreadable, never every supplied argument. An opaque result cannot supply a bound and deliberately
  *  keeps its authored candidates unresolved. */
-function candidateScopes(node: TypeNode, scopes: readonly ReadonlySet<object>[]): readonly ReadonlySet<object>[] {
+function candidateScopes(
+  node: TypeNode,
+  scopes: readonly ReadonlySet<object>[],
+  scalar: boolean,
+  summaries: ReadonlyMap<object, ConstructorSummary>,
+): readonly ReadonlySet<object>[] {
+  if (scalar && (Node.isIndexedAccessTypeNode(node) || (Node.isTypeReference(node) && node.getTypeArguments().length === 0))) {
+    return scopes;
+  }
   if (!(Node.isTypeReference(node) || Node.isTypeOperatorTypeNode(node) || Node.isIndexedAccessTypeNode(node) || Node.isConditionalTypeNode(node))) {
     return scopes;
   }
@@ -228,27 +236,68 @@ function candidateScopes(node: TypeNode, scopes: readonly ReadonlySet<object>[])
     return scopes;
   }
   const graph = annotationValueGraph(node);
-  return graph.types.some(opaqueType) ? scopes : [...scopes, new Set([...graph.types.map((type) => type.compilerType), ...graph.recursiveTypes])];
+  const admitted = new Set([...graph.types.map((type) => type.compilerType), ...graph.recursiveTypes]);
+  for (const type of scalar ? scalarArgumentTypes(node, summaries) : []) {
+    admitted.add(type.compilerType);
+  }
+  return graph.types.some(opaqueType) ? scopes : [...scopes, admitted];
+}
+
+function scalarArgumentTypes(node: TypeNode, summaries: ReadonlyMap<object, ConstructorSummary>): readonly Type[] {
+  if (!Node.isTypeReference(node)) {
+    return [];
+  }
+  const summary = summaries.get(genericTarget(node.getType()) ?? node.compilerNode);
+  return node.getTypeArguments().flatMap((argument, index) => (summary === undefined || summary.possible.has(index) ? [argument.getType()] : []));
+}
+
+interface AnnotationCandidateStep {
+  readonly node: TypeNode;
+  readonly scopes: readonly ReadonlySet<object>[];
+  readonly aliases: ReadonlySet<object>;
+  readonly uncertain: boolean;
+}
+
+function candidateChildren(
+  step: AnnotationCandidateStep,
+  scalar: boolean,
+  summaries: ReadonlyMap<object, ConstructorSummary>,
+): readonly AnnotationCandidateStep[] {
+  const children = annotationChildren(step.node);
+  if (!(scalar && Node.isTypeReference(step.node))) {
+    return children.map((node) => ({ ...step, node }));
+  }
+  const summary = summaries.get(genericTarget(step.node.getType()) ?? step.node.compilerNode);
+  return children.flatMap((node, index) =>
+    summary !== undefined && !summary.possible.has(index)
+      ? []
+      : [{ ...step, node, uncertain: step.uncertain || summary === undefined || summary.unsupported || !summary.definite.has(index) }],
+  );
+}
+
+function candidateOrigin(origin: ReferenceFact<TypeIdentityOrigin>, uncertain: boolean): ReferenceFact<TypeIdentityOrigin> {
+  return uncertain && origin.kind === "resolved"
+    ? unprovenTypeIdentity(origin.value, "unsupported", "the scalar constructor does not prove this argument contributes to its output")
+    : origin;
 }
 
 /** Declaration candidates, not evidence of receipt. Their effective types still have to match a value
  *  position. This syntax pass preserves authored alias names that checker simplification can erase. */
-function annotationCandidates(annotation: TypeNode): readonly { readonly origin: ReferenceFact<TypeIdentityOrigin>; readonly type: Type }[] {
+function annotationCandidates(annotation: TypeNode, scalar = false): readonly { readonly origin: ReferenceFact<TypeIdentityOrigin>; readonly type: Type }[] {
   const candidates: { readonly origin: ReferenceFact<TypeIdentityOrigin>; readonly type: Type }[] = [];
-  const pending: { readonly node: TypeNode; readonly scopes: readonly ReadonlySet<object>[]; readonly aliases: ReadonlySet<object> }[] = [
-    { node: annotation, scopes: [], aliases: new Set<object>() },
-  ];
+  const summaries = scalar ? constructorSummaries(annotation) : new Map<object, ConstructorSummary>();
+  const pending: AnnotationCandidateStep[] = [{ node: annotation, scopes: [], aliases: new Set<object>(), uncertain: false }];
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-    const scopes = candidateScopes(next.node, next.scopes);
-    pending.push(...annotationChildren(next.node).map((node) => ({ node, scopes, aliases: next.aliases })));
+    const scopes = candidateScopes(next.node, next.scopes, scalar, summaries);
+    pending.push(...candidateChildren({ ...next, scopes }, scalar, summaries));
     if (!Node.isTypeReference(next.node)) {
       continue;
     }
     const name = next.node.getTypeName();
-    const origin = annotationReferenceOrigin(Node.isQualifiedName(name) ? name.getRight() : name);
+    const origin = annotationReferenceOrigin(name);
     const type = next.node.getType();
     if (next.scopes.every((scope) => scope.has(type.compilerType))) {
-      candidates.push({ origin, type });
+      candidates.push({ origin: candidateOrigin(origin, next.uncertain), type });
     }
     if (origin.kind === "unresolved") {
       continue;
@@ -258,7 +307,7 @@ function annotationCandidates(annotation: TypeNode): readonly { readonly origin:
     const aliases = new Set(next.aliases);
     for (const body of annotationAliasBodies(origin.value, aliases)) {
       if (body.kind === "resolved") {
-        pending.push({ node: body.value, scopes, aliases });
+        pending.push({ node: body.value, scopes, aliases, uncertain: next.uncertain });
       } else {
         candidates.push({ origin: body, type });
       }
@@ -348,7 +397,7 @@ export function resolveTypeValueOrigins(annotation: TypeNode): readonly Referenc
   const facts: ReferenceFact<TypeIdentityOrigin>[] = [];
   // Property declarations retain opaque authored candidates erased from the effective property type.
   // Each candidate still passes its own transformation scopes and the complete received data graph.
-  for (const { origin, type } of [annotation, ...graph.annotations].flatMap(annotationCandidates)) {
+  for (const { origin, type } of [annotation, ...graph.annotations].flatMap((node) => annotationCandidates(node))) {
     const fact = eligibleTypeOrigin(origin, type, valueTypes, unreadableDetail);
     if (fact !== undefined) {
       appendTypeOrigin(facts, fact);
@@ -361,6 +410,39 @@ export function resolveTypeValueOrigins(annotation: TypeNode): readonly Referenc
   }
   for (const projection of graph.projections) {
     appendTypeOrigin(facts, projection);
+  }
+  return facts;
+}
+
+function scalarParts(type: Type): readonly Type[] {
+  return type.isUnion() ? type.getUnionTypes() : [type];
+}
+
+function closedScalar(type: Type): boolean {
+  return type.isStringLiteral() || type.isNumberLiteral() || type.isBooleanLiteral() || type.isNull() || type.isUndefined();
+}
+
+/** Opt-in authored finite-scalar provenance; the shape/data identity query keeps its primitive exclusion. */
+export function resolveScalarTypeOrigins(annotation: TypeNode): readonly ReferenceFact<TypeIdentityOrigin>[] {
+  const output = annotation.getType();
+  const opaque = opaqueType(output);
+  const parts = scalarParts(output);
+  if (!(opaque || parts.every(closedScalar))) {
+    return [];
+  }
+  const actual = new Set(parts.map((type) => type.compilerType));
+  const facts: ReferenceFact<TypeIdentityOrigin>[] = [];
+  for (const { origin, type } of annotationCandidates(annotation, true)) {
+    const candidates = scalarParts(type);
+    if (!(opaque || (candidates.every(closedScalar) && candidates.every((part) => actual.has(part.compilerType))))) {
+      continue;
+    }
+    appendTypeOrigin(
+      facts,
+      origin.kind === "resolved" && opaque
+        ? unprovenTypeIdentity(origin.value, "unsupported", "an opaque scalar annotation cannot establish its authored origin")
+        : origin,
+    );
   }
   return facts;
 }

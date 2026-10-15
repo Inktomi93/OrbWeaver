@@ -1,8 +1,6 @@
-// verbs: getGlobalSetting / setGlobalSetting — the raw global-KV pair (the `settings` table escape hatch).
-// Admin-gated at the ROUTER, not here. The setter REFUSES the reserved `APP_SETTINGS_KEY`
-// (it owns the dedicated `updateAppSettings` surface) — the one invariant this verb enforces. The write is
-// a system-level event (no user context → `actorUserId: null`).
+// Admin-gated raw KV. App configuration and registered tenant namespaces use their owning write ports.
 
+import { SETTINGS_TENANT_PREFIXES } from "@orb/contracts/settings";
 import { DomainOperationError } from "@orb/kit/errors";
 import { SETTINGS_OP_CODES } from "../contract/errors.ts";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
@@ -18,8 +16,8 @@ export function createGlobalSettings(ctx: SettingsContext): GlobalSettingsVerbs 
   const getGlobalSetting: SettingsService["getGlobalSetting"] = (key) => readGlobalSetting(ctx.db, key);
 
   const setGlobalSetting: SettingsService["setGlobalSetting"] = async (key, value) => {
-    if (key === APP_SETTINGS_KEY) {
-      throw new DomainOperationError(SETTINGS_OP_CODES.reservedKey, `setGlobalSetting: '${key}' is reserved (use updateAppSettings, not the generic setter)`);
+    if (key === APP_SETTINGS_KEY || SETTINGS_TENANT_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+      throw new DomainOperationError(SETTINGS_OP_CODES.reservedKey, `setGlobalSetting: '${key}' is reserved (use its owning settings port)`);
     }
     const at = ctx.now();
     const view = await upsertGlobalSetting(ctx.db, key, value, at);

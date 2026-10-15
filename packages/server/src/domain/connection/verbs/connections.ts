@@ -11,7 +11,16 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ConnectionView, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, EMBED_SPACE_FIELDS, isHubModelId, mintConnectionLabel, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
+import {
+  CONNECTION_OP_CODES,
+  connectionApiAllowed,
+  EMBED_SPACE_FIELDS,
+  isHubModelId,
+  mintConnectionLabel,
+  modelIdSchema,
+  providerDisplayLabel,
+} from "@orb/contracts/inference";
+import { requiresHubModelId } from "@orb/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
@@ -54,7 +63,7 @@ function requireModelId(raw: string): ModelId {
  *  typo; a `url` catalog can lag its provider and admits any id (§7.4). A `local-light` id is still refused
  *  unless it is a Hub `owner/repo`, whatever the catalog: the in-process loader reads any other id as a path. */
 function requireCatalogModel(ctx: ConnectionContext, ownerId: UserId, provider: ProviderDef, model: ModelId): void {
-  if (provider.wire === "local-light" && !isHubModelId(model)) {
+  if (requiresHubModelId(provider) && !isHubModelId(model)) {
     throw new DomainOperationError(
       CONNECTION_OP_CODES.modelIdShape,
       `${provider.label} loads Hugging Face models only: use the model's "owner/repo" id, not a path or URL.`,
@@ -67,7 +76,7 @@ function requireCatalogModel(ctx: ConnectionContext, ownerId: UserId, provider: 
 }
 
 function requireApi(provider: ProviderDef, api: ConnectionApi): void {
-  if (api !== "auto" && !provider.apis.includes(api)) {
+  if (!connectionApiAllowed(provider, api)) {
     throw new DomainOperationError(CONNECTION_OP_CODES.apiIncoherent, `${provider.label} does not speak "${api}".`);
   }
 }

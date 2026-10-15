@@ -3,7 +3,6 @@
 
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
-import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { EmbeddingConnectionSnapshot } from "#domain/embeddings";
@@ -12,10 +11,7 @@ import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contra
 import type { ActiveQuerySpace, SearchContext } from "../contract/service.ts";
 import { readActiveGeneration, readGeneration } from "../persistence/active-space.ts";
 
-type SpaceContext = Pick<SearchContext, "db"> & {
-  readonly resolveEmbeddingConnection?: SearchContext["resolveEmbeddingConnection"] | undefined;
-  readonly roleClientsFor?: ((ownerId: UserId) => Promise<RoleClients>) | undefined;
-};
+type SpaceContext = Pick<SearchContext, "db" | "resolveEmbeddingConnection">;
 
 async function resolveConnection(
   ctx: SpaceContext,
@@ -23,32 +19,12 @@ async function resolveConnection(
   task: EmbeddingTask,
   connectionId?: UserConnectionId,
 ): Promise<EmbeddingConnectionSnapshot | null> {
-  if (ctx.resolveEmbeddingConnection !== undefined) {
-    // @orb-waive caught-failure-ownership(catch): same leak-free collapse ownership as entry/http/plugin-frame.ts — by-id resolution fails closed and the public require*Space boundary turns null into a named SearchError. Ends if null can leave this module without that refusal.
-    try {
-      return await ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
-    } catch {
-      return null;
-    }
-  }
-  const rc = await ctx.roleClientsFor?.(ownerId);
-  if (rc === undefined) {
+  // @orb-waive caught-failure-ownership(catch): same leak-free collapse ownership as entry/http/plugin-frame.ts — by-id resolution fails closed and the public require*Space boundary turns null into a named SearchError. Ends if null can leave this module without that refusal.
+  try {
+    return await ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
+  } catch {
     return null;
   }
-  const resolved = await rc.resolved(task);
-  return resolved === null
-    ? null
-    : {
-        ...resolved,
-        api: "compat",
-        wire: "compat",
-        baseUrl: null,
-        features: {},
-        extras: null,
-        transport: null,
-        embed: rc.embed,
-        imageEmbed: rc.imageEmbed,
-      };
 }
 
 /** Run a complete query against one active generation. A promotion may delete the selected rows between

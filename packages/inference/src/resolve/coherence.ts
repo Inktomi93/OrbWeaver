@@ -3,7 +3,7 @@
 // is no `assertCoherent` matrix and no client mirror — the picker offers `coherentApis(provider)`.
 
 import type { ChatApi, ModelKind, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { coherentApis, connectionTasks } from "@orb/contracts/inference";
+import { coherentApis, connectionApiAllowed, connectionTasks } from "@orb/contracts/inference";
 import { ProviderError } from "../contract/errors.ts";
 
 export function resolveApi(provider: ProviderDef, connection: UserConnection, kind: ModelKind): ChatApi | null {
@@ -18,7 +18,7 @@ export function resolveApi(provider: ProviderDef, connection: UserConnection, ki
     }
     return first;
   }
-  if (!apis.includes(connection.api)) {
+  if (!connectionApiAllowed(provider, connection.api)) {
     throw new ProviderError({
       kind: "invalid",
       retryable: false,

@@ -1,3 +1,5 @@
+import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
+import { createSettingsKvPort } from "@orb/server/domain/settings";
 // persistence: the catalog-snapshot KV — a generic `key → json` tenant inside the shared `settings` table.
 // Its contract is narrow and easy to break quietly: a missing key reads `null` (never `undefined`, never a
 // throw — the mirror treats `null` as "cold" and re-warms), a re-write REPLACES in place on the injected
@@ -15,14 +17,14 @@ const KEY = "catalog:openrouter";
 
 test("an absent key reads `null` — the mirror's cold signal", async () => {
   const db = await freshDb();
-  const store = createSnapshotStore(db, () => 0);
+  const store = createSnapshotStore(createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => 0));
   expect(await store.read(KEY)).toBeNull();
 });
 
 test("write → read round-trips the opaque string, and a re-write REPLACES in place", async () => {
   const db = await freshDb();
   const clock = createFrozenClock();
-  const store = createSnapshotStore(db, () => clock.now());
+  const store = createSnapshotStore(createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => clock.now()));
   await store.write(KEY, '[{"id":"a/b"}]');
   expect(await store.read(KEY)).toBe('[{"id":"a/b"}]');
   clock.advance(5000);
@@ -35,7 +37,7 @@ test("write → read round-trips the opaque string, and a re-write REPLACES in p
 
 test("keys are independent — one provider's snapshot never answers another's read", async () => {
   const db = await freshDb();
-  const store = createSnapshotStore(db, () => 0);
+  const store = createSnapshotStore(createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => 0));
   await store.write(KEY, "openrouter");
   await store.write("catalog:endpoint:http://box/v1", "endpoint");
   expect(await store.read(KEY)).toBe("openrouter");
@@ -44,7 +46,7 @@ test("keys are independent — one provider's snapshot never answers another's r
 
 test("a NON-string value in the shared settings table reads as `null`, never as a half-parsed snapshot", async () => {
   const db = await freshDb();
-  const store = createSnapshotStore(db, () => 0);
+  const store = createSnapshotStore(createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => 0));
   // The `settings` table is shared: a real setting under a colliding key is an object, not a JSON string.
   await db.insert(settings).values({ key: KEY, value: { notASnapshot: true }, updatedAt: 0 });
   expect(await store.read(KEY)).toBeNull();
@@ -52,7 +54,7 @@ test("a NON-string value in the shared settings table reads as `null`, never as 
 
 test("deletePrefix drops every key under the prefix and nothing beside it, and reads a URL's `_` and `%` literally", async () => {
   const db = await freshDb();
-  const store = createSnapshotStore(db, () => 0);
+  const store = createSnapshotStore(createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => 0));
   await store.write("catalog:endpoint:http://box_1/v1#ollama", "a");
   await store.write("catalog:endpoint:http://box_1/v1#list", "b");
   await store.write("catalog:endpoint:http://box_1/v1", "old-family");

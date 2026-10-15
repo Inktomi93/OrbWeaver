@@ -11,6 +11,7 @@ import { STORED_CONFIG_UNREADABLE } from "#primitives/stored-config";
 export const SETTINGS_OP_CODES = {
   /** setGlobalSetting was handed a reserved key that must go through updateAppSettings instead. */
   reservedKey: "reserved_key",
+  tenantNamespace: "settings_tenant_namespace",
   /** createTheme/updateTheme custom CSS failed css-validate (a containment-break shape). */
   unsafeCss: "unsafe_css",
   /** A settings write found the EXISTING stored blob unreadable and refused rather than overwrite it with

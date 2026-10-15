@@ -6,9 +6,10 @@
 // built-in hosted row does — and the table test pins that the derivation is not wider than the belt it
 // replaced.
 
+import type { ConnectionApi } from "./connection.ts";
 import type { ModelKind } from "./kinds.ts";
 import type { ProviderDef } from "./provider-schema.ts";
-import { providerTasks } from "./providers.ts";
+import { coherentApis, providerTasks } from "./providers.ts";
 import type { Task } from "./tasks.ts";
 import { TASK_DEFS, tasksOfKind } from "./tasks.ts";
 
@@ -24,3 +25,10 @@ export function connectionTasks(provider: ProviderDef, kind: ModelKind): readonl
 export function canFund(connection: { readonly allowBackground: boolean }, task: Task): boolean {
   return TASK_DEFS[task].spend === "foreground" || connection.allowBackground;
 }
+
+/** The write and resolve seams share the provider's admitted protocol set. */
+export function connectionApiAllowed(provider: ProviderDef, api: ConnectionApi): boolean {
+  return api === "auto" || coherentApis(provider).includes(api);
+}
+
+export const DIAGNOSTIC_TASK_BY_KIND = { generation: "chat", embedding: "embed", rerank: "rerank" } as const satisfies Record<ModelKind, Task>;

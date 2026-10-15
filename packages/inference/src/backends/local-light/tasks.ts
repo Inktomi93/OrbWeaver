@@ -13,7 +13,8 @@ import { clampToTokenBudget } from "@orb/kit/tokens";
 import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "#contract";
 import { ProviderError } from "#contract";
 import type { LocalLightModelCache } from "../../contract/local-light.ts";
-import { abortableWait, normalizeVector, throwIfAborted } from "./model-cache.ts";
+import { abortableWait } from "../http/abort-wait.ts";
+import { normalizeVector, throwIfAborted } from "./model-cache.ts";
 
 /** The bundled encoder and reranker share the canonical seed rows. */
 export const DEFAULT_EMBED_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[0].model);

@@ -10,6 +10,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId, RoutableTask } from "@orb/contracts/inference";
 import { pluginManifestSchema } from "@orb/contracts/plugin";
+import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, automationRules, plugins, users } from "@orb/db";
@@ -29,6 +30,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createSettingsKvPort } from "@orb/server/domain/settings";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
@@ -242,7 +244,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
   const credentialRelabels: Parameters<ConnectionContext["relabelCredential"]>[0][] = [];
   const requests: RecordedRequest[] = [];
   const now = (): number => clock.now();
-  const ports = createConnectionPorts({ db, now });
+  const ports = createConnectionPorts({ db, now, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, now) });
   let embeddings: EmbeddingTargetPorts = { syncTargetGenerations: () => Promise.resolve(null), targetWouldMove: () => Promise.resolve(null) };
 
   const deps: InferenceDeps = {

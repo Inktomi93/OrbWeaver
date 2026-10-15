@@ -9,12 +9,15 @@ import type {
   ModelCheck,
   PromptCacheSettings,
   ProviderDef,
+  ResolveTaskParams as ResolveAuthority,
   RoutableTask,
 } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
+import type { ResolveArgs } from "@orb/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 
-export type { GetBoundConnectionParams, ResolveTaskParams } from "@orb/contracts/inference";
+export type { GetBoundConnectionParams } from "@orb/contracts/inference";
+export type ResolveTaskParams = ResolveAuthority & Pick<ResolveArgs, "signal">;
 
 // domain/connection/contract/params — every verb's *Params, declared ONCE (§7.4). The acting `principal`
 // (resolved at the entry seam) scopes every read and write to its own rows; connection NEVER reads the `users`

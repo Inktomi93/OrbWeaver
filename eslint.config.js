@@ -575,6 +575,11 @@ const alternation = (names) => `/^(${names.join("|")})$/`;
 const TANSTACK_FORM_MINTS = ["useForm", "createFormHook", "createFormHookContexts"];
 const MATCH_MEDIA = "matchMedia";
 const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
+const SETTINGS_TABLE_IMPORT = {
+  regex: "^@orb/db(?:/(?:schema|index))?$",
+  importNames: ["settings"],
+  message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
+};
 
 const RESTRICTIONS = [
   {
@@ -1602,7 +1607,29 @@ function maintainedRulePacks() {
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: SANCTIONED_DOMAINS.map((domain) => `${DOMAIN_ROOT}${domain}/**`),
+      ignores: [...SANCTIONED_DOMAINS.map((domain) => `${DOMAIN_ROOT}${domain}/**`), `${DOMAIN_ROOT}settings/**`],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              SETTINGS_TABLE_IMPORT,
+              {
+                regex: PNG_CHUNK_SPECIFIER_PATTERN,
+                importNames: [...PNG_CHUNK_SYMBOL_NAMES],
+                message: "Use the import or export domain for PNG card-chunk operations.",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: SANCTIONED_DOMAINS.map((domain) => `${DOMAIN_ROOT}${domain}/**/*.{ts,tsx}`),
+      rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT] }] },
+    },
+    {
+      files: [`${DOMAIN_ROOT}settings/**/*.{ts,tsx}`],
       rules: {
         "no-restricted-imports": [
           "error",

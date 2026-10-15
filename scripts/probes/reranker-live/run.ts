@@ -14,12 +14,14 @@ import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema, RERANK_FLOOR } from "@orb/contrac
 import type { RerankResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
+import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { connectionBindings, userConnections } from "@orb/db";
 import type { InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
 import type { CharacterId, ChatId, ConnectionBindingId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSettingsKvPort } from "@orb/server/domain/settings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -134,7 +136,7 @@ interface Stack {
 async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise<Stack> {
   const db = await freshDb();
   const now = (): number => Date.now();
-  const ports = createConnectionPorts({ db, now });
+  const ports = createConnectionPorts({ db, now, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, now) });
   const deps: InferenceDeps = {
     beginEmbeddingAccounting: () => {
       throw new Error("reranker-live scripts its query vectors; unexpected embedding execution");

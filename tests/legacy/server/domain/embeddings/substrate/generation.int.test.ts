@@ -1,7 +1,7 @@
 import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { documentChunks, embedGenerationTargets, embedSpaceState, userConnections } from "@orb/db";
-import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
+import { embedRequestTimeoutMs, LOCAL_ENCODER_PROBE_TIMEOUT_MS, ProviderError } from "@orb/inference";
 import type { DocumentChunkId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -11,7 +11,7 @@ import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
 import type { EmbeddingConnectionSnapshot } from "#server/domain/embeddings/contract/service.ts";
 import { markGenerationComplete } from "#server/domain/embeddings/persistence/space-state.ts";
-import { LOCAL_ENCODER_PROBE_TIMEOUT_MS, probeWidth, resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
+import { probeWidth, resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { seedDocument, seedUser } from "../_support.ts";
 
 async function seedConnection(db: Db, ownerId: UserId, key: string): Promise<EmbeddingConnectionSnapshot> {
