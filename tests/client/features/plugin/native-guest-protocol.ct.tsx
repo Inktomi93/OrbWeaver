@@ -1,8 +1,9 @@
-import type { UiGuestInbound, UiGuestOutbound } from "@orb/client/lib";
+import type { UiGuestInbound, UiGuestOutbound, UiGuestUnavailableMessage } from "@orb/client/lib";
 import { viewerViewSchema } from "@orb/contracts/identity";
 import { PLUGIN_LOG_LEVELS, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import { jsonValueSchema } from "@orb/kit/json";
 import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "@orb/server/infra/plugin-host";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
@@ -229,4 +230,101 @@ test("the default shared corpus renders its native Ledger publication and captur
   await expect(attribution).toHaveCount(0);
   expect(trpc.unstubbed()).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+const memoryTest = test.extend({
+  launchOptions: async ({ launchOptions }, provide) => {
+    // Restrict only this fixture's isolated V8 instance; retain the native runner's ownership arguments.
+    await provide({ ...launchOptions, args: [...(launchOptions.args ?? []), "--js-flags=--wasm-max-mem-pages=1"] });
+  },
+});
+
+memoryTest("native engine memory reservation refusal retires the real Worker without charging the plugin", async ({ mount, page, browser }) => {
+  const reservation = await page.evaluate(() => {
+    const small = new WebAssembly.Memory({ initial: 1, maximum: 1 });
+    try {
+      const oversized = new WebAssembly.Memory({ initial: 2, maximum: 2 });
+      return { smallBytes: small.buffer.byteLength, failure: null, unexpectedBytes: oversized.buffer.byteLength };
+    } catch (error) {
+      return { smallBytes: small.buffer.byteLength, failure: error instanceof Error ? { name: error.name, message: error.message } : null };
+    }
+  });
+  expect(reservation.smallBytes).toBe(65_536);
+  expect(reservation.failure).toMatchObject({ name: "RangeError", message: expect.any(String) });
+  const plugin = makePluginRow({
+    name: "Native reservation refusal",
+    declaredCapabilities: ["ui.surface", "storage.kv"],
+    grantedCapabilities: ["ui.surface", "storage.kv"],
+  });
+  const settings = userSettingsView();
+  const caller = principal(settings.userId);
+  const me = viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": () => settings,
+    "sessions.me": () => me,
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": () => null,
+    "plugin.uiHostCall": () => ({ resultJson: '"Native ledger"' }),
+    "plugin.reportUiCrash": () => undefined,
+  });
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
+  const pageErrors: string[] = [];
+  const closed: Promise<void>[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("worker", (worker) => closed.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
+  await observeProtocol(page);
+  await mount(<PluginProtocolStory pluginId={plugin.id} />);
+  const retry = page.getByRole("button", { name: "Retry", exact: true });
+  const unavailable = expect.objectContaining({
+    kind: "unavailable" satisfies UiGuestUnavailableMessage["kind"],
+    message: expect.stringMatching(/the browser could not reserve \d+ bytes for the plugin's interface:/u),
+  });
+  for (const attempt of [1, 2]) {
+    await expect(retry).toBeVisible();
+    expect(closed).toHaveLength(attempt);
+    await Promise.all(closed);
+    const frames = jsonValueSchema.parse(JSON.parse((await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS)) ?? "null"));
+    expect(frames).toMatchObject({
+      inbound: Array.from({ length: attempt }, () => expect.objectContaining({ kind: "boot" })),
+      outbound: Array.from({ length: attempt }, () => unavailable),
+    });
+    expect(pageErrors).toHaveLength(attempt);
+    for (const error of pageErrors) {
+      expect(error).toMatch(/could not start in this browser:.*could not reserve \d+ bytes/u);
+    }
+    expect(page.workers()).toHaveLength(0);
+    const requestedBytes = Number(pageErrors[0]?.match(/could not reserve (\d+) bytes/u)?.[1]);
+    expect(requestedBytes).toBeGreaterThan(reservation.smallBytes);
+    const fixedReservation = await page.evaluate((bytes) => {
+      const pages = bytes / 65_536;
+      try {
+        const fixed = new WebAssembly.Memory({ initial: pages, maximum: pages });
+        return { bytes: fixed.buffer.byteLength, failure: null };
+      } catch (error) {
+        return { bytes: null, failure: error instanceof Error ? { name: error.name, message: error.message } : null };
+      }
+    }, requestedBytes);
+    expect(fixedReservation).toMatchObject({ bytes: null, failure: { name: "RangeError", message: expect.any(String) } });
+    if (attempt === 2) {
+      if (frames === null || typeof frames !== "object" || Array.isArray(frames)) {
+        throw new Error("Native protocol observation did not retain its message envelope");
+      }
+      await memoryTest.info().attach("native-memory-reservation", {
+        body: Buffer.from(
+          JSON.stringify({ browser: browser.version(), reservation, requestedBytes, fixedReservation, outbound: frames["outbound"], pageErrors }),
+        ),
+        contentType: "application/json",
+      });
+    }
+    expect(trpc.count("plugin.reportUiCrash")).toBe(0);
+    expect(trpc.count("plugin.uiHostCall")).toBe(0);
+    await expect(page.getByText("Native browser ready", { exact: true })).toHaveCount(0);
+    expect(trpc.unstubbed()).toEqual([]);
+    if (attempt === 1) {
+      const nextWorker = page.waitForEvent("worker");
+      await retry.click();
+      await nextWorker;
+    }
+  }
 });
