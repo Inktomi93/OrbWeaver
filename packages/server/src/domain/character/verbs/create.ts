@@ -100,6 +100,7 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
         importedFrom,
         importHash,
         createdAt: at,
+        updatedAt: at,
         ...card,
       },
       ctx.bumpStatsCanonVersion,

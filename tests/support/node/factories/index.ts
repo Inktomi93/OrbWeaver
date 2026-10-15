@@ -1,7 +1,7 @@
 // Canonical DB-row builders and real-producer seeds; policy and DB-owned defaults stay with their producer.
 
-export type { AssetRow } from "./asset.ts";
-export { makeAsset, makeAssetBytes, seedAsset } from "./asset.ts";
+export type { AssetRow, SeededStoredAsset } from "./asset.ts";
+export { makeAsset, makeAssetBytes, seedAsset, seedStoredAsset } from "./asset.ts";
 export type {
   AutomationFireRow,
   AutomationOwnerBudgetRow,
@@ -21,8 +21,8 @@ export {
   seedAutomationTestFires,
   seedGlobalVariable,
 } from "./automation.ts";
-export type { CharacterPersonaRow, CharacterRow, CharacterSnapshotRow } from "./character.ts";
-export { makeCharacter, seedCharacter, seedCharacterPersona, seedCharacterSnapshot } from "./character.ts";
+export type { CharacterPersonaRow, CharacterRow, CharacterSnapshotRow, SeededCreatedCharacter } from "./character.ts";
+export { makeCharacter, seedCharacter, seedCharacterPersona, seedCharacterSnapshot, seedCreatedCharacter } from "./character.ts";
 export type {
   CapturedChatReplayRows,
   ChatEventRow,
@@ -98,8 +98,8 @@ export type { CapturedTurnRows, MessageRow, MessageVariantRow, SeededMessage, Se
 export { captureTurnRows, makeMessage, seedMessage } from "./message.ts";
 export type { NotificationRow } from "./notification.ts";
 export { seedNotification } from "./notification.ts";
-export type { PersonaRow } from "./persona.ts";
-export { makePersona, seedPersona } from "./persona.ts";
+export type { PersonaRow, SeededCreatedPersona } from "./persona.ts";
+export { makePersona, seedCreatedPersona, seedPersona } from "./persona.ts";
 export type {
   AdminDistributedPluginRow,
   CapturedPluginRows,
@@ -110,8 +110,8 @@ export type {
   SeededInstalledPlugin,
 } from "./plugin.ts";
 export { seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./plugin.ts";
-export type { PresetRow } from "./preset.ts";
-export { makePreset, seedPreset } from "./preset.ts";
+export type { PresetRow, SeededCreatedPreset } from "./preset.ts";
+export { makePreset, seedCreatedPreset, seedPreset } from "./preset.ts";
 export { principal } from "./principal.ts";
 export type { PluginProviderClaimRow, ProviderRow, SeededPluginProvider } from "./provider.ts";
 export { seedAdminProvider, seedPluginProviders } from "./provider.ts";

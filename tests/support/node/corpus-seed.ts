@@ -18,7 +18,7 @@ import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { makeAssetBytes } from "./factories/asset.ts";
+import { makeAssetBytes, seedStoredAsset } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
   captureAutomationExecution,
@@ -30,13 +30,15 @@ import {
   seedAutomationTestFires,
   seedGlobalVariable,
 } from "./factories/automation.ts";
-import { seedCharacterPersona, seedCharacterSnapshot } from "./factories/character.ts";
+import { seedCharacterPersona, seedCharacterSnapshot, seedCreatedCharacter } from "./factories/character.ts";
 import type { UserConnectionRow } from "./factories/connection.ts";
 import { seedConnectionBinding, seedUserConnection } from "./factories/connection.ts";
 import { seedCharacterDocument, seedChatDocument, seedDocument, seedGlobalDocument } from "./factories/databank.ts";
 import { captureChatMemoryRows, captureDocumentChunks } from "./factories/embedding-generation.ts";
 import { seedGalleryItem } from "./factories/gallery.ts";
 import { captureTurnRows } from "./factories/message.ts";
+import { seedCreatedPersona } from "./factories/persona.ts";
+import { seedCreatedPreset } from "./factories/preset.ts";
 import { captureRegexRows } from "./factories/regex.ts";
 import { captureRosterRows } from "./factories/roster-preset.ts";
 import { seedLoginBuckets } from "./factories/sessions.ts";
@@ -63,6 +65,12 @@ type CorpusTurn = Awaited<ReturnType<ServerHarness["services"]["chat"]["send"]>>
 type RecallRecord = ReturnType<ServerHarness["app"]["recallRecorder"]["recent"]>[number];
 
 export interface SeededCorpusLibraries {
+  readonly rows: {
+    readonly asset: Awaited<ReturnType<typeof seedStoredAsset>>["row"];
+    readonly character: Awaited<ReturnType<typeof seedCreatedCharacter>>["row"];
+    readonly persona: Awaited<ReturnType<typeof seedCreatedPersona>>["row"];
+    readonly preset: Awaited<ReturnType<typeof seedCreatedPreset>>["row"];
+  };
   readonly character: Awaited<ReturnType<ServerHarness["services"]["character"]["create"]>>;
   readonly persona: Awaited<ReturnType<ServerHarness["services"]["persona"]["create"]>>;
   readonly preset: Awaited<ReturnType<CorpusCaller["preset"]["create"]>>;
@@ -92,15 +100,18 @@ export interface SeededCorpusLibraries {
 export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCorpusLibraries> {
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
-  const character = await root.services.character.create({
+  const createdCharacter = await seedCreatedCharacter(root.db, root.services.character.create, {
     principal,
     input: createCharacterSchema.parse({ handle: "corpus-library", name: "The ledger archivist", description: "An archivist preserving the orbital ledger." }),
   });
-  const persona = await root.services.persona.create({
+  const character = createdCharacter.view;
+  const createdPersona = await seedCreatedPersona(root.db, root.services.persona.create, {
     principal,
     input: createPersonaSchema.parse({ name: "The ledger keeper", description: "Keeper of the orbital ledger." }),
   });
-  const preset = await caller.preset.create({ name: "Corpus library preset", kind: "custom" });
+  const persona = createdPersona.view;
+  const createdPreset = await seedCreatedPreset(root.db, caller.preset.create, { name: "Corpus library preset", kind: "custom" });
+  const preset = createdPreset.view;
   const room = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
   const snapshot = await seedCharacterSnapshot(root.db, root.services.character.snapshot, {
     principal,
@@ -112,7 +123,13 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     characterId: character.id,
     personaId: persona.id,
   });
-  const asset = await root.app.assets.store({ principal, kind: "gallery", mime: "image/png", bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)) });
+  const storedAsset = await seedStoredAsset(root.db, root.app.assets.store, {
+    principal,
+    kind: "gallery",
+    mime: "image/png",
+    bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
+  });
+  const asset = storedAsset.stored;
   const gallery = await seedGalleryItem(root.db, root.app.assets.addToGallery, { principal, assetId: asset.assetId, subjectCharacterId: character.id });
   const book = await seedWorldBook(root.db, root.services.worldInfo.createBook, { principal, input: createBookSchema.parse({ name: "Orbital ledger canon" }) });
   await seedWorldEntry(root.db, root.services.worldInfo.createEntry, {
@@ -147,7 +164,22 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     preset: await seedPresetTag(root.db, root.services.tag.attachTag, { principal, presetId: preset.id, tagId: tag.id }),
     world: await seedWorldBookTag(root.db, root.services.tag.attachTag, { principal, worldBookId: book.id, tagId: tag.id }),
   };
-  return { character, persona, preset, room, snapshot, characterPersona, asset, gallery, world, document, documents, tag, tags };
+  return {
+    rows: { asset: storedAsset.row, character: createdCharacter.row, persona: createdPersona.row, preset: createdPreset.row },
+    character,
+    persona,
+    preset,
+    room,
+    snapshot,
+    characterPersona,
+    asset,
+    gallery,
+    world,
+    document,
+    documents,
+    tag,
+    tags,
+  };
 }
 
 const AUTOMATION_GATE_KEY = "corpusAssetAutomationEnabled";

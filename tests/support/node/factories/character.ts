@@ -107,6 +107,29 @@ export async function seedCharacter(db: Db, overrides: CharacterOverrides = {}, 
   return row;
 }
 
+export interface SeededCreatedCharacter {
+  readonly view: Awaited<ReturnType<CharacterService["create"]>>;
+  readonly row: CharacterRow;
+}
+
+/** The writer owns card defaults, denorms and stamps; its detail projection is not the complete row. */
+export async function seedCreatedCharacter(
+  db: Db,
+  create: CharacterService["create"],
+  params: Parameters<CharacterService["create"]>[0],
+): Promise<SeededCreatedCharacter> {
+  const view = await create(params);
+  const row = await db
+    .select()
+    .from(characters)
+    .where(and(eq(characters.id, view.id), eq(characters.ownerId, params.principal.userId)))
+    .get();
+  if (row === undefined) {
+    throw new Error("production character creation left no canonical owned row");
+  }
+  return { view, row };
+}
+
 /** The owner operation captures the live card; a fixture never assembles its own snapshot blob. */
 export async function seedCharacterSnapshot(
   db: Db,
