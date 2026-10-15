@@ -26,7 +26,6 @@ import { gate as noColorLiterals } from "../../../../../tooling/src/verify/gates
 import { gate as noFloorlessControlInWrap } from "../../../../../tooling/src/verify/gates/no-floorless-control-in-wrap.ts";
 import { gate as noHoverDisplaySwap } from "../../../../../tooling/src/verify/gates/no-hover-display-swap.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
-import { gate as noOffTokenRadiusShadow } from "../../../../../tooling/src/verify/gates/no-off-token-radius-shadow.ts";
 import { gate as noRawSpacingInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-spacing-in-features.ts";
 import { gate as noRawTypographyInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-typography-in-features.ts";
 import { gate as noRawZIndex } from "../../../../../tooling/src/verify/gates/no-raw-z-index.ts";
@@ -146,11 +145,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noOffTokenInlineStyle,
     overlays: [add(`${FEATURE}/liveness-inline-style.tsx`, 'export const G = <div style={{ borderRadius: "8px" }} />;\n')],
     messageIncludes: "off-token raw-literal inline style",
-  },
-  {
-    policy: noOffTokenRadiusShadow,
-    overlays: [add(`${UI}/liveness-radius/x.tsx`, 'export const G = <div className="rounded-lg shadow-md" />;\n')],
-    messageIncludes: "off-token default-scale radius/shadow",
   },
   {
     policy: noRawSpacingInFeatures,

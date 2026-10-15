@@ -2,6 +2,8 @@
  * Regenerate: pnpm --filter @orb/ui tokens:build (freshness is test-enforced).
  */
 @theme {
+  --radius-*: initial;
+  --shadow-*: initial;
   --color-background: oklch(0.158 0.006 60);
   --color-foreground: oklch(0.955 0.004 75);
   --color-card: oklch(0.205 0.006 60);

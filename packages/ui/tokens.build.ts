@@ -307,7 +307,8 @@ function resolveCssValue(value: string, portableByPath: ReadonlyMap<string, stri
 
 function renderThemeCss(tokens: readonly GeneratedCssValue[]): string {
   const lines = tokens.map((t) => `  ${cssVarName(t.path)}: ${t.value};`);
-  return `/* ${HEADER}\n */\n@theme {\n${lines.join("\n")}\n}\n`;
+  // These namespaces are closed: stock scales must not remain valid beside the owned tokens.
+  return `/* ${HEADER}\n */\n@theme {\n  --radius-*: initial;\n  --shadow-*: initial;\n${lines.join("\n")}\n}\n`;
 }
 
 function renderRootCss(tokens: readonly GeneratedCssValue[]): string {
