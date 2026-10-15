@@ -11,6 +11,7 @@ import { Project, ts } from "ts-morph";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/code-facts/assignability.ts";
 import { readDeclarationOutput } from "../../floor/code-facts/declaration-output.ts";
 import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
+import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
@@ -538,6 +539,10 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (): NativeTypeFactReader => ({
+      computedNames: (nodes): ReturnType<NativeTypeFactReader["computedNames"]> => {
+        checkerFor(nodes);
+        return new Map(nodes.map((node) => [node, referenceResolutionServices.readComputedName(node)]));
+      },
       callableDeclarations: (nodes): ReturnType<NativeTypeFactReader["callableDeclarations"]> => {
         checkerFor(nodes);
         return new Map(nodes.map((node) => [node, resolveCallableDeclaration(node)]));

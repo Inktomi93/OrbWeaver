@@ -28,6 +28,7 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
+import type { ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
 
 /** The member names that keep a `test`/`it` chain a test declaration. `extend` is deliberately absent: it
  *  defines a fixture, so a local `it` (the async-iterator idiom) or a fixture builder is never mistaken for
@@ -41,22 +42,26 @@ interface ChainShape {
   readonly member: string | undefined;
 }
 
-function walkChain(expression: MorphNode, member: string | undefined): ChainShape | undefined {
+function walkChain(
+  expression: MorphNode,
+  member: string | undefined,
+  readComputedName?: ReferenceResolutionServices["readComputedName"],
+): ChainShape | undefined {
   if (Node.isIdentifier(expression)) {
     return { root: expression, member };
   }
-  const read = staticMemberAccess(expression);
+  const read = staticMemberAccess(expression, readComputedName);
   if (read !== undefined) {
-    return walkChain(read.receiver, read.name);
+    return walkChain(read.receiver, read.name, readComputedName);
   }
   if (Node.isTaggedTemplateExpression(expression)) {
-    return walkChain(expression.getTag(), member);
+    return walkChain(expression.getTag(), member, readComputedName);
   }
-  return Node.isCallExpression(expression) ? walkChain(expression.getExpression(), member) : undefined;
+  return Node.isCallExpression(expression) ? walkChain(expression.getExpression(), member, readComputedName) : undefined;
 }
 
-function chainOf(call: CallExpression): ChainShape | undefined {
-  return walkChain(call.getExpression(), undefined);
+function chainOf(call: CallExpression, readComputedName?: ReferenceResolutionServices["readComputedName"]): ChainShape | undefined {
+  return walkChain(call.getExpression(), undefined, readComputedName);
 }
 
 /** The identifier a call's callee chain bottoms out in (`test` for `test.concurrent.each(t)(…)`, and
@@ -64,15 +69,15 @@ function chainOf(call: CallExpression): ChainShape | undefined {
  *  that is not a name at all (a parenthesized expression, a call's return value, a computed member key).
  *  A member-position element access is walked THROUGH to its receiver, so `fixtures['test'](…)` roots in
  *  `fixtures` — which is what keeps the by-NAME root limit refusing it. */
-export function callChainRoot(call: CallExpression): Identifier | undefined {
-  return chainOf(call)?.root;
+export function callChainRoot(call: CallExpression, readComputedName?: ReferenceResolutionServices["readComputedName"]): Identifier | undefined {
+  return chainOf(call, readComputedName)?.root;
 }
 
 /** Is this call a `test`/`it` declaration SHAPE — the bare root, or a chain whose first member is a test
  *  modifier? A call-returning factory's INNER call (`test.each(table)`) has the same shape as its outer
  *  call; a consumer that needs the declaration rather than the factory also asks for a callback argument. */
-export function isTestCallShape(call: CallExpression): boolean {
-  const chain = chainOf(call);
+export function isTestCallShape(call: CallExpression, readComputedName?: ReferenceResolutionServices["readComputedName"]): boolean {
+  const chain = chainOf(call, readComputedName);
   if (chain === undefined || !TEST_ROOTS.has(chain.root.getText())) {
     return false;
   }

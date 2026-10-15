@@ -98,6 +98,9 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
           case "callable-declarations":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
+          case "computed-names":
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
           case "shape-relations":
             rows.push({ kind: query.kind, nodes: [...query.nodes], prepare: query.prepare });
             break;
@@ -146,6 +149,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "callable-declarations", nodes).callableDeclarations(nodes);
+    },
+    computedNames: (owner, nodes): ReturnType<NativeTypeContext["computedNames"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "computed-names", nodes).computedNames(nodes);
     },
     idBrands: (owner, nodes): ReturnType<NativeTypeContext["idBrands"]> => {
       if (nodes.length === 0) {
@@ -224,6 +234,18 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   const inventory = createSemanticInventory({
     root,
     programs: descriptors,
+    ...(families.includes("computed-names")
+      ? {
+          computedNameQueries: queries
+            .filter((query) => query.kind === "computed-names")
+            .flatMap((query) =>
+              query.nodes.map((node) => ({
+                program: owner(node),
+                node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+              })),
+            ),
+        }
+      : {}),
     ...(families.includes("callable-declarations")
       ? {
           callableQueries: queries
@@ -252,6 +274,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    computedNames: (subjects): ReturnType<NativeTypeFactReader["computedNames"]> =>
+      new Map(subjects.map((node) => [node, inventory.computedName(node, owner(node))])),
     callableDeclarations: (calls): ReturnType<NativeTypeFactReader["callableDeclarations"]> =>
       new Map(calls.map((node) => [node, inventory.callableDeclaration(node, owner(node))])),
     callMemberOrigins: (calls): ReturnType<NativeTypeFactReader["callMemberOrigins"]> =>

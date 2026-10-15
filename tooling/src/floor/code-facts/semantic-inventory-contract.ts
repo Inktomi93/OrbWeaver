@@ -9,7 +9,7 @@ import type { CallableDeclaration, ReferenceFact } from "./reference-fact-contra
 import { REFERENCE_UNRESOLVED_REASONS } from "./reference-fact-contract.ts";
 import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
 
-export const INVENTORY_FORMAT = 11;
+export const INVENTORY_FORMAT = 12;
 export const INVENTORY_FAMILIES = [
   "exports",
   "modules",
@@ -24,6 +24,7 @@ export const INVENTORY_FAMILIES = [
   "declaration-outputs",
   "type-member-origins",
   "callable-declarations",
+  "computed-names",
 ] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
@@ -69,13 +70,21 @@ export const callableDeclarationSchema = z.object({
     z.object({ kind: z.literal("unresolved"), reason: z.enum(REFERENCE_UNRESOLVED_REASONS), detail: z.string(), node: spanSchema }),
   ]),
 });
-export interface InventoryCallableQuery {
+export const computedNameSchema = z.object({
+  node: spanSchema,
+  trace: z.object({ origin: spanSchema, declarations: z.array(spanSchema) }),
+  result: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("resolved"), value: z.string() }),
+    z.object({ kind: z.literal("unresolved"), reason: z.enum(REFERENCE_UNRESOLVED_REASONS), detail: z.string(), node: spanSchema }),
+  ]),
+});
+export interface InventoryNativeQuery {
   readonly program: string;
   readonly node: InventorySpan;
 }
 
-/** Closed callable demand compares physical spans, never a replay node's compiler meaning. */
-export function callableQueryKey(node: InventorySpan): string {
+/** Closed demand compares physical spans, never a replay node's compiler meaning. */
+export function inventoryNodeQueryKey(node: InventorySpan): string {
   return JSON.stringify(spanSchema.parse(node));
 }
 export const castRelationResultSchema = z.discriminatedUnion("kind", [
@@ -140,6 +149,7 @@ export const partitionSchema = z.object({
   declarationOutputs: z.array(z.object({ node: spanSchema, unknown: z.boolean().nullable() })),
   memberOrigins: z.array(memberOriginSchema),
   callableDeclarations: z.array(callableDeclarationSchema),
+  computedNames: z.array(computedNameSchema),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
   format: z.literal(INVENTORY_FORMAT),
@@ -165,6 +175,7 @@ export const partitionSchema = z.object({
 });
 
 export const partitionMetadataSchema = partitionSchema.omit({
+  computedNames: true,
   callableDeclarations: true,
   memberOrigins: true,
   declarationOutputs: true,
@@ -198,6 +209,7 @@ export const INVENTORY_FAMILY_FIELDS = {
   "declaration-outputs": "declarationOutputs",
   "type-member-origins": "memberOrigins",
   "callable-declarations": "callableDeclarations",
+  "computed-names": "computedNames",
 } as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
@@ -224,6 +236,8 @@ export const INVENTORY_RECORD_TABLES = [
   "memberDeclaration",
   "callableDeclaration",
   "callableTrace",
+  "computedName",
+  "computedTrace",
 ] as const;
 export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
 export interface InventoryRecord {
@@ -251,6 +265,7 @@ export interface InventoryOverlay {
 }
 
 export interface InventoryBuildRequest {
+  readonly computedNameQueries?: readonly InventorySpan[];
   readonly callableQueries?: readonly InventorySpan[];
   readonly intent?: "facts" | "membership";
   readonly shapeQueries?: readonly InventoryShapeQuery[];
@@ -262,7 +277,8 @@ export interface InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
-  readonly callableQueries?: readonly InventoryCallableQuery[];
+  readonly callableQueries?: readonly InventoryNativeQuery[];
+  readonly computedNameQueries?: readonly InventoryNativeQuery[];
   readonly shapePlan?: {
     readonly sources: readonly SourceFile[];
     /** Existing native source contexts, when discovery is not the primary authored-root interpretation. */
@@ -282,6 +298,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly computedName: (node: Node, program: string) => ReferenceFact<string>;
   readonly callableDeclaration: (node: Node, program: string) => ReferenceFact<CallableDeclaration>;
   readonly callMemberOrigin: (node: Node, program: string) => NativeCallMemberOrigin;
   readonly declarationOutput: (node: Node, program: string) => boolean | null;

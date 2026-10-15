@@ -396,19 +396,55 @@ function computedName(node: MorphNode, target: ResolutionState): ReferenceFact<s
   return unresolved("dynamic", node, target, `computed key ${node.getText()} does not resolve to one static property name`);
 }
 
+/** Demand only when the canonical transparent/unary grammar can reach a lexical binding. */
+export function computedNameNeedsBindings(node: MorphNode): boolean {
+  let current = unwrapExpression(node);
+  while (
+    Node.isPrefixUnaryExpression(current) &&
+    (current.getOperatorToken() === SyntaxKind.PlusToken || current.getOperatorToken() === SyntaxKind.MinusToken)
+  ) {
+    current = unwrapExpression(current.getOperand());
+  }
+  return Node.isIdentifier(current);
+}
+
+/** Key demands on a delivered callee/receiver chain; arguments and unrelated subtrees are not walked. */
+export function computedMemberNameInputs(node: MorphNode): readonly MorphNode[] {
+  const keys: MorphNode[] = [];
+  let current = node;
+  for (;;) {
+    if (Node.isElementAccessExpression(current)) {
+      const key = current.getArgumentExpression();
+      if (key !== undefined && computedNameNeedsBindings(key)) {
+        keys.push(key);
+      }
+      current = current.getExpression();
+    } else if (Node.isPropertyAccessExpression(current) || Node.isCallExpression(current)) {
+      current = current.getExpression();
+    } else if (Node.isTaggedTemplateExpression(current)) {
+      current = current.getTag();
+    } else {
+      return keys;
+    }
+  }
+}
+
 export function readMemberReference(node: MorphNode): ReferenceFact<MemberReference> {
   return readMemberReferenceWith(node, { unwrapExpression, readComputedName: (member) => computedName(member, state()) });
 }
 
 /** Read a static member's syntax, including assignment, update and delete targets; identity is separate. */
-export function readMemberAccess(node: MorphNode): ReferenceFact<MemberReference> {
-  return readMemberAccessWith(node, { unwrapExpression, readComputedName: (member) => computedName(member, state()) });
+export function readMemberAccess(
+  node: MorphNode,
+  readComputedName: ReferenceResolutionServices["readComputedName"] = (member) => computedName(member, state()),
+): ReferenceFact<MemberReference> {
+  return readMemberAccessWith(node, { unwrapExpression, readComputedName });
 }
 
 /** The member `node` itself reads in any of the three spellings (`x.foo`, `x?.foo`, `x["foo"]`), or undefined
  *  when it names no ONE static member. Callers needing the refusal reason or a wrapped access use `readMemberAccess`. */
-export function staticMemberAccess(node: MorphNode): MemberReference | undefined {
-  const fact = Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node) ? readMemberAccess(node) : undefined;
+export function staticMemberAccess(node: MorphNode, readComputedName?: ReferenceResolutionServices["readComputedName"]): MemberReference | undefined {
+  const fact = Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node) ? readMemberAccess(node, readComputedName) : undefined;
   return fact?.kind === "resolved" ? fact.value : undefined;
 }
 

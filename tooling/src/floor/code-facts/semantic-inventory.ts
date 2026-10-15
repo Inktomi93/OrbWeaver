@@ -15,7 +15,7 @@ import type {
   SemanticInventoryOptions,
   StoredInventoryPartition,
 } from "./semantic-inventory-contract.ts";
-import { callableQueryKey, inventoryFamilies, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
+import { inventoryFamilies, inventoryNodeQueryKey, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
 import {
   beginInventoryWrite,
   importInventoryPartition,
@@ -26,7 +26,7 @@ import {
   readInventoryGeneration,
 } from "./semantic-inventory-database.ts";
 import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurrent, inventoryAuthoredFiles } from "./semantic-inventory-inputs.ts";
-import { readInventoryCallableDeclarations, readInventoryInputs, readInventoryPairs } from "./semantic-inventory-queries.ts";
+import { readInventoryCallableDeclarations, readInventoryComputedNames, readInventoryInputs, readInventoryPairs } from "./semantic-inventory-queries.ts";
 import { inventoryReader } from "./semantic-inventory-reader.ts";
 
 function authoredVersion(root: string): string {
@@ -72,6 +72,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     }
     const families = inventoryFamilies(options.families);
     assertCallableDemand(options, descriptors, families);
+    assertComputedDemand(options, descriptors, families);
     const previous = latestInventoryPartitions(db, families);
     const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
     assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
@@ -159,6 +160,9 @@ function buildPartition(
     if (!coversCallableDemand(staging, candidate, request.callableQueries ?? [])) {
       throw new Error(`native inventory worker supplied incomplete callable coverage: ${request.descriptor.id}`);
     }
+    if (!coversComputedDemand(staging, candidate, request.computedNameQueries ?? [])) {
+      throw new Error(`native inventory worker supplied incomplete computed-name coverage: ${request.descriptor.id}`);
+    }
     partition = candidate;
   }
   importInventoryPartition(db, request.destination, partition.id);
@@ -181,12 +185,13 @@ function demandPartitions(
   let rebuilt = false;
   for (const descriptor of descriptors) {
     const callableQueries = callableDemand(options, descriptor.id);
+    const computedNameQueries = computedDemand(options, descriptor.id);
     const existing = previous.get(descriptor.id);
     if (
       existing !== undefined &&
       existing.descriptorVersion === descriptorVersion(descriptor) &&
       inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
-      coversCallableDemand(db, existing, callableQueries)
+      coversNativeDemand(db, existing, { callableQueries, computedNameQueries })
     ) {
       partitions.push(existing);
       continue;
@@ -200,6 +205,7 @@ function demandPartitions(
           descriptor,
           families: inventoryFamilies(options.families),
           ...(options.callableQueries === undefined ? {} : { callableQueries }),
+          ...(options.computedNameQueries === undefined ? {} : { computedNameQueries }),
           destination: join(scratch, `partition-${String(partitions.length)}.sqlite`),
           ...(overlay === undefined ? {} : { overlay }),
         },
@@ -254,7 +260,7 @@ function demandShapePartitions(
     families: readonly InventoryFamily[],
     pairRequests: readonly InventoryShapeQuery[],
   ): void => {
-    const callableQueries = families.includes("callable-declarations") ? callableDemand(options, descriptor.id) : [];
+    const nativeDemand = nativeDemandRequest(options, descriptor.id, families);
     const existing = partitions.get(descriptor.id) ?? previous.get(descriptor.id);
     const covered =
       existing !== undefined && pairRequests.length > 0 && existing.families.includes("shape-pairs")
@@ -266,7 +272,7 @@ function demandShapePartitions(
       inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
       families.every((family) => existing.families.includes(family)) &&
       pairRequests.every((query) => covered.has(shapePairKey(query))) &&
-      coversCallableDemand(db, existing, callableQueries)
+      coversNativeDemand(db, existing, nativeDemand)
     ) {
       partitions.set(descriptor.id, existing);
       return;
@@ -278,7 +284,7 @@ function demandShapePartitions(
       intent: families.length === 0 ? "membership" : "facts",
       families,
       shapeQueries: pairRequests,
-      ...(families.includes("callable-declarations") ? { callableQueries } : {}),
+      ...nativeDemand,
       ...(overlay === undefined ? {} : { overlay }),
     };
     const partition = buildPartition(db, request, options);
@@ -394,7 +400,9 @@ function assertShapeRoot(root: string, options: SemanticInventoryOptions): void 
 }
 
 function callableDemand(options: SemanticInventoryOptions, program: string): readonly InventorySpan[] {
-  return [...new Map((options.callableQueries ?? []).filter((query) => query.program === program).map(({ node }) => [callableQueryKey(node), node])).values()];
+  return [
+    ...new Map((options.callableQueries ?? []).filter((query) => query.program === program).map(({ node }) => [inventoryNodeQueryKey(node), node])).values(),
+  ];
 }
 
 function coversCallableDemand(db: ReturnType<typeof openInventoryDatabase>, partition: StoredInventoryPartition, queries: readonly InventorySpan[]): boolean {
@@ -413,4 +421,48 @@ function assertCallableDemand(
   ) {
     throw new Error("native callable declarations require closed demand in admitted native programs");
   }
+}
+
+function computedDemand(options: SemanticInventoryOptions, program: string): readonly InventorySpan[] {
+  return [
+    ...new Map(
+      (options.computedNameQueries ?? []).filter((query) => query.program === program).map(({ node }) => [inventoryNodeQueryKey(node), node]),
+    ).values(),
+  ];
+}
+
+function coversComputedDemand(db: ReturnType<typeof openInventoryDatabase>, partition: StoredInventoryPartition, queries: readonly InventorySpan[]): boolean {
+  return queries.every((query) => [...readInventoryComputedNames(db, partition.id, query)].length === 1);
+}
+
+function assertComputedDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  if (
+    (options.computedNameQueries ?? []).some((query) => !descriptors.some((descriptor) => descriptor.id === query.program)) ||
+    (options.computedNameQueries !== undefined && !families.includes("computed-names")) ||
+    (families.includes("computed-names") && options.computedNameQueries === undefined)
+  ) {
+    throw new Error("native computed names require closed demand in admitted native programs");
+  }
+}
+
+function nativeDemandRequest(
+  options: SemanticInventoryOptions,
+  program: string,
+  families: readonly InventoryFamily[],
+): Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries"> {
+  return {
+    ...(families.includes("callable-declarations") ? { callableQueries: callableDemand(options, program) } : {}),
+    ...(families.includes("computed-names") ? { computedNameQueries: computedDemand(options, program) } : {}),
+  };
+}
+function coversNativeDemand(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  demand: Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries">,
+): boolean {
+  return coversCallableDemand(db, partition, demand.callableQueries ?? []) && coversComputedDemand(db, partition, demand.computedNameQueries ?? []);
 }

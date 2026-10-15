@@ -11,11 +11,11 @@ import { readAssignabilityChecker, readNativeTypeRelation } from "../code-facts/
 import { readDeclarationOutput } from "../code-facts/declaration-output.ts";
 import { nativeIdBrand } from "../code-facts/id-brand.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
-import { beginReferencePass, endReferencePass } from "../code-facts/reference-fact.ts";
+import { beginReferencePass, endReferencePass, referenceResolutionServices } from "../code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
 import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
-import { callableQueryKey, INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
+import { INVENTORY_FORMAT, inventoryFamilies, inventoryNodeQueryKey } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
@@ -170,7 +170,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
       : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
     ...(families.includes("declaration-outputs") ? [fileURLToPath(new URL("../code-facts/declaration-output.ts", import.meta.url))] : []),
-    ...(families.includes("callable-declarations")
+    ...(families.includes("callable-declarations") || families.includes("computed-names")
       ? [
           "reference-fact.ts",
           "reference-fact-call.ts",
@@ -243,6 +243,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   }
   const roots = request.descriptor.files.map((path) => spans.path(resolve(request.root, path)));
   const callableQueries = callableDemandFor(request, families, roots);
+  const computedNameQueries = computedDemandFor(request, families, roots);
   const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
   const authored = (path: string): boolean => {
     const version = inputVersion(path, "authored", authoredFiles);
@@ -273,11 +274,12 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           declarationOutputs: [],
           memberOrigins: [],
           callableDeclarations: [],
+          computedNames: [],
           shapes: [],
           pairs: [],
           references: [],
         }
-      : extractTypedFacts(project, { sources, authored, spans, families, queries: request.shapeQueries ?? [], callableQueries });
+      : extractTypedFacts(project, { sources, authored, spans, families, queries: request.shapeQueries ?? [], callableQueries, computedNameQueries });
   return {
     intent: request.intent ?? "facts",
     available,
@@ -319,20 +321,26 @@ function extractTypedFacts(
     readonly families: readonly InventoryFamily[];
     readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryShapeQuery[];
     readonly callableQueries: readonly InventorySpan[];
+    readonly computedNameQueries: readonly InventorySpan[];
   },
 ): SourceFactValues & Pick<InventoryPartition, "pairs" | "references"> {
-  const { sources, authored, spans, families, queries, callableQueries } = input;
+  const { sources, authored, spans, families, queries, callableQueries, computedNameQueries } = input;
   const service = project.getLanguageService().compilerObject;
   const program = service.getProgram();
   if (program === undefined) {
     throw new Error("native inventory language service has no Program");
   }
-  const callablePass = families.includes("callable-declarations");
+  const callablePass = families.includes("callable-declarations") || families.includes("computed-names");
   if (callablePass) {
     beginReferencePass();
   }
   try {
-    const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, { spans, families: new Set(families), callableQueries });
+    const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, {
+      spans,
+      families: new Set(families),
+      callableQueries,
+      computedNameQueries,
+    });
     return {
       ...sourceFacts,
       pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
@@ -405,6 +413,7 @@ type SourceFactValues = Pick<
   | "declarationOutputs"
   | "memberOrigins"
   | "callableDeclarations"
+  | "computedNames"
   | "shapes"
 >;
 interface SourceFactCollection {
@@ -416,6 +425,8 @@ interface SourceFactCollection {
   readonly shapeNodes: WeakSet<ts.Node>;
   readonly checker: AssignabilityChecker | undefined;
   readonly callableQueries: Set<string>;
+  readonly computedNameQueries: Set<string>;
+  readonly computedKinds: ReadonlySet<SyntaxKind>;
 }
 
 function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void {
@@ -505,7 +516,7 @@ function collectMemberOriginFact(node: MorphNode, context: SourceFactCollection)
 
 function collectCallableDeclarationFact(node: MorphNode, context: SourceFactCollection): void {
   const query = context.spans.node(node);
-  if (!context.callableQueries.delete(callableQueryKey(query))) {
+  if (!context.callableQueries.delete(inventoryNodeQueryKey(query))) {
     return;
   }
   const fact = resolveCallableDeclaration(node);
@@ -519,6 +530,22 @@ function collectCallableDeclarationFact(node: MorphNode, context: SourceFactColl
             declaration: context.spans.node(fact.value.declaration),
             body: fact.value.body === undefined ? null : context.spans.node(fact.value.body),
           }
+        : { kind: fact.kind, reason: fact.reason, detail: fact.detail, node: context.spans.node(fact.node) },
+  });
+}
+
+function collectComputedNameFact(node: MorphNode, context: SourceFactCollection): void {
+  const query = context.spans.node(node);
+  if (!context.computedNameQueries.delete(inventoryNodeQueryKey(query))) {
+    return;
+  }
+  const fact = referenceResolutionServices.readComputedName(node);
+  context.values.computedNames.push({
+    node: query,
+    trace: { origin: context.spans.node(fact.trace.origin), declarations: fact.trace.declarations.map(context.spans.node) },
+    result:
+      fact.kind === "resolved"
+        ? { kind: fact.kind, value: fact.value }
         : { kind: fact.kind, reason: fact.reason, detail: fact.detail, node: context.spans.node(fact.node) },
   });
 }
@@ -584,6 +611,7 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
       (node): void => collectCallableDeclarationFact(node, context),
     ]);
   }
+  addComputedVisitors(visitors, context);
   collectByKinds([sf], visitors);
 }
 
@@ -591,13 +619,18 @@ function extractSourceFacts(
   program: ts.Program,
   sources: InventorySources,
   authored: (path: string) => boolean,
-  input: Pick<SourceFactCollection, "families" | "spans"> & { readonly callableQueries: readonly InventorySpan[] },
+  input: Pick<SourceFactCollection, "families" | "spans"> & {
+    readonly callableQueries: readonly InventorySpan[];
+    readonly computedNameQueries: readonly InventorySpan[];
+  },
 ): SourceFactValues & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
   const { spans } = input;
   const context: SourceFactCollection = {
     ...input,
     authored,
-    callableQueries: new Set(input.callableQueries.map(callableQueryKey)),
+    callableQueries: new Set(input.callableQueries.map(inventoryNodeQueryKey)),
+    computedNameQueries: new Set(input.computedNameQueries.map(inventoryNodeQueryKey)),
+    computedKinds: new Set(input.computedNameQueries.map(({ kind }) => kind)),
     values: {
       exports: [],
       modules: [],
@@ -609,6 +642,7 @@ function extractSourceFacts(
       declarationOutputs: [],
       memberOrigins: [],
       callableDeclarations: [],
+      computedNames: [],
       shapes: [],
     },
     referenceDeclarations: new Map(),
@@ -635,6 +669,9 @@ function extractSourceFacts(
     }
     if (context.callableQueries.size > 0) {
       throw new Error("native callable query span is unavailable in its captured native program");
+    }
+    if (context.computedNameQueries.size > 0) {
+      throw new Error("native computed-name query span is unavailable in its captured native program");
     }
   } finally {
     for (const sf of standaloneSources) {
@@ -726,4 +763,21 @@ function callableDemandFor(request: InventoryBuildRequest, families: readonly In
     throw new Error("native callable query is outside its demanded native roots/family");
   }
   return callableQueries;
+}
+
+function computedDemandFor(request: InventoryBuildRequest, families: readonly InventoryFamily[], roots: readonly string[]): readonly InventorySpan[] {
+  const queries = request.computedNameQueries ?? [];
+  if (families.includes("computed-names") && request.computedNameQueries === undefined) {
+    throw new Error("native computed names require closed key demand");
+  }
+  if (queries.some((query) => !roots.includes(query.file)) || (queries.length > 0 && !families.includes("computed-names"))) {
+    throw new Error("native computed-name query is outside its demanded native roots/family");
+  }
+  return queries;
+}
+
+function addComputedVisitors(visitors: Map<SyntaxKind, ((node: MorphNode) => void)[]>, context: SourceFactCollection): void {
+  for (const kind of context.computedKinds) {
+    visitors.set(kind, [...(visitors.get(kind) ?? []), (node): void => collectComputedNameFact(node, context)]);
+  }
 }

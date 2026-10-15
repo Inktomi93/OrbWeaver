@@ -92,9 +92,15 @@
 // against the final policy, both over the real `tests/**` corpus AND fixture-level over every legacy
 // example. The result is in the landing commit message.
 
-import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import {
+  computedMemberNameInputs,
+  computedNameNeedsBindings,
+  referenceResolutionServices,
+  staticMemberAccess,
+} from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { NativeTypeContext } from "../contract/project-context.ts";
@@ -120,15 +126,46 @@ const EMPTY_HOOK = "this lifecycle hook has an empty body and runs for every tes
 const FIX =
   "add a matcher-chained expect (or await), delete the empty describe/hook, and complete any bare `expect(x)` with a matcher (Spine-Testing.md §5). A deliberate occurrence waives with `@orb-waive audit-client-tests(<position>): <reason + end condition>`, where the position is the reported AUTHORED token: the test callee (`test`/`it`) for the no-assertion arm, the literal keyword `async` for the async-no-await arm, `expect` for a bare expect, `describe` for an empty suite, and the hook's own name for an empty hook.";
 
-function isDescribeCall(call: CallExpression): boolean {
-  return callChainRoot(call)?.getText() === "describe";
+function potentialAssertionHelper(call: CallExpression): boolean {
+  const callee = call.getExpression();
+  if (Node.isElementAccessExpression(callee)) {
+    const key = callee.getArgumentExpression();
+    if (key !== undefined && computedNameNeedsBindings(key)) {
+      return true;
+    }
+  }
+  const name = calleeName(call);
+  return name !== undefined && ASSERTION_HELPER_RE.test(name);
+}
+
+function classifyCall(state: PassState, call: CallExpression, readName: ReferenceResolutionServices["readComputedName"]): void {
+  const index = indexOf(state, call.getSourceFile());
+  if (isMatcherChainedExpect(call, readName)) {
+    index.matcherExpects.push(call);
+  }
+  const name = calleeName(call, readName);
+  if (name !== undefined && ASSERTION_HELPER_RE.test(name)) {
+    index.helperCalls.push(call);
+  }
+  if (isDescribeCall(call, readName)) {
+    state.describeCalls.push(call);
+  } else if (name !== undefined && LIFECYCLE_HOOKS.has(name)) {
+    state.hookCalls.push(call);
+  } else if (isTestCallShape(call, readName)) {
+    index.testCalls.push(call);
+    state.testCalls.push(call);
+  }
+}
+
+function isDescribeCall(call: CallExpression, readName: ReferenceResolutionServices["readComputedName"]): boolean {
+  return callChainRoot(call, readName)?.getText() === "describe";
 }
 
 /** The plain callee NAME of a call — `beforeEach` for `beforeEach(…)`, `poll` for `expect.poll(…)` and for
  *  `expect["poll"](…)`, because the member is read through the shared spelling-independent reader. */
-function calleeName(call: CallExpression): string | undefined {
+function calleeName(call: CallExpression, readName?: ReferenceResolutionServices["readComputedName"]): string | undefined {
   const expr = call.getExpression();
-  return Node.isIdentifier(expr) ? expr.getText() : staticMemberAccess(expr)?.name;
+  return Node.isIdentifier(expr) ? expr.getText() : staticMemberAccess(expr, readName)?.name;
 }
 
 /** The authored name the report anchors on: the MEMBER the chain is actually called through (`each` for
@@ -166,25 +203,25 @@ function callbackFromCall(call: CallExpression): ArrowFunction | FunctionExpress
  *  exactly as `expect(x).toBe` does — THE ACQUITTING SIDE MOVING WITH THE ACCUSING ONE (#2353): a
  *  bracket-spelled matcher chain that stopped reaching `expect` here would turn a real assertion into a
  *  no-assertion finding. */
-function walksToExpectCall(cursor: MorphNode | undefined): boolean {
+function walksToExpectCall(cursor: MorphNode | undefined, readName: ReferenceResolutionServices["readComputedName"]): boolean {
   if (cursor === undefined) {
     return false;
   }
   if (Node.isCallExpression(cursor)) {
     const inner = cursor.getExpression();
-    return (Node.isIdentifier(inner) && inner.getText() === EXPECT) || walksToExpectCall(inner);
+    return (Node.isIdentifier(inner) && inner.getText() === EXPECT) || walksToExpectCall(inner, readName);
   }
-  const read = staticMemberAccess(cursor);
+  const read = staticMemberAccess(cursor, readName);
   if (read === undefined) {
     return false;
   }
-  return (Node.isIdentifier(read.receiver) && read.receiver.getText() === EXPECT) || walksToExpectCall(read.receiver);
+  return (Node.isIdentifier(read.receiver) && read.receiver.getText() === EXPECT) || walksToExpectCall(read.receiver, readName);
 }
 
 /** A MATCHER-chained expect: a call whose callee is a member read (however spelled) reaching `expect`. */
-function isMatcherChainedExpect(call: CallExpression): boolean {
-  const read = staticMemberAccess(call.getExpression());
-  return read !== undefined && walksToExpectCall(read.receiver);
+function isMatcherChainedExpect(call: CallExpression, readName: ReferenceResolutionServices["readComputedName"]): boolean {
+  const read = staticMemberAccess(call.getExpression(), readName);
+  return read !== undefined && walksToExpectCall(read.receiver, readName);
 }
 
 /** A BARE `expect(x);` expression statement — the incomplete assertion. */
@@ -217,6 +254,7 @@ function resolveCalleeBody(call: CallExpression, callables: ReturnType<NativeTyp
 
 /** One file's indexed evidence. Every list holds nodes the SHARED walk delivered for THAT file. */
 interface FileIndex {
+  readonly calls: CallExpression[];
   callables: ReturnType<NativeTypeContext["callableDeclarations"]>;
   readonly matcherExpects: CallExpression[];
   readonly helperCalls: CallExpression[];
@@ -226,7 +264,7 @@ interface FileIndex {
 }
 
 function emptyIndex(): FileIndex {
-  return { callables: new Map(), matcherExpects: [], helperCalls: [], awaits: [], testCalls: [], bareExpects: [] };
+  return { calls: [], callables: new Map(), matcherExpects: [], helperCalls: [], awaits: [], testCalls: [], bareExpects: [] };
 }
 
 interface PassState {
@@ -336,15 +374,17 @@ export const gate = defineGate({
       describeCalls: [],
       hookCalls: [],
     };
-    const registerHelper = (index: FileIndex, node: CallExpression): void => {
+    const potentialHelpers: CallExpression[] = [];
+    const keys = new Set<MorphNode>();
+    const registerHelper = (node: CallExpression): void => {
       if (ctx.nativeTypes === undefined) {
         throw new Error("native callable declaration context is unavailable");
       }
-      index.helperCalls.push(node);
+      potentialHelpers.push(node);
       ctx.nativeTypes.request({ kind: "callable-declarations", nodes: [node] });
     };
     const helperDeclarations = (): ReturnType<NativeTypeContext["callableDeclarations"]> => {
-      const helpers = [...state.byFile.values()].flatMap((index) => index.helperCalls);
+      const helpers = potentialHelpers;
       if (helpers.length === 0) {
         return new Map();
       }
@@ -352,6 +392,37 @@ export const gate = defineGate({
         throw new Error("native callable declaration context is unavailable");
       }
       return ctx.nativeTypes.callableDeclarations(helpers);
+    };
+    const computedNames = (): ReturnType<NativeTypeContext["computedNames"]> => {
+      if (keys.size === 0) {
+        return new Map();
+      }
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native computed-name context is unavailable");
+      }
+      return ctx.nativeTypes.computedNames([...keys]);
+    };
+    const prepareIndexes = (): void => {
+      const callables = helperDeclarations();
+      const names = computedNames();
+      const readName: ReferenceResolutionServices["readComputedName"] = (node) => {
+        if (!computedNameNeedsBindings(node)) {
+          return referenceResolutionServices.readComputedName(node);
+        }
+        const fact = names.get(node);
+        if (fact === undefined) {
+          throw new Error("native computed-name is unavailable");
+        }
+        return fact;
+      };
+      for (const index of state.byFile.values()) {
+        for (const call of index.calls) {
+          classifyCall(state, call, readName);
+        }
+      }
+      for (const index of state.byFile.values()) {
+        index.callables = callables;
+      }
     };
     return {
       // Every admitted file gets an index even when it holds none of the indexed kinds, so a file with a
@@ -367,25 +438,19 @@ export const gate = defineGate({
             if (!Node.isCallExpression(node)) {
               return;
             }
-            const index = indexOf(state, sourceFile);
-            if (isMatcherChainedExpect(node)) {
-              index.matcherExpects.push(node);
+            indexOf(state, sourceFile).calls.push(node);
+            const inputs = computedMemberNameInputs(node.getExpression());
+            for (const key of inputs) {
+              keys.add(key);
             }
-            const name = calleeName(node);
-            if (name !== undefined && ASSERTION_HELPER_RE.test(name)) {
-              registerHelper(index, node);
+            if (inputs.length > 0) {
+              if (ctx.nativeTypes === undefined) {
+                throw new Error("native computed-name context is unavailable");
+              }
+              ctx.nativeTypes.request({ kind: "computed-names", nodes: inputs });
             }
-            if (isDescribeCall(node)) {
-              state.describeCalls.push(node);
-              return;
-            }
-            if (name !== undefined && LIFECYCLE_HOOKS.has(name)) {
-              state.hookCalls.push(node);
-              return;
-            }
-            if (isTestCallShape(node)) {
-              index.testCalls.push(node);
-              state.testCalls.push(node);
+            if (potentialAssertionHelper(node)) {
+              registerHelper(node);
             }
           },
         },
@@ -415,10 +480,7 @@ export const gate = defineGate({
         },
       ],
       evaluate: (): void => {
-        const callables = helperDeclarations();
-        for (const index of state.byFile.values()) {
-          index.callables = callables;
-        }
+        prepareIndexes();
         for (const call of state.describeCalls) {
           auditDescribeCall(ctx, state, call);
         }
