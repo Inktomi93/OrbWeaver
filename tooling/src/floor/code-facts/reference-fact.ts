@@ -3,6 +3,7 @@
 import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { beginNativeReferencePass, endNativeReferencePass } from "../compiler/ts-workspace.ts";
+import { isDocumentationLinkReference as documentationLinkReference } from "./reference-documentation.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import type {
   GlobalMemberOrigin,
@@ -411,9 +412,9 @@ export function staticMemberAccess(node: MorphNode): MemberReference | undefined
   return fact?.kind === "resolved" ? fact.value : undefined;
 }
 
-/** A symbol mention inside a JSDoc link is documentation, distinct from JSDoc type annotations and code references. */
+/** A JSDoc link is documentation rather than a code or type reference. */
 export function isDocumentationLinkReference(node: MorphNode): boolean {
-  return [node, ...node.getAncestors()].some((part) => Node.isJSDocLink(part) || Node.isJSDocLinkCode(part) || Node.isJSDocLinkPlain(part));
+  return documentationLinkReference(node);
 }
 
 /** Read only authored member spelling; constant bindings, wrappers and numeric keys remain outside this door. */

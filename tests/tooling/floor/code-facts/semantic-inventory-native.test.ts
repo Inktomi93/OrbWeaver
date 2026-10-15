@@ -11,16 +11,17 @@ import {
   collectTypeOnlyCandidates,
   deadEvidenceFor,
   ownExports,
+  testOnlyClassOf,
 } from "@orb/tooling/ast";
 import { runCodemod } from "@orb/tooling/codemod";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
-import { isDocumentationLinkReference, resolveExportedDeclarations } from "@orb/tooling/floor/code-facts/reference-fact";
+import { beginReferencePass, endReferencePass, isDocumentationLinkReference, resolveExportedDeclarations } from "@orb/tooling/floor/code-facts/reference-fact";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { SemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { SemanticInventoryError } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
-import { createSemanticWorkspace, nativeCompilerSourceFiles, semanticReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
+import { createSemanticWorkspace, nativeCompilerSourceFiles, semanticReferenceNodes, sourceBindingUsage } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { Node, Project, SyntaxKind } from "ts-morph";
@@ -159,6 +160,167 @@ test("stored native collectors preserve aliases, namespace bindings, lazy member
   expect(native.sourceCorpus().getSourceFile("packages/client/src/browser.ts")?.getVariableDeclarationOrThrow("button").getType().getText()).toBe(
     "HTMLButtonElement",
   );
+});
+
+test.for(["native", "stored"] as const)("own-file binding work is reused across exports and repeated collectors: %s", (mode, { scratch }) => {
+  initialize(scratch);
+  write(
+    scratch,
+    "packages/kit/src/usage.ts",
+    `
+export function called(): void {}
+export function unusedA(): void {}
+export function unusedB(): void {}
+export interface UnusedShape { value: string }
+/** See {@link unusedA}. */
+export function documentation(): void {}
+export function consumer(): void { called(); }
+`,
+  );
+  const workspace = createSemanticWorkspace({ root: scratch });
+  using stored = createSemanticInventory({ root: scratch });
+  const corpus = mode === "native" ? workspace.sourceCorpus() : stored.sourceCorpus();
+  const file = fixtureValue(corpus.getSourceFile("packages/kit/src/usage.ts"));
+  let queries = 0;
+  const counts = new Map<object, number>();
+  const symbols = stored.symbols;
+  const nativeSymbol = Node.prototype.getSymbol;
+  const storedSpy = vi.spyOn(stored, "symbols").mockImplementation((node) => {
+    if (node.getSourceFile().getFilePath() === file.getFilePath()) {
+      queries++;
+      counts.set(node.compilerNode, (counts.get(node.compilerNode) ?? 0) + 1);
+    }
+    return symbols(node);
+  });
+  const nativeSpy = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(function (this: Node) {
+    if (!Node.isSourceFile(this) && this.getSourceFile().getFilePath() === file.getFilePath()) {
+      queries++;
+      counts.set(this.compilerNode, (counts.get(this.compilerNode) ?? 0) + 1);
+    }
+    return nativeSymbol.call(this);
+  });
+  const classify = (): object => {
+    const phase = buildLiveness(corpus);
+    return {
+      api: collectApiSurface(corpus, (path) => path === file.getFilePath(), phase).map(({ name, klass }) => [name, klass]),
+      orphans: collectOrphanCandidates(corpus, phase, (path) => path === file.getFilePath()).map(({ name }) => name),
+      testonly: [...ownExports(file)].map(({ name, decl }) => [name, testOnlyClassOf(file, name, decl, phase)]),
+    };
+  };
+  try {
+    const first = classify();
+    const initialQueries = queries;
+    expect(initialQueries).toBeGreaterThan(0);
+    expect(first).toMatchObject({
+      api: [
+        ["called", "internal"],
+        ["unusedA", "unused"],
+        ["unusedB", "unused"],
+        ["documentation", "unused"],
+        ["consumer", "unused"],
+        ["UnusedShape", "unused"],
+      ],
+    });
+    expect(classify()).toEqual(first);
+    expect(queries).toBe(initialQueries);
+    expect([...counts.values()].every((count) => count === 1)).toBe(true);
+  } finally {
+    nativeSpy.mockRestore();
+    storedSpy.mockRestore();
+  }
+});
+
+test.for(["source", "roots", "options", "other-source", "forgotten"] as const)("native binding usage refuses changed %s epochs", (change, { scratch }) => {
+  initialize(scratch);
+  const workspace = createSemanticWorkspace({ root: scratch });
+  const program = fixtureValue(workspace.program("packages/kit/tsconfig.json"));
+  const file = fixtureValue(program.sourceFile("packages/kit/src/base.ts"));
+  const usage = workspace.bindingUsage(file);
+  expect(usage.parents().size).toBeGreaterThan(0);
+  const mutate = {
+    source: () => file.replaceWithText(`/*shift*/${file.getFullText()}`),
+    roots: () => program.project().createSourceFile(join(scratch, "packages/kit/src/additional.ts"), "export const additional = 1;"),
+    options: () => program.project().compilerOptions.set({ strictNullChecks: false }),
+    "other-source": () => fixtureValue(program.sourceFile("packages/kit/src/barrel.ts")).replaceWithText("export const replacement = 1;"),
+    forgotten: () => file.forget(),
+  };
+  mutate[change]();
+  expect(() => usage.parents()).toThrow("source/program epoch");
+});
+
+test("binding usage preserves each defining parent for merged, overloaded, class and local alias references", ({ scratch }) => {
+  initialize(scratch);
+  write(
+    scratch,
+    "packages/kit/src/defining-parents.ts",
+    `
+export interface Merged { first: string }
+export interface Merged { second: number }
+export function overloaded(value: string): string;
+export function overloaded(value: number): number;
+export function overloaded(value: string | number): string | number { return value; }
+export class Kept { static clone(): Kept { return new Kept(); } }
+export function recursive(): void { recursive(); }
+function Inner(): void {}
+export { Inner as Renamed };
+export const useInner = Inner();
+export function shadowOnly(): void {}
+export function shadows(shadowOnly: () => void): void { shadowOnly(); }
+`,
+  );
+  const workspace = createSemanticWorkspace({ root: scratch });
+  using stored = createSemanticInventory({ root: scratch });
+  const summarize = (corpus: SourceCorpus): object => {
+    const live = buildLiveness(corpus);
+    return {
+      api: collectApiSurface(corpus, (path) => path.endsWith("/defining-parents.ts"), live).map(({ name, klass }) => [name, klass]),
+      orphan: collectOrphanCandidates(corpus, live, (path) => path.endsWith("/defining-parents.ts")).map(({ name }) => name),
+    };
+  };
+  expect(summarize(stored.sourceCorpus())).toEqual(summarize(workspace.sourceCorpus()));
+  for (const corpus of [workspace.sourceCorpus(), stored.sourceCorpus()]) {
+    const api = collectApiSurface(corpus, (path) => path.endsWith("/defining-parents.ts"));
+    for (const name of ["Merged", "overloaded", "Kept", "recursive", "Renamed"]) {
+      const classifications = api.filter((entry) => entry.name === name).map((entry) => entry.klass);
+      expect(classifications.length, name).toBeGreaterThan(0);
+      expect(
+        classifications.every((klass) => klass === "internal"),
+        name,
+      ).toBe(true);
+    }
+    expect(api.find((entry) => entry.name === "shadowOnly")?.klass).toBe("unused");
+  }
+});
+
+test("binding analyses reject foreign sources and release through their existing owners", ({ scratch }) => {
+  initialize(scratch);
+  const workspace = createSemanticWorkspace({ root: scratch });
+  const native = fixtureValue(workspace.program("packages/kit/tsconfig.json"));
+  const nativeFile = fixtureValue(native.sourceFile("packages/kit/src/base.ts"));
+  const otherWorkspace = createSemanticWorkspace({ root: scratch });
+  const foreignFile = fixtureValue(fixtureValue(otherWorkspace.program("packages/kit/tsconfig.json")).sourceFile("packages/kit/src/base.ts"));
+  beginReferencePass();
+  const usage = workspace.bindingUsage(nativeFile);
+  try {
+    expect(usage.parents().size).toBeGreaterThan(0);
+    expect(() => usage.lexical(foreignFile.getVariableDeclarationOrThrow("alive"))).toThrow("foreign or stale");
+    expect(() => workspace.bindingUsage(foreignFile)).toThrow("no admitted native owner");
+    expect(otherWorkspace.bindingUsage(foreignFile)).not.toBe(usage);
+  } finally {
+    endReferencePass();
+  }
+  expect(() => usage.parents()).toThrow("disposed");
+  expect(workspace.bindingUsage(nativeFile)).not.toBe(usage);
+  using stored = createSemanticInventory({ root: scratch });
+  const file = source(stored, "packages/kit/src/base.ts");
+  const storedUsage = stored.bindingUsage(file);
+  expect(storedUsage.parents().size).toBeGreaterThan(0);
+  expect(sourceBindingUsage(file)).toBe(storedUsage);
+  expect(() => storedUsage.lexical(nativeFile.getVariableDeclarationOrThrow("alive"))).toThrow("physical source/epoch");
+  file.replaceWithText(`/*shift*/${file.getFullText()}`);
+  expect(() => storedUsage.parents()).toThrow("physical source/epoch");
+  stored[Symbol.dispose]();
+  expect(() => storedUsage.parents()).toThrow("disposed");
 });
 
 test("stored dead evidence excludes only its exact defining name across contextual and default carriers", ({ scratch }) => {

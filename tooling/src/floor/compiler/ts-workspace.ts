@@ -16,9 +16,11 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import type { FileSystemHost, Identifier, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
 import { createWrappedNode, Project, Node as TsNode, ts } from "ts-morph";
+import { createSourceBindingUsage } from "../code-facts/binding-usage.ts";
+import type { SourceBindingUsage } from "../code-facts/binding-usage-contract.ts";
 import { createSemanticInventory } from "../code-facts/semantic-inventory.ts";
 import { descriptorVersion } from "../code-facts/semantic-inventory-inputs.ts";
-import { semanticInventoryOf } from "../code-facts/semantic-inventory-reader.ts";
+import { declarationBindingKeySets, inventoryDeclarationKey, semanticInventoryOf } from "../code-facts/semantic-inventory-reader.ts";
 
 import { readCompilerPrograms } from "./compiler-programs.ts";
 import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
@@ -182,22 +184,32 @@ interface NativeReferencePass {
   readonly pass: ts.ReadonlyReferencePass;
 }
 
-let nativeReferencePasses: Map<Project, NativeReferencePass> | undefined;
+interface NativeReaderPass {
+  readonly references: Map<Project, NativeReferencePass>;
+  readonly releaseBindings: Set<() => void>;
+}
+let nativeReferencePasses: NativeReaderPass | undefined;
 
 /** Open native reference infrastructure for one immutable reader invocation. */
 export function beginNativeReferencePass(): void {
   if (nativeReferencePasses !== undefined) {
     throw new Error("a native reference pass is already open");
   }
-  nativeReferencePasses = new Map();
+  nativeReferencePasses = { references: new Map(), releaseBindings: new Set() };
 }
 
 /** Release every native handle without retaining its Project beyond the reader invocation. */
 export function endNativeReferencePass(): void {
   const passes = nativeReferencePasses;
   nativeReferencePasses = undefined;
-  for (const entry of passes?.values() ?? []) {
-    entry.pass.dispose();
+  try {
+    for (const entry of passes?.references.values() ?? []) {
+      entry.pass.dispose();
+    }
+  } finally {
+    for (const release of passes?.releaseBindings ?? []) {
+      release();
+    }
   }
 }
 
@@ -264,7 +276,7 @@ export function nativeReferenceNodes(node: Identifier): readonly Node[] {
     throw new Error("native reference transport received a forgotten node");
   }
   const project = node.getProject();
-  const entry = nativeReferencePass(project, nativeReferencePasses);
+  const entry = nativeReferencePass(project, nativeReferencePasses.references);
   const assertCurrent = (): void => {
     if (project.getProgram().compilerObject !== entry.program || project.getLanguageService().compilerObject.getProgram() !== entry.languageProgram) {
       throw new Error("native reference transport was invalidated by a Program change");
@@ -323,6 +335,39 @@ export function registeredSemanticSourceView(sourceFile: SourceFile): SemanticSo
 
 export function semanticWorkspaceOf(value: object): SemanticWorkspace | undefined {
   return semanticWorkspaces.get(value);
+}
+
+function nativeBindingUsage(source: SourceFile): SourceBindingUsage {
+  const project = source.getProject();
+  const capturedProgram = new WeakRef(project.getProgram().compilerObject);
+  const syntax = source.compilerNode;
+  const admit = (node: Node): void => {
+    const program = capturedProgram.deref();
+    if (
+      program === undefined ||
+      node.wasForgotten() ||
+      source.wasForgotten() ||
+      node.getProject() !== project ||
+      node.getSourceFile() !== source ||
+      source.compilerNode !== syntax ||
+      project.getProgram().compilerObject !== program ||
+      !sharedNativeSyntax(program.getSourceFile(source.getFilePath()), syntax)
+    ) {
+      throw new Error("source binding usage belongs to a foreign or stale native source/program epoch");
+    }
+  };
+  admit(source);
+  return createSourceBindingUsage(source, { bindings: declarationBindingKeySets, declarationKey: inventoryDeclarationKey, admit });
+}
+
+/** Use the existing pinned/native owner; an unregistered Project gets one-shot native facts. */
+export function sourceBindingUsage(source: SourceFile): SourceBindingUsage {
+  const inventory = semanticInventoryOf(source.getProject());
+  if (inventory !== undefined) {
+    return inventory.bindingUsage(source);
+  }
+  const workspace = semanticWorkspaces.get(source.getProject());
+  return workspace === undefined ? nativeBindingUsage(source) : workspace.bindingUsage(source);
 }
 
 /** References from every native program containing `node`; an ordinary in-memory Project keeps its native behavior. */
@@ -398,6 +443,13 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
     return owners.length === 1 ? owners[0] : undefined;
   };
   const byConfig = new Map<string, SemanticProgram>();
+  const bindingUses = new Map<SourceFile, SourceBindingUsage>();
+  const releaseBindings = (): void => {
+    for (const usage of bindingUses.values()) {
+      usage[Symbol.dispose]();
+    }
+    bindingUses.clear();
+  };
   let workspace: SemanticWorkspace;
   const registerProject = (project: Project, program: SemanticProgram): void => {
     semanticWorkspaces.set(project, workspace);
@@ -472,6 +524,18 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
     root,
     inventory: (): ReturnType<typeof createSemanticInventory> => createSemanticInventory({ ...options, root }),
     programs,
+    bindingUsage: (source): SourceBindingUsage => {
+      if (registeredSemanticSourceView(source) === undefined || semanticWorkspaces.get(source.getProject()) !== workspace) {
+        throw new Error("source binding usage has no admitted native owner");
+      }
+      nativeReferencePasses?.releaseBindings.add(releaseBindings);
+      let usage = bindingUses.get(source);
+      if (usage === undefined) {
+        usage = nativeBindingUsage(source);
+        bindingUses.set(source, usage);
+      }
+      return usage;
+    },
     program: (config): SemanticProgram | undefined => byConfig.get(repoRelative(root, config)),
     primaryOwner: (path): SemanticProgram | undefined => {
       const config = primaryConfig(repoRelative(root, path));
