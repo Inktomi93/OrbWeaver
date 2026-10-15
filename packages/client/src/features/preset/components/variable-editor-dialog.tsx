@@ -1,19 +1,21 @@
 // The Variable editor Dialog — binds `variables[i].*` on the direct-bind form: name · question · the
 // option list (label/value pairs) · defaultValue · multiSelect · separator · randomPick. The dialog is
-// controlled by the tab (open when an index is targeted); closing just drops the local target.
+// controlled by the tab's draft-row owner; closing just drops that local target.
 
-import { FlowDialog } from "#components";
-import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useRef } from "react";
+import { FlowDialog } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { notify } from "#lib";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 /** A single choice option (label/value) — the schema doesn't export the option type, so derive it. */
 type ChoiceBlockOption = ChoiceBlockSpec["options"][number];
@@ -74,24 +76,27 @@ function makeOption(): ChoiceBlockOption {
 /** The nested option list — label/value pairs bound at `variables[i].options[j].*`, add/remove in place. */
 function OptionList({ form, index }: { readonly form: AppForm; readonly index: number }): ReactElement {
   const optionsName = `variables[${index}].options` as const;
+  const addButton = useRef<HTMLButtonElement>(null);
   return (
     <Section heading="Options">
-      <form.Subscribe selector={(state): readonly ChoiceBlockOption[] => state.values.variables[index]?.options ?? []}>
-        {(options): ReactElement => (
+      <form.Subscribe selector={(state): PresetEditorValues => state.values}>
+        {(values): ReactElement => (
           <Stack gap="field">
-            {options.length === 0 ? (
+            {values.variables[index]?.options.length === 0 ? (
               <Text voice="gloss">No options yet.</Text>
             ) : (
-              options.map((_option, j) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: options are a positional, id-less list edited in place by index — the index IS the identity.
-                <Row key={j} gap="field" align="end">
+              values.variableRowIds[index]?.options.map((id, j) => (
+                <Row key={id} gap="field" align="end" role="group" aria-label={`Option ${j + 1}`}>
                   <form.AppField name={`variables[${index}].options[${j}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
                   <form.AppField name={`variables[${index}].options[${j}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
                   <Button
                     intent="ghost"
                     size="sm"
                     onClick={(): void => {
-                      form.removeFieldValue(optionsName, j).catch(() => notify.error("Couldn't remove the option."));
+                      addButton.current?.focus();
+                      Promise.all([form.removeFieldValue(optionsName, j), form.removeFieldValue(`variableRowIds[${index}].options`, j)]).catch(() =>
+                        notify.error("Couldn't remove the option."),
+                      );
                     }}
                   >
                     Remove
@@ -101,10 +106,12 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
             )}
             <Row>
               <Button
+                ref={addButton}
                 intent="secondary"
                 size="sm"
                 onClick={(): void => {
                   form.pushFieldValue(optionsName, makeOption());
+                  form.pushFieldValue(`variableRowIds[${index}].options`, crypto.randomUUID());
                 }}
               >
                 <Icon icon={Plus} size="sm" />

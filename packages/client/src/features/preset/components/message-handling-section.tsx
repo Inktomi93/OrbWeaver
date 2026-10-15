@@ -5,7 +5,6 @@
 
 import type { GenerationCapability, RoleHandling, UserRoleHandling } from "@orb/contracts/inference";
 import { isStricterRoleHandling, isTurnEstimated, ROLE_HANDLING, USER_ROLE_HANDLING, userRoleHandlingOptions } from "@orb/contracts/inference";
-import type { PromptConfig } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Field, FieldLayout } from "@orb/ui/field";
 import { Row, Section } from "@orb/ui/layout";
@@ -15,8 +14,9 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 
-type AssemblyForm = AppFormInstance<PromptConfig>;
+type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 /** The level vocabulary, one name and one gloss per ladder member. Name and gloss are two fields: the closed
  *  trigger prints only the name, and `SelectOption.description` carries the gloss under the option and to AT as

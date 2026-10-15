@@ -23,7 +23,6 @@
 // gloss and the vertical `Summary instructions` textarea.
 
 import type { GenerationCapability, Verbosity } from "@orb/contracts/inference";
-import type { PromptConfig } from "@orb/contracts/preset";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
   DEFAULT_COMPACTION_MODE,
@@ -46,6 +45,7 @@ import type { AppFormInstance } from "#forms/editor";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { SENT_WINDOW_PROVENANCE } from "../lib/effective-knobs.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
@@ -53,7 +53,7 @@ import { LogitBiasEditor } from "./logit-bias-editor.tsx";
 import { ResponseReplayCluster } from "./response-replay-controls.tsx";
 import { BannedPhrases, StopSequences } from "./sequence-chips.tsx";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 export interface ParamsLimitsProps {
   readonly form: AppForm;

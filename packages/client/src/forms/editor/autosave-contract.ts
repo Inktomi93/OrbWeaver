@@ -37,6 +37,10 @@ export interface AutosaveSession<TValues extends object> {
 /** Everything a mint config carries EXCEPT the persistence seam — the seam decides the arm (below). */
 interface AutosaveEntityBoundaryConfigBase<TValues extends object> {
   readonly defaultValues: TValues;
+  /** Exclude draft-local metadata from saved truth, equality and baseline identity. */
+  readonly canonicalValues?: (values: TValues) => object;
+  /** Admit a seed or replacement. Previous values exist only for an accepted clean external rebase. */
+  readonly admitValues?: (values: TValues, previousAdmitted: TValues | undefined) => TValues;
   /** The crash-survival mirror. Omit only for genuinely ephemeral panels. */
   readonly draft?: EntityDraftStore<TValues>;
   /** @defaultValue 500 */

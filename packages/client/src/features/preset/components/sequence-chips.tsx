@@ -3,7 +3,6 @@
 // One anatomy for both; the #1587/#1620 accessible-name ruling below holds for each. A chip reads and is typed
 // in its escaped form (`lib/sequence-escapes.ts`), so a newline breaker is visible.
 
-import type { PromptConfig } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
@@ -13,10 +12,11 @@ import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import type { KeyboardEvent, ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { decodeSequence, encodeSequence } from "../lib/sequence-escapes.ts";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 /** The stop-sequence group's hover hint — hoisted out of the JSX so the legend row and the `subject` it
  *  names read as one decision. */

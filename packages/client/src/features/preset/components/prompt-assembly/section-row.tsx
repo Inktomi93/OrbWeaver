@@ -15,7 +15,7 @@
 // CARRIERS READ `~—`, NOT `~0` (§5.1): a plain marker's cost is the CONVERSATION or the active world-info
 // set — chat-side facts this editor cannot know. A `~0` there would be a lie with a number on it.
 
-import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { PromptSection } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Hash, Icon, Lock, Zap } from "@orb/ui/icons";
@@ -29,10 +29,11 @@ import type { AppFormInstance } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { isTemplatedMarker, sectionGlyphIcon, sectionKind, triggersPillLabel } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
+import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
 import { estimateSectionTokens } from "./estimate-tokens.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 
-type AssemblyForm = AppFormInstance<PromptConfig>;
+type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 /** The assembler's default within-depth order (`injections.ts`) — shown when `inject.order` is unset. */
 const DEFAULT_INJECT_ORDER = 100;

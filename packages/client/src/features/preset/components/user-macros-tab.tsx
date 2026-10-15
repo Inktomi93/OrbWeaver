@@ -8,7 +8,6 @@
 // user macros a SECOND authoring home (a game's `config.userMacros`, edited on the rpg GM console), and both
 // homes write the same `UserMacroSpec` — one anatomy, two mounts.
 
-import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
 import { userMacroSchema } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -20,9 +19,11 @@ import type { UserMacrosFormValues } from "#components";
 import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { notify, withUserMacros } from "#lib";
+import { newMacroRowIds } from "../../../components/user-macro-editor-model.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { MacroBrowser } from "./macro-browser.tsx";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 export interface UserMacrosTabProps {
   readonly form: AppForm;
@@ -32,34 +33,39 @@ export interface UserMacrosTabProps {
 
 /** The Macros tab — the user-macro list + editor Dialog, and the macro browser disclosure. */
 export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElement {
-  // The open editor targets a macro INDEX (`null` = closed). Add pushes then opens the new tail.
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const onAdd = (): void => {
-    // Capture the PRE-push length (pushFieldValue applies synchronously — the Variables-tab off-by-one).
-    const newIndex = form.state.values.userMacros.length;
     // The fresh macro is minted THROUGH the schema — every other field is a schema default, never re-spelled.
-    form.pushFieldValue("userMacros", userMacroSchema.parse({ name: "new_macro", body: "" }));
-    setEditIndex(newIndex);
+    const macro = userMacroSchema.parse({ name: "new_macro", body: "" });
+    const ids = newMacroRowIds(macro);
+    form.pushFieldValue("userMacros", macro);
+    form.pushFieldValue("macroRowIds", ids);
+    setEditId(ids.id);
   };
 
   return (
-    <form.Subscribe selector={(state): readonly UserMacroSpec[] => state.values.userMacros}>
-      {(userMacros): ReactElement => (
+    <form.Subscribe selector={(state): PresetEditorValues => state.values}>
+      {(values): ReactElement => (
         <Stack gap="block">
           <EntryListEditor
             addLabel="Add macro"
-            editIndex={editIndex}
+            editIndex={
+              editId === null || !values.macroRowIds.some((row) => row.id === editId) ? null : values.macroRowIds.findIndex((row) => row.id === editId)
+            }
             emptyText="No macros yet."
             getSubtitle={(macro): string => macro.description}
             getTitle={(macro): string => (macro.name === "" ? "Unnamed macro" : `{{${macro.name}}}`)}
             heading="User macros"
             helperText="Your own template macros — call one anywhere macros resolve. Args and typed inputs bind by name inside the template."
-            items={userMacros}
+            items={values.userMacros}
+            getKey={(_macro, index): string | undefined => values.macroRowIds[index]?.id}
             onAdd={onAdd}
-            onEdit={setEditIndex}
+            onEdit={(index): void => setEditId(values.macroRowIds[index]?.id ?? null)}
             onRemove={(index): void => {
-              form.removeFieldValue("userMacros", index).catch(() => notify.error("Couldn't remove the macro."));
+              Promise.all([form.removeFieldValue("userMacros", index), form.removeFieldValue("macroRowIds", index)]).catch(() =>
+                notify.error("Couldn't remove the macro."),
+              );
             }}
             renderEditor={(index): ReactElement => (
               // The shared dialog binds only `userMacros[*]`, which PromptConfig carries; TanStack form
@@ -67,12 +73,13 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
               // dialog's minimal `UserMacrosFormValues` shape needs one cast (the RegexEditorDialog
               // precedent — a library-invariance escape, never an Id launder; the field paths exist).
               <UserMacroEditorDialog
+                key={values.macroRowIds[index]?.id}
                 form={form as unknown as AppFormInstance<UserMacrosFormValues>}
                 index={index}
-                onClose={(): void => setEditIndex(null)}
+                onClose={(): void => setEditId(null)}
                 // A macro body completes against the preset's OWN macros too (they compose — one macro
                 // calling another is the point of a template), so the editor offers the plane it is editing.
-                suggestions={withUserMacros(userMacros)}
+                suggestions={withUserMacros(values.userMacros)}
               />
             )}
           />
@@ -95,7 +102,7 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
               <Text voice="label">Macro browser</Text>
             </CollapsibleTrigger>
             <CollapsiblePanel>
-              <MacroBrowser userMacros={userMacros} presetId={presetId} />
+              <MacroBrowser userMacros={values.userMacros} presetId={presetId} />
             </CollapsiblePanel>
           </Collapsible>
         </Stack>

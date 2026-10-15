@@ -1,4 +1,3 @@
-import type { PromptConfig } from "@orb/contracts/preset";
 import { RESPONSE_CACHE_TTL_BOUNDS, responseCacheTtlSchema } from "@orb/contracts/preset";
 import { groupThousands } from "@orb/kit/strings";
 import { Field } from "@orb/ui/field";
@@ -12,8 +11,9 @@ import { SettingRowGroup, SettingTrackRow } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { RESPONSE_REPLAY_CHOICES, RESPONSE_REPLAY_LABELS, responseReplayChoice } from "../lib/effective-knobs.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 export function ResponseReplayCluster({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow }): ReactElement {
   const replay = effective.cache.replay;

@@ -13,7 +13,7 @@
 // override locks. Those are ARRANGEMENT vocabulary — a section's. A guided template's firing condition is
 // the user's CLICK, so `fires` is a descriptive gloss and never a control.
 
-import type { PromptConfig, TemplateCapability } from "@orb/contracts/preset";
+import type { TemplateCapability } from "@orb/contracts/preset";
 import { MAX_INJECTION_TEMPLATE_LENGTH } from "@orb/contracts/preset";
 import type { ProseFooterState, ProseSlotId } from "@orb/contracts/prose";
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
@@ -34,12 +34,13 @@ import type { AppFormInstance } from "#forms/editor";
 import { CappedFieldCounter } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN, guidedFooterState } from "../lib/assembly-model.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
 import { proseTemplateDraft } from "../lib/template-rows.ts";
 import { DeliveryCluster } from "./delivery-cluster.tsx";
 import { PresetMacroSuggestions } from "./preset-macro-suggestions.tsx";
 
-type PresetForm = AppFormInstance<PromptConfig>;
+type PresetForm = AppFormInstance<PresetEditorValues>;
 
 const DEPTH_HINT = "0 = the tail, right before the reply; N = N turns back from your latest message. Blank means the tail.";
 /** The GHOST an unset depth means. Short by construction (crunch item 10 / O-14): the inline NumberField is

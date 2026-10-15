@@ -27,13 +27,14 @@ import { useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { isPivotSection } from "#src/features/preset/lib/assembly-model.ts";
 import { cacheInvalidatingSections } from "#src/features/preset/lib/prompt-cache-warning.ts";
+import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
 import { deriveZones } from "./derive-zones.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 import { PivotBand } from "./pivot-band.tsx";
 import { diffMove } from "./reorder-move.ts";
 import { SectionRow } from "./section-row.tsx";
 
-type AssemblyForm = AppFormInstance<PromptConfig>;
+type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 export interface AssemblyRackProps {
   readonly form: AssemblyForm;

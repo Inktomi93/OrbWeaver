@@ -25,10 +25,9 @@ import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
 import { useScrollFadeX } from "@orb/ui/scroll-area";
 import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Heading } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import type { AutosaveSaveState } from "#forms";
 import { AutosaveStatus } from "#forms/editor";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
@@ -50,7 +49,7 @@ export interface PresetEditorHeaderProps {
    *  caller (the list-row kebab's Rename is gone; see the door below).
    *  The DIALOG lives here with its door (the reset door's own posture); the WRITE is the surface's. */
   readonly onRename: (name: string) => void;
-  readonly saveState: AutosaveSaveState;
+  readonly saveState: ComponentProps<typeof AutosaveStatus>["state"];
   /** Re-run the pending save — the session's `retrySave`. */
   readonly onRetrySave: () => void;
   /** The reset ACT (mutate + reseed) — the confirm that guards it lives here with its door. */

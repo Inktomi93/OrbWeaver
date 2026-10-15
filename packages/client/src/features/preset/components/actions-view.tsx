@@ -45,6 +45,7 @@ import { useId, useState } from "react";
 import { Band } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { closePresetTemplateDrill, drillPresetTemplate, selectPresetTemplate, useDrilledPresetTemplateId, useSelectedPresetTemplateId } from "#state";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import type { TemplateRow, TemplateRowCluster } from "../lib/template-rows.ts";
 import {
   ACTIONS_TAB_TEACH,
@@ -57,7 +58,7 @@ import {
 } from "../lib/template-rows.ts";
 import { TemplateDrillIn } from "./template-drill-in.tsx";
 
-type PresetForm = AppFormInstance<PromptConfig>;
+type PresetForm = AppFormInstance<PresetEditorValues>;
 
 /** The three cross-link states for the `guided_instruction` marker's health. */
 const MARKER_HEALTHS = ["healthy", "off", "absent"] as const;

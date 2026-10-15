@@ -397,7 +397,7 @@ export function MessageRow({
                 {header.above}
                 {renderRowBubble({
                   role,
-                  message,
+                  message: displayedMessage,
                   header: header.inside,
                   footer: swipeInside,
                   lastRow,

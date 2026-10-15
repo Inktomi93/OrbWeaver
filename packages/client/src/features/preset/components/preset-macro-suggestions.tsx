@@ -9,14 +9,15 @@
 // until the list changes, which is what makes `withUserMacros`' memo — and behind it `<MacroTextarea>`'s
 // identity-keyed fuzzy index — pay off instead of rebuilding on every keystroke.
 
-import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
+import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { withUserMacros } from "#lib";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 
 export interface PresetMacroSuggestionsProps {
-  readonly form: AppFormInstance<PromptConfig>;
+  readonly form: AppFormInstance<PresetEditorValues>;
   readonly children: (suggestions: readonly MacroSuggestion[]) => ReactElement;
 }
 

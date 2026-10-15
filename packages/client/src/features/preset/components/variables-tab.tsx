@@ -3,15 +3,16 @@
 // the tab is CRUD over the array (`form.pushFieldValue`/`removeFieldValue`). The autosave BOUNDARY's store
 // driver persists structural array ops (D78 §3), so add/remove carry NO manual `handleSubmit` flush.
 
-import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryListEditor } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { notify } from "#lib";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { VariableEditorDialog } from "./variable-editor-dialog.tsx";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 /** A fresh choice block seeded with the schema defaults (one blank option so the editor has a row). */
 function makeVariable(): ChoiceBlockSpec {
@@ -27,35 +28,41 @@ function makeVariable(): ChoiceBlockSpec {
 
 /** The Variables tab — the choice-block list + the editor Dialog (opened per-row / via Add). */
 export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement {
-  // The open editor targets a variable INDEX (`null` = closed). Add pushes then opens the new tail.
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const onAdd = (): void => {
-    // Capture the PRE-push length: pushFieldValue applies synchronously, so reading `.length`
-    // AFTER the push yields one PAST the new item's real index (an out-of-bounds phantom row on Done).
-    const newIndex = form.state.values.variables.length;
-    form.pushFieldValue("variables", makeVariable());
-    setEditIndex(newIndex);
+    const variable = makeVariable();
+    const ids = { id: crypto.randomUUID(), options: variable.options.map(() => crypto.randomUUID()) };
+    form.pushFieldValue("variables", variable);
+    form.pushFieldValue("variableRowIds", ids);
+    setEditId(ids.id);
   };
 
   return (
-    <form.Subscribe selector={(state): readonly ChoiceBlockSpec[] => state.values.variables}>
-      {(variables): ReactElement => (
+    <form.Subscribe selector={(state): PresetEditorValues => state.values}>
+      {(values): ReactElement => (
         <EntryListEditor
           addLabel="Add variable"
-          editIndex={editIndex}
+          editIndex={
+            editId === null || !values.variableRowIds.some((row) => row.id === editId) ? null : values.variableRowIds.findIndex((row) => row.id === editId)
+          }
           emptyText="No variables yet."
           getSubtitle={(variable): string => variable.question}
           getTitle={(variable): string => (variable.name === "" ? "Unnamed variable" : variable.name)}
           heading="Variables"
           helperText="Choice blocks the chat asks you to answer — each fills a matching macro in your prompt."
-          items={variables}
+          items={values.variables}
+          getKey={(_variable, index): string | undefined => values.variableRowIds[index]?.id}
           onAdd={onAdd}
-          onEdit={setEditIndex}
+          onEdit={(index): void => setEditId(values.variableRowIds[index]?.id ?? null)}
           onRemove={(index): void => {
-            form.removeFieldValue("variables", index).catch(() => notify.error("Couldn't remove the variable."));
+            Promise.all([form.removeFieldValue("variables", index), form.removeFieldValue("variableRowIds", index)]).catch(() =>
+              notify.error("Couldn't remove the variable."),
+            );
           }}
-          renderEditor={(index): ReactElement => <VariableEditorDialog form={form} index={index} onClose={(): void => setEditIndex(null)} />}
+          renderEditor={(index): ReactElement => (
+            <VariableEditorDialog key={values.variableRowIds[index]?.id} form={form} index={index} onClose={(): void => setEditId(null)} />
+          )}
         />
       )}
     </form.Subscribe>

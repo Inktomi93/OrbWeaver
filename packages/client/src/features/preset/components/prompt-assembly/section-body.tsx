@@ -16,7 +16,7 @@
 // 24). OFF is solely the enable toggle. The write maps `""` → `undefined` so the retired "render nothing"
 // arm is unrepresentable from the editor (the v4→v5 lift retires the stored ones, contracts G8).
 
-import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -29,10 +29,11 @@ import { useId, useState } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { isPlainMarkerSection, isTemplatedMarkerSection } from "#src/features/preset/lib/assembly-model.ts";
 import { openConfigTo } from "#state";
+import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
 import { PresetMacroSuggestions } from "../preset-macro-suggestions.tsx";
 import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy.ts";
 
-type AssemblyForm = AppFormInstance<PromptConfig>;
+type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 const BODY_ROWS = 8;
 /** A min-height floor — the Textarea's `field-sizing: content` otherwise collapses `rows` to ~2 lines. */

@@ -52,6 +52,17 @@ export function createAutosaveEntityForm<TValues extends object>(
   config: AutosaveEntityBoundaryConfig<TValues>,
 ): (props: AutosaveBoundaryImplProps<TValues>) => ReactElement {
   const debounceMs = config.debounceMs ?? DEFAULT_DEBOUNCE_MS;
+  const canonical = (values: TValues): object => config.canonicalValues?.(values) ?? values;
+  const equal = (left: TValues | undefined, right: TValues | undefined): boolean =>
+    formValuesEqual(left === undefined ? undefined : canonical(left), right === undefined ? undefined : canonical(right));
+  const unsaved = (values: TValues, baseline: TValues): boolean => hasUnsavedEdits(canonical(values), canonical(baseline));
+  const admit = (values: TValues, previousAdmitted?: TValues): TValues => config.admitValues?.(values, previousAdmitted) ?? values;
+  const admitReplacement = (server: TValues, current: TValues): TValues => {
+    if (config.admitValues === undefined) {
+      return server;
+    }
+    return equal(current, server) ? current : admit(server, current);
+  };
 
   interface SessionProps {
     readonly entityId: string;
@@ -83,7 +94,7 @@ export function createAutosaveEntityForm<TValues extends object>(
     // have been begun on to still outrank it. Computed at mount and held stable for
     // the epoch (a structural change to `serverValues` remounts via the boundary key or re-baselines the
     // clean echo below; either path recomputes). `undefined` server (a create/loading) → an ungated read.
-    const baselineHash = serverValues === undefined ? undefined : hashServerBaseline(serverValues);
+    const baselineHash = serverValues === undefined ? undefined : hashServerBaseline(canonical(serverValues));
 
     // "No write from this subtree can land" (#1716) — a CONTEXT rather than a prop so the fact reaches every
     // form under one provider (a settings pane stacks a dozen self-owned section forms and not one of them
@@ -98,14 +109,15 @@ export function createAutosaveEntityForm<TValues extends object>(
     // validates against the model AND was begun on THIS server snapshot (the baseline gate). A stale or
     // unverifiable draft is discarded by `readDraftSeed`, so a poisoned mirror can no longer outrank the
     // server: the seed heals to server truth instead of displaying the dead draft as "saved" (the brick).
-    const [seed] = useState<TValues>(
-      () =>
+    const [seed] = useState<TValues>(() =>
+      admit(
         pendingSeed ??
-        ({
-          ...config.defaultValues,
-          ...serverValues,
-          ...readDraftSeed(config.draft, entityId, baselineHash),
-        } as TValues),
+          ({
+            ...config.defaultValues,
+            ...serverValues,
+            ...readDraftSeed(config.draft, entityId, baselineHash),
+          } as TValues),
+      ),
     );
 
     // The save lifecycle AutosaveStatus renders. Starts "saved" — an untouched mount is in sync with the
@@ -119,9 +131,7 @@ export function createAutosaveEntityForm<TValues extends object>(
     const draftBaselineRef = useRef(baselineHash);
     // A restored seed is held for explicit retry, but it is not server-confirmed clean input. State, not a ref:
     // the session reports it (`AutosaveSession.restored`), so the one fact both holds the echo and drives the status.
-    const [restoredUnsaved, setRestoredUnsaved] = useState(
-      () => pendingSeed === undefined && !formValuesEqual(seed, { ...config.defaultValues, ...serverValues }),
-    );
+    const [restoredUnsaved, setRestoredUnsaved] = useState(() => pendingSeed === undefined && !equal(seed, { ...config.defaultValues, ...serverValues }));
     // The last server snapshot we baselined to — the clean-echo reseed (§5) compares the incoming
     // `serverValues` against THIS structurally (identity compare is the mapper-fresh-object trap).
     const lastServerRef = useRef<TValues | undefined>(serverValues);
@@ -159,9 +169,9 @@ export function createAutosaveEntityForm<TValues extends object>(
           }
           setRestoredUnsaved(false);
           lastSavedRef.current = value;
-          draftBaselineRef.current = hashServerBaseline(value);
+          draftBaselineRef.current = hashServerBaseline(canonical(value));
           // Completion owns its submitted snapshot, not edits made while that snapshot was in flight.
-          if (formValuesEqual(form.state.values, value)) {
+          if (equal(form.state.values, value)) {
             config.draft?.clearDraft(entityId);
           } else {
             mirrorDraft(config.draft, entityId, form.state.values, draftBaselineRef.current);
@@ -221,7 +231,7 @@ export function createAutosaveEntityForm<TValues extends object>(
       let prevValues = form.store.state.values;
       const attemptSave = (): void => {
         timerRef.current = undefined;
-        if (!(form.state.isValid && hasUnsavedEdits(form.state.values, lastSavedRef.current))) {
+        if (!(form.state.isValid && unsaved(form.state.values, lastSavedRef.current))) {
           return;
         }
         if (breaker.shouldTrip()) {
@@ -273,30 +283,32 @@ export function createAutosaveEntityForm<TValues extends object>(
     // clean and no save is in flight, re-baseline to the new server values. With unsaved edits → keep
     // editing; the next save wins (last-writer-wins, unchanged).
     useEffect(() => {
-      if (serverValues === undefined || formValuesEqual(serverValues, lastServerRef.current)) {
+      if (serverValues === undefined || equal(serverValues, lastServerRef.current)) {
         return;
       }
       lastServerRef.current = serverValues;
-      if (saveState !== "saving" && !restoredUnsaved && !hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
-        // A clean re-baseline: adopt the server values as the new saved truth AND push them into the live
-        // form (via each field, so the controlled inputs follow — never `form.reset`, the banned path).
-        lastSavedRef.current = serverValues;
-        draftBaselineRef.current = baselineHash;
-        // Stamp the mirror with the NEW server baseline (`baselineHash` already reflects this render's
-        // `serverValues`), so a crash-restored draft is verified against the truth the form now shows.
-        mirrorDraft(config.draft, entityId, serverValues, baselineHash);
-        // These are PROGRAMMATIC writes (server truth, not user edits) — flag them so the save-driver's
-        // breaker doesn't count them as edits that clear its oscillation run.
-        programmaticWriteRef.current = true;
-        try {
-          for (const [name, value] of Object.entries(serverValues)) {
-            // @orb-waive no-loose-id-cast(name): not a branded-id cast — a server-row FIELD KEY erased to `never` to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic, which Object.entries cannot narrow to. ENDS WHEN: the seed is typed as a partial of TValues instead of an entries loop.
-            // @orb-waive no-loose-id-cast(value): not a branded-id cast — the field's VALUE erased to `never` because setFieldValue's value type is keyed off the (already erased) field generic. Same end condition as the key above.
-            form.setFieldValue(name as never, value as never);
-          }
-        } finally {
-          programmaticWriteRef.current = false;
+      if (saveState === "saving" || restoredUnsaved || unsaved(form.state.values, lastSavedRef.current)) {
+        return;
+      }
+      // A clean re-baseline: adopt the server values as the new saved truth AND push them into the live
+      // form (via each field, so the controlled inputs follow — never `form.reset`, the banned path).
+      const next = admitReplacement(serverValues, form.state.values);
+      lastSavedRef.current = next;
+      draftBaselineRef.current = baselineHash;
+      // Stamp the mirror with the NEW server baseline (`baselineHash` already reflects this render's
+      // `serverValues`), so a crash-restored draft is verified against the truth the form now shows.
+      mirrorDraft(config.draft, entityId, next, baselineHash);
+      // These are PROGRAMMATIC writes (server truth, not user edits) — flag them so the save-driver's
+      // breaker doesn't count them as edits that clear its oscillation run.
+      programmaticWriteRef.current = true;
+      try {
+        for (const [name, value] of Object.entries(next)) {
+          // @orb-waive no-loose-id-cast(name): not a branded-id cast — a server-row FIELD KEY erased to `never` to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic, which Object.entries cannot narrow to. ENDS WHEN: the seed is typed as a partial of TValues instead of an entries loop.
+          // @orb-waive no-loose-id-cast(value): not a branded-id cast — the field's VALUE erased to `never` because setFieldValue's value type is keyed off the (already erased) field generic. Same end condition as the key above.
+          form.setFieldValue(name as never, value as never);
         }
+      } finally {
+        programmaticWriteRef.current = false;
       }
     }, [serverValues, saveState, restoredUnsaved, form, entityId, baselineHash]);
 
@@ -315,7 +327,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         if (skipTeardownFlush(discardRef, unwritableRef)) {
           return; // a staged reseed/discard, or an unwritable subtree (#1716) — see the predicate's TSDoc
         }
-        if (form.state.isValid && hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
+        if (form.state.isValid && unsaved(form.state.values, lastSavedRef.current)) {
           // @orb-waive caught-failure-ownership(form.handleSubmit): same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
           form.handleSubmit().catch(() => undefined);
         }
@@ -381,8 +393,8 @@ export function createAutosaveEntityForm<TValues extends object>(
           foldSaveState({
             driver: saveState,
             isValid: state.isValid,
-            readOnlyDirty: readOnly && state.isDirty,
-            unsaved: hasUnsavedEdits(state.values, lastSavedRef.current),
+            readOnlyDirty: readOnly && (config.canonicalValues === undefined ? state.isDirty : unsaved(state.values, seed)),
+            unsaved: unsaved(state.values, lastSavedRef.current),
             unwritable,
           })
         }

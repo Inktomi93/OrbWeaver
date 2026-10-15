@@ -33,7 +33,7 @@
 // (`chat_history`) can be neither deleted, disabled, silenced, nor re-zoned, so it offers no menu at all
 // and no Placement/Triggers cluster (a trigger filter is silencing by another name).
 
-import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { GenerationType, PromptSection } from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -62,12 +62,13 @@ import {
   ZONE_ITEMS,
 } from "#src/features/preset/lib/assembly-model.ts";
 import { PRESET_NUMBER_FORMAT } from "#src/features/preset/lib/format-count.ts";
+import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
 import { DeliveryCluster } from "../delivery-cluster.tsx";
 import type { DerivedZones } from "./derive-zones.ts";
 import { deriveZones } from "./derive-zones.ts";
 import { SectionBody } from "./section-body.tsx";
 
-type AssemblyForm = AppFormInstance<PromptConfig>;
+type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 /** The assembler's own within-depth default (`injections.ts`) — the ORDER field's blank-means-this text. */
 const DEFAULT_INJECT_ORDER = 100;
