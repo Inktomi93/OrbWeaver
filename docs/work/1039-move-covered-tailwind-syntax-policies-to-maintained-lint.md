@@ -24,4 +24,8 @@ Each owned claim has native successor evidence or a concrete unsupported semanti
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed `bb21a89a81` moves direct JSX nonempty literal interpolation and initial dark-variant syntax into native ESLint restrictions. Shared semantic policies retain imported values, wrappers, composers and authority. Empty substitutions remain accepted. Arbitrary-value replacement is unsupported by the installed rule's actual carrier and exact-permission behavior; its policy remains unchanged.
+
+Native and semantic controls, tooling types, exact lint and formatting pass. The native-rule-only source pass reports no findings across its complete UI/client population. Removing the proposed empty-literal restriction preserves that stronger-superset result. Root types retain off-owned errors. No production source or generated tokens change; no policy is removed wholesale.
+
+Evidence: `.claude/worktrees/codex-native-token-scales/reports/review/1039-native-tailwind-syntax-delivery.md` and `.claude/worktrees/codex-native-token-scales/reports/review/1039-native-tailwind-syntax-independent-review.md`.

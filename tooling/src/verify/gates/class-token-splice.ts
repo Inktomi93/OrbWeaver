@@ -1,8 +1,6 @@
-// Policy: class-token-splice (UI-Gates-and-Lessons.md §12) — a `${…}` inside a class string may sit only
-// BETWEEN class tokens, never INSIDE one. Tailwind's scanner reads whole literals out of source text, so
-// `inset-${side}-0` registers no rule at all and paints NOTHING — silently, past tsc, biome, and eslint's
-// better-tailwindcss (which skips substituted templates; measured 2026-08-19, #249). COMMENT POSTURE:
-// comment-SAFE — it subscribes to TemplateExpression nodes and reads only their own literal spans.
+// Semantic class-token junctions outside native ESLint's direct-JSX, single-string-literal interpolation case.
+// Shared binding/callable readers resolve names and function returns; unresolved values remain unsafe.
+// Templates are AST-delivered; only their literal spans and resolved values participate.
 //
 // A junction (the seam between two adjacent template segments) is SAFE when the LEFT segment's every
 // possible value ends in whitespace, or the RIGHT's every possible value starts with whitespace — so the
@@ -43,7 +41,7 @@
 //      the finding it drops was a false positive on a factory whose returns genuinely lead with a space,
 //      but permissive, and a permissive change in an ordinary/error policy whose catch is invisible
 //      rendered geometry owes a row: `mustPass[12]` (0 findings here, 1 before the migration). Only the
-//      REASSIGNED-CALLEE delta is stricter, and its row is `mustFlag[5]` (1 finding here, 0 before).
+//      REASSIGNED-CALLEE delta is stricter, and its row is `mustFlag[4]` (1 finding here, 0 before).
 //      Restore the pre-#2163 two-half `calleeDeclaration` and exactly those two rows red, nothing else —
 //      which is what makes them the deltas' discriminators rather than decoration.
 //   2. THE FUNCTION-RETURN DESCENDANT WALK IS GONE. Legacy read a callee's returns with
@@ -232,6 +230,21 @@ function isClassCarrier(node: Node): boolean {
   return false;
 }
 
+// ESLint owns the closed direct-JSX/string-literal case; names, calls and wrappers still need semantic resolution.
+function nativeLiteralTemplate(node: Node): boolean {
+  const template = node.asKindOrThrow(SyntaxKind.TemplateExpression);
+  const spans = template.getTemplateSpans();
+  const literal = spans[0]?.getExpression().asKind(SyntaxKind.StringLiteral);
+  const attribute = template.getParentIfKind(SyntaxKind.JsxExpression)?.getParentIfKind(SyntaxKind.JsxAttribute);
+  return (
+    spans.length === 1 &&
+    literal !== undefined &&
+    literal.getLiteralText().length > 0 &&
+    attribute !== undefined &&
+    CLASS_ATTRIBUTE.test(attribute.getNameNode().getText())
+  );
+}
+
 /** Is the junction at `right` a splice? A left neighbour that can be EMPTY is transparent, so the seam is
  *  re-judged against the segment beyond it (`a${maybeEmpty}${leadingSpace}` is safe). */
 function isSpliced(segments: readonly Segment[], right: number): boolean {
@@ -356,7 +369,7 @@ export const gate = defineGate({
           visit: (node) => {
             if (node.isKind(SyntaxKind.ReturnStatement)) {
               indexReturn(node);
-            } else if (isClassCarrier(node)) {
+            } else if (isClassCarrier(node) && !nativeLiteralTemplate(node)) {
               state.templates.push(node);
             }
           },
@@ -381,12 +394,6 @@ export const gate = defineGate({
       files: { "packages/client/src/probe.ts": "const x = cn(`text-${someRuntimeThing()}`);\n" },
       expect: { count: 1, token: "someRuntimeThing" },
       why: "UNRESOLVABLE is UNSAFE: the policy cannot prove the value carries its own separator, and a permissive default here reports green forever. It is ALSO the UNWAIVABLE-TOKEN arm: the anchor's own text `someRuntimeThing()` carries parens, which the marker grammar's `[^()\\r\\n]+` position group cannot hold, so the policy passes NO token and the runtime derives the paren-free `someRuntimeThing`",
-    },
-    {
-      mode: "types",
-      files: { "packages/ui/src/probe.tsx": 'const x = <div className={`p-2 ${"flex"}-row`} />;\n' },
-      expect: { count: 1, token: '"flex"' },
-      why: "the TRAILING junction — the interpolation is preceded by a space but the literal after it splices onto its tail. The reported token is the interpolated string literal INCLUDING its quotes, which is what an author must type",
     },
     {
       mode: "types",
@@ -506,7 +513,7 @@ export const gate = defineGate({
           'function widthClass(c: unknown): string {\n  return c ? " w-avatar-hero" : "";\n}\n' +
           "const x = <div className={`shrink-0${widthClass(true)}`} />;\n",
       },
-      why: "THE PERMISSIVE HALF OF THE #2163 MIGRATION, pinned — the reviewer's own counterexample fixture, landed as a row (`cb-v-callable-reader`, 2026-09-13). CARDINALITY: ZERO findings on the stack, ONE before it. A module-local OVERLOAD SET is one callable with one implementation body, and `resolveCallableDeclaration` resolves it there (`overloadHome`); the returns index yields the leading-space class beside the empty string, every non-empty value leads with a space, and the junction is genuinely safe. The pre-#2163 exactly-one-declaration fallback saw THREE declarations, refused, and `Segment = undefined` IS THE REPORT VERDICT here (`startsSafe(undefined)` is false), so it reported a splice that does not exist. That is the whole shape of the delta and the reason this row exists: in THIS policy resolving MORE reports LESS, so the overload change is PERMISSIVE — accurate, but permissive, and a permissive change in an `ordinary/error` policy whose catch is invisible rendered geometry owes a row. Its stricter twin is `mustFlag[5]`. A single-declaration `widthClass` passes on both sides and would prove nothing; the OVERLOAD is the discriminator",
+      why: "THE PERMISSIVE HALF OF THE #2163 MIGRATION, pinned — the reviewer's own counterexample fixture, landed as a row (`cb-v-callable-reader`, 2026-09-13). CARDINALITY: ZERO findings on the stack, ONE before it. A module-local OVERLOAD SET is one callable with one implementation body, and `resolveCallableDeclaration` resolves it there (`overloadHome`); the returns index yields the leading-space class beside the empty string, every non-empty value leads with a space, and the junction is genuinely safe. The pre-#2163 exactly-one-declaration fallback saw THREE declarations, refused, and `Segment = undefined` IS THE REPORT VERDICT here (`startsSafe(undefined)` is false), so it reported a splice that does not exist. That is the whole shape of the delta and the reason this row exists: in THIS policy resolving MORE reports LESS, so the overload change is PERMISSIVE — accurate, but permissive, and a permissive change in an `ordinary/error` policy whose catch is invisible rendered geometry owes a row. Its stricter twin is `mustFlag[4]`. A single-declaration `widthClass` passes on both sides and would prove nothing; the OVERLOAD is the discriminator",
     },
   ],
 });
