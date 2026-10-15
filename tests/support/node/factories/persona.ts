@@ -6,6 +6,8 @@ import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { PersonaService } from "@orb/server/domain/persona";
+import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import { seedUser } from "./user.ts";
@@ -40,4 +42,27 @@ export async function seedPersona(db: Db, overrides: Partial<PersonaRow> = {}, s
   const row = makePersona({ ...overrides, ownerId }, source);
   await db.insert(personas).values(row);
   return row;
+}
+
+export interface SeededCreatedPersona {
+  readonly view: Awaited<ReturnType<PersonaService["create"]>>;
+  readonly row: PersonaRow;
+}
+
+/** Preserve the actual metadata write and avatar-joined view without reconstructing either projection. */
+export async function seedCreatedPersona(
+  db: Db,
+  create: PersonaService["create"],
+  params: Parameters<PersonaService["create"]>[0],
+): Promise<SeededCreatedPersona> {
+  const view = await create(params);
+  const row = await db
+    .select()
+    .from(personas)
+    .where(and(eq(personas.id, view.id), eq(personas.ownerId, params.principal.userId)))
+    .get();
+  if (row === undefined) {
+    throw new Error("production persona creation left no canonical owned row");
+  }
+  return { view, row };
 }

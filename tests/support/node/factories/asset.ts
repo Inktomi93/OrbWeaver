@@ -6,7 +6,9 @@ import type { AssetId, IdSource, UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { sniffImageBytes, sniffMime } from "@orb/kit/image-sniff";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
+import type { AssetsService } from "@orb/server/domain/assets";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import { seedUser } from "./user.ts";
@@ -52,4 +54,23 @@ export async function seedAsset(db: Db, overrides: Partial<AssetRow> = {}, sourc
   const row = makeAsset({ ...overrides, ownerId }, source);
   await db.insert(assets).values(row);
   return row;
+}
+
+export interface SeededStoredAsset {
+  readonly stored: Awaited<ReturnType<AssetsService["store"]>>;
+  readonly row: AssetRow;
+}
+
+/** Capture the CAS-backed writer's actual identity, including an existing owner's dedup winner. */
+export async function seedStoredAsset(db: Db, store: AssetsService["store"], params: Parameters<AssetsService["store"]>[0]): Promise<SeededStoredAsset> {
+  const stored = await store(params);
+  const row = await db
+    .select()
+    .from(assets)
+    .where(and(eq(assets.id, stored.assetId), eq(assets.ownerId, params.principal.userId)))
+    .get();
+  if (row === undefined) {
+    throw new Error("production asset store left no canonical owned row");
+  }
+  return { stored, row };
 }
