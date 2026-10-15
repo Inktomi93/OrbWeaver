@@ -31,7 +31,7 @@ import {
   seedAutomationTestFires,
   seedGlobalVariable,
 } from "./factories/automation.ts";
-import { seedCharacterPersona, seedCharacterSnapshot, seedCreatedCharacter } from "./factories/character.ts";
+import { seedCharacterHistory, seedCharacterPersona, seedCreatedCharacter } from "./factories/character.ts";
 import type { UserConnectionRow } from "./factories/connection.ts";
 import { seedConnectionBinding, seedUserConnection } from "./factories/connection.ts";
 import { seedCharacterDocument, seedChatDocument, seedDocument, seedGlobalDocument } from "./factories/databank.ts";
@@ -76,7 +76,8 @@ export interface SeededCorpusLibraries {
   readonly persona: Awaited<ReturnType<ServerHarness["services"]["persona"]["create"]>>;
   readonly preset: Awaited<ReturnType<CorpusCaller["preset"]["create"]>>;
   readonly room: Awaited<ReturnType<ServerHarness["services"]["chat"]["startChat"]>>;
-  readonly snapshot: Awaited<ReturnType<typeof seedCharacterSnapshot>>;
+  readonly history: Awaited<ReturnType<typeof seedCharacterHistory>>;
+  readonly snapshot: Awaited<ReturnType<typeof seedCharacterHistory>>["row"];
   readonly characterPersona: Awaited<ReturnType<typeof seedCharacterPersona>>;
   readonly asset: Awaited<ReturnType<ServerHarness["app"]["assets"]["store"]>>;
   readonly gallery: Awaited<ReturnType<typeof seedGalleryItem>>;
@@ -114,11 +115,12 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   const createdPreset = await seedCreatedPreset(root.db, caller.preset.create, { name: "Corpus library preset", kind: "custom" });
   const preset = createdPreset.view;
   const room = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
-  const snapshot = await seedCharacterSnapshot(root.db, root.services.character.snapshot, {
+  const history = await seedCharacterHistory(root.db, root.services.character, {
     principal,
     characterId: character.id,
     label: "Corpus library baseline",
   });
+  const snapshot = history.row;
   const characterPersona = await seedCharacterPersona(root.db, root.services.persona.connectToCharacter, {
     principal,
     characterId: character.id,
@@ -167,6 +169,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   };
   return {
     rows: { asset: storedAsset.row, character: createdCharacter.row, persona: createdPersona.row, preset: createdPreset.row },
+    history,
     character,
     persona,
     preset,

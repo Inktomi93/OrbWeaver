@@ -136,12 +136,44 @@ export async function seedCharacterSnapshot(
   snapshot: CharacterService["snapshot"],
   params: Parameters<CharacterService["snapshot"]>[0],
 ): Promise<CharacterSnapshotRow> {
+  return (await produceCharacterSnapshot(db, snapshot, params)).row;
+}
+
+export interface SeededCharacterHistory {
+  readonly ref: Awaited<ReturnType<CharacterService["snapshot"]>>;
+  readonly row: CharacterSnapshotRow;
+  readonly view: Awaited<ReturnType<CharacterService["getSnapshot"]>>;
+  readonly summaries: Awaited<ReturnType<CharacterService["listSnapshots"]>>;
+  readonly page: Awaited<ReturnType<CharacterService["list"]>>;
+}
+
+/** History and library views remain real reads; the capture does not project them from the stored card. */
+export async function seedCharacterHistory(
+  db: Db,
+  operations: Pick<CharacterService, "snapshot" | "getSnapshot" | "listSnapshots" | "list">,
+  params: Parameters<CharacterService["snapshot"]>[0],
+  list: Omit<Parameters<CharacterService["list"]>[0], "principal"> = {},
+): Promise<SeededCharacterHistory> {
+  const produced = await produceCharacterSnapshot(db, operations.snapshot, params);
+  const [view, summaries, page] = await Promise.all([
+    operations.getSnapshot({ principal: params.principal, characterId: params.characterId, snapshotId: produced.ref.id }),
+    operations.listSnapshots({ principal: params.principal, characterId: params.characterId }),
+    operations.list({ ...list, principal: params.principal }),
+  ]);
+  return { ...produced, view, summaries, page };
+}
+
+async function produceCharacterSnapshot(
+  db: Db,
+  snapshot: CharacterService["snapshot"],
+  params: Parameters<CharacterService["snapshot"]>[0],
+): Promise<Pick<SeededCharacterHistory, "ref" | "row">> {
   const ref = await snapshot(params);
   const row = await db.select().from(characterSnapshots).where(eq(characterSnapshots.id, ref.id)).get();
   if (row === undefined) {
     throw new Error("production character snapshot left no canonical history row");
   }
-  return row;
+  return { ref, row };
 }
 
 /** Both real ownership gates run before capturing the junction's exact composite key. */

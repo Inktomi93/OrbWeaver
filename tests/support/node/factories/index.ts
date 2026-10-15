@@ -21,8 +21,8 @@ export {
   seedAutomationTestFires,
   seedGlobalVariable,
 } from "./automation.ts";
-export type { CharacterPersonaRow, CharacterRow, CharacterSnapshotRow, SeededCreatedCharacter } from "./character.ts";
-export { makeCharacter, seedCharacter, seedCharacterPersona, seedCharacterSnapshot, seedCreatedCharacter } from "./character.ts";
+export type { CharacterPersonaRow, CharacterRow, CharacterSnapshotRow, SeededCharacterHistory, SeededCreatedCharacter } from "./character.ts";
+export { makeCharacter, seedCharacter, seedCharacterHistory, seedCharacterPersona, seedCharacterSnapshot, seedCreatedCharacter } from "./character.ts";
 export type {
   CapturedChatReplayRows,
   ChatEventRow,
