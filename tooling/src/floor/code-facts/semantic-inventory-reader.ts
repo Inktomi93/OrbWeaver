@@ -29,6 +29,7 @@ import {
   readInventoryCasts,
   readInventoryComputedNames,
   readInventoryDeclarationOutputs,
+  readInventoryExportDeclarations,
   readInventoryExports,
   readInventoryGlobalBindings,
   readInventoryGlobalOrigins,
@@ -421,6 +422,18 @@ export function inventoryReader(
           }
           return { program: partition.program, result: match.result };
         });
+    },
+    exportDeclarations: (source, program, name) => {
+      const { partition, span } = nativeSpan(source, program, "export-declarations");
+      if (!TsNode.isSourceFile(source)) {
+        throw new SemanticInventoryError("native export declarations require an exporting source file");
+      }
+      const entries = [...readInventoryExportDeclarations(db, partition.id, { file: span.file, name })];
+      const captured = entries[0];
+      if (entries.length !== 1 || captured === undefined) {
+        throw new SemanticInventoryError("native export source/name coverage is unavailable");
+      }
+      return captured.declarations?.map(replayFor(source, program, partition, "export declaration")) ?? null;
     },
     runtimeExports: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "runtime-exports");

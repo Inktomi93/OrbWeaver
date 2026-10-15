@@ -37,6 +37,7 @@
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { exportedNativeSources } from "../lib/native-exports.ts";
 import { SCRUBBER_HOME, SCRUBBER_SYMBOL } from "../lib/scrubber-home.ts";
 
 const HOME_RECEIPT = "kit content home";
@@ -64,19 +65,34 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    evaluate: () => {
-      const home = ctx.files.filter(isHomeFile);
-      // The receipt REFUSES at zero: a content directory that holds no source is a moved home, and a
-      // completeness policy cannot render a verdict over a population it could not resolve.
-      ctx.receipt({ kind: "population", source: HOME_RECEIPT, members: home.length, unresolved: 0 });
-      const declaring = home.filter((file) => file.getExportedDeclarations().has(SCRUBBER_SYMBOL));
-      const anchor = home[0];
-      if (declaring.length === 0 && anchor !== undefined) {
-        ctx.report.file(ctx.relativePath(anchor), { message: MESSAGE, fix: FIX });
-      }
+  create: (ctx) => {
+    const native = ctx.nativeTypes;
+    if (native === undefined) {
+      throw new Error("scrubber factory completeness requires native export declarations");
+    }
+    const home = ctx.files.filter(isHomeFile);
+    native.request({ kind: "export-declarations", nodes: home, name: SCRUBBER_SYMBOL });
+    return {
+      evaluate: () => {
+        // The receipt REFUSES at zero: a content directory that holds no source is a moved home, and a
+        // completeness policy cannot render a verdict over a population it could not resolve.
+        ctx.receipt({ kind: "population", source: HOME_RECEIPT, members: home.length, unresolved: 0 });
+        const declaring = exportedNativeSources(home, native.exportDeclarations(home, SCRUBBER_SYMBOL));
+        const anchor = home[0];
+        if (declaring.length === 0 && anchor !== undefined) {
+          ctx.report.file(ctx.relativePath(anchor), { message: MESSAGE, fix: FIX });
+        }
+      },
+    };
+  },
+  mustRefuse: [
+    {
+      mode: "types",
+      files: { "packages/kit/src/time/index.ts": "export const clock = 1;\n" },
+      expect: { messageIncludes: "kit content home" },
+      why: "A populated kit with no content-home source is unreadable completeness, not a missing-export finding.",
     },
-  }),
+  ],
   mustFlag: [
     {
       mode: "types",

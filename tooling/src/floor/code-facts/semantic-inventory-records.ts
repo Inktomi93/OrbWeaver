@@ -6,6 +6,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { z } from "zod";
 import type {
   InventoryFactKind,
+  InventoryFamily,
   InventoryInvocationAtom,
   InventoryPartition,
   InventoryRecord,
@@ -17,6 +18,7 @@ import {
   callableDeclarationSchema,
   castRelationResultSchema,
   computedNameSchema,
+  exportDeclarationsSchema,
   globalOriginSchema,
   INVENTORY_FAMILIES,
   INVENTORY_FAMILY_FIELDS,
@@ -47,6 +49,16 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  exportDeclaration: {
+    name: "inventory_export_declaration",
+    columns: "ordinal,file,name,present,declarationCount",
+    definition: `${PARTITION},${ORDINAL},file TEXT NOT NULL,name TEXT NOT NULL,present INTEGER NOT NULL CHECK(present IN (0,1)),declarationCount INTEGER NOT NULL CHECK(declarationCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,file,name),CHECK(present=1 OR declarationCount=0)`,
+  },
+  exportDeclarationNode: {
+    name: "inventory_export_declaration_node",
+    columns: "owner,ordinal,node",
+    definition: `${PARTITION},owner INTEGER NOT NULL,${ORDINAL},node INTEGER NOT NULL,PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_export_declaration(partition,ordinal),${SPAN_REFERENCE}`,
+  },
   invocationEvidence: {
     name: "inventory_invocation_evidence",
     columns: "ordinal,node,key,atomCount",
@@ -272,6 +284,27 @@ export function inventoryTextVersion(parts: Iterable<string>): string {
   return hash.digest("hex");
 }
 
+function hasFamilyEntries(partition: InventoryPartition, family: InventoryFamily): boolean {
+  return (partition[INVENTORY_FAMILY_FIELDS[family]]?.length ?? 0) > 0;
+}
+
+function writeExportDeclarations(
+  write: (record: InventoryRecord) => void,
+  spanId: (value: InventorySpan) => number,
+  entries: InventoryPartition["exportDeclarations"] = [],
+): void {
+  for (const [ordinal, entry] of entries.entries()) {
+    const fact = exportDeclarationsSchema.parse(entry);
+    write({
+      table: "exportDeclaration",
+      values: [ordinal, inventoryString(fact.query.file), inventoryString(fact.query.name), Number(fact.declarations !== null), fact.declarations?.length ?? 0],
+    });
+    fact.declarations?.forEach((node, index) => {
+      write({ table: "exportDeclarationNode", values: [ordinal, index, spanId(node)] });
+    });
+  }
+}
+
 /** Stream normalized rows to hashing or SQLite without constructing a serialized population. */
 export function visitInventoryRecords(partition: InventoryPartition, write: (record: InventoryRecord) => void): void {
   const metadata = partitionMetadataSchema.parse(partition);
@@ -282,7 +315,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     if (family === "bindings" && metadata.families.includes("global-origins")) {
       continue;
     }
-    if (!metadata.families.includes(family) && partition[INVENTORY_FAMILY_FIELDS[family]].length > 0) {
+    if (!metadata.families.includes(family) && hasFamilyEntries(partition, family)) {
       throw new Error(`native inventory populated an undeclared family: ${family}`);
     }
   }
@@ -431,6 +464,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
       });
     }
   });
+  writeExportDeclarations(write, spanId, partition.exportDeclarations);
   partition.invocationEvidence.forEach((entry, ordinal) => {
     const fact = invocationEvidenceSchema.parse(entry);
     assertInvocationEvidence(fact);

@@ -16,6 +16,8 @@ import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
 import type {
   InventoryBuildRequest,
+  InventoryExportDeclarationQuery,
+  InventoryExportDeclarations,
   InventoryFamily,
   InventoryInput,
   InventoryInvocationQuery,
@@ -23,7 +25,13 @@ import type {
   InventorySpan,
   InventorySymbols,
 } from "../code-facts/semantic-inventory-contract.ts";
-import { INVENTORY_FORMAT, inventoryFamilies, inventoryNodeQueryKey } from "../code-facts/semantic-inventory-contract.ts";
+import {
+  exportDeclarationQueryKey,
+  exportDeclarationQuerySchema,
+  INVENTORY_FORMAT,
+  inventoryFamilies,
+  inventoryNodeQueryKey,
+} from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
 import { captureInvocationEvidence, encodeInvocationEvidence } from "./invocation-evidence-extract.ts";
@@ -252,6 +260,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     sf.forgetDescendants();
   }
   const roots = request.descriptor.files.map((path) => spans.path(resolve(request.root, path)));
+  const exportQueries = exportDemandFor(request, families, roots);
   const callableQueries = callableDemandFor(request, families, roots);
   const computedNameQueries = computedDemandFor(request, families, roots);
   const globalOriginQueries = globalDemandFor(request, families, roots, "globalOriginQueries");
@@ -271,6 +280,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     request.intent === "membership"
       ? {
           exports: [],
+          exportDeclarations: [],
           modules: [],
           bindings: [],
           witnesses: [],
@@ -294,6 +304,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           spans,
           families,
           queries: request.shapeQueries ?? [],
+          exportQueries,
           callableQueries,
           computedNameQueries,
           globalOriginQueries,
@@ -322,7 +333,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     })),
     // Metadata also observes membership; capture inputs only after every source decision has been recorded.
     inputs: [...inputs.values()].toSorted((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind)),
-    ...facts,
+    ...exportFactProjection(facts, families),
   };
 }
 
@@ -340,6 +351,7 @@ function extractTypedFacts(
     readonly spans: InventorySpans;
     readonly families: readonly InventoryFamily[];
     readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryShapeQuery[];
+    readonly exportQueries: readonly InventoryExportDeclarationQuery[];
     readonly callableQueries: readonly InventorySpan[];
     readonly computedNameQueries: readonly InventorySpan[];
     readonly globalOriginQueries: readonly InventorySpan[];
@@ -347,8 +359,19 @@ function extractTypedFacts(
     readonly invocationQueries: readonly InventoryInvocationQuery[];
   },
 ): SourceFactValues & Pick<InventoryPartition, "pairs" | "references"> {
-  const { sources, authored, spans, families, queries, callableQueries, computedNameQueries, globalOriginQueries, globalBindingQueries, invocationQueries } =
-    input;
+  const {
+    sources,
+    authored,
+    spans,
+    families,
+    queries,
+    exportQueries,
+    callableQueries,
+    computedNameQueries,
+    globalOriginQueries,
+    globalBindingQueries,
+    invocationQueries,
+  } = input;
   const invocationProgram = invocationQueries.length === 0 ? undefined : project.getProgram().compilerObject;
   const invocationSources = invocationQueries.length === 0 ? [] : nativeCompilerSourceFiles(project);
   const service = project.getLanguageService().compilerObject;
@@ -364,6 +387,7 @@ function extractTypedFacts(
     const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, {
       spans,
       families: new Set(families),
+      exportQueries,
       callableQueries,
       computedNameQueries,
       globalOriginQueries,
@@ -457,7 +481,7 @@ type SourceFactValues = Pick<
   | "globalBindings"
   | "invocationEvidence"
   | "shapes"
->;
+> & { exportDeclarations: InventoryExportDeclarations[] };
 interface SourceFactCollection {
   readonly families: ReadonlySet<InventoryFamily>;
   readonly spans: InventorySpans;
@@ -466,6 +490,7 @@ interface SourceFactCollection {
   readonly referenceDeclarations: Map<InventorySpan, ReferenceDeclaration>;
   readonly shapeNodes: WeakSet<ts.Node>;
   readonly checker: AssignabilityChecker | undefined;
+  readonly exportQueries: Map<string, InventoryExportDeclarationQuery[]>;
   readonly callableQueries: Set<string>;
   readonly computedNameQueries: Set<string>;
   readonly computedKinds: ReadonlySet<SyntaxKind>;
@@ -475,11 +500,44 @@ interface SourceFactCollection {
   readonly invocationBindings: Map<string, InventorySymbols>;
 }
 
+function exportFactProjection(
+  facts: SourceFactValues & Pick<InventoryPartition, "pairs" | "references">,
+  families: readonly InventoryFamily[],
+): Omit<SourceFactValues, "exportDeclarations"> & Pick<InventoryPartition, "pairs" | "references" | "exportDeclarations"> {
+  if (families.includes("export-declarations")) {
+    return facts;
+  }
+  const { exportDeclarations: _exports, ...legacy } = facts;
+  return legacy;
+}
+
+function exportDemandBySource(queries: readonly InventoryExportDeclarationQuery[]): Map<string, InventoryExportDeclarationQuery[]> {
+  const grouped = new Map<string, InventoryExportDeclarationQuery[]>();
+  for (const query of queries) {
+    const rows = grouped.get(query.file) ?? [];
+    rows.push(query);
+    grouped.set(query.file, rows);
+  }
+  return grouped;
+}
+
 function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void {
-  if (!(context.families.has("exports") || context.families.has("references") || context.families.has("shape-catalog"))) {
+  const file = context.spans.path(sf.getFilePath());
+  const queries = context.exportQueries.get(file);
+  const complete = context.families.has("exports") || context.families.has("references") || context.families.has("shape-catalog");
+  if (!complete && queries === undefined) {
     return;
   }
-  for (const [name, declarations] of sf.getExportedDeclarations()) {
+  const exports = sf.getExportedDeclarations();
+  for (const query of queries ?? []) {
+    const declarations = exports.get(query.name);
+    context.values.exportDeclarations.push({ query, declarations: declarations === undefined ? null : declarations.map(context.spans.node) });
+  }
+  context.exportQueries.delete(file);
+  if (!complete) {
+    return;
+  }
+  for (const [name, declarations] of exports) {
     collectExportShapes(sf, declarations, context);
     if (context.families.has("exports")) {
       context.values.exports.push({ file: context.spans.path(sf.getFilePath()), name, declarations: declarations.map(context.spans.node) });
@@ -698,6 +756,7 @@ function extractSourceFacts(
   sources: InventorySources,
   authored: (path: string) => boolean,
   input: Pick<SourceFactCollection, "families" | "spans"> & {
+    readonly exportQueries: readonly InventoryExportDeclarationQuery[];
     readonly callableQueries: readonly InventorySpan[];
     readonly computedNameQueries: readonly InventorySpan[];
     readonly globalOriginQueries: readonly InventorySpan[];
@@ -711,6 +770,7 @@ function extractSourceFacts(
   const context: SourceFactCollection = {
     ...input,
     authored,
+    exportQueries: exportDemandBySource(input.exportQueries),
     callableQueries: new Set(input.callableQueries.map(inventoryNodeQueryKey)),
     computedNameQueries: new Set(input.computedNameQueries.map(inventoryNodeQueryKey)),
     computedKinds: new Set(input.computedNameQueries.map(({ kind }) => kind)),
@@ -719,6 +779,7 @@ function extractSourceFacts(
     globalKinds: new Set(input.globalOriginQueries.map(({ kind }) => kind)),
     values: {
       exports: [],
+      exportDeclarations: [],
       modules: [],
       bindings: [],
       witnesses: [],
@@ -757,6 +818,9 @@ function extractSourceFacts(
         collectAuthoredFacts(sf, context);
       }
       sf.forgetDescendants();
+    }
+    if (context.exportQueries.size > 0) {
+      throw new Error("native export query source is unavailable in its captured native program");
     }
     if (context.callableQueries.size > 0) {
       throw new Error("native callable query span is unavailable in its captured native program");
@@ -846,6 +910,24 @@ function referenceQueryNode(declaration: MorphNode): MorphNode {
 function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan, spans: InventorySpans): InventorySpan {
   const best = nativeReferenceNode(source, span);
   return spans.span(source.fileName, best.getStart(source), best.end, best.kind);
+}
+
+function exportDemandFor(
+  request: InventoryBuildRequest,
+  families: readonly InventoryFamily[],
+  roots: readonly string[],
+): readonly InventoryExportDeclarationQuery[] {
+  const queries = [
+    ...new Map((request.exportQueries ?? []).map((query) => [exportDeclarationQueryKey(query), exportDeclarationQuerySchema.parse(query)])).values(),
+  ];
+  if (
+    (families.includes("export-declarations") && request.exportQueries === undefined) ||
+    (request.exportQueries !== undefined && !families.includes("export-declarations")) ||
+    queries.some((query) => !roots.includes(query.file))
+  ) {
+    throw new Error("native export declarations require closed source/name demand in admitted native roots");
+  }
+  return queries;
 }
 
 function callableDemandFor(request: InventoryBuildRequest, families: readonly InventoryFamily[], roots: readonly string[]): readonly InventorySpan[] {

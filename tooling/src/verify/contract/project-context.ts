@@ -21,6 +21,7 @@ import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-
 import type { SemanticSourceView } from "../../floor/compiler/ts-workspace-contract.ts";
 
 export type NativeTypeRequest =
+  | { readonly kind: "export-declarations"; readonly nodes: readonly SourceFile[]; readonly name: string }
   | { readonly kind: "invocation-evidence"; readonly nodes: readonly Node[]; readonly plan: InventoryInvocationPlan }
   | { readonly kind: "global-origins"; readonly nodes: readonly Node[] }
   | { readonly kind: "global-bindings"; readonly nodes: readonly Node[] }
@@ -35,6 +36,7 @@ export type NativeTypeRequest =
 
 /** A producer owns native or isolated-proof provenance; neither exposes a checker through this capability. */
 export interface NativeTypeFactReader extends Disposable {
+  readonly exportDeclarations: (sources: readonly SourceFile[], name: string) => ReadonlyMap<SourceFile, readonly Node[] | null>;
   readonly invocationEvidence: (nodes: readonly Node[], plan: InventoryInvocationPlan) => ReadonlyMap<Node, NativeInvocationEvidence>;
   readonly globalOrigins: (nodes: readonly Node[]) => ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>>;
   readonly globalBindings: (nodes: readonly Node[]) => ReadonlyMap<Node, readonly Node[]>;
@@ -49,6 +51,7 @@ export interface NativeTypeFactReader extends Disposable {
 }
 
 export interface NativeTypeContext {
+  readonly exportDeclarations: NativeTypeFactReader["exportDeclarations"];
   readonly invocationEvidence: NativeTypeFactReader["invocationEvidence"];
   readonly globalOrigins: NativeTypeFactReader["globalOrigins"];
   readonly globalBindings: NativeTypeFactReader["globalBindings"];
@@ -65,6 +68,7 @@ export interface NativeTypeContext {
 
 /** Registration is owner-scoped during the existing walk; a sealed run reads one closed native generation. */
 export interface NativeTypeFacts extends Disposable {
+  readonly exportDeclarations: (owner: string, sources: readonly SourceFile[], name: string) => ReturnType<NativeTypeFactReader["exportDeclarations"]>;
   readonly invocationEvidence: (owner: string, nodes: readonly Node[], plan: InventoryInvocationPlan) => ReturnType<NativeTypeFactReader["invocationEvidence"]>;
   readonly globalOrigins: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalOrigins"]>;
   readonly globalBindings: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalBindings"]>;

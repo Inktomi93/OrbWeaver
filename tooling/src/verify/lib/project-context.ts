@@ -60,7 +60,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
     owner: string,
     kind: NativeTypeRequest["kind"],
     nodes: readonly Node[],
-    plan?: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan,
+    projection?: { readonly name?: string; readonly plan?: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan },
   ): NativeTypeFactReader => {
     assertReadable();
     const admitted = new Set<Node>(
@@ -68,10 +68,11 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         .filter(
           (query) =>
             query.kind === kind &&
+            (query.kind !== "export-declarations" || query.name === projection?.name) &&
             (query.kind !== "invocation-evidence" ||
-              (plan !== undefined &&
+              (projection?.plan !== undefined &&
                 invocationQueryKey({ ...query.plan, node: { file: "", start: 0, end: 0, kind: 0 } }) ===
-                  invocationQueryKey({ ...plan, node: { file: "", start: 0, end: 0, kind: 0 } }))),
+                  invocationQueryKey({ ...projection.plan, node: { file: "", start: 0, end: 0, kind: 0 } }))),
         )
         .flatMap((query) => [...query.nodes]),
     );
@@ -98,6 +99,9 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (query.nodes.length > 0) {
         const rows = requests.get(owner) ?? [];
         switch (query.kind) {
+          case "export-declarations":
+            rows.push({ kind: query.kind, nodes: [...query.nodes], name: query.name });
+            break;
           case "invocation-evidence":
             rows.push({ kind: query.kind, nodes: [...query.nodes], plan: invocationPlanSchema.parse(query.plan) });
             break;
@@ -143,12 +147,19 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       }
       sealed = true;
     },
+    exportDeclarations: (owner, sources, name): ReturnType<NativeTypeContext["exportDeclarations"]> => {
+      if (sources.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "export-declarations", sources, { name }).exportDeclarations(sources, name);
+    },
     invocationEvidence: (owner, nodes, plan): ReturnType<NativeTypeContext["invocationEvidence"]> => {
       if (nodes.length === 0) {
         assertReadable();
         return new Map();
       }
-      return selected(owner, "invocation-evidence", nodes, plan).invocationEvidence(nodes, plan);
+      return selected(owner, "invocation-evidence", nodes, { plan }).invocationEvidence(nodes, plan);
     },
     castRelations: (owner, nodes): ReturnType<NativeTypeContext["castRelations"]> => {
       if (nodes.length === 0) {
@@ -282,6 +293,18 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   const inventory = createSemanticInventory({
     root,
     programs: descriptors,
+    ...(families.includes("export-declarations")
+      ? {
+          exportQueries: queries
+            .filter((query) => query.kind === "export-declarations")
+            .flatMap((query) =>
+              query.nodes.map((source) => ({
+                program: owner(source),
+                query: { file: canonicalInventoryPath(source.getFilePath()), name: query.name },
+              })),
+            ),
+        }
+      : {}),
     ...(families.includes("invocation-evidence")
       ? {
           invocationQueries: queries
@@ -357,6 +380,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    exportDeclarations: (sources, name): ReturnType<NativeTypeFactReader["exportDeclarations"]> =>
+      new Map(sources.map((source) => [source, inventory.exportDeclarations(source, owner(source), name)])),
     invocationEvidence: (subjects, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> =>
       new Map(subjects.map((node) => [node, inventory.invocationEvidence(node, owner(node), plan)])),
     globalOrigins: (subjects): ReturnType<NativeTypeFactReader["globalOrigins"]> =>
