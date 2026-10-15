@@ -1,11 +1,55 @@
 import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
+import process from "node:process";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { vi } from "vitest";
 
 const SOURCE = "const h = orb.host(1); h.log.info(JSON.stringify({ at: h.clock.nowEpochMs(), random: h.random.next(), id: h.ids.mint() }));";
+const CHILD_TIMEOUT_MS = 30_000;
+
+test("standalone native teardown joins a resident guest after the last outer listener closes", async () => {
+  const result = await spawnNicedTranscript(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import { spawn } from "node:child_process";
+    import { createServerHarness } from "@orb/testkit/node/server.ts";
+    import { makePluginBundle } from "@orb/testkit/node/factories/plugin.ts";
+    import { pluginManifestSchema, PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
+    const root = await createServerHarness({ pluginSpawn: spawn });
+    await root.listen();
+    const manifest = pluginManifestSchema.parse({ id: "standalone-lifecycle", name: "Standalone lifecycle", description: "Native teardown lifecycle control", version: "1.0.0", hostVersion: PLUGIN_HOST_VERSIONS[0], entry: PLUGIN_MAIN_ENTRY, capabilities: [] });
+    const caller = await root.principalFor(root.ownerId);
+    const installed = await root.services.plugin.install({
+      caller,
+      bundle: makePluginBundle(manifest, "orb.host(1);", root.clock.now()),
+      grant: [],
+    });
+    await root.services.plugin.setGrant({
+      caller, pluginId: installed.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true,
+    });
+    if (!(await root.services.plugin.list({ caller })).some((plugin) => plugin.id === installed.id && plugin.status === "enabled")) {
+      throw new Error("native guest never became enabled");
+    }
+    await root[Symbol.asyncDispose]();
+    process.stdout.write("native graph disposal joined\\n");
+  `,
+    ],
+    {
+      cwd: process.cwd(),
+      env: inheritedProcessEnv(),
+      timeoutMs: CHILD_TIMEOUT_MS,
+    },
+  );
+  expect(result.code, result.transcript).toBe(0);
+  expect(result.transcript).toContain("native graph disposal joined");
+});
 
 test("the real snippet gates ownership before a refused raw spawn and releases admission for the next attempt", async () => {
   const execute = vi.fn((): never => {
