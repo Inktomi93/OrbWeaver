@@ -29,16 +29,7 @@
 import { TAG_FOLDER_TYPES, TAG_SOURCES, TAG_STATUSES } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  integer,
-  // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use primaryKey({ columns }).
-  primaryKey,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";

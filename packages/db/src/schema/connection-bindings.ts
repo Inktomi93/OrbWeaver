@@ -16,7 +16,6 @@ import type { ChatApi, EndpointFeatures, ProviderId, RoutableTask, Task, Wire } 
 import { BINDING_ACTOR_KINDS, CATALOG_STRATEGIES, DIALECTS, PLUGIN_PROVIDER_ID_PREFIX, PROVIDER_AUTHS, ROUTABLE_TASKS, WIRES } from "@orb/contracts/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-// biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates positional primaryKey; the supported object form is used below.
 import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../query/check-list.ts";
 import { automationRules } from "./automation.ts";

@@ -28,7 +28,6 @@
 import type { RegexScriptBehavior } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-// biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";

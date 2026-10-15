@@ -42,16 +42,7 @@ import {
 import type { AutomationFireId, AutomationRuleCreationId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  integer,
-  // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
-  primaryKey,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../query/check-list.ts";
 import { chats } from "./chat.ts";
 import { users } from "./users.ts";

@@ -20,15 +20,7 @@ import type { CardDepthPrompt, CharacterCard, Greeting, RefinerySignals } from "
 import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import {
-  index,
-  integer,
-  // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
-  primaryKey,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { assets } from "./assets.ts";
 import { personas } from "./persona.ts";
 import { users } from "./users.ts";

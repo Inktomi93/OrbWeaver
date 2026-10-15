@@ -14,7 +14,6 @@ import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_ORIGINS, PLUGIN_STATUSES, PLUGIN_UI_ASSETS_DIR } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-// biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";

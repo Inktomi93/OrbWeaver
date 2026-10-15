@@ -27,15 +27,7 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
-import {
-  index,
-  integer,
-  // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
-  primaryKey,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { users } from "./users.ts";
 
 export const settings = sqliteTable("settings", {

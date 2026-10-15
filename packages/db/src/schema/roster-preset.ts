@@ -18,16 +18,7 @@ import type { GroupConfigInput } from "@orb/contracts/chat";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import {
-  index,
-  integer,
-  // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use primaryKey({ columns }).
-  primaryKey,
-  real,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { characters } from "./character.ts";
 import { personas } from "./persona.ts";
 import { users } from "./users.ts";
