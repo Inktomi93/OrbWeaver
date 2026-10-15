@@ -52,7 +52,8 @@ export async function nearestImages(db: ReadOnlyDb, params: NearestImagesParams)
         eq(imageEmbeddings.lens, params.lens),
       ),
     )
-    .orderBy(distance)
+    // Equal vectors must choose the same page after planner statistics or the connection changes.
+    .orderBy(distance, imageEmbeddings.assetId)
     .limit(params.limit);
   return rows;
 }
@@ -131,7 +132,8 @@ export async function nearestAvatarCharacters(db: ReadOnlyDb, params: NearestAva
         ne(characters.id, params.excludeCharacterId),
       ),
     )
-    .orderBy(distance)
+    // Character identity, not shared-avatar traversal order, breaks ties before the candidate limit.
+    .orderBy(distance, characters.id)
     .limit(params.limit);
   return rows;
 }
