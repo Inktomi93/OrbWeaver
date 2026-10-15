@@ -8,7 +8,7 @@
 // rule's scope, and `applyReorder` admits the exact set and rewrites it in one UPDATE. There is no exported way to hand a
 // position in: a caller that could would be a caller that can duplicate one.
 
-import type { AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationTrigger, RuleView } from "@orb/contracts/automation";
 import { AUTOMATION_CONSECUTIVE_ERROR_CEILING, automationActionsSchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
@@ -19,7 +19,6 @@ import type { SQL } from "drizzle-orm";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { SQLiteInsertValue } from "drizzle-orm/sqlite-core";
 import type { PlannedRuleInsert, RuleOrderScope, RuleRow } from "../contract/ops.ts";
-import type { RuleView } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
 

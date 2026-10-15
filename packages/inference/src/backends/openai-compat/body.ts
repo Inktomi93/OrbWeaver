@@ -39,10 +39,10 @@
 // included, which no row rule rewrites), and so does a `chat_template_kwargs.enable_thinking` the user stated.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
-import type { ImageDetail } from "@orb/contracts/inference";
+import type { ImageDetail, ResolvedWarning } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
-import type { ResolvedWarning } from "#contract";
+
 import type { ShapeArgs } from "../../contract/openai-backend.ts";
 import type { OutboundMedia, WirePlan } from "../../contract/v4.ts";
 import { applyIncludeExclude } from "../wire/openai-body.ts";

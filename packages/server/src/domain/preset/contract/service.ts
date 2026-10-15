@@ -6,6 +6,7 @@
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CapabilityTarget, ResolvedCacheConnectionView } from "@orb/contracts/inference";
+import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -23,7 +24,6 @@ import type {
   UpdatePresetParams,
 } from "./params.ts";
 import type { PresetImportOutcome } from "./portability.ts";
-import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } from "./views.ts";
 
 /** The injected capability read — `connection.resolveChatCapability` at the composition root. Takes the acting
  *  Principal and an optional target (a role or a connection id, owner-checked by the connection domain), and no

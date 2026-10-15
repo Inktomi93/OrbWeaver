@@ -1,8 +1,8 @@
+import type { PresetUsageView } from "@orb/contracts/preset";
 import type { PresetContext } from "../context.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { ListPresetUsageParams } from "../contract/params.ts";
 import type { PresetService } from "../contract/service.ts";
-import type { PresetUsageView } from "../contract/views.ts";
 import { readablePreset } from "../persistence/queries.ts";
 
 // verb: listUsage — where this preset is bound from OUTSIDE the library (#279): the caller's active-pick

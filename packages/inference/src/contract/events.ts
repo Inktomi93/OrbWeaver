@@ -3,9 +3,8 @@
 // `@anthropic-ai/claude-agent-sdk` or `@ai-sdk/*` type — each backend maps its events at its boundary.
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
-import type { EffortLevel } from "@orb/contracts/inference";
+import type { EffortLevel, WarningCode } from "@orb/contracts/inference";
 import { z } from "zod";
-import type { WarningCode } from "./resolve.ts";
 
 export type { ChatDeltaEvent } from "@orb/contracts/chat";
 

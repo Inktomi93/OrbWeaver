@@ -55,6 +55,8 @@ import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
 
+export type { ResolvedWarning } from "@orb/contracts/inference";
+export { resolvedWarningSchema } from "@orb/contracts/inference";
 export { availableClaudeExecutable, resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
 export type { SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { providerErrorFromHttp } from "./backends/http/error-classify.ts";
@@ -81,8 +83,6 @@ export { synthesizeCapability } from "./capability/synthesize.ts";
 export type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./contract/agent-sdk-execution.ts";
 export * from "./contract/index.ts";
 export type { LoadTransformersKernel, LocalLightKernelModule } from "./contract/local-light-kernel.ts";
-export type { ResolvedWarning } from "./contract/resolve.ts";
-export { resolvedWarningSchema } from "./contract/resolve.ts";
 export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
 // The one structured-output layer: a caller that must choose between shapes, or ask whether its need fits a
 // connection at all, asks the planner every backend sends.

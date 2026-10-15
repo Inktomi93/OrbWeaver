@@ -9,6 +9,8 @@
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
 
+import type { ModelId, PresetId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
 import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
@@ -23,6 +25,15 @@ import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
 import { defineVersionedConfig, liftConfigForward } from "#versioned-config";
+import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
+import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
+import type { CachePolicy } from "../inference/cache-policy.ts";
+import { cachePolicySchema } from "../inference/cache-policy.ts";
+import { SAMPLING_RANGE_KNOBS } from "../inference/capability/generation.ts";
+import type { ResolvedWarning } from "../inference/warnings.ts";
+import { resolvedWarningSchema } from "../inference/warnings.ts";
+import type { VersionedParseFailure } from "../versioned-config/index.ts";
+import { versionedParseFailureSchema } from "../versioned-config/index.ts";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
 import { responseCacheSettingsSchema } from "./response-cache.ts";
 
@@ -3612,3 +3623,190 @@ export const promptConfigViewSchema = promptConfigSchema.strict().extend({
   postProcess: promptConfigSchema.shape.postProcess.unwrap().strict().optional(),
   reasoningParse: promptConfigSchema.shape.reasoningParse.unwrap().strict().optional(),
 }) satisfies z.ZodType<PromptConfig>;
+
+export interface PresetSummary {
+  readonly id: PresetId;
+  readonly name: string;
+  readonly kind: string;
+  /** Derived (`id === SYSTEM_DEFAULT_PRESET_ID`): the one shared system-default row. Editing it COWs into a
+   *  fork. Any other ownerless row is NOT flagged here — it never surfaces in the readable list. */
+  readonly isSystemDefault: boolean;
+  /** Fork lineage (`presets.forked_from`, null = born here): the preset this row was copied from — the
+   *  system default for a copy-on-write fork, the gifting host's preset for a handoff copy. The ID only
+   *  (`ChatSummary.parentChatId`-style); the client resolves the NAME from the rows it already has and
+   *  simply omits the lineage scent when the source is not among them. */
+  readonly forkedFrom: PresetId | null;
+  /**
+   * WHY A DETAIL'S `config` MAY NOT BE THIS ROW'S (#1716) — `null` ⇒ the stored blob was read faithfully;
+   * a failure kind ⇒ `config` is a STAND-IN (the schema default, or for `version-from-future` the stored
+   * blob minus every field this build cannot represent) and the editor is looking at something the row
+   * does not contain.
+   *
+   * IT IS THE READ-TIME TWIN OF THE WRITE REFUSAL, and that is the whole point of putting it on the wire.
+   * Since #1026 a config write derived from this read is refused with `stored_config_unreadable`
+   * (`#primitives/stored-config`), so before this field the user saw a defaults-looking editor, typed into it, and
+   * got a generic save failure — the refusal was correct and completely invisible until it was too late.
+   * It is projected from the SAME `promptConfigConfig.parseOutcome(row.config, row.schemaVersion)` call the
+   * guard makes (`../substrate/views.ts`), so the state the editor renders cannot disagree with the refusal
+   * the write would produce.
+   *
+   * The KIND crosses, not just a boolean, because the two failures have OPPOSITE repairs: a
+   * `version-from-future` blob is intact data this build is too old to read (reset-to-default would DESTROY
+   * a newer build's preset), while the rest are genuine corruption whose only way out IS reset/import.
+   * Naming the kind is leak-free — it is a verdict about the blob, never its contents (the same posture the
+   * refusal message keeps). The summary carries it so the list row can mark the preset before it opens.
+   */
+  readonly configUnreadable: VersionedParseFailure | null;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+export interface PresetDetail extends PresetSummary {
+  readonly config: PromptConfig;
+  readonly schemaVersion: number;
+}
+
+/**
+ * WHERE THIS PRESET IS BOUND FROM OUTSIDE THE LIBRARY (#279) — the CONTEXT panel's backward-bindings block.
+ *
+ * The library is full of forward readouts ("what does this preset set"); nothing answered "what would break
+ * if I changed it". The honest answer is short, and the SHAPE of it is the finding: a chat does NOT carry a
+ * preset. A room generates under its HOST's active preset (`UserSettings.seeds.defaultPresetId`, resolved
+ * per turn at `entry/compose/chat.ts::resolvePromptConfigFor`), so there is no per-chat preset column to
+ * roster. Exactly TWO bindings exist on this tree:
+ *   • `isUserDefault` — this preset IS the caller's active pick, i.e. every room they host runs it. One
+ *     boolean, not a room list: enumerating "every chat you host" would restate the chats list, and it is
+ *     the SETTING that is the binding.
+ *   • `gmRooms` — `rpg_games.gmPresetId`, the GM-voice preset REDIRECT (rpg §4.11 #1), which IS per-room and
+ *     overrides the default for that room's narrator turns. Membership-scoped like every room read (D18):
+ *     resolved through the shared `resolveVisibleRooms`, so a game in a room the caller has left is absent.
+ *
+ * There is deliberately NO role/connection arm. A connection binds MODELS to roles; a preset is generation
+ * config and is never referenced by a connection or a role (`domain/preset` owns params/sections only — the
+ * domain map's "never the connection"). A block claiming that binding class would be inventing one.
+ */
+export interface PresetUsageView {
+  readonly isUserDefault: boolean;
+  readonly gmRooms: readonly VisibleRoomRef[];
+}
+
+// ── The EFFECTIVE profile (`resolveEffective`, redesign §4.3) ──────────────────────────────────────
+// What the generation funnel ACTUALLY produces for this preset against the caller's own chat model — the
+// editor's answer to "what will the next turn send?". Never a client mirror of the funnel.
+
+/** WHY a knob has the value it has — the funnel's four rungs, plus the engine floor that stands when the
+ *  funnel itself yields nothing. `clamped` wins over its own source: a value the user (or the quality dial)
+ *  asked for that the capability moved is a clamp, and the deck says so. `serverDefault` is the value a server
+ *  advertised for a knob the preset leaves unset (`GenerationCapability.samplingDefaults`): never sent, the
+ *  server runs it. */
+export const EFFECTIVE_PROVENANCES = ["explicit", "quality", "modelDefault", "clamped", "floor", "serverDefault"] as const;
+export type EffectiveProvenance = (typeof EFFECTIVE_PROVENANCES)[number];
+
+/** The SCALAR generation knobs the funnel resolves — the KnobRow surface, in deck order. Deliberately NOT
+ *  every `params` field: `logitBias`/`stop` are collection editors (no datum row), and
+ *  `maxContextTokens`/`compaction.*` never enter `resolveChat` at all, so projecting them would be
+ *  inventing a resolution the turn pipeline does not perform. */
+export const EFFECTIVE_KNOBS = [
+  ...SAMPLING_RANGE_KNOBS,
+  "seed",
+  "effort",
+  "thinkingBudgetTokens",
+  "thinkingDisplay",
+  "maxOutputTokens",
+  "verbosity",
+  "replyMedia",
+] as const;
+export type EffectiveKnob = (typeof EFFECTIVE_KNOBS)[number];
+
+/** A resolved knob: the value the wire would carry + where it came from. */
+export interface EffectiveKnobReading {
+  readonly value: number | string;
+  readonly provenance: EffectiveProvenance;
+}
+
+/** The stored non-slider knobs (lists, the sampler order, the EOS ban) the deck's staleness row also names. */
+export const STALE_COLLECTION_KNOBS = ["stop", "logitBias", "drySequenceBreakers", "samplerOrder", "bannedStrings", "banEos"] as const;
+export type StaleCollectionKnob = (typeof STALE_COLLECTION_KNOBS)[number];
+
+/** A STORED explicit knob this model does not honor (redesign §4.2 / F7): the funnel dropped it, so it is
+ *  invisible on the wire — the deck's staleness row is what makes it visible instead of silently dead. A
+ *  collection knob's `value` is its display form. */
+export interface StaleKnob {
+  readonly knob: EffectiveKnob | StaleCollectionKnob;
+  readonly value: number | string;
+}
+
+/** ONE knob the quality dial feeds, as the dial declares it — NOT as the funnel resolved it. The Params
+ *  surface's "quality mapping" datum ("deep → effort high · temp 1.0") answers "what does this dial DO",
+ *  which is a fact about the dial and stays true whether or not an explicit knob currently overrides it.
+ *  Projected server-side because `QUALITY_SAMPLING`/`QUALITY_EFFORT` are funnel vocabulary the client is
+ *  banned from importing (redesign §12) — the previous client derivation could only see knobs the funnel
+ *  happened to attribute to the dial, so an overridden dial rendered "everything is overridden" instead of
+ *  its mapping (side-eye F-15). */
+export interface QualityMappingEntry {
+  readonly knob: EffectiveKnob;
+  readonly value: number | string;
+}
+
+/** The dial's declared mapping, or `null` when no dial is set (there is nothing to state). */
+export interface QualityMapping {
+  readonly quality: string;
+  readonly entries: readonly QualityMappingEntry[];
+}
+
+export interface EffectivePreset {
+  readonly cache: CachePolicy;
+  readonly cacheWarnings: readonly ResolvedWarning[];
+  readonly presetId: PresetId;
+  /** The model the funnel resolved AGAINST — the readout says "resolved for <model>", and it may not lie
+   *  after a model swap (the §4.4 freshness contract's capability rung). */
+  readonly model: ModelId;
+  /** Only the knobs that actually resolve; an absent knob means the funnel produces NOTHING for it on this
+   *  model (nothing to ghost — the honest empty, never a fabricated default). */
+  readonly knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>>;
+  readonly stale: readonly StaleKnob[];
+  /** What the QUALITY dial feeds, per the dial's own table — `null` with no dial set. */
+  readonly qualityMapping: QualityMapping | null;
+}
+
+export const presetSummarySchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.preset),
+  name: z.string(),
+  kind: z.string(),
+  isSystemDefault: z.boolean(),
+  forkedFrom: typeIdSchema(ID_PREFIX.preset).nullable(),
+  configUnreadable: versionedParseFailureSchema.nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<PresetSummary>;
+export const presetDetailSchema = presetSummarySchema.extend({
+  config: promptConfigViewSchema,
+  schemaVersion: z.number(),
+}) satisfies z.ZodType<PresetDetail>;
+export const presetUsageViewSchema = z.strictObject({
+  isUserDefault: z.boolean(),
+  gmRooms: z.array(visibleRoomRefSchema).readonly(),
+}) satisfies z.ZodType<PresetUsageView>;
+const effectiveKnobValueSchema = z.union([z.number(), z.string()]);
+const effectiveKnobReadingSchema = z.strictObject({
+  value: effectiveKnobValueSchema,
+  provenance: z.enum(EFFECTIVE_PROVENANCES),
+}) satisfies z.ZodType<EffectiveKnobReading>;
+const staleKnobSchema = z.strictObject({
+  knob: z.enum([...EFFECTIVE_KNOBS, ...STALE_COLLECTION_KNOBS]),
+  value: effectiveKnobValueSchema,
+}) satisfies z.ZodType<StaleKnob>;
+const qualityMappingEntrySchema = z.strictObject({ knob: z.enum(EFFECTIVE_KNOBS), value: effectiveKnobValueSchema }) satisfies z.ZodType<QualityMappingEntry>;
+const qualityMappingSchema = z.strictObject({
+  quality: z.string(),
+  entries: z.array(qualityMappingEntrySchema).readonly(),
+}) satisfies z.ZodType<QualityMapping>;
+export const effectivePresetSchema = z.strictObject({
+  cache: cachePolicySchema,
+  cacheWarnings: z.array(resolvedWarningSchema).readonly(),
+  presetId: typeIdSchema(ID_PREFIX.preset),
+  model: brandedId<ModelId>(),
+  knobs: z.partialRecord(z.enum(EFFECTIVE_KNOBS), effectiveKnobReadingSchema),
+  stale: z.array(staleKnobSchema).readonly(),
+  qualityMapping: qualityMappingSchema.nullable(),
+}) satisfies z.ZodType<EffectivePreset>;

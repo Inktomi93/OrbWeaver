@@ -1,6 +1,12 @@
-import type { EndpointFeatures, StructuredSchemaTarget, StructuredVehicle, WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
+import type {
+  EndpointFeatures,
+  ResolvedWarning,
+  StructuredSchemaTarget,
+  StructuredVehicle,
+  WireSchemaMode,
+  WireSchemaViolation,
+} from "@orb/contracts/inference";
 import type { ResponseFormat, ToolChoice, WireTool } from "./chat.ts";
-import type { ResolvedWarning } from "./resolve.ts";
 
 /** What a caller needs. A plan with `formats` produces one structured payload; `tools` alone is a tool turn. */
 export interface StructuredAsk {

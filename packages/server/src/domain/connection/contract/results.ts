@@ -10,6 +10,7 @@ import type {
   ConnectionBinding,
   ProviderId,
   ResolvedConnectionView,
+  ResolvedWarning,
   RoutableTask,
   Task,
   UnavailableCause,
@@ -21,12 +22,11 @@ import {
   connectionBindingSchema,
   providerIdSchema,
   resolvedConnectionViewSchema,
+  resolvedWarningSchema,
   routableTaskSchema,
   taskSchema,
   unavailableCauseSchema,
 } from "@orb/contracts/inference";
-import type { ResolvedWarning } from "@orb/inference";
-import { resolvedWarningSchema } from "@orb/inference";
 import { z } from "zod";
 
 /** The capability read for one row (`runtime.capabilities.for`): the descriptor + the warnings it was

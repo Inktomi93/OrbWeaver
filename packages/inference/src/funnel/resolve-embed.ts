@@ -4,9 +4,9 @@
 // returns, and the store's width check refuses a vector that disagrees. Instruction and input-type hints ride
 // only where the capability says the model honours them.
 
-import type { EmbeddingCapability } from "@orb/contracts/inference";
+import type { EmbeddingCapability, ResolvedWarning } from "@orb/contracts/inference";
 import type { EmbedOptions } from "../contract/funnel.ts";
-import type { ResolvedEmbedKnobs, ResolvedWarning } from "../contract/resolve.ts";
+import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 
 export function resolveEmbed(opts: EmbedOptions, capability: EmbeddingCapability): ResolvedEmbedKnobs {
   const warnings: ResolvedWarning[] = [];

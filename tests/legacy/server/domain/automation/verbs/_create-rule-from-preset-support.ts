@@ -1,4 +1,4 @@
-import type { AutomationBusEvent, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationBusEvent, RuleView, TriggerFact } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -17,7 +17,6 @@ import type {
   BackgroundChoice,
   SuggestionStore,
 } from "#server/domain/automation/contract/ops.ts";
-import type { RuleView } from "#server/domain/automation/contract/results.ts";
 import type { AutomationService } from "#server/domain/automation/contract/service.ts";
 import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
 import { createAutomationService } from "#server/domain/automation/index.ts";

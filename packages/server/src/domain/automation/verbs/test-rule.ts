@@ -4,8 +4,8 @@
 // provenance. The dry-run env has the author's own globals (automation owns the plane) + a chat message
 // count; live chat vars/choice are empty in A4 (the dispatch threads them in A5).
 
+import type { TestRunResult } from "@orb/contracts/automation";
 import type { TestRuleParams } from "../contract/params.ts";
-import type { TestRunResult } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireRuleAuthority } from "../guard.ts";
 import { countChatMessages } from "../persistence/canon-reads.ts";

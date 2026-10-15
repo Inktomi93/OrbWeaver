@@ -3,9 +3,9 @@
 // reads. The funnel decided what runs (`funnel/resolve-chat.ts`); this file only spells it.
 
 import type { JSONObject, LanguageModelV4CallOptions } from "@ai-sdk/provider";
-import type { EndpointFeatures } from "@orb/contracts/inference";
+import type { EndpointFeatures, ResolvedWarning } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import type { ResolvedReasoning, ResolvedWarning } from "#contract";
+import type { ResolvedReasoning } from "#contract";
 import { extractHttpErrorDiagnostic } from "../http/error-classify.ts";
 import { NO_PROVIDER_SECRETS } from "../http/sanitize.ts";
 import { wireEffortOf } from "../v4/options.ts";

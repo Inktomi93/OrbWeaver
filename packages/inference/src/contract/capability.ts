@@ -7,9 +7,9 @@ import type {
   NativeChatApi,
   ProviderId,
   RerankCapability,
+  ResolvedWarning,
   Wire,
 } from "@orb/contracts/inference";
-import type { ResolvedWarning } from "./resolve.ts";
 
 /** The window a server runs where the request cannot set one, and whether that figure is only its floor. */
 export interface ServedWindow {

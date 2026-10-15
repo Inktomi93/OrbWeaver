@@ -15,7 +15,17 @@
 //   7. the requirement verdict and `canFund` — VERDICTS on the result, never throws.
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
-import type { Capability, EndpointFeatures, ModelInfoApi, ModelKind, ProviderDef, RequirementVerdict, Task, UserConnection } from "@orb/contracts/inference";
+import type {
+  Capability,
+  EndpointFeatures,
+  ModelInfoApi,
+  ModelKind,
+  ProviderDef,
+  RequirementVerdict,
+  ResolvedWarning,
+  Task,
+  UserConnection,
+} from "@orb/contracts/inference";
 import { canFund, connectionTasks, effectivePromptCache, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { googleModelId } from "../backends/google/model.ts";
@@ -34,7 +44,7 @@ import { sameModelId } from "../catalog/endpoint.ts";
 import type { Evidence, ServedWindow } from "../contract/capability.ts";
 import type { Mirror } from "../contract/catalog.ts";
 import { ProviderError } from "../contract/errors.ts";
-import type { ResolvedWarning } from "../contract/resolve.ts";
+
 import type { Resolved } from "../contract/resolved.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";

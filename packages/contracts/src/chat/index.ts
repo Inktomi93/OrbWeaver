@@ -31,6 +31,8 @@
 //   • D26: `messages` is a pure SLOT (no content/economics); all generation content lives on
 //     `message_variants`. `MessageView` is the slot joined with its selected variant.
 
+export type { AdjustedKnob } from "./adjusted-knobs.ts";
+export { ADJUSTED_KNOBS } from "./adjusted-knobs.ts";
 export type {
   AssembleCharacter,
   AssembleContext,
@@ -98,7 +100,6 @@ export type {
 } from "./bulk-import.ts";
 export { pendingGenerationObservationInputSchema, pendingGenerationObservationsSchema } from "./bulk-import.ts";
 export type {
-  AdjustedKnob,
   ChatBusEvent,
   ChatContentPart,
   ChatDeltaEvent,
@@ -127,7 +128,6 @@ export type {
   UserMacroUnknownPickOpCode,
 } from "./bus.ts";
 export {
-  ADJUSTED_KNOBS,
   AUTOMATION_DEPTH_HARD_CAP,
   CHAT_BUS_EVENT_TYPES,
   CHAT_WARNING_CODES,

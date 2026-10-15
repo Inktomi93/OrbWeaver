@@ -2,12 +2,12 @@
 // Only absent births reach the shared planner; inserts are born disabled with statement-allocated position.
 // Global authority is the authenticated author; chat authority remains the room host.
 
+import type { RuleView } from "@orb/contracts/automation";
 import { AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR } from "@orb/contracts/automation";
 import type { AutomationRuleCreationId } from "@orb/kit/ids";
 import { RuleCreationScopeConflictError } from "../contract/errors.ts";
 import type { PlannedRuleInsert, PlanRule, RuleRow } from "../contract/ops.ts";
 import type { CreateRuleParams } from "../contract/params.ts";
-import type { RuleView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireChatHost } from "../guard.ts";
 import {

@@ -8,11 +8,11 @@
 // negative prompt folds into the text on the chat arm (no hosted chat wire has a native negative field).
 
 import type { ImageModelV4File } from "@ai-sdk/provider";
-import type { GenerationUsage, ResponseCache, TokenDetails, TokenUsage } from "@orb/contracts/inference";
+import type { GenerationUsage, ResolvedWarning, ResponseCache, TokenDetails, TokenUsage } from "@orb/contracts/inference";
 import { acceptsImageEdit } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { z } from "zod";
-import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult, ProviderScrubSet, ResolvedWarning } from "#contract";
+import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult, ProviderScrubSet } from "#contract";
 import { ProviderError } from "#contract";
 import type { ImagesDeps, ModelCall } from "../../contract/openai-backend.ts";
 import type { MeasuredCost } from "../../contract/v4.ts";

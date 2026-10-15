@@ -9,7 +9,7 @@
 // answer is the D146-d PAUSE terminal a host sees from "Run now". Answering it here through `ArmPreview.error`
 // would read as a template bug and would be a lie about what broke.
 
-import type { AutomationAction, AutomationCelClock, AutomationCelEnv, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
+import type { ArmPreview, AutomationAction, AutomationCelClock, AutomationCelEnv, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
 import { automationRuleClockZone } from "@orb/contracts/automation";
 import type { CelBindings } from "@orb/kit/cel";
 import { CelEvalError, evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
@@ -17,7 +17,6 @@ import type { ChatId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { calendarPositionIn } from "@orb/kit/time";
 import type { ArmTemplateRender } from "../contract/ops.ts";
-import type { ArmPreview } from "../contract/results.ts";
 import { renderArmTemplate } from "./macro-render.ts";
 
 /** A rule's clock: the injected epoch read on the rule's own wall clock (its stored zone, UTC for a rule saved

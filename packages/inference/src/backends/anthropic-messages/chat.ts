@@ -16,7 +16,7 @@
 // would not align here even if the block were legal.)
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
-import type { GenerationCapability, ReasoningOffMode } from "@orb/contracts/inference";
+import type { GenerationCapability, ReasoningOffMode, ResolvedWarning } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type {
@@ -28,7 +28,6 @@ import type {
   Resolved,
   ResolvedChatKnobs,
   ResolvedReasoning,
-  ResolvedWarning,
   ScheduleTimeout,
 } from "#contract";
 import { ProviderError } from "#contract";

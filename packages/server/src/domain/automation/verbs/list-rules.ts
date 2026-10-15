@@ -3,8 +3,8 @@
 // not rule bodies). The read is lazy-parse fault-isolated per row (a corrupt arm blob degrades that ONE rule
 // to empty arms — never nukes the list).
 
+import type { RuleView } from "@orb/contracts/automation";
 import type { ListRulesParams } from "../contract/params.ts";
-import type { RuleView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireChatHost } from "../guard.ts";
 import { listRuleRowsForChat, toRuleView } from "../persistence/rules.ts";

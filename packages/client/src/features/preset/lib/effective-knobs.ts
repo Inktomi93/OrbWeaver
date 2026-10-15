@@ -8,8 +8,8 @@
 // `QUALITY_SAMPLING` import in `features/preset` is the review flag, §12).
 //
 // The row shapes below are the MINIMAL structural mirror of the tRPC read (the `PresetForkRow` idiom —
-// tRPC-inferred at the call site, never a re-declared contract): the effective view lives in
-// `domain/preset/contract/views.ts`, which the client cannot import across the cake.
+// tRPC-inferred at the call site, never a re-declared contract): the effective wire view lives in
+// `@orb/contracts/preset`.
 
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { ResponseCacheSettings } from "@orb/contracts/preset";

@@ -5,8 +5,8 @@
 // — B11 invents no second store). Chat-scoped, so authority is `requireChatHost` — a non-member collapses to
 // a leak-free AutomationChatNotFoundError → NOT_FOUND, a member-not-host propagates `can()`'s FORBIDDEN.
 
+import type { FireView } from "@orb/contracts/automation";
 import type { ListChatActivityParams } from "../contract/params.ts";
-import type { FireView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireChatHost } from "../guard.ts";
 import { listFiresForChat } from "../persistence/fires.ts";

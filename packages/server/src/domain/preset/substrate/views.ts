@@ -6,10 +6,10 @@
 // NOT `ownerId IS NULL` — any other ownerless row (a retired packaged template) is NOT the default. Verbs
 // map through here instead of re-spelling the projection at five call sites.
 
+import type { PresetDetail, PresetSummary } from "@orb/contracts/preset";
 import { promptConfigConfig } from "@orb/contracts/preset";
 import type { presets } from "@orb/db";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
-import type { PresetDetail, PresetSummary } from "../contract/views.ts";
 
 type PresetRow = typeof presets.$inferSelect;
 

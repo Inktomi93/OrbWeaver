@@ -8,7 +8,7 @@
 // the real `groupConfigSchema` — so a harness-level apply exercises the same shapes the composed graph
 // serves.
 
-import type { RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
+import type { RulePresetId, RulePresetKnobValues, RuleView } from "@orb/contracts/automation";
 import { automationTriggerFor } from "@orb/contracts/automation";
 import type { GroupConfig, ParticipantView } from "@orb/contracts/chat";
 import { groupConfigSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
@@ -25,7 +25,6 @@ import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { RuleValidationError } from "#server/domain/automation/contract/errors.ts";
 import { RULE_PRESETS } from "#server/domain/automation/contract/presets.ts";
-import type { RuleView } from "#server/domain/automation/contract/results.ts";
 import { resolveChatRulePresetKnobs, toRulePresetView } from "#server/domain/automation/substrate/presets.ts";
 import { createPersonaOwned } from "#server/domain/persona/index.ts";
 import type { PresentCharacterSeat, RosterPresetContext } from "#server/domain/roster-preset/contract/service.ts";

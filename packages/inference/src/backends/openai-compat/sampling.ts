@@ -3,9 +3,9 @@
 // any `features.samplerAliases` beside it; `features.samplerOrder`). Which knobs ride was decided by the funnel; an
 // unset knob is never sent.
 
-import type { Dialect, EndpointFeatures, SamplerKnob, SamplerStage } from "@orb/contracts/inference";
+import type { Dialect, EndpointFeatures, ResolvedWarning, SamplerKnob, SamplerStage } from "@orb/contracts/inference";
 import { BODY_SAMPLER_KNOBS, DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS, SAMPLER_ORDER_TOKENS } from "@orb/contracts/inference";
-import type { ResolvedSampling, ResolvedWarning } from "#contract";
+import type { ResolvedSampling } from "#contract";
 
 const OPENROUTER_DIALECT: Dialect = "openrouter";
 const LOGIT_BIAS_BAN: NonNullable<EndpointFeatures["bannedStrings"]> = "logit-bias-ban";

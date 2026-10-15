@@ -6,8 +6,8 @@
 // gate to refuse. `listGlobalVariables` reads its plane the same way, for the same reason. The moment this
 // verb grew an `ownerId` PARAMETER it would need one — which is precisely why it does not have one.
 
+import type { RuleView } from "@orb/contracts/automation";
 import type { ListOwnerRulesParams } from "../contract/params.ts";
-import type { RuleView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { listRuleRowsForOwnerGlobal, toRuleView } from "../persistence/rules.ts";
 

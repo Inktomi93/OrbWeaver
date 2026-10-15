@@ -1,6 +1,6 @@
 import type { JSONObject, LanguageModelV4CallOptions } from "@ai-sdk/provider";
-import type { GenerationCapability } from "@orb/contracts/inference";
-import type { GoogleChatRequest, Resolved, ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "#contract";
+import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
+import type { GoogleChatRequest, Resolved, ResolvedChatKnobs, ResolvedReasoning } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy } from "#funnel";
 import type { StructuredAsk } from "../../contract/structured.ts";

@@ -39,13 +39,12 @@
 // with the confirmer in `detail`. Adding a `suggested` terminal is a CHECK edit on a generated baseline and
 // is recorded-unbuilt as R5, together with the per-rule `suggestOnRefusal` opt-out column.
 
-import type { AutomationRunOutcome } from "@orb/contracts/automation";
+import type { AutomationRunOutcome, ConfirmSuggestionResult } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleId, PluginId } from "@orb/kit/ids";
 import { SuggestionNotFoundError, SuggestionRefusedError } from "../contract/errors.ts";
 import type { ArmOutcome, PendingSuggestion, RuleRow } from "../contract/ops.ts";
 import type { ConfirmSuggestionParams } from "../contract/params.ts";
-import type { ConfirmSuggestionResult } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { loadCallerRole } from "../persistence/canon-reads.ts";
 import { insertFireWithRuleStamp } from "../persistence/fires.ts";

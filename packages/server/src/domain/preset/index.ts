@@ -1,6 +1,24 @@
 // FRONT DOOR: the only legal external import. Cross-boundary shapes the views carry (PromptConfig,
 // UserIntent, guided-action) are never re-exported here — callers import them from @orb/contracts/preset.
 
+export type {
+  EffectiveKnob,
+  EffectiveKnobReading,
+  EffectivePreset,
+  EffectiveProvenance,
+  PresetDetail,
+  PresetSummary,
+  PresetUsageView,
+  StaleKnob,
+} from "@orb/contracts/preset";
+export {
+  EFFECTIVE_KNOBS,
+  EFFECTIVE_PROVENANCES,
+  effectivePresetSchema,
+  presetDetailSchema,
+  presetSummarySchema,
+  presetUsageViewSchema,
+} from "@orb/contracts/preset";
 export { SYSTEM_DEFAULT_PRESET_ID } from "./constants.ts";
 export type { PresetContext } from "./context.ts";
 export type { PresetOpCode } from "./contract/errors.ts";
@@ -26,24 +44,6 @@ export type {
   PresetImportOutcome,
 } from "./contract/portability.ts";
 export type { PresetService, PresetUsageDeps, ResolveChatCapabilityOp, ResolvePresetUsageOp } from "./contract/service.ts";
-export type {
-  EffectiveKnob,
-  EffectiveKnobReading,
-  EffectivePreset,
-  EffectiveProvenance,
-  PresetDetail,
-  PresetSummary,
-  PresetUsageView,
-  StaleKnob,
-} from "./contract/views.ts";
-export {
-  EFFECTIVE_KNOBS,
-  EFFECTIVE_PROVENANCES,
-  effectivePresetSchema,
-  presetDetailSchema,
-  presetSummarySchema,
-  presetUsageViewSchema,
-} from "./contract/views.ts";
 export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
 export { migrateProseSlotVocab } from "./persistence/migrate-prose-slot-vocab.ts";
 export { ensureSystemDefaultPreset } from "./seed.ts";
