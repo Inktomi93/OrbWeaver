@@ -208,6 +208,8 @@ export interface NativeValueIteration {
 
 /** One authored returned-value leaf, with the exact supplied arguments that bind its parameters. */
 export interface ReturnedValueSource {
+  /** Winning own-data value hops retain the bindings at selection, before formal refinement. */
+  readonly selectedDescriptors?: readonly { readonly value: Node; readonly bindings: ReadonlyMap<Node, Node> }[];
   readonly nativeIteration?: NativeValueIteration;
   readonly nativeLookup?: { readonly call: CallExpression; readonly key: Node };
   /** Absence is local to this alternative; only an absent spread member falls back. */
