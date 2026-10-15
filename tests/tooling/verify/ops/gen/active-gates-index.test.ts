@@ -77,3 +77,8 @@ test("family collapses to a dash when it equals the gate's own id, and shows the
   expect(rows[0]).toContain("| shared-family |");
   expect(rows[1]).toContain("| — |");
 });
+
+test("bounded population unions display each branch rather than an unknown population", () => {
+  const markdown = deriveActiveGatesIndexMarkdown([gate({ population: { anyOf: ["@server", { in: ["@ui"], under: ["packages/ui/src/tokens/index.ts"] }] } })]);
+  expect(rowsOf(markdown)[0]).toContain("@server ∪ @ui\\*");
+});

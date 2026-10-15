@@ -4,15 +4,18 @@ import { createHash } from "node:crypto";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import { readTokenRemovalBaseline } from "@orb/ui/token-contract";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { generatedTypeHomeContextRefusal } from "../../floor/code-facts/type-home-declaration.ts";
 import type { DevToolsClosureFile } from "../../floor/devtools/devtools-assets.ts";
 import type { ResourceLoad, ResourceReader } from "../contract/resource.ts";
-import type { DevToolsClosure, TokenContractResource } from "../contract/resource-artifact.ts";
+import type { DevToolsClosure, TokenContractResource, TokenGeneratedTypeResource } from "../contract/resource-artifact.ts";
 import {
   DEVTOOLS_CLOSURE_LICENSES,
   DEVTOOLS_CLOSURE_MANIFEST,
   DEVTOOLS_CLOSURE_PIN,
   DEVTOOLS_CLOSURE_ROOT,
   TOKEN_CONTRACT_PATHS,
+  TOKEN_GENERATED_TYPE_PATHS,
+  TOKEN_GENERATION_INPUT_PATHS,
 } from "../contract/resource-artifact.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
@@ -54,6 +57,37 @@ export function loadTokenContract(reader: ResourceReader, root: string): Resourc
   };
   // `members` is what the door MEASURED — the seven bundle documents — never the token census inside them.
   return { status: "ready", value, paths, members: paths.length };
+}
+
+export function loadTokenGeneratedTypes(
+  reader: ResourceReader,
+  prepared: ResourceLoad<TokenGeneratedTypeResource> | undefined,
+): ResourceLoad<TokenGeneratedTypeResource> {
+  const paths = [...TOKEN_GENERATION_INPUT_PATHS, ...TOKEN_GENERATED_TYPE_PATHS];
+  if (prepared === undefined) {
+    return { status: "unresolved", paths, members: 0, reason: "generated token type preparation was not supplied" };
+  }
+  if (prepared.status !== "ready") {
+    return prepared;
+  }
+  const refusal = generatedTypeHomeContextRefusal(prepared.value.context);
+  if (refusal !== undefined) {
+    return { status: "unresolved", paths, members: 0, reason: refusal };
+  }
+  for (const path of paths) {
+    const text = prepared.value.observed.get(path);
+    if (text === undefined) {
+      return { status: "unresolved", paths, members: 0, reason: `generation input was not observed: ${path}` };
+    }
+    const current = reader.read(path);
+    if (current.status !== "ready") {
+      return { ...current, paths, members: 0 };
+    }
+    if (current.value !== text) {
+      return { status: "unresolved", paths, members: 0, reason: `generated token source changed after preparation: ${path}` };
+    }
+  }
+  return prepared;
 }
 
 function sha256(bytes: Uint8Array): string {

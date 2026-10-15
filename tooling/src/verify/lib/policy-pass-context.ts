@@ -19,7 +19,7 @@ import { declarationHome } from "./declaration-home.ts";
 import { acceptReceipt } from "./policy-pass-context-receipts.ts";
 import { assertRepoPathIdentity } from "./policy-validation.ts";
 import { populationIncludes } from "./population-resolver.ts";
-import { resourceRequestIdentity } from "./resource-declaration.ts";
+import { activeResourceDeclarations, resourceRequestIdentity } from "./resource-declaration.ts";
 import { bindPolicyResources } from "./resource-policy.ts";
 import { isWaivablePosition } from "./waivable-coordinate.ts";
 
@@ -186,6 +186,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
   );
   const paths = new Map(files.map((candidate) => [pathByIdentity.get(candidate.compilerNode) as string, candidate]));
   const receipts = new Map<string, PolicySemanticReceipt>();
+  const resourceRequests = activeResourceDeclarations(input.resourceRequests, [...paths.keys()]);
   const consumedResources = new Set<string>();
   const consumedResourceRequests = new Set<string>();
 
@@ -211,7 +212,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     resources: bindPolicyResources({
       host: input.resources,
       context: { resourcePaths, receipt },
-      declarations: input.resourceRequests,
+      declarations: resourceRequests,
       onConsumed: (requestIdentity, acquiredPaths) => {
         consumedResourceRequests.add(requestIdentity);
         for (const path of acquiredPaths) {
@@ -232,7 +233,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
   return {
     context,
     unconsumedResources: () => resourcePaths.filter((path) => !consumedResources.has(path)),
-    unconsumedResourceRequests: () => input.resourceRequests.map(resourceRequestIdentity).filter((identity) => !consumedResourceRequests.has(identity)),
+    unconsumedResourceRequests: () => resourceRequests.map(resourceRequestIdentity).filter((identity) => !consumedResourceRequests.has(identity)),
     finishReceipts: () => [...receipts.values()].toSorted((left, right) => left.kind.localeCompare(right.kind) || left.source.localeCompare(right.source)),
   };
 }

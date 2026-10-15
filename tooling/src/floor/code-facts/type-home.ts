@@ -1,4 +1,4 @@
-// Package type-home intent; only sanctioned package contracts receive a path verdict here.
+// Package type-home intent; only sanctioned runtime and authoring contracts receive structural verdicts.
 import type { PackageName } from "../compiler/project-worlds.ts";
 import { PACKAGE_NAMES, worldOf } from "../compiler/project-worlds.ts";
 import type { PackageTypeHomeClassification, PackageTypeHomePolicy } from "./type-home-contract.ts";
@@ -16,6 +16,8 @@ export const PACKAGE_TYPE_HOMES = {
   client: { category: "client-view", nativePilot: false },
   "plugin-sdk": { category: "standalone-declarations", nativePilot: false },
 } as const satisfies Readonly<Record<PackageName, PackageTypeHomePolicy>>;
+
+export const UI_TOKEN_AUTHORING_CONTRACT_HOME = "packages/ui/token-contract.ts";
 
 const TYPE_HOME_GENERATED_SUFFIX = ".gen.ts";
 export const TYPE_HOME_NATIVE_UNADMITTED_GLOBS = [`**/*${TYPE_HOME_GENERATED_SUFFIX}`] as const;
@@ -46,9 +48,13 @@ export function packageTypeHome(path: string): PackageTypeHomeClassification | u
     return;
   }
   const policy = PACKAGE_TYPE_HOMES[packageName];
+  const world = worldOf(path);
+  if (packageName === "ui" && world === "node" && !path.startsWith(sourceRoot(packageName))) {
+    return { packageName, world, category: "authoring-contract", home: path === UI_TOKEN_AUTHORING_CONTRACT_HOME, nativePilot: false };
+  }
   return {
     packageName,
-    world: worldOf(path),
+    world,
     category: policy.category,
     home: policy.category === "package-contract" ? path.startsWith(packageContractHome(packageName)) : null,
     nativePilot: policy.nativePilot,

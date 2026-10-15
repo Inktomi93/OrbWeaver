@@ -25,6 +25,7 @@
 export const POPULATION_ROOTS = {
   "@client": ["packages/client/src/"],
   "@ui": ["packages/ui/src/"],
+  "@ui-authoring": ["packages/ui/"],
   "@server": ["packages/server/src/"],
   "@db": ["packages/db/src/"],
   "@contracts": ["packages/contracts/src/"],
@@ -97,6 +98,7 @@ export type AuthoredMembership = { readonly authored: true } | { readonly author
 const AUTHORED_MEMBERSHIP: Readonly<Record<PopulationRoot, AuthoredMembership>> = {
   "@client": { authored: true },
   "@ui": { authored: true },
+  "@ui-authoring": { authored: true },
   "@server": { authored: true },
   "@db": { authored: true },
   "@contracts": { authored: true },
@@ -152,6 +154,7 @@ export type ProductMembership = { readonly product: true } | { readonly product:
 const PRODUCT_MEMBERSHIP = {
   "@client": { product: true },
   "@ui": { product: true },
+  "@ui-authoring": { product: false, why: "UI token authoring APIs run during build and verification, not application runtime" },
   "@server": { product: true },
   "@db": { product: true },
   "@contracts": { product: true },
@@ -209,6 +212,7 @@ export type LoadableExt = "ts" | "tsx";
 type NonEmptyTuple<T> = readonly [T, ...T[]];
 
 export type PopulationExpr =
+  | { readonly anyOf: NonEmptyTuple<PopulationExpr> }
   | PopulationRef
   | NonEmptyTuple<PopulationRef>
   | {

@@ -2,12 +2,14 @@
 // entry, transport, infra or foundation, or in `@orb/inference`, outside a type home. The interface half of
 // `no-inline-types` for the packages `no-inline-domain-interface` does not reach: a shape lives in a domain
 // `contract/`, `@orb/contracts`, the package's `src/contract/` or `@orb/kit`, never beside the code that uses it.
+// UI Node token authoring uses its sanctioned token-contract.ts home; browser APIs remain outside this arm.
 // The client is not judged: client-only views are a home of their own (the §7.4 table).
 //
 // FAMILY `no-inline-types` (split by POPULATION): authored-name reporting lives in `lib/type-home-policy.ts`;
 // the floor recognizes exported declarations. Server domains and `primitives/` are subtracted, as in the wire
 // sibling, so the three interface policies partition the implementation roots without overlap.
 import { SyntaxKind } from "ts-morph";
+import { UI_TOKEN_AUTHORING_CONTRACT_HOME } from "../../floor/code-facts/type-home.ts";
 import { defineGate } from "../contract/policy.ts";
 import { reportTypeHomeDeclaration } from "../lib/type-home-policy.ts";
 
@@ -26,8 +28,8 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   population: {
-    in: ["@server", "@inference"],
-    notUnder: ["packages/server/src/domain/**", "packages/server/src/primitives/**", "**/contract/**"],
+    in: ["@server", "@inference", "@ui-authoring"],
+    notUnder: ["packages/server/src/domain/**", "packages/server/src/primitives/**", "**/contract/**", UI_TOKEN_AUTHORING_CONTRACT_HOME],
     notNamed: ["contract.ts"],
   },
   analysis: "syntax",

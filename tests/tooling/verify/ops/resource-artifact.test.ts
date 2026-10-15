@@ -8,9 +8,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceLoad } from "../../../../tooling/src/verify/contract/resource.ts";
-import type { DevToolsClosure, TokenContractResource } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
+import type { DevToolsClosure, TokenContractResource, TokenGeneratedTypeResource } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import { DEVTOOLS_CLOSURE_MANIFEST, DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
-import { loadDevToolsClosure, loadTokenContract } from "../../../../tooling/src/verify/ops/resource-artifact.ts";
+import { loadDevToolsClosure, loadTokenContract, loadTokenGeneratedTypes } from "../../../../tooling/src/verify/ops/resource-artifact.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
@@ -96,4 +96,20 @@ test("an absent closure root is a refusal, never an empty inventory", ({ scratch
 
   expect(fact.status).toBe("missing");
   expect(fact).not.toHaveProperty("value");
+});
+
+test("generated type demand refuses absent preparation and missing native family instead of becoming an empty contract", () => {
+  const reader = createResourceReader({ root: ROOT });
+  expect(loadTokenGeneratedTypes(reader, undefined)).toMatchObject({ status: "unresolved", members: 0 });
+  const prepared: ResourceLoad<TokenGeneratedTypeResource> = {
+    status: "ready",
+    paths: [],
+    members: 0,
+    value: { context: { sources: new Map(), outputs: new Map() }, observed: new Map() },
+  };
+  expect(loadTokenGeneratedTypes(reader, prepared)).toMatchObject({ status: "unresolved", members: 0, reason: expect.stringContaining("canonical producer") });
+  expect(loadTokenGeneratedTypes(reader, { status: "missing", paths: ["producer"], members: 0, reason: "unavailable" })).toMatchObject({
+    status: "missing",
+    reason: "unavailable",
+  });
 });

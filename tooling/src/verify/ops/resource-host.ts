@@ -8,6 +8,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ConfigSnapshot, ConfigSnapshotRunner } from "../contract/config-snapshot.ts";
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceLoad, ResourceReceipt, TrackedFileModeOverlay } from "../contract/resource.ts";
+import type { TokenContractResource, TokenGeneratedTypeRequest, TokenGeneratedTypeResource } from "../contract/resource-artifact.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
 import type { LedgerFacts, LedgerId } from "../contract/resource-document.ts";
 import type { ExactFile, ExactResourceId } from "../contract/resource-exact.ts";
@@ -20,7 +21,7 @@ import type { MirrorFamilyId } from "../contract/resource-mirror.ts";
 import type { AuthoredTextCorpus, AuthoredTextFile, AuthoredTextRefusal } from "../contract/resource-text.ts";
 import type { AuthoredTreeId } from "../contract/resource-tree.ts";
 import { ordinaryWaiverResourceFormat } from "../lib/ordinary-waiver-source.ts";
-import { loadDevToolsClosure, loadTokenContract } from "./resource-artifact.ts";
+import { loadDevToolsClosure, loadTokenContract, loadTokenGeneratedTypes } from "./resource-artifact.ts";
 import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
 import { loadCssFacts } from "./resource-css.ts";
 import { loadDocumentIndex, loadLedger } from "./resource-document.ts";
@@ -200,6 +201,13 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     }
     return provider();
   };
+  const tokenVault = cached("token-contract", () => loadTokenContract(reader, root));
+  const tokenGeneratedTypes = cached("token-contract:generated-types", () => loadTokenGeneratedTypes(reader, options.tokenTypeGeneration));
+  function tokenContract(): ResourceFact<TokenContractResource>;
+  function tokenContract(request: TokenGeneratedTypeRequest): ResourceFact<TokenGeneratedTypeResource>;
+  function tokenContract(request?: TokenGeneratedTypeRequest): ResourceFact<TokenContractResource> | ResourceFact<TokenGeneratedTypeResource> {
+    return request === undefined ? tokenVault() : tokenGeneratedTypes();
+  }
   const authoredCss = cached("authored-css", () => loadAuthoredCss(reader));
   const productCss = cached("product-css", () => loadProductCss(reader));
   const host: ResourceHost = Object.freeze({
@@ -224,7 +232,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     ledger: keyed<LedgerId, LedgerFacts>("ledger", (id) => loadLedger(reader, id)) as ResourceHost["ledger"],
     exactFiles,
     vendorCssSurface: cached("vendor-css-surface", () => loadVendorCssSurface(root)),
-    tokenContract: cached("token-contract", () => loadTokenContract(reader, root)),
+    tokenContract,
     devtoolsClosure: cached("devtools-closure", () => loadDevToolsClosure(reader)),
     authoredPaths: demanded("authored-path", (selectors) => loadAuthoredPaths(root, selectors)),
     authoredText: demanded("authored-text", (paths) => loadAuthoredText(paths)),

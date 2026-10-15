@@ -7,9 +7,13 @@
 // It carries NO `scope` and NO `checker`: the final dispatcher resolves its own population from
 // `requestedPaths` and acquires the checker through the policy context, so re-exposing either here would
 // be a second spelling of a decision `lib/policy-pass.ts` already owns.
+
 import type { Project, SourceFile } from "ts-morph";
+import type { SemanticSourceView } from "../../floor/compiler/ts-workspace-contract.ts";
 
 export interface ProjectContext {
+  /** On-demand canonical primary owner; ordinary syntax and checker selection remain unchanged. */
+  readonly nativeSourceView?: (path: string) => SemanticSourceView | undefined;
   readonly root: string;
   /** The ONE shared workspace (`floor/compiler/ts-workspace.ts#getWorkspace`) — never a per-caller Project. */
   readonly project: Project;

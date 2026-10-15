@@ -21,7 +21,7 @@ import { GATE_POLICY_ANALYSES } from "../contract/policy-primitives.ts";
 import type { PopulationExpr } from "../contract/population.ts";
 import { NATIVE_CONFIG_RESOURCE_PATHS, PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
-import { GATE_RESOURCE_REQUEST_KINDS, isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
+import { GATE_RESOURCE_REQUEST_KINDS, isUnpopulatedResourceRequest } from "../contract/resource-declaration.ts";
 import { LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
 import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";
 import { GIT_PATH_HISTORY_DEFINITIONS } from "../contract/resource-git-history.ts";
@@ -39,7 +39,7 @@ import {
   record,
   reviewedGrantWitnessFailure,
 } from "./policy-validation-proofs.ts";
-import { assertPopulationExpr } from "./population-resolver.ts";
+import { assertPopulationExpr, explicitNonePopulation } from "./population-resolver.ts";
 
 // The key sets DERIVE from the contract's vocabularies (`contract/policy.ts`, one table per vocabulary, held
 // two-sided against the interfaces by `tsc`): a field, arm or key added there is refused, required and admitted
@@ -53,6 +53,7 @@ const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const RESOURCE_KEYS = new Set(["kind", "id"]);
 const RESOURCE_KIND_ONLY_KEYS = new Set(["kind"]);
 const INSTALLED_KEYS = new Set(["kind", "id", "mode"]);
+const TOKEN_MODE_KEYS = new Set(["kind", "mode"]);
 const INSTALLED_TEXT_KEYS = new Set(["kind", "id", "mode", "file"]);
 const FACT_KEYS = new Set(["id", "population", "analysis", "resources", "create"]);
 const REQUIRED_FACT_KEYS = ["id", "population", "analysis", "resources", "create"] as const;
@@ -67,10 +68,6 @@ export function assertRepoPathIdentity(value: unknown, label = "path"): asserts 
 
 export function normalizePathSet(values: readonly string[], label: string): readonly string[] {
   return normalizePaths(values, label);
-}
-
-function isExplicitNone(population: PopulationExpr): boolean {
-  return typeof population === "object" && !Array.isArray(population) && "of" in population && population.of === "none";
 }
 
 export function assertGateResourceDeclarations(value: unknown): asserts value is readonly GateResourceRequest[] {
@@ -144,6 +141,13 @@ function assertGateResourceDeclaration(candidate: unknown, index: number): strin
   if (kind === "installed-package") {
     return assertInstalledPackageRequest(request, label);
   }
+  if (kind === "token-contract" && "mode" in request) {
+    exactKeys(request, TOKEN_MODE_KEYS, label);
+    if (request["mode"] !== "generated-types") {
+      invalid(`${label}.mode must be generated-types`);
+    }
+    return "token-contract:generated-types";
+  }
   const ids = resourceIds(kind);
   exactKeys(request, ids === undefined ? RESOURCE_KIND_ONLY_KEYS : RESOURCE_KEYS, label);
   if (ids === undefined) {
@@ -165,7 +169,7 @@ function assertAnalysisResources(policy: Readonly<Record<string, unknown>>): voi
   // `authored-text` reads only paths that a SIBLING declaration already admitted, so a policy declaring it
   // alone can receive nothing but `unacquired` refusals — a door that is structurally guaranteed to answer
   // nothing, which reads in a report exactly like a corpus that is genuinely clean.
-  if (resources.some((request) => request.kind === "authored-text") && !resources.some((request) => !isGateResourceUnpopulatedKind(request.kind))) {
+  if (resources.some((request) => request.kind === "authored-text") && !resources.some((request) => !isUnpopulatedResourceRequest(request))) {
     invalid("descriptor.resources declaring authored-text must also declare a resource that admits paths");
   }
   if (policy["analysis"] !== "resource" && resources.length > 0) {
@@ -204,7 +208,7 @@ export function assertGateFactDescriptor(value: unknown): asserts value is GateF
   }
   assertAnalysisResources(fact);
   assertPopulationExpr(fact["population"]);
-  if (isExplicitNone(fact["population"] as PopulationExpr) && fact["analysis"] !== "resource") {
+  if (explicitNonePopulation(fact["population"] as PopulationExpr) && fact["analysis"] !== "resource") {
     invalid('fact population {of:"none"} is valid only for resource analysis');
   }
   if (typeof fact["create"] !== "function") {
@@ -303,7 +307,7 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
     invalid("descriptor.create must be a function");
   }
   assertPopulationExpr(policy["population"]);
-  if (isExplicitNone(policy["population"] as PopulationExpr) && policy["analysis"] !== "resource") {
+  if (explicitNonePopulation(policy["population"] as PopulationExpr) && policy["analysis"] !== "resource") {
     invalid('population {of:"none"} is valid only for resource analysis');
   }
   // Every arm the contract names, in its order. An OPTIONAL arm (`mustRefuse`) is validated only when present,

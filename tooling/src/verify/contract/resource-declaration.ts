@@ -16,9 +16,12 @@
 //   `authored-path` and `authored-text` are. `installed-package` is unpopulated but fully declared, so it is
 //   acquirable at planning while the demand kinds are not.
 //
+// The token-contract generated-types MODE is source-demanded and unpopulated without adding a kind.
 // Both rules are NAMED here rather than applied as a silent skip somewhere downstream, because a silently
 // skipped declaration is exactly how a request that resolved nothing reads as a clean zero.
+
 import type { ConfigSnapshotRunner } from "./config-snapshot.ts";
+import type { TokenGeneratedTypeRequest } from "./resource-artifact.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "./resource-config.ts";
 import type { LedgerId } from "./resource-document.ts";
 import type { ExactResourceId } from "./resource-exact.ts";
@@ -85,10 +88,20 @@ export type GateResourceRequest =
   | { readonly kind: "exact-file"; readonly id: ExactResourceId }
   | { readonly kind: "vendor-css-surface" }
   | { readonly kind: "token-contract" }
+  | TokenGeneratedTypeRequest
   | { readonly kind: "devtools-closure" }
   | { readonly kind: "authored-path" }
   | { readonly kind: "authored-text" };
 
 export function isGateResourceUnpopulatedKind(kind: GateResourceRequest["kind"]): kind is GateResourceUnpopulatedKind {
   return (GATE_RESOURCE_UNPOPULATED_KINDS as readonly string[]).includes(kind);
+}
+
+/** Generated type inputs are demanded only by selected producer-output source subjects. */
+export function isGeneratedTokenTypeRequest(request: GateResourceRequest): request is TokenGeneratedTypeRequest {
+  return request.kind === "token-contract" && "mode" in request;
+}
+
+export function isUnpopulatedResourceRequest(request: GateResourceRequest): boolean {
+  return isGeneratedTokenTypeRequest(request) || isGateResourceUnpopulatedKind(request.kind);
 }

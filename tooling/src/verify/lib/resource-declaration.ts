@@ -5,10 +5,10 @@ import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { ResourceFact } from "../contract/resource.ts";
-import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../contract/resource-artifact.ts";
+import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS, TOKEN_GENERATED_TYPE_PATHS } from "../contract/resource-artifact.ts";
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
-import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
+import { isGeneratedTokenTypeRequest, isUnpopulatedResourceRequest } from "../contract/resource-declaration.ts";
 import type { LedgerDefinition } from "../contract/resource-document.ts";
 import { DOCUMENT_CORPUS_ROOT, LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
 import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";
@@ -39,6 +39,9 @@ export function readyResourceValue<T>(fact: ResourceFact<T>): T {
 }
 
 export function resourceRequestIdentity(request: GateResourceRequest): string {
+  if (isGeneratedTokenTypeRequest(request)) {
+    return `${request.kind}:${request.mode}`;
+  }
   if (request.kind === "installed-package") {
     // The MODE and the named file are part of the identity: `text` of one file and `ast` of the same
     // package are two different acquisitions, and collapsing them would let one declaration authorize the
@@ -83,7 +86,7 @@ function canonicalRequest(request: GateResourceRequest): GateResourceRequest {
     case "vendor-css-surface":
       return { kind: request.kind };
     case "token-contract":
-      return { kind: request.kind };
+      return isGeneratedTokenTypeRequest(request) ? { kind: request.kind, mode: request.mode } : { kind: request.kind };
     case "devtools-closure":
       return { kind: request.kind };
     case "authored-path":
@@ -134,7 +137,7 @@ function requestFact(host: ResourceHost, request: GateResourceRequest): Resource
     case "vendor-css-surface":
       return host.vendorCssSurface();
     case "token-contract":
-      return host.tokenContract();
+      return isGeneratedTokenTypeRequest(request) ? host.tokenContract(request) : host.tokenContract();
     case "devtools-closure":
       return host.devtoolsClosure();
     case "authored-path":
@@ -185,7 +188,7 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
     case "vendor-css-surface":
       return false;
     case "token-contract":
-      return Object.values(TOKEN_CONTRACT_PATHS).includes(path);
+      return isGeneratedTokenTypeRequest(request) ? TOKEN_GENERATED_TYPE_PATHS.includes(path) : Object.values(TOKEN_CONTRACT_PATHS).includes(path);
     case "devtools-closure":
       return path.startsWith(`${DEVTOOLS_CLOSURE_ROOT}/`);
     case "authored-path":
@@ -202,7 +205,7 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
  *  place that could otherwise turn "this declaration resolved nothing" into a clean zero. */
 export function resolveResourceDeclarations(host: ResourceHost, requests: readonly GateResourceRequest[]): readonly string[] {
   const paths = new Set<string>();
-  for (const request of canonicalResourceDeclarations(requests).filter((candidate) => !isGateResourceUnpopulatedKind(candidate.kind))) {
+  for (const request of canonicalResourceDeclarations(requests).filter((candidate) => !isUnpopulatedResourceRequest(candidate))) {
     const fact = requestFact(host, request);
     const identity = resourceRequestIdentity(request);
     if (fact.status !== "ready") {
@@ -279,4 +282,10 @@ function resolveResourceOwnerPaths(
     throw failure;
   }
   return resolved.paths;
+}
+
+/** Generated preparation is owed only when this owner actually receives a producer output. */
+export function activeResourceDeclarations(requests: readonly GateResourceRequest[], sourcePaths: readonly string[]): readonly GateResourceRequest[] {
+  const hasOutput = sourcePaths.some((path) => TOKEN_GENERATED_TYPE_PATHS.includes(path));
+  return requests.filter((request) => !isGeneratedTokenTypeRequest(request) || hasOutput);
 }

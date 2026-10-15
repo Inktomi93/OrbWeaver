@@ -1,15 +1,21 @@
 // Declaration placement over delivered native nodes; consumers retain population, authority and reporting.
-import type { Node as MorphNode } from "ts-morph";
-import { Node } from "ts-morph";
+
+import { TOKEN_ARTIFACT_PATHS, TOKEN_ARTIFACT_SOURCE_PATHS, TOKEN_TYPESCRIPT_ARTIFACT_KEYS } from "@orb/ui/token-contract";
+import type { Node as MorphNode, TypeAliasDeclaration } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { predictedProgram } from "../compiler/project-worlds.ts";
+import { canonicalCompilerPath, registeredSemanticSourceView, semanticWorkspaceOf } from "../compiler/ts-workspace.ts";
 import { componentTypeHome } from "./component-type-home.ts";
 import { inlineShapeNames, isPlainDataShape } from "./shape-declaration.ts";
-import { packageContractHome, packageTypeHome } from "./type-home.ts";
+import { packageContractHome, packageTypeHome, UI_TOKEN_AUTHORING_CONTRACT_HOME } from "./type-home.ts";
 import type {
   DeclarationTypeHomeOwnership,
+  GeneratedTypeHomeContext,
   TypeHomeCategory,
   TypeHomeDeclarationInput,
   TypeHomeDeclarationJudgment,
   TypeHomeDeclarationPlane,
+  TypeHomeNativeSource,
 } from "./type-home-contract.ts";
 
 const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input", "Request", "Response", "Wire"] as const;
@@ -58,12 +64,18 @@ const UNQUALIFIED_HOME_REASONS = {
   component: "Component ownership requires the actual component API and supporting type graph.",
   "standalone-declarations": "Standalone declarations require their native runtime and distribution ownership.",
   unqualified: "This package's declaration ownership has not been adjudicated.",
-} as const satisfies Readonly<Record<Exclude<TypeHomeCategory, "package-contract">, string>>;
+} as const satisfies Readonly<Record<Exclude<TypeHomeCategory, "package-contract" | "authoring-contract">, string>>;
 
 function contextualDeclarationTypeHome(
   node: MorphNode,
   input: TypeHomeDeclarationInput,
 ): DeclarationTypeHomeOwnership | { readonly kind: "refused"; readonly reason: string } {
+  if (input.generated !== undefined) {
+    const generated = generatedDeclarationTypeHome(node, input);
+    if (generated !== undefined) {
+      return generated;
+    }
+  }
   const classification = packageTypeHome(input.path);
   if (classification?.category !== "component" || input.component === undefined || !(Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node))) {
     return declarationTypeHome(input.path);
@@ -83,6 +95,9 @@ function declarationTypeHome(path: string): DeclarationTypeHomeOwnership {
   if (classification === undefined) {
     return { kind: "unqualified", category: null, reason: "This source is outside package ownership; its admitted policy retains the placement obligation." };
   }
+  if (classification.category === "authoring-contract") {
+    return { kind: classification.home === true ? "owned" : "misplaced", packageName: classification.packageName, home: UI_TOKEN_AUTHORING_CONTRACT_HOME };
+  }
   if (classification.category === "package-contract") {
     return {
       kind: classification.home === true ? "owned" : "misplaced",
@@ -91,4 +106,130 @@ function declarationTypeHome(path: string): DeclarationTypeHomeOwnership {
     };
   }
   return { kind: "unqualified", category: classification.category, reason: UNQUALIFIED_HOME_REASONS[classification.category] };
+}
+
+function currentNativeSource(capture: TypeHomeNativeSource, path: string): boolean {
+  const { view, program, source, text } = capture;
+  if (view.sourceFile.wasForgotten()) {
+    return false;
+  }
+  const workspace = semanticWorkspaceOf(view.sourceFile.getProject());
+  const registered = registeredSemanticSourceView(view.sourceFile);
+  return (
+    workspace !== undefined &&
+    registered?.program === view.program &&
+    workspace.program(view.program.descriptor.config) === view.program &&
+    view.program.descriptor.config === predictedProgram(path) &&
+    view.canonicalPath === canonicalCompilerPath(workspace.root, path) &&
+    registered.canonicalPath === view.canonicalPath &&
+    view.sourceFile.getProject().getProgram().compilerObject === program &&
+    view.sourceFile.compilerNode === source &&
+    program.getSourceFile(view.sourceFile.getFilePath()) === source &&
+    view.sourceFile.getFullText() === text
+  );
+}
+
+/** Validate the complete producer/output family even when the selected output has no type declarations. */
+export function generatedTypeHomeContextRefusal(context: GeneratedTypeHomeContext): string | undefined {
+  const producerPath = `packages/ui/${TOKEN_ARTIFACT_SOURCE_PATHS.producer}`;
+  const producer = context.sources.get(producerPath);
+  if (producer === undefined || !currentNativeSource(producer, producerPath)) {
+    return "Generated type ownership requires the current canonical producer native world.";
+  }
+  const workspace = semanticWorkspaceOf(producer.view.sourceFile.getProject());
+  for (const key of TOKEN_TYPESCRIPT_ARTIFACT_KEYS) {
+    const path = `packages/ui/${TOKEN_ARTIFACT_PATHS[key]}`;
+    const output = context.sources.get(path);
+    if (
+      output === undefined ||
+      !currentNativeSource(output, path) ||
+      semanticWorkspaceOf(output.view.sourceFile.getProject()) !== workspace ||
+      context.outputs.get(path) !== output.text
+    ) {
+      return "Generated type ownership requires the complete current output family.";
+    }
+  }
+  const operation = producer.view.sourceFile.getExportedDeclarations().get("generateArtifacts");
+  const [declaration] = operation ?? [];
+  return operation?.length !== 1 ||
+    declaration === undefined ||
+    !Node.isFunctionDeclaration(declaration) ||
+    declaration.getSourceFile() !== producer.view.sourceFile
+    ? "Canonical token producer callable identity is unavailable."
+    : undefined;
+}
+
+function generatedDeclarationTypeHome(
+  node: MorphNode,
+  input: TypeHomeDeclarationInput,
+): DeclarationTypeHomeOwnership | { readonly kind: "refused"; readonly reason: string } | undefined {
+  const prefix = "packages/ui/";
+  const paths = TOKEN_TYPESCRIPT_ARTIFACT_KEYS.map((key) => `${prefix}${TOKEN_ARTIFACT_PATHS[key]}`);
+  if (!paths.includes(input.path) || input.generated === undefined) {
+    return;
+  }
+  const reason = generatedTypeHomeContextRefusal(input.generated);
+  if (reason !== undefined) {
+    return { kind: "refused", reason };
+  }
+  const producerPath = `${prefix}${TOKEN_ARTIFACT_SOURCE_PATHS.producer}`;
+  const producer = input.generated.sources.get(producerPath);
+  const output = input.generated.sources.get(input.path);
+  if (producer === undefined || output === undefined || node.getSourceFile().getFullText() !== output.text) {
+    return { kind: "refused", reason: "Generated type output differs from the admitted source." };
+  }
+  const [producerDeclaration] = producer.view.sourceFile.getExportedDeclarations().get("generateArtifacts") ?? [];
+  if (producerDeclaration === undefined || !Node.isFunctionDeclaration(producerDeclaration)) {
+    return { kind: "refused", reason: "Canonical token producer callable identity is unavailable." };
+  }
+  const delivered = output.view.sourceFile
+    .getTypeAliases()
+    .find(
+      (candidate) =>
+        candidate.getStart() === node.getStart() &&
+        candidate.getEnd() === node.getEnd() &&
+        candidate.getKind() === node.getKind() &&
+        candidate.getText() === node.getText(),
+    );
+  const value = generatedVocabularyValue(delivered);
+  if (value === undefined) {
+    return { kind: "unqualified", category: "component", reason: "Generated vocabulary lacks a unique producer-owned local object value." };
+  }
+  return { kind: "generated-owned", packageName: "ui", home: input.path, producer: producerDeclaration, value };
+}
+
+function generatedVocabularyValue(delivered: TypeAliasDeclaration | undefined): MorphNode | undefined {
+  const type = delivered?.getTypeNode();
+  if (type === undefined || !Node.isTypeOperatorTypeNode(type) || type.getOperator() !== SyntaxKind.KeyOfKeyword) {
+    return;
+  }
+  const query = type.getTypeNode();
+  if (!(Node.isTypeQuery(query) && Node.isIdentifier(query.getExprName()))) {
+    return;
+  }
+  const declarations = query.getExprName().getSymbol()?.getDeclarations();
+  const [value] = declarations ?? [];
+  if (
+    declarations?.length !== 1 ||
+    value === undefined ||
+    !Node.isVariableDeclaration(value) ||
+    value.getSourceFile() !== delivered?.getSourceFile() ||
+    value.getVariableStatement()?.getDeclarationKind() !== "const"
+  ) {
+    return;
+  }
+  let initializer = value.getInitializer();
+  if (initializer !== undefined && Node.isAsExpression(initializer) && initializer.getTypeNode()?.getText() === "const") {
+    initializer = initializer.getExpression();
+  }
+  if (
+    initializer === undefined ||
+    !Node.isObjectLiteralExpression(initializer) ||
+    initializer
+      .getProperties()
+      .some((property) => Node.isSpreadAssignment(property) || (Node.isPropertyAssignment(property) && Node.isComputedPropertyName(property.getNameNode())))
+  ) {
+    return;
+  }
+  return value;
 }
