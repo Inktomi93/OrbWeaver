@@ -11,7 +11,7 @@ import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
 import type { CorpusWire } from "@orb/testkit/iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "@orb/testkit/iso/corpus.ts";
-import { captureCookieAuth, captureCorpusReads, seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
+import { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusLibraries } from "@orb/testkit/node/corpus-seed.ts";
 import { seedUserCredential } from "@orb/testkit/node/factories/credentials.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
@@ -43,6 +43,91 @@ async function publication(root: ServerTestHarness): Promise<CorpusWire> {
   const health = healthResponseSchema.parse(await (await root.http.request("/healthz")).json());
   return hydrateCorpusWire({ auth: authentication.auth, reads, health });
 }
+
+test("portable stats publish final native owner reads with exact request recipes and canonical schemas", async () => {
+  const execution = createCorpusProviderExecution({
+    modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "The keeper preserves the portable stats witness.",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+    usage: { promptTokens: 40, completionTokens: 15 },
+  });
+  await using root = await createServerHarness({ providerFetch: execution.execute, authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  const actors = await seedCorpusActors(root);
+  const library = await seedCorpusLibraries(root);
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { currentPersonaId: library.persona.id, defaultPersonaId: library.persona.id } });
+  const before = await publication(root);
+  expect(Object.hasOwn(before.reads, "stats.overview")).toBe(true);
+  expect(before.reads["stats.overview"][0]?.output).toBeNull();
+  const turn = await root.services.chat.send({ principal: actors.owner, chatId: library.room.chat.id, content: "Preserve the portable stats witness." });
+  expect(turn.aborted).toBe(false);
+  expect(turn.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+  await root.settleBackground();
+  const wire = await publication(root);
+  const parsed = parseCorpusWire(serializeCorpusWire(wire, [OWNER_PASSWORD]));
+  expect(parsed).toEqual(wire);
+  expect(parsed.reads["stats.overview"][0]?.output?.assistantTurns).toBe(1);
+  expect(parsed.reads["stats.overview"]).not.toEqual(before.reads["stats.overview"]);
+  expect(createCorpusReadResponder("stats.overview", parsed.reads["stats.overview"])(undefined)).toEqual(await caller.stats.overview());
+  expect(createCorpusReadResponder("stats.wrapped", parsed.reads["stats.wrapped"])(undefined)).toEqual(await caller.stats.wrapped());
+  expect(createCorpusReadResponder("stats.byModel", parsed.reads["stats.byModel"])(undefined)).toEqual(await caller.stats.byModel());
+  expect(parsed.reads["stats.byModel"][0]?.output).toEqual(expect.arrayContaining([expect.objectContaining({ model: CORPUS_TEXT_MODEL, tokensOut: 15 })]));
+  expect(createCorpusReadResponder("stats.personaUsage", parsed.reads["stats.personaUsage"])(undefined)).toEqual(await caller.stats.personaUsage());
+  expect(createCorpusReadResponder("stats.timeseries", parsed.reads["stats.timeseries"])(undefined)).toEqual(await caller.stats.timeseries());
+  expect(createCorpusReadResponder("stats.leaderboard", parsed.reads["stats.leaderboard"])(undefined)).toEqual(await caller.stats.leaderboard());
+  expect(createCorpusReadResponder("stats.freshness", parsed.reads["stats.freshness"])(undefined)).toEqual(await caller.stats.freshness());
+  expect(createCorpusReadResponder("stats.momentum", parsed.reads["stats.momentum"])(undefined)).toEqual(await caller.stats.momentum());
+  const latency = createCorpusReadResponder("stats.latency", parsed.reads["stats.latency"]);
+  expect(latency({ kind: "owner" })).toEqual(await caller.stats.latency({ kind: "owner" }));
+  expect(parsed.reads["stats.latency"].map(({ input }) => input)).toEqual([{ kind: "owner" }]);
+  expect(() => latency({ kind: "character", characterId: library.character.id })).toThrow("Uncaptured corpus read");
+  expect(() => Reflect.apply(latency, undefined, [null])).toThrow("Uncaptured corpus read");
+  expect(() => Reflect.apply(createCorpusReadResponder("stats.overview", parsed.reads["stats.overview"]), undefined, [null])).toThrow("Uncaptured corpus read");
+  expect(() => createCorpusReadResponder("stats.byModel", parsed.reads["stats.byModel"])({})).toThrow("Uncaptured corpus read");
+  const changed = structuredClone(wire);
+  Object.assign(changed.reads["stats.latency"][0] ?? {}, { input: { kind: "character", characterId: library.character.id } });
+  expect(() => serializeCorpusWire(hydrateCorpusWire(changed), [OWNER_PASSWORD])).toThrow("publication recipe");
+  const malformed = structuredClone(wire);
+  Object.assign(malformed.reads["stats.byModel"][0] ?? {}, { input: null });
+  expect(() => serializeCorpusWire(hydrateCorpusWire(malformed), [OWNER_PASSWORD])).toThrow("publication recipe");
+  const missingField = structuredClone(wire);
+  Reflect.deleteProperty(missingField.reads["stats.overview"][0]?.output ?? {}, "tokensOutProvenance");
+  expect(() => serializeCorpusWire(missingField, [OWNER_PASSWORD])).toThrow("tokensOutProvenance");
+  expect(() => parseCorpusWire(serializeCorpusWire(wire, [OWNER_PASSWORD]).replace('"reads":{', '"reads":{"stats.reconcile":[], '))).toThrow(
+    "Unrecognized key",
+  );
+  const unknownRead = structuredClone(wire);
+  Object.assign(unknownRead.reads, { "stats.reconcile": [] });
+  expect(() => serializeCorpusWire(unknownRead, [OWNER_PASSWORD])).toThrow("Unrecognized key");
+});
+
+test("portable stats reject real label credential echoes before malformed schema diagnostics", async () => {
+  await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await seedCorpusActors(root);
+  const principal = await root.principalFor(root.ownerId);
+  const credential = await seedUserCredential(root.db, root.services.credentials.add, { principal, provider: "custom-openai", key: PRIVATE_KEY });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const character = await caller.character.create({
+    input: createCharacterSchema.parse({ handle: "stats-publication", name: "Public stats witness", description: "A native stats publication witness." }),
+  });
+  const room = await caller.chat.startChat({ characterIds: [character.id], opening: "none" });
+  await caller.chat.commitMessage({ chatId: room.chat.id, content: "A retained stats witness.", timeZone: UTC_TIME_ZONE });
+  const wire = await publication(root);
+  const secrets = [PRIVATE_KEY, OWNER_PASSWORD, credential.row.ciphertext, credential.row.iv, credential.row.tag];
+  expect(parseCorpusWire(serializeCorpusWire(wire, secrets))).toEqual(wire);
+  for (const name of [PRIVATE_KEY, JSON.stringify(PRIVATE_KEY), JSON.stringify({ echo: PRIVATE_KEY })]) {
+    await caller.character.update({ characterId: character.id, input: { name } });
+    const output = await caller.stats.leaderboard();
+    expect(output.rows.find((row) => row.characterId === character.id)?.name).toBe(name);
+    const echoed = { ...wire, reads: { ...wire.reads, "stats.leaderboard": [{ input: undefined, output }] } };
+    expect(() => serializeCorpusWire(echoed, secrets)).toThrow("Corpus publication contains private material");
+    Reflect.deleteProperty(output, "total");
+    expect(() => serializeCorpusWire(echoed, secrets)).toThrow("Corpus publication contains private material");
+  }
+  expect(parseCorpusWire(serializeCorpusWire(wire, secrets))).toEqual(wire);
+});
 
 test("notification corpus preserves seven actual viewer and lifecycle snapshots in portable bytes", async () => {
   await using root = await createServerHarness({

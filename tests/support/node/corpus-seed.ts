@@ -471,6 +471,7 @@ export async function captureCorpusReads(root: ServerHarness, identities: Corpus
   const groupInput = corpusReadInput.chat({ id: identities.groupChatId });
   const documentInput = corpusReadInput.document({ id: identities.documentId });
   const documentListInput = corpusReadInput.documentList();
+  const ownerLatencyInput = corpusReadInput.ownerLatency();
   return {
     "sessions.me": [{ input: absentInput, output: await caller.sessions.me(absentInput) }],
     "settings.getUserSettings": [{ input: absentInput, output: await caller.settings.getUserSettings(absentInput) }],
@@ -499,6 +500,15 @@ export async function captureCorpusReads(root: ServerHarness, identities: Corpus
     "regex.countScripts": [{ input: absentInput, output: await caller.regex.countScripts(absentInput) }],
     "rosterPreset.count": [{ input: absentInput, output: await caller.rosterPreset.count(absentInput) }],
     "automation.getOwnerBudgets": [{ input: absentInput, output: await caller.automation.getOwnerBudgets(absentInput) }],
+    "stats.overview": [{ input: absentInput, output: await caller.stats.overview(absentInput) }],
+    "stats.wrapped": [{ input: absentInput, output: await caller.stats.wrapped(absentInput) }],
+    "stats.byModel": [{ input: absentInput, output: await caller.stats.byModel(absentInput) }],
+    "stats.latency": [{ input: ownerLatencyInput, output: await caller.stats.latency(ownerLatencyInput) }],
+    "stats.personaUsage": [{ input: absentInput, output: await caller.stats.personaUsage(absentInput) }],
+    "stats.timeseries": [{ input: absentInput, output: await caller.stats.timeseries(absentInput) }],
+    "stats.leaderboard": [{ input: absentInput, output: await caller.stats.leaderboard(absentInput) }],
+    "stats.freshness": [{ input: absentInput, output: await caller.stats.freshness(absentInput) }],
+    "stats.momentum": [{ input: absentInput, output: await caller.stats.momentum(absentInput) }],
   };
 }
 
