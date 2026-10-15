@@ -137,7 +137,8 @@ test(
       const primitive = replay
         .getDescendantsOfKind(SyntaxKind.ElementAccessExpression)
         .map((node) => node.getArgumentExpression())
-        .filter((node) => node !== undefined && !computedNameNeedsBindings(node));
+        .filter((node) => node !== undefined)
+        .filter((node) => !computedNameNeedsBindings(node));
       expect(primitive.map((node) => referenceResolutionServices.readComputedName(node).kind)).toEqual([
         "resolved",
         "resolved",
