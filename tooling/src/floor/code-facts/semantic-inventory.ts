@@ -7,6 +7,7 @@ import { isTypeWorldSource, predictedProgram } from "../compiler/project-worlds.
 import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-worker-run.ts";
 import type {
   InventoryBuildRequest,
+  InventoryExportDeclarationQuery,
   InventoryFamily,
   InventoryInvocationQuery,
   InventoryOverlay,
@@ -16,7 +17,14 @@ import type {
   SemanticInventoryOptions,
   StoredInventoryPartition,
 } from "./semantic-inventory-contract.ts";
-import { inventoryFamilies, inventoryNodeQueryKey, invocationQueryKey, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
+import {
+  exportDeclarationQueryKey,
+  inventoryFamilies,
+  inventoryNodeQueryKey,
+  invocationQueryKey,
+  SemanticInventoryError,
+  shapePairKey,
+} from "./semantic-inventory-contract.ts";
 import {
   beginInventoryWrite,
   importInventoryPartition,
@@ -30,6 +38,7 @@ import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurren
 import {
   readInventoryCallableDeclarations,
   readInventoryComputedNames,
+  readInventoryExportDeclarations,
   readInventoryGlobalBindings,
   readInventoryGlobalOrigins,
   readInventoryInputs,
@@ -80,6 +89,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
       throw new Error(`native semantic inventory found no runnable TypeScript programs under ${root}`);
     }
     const families = inventoryFamilies(options.families);
+    assertExportDemand(options, descriptors, families);
     assertCallableDemand(options, descriptors, families);
     assertComputedDemand(options, descriptors, families);
     assertGlobalDemand(options, descriptors, families);
@@ -177,6 +187,7 @@ function buildPartition(
     if (!coversGlobalDemand(staging, candidate, request)) {
       throw new Error(`native inventory worker supplied incomplete global-origin/binding coverage: ${request.descriptor.id}`);
     }
+    assertExportCoverage(staging, candidate, request);
     assertInvocationCoverage(staging, candidate, request);
     partition = candidate;
   }
@@ -412,6 +423,34 @@ function assertShapeRoot(root: string, options: SemanticInventoryOptions): void 
   }
 }
 
+function exportDemand(options: SemanticInventoryOptions, program: string): readonly InventoryExportDeclarationQuery[] {
+  return [
+    ...new Map(
+      (options.exportQueries ?? []).filter((query) => query.program === program).map(({ query }) => [exportDeclarationQueryKey(query), query]),
+    ).values(),
+  ];
+}
+function coversExportDemand(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  queries: readonly InventoryExportDeclarationQuery[],
+): boolean {
+  return queries.every((query) => [...readInventoryExportDeclarations(db, partition.id, query)].length === 1);
+}
+function assertExportDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  if (
+    (options.exportQueries ?? []).some((query) => !descriptors.some((descriptor) => descriptor.id === query.program)) ||
+    (options.exportQueries !== undefined && !families.includes("export-declarations")) ||
+    (families.includes("export-declarations") && options.exportQueries === undefined)
+  ) {
+    throw new Error("native export declarations require closed source/name demand in admitted native programs");
+  }
+}
+
 function callableDemand(options: SemanticInventoryOptions, program: string): readonly InventorySpan[] {
   return [
     ...new Map((options.callableQueries ?? []).filter((query) => query.program === program).map(({ node }) => [inventoryNodeQueryKey(node), node])).values(),
@@ -466,8 +505,12 @@ function nativeDemandRequest(
   options: SemanticInventoryOptions,
   program: string,
   families: readonly InventoryFamily[],
-): Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries" | "invocationQueries"> {
+): Pick<
+  InventoryBuildRequest,
+  "exportQueries" | "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries" | "invocationQueries"
+> {
   return {
+    ...(families.includes("export-declarations") ? { exportQueries: exportDemand(options, program) } : {}),
     ...(families.includes("invocation-evidence") ? { invocationQueries: invocationDemand(options, program) } : {}),
     ...(families.includes("callable-declarations") ? { callableQueries: callableDemand(options, program) } : {}),
     ...(families.includes("computed-names") ? { computedNameQueries: computedDemand(options, program) } : {}),
@@ -482,9 +525,13 @@ function nativeDemandRequest(
 function coversNativeDemand(
   db: ReturnType<typeof openInventoryDatabase>,
   partition: StoredInventoryPartition,
-  demand: Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries" | "invocationQueries">,
+  demand: Pick<
+    InventoryBuildRequest,
+    "exportQueries" | "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries" | "invocationQueries"
+  >,
 ): boolean {
   return (
+    coversExportDemand(db, partition, demand.exportQueries ?? []) &&
     coversCallableDemand(db, partition, demand.callableQueries ?? []) &&
     coversComputedDemand(db, partition, demand.computedNameQueries ?? []) &&
     coversGlobalDemand(db, partition, demand) &&
@@ -552,5 +599,11 @@ function assertInvocationDemand(
 function assertInvocationCoverage(db: ReturnType<typeof openInventoryDatabase>, candidate: StoredInventoryPartition, request: InventoryBuildRequest): void {
   if (!coversInvocationDemand(db, candidate, request.invocationQueries ?? [])) {
     throw new Error(`native inventory worker supplied incomplete invocation coverage: ${request.descriptor.id}`);
+  }
+}
+
+function assertExportCoverage(db: ReturnType<typeof openInventoryDatabase>, candidate: StoredInventoryPartition, request: InventoryBuildRequest): void {
+  if (!coversExportDemand(db, candidate, request.exportQueries ?? [])) {
+    throw new Error(`native inventory worker supplied incomplete export source/name coverage: ${request.descriptor.id}`);
   }
 }

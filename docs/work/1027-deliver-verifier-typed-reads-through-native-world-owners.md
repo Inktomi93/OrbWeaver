@@ -34,4 +34,6 @@ Clock and random policies use native global origins without claiming complete bi
 
 Reviewed `9ae51b135c` supplies sealed-reference policies through existing native value/module facts. Candidate grammar, permission subjects, regex polarity and authored computed-key positions remain intact. Exact-kind lookup distinguishes same-span import and identifier nodes. Affected controls, tooling types and exact lint pass. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-sealed-reference-independent-review.md`.
 
-Strict export-home coverage is assigned separately; missing export facts cannot mean recorded absence. Drizzle/schema axes, virtual-overlay liveness, remaining typed families and complete native cost qualification stay open. Complete root compiler output retains off-owned errors; no green root verdict is claimed.
+Strict export-home policies use sealed source/name demand, explicit absence and ordered native declarations. Missing evidence refuses reuse and publication. Native world, authority and storage controls pass independent review: `.claude/worktrees/codex-corpus-row-clocks/reports/stickler/2026-10-15-native-export-home-independent-review.md`.
+
+Drizzle/schema axes, virtual-overlay liveness, remaining typed families and complete native cost qualification stay open. Complete root compiler output retains off-owned errors; no green root verdict is claimed.

@@ -4,6 +4,8 @@ import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
 import type {
+  InventoryExportDeclarationQuery,
+  InventoryExportDeclarations,
   InventoryFactKind,
   InventoryFamily,
   InventoryInput,
@@ -19,6 +21,7 @@ import {
   callableDeclarationSchema,
   castRelationResultSchema,
   computedNameSchema,
+  exportDeclarationsSchema,
   globalOriginSchema,
   INVENTORY_FACTS,
   inputSchema,
@@ -158,6 +161,50 @@ function* facts(
   }
 }
 
+function exportSourceText(db: DatabaseSync, id: string, file: string): string {
+  const source = capturedInventorySource(db, id, file, "export");
+  if (db.prepare("SELECT ordinal FROM inventory_list WHERE partition=? AND kind='available' AND value=?").get(id, inventoryString(file)) === undefined) {
+    throw new SemanticInventoryError("native export declaration source is outside its native closure");
+  }
+  return readInventorySourceText(db, id, source);
+}
+
+/** A requested source/name has one capture even when absent; declaration rows must be complete. */
+export function* readInventoryExportDeclarations(db: DatabaseSync, id: string, query: InventoryExportDeclarationQuery): Iterable<InventoryExportDeclarations> {
+  requireInventoryFamily(db, id, "export-declarations");
+  const row = db
+    .prepare("SELECT ordinal,present,declarationCount FROM inventory_export_declaration WHERE partition=? AND file=? AND name=?")
+    .get(id, inventoryString(query.file), inventoryString(query.name));
+  if (row === undefined) {
+    return;
+  }
+  if (db.prepare("SELECT ordinal FROM inventory_list WHERE partition=? AND kind='roots' AND value=?").get(id, inventoryString(query.file)) === undefined) {
+    throw new SemanticInventoryError("native export source is outside its demanded native roots");
+  }
+  const texts = new Map([[query.file, exportSourceText(db, id, query.file)]]);
+  const captured = z.object({ ordinal: integer, present: boolean, declarationCount: integer.nonnegative() }).parse(row);
+  const nodes: InventorySpan[] = [];
+  for (const value of db
+    .prepare(`SELECT d.ordinal,s.file,s.start,s.end,s.kind FROM inventory_export_declaration_node d
+    JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node WHERE d.partition=? AND d.owner=? ORDER BY d.ordinal`)
+    .iterate(id, captured.ordinal)) {
+    const entry = spanRow.extend({ ordinal: integer }).parse(value);
+    if (entry.ordinal !== nodes.length) {
+      throw new SemanticInventoryError("native export declaration sequence is incomplete");
+    }
+    const text = texts.get(entry.file) ?? exportSourceText(db, id, entry.file);
+    texts.set(entry.file, text);
+    if (!(entry.start >= 0 && entry.end >= entry.start && entry.end <= text.length)) {
+      throw new SemanticInventoryError("native export declaration span exceeds its captured source");
+    }
+    nodes.push(spanSchema.parse(entry));
+  }
+  if (nodes.length !== captured.declarationCount || (!captured.present && nodes.length > 0)) {
+    throw new SemanticInventoryError("native export declaration coverage is incomplete");
+  }
+  yield exportDeclarationsSchema.parse({ query, declarations: captured.present ? nodes : null });
+}
+
 export function* readInventoryExports(db: DatabaseSync, id: string, file?: string): Iterable<InventoryPartition["exports"][number]> {
   for (const row of facts(db, id, "exports", file)) {
     yield partitionSchema.shape.exports.element.parse({
@@ -182,11 +229,11 @@ export function* readInventoryModules(db: DatabaseSync, id: string, node?: Inven
 
 export function* readInventoryBindings(db: DatabaseSync, id: string, node?: InventorySpan): Iterable<InventoryPartition["bindings"][number]> {
   if (node !== undefined) {
-    capturedBindingSource(db, id, node.file);
+    capturedInventorySource(db, id, node.file);
   }
   for (const row of facts(db, id, "bindings", node)) {
     const span = spanOf(db, id, row.node);
-    const source = capturedBindingSource(db, id, span.file);
+    const source = capturedInventorySource(db, id, span.file);
     if (!source.authored) {
       requireAuxiliaryBindingSource(db, id, span.file);
       if ([...readInventoryGlobalBindings(db, id, span)].length !== 1) {
@@ -201,12 +248,12 @@ export function* readInventoryBindings(db: DatabaseSync, id: string, node?: Inve
   }
 }
 
-function capturedBindingSource(db: DatabaseSync, id: string, file: string): StoredInventorySource {
+function capturedInventorySource(db: DatabaseSync, id: string, file: string, label = "binding"): StoredInventorySource {
   const rows = db
     .prepare("SELECT ordinal,file,path,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=? AND file=?")
     .all(id, inventoryString(file));
   if (rows.length !== 1) {
-    throw new SemanticInventoryError("native binding source ownership is unavailable");
+    throw new SemanticInventoryError(`native ${label} source ownership is unavailable`);
   }
   return sourceRow.parse(rows[0]);
 }
@@ -226,7 +273,7 @@ export function* readInventoryGlobalBindings(db: DatabaseSync, id: string, node:
     )
     .iterate(...(typeof node === "string" ? [id, inventoryString(node)] : [id, inventoryString(node.file), node.start, node.end, node.kind]))) {
     const selectedSpan = spanRow.parse(row);
-    if (!capturedBindingSource(db, id, selectedSpan.file).authored) {
+    if (!capturedInventorySource(db, id, selectedSpan.file).authored) {
       requireAuxiliaryBindingSource(db, id, selectedSpan.file);
     }
     const matches = [...facts(db, id, "bindings", { node: selectedSpan, family: "global-origins" })];
@@ -424,7 +471,7 @@ function assertInvocationSpans(db: DatabaseSync, id: string, value: JsonValue): 
   const parsed = spanSchema.safeParse(value);
   if (parsed.success) {
     const span = parsed.data;
-    const source = capturedBindingSource(db, id, span.file);
+    const source = capturedInventorySource(db, id, span.file);
     if (
       span.start < 0 ||
       span.end < span.start ||
@@ -442,7 +489,7 @@ function assertInvocationSpans(db: DatabaseSync, id: string, value: JsonValue): 
 
 function assertInvocationChildren(db: DatabaseSync, id: string, fact: InventoryInvocationEvidence): void {
   for (const source of fact.sources) {
-    capturedBindingSource(db, id, source.file);
+    capturedInventorySource(db, id, source.file);
     if ([...readInventoryGlobalBindings(db, id, source.file)].length !== source.bindings) {
       throw new SemanticInventoryError("native invocation binding-source coverage is incomplete");
     }

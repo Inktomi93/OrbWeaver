@@ -541,6 +541,10 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (): NativeTypeFactReader => ({
+      exportDeclarations: (requested, name): ReturnType<NativeTypeFactReader["exportDeclarations"]> => {
+        checkerFor(requested);
+        return new Map(requested.map((source) => [source, source.getExportedDeclarations().get(name) ?? null]));
+      },
       invocationEvidence: (nodes, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
         checkerFor(nodes);
         return new Map(nodes.map((node) => [node, captureInvocationEvidence(node, plan)]));

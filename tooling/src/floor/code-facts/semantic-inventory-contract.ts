@@ -20,6 +20,7 @@ import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
 export const INVENTORY_FORMAT = 14;
 export const INVENTORY_FAMILIES = [
   "exports",
+  "export-declarations",
   "modules",
   "bindings",
   "references",
@@ -313,6 +314,19 @@ export const castRelationResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable"), reason: z.literal("primitive-absent") }),
 ]);
 export type InventoryCastRelationResult = z.infer<typeof castRelationResultSchema>;
+export const exportDeclarationQuerySchema = z.object({ file: z.string(), name: z.string() });
+export type InventoryExportDeclarationQuery = z.infer<typeof exportDeclarationQuerySchema>;
+export interface InventoryNativeExportDeclarationQuery {
+  readonly program: string;
+  readonly query: InventoryExportDeclarationQuery;
+}
+export const exportDeclarationsSchema = z.object({ query: exportDeclarationQuerySchema, declarations: z.array(spanSchema).nullable() });
+export type InventoryExportDeclarations = z.infer<typeof exportDeclarationsSchema>;
+
+/** Exact source/name identity distinguishes a captured absence from an unrequested export. */
+export function exportDeclarationQueryKey(query: InventoryExportDeclarationQuery): string {
+  return JSON.stringify(exportDeclarationQuerySchema.parse(query));
+}
 export const runtimeExportSchema = z.object({
   file: z.string(),
   name: z.string(),
@@ -367,6 +381,7 @@ export const partitionSchema = z.object({
   shapes: z.array(shapeCatalogSchema),
   pairs: z.array(shapePairSchema),
   runtimeExports: z.array(runtimeExportSchema),
+  exportDeclarations: z.array(exportDeclarationsSchema).optional(),
   declarationOutputs: z.array(z.object({ node: spanSchema, unknown: z.boolean().nullable() })),
   memberOrigins: z.array(memberOriginSchema),
   callableDeclarations: z.array(callableDeclarationSchema),
@@ -409,6 +424,7 @@ export const partitionMetadataSchema = partitionSchema.omit({
   shapes: true,
   pairs: true,
   runtimeExports: true,
+  exportDeclarations: true,
   casts: true,
   brands: true,
   inputs: true,
@@ -424,6 +440,7 @@ export type StoredInventoryPartition = z.infer<typeof storedPartitionSchema>;
 export const INVENTORY_LISTS = ["configPaths", "projectReferences", "roots", "nativeRoots", "available"] as const;
 export const INVENTORY_FAMILY_FIELDS = {
   exports: "exports",
+  "export-declarations": "exportDeclarations",
   modules: "modules",
   bindings: "bindings",
   references: "references",
@@ -456,6 +473,8 @@ export const INVENTORY_RECORD_TABLES = [
   "cast",
   "brand",
   "runtimeExport",
+  "exportDeclaration",
+  "exportDeclarationNode",
   "shape",
   "shapeField",
   "shapeOrigin",
@@ -501,6 +520,7 @@ export interface InventoryOverlay {
 }
 
 export interface InventoryBuildRequest {
+  readonly exportQueries?: readonly InventoryExportDeclarationQuery[];
   readonly invocationQueries?: readonly InventoryInvocationQuery[];
   readonly globalOriginQueries?: readonly InventorySpan[];
   readonly globalBindingQueries?: readonly InventorySpan[];
@@ -516,6 +536,7 @@ export interface InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
+  readonly exportQueries?: readonly InventoryNativeExportDeclarationQuery[];
   readonly invocationQueries?: readonly InventoryNativeInvocationQuery[];
   readonly globalOriginQueries?: readonly InventoryNativeQuery[];
   readonly globalBindingQueries?: readonly InventoryNativeQuery[];
@@ -540,6 +561,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly exportDeclarations: (source: SourceFile, program: string, name: string) => readonly Node[] | null;
   readonly invocationEvidence: (node: Node, program: string, plan: InventoryInvocationPlan) => NativeInvocationEvidence;
   readonly globalOrigin: (node: Node, program: string) => ReferenceFact<GlobalMemberOrigin>;
   readonly globalBinding: (node: Node, program: string) => readonly Node[];

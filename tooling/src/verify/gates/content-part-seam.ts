@@ -58,9 +58,14 @@
 // real-tree run is the authority for their current reach; the 3,427 figure remains the dated #2488 receipt.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { defineGate } from "../contract/policy.ts";
+import { exportedNativeSources } from "../lib/native-exports.ts";
+import { invocationOriginServices, requiredInvocationFact } from "../lib/native-invocation.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+
+const MODULE_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["module"], arguments: [] };
 
 const SYMBOL = "ChatContentPart";
 const OPERATION = "chat-content-part-reference";
@@ -102,7 +107,13 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const references = new Map<string, MorphNode>();
+    const native = ctx.nativeTypes;
+    if (native === undefined) {
+      throw new Error("content-part seam requires native references and export declarations");
+    }
+    const homeSources = ctx.files.filter((file) => file.getFilePath().replaceAll("\\", "/").includes(CONTENT_PART_HOME.pathInfix));
+    native.request({ kind: "export-declarations", nodes: homeSources, name: SYMBOL });
+    const references = new Map<string, MorphNode[]>();
     return {
       visitors: [
         {
@@ -112,30 +123,40 @@ export const gate = defineGate({
             if (anchor === undefined) {
               return;
             }
-            // FAIL-CLOSED at the DECLARED DOOR: an unreadable import door reports, an import that provably
-            // binds something else is not a subject (lib/sealed-origin.ts::sealedOriginReports).
-            if (!sealedOriginReports(readSealedOrigin(anchor, CONTENT_PART_HOME), anchor)) {
-              return;
-            }
+            native.request({ kind: "invocation-evidence", nodes: [anchor], plan: MODULE_PLAN });
             const subject = ctx.relativePath(sourceFile);
-            if (!references.has(subject)) {
-              references.set(subject, anchor);
-            }
+            const candidates = references.get(subject) ?? [];
+            candidates.push(anchor);
+            references.set(subject, candidates);
           },
         },
       ],
       evaluate: () => {
         // THE RENAME TRIPWIRE, as a receipt: the home must still DECLARE the symbol this seam is about.
-        const home = ctx.files.filter(
-          (file) => file.getFilePath().replaceAll("\\", "/").includes(CONTENT_PART_HOME.pathInfix) && file.getExportedDeclarations().has(SYMBOL),
-        );
+        const home = exportedNativeSources(homeSources, native.exportDeclarations(homeSources, SYMBOL));
+        const evidence = native.invocationEvidence([...references.values()].flat(), MODULE_PLAN);
         ctx.receipt({ kind: "population", source: HOME_RECEIPT, members: home.length, unresolved: 0 });
-        for (const [subject, anchor] of [...references].toSorted(([left], [right]) => left.localeCompare(right))) {
+        for (const [subject, candidates] of [...references].toSorted(([left], [right]) => left.localeCompare(right))) {
+          const anchor = candidates.find((reference) => {
+            const services = invocationOriginServices(requiredInvocationFact(evidence, reference));
+            return sealedOriginReports(readSealedOrigin(reference, CONTENT_PART_HOME, services.moduleOrigin), reference, services.declarations);
+          });
+          if (anchor === undefined) {
+            continue;
+          }
           ctx.report.node(anchor, { subject, operation: OPERATION, message: `${MESSAGE} Importer: ${subject}.`, fix: FIX });
         }
       },
     };
   },
+  mustRefuse: [
+    {
+      mode: "types",
+      files: { "packages/contracts/src/chat/bus.ts": "export type OtherPart = { readonly type: string };\n" },
+      expect: { messageIncludes: "ChatContentPart declaration home" },
+      why: "The declaration-home receipt refuses a renamed subject even when the home source remains present.",
+    },
+  ],
   mustFlag: [
     {
       mode: "types",
