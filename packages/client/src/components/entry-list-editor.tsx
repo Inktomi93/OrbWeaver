@@ -1,20 +1,5 @@
-// EntryListEditor — the client-shared "editable entry list + editor dialog" composite (clone-audit item 4):
-// a Section heading + helper line + a ListRow-per-entry list (click to edit, Remove action) + an Add button
-// + the per-index editor dialog. Preset's Regex tab ↔ Variables tab pasted this shell verbatim; the settings
-// owner-global Regex pane (item 10) is the third consumer. Form-agnostic on purpose — every array operation
-// is a callback (onAdd/onRemove/onEdit) and the editor is `renderEditor`, so the composite never touches the
-// TanStack Form generic and each consumer keeps its own field wiring + editor dialog.
-//
-// OWNER RULING: lives client-shared (NOT @orb/ui — an app-level composite of Section+ListRow+the add/empty
-// pattern; the ConfirmDialog homing precedent). Consumed across the preset + settings features.
-//
-// REMOVE IS CONFIRMED, IN ALL FOUR CONSUMERS (side-eye X-3, 2026-08-03). It used to delete on the first
-// click: no alertdialog, no undo toast, no destructive styling — a plain body-weight ghost button reading
-// "Remove" sitting next to the row it killed. Every one of the four lists this composite serves holds
-// AUTHORED content (regex scripts, preset variables, user macros, game macros), and for the regex library
-// the delete additionally detaches the row from every preset, character and room that referenced it. The
-// confirm lives HERE and not at the call sites for the same reason the kicker does: a per-call-site knob is
-// how a grammar diverges. Callers supply only the CONSEQUENCE sentence, which is genuinely per-list.
+// Shared preset/game entry lists keep callbacks index-addressed and editors caller-owned.
+// Replacing the immutable items snapshot invalidates removal consent, not row or editor identity.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
@@ -22,6 +7,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { removeActionName } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
@@ -71,6 +57,22 @@ export function EntryListEditor<TItem>({
   removeDescription,
   renderRowAction,
 }: EntryListEditorProps<TItem>): ReactElement {
+  const [removal, setRemoval] = useState<{ readonly items: readonly TItem[]; readonly index: number | null; readonly invalidated: boolean }>({
+    items,
+    index: null,
+    invalidated: false,
+  });
+  if (removal.items !== items) {
+    setRemoval({ items, index: null, invalidated: removal.index !== null || removal.invalidated });
+  }
+  const addButton = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (removal.invalidated) {
+      // An empty replacement unmounts every popup, so no native close remains to restore focus.
+      addButton.current?.focus();
+    }
+  }, [removal.invalidated]);
+
   return (
     // KICKER, NOT `heading` (side-eye F-8, 2026-08-03). Three group-heading grammars shipped across the
     // preset editor's five views: Params spoke in micro-caps kickers, Data spoke in large sentence-case
@@ -101,10 +103,12 @@ export function EntryListEditor<TItem>({
                   {/* NAMED BY THE ROW IT KILLS: six rows each offering an unqualified "Remove" gave a
                       screen-reader user six identical buttons for six different scripts. */}
                   <ConfirmDialog
+                    open={removal.items === items && removal.index === index}
+                    onOpenChange={(open): void => setRemoval({ items, index: open ? index : null, invalidated: false })}
+                    {...(removal.invalidated ? { finalFocus: addButton } : {})}
                     confirmLabel="Remove"
                     description={removeDescription}
-                    // Three of the four consumers render inside an open Dialog (the settings modal, the
-                    // preset editor, the rpg panel), where Base UI suppresses a nested backdrop by default.
+                    // Callers can nest this list in a dialog, where Base UI otherwise suppresses its backdrop.
                     forceRender={true}
                     onConfirm={(): void => onRemove(index)}
                     title={`Remove “${getTitle(item, index)}”?`}
@@ -117,7 +121,7 @@ export function EntryListEditor<TItem>({
                 </Row>
               }
               clickable={true}
-              // biome-ignore lint/suspicious/noArrayIndexKey: entries are a positional, id-less list edited in place by index — the index IS the row identity.
+              // biome-ignore lint/suspicious/noArrayIndexKey: callbacks address current positions; removal consent separately expires when the items snapshot changes.
               key={index}
               onClick={(): void => onEdit(index)}
               subtitle={getSubtitle(item, index)}
@@ -126,7 +130,7 @@ export function EntryListEditor<TItem>({
           ))
         )}
         <Row>
-          <Button intent="secondary" onClick={onAdd} size="sm">
+          <Button ref={addButton} intent="secondary" onClick={onAdd} size="sm">
             <Icon icon={Plus} size="sm" />
             {addLabel}
           </Button>

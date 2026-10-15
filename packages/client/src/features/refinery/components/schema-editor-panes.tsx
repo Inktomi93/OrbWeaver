@@ -96,7 +96,7 @@ export function PreviewCard({
   const invalidation = useInvalidation();
   const testSchema = useTestRefinerySchema({ trpc, invalidation });
   const [testCharacter, setTestCharacter] = useState<{ readonly id: CharacterId; readonly name: string } | null>(null);
-  const [testPayload, setTestPayload] = useState<Record<string, unknown> | null>(null);
+  const [testResult, setTestResult] = useState<{ readonly generation: number; readonly payload: Record<string, unknown> } | null>(null);
   const testCharacterId = testCharacter?.id ?? null;
   return (
     <Card>
@@ -109,7 +109,7 @@ export function PreviewCard({
             `testSchema` turn is a real model round-trip; while it runs, the preview keeps painting the
             LAST settled payload under a shimmer rather than blanking — the same "never goes blank
             between stages" law the content surface holds itself to. */}
-        <PayloadView payload={testPayload ?? {}} plan={plan} pending={testSchema.isPending} />
+        <PayloadView key={testResult?.generation ?? 0} payload={testResult?.payload ?? {}} plan={plan} pending={testSchema.isPending} />
         <Row align="center" gap="field">
           <CharacterDoor
             chosenName={testCharacter?.name ?? null}
@@ -124,7 +124,10 @@ export function PreviewCard({
             intent="secondary"
             onClick={(): void => {
               if (testCharacterId !== null) {
-                testSchema.mutate({ schema, stage, characterId: testCharacterId }, { onSuccess: (payload): void => setTestPayload(payload) });
+                testSchema.mutate(
+                  { schema, stage, characterId: testCharacterId },
+                  { onSuccess: (payload): void => setTestResult((previous) => ({ generation: (previous?.generation ?? 0) + 1, payload })) },
+                );
               }
             }}
             size="sm"

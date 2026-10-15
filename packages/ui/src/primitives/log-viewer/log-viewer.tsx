@@ -192,7 +192,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
             data-slot="log-viewer-scroll"
           >
             {visible.map((line, index) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: append-only log tail (lines never reordered/removed from the middle) — position is a stable identity.
+              // biome-ignore lint/suspicious/noArrayIndexKey: line rows contain controlled text/glyphs only; the sliding window carries no row-local state or actions.
               <LogLineRow key={index} line={line} slots={slots} />
             ))}
           </div>

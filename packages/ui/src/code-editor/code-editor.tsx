@@ -277,7 +277,7 @@ export function CodeEditor({
         <div id={describedById} aria-live="polite" className="sr-only">
           {diagnostics.map((diagnostic, index) => {
             const text = `${DIAGNOSTIC_SEVERITY_LABEL[diagnostic.severity]}: ${diagnostic.message}`;
-            // biome-ignore lint/suspicious/noArrayIndexKey: flat per-render diagnostics snapshot for an SR-only announcement — nothing reorders mid-list, position is stable enough.
+            // biome-ignore lint/suspicious/noArrayIndexKey: diagnostics render plain announcement paragraphs; rows hold no local state or focusable controls.
             return <p key={index}>{text}</p>;
           })}
         </div>
