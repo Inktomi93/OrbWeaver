@@ -1,8 +1,9 @@
-import type { UiGuestInbound, UiGuestOutbound, UiGuestUnavailableMessage } from "@orb/client/lib";
+import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "@orb/client/lib";
 import { viewerViewSchema } from "@orb/contracts/identity";
 import { PLUGIN_LOG_LEVELS, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "@orb/server/infra/plugin-host";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
@@ -17,6 +18,9 @@ import { PluginProtocolStory } from "./_ct-stories.tsx";
 const OBSERVATIONS = "orb-native-plugin-protocol";
 const LOG_OBSERVATIONS = `${OBSERVATIONS}:logs`;
 const BOOT_LOG_MESSAGE = "Native browser boot";
+const EVENT_FAILURE_MESSAGE = "Native event refusal";
+const RELAY_FAILURE_MESSAGE = "Native relay refusal";
+const BOOT_FAILURE_MESSAGE = "Native boot refusal";
 const UI_SOURCE = `const ui = orb.ui(1);
 ui.log.info(${JSON.stringify(BOOT_LOG_MESSAGE)});
 const render = (value) => ui.render("protocol", { kind: "stack", children: [
@@ -29,10 +33,10 @@ const render = (value) => ui.render("protocol", { kind: "stack", children: [
 render("Native browser ready");
 ui.onEvent(async ({ event, values }) => {
   if (event.type === "field") { render("Draft: " + event.value); return; }
-  if (event.actionId === "crash") throw new TypeError("Native event refusal");
+  if (event.actionId === "crash") throw new TypeError(${JSON.stringify(EVENT_FAILURE_MESSAGE)});
   try {
     const value = await ui.host.storage.get(event.actionId);
-    render("Read: " + value);
+    render("Read: " + value + "; entry: " + JSON.stringify(values.entry));
   } catch (error) {
     render("Refused: " + error.message);
   }
@@ -69,6 +73,20 @@ async function observeProtocol(page: Page): Promise<void> {
     },
     { key: OBSERVATIONS, logKey: LOG_OBSERVATIONS },
   );
+}
+
+// Retain actual result frames, never the boot source, clock or entropy payload.
+async function readProtocolResults(page: Page): Promise<{ inbound: JsonValue[]; outbound: JsonValue[] }> {
+  const frames = jsonValueSchema.parse(JSON.parse((await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS)) ?? "null"));
+  if (frames === null || typeof frames !== "object" || Array.isArray(frames) || !Array.isArray(frames["inbound"]) || !Array.isArray(frames["outbound"])) {
+    throw new Error("Native protocol observation has no message arrays");
+  }
+  return {
+    inbound: frames["inbound"].filter((frame) => frame !== null && typeof frame === "object" && !Array.isArray(frame) && frame["kind"] === "hostResult"),
+    outbound: frames["outbound"].filter(
+      (frame) => frame !== null && typeof frame === "object" && !Array.isArray(frame) && (frame["kind"] === "ready" || frame["kind"] === "settled"),
+    ),
+  };
 }
 
 for (const mode of ["lines", "chars"] as const) {
@@ -130,21 +148,38 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
     "plugin.listSurfaces": () => surfaces,
     "plugin.getSurfaceState": () => null,
     "plugin.uiHostCall": (input) =>
-      input.argsJson === '["refuse"]' ? trpcError({ message: "Native relay refusal", code: "FORBIDDEN" }) : { resultJson: '"Native ledger"' },
+      input.argsJson === '["refuse"]' ? trpcError({ message: RELAY_FAILURE_MESSAGE, code: "FORBIDDEN" }) : { resultJson: '"Native ledger"' },
     "plugin.reportUiCrash": () => undefined,
   });
   await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
+  const retired: Promise<void>[] = [];
+  page.on("worker", (worker) => retired.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
   await observeProtocol(page);
-  await mount(<PluginProtocolStory pluginId={plugin.id} />);
+  const component = await mount(<PluginProtocolStory pluginId={plugin.id} />);
   await expect(page.getByText("Native browser ready", { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "Ledger entry", exact: true }).fill("Native field");
   await expect(page.getByText("Draft: Native field", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Read ledger", exact: true }).click();
-  await expect(page.getByText("Read: Native ledger", { exact: true })).toBeVisible();
+  await expect(page.getByText('Read: Native ledger; entry: "Native field"', { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Refused ledger", exact: true }).click();
-  await expect(page.getByText("Refused: Native relay refusal", { exact: true })).toBeVisible();
+  await expect(page.getByText(`Refused: ${RELAY_FAILURE_MESSAGE}`, { exact: true })).toBeVisible();
+  expect(trpc.count("plugin.reportUiCrash")).toBe(0);
+  expect(page.workers()).toHaveLength(1);
+  await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Crash guest", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  const retry = page.getByRole("button", { name: "Retry", exact: true });
+  await expect(retry).toBeVisible();
+  await Promise.all(retired);
+  expect(retired).toHaveLength(1);
+  expect(page.workers()).toHaveLength(0);
+  await expect
+    .poll(() => trpc.lastInput("plugin.reportUiCrash"))
+    .toEqual({
+      pluginId: plugin.id,
+      surfaceId: "protocol",
+      reason: `the plugin's interface failed while handling an interaction: TypeError: ${EVENT_FAILURE_MESSAGE}`,
+    });
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
   const messages = await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS);
   const bootLog = { kind: "log", level: "info", message: BOOT_LOG_MESSAGE } satisfies Extract<UiGuestOutbound, { kind: "log" }>;
   expect(messages).toContain(JSON.stringify(bootLog));
@@ -158,6 +193,41 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   expect(messages).toContain('"kind":"settled","ok":true');
   expect(messages).toContain('"kind":"hostResult","callId":2,"ok":false');
   expect(messages).toContain('"kind":"settled","ok":false');
+  const nextWorker = page.waitForEvent("worker");
+  await retry.click();
+  await nextWorker;
+  await expect(page.getByText("Native browser ready", { exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Ledger entry", exact: true })).toHaveValue("");
+  await page.getByRole("button", { name: "Read ledger", exact: true }).click();
+  await expect(page.getByText('Read: Native ledger; entry: ""', { exact: true })).toBeVisible();
+  expect(retired).toHaveLength(2);
+  expect(page.workers()).toHaveLength(1);
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+  const settledFailure = { kind: "settled", ok: false, message: `TypeError: ${EVENT_FAILURE_MESSAGE}` } satisfies UiGuestSettledMessage;
+  const refusedResult = { kind: "hostResult", callId: 2, ok: false, message: RELAY_FAILURE_MESSAGE } satisfies Extract<UiGuestInbound, { kind: "hostResult" }>;
+  const expectedResults = {
+    inbound: [
+      { kind: "hostResult", callId: 1, ok: true, resultJson: '"Native ledger"' },
+      refusedResult,
+      { kind: "hostResult", callId: 1, ok: true, resultJson: '"Native ledger"' },
+    ],
+    outbound: [
+      { kind: "ready", ok: true },
+      { kind: "settled", ok: true },
+      { kind: "settled", ok: true },
+      { kind: "settled", ok: true },
+      settledFailure,
+      { kind: "ready", ok: true },
+      { kind: "settled", ok: true },
+    ],
+  };
+  await expect.poll(() => readProtocolResults(page)).toEqual(expectedResults);
+  await test
+    .info()
+    .attach("native-event-failure-results", { body: Buffer.from(JSON.stringify(await readProtocolResults(page))), contentType: "application/json" });
+  await component.unmount();
+  await Promise.all(retired);
+  expect(page.workers()).toHaveLength(0);
   expect(trpc.unstubbed()).toEqual([]);
 });
 
@@ -174,18 +244,44 @@ test("a native guest boot failure publishes ready:false and reports the original
     "plugin.getSurfaceState": () => null,
     "plugin.reportUiCrash": () => undefined,
   });
-  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) =>
-    route.fulfill({ contentType: "application/octet-stream", body: 'throw new TypeError("Native boot refusal");' }),
-  );
+  let source = `throw new TypeError(${JSON.stringify(BOOT_FAILURE_MESSAGE)});`;
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: source }));
+  const retired: Promise<void>[] = [];
+  page.on("worker", (worker) => retired.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
   await observeProtocol(page);
-  await mount(<PluginProtocolStory pluginId={plugin.id} />);
+  const component = await mount(<PluginProtocolStory pluginId={plugin.id} />);
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await expect
     .poll(() => trpc.lastInput("plugin.reportUiCrash"))
-    .toMatchObject({ pluginId: plugin.id, surfaceId: "protocol", reason: expect.stringContaining("Native boot refusal") });
+    .toMatchObject({ pluginId: plugin.id, surfaceId: "protocol", reason: expect.stringContaining(BOOT_FAILURE_MESSAGE) });
   const messages = await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS);
   expect(messages).toContain('"kind":"ready","ok":false');
-  expect(messages).toContain("TypeError: Native boot refusal");
+  expect(messages).toContain(`TypeError: ${BOOT_FAILURE_MESSAGE}`);
+  await Promise.all(retired);
+  expect(retired).toHaveLength(1);
+  expect(page.workers()).toHaveLength(0);
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+  source = UI_SOURCE;
+  const nextWorker = page.waitForEvent("worker");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await nextWorker;
+  await expect(page.getByText("Native browser ready", { exact: true })).toBeVisible();
+  expect(retired).toHaveLength(2);
+  expect(page.workers()).toHaveLength(1);
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+  const readyFailure = { kind: "ready", ok: false, message: `TypeError: ${BOOT_FAILURE_MESSAGE}` } satisfies UiGuestReadyMessage;
+  await expect
+    .poll(() => readProtocolResults(page))
+    .toEqual({
+      inbound: [],
+      outbound: [readyFailure, { kind: "ready", ok: true }],
+    });
+  await test
+    .info()
+    .attach("native-boot-failure-results", { body: Buffer.from(JSON.stringify(await readProtocolResults(page))), contentType: "application/json" });
+  await component.unmount();
+  await Promise.all(retired);
+  expect(page.workers()).toHaveLength(0);
   expect(trpc.unstubbed()).toEqual([]);
 });
 
