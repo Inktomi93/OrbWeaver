@@ -12,7 +12,37 @@ import {
   CORPUS_PLUGIN_STORAGE_KEY,
   CORPUS_PLUGIN_STORAGE_VALUE,
   seedCorpusPlugins,
+  seedCorpusPluginWithdrawal,
 } from "./corpus-plugin.ts";
+
+test("native withdrawal removes matching copies but retains a recipient's upgraded live install and private canon", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const recipient = await root.actor();
+  const captured = await seedCorpusPluginWithdrawal(root, recipient.id);
+  expect(captured.published.outcome.applied).toBe(2);
+  expect(captured.published.installs.every(({ plugin }) => plugin.status === "disabled" && plugin.grantedCapabilities.length === 0)).toBe(true);
+  expect(captured.upgraded).toMatchObject({ version: "2.0.0", status: "enabled", grantedCapabilities: ["storage.kv"] });
+  expect(captured.refused).toEqual([expect.objectContaining({ status: "rejected" })]);
+  expect(captured.stillPublished).toHaveLength(1);
+  expect(captured.withdrawn).toEqual({
+    slug: CORPUS_PLUGIN_PROVIDER_MANIFEST.id,
+    name: CORPUS_PLUGIN_PROVIDER_MANIFEST.name,
+    version: "1.0.0",
+    applied: 1,
+    skipped: [{ userId: recipient.id, userHandle: recipient.handle, reason: "version-diverged" }],
+  });
+  expect(pluginFanoutResultSchema.parse(captured.withdrawn)).toEqual(captured.withdrawn);
+  expect(captured.after).toEqual(captured.before);
+  expect(captured.after.kv.map(({ value }) => value)).toEqual([CORPUS_PLUGIN_STORAGE_VALUE]);
+  expect(captured.ownerInstalls).toEqual([]);
+  expect(captured.remainingPublications).toEqual([]);
+  expect(captured.lateApplication).toEqual({ installedSlugs: [], skippedSlugs: [] });
+  const recipientRpc = await root.internalCallerFor(recipient.id);
+  expect(
+    await recipientRpc.plugin.uiHostCall({ pluginId: captured.after.plugin.id, fn: "storage.get", argsJson: JSON.stringify([CORPUS_PLUGIN_STORAGE_KEY]) }),
+  ).toEqual({ resultJson: JSON.stringify(CORPUS_PLUGIN_STORAGE_VALUE) });
+  await assertReferentialIntegrity(root.db);
+});
 
 test("the corpus keeps real consent, per-owner provider claims and distribution outcomes distinct from contained activation failure", async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });

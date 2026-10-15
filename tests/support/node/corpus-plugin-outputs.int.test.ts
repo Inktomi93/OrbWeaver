@@ -2,7 +2,7 @@
 // @subject tests/support/node/factories/plugin.ts
 import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
-import { pluginCommandViewSchema, pluginUiOutcomeSchema, pluginViewSchema, snippetResultSchema } from "@orb/contracts/plugin";
+import { PLUGIN_LOG_LEVELS, pluginCommandViewSchema, pluginUiOutcomeSchema, pluginViewSchema, snippetResultSchema } from "@orb/contracts/plugin";
 import { pluginKv } from "@orb/db";
 import {
   pluginBundleAssetViewSchema,
@@ -13,10 +13,88 @@ import {
   pluginSurfaceViewSchema,
   pluginUiHostCallResultSchema,
 } from "@orb/server/domain/plugin";
+import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { seedCorpusPluginOutputs } from "./corpus-plugin-outputs.ts";
+import {
+  CORPUS_PLUGIN_CALLBACK_VALUE,
+  CORPUS_PLUGIN_TYPED_VALUES,
+  createCorpusPluginCallbackNetwork,
+  seedCorpusPluginCallbackLifecycle,
+  seedCorpusPluginLogRing,
+  seedCorpusPluginOutputs,
+} from "./corpus-plugin-outputs.ts";
 import { makePluginRow } from "./factories/plugin-view.ts";
+
+test("native callbacks refuse invalid args and stale scopes, revoke grants and retire an in-flight draft before restart", { tags: ["slow"] }, async () => {
+  const network = createCorpusPluginCallbackNetwork();
+  await using root = await createServerHarness({ pluginSpawn: spawn, networkExecution: network.networkExecution });
+  const captured = await seedCorpusPluginCallbackLifecycle(root, network);
+  expect(captured.retained.state).toEqual({ calls: 1, retained: true, variables: {} });
+  expect(captured.stale.state).toMatchObject({ calls: 2, staleError: "Error", staleMessage: expect.stringContaining("invalid chat handle"), variables: {} });
+  expect(captured.beforeRefusals.state).toEqual({ calls: 3, values: CORPUS_PLUGIN_TYPED_VALUES });
+  expect(captured.invalid).toHaveLength(10);
+  for (const refusal of captured.invalid) {
+    expect(refusal).toMatchObject({ status: "rejected", reason: expect.any(Error) });
+  }
+  expect(captured.invalid.slice(-2)).toEqual([
+    expect.objectContaining({ status: "rejected", reason: expect.objectContaining({ code: "NOT_FOUND" }) }),
+    expect.objectContaining({ status: "rejected", reason: expect.objectContaining({ code: "NOT_FOUND" }) }),
+  ]);
+  expect(captured.afterRefusals).toEqual(captured.beforeRefusals);
+  expect(captured.failedAction).toEqual([
+    expect.objectContaining({
+      status: "rejected",
+      reason: expect.objectContaining({ code: "BAD_REQUEST", message: expect.stringContaining("Native callback refusal") }),
+    }),
+  ]);
+  expect(captured.afterFailureRows.plugin.consecutiveCrashes).toBe(1);
+  expect(captured.clean).toEqual({ toasts: [] });
+  expect(captured.afterCleanRows.plugin.consecutiveCrashes).toBe(0);
+  expect(captured.storage.state).toMatchObject({ stored: CORPUS_PLUGIN_CALLBACK_VALUE });
+  expect(captured.narrowed.outcome).toMatchObject({ status: "enabled", reconsentPending: true });
+  expect(captured.narrowed.outcome.grantedCapabilities).not.toContain("storage.kv");
+  expect(captured.revokedStorage.state).toEqual({ calls: 1, storageError: "PluginCapabilityError" });
+  expect(captured.retiredDraft).toEqual([expect.objectContaining({ status: "rejected" })]);
+  expect(captured.disabled.state).toBeNull();
+  expect(captured.disabled.surfaces).toEqual([]);
+  expect(captured.disabled.commands).toEqual([]);
+  for (const refusal of captured.unavailable) {
+    expect(refusal).toMatchObject({ status: "rejected" });
+  }
+  expect(captured.restarted.state).toEqual({ calls: 0 });
+  expect(captured.restarted.commands.map(({ name }) => name)).toEqual(["typed", "stale", "storage", "draft"]);
+  for (const refusal of captured.uninstalled) {
+    expect(refusal).toMatchObject({ status: "rejected", reason: { code: "NOT_FOUND" } });
+  }
+});
+
+test("native log severity, staging clamps and both resident ring bounds survive reads and reset only with residency", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const captured = await seedCorpusPluginLogRing(root);
+  expect(captured.initial).toEqual(PLUGIN_LOG_LEVELS.map((level) => ({ level, message: `Native ${level}`, at: root.clock.frozenAt })));
+  const retainedBatches = PLUGIN_LOG_RING_LINES / LOG_LINES_PER_INVOCATION;
+  const expected = Array.from({ length: PLUGIN_LOG_RING_LINES }, (_, index) => {
+    const batch = captured.lineBatches - retainedBatches + Math.floor(index / LOG_LINES_PER_INVOCATION);
+    const line = index % LOG_LINES_PER_INVOCATION;
+    return { level: PLUGIN_LOG_LEVELS[line % PLUGIN_LOG_LEVELS.length], message: `batch:${batch}:${line}`, at: root.clock.frozenAt + batch + 1 };
+  });
+  expect(captured.lines).toEqual(expected);
+  expect(captured.limited).toEqual(expected.slice(-5));
+  const clampedLength = LOG_BYTES_PER_INVOCATION - "[warn] ".length;
+  const retainedChars = Math.floor(PLUGIN_LOG_RING_CHARS / clampedLength);
+  expect(captured.chars).toEqual(
+    Array.from({ length: retainedChars }, (_, index) => {
+      const batch = captured.charBatches - retainedChars + index;
+      return { level: "warn", message: `${batch}:`.padEnd(clampedLength, "x"), at: root.clock.frozenAt + captured.lineBatches + batch + 1 };
+    }),
+  );
+  expect(captured.chars.reduce((count, line) => count + line.message.length, 0)).toBeLessThanOrEqual(PLUGIN_LOG_RING_CHARS);
+  expect(captured.repeated).toEqual(captured.chars);
+  expect(captured.foreignRead).toEqual([expect.objectContaining({ status: "rejected", reason: expect.objectContaining({ code: "NOT_FOUND" }) })]);
+  expect(captured.disabled).toEqual([]);
+  expect(captured.restarted).toEqual(PLUGIN_LOG_LEVELS.map((level) => ({ level, message: `Native ${level}`, at: root.clock.now() })));
+});
 
 test("native guest publications preserve callback inputs, private storage, draft mode and disable cleanup", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });

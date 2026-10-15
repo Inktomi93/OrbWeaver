@@ -1,6 +1,7 @@
 import type { UiGuestInbound, UiGuestOutbound } from "@orb/client/lib";
 import { viewerViewSchema } from "@orb/contracts/identity";
-import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
+import { PLUGIN_LOG_LEVELS, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
+import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "@orb/server/infra/plugin-host";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
@@ -10,6 +11,7 @@ import type { Page } from "@playwright/test";
 import { PluginProtocolStory } from "./_ct-stories.tsx";
 
 const OBSERVATIONS = "orb-native-plugin-protocol";
+const LOG_OBSERVATIONS = `${OBSERVATIONS}:logs`;
 const BOOT_LOG_MESSAGE = "Native browser boot";
 const UI_SOURCE = `const ui = orb.ui(1);
 ui.log.info(${JSON.stringify(BOOT_LOG_MESSAGE)});
@@ -33,30 +35,78 @@ ui.onEvent(async ({ event, values }) => {
 });`;
 
 async function observeProtocol(page: Page): Promise<void> {
-  await page.evaluate((key) => {
-    const inbound: UiGuestInbound[] = [];
-    const outbound: UiGuestOutbound[] = [];
-    const save = (): void => sessionStorage.setItem(key, JSON.stringify({ inbound, outbound }));
-    const NativeWorker = globalThis.Worker;
-    globalThis.Worker = class extends NativeWorker {
-      constructor(...args: ConstructorParameters<typeof Worker>) {
-        super(...args);
-        this.addEventListener("message", (event: MessageEvent<UiGuestOutbound>) => {
-          outbound.push(event.data);
-          save();
-        });
-      }
-      override postMessage(message: UiGuestInbound, options?: StructuredSerializeOptions | Transferable[]): void {
-        inbound.push(message);
-        save();
-        if (Array.isArray(options)) {
-          super.postMessage(message, options);
-        } else {
-          super.postMessage(message, options);
+  await page.evaluate(
+    ({ key, logKey }) => {
+      const inbound: UiGuestInbound[] = [];
+      const outbound: UiGuestOutbound[] = [];
+      const save = (): void => {
+        sessionStorage.setItem(key, JSON.stringify({ inbound, outbound }));
+        sessionStorage.setItem(logKey, JSON.stringify(outbound.filter((message) => message.kind === "log")));
+      };
+      const NativeWorker = globalThis.Worker;
+      globalThis.Worker = class extends NativeWorker {
+        constructor(...args: ConstructorParameters<typeof Worker>) {
+          super(...args);
+          this.addEventListener("message", (event: MessageEvent<UiGuestOutbound>) => {
+            outbound.push(event.data);
+            save();
+          });
         }
-      }
-    };
-  }, OBSERVATIONS);
+        override postMessage(message: UiGuestInbound, options?: StructuredSerializeOptions | Transferable[]): void {
+          inbound.push(message);
+          save();
+          if (Array.isArray(options)) {
+            super.postMessage(message, options);
+          } else {
+            super.postMessage(message, options);
+          }
+        }
+      };
+    },
+    { key: OBSERVATIONS, logKey: LOG_OBSERVATIONS },
+  );
+}
+
+for (const mode of ["lines", "chars"] as const) {
+  test(`native Worker log ${mode} limits preserve actual severity and refuse later overflow without stopping rendering`, async ({ mount, page }) => {
+    const plugin = makePluginRow({ declaredCapabilities: ["ui.surface"], grantedCapabilities: ["ui.surface"] });
+    const settings = userSettingsView();
+    const caller = principal(settings.userId);
+    const me = viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role });
+    const trpc = await routeTrpc(page, {
+      "settings.getUserSettings": () => settings,
+      "sessions.me": () => me,
+      "plugin.list": () => [plugin],
+      "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+      "plugin.getSurfaceState": () => null,
+      "plugin.reportUiCrash": () => undefined,
+    });
+    const expected: Extract<UiGuestOutbound, { kind: "log" }>[] =
+      mode === "lines"
+        ? [
+            ...PLUGIN_LOG_LEVELS.map((level) => ({ kind: "log" as const, level, message: `Native ${level}` })),
+            ...Array.from({ length: LOG_LINES_PER_INVOCATION - PLUGIN_LOG_LEVELS.length }, (_, index) => ({
+              kind: "log" as const,
+              level: "info" as const,
+              message: `line:${index}`,
+            })),
+          ]
+        : [{ kind: "log", level: "warn", message: "x".repeat(LOG_BYTES_PER_INVOCATION) }];
+    const source = `const ui=orb.ui(1);
+      ${mode === "lines" ? `for(const level of ${JSON.stringify(PLUGIN_LOG_LEVELS)})ui.log[level]("Native "+level);for(let line=0;line<${LOG_LINES_PER_INVOCATION + 1};line+=1)ui.log.info("line:"+line);` : `ui.log.warn("x".repeat(${LOG_BYTES_PER_INVOCATION * 2}));ui.log.error("after byte cap");`}
+      const render=(value)=>ui.render("protocol",{kind:"stack",children:[{kind:"text",value},{kind:"button",label:"Try a late log",actionId:"late"}]});
+      render("Native logs settled");ui.onEvent(()=>{ui.log.error("after lifetime cap");render("Native late log settled");});`;
+    await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: source }));
+    await observeProtocol(page);
+    await mount(<PluginProtocolStory pluginId={plugin.id} />);
+    await expect(page.getByText("Native logs settled", { exact: true })).toBeVisible();
+    expect(await page.evaluate((key) => sessionStorage.getItem(key), LOG_OBSERVATIONS)).toBe(JSON.stringify(expected));
+    await page.getByRole("button", { name: "Try a late log", exact: true }).click();
+    await expect(page.getByText("Native late log settled", { exact: true })).toBeVisible();
+    expect(await page.evaluate((key) => sessionStorage.getItem(key), LOG_OBSERVATIONS)).toBe(JSON.stringify(expected));
+    expect(trpc.count("plugin.reportUiCrash")).toBe(0);
+    expect(trpc.unstubbed()).toEqual([]);
+  });
 }
 
 test("the native Worker exchanges boot, render, event, host-call/result and settlement through the production contribution", async ({ mount, page }) => {
