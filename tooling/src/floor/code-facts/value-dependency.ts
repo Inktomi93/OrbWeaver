@@ -2,13 +2,29 @@
 import type { CallExpression, Node as MorphNode, ts } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { readCallReturnProgram } from "./call-returns.ts";
-import { inspectReferenceWrites, readMemberReference, referenceResolutionServices } from "./reference-fact.ts";
+import {
+  inspectBindingReassignment,
+  inspectReferenceWrites,
+  readMemberReference,
+  referenceResolutionServices,
+  resolveStableExpression,
+} from "./reference-fact.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
-import type { CallReturnProgram, ReturnedValueSource, ReturnedValueTerminals } from "./reference-fact-contract.ts";
+import type { CallReturnObservations, CallReturnProgram, ReturnedValueInputs, ReturnedValueSource, ReturnedValueTerminals } from "./reference-fact-contract.ts";
+import { readNativeStringCallWith } from "./reference-fact-global.ts";
+import { readStaticAuthoredValue } from "./static-authored-value.ts";
 import { resolveTypeMemberOrigin } from "./type-member-origin.ts";
 import { resolveTypePropertyValue } from "./type-member-origin-core.ts";
 import { readReturnedValue, referencesOf } from "./value-carrier.ts";
-import type { OpaqueNativeValueBoundary, ValueDependencyContribution, ValueDependencyInput, ValueDependencyResult } from "./value-dependency-contract.ts";
+import type {
+  OpaqueNativeValueBoundary,
+  ReturnedDictionaryInput,
+  ReturnedDictionaryResult,
+  ReturnedDictionaryWrite,
+  ValueDependencyContribution,
+  ValueDependencyInput,
+  ValueDependencyResult,
+} from "./value-dependency-contract.ts";
 
 interface DependencyContext {
   readonly input: ValueDependencyInput;
@@ -343,4 +359,277 @@ function dependencyUses(read: DependencyRead, uses: readonly MorphNode[]): Depen
   return read.kind !== "read"
     ? read
     : { ...read, contributions: read.contributions.map((contribution) => ({ ...contribution, uses: [...contribution.uses, ...uses] })) };
+}
+
+interface DictionaryLoop {
+  readonly node: import("ts-morph").ForOfStatement;
+  readonly element: import("ts-morph").VariableDeclaration;
+  readonly values: readonly string[];
+  readonly origins: readonly MorphNode[];
+}
+
+function dictionaryLoop(node: MorphNode): DictionaryLoop | undefined {
+  if (!Node.isForOfStatement(node)) {
+    return;
+  }
+  const initializer = node.getInitializer();
+  if (
+    !Node.isVariableDeclarationList(initializer) ||
+    initializer.getDeclarationKind() !== VariableDeclarationKind.Const ||
+    initializer.getDeclarations().length !== 1
+  ) {
+    return;
+  }
+  const element = initializer.getDeclarations()[0];
+  const name = element?.getNameNode();
+  if (element === undefined || name === undefined || !Node.isIdentifier(name) || inspectReferenceWrites(name).kind !== "resolved") {
+    return;
+  }
+  const tuple = readStaticAuthoredValue(node.getExpression());
+  if (tuple.kind !== "resolved" || tuple.value.kind !== "tuple" || tuple.value.elements.length === 0) {
+    return;
+  }
+  const elements = tuple.value.elements;
+  if (elements.some((value) => value.kind !== "scalar" || typeof value.value !== "string")) {
+    return;
+  }
+  return {
+    node,
+    element,
+    values: elements.flatMap((value) => (value.kind === "scalar" && typeof value.value === "string" ? [value.value] : [])),
+    origins: tuple.trace.declarations,
+  };
+}
+
+function dictionaryKeys(key: MorphNode, loop: DictionaryLoop): readonly string[] | undefined {
+  if (!Node.isTemplateExpression(key)) {
+    return;
+  }
+  const spans = key.getTemplateSpans();
+  const span = spans[0];
+  if (spans.length !== 1 || span === undefined || localVariable(span.getExpression()) !== loop.element) {
+    return;
+  }
+  return loop.values.map((value) => `${key.getHead().getLiteralText()}${value}${span.getLiteral().getLiteralText()}`);
+}
+
+function dictionaryWriter(statement: MorphNode, binding: MorphNode, loop: DictionaryLoop, optional: boolean): ReturnedDictionaryWrite | undefined {
+  const expression = Node.isExpressionStatement(statement) ? statement.getExpression() : undefined;
+  if (!Node.isBinaryExpression(expression) || expression.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
+    return;
+  }
+  const left = expression.getLeft();
+  if (!Node.isElementAccessExpression(left) || localVariable(left.getExpression()) !== binding) {
+    return;
+  }
+  const key = left.getArgumentExpression();
+  const keys = key === undefined ? undefined : dictionaryKeys(key, loop);
+  if (key === undefined || keys === undefined || keys.some((name) => name === "__proto__")) {
+    return;
+  }
+  return { keys, key, value: expression.getRight(), statement, optional };
+}
+
+interface DictionaryContext {
+  readonly bindings: ReadonlyMap<MorphNode, MorphNode>;
+  readonly observations: CallReturnObservations;
+}
+
+function retainedDictionarySource(source: ReturnedValueSource, owner: MorphNode | undefined): boolean {
+  if (!source.present) {
+    return false;
+  }
+  if (source.path.length > 0) {
+    const origin = Node.isIdentifier(source.value) ? lexicalReferenceSymbol(source.value)?.getValueDeclaration() : undefined;
+    if (!Node.isParameterDeclaration(origin) || ownCallable(origin) === owner) {
+      return false;
+    }
+    const member = resolveTypePropertyValue(source.value, source.path);
+    return member.kind === "resolved" && (member.value.type.isString() || member.value.type.isStringLiteral());
+  }
+  return source.value.getType().isString() || source.value.getType().isStringLiteral();
+}
+
+function retainedDictionaryArm(value: import("ts-morph").VariableDeclaration, loop: DictionaryLoop, context: DictionaryContext): boolean {
+  const initial = value.getInitializer();
+  if (initial === undefined) {
+    return false;
+  }
+  const expression = referenceResolutionServices.unwrapExpression(initial);
+  const services = { ...referenceResolutionServices, readCallReturnProgram, resolveStableExpression };
+  const inputs: ReturnedValueInputs = {
+    terminals: (call: CallExpression): boolean => readNativeStringCallWith(call, context.observations, services).kind === "resolved",
+    bindings: context.bindings,
+    explicitAbsentReturns: true,
+  };
+  const selector = Node.isElementAccessExpression(expression) ? expression.getArgumentExpression() : undefined;
+  if (Node.isElementAccessExpression(expression) && selector !== undefined && localVariable(selector) === loop.element) {
+    const projected = loop.values.map((key) => readReturnedValue(expression.getExpression(), [key], context.observations, inputs));
+    return (
+      projected.every((source) => source.kind === "resolved") &&
+      projected.some((source) => source.value.some((retained) => retainedDictionarySource(retained, ownCallable(value))))
+    );
+  }
+  if (Node.isPropertyAccessExpression(expression) || Node.isCallExpression(expression)) {
+    const sources = readReturnedValue(initial, [], context.observations, inputs);
+    return sources.kind === "resolved" && sources.value.some((retained) => retainedDictionarySource(retained, ownCallable(value)));
+  }
+  const scalar = readStaticAuthoredValue(expression);
+  return scalar.kind === "resolved" && scalar.value.kind === "scalar" && typeof scalar.value.value === "string";
+}
+
+function optionalDictionaryWriter(
+  statement: MorphNode,
+  binding: MorphNode,
+  loop: DictionaryLoop,
+  context: DictionaryContext,
+): ReturnedDictionaryWrite | undefined {
+  if (!Node.isIfStatement(statement) || statement.getElseStatement() !== undefined) {
+    return;
+  }
+  const condition = statement.getExpression();
+  const branch = statement.getThenStatement();
+  if (
+    !Node.isBinaryExpression(condition) ||
+    condition.getOperatorToken().getKind() !== SyntaxKind.ExclamationEqualsEqualsToken ||
+    !condition.getRight().getType().isUndefined()
+  ) {
+    return;
+  }
+  const value = localVariable(condition.getLeft());
+  const valueName = value?.getNameNode();
+  if (
+    value === undefined ||
+    valueName === undefined ||
+    !Node.isIdentifier(valueName) ||
+    inspectReferenceWrites(valueName).kind !== "resolved" ||
+    value.getInitializer() === undefined
+  ) {
+    return;
+  }
+  const writes = Node.isBlock(branch) ? branch.getStatements() : [branch];
+  const write = writes.length === 1 && writes[0] !== undefined ? dictionaryWriter(writes[0], binding, loop, true) : undefined;
+  return write !== undefined &&
+    localVariable(write.value) === value &&
+    value.getType().getNonNullableType().isString() &&
+    retainedDictionaryArm(value, loop, context)
+    ? write
+    : undefined;
+}
+
+function dictionaryLoopWrites(loop: DictionaryLoop, binding: MorphNode, context: DictionaryContext): readonly ReturnedDictionaryWrite[] | undefined {
+  const body = loop.node.getStatement();
+  const statements = Node.isBlock(body) ? body.getStatements() : [body];
+  const writes: ReturnedDictionaryWrite[] = [];
+  for (const statement of statements) {
+    if (Node.isVariableStatement(statement)) {
+      const declarations = statement.getDeclarations();
+      if (statement.getDeclarationKind() !== VariableDeclarationKind.Const || declarations.length !== 1 || declarations[0]?.getInitializer() === undefined) {
+        return;
+      }
+      continue;
+    }
+    const write = dictionaryWriter(statement, binding, loop, false) ?? optionalDictionaryWriter(statement, binding, loop, context);
+    if (write === undefined) {
+      return;
+    }
+    writes.push(write);
+  }
+  return writes.length === 0 ? undefined : writes;
+}
+
+interface DictionaryBinding {
+  readonly binding: import("ts-morph").VariableDeclaration;
+  readonly scope: MorphNode;
+  readonly name: import("ts-morph").Identifier;
+  readonly body: import("ts-morph").Block;
+}
+
+function dictionaryBinding(value: MorphNode): DictionaryBinding | undefined {
+  const binding = localVariable(value);
+  const scope = binding === undefined ? undefined : ownCallable(binding);
+  const name = binding?.getNameNode();
+  const initial = binding?.getInitializer();
+  const body =
+    scope !== undefined &&
+    (Node.isFunctionDeclaration(scope) || Node.isFunctionExpression(scope) || Node.isArrowFunction(scope) || Node.isMethodDeclaration(scope))
+      ? scope.getBody()
+      : undefined;
+  const returned = value.getParent();
+  if (
+    binding === undefined ||
+    name === undefined ||
+    !Node.isIdentifier(name) ||
+    inspectBindingReassignment(name).kind !== "resolved" ||
+    initial === undefined ||
+    !Node.isObjectLiteralExpression(initial) ||
+    initial.getProperties().length > 0 ||
+    body === undefined ||
+    !Node.isBlock(body) ||
+    !Node.isReturnStatement(returned) ||
+    returned.getExpression() !== value
+  ) {
+    return;
+  }
+  const statements = body.getStatements();
+  const initialized = binding.getFirstAncestorByKind(SyntaxKind.VariableStatement);
+  if (statements[0] !== initialized || initialized?.getDeclarationKind() !== VariableDeclarationKind.Const || statements.at(-1) !== returned) {
+    return;
+  }
+  return scope === undefined ? undefined : { binding, scope, name, body };
+}
+
+/** Read finite tuple-indexed returned-map writes; optional keys stay optional and metadata remains untrusted. */
+export function readReturnedDictionary(input: ReturnedDictionaryInput): ReturnedDictionaryResult {
+  if (input.value.wasForgotten()) {
+    return unqualified(input.value, "Returned dictionary received a forgotten native value.");
+  }
+  const captured = readCallReturnProgram(input.value, input.observations);
+  if (captured.kind === "unresolved") {
+    return unqualified(captured.node, captured.detail);
+  }
+  const bound = dictionaryBinding(input.value);
+  if (bound === undefined) {
+    return unqualified(input.value, "Returned dictionary requires an initial immutable empty-object binding and direct final return.");
+  }
+  const { binding, scope, name, body } = bound;
+  const statements = body.getStatements();
+  const loops = statements.slice(1, -1).map(dictionaryLoop);
+  if (loops.length === 0 || loops.some((loop) => loop === undefined)) {
+    return unqualified(input.value, "Returned dictionary writes require actual immutable nonempty authored tuple loops.");
+  }
+  const writes: ReturnedDictionaryWrite[] = [];
+  const origins: MorphNode[] = [];
+  for (const loop of loops) {
+    if (loop === undefined) {
+      continue;
+    }
+    const found = dictionaryLoopWrites(loop, binding, { observations: input.observations, bindings: input.bindings ?? new Map() });
+    if (found === undefined) {
+      return unqualified(loop.node, "Returned dictionary has an unknown key, write, guard or empty writer.");
+    }
+    writes.push(...found);
+    origins.push(...loop.origins);
+  }
+  const accepted = new Set([
+    input.value.compilerNode,
+    ...writes.map(
+      (write) =>
+        (Node.isExpressionStatement(write.statement) ? write.statement.getExpression() : write.statement)
+          .getFirstChildByKind(SyntaxKind.ElementAccessExpression)
+          ?.getExpression().compilerNode,
+    ),
+  ]);
+  if (referencesOf(name, scope).some((reference) => !accepted.has(reference.compilerNode))) {
+    return unqualified(input.value, "Returned dictionary has an unaccounted write, read or escape.");
+  }
+  return {
+    kind: "qualified",
+    binding,
+    returned: input.value,
+    keys: [...new Set(writes.flatMap((write) => write.keys))],
+    writes,
+    vocabularyOrigins: origins,
+    dataTrust: { kind: "unqualified" },
+  };
 }

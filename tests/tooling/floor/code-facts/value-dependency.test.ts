@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
-import { readValueDependencyContribution } from "@orb/tooling/floor/code-facts/value-dependency";
+import { readReturnedDictionary, readValueDependencyContribution } from "@orb/tooling/floor/code-facts/value-dependency";
 import type { ValueDependencyResult } from "@orb/tooling/floor/code-facts/value-dependency-contract";
 import type { Node as MorphNode, SourceFile, ts } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
@@ -61,6 +61,35 @@ export function DeadAppend() { const out: number[] = []; return out; out.push(si
 export function ConditionalAppend() { const out: number[] = []; if (false) { out.push(signal()); } return out; }
 export function Cleared() { const out: number[] = []; out.push(signal()); out.length = 0; return out; }
 export function Escaped() { const out: number[] = []; consume(out); out.push(signal()); return out; }
+const ATTR_KEYS = ["size", "intent"] as const;
+export function AttrMap(source: Readonly<Record<string, string | undefined>>) {
+  const attrs: Record<string, string> = {};
+  for (const axis of ATTR_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } }
+  return attrs;
+}
+const absentMetadata: Readonly<Record<string, string | undefined>> = {};
+const presentMetadata: Readonly<Record<string, string | undefined>> = { size: "large", intent: "info" };
+export function AbsentMemberAttrMap() { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = absentMetadata[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function PresentMemberAttrMap() { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = presentMetadata[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function AnnotatedMemberAttrMap(source: { readonly size?: string }) { const attrs: Record<string, string> = {}; for (const axis of ["size"] as const) { const arm = source.size; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function EmptyAttrMap(source: Readonly<Record<string, string | undefined>>) { const attrs: Record<string, string> = {}; for (const axis of [] as const) { attrs[\`data-\${axis}\`] = source[axis] ?? ""; } return attrs; }
+export function FalseAttrMap() { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { if (false) { attrs[\`data-\${axis}\`] = "x"; } } return attrs; }
+export function PrefixAttrMap() { return {}; const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { attrs[\`data-\${axis}\`] = "x"; } return attrs; }
+export function EscapedAttrMap() { const attrs: Record<string, string> = {}; opaqueDictionary(attrs); for (const axis of ATTR_KEYS) { attrs[\`data-\${axis}\`] = "x"; } return attrs; }
+const MUTABLE_ATTR_KEYS = ["size", "intent"];
+MUTABLE_ATTR_KEYS.push("other");
+export function MutatedAttrMap() { const attrs: Record<string, string> = {}; for (const axis of MUTABLE_ATTR_KEYS) { attrs[\`data-\${axis}\`] = "x"; } return attrs; }
+function erasedArm(): string | undefined { return undefined; }
+export function ErasedAttrMap() { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = erasedArm(); if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+declare function opaqueArm(): string | undefined;
+export function OpaqueAttrMap() { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = opaqueArm(); if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function TypedOnlyConvertedAttrMap(source: Readonly<Record<string, string | undefined>>) { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = String(source[axis] ?? ""); if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+function convertMetadata(value: unknown): string | undefined { if (typeof value !== "string") { return; } return String(value); }
+export function NativeConvertedAttrMap(source: Readonly<Record<string, string | undefined>>) { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = convertMetadata(source[axis]); if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function AssertedAbsentAttrMap() { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = undefined as string | undefined; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function ShadowConvertedAttrMap() { function String(value: string): string | undefined { return undefined; } const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = String(axis); if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function ExtraAttrMap(key: string) { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { attrs[key] = "x"; } return attrs; }
+declare function opaqueDictionary(value: object): void;
 export function ShadowAppend() { const out: number[] = []; out.push = () => 0; out.push(signal()); return out; }
 `,
   );
@@ -72,7 +101,7 @@ export function ShadowAppend() { const out: number[] = []; out.push = () => 0; o
     throw new Error("missing native dependency source");
   }
   const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
-  const observations = observeCallReturns(calls, source.getDescendantsOfKind(SyntaxKind.Identifier));
+  const observations = observeCallReturns(calls, source.getDescendantsOfKind(SyntaxKind.Identifier), { explicitAbsentReturns: true });
   const terminals = new Set(
     calls.filter((call) => ["signal", "textSignal", "rows", "opaqueRows"].includes(call.getExpression().getText())).map((call) => call.compilerNode),
   );
@@ -142,4 +171,39 @@ test("captured authored parameter bindings retain the same actual native result 
   }
   expect(result.contributions.map(({ terminal }) => terminal.getText())).toEqual(["signal()"]);
   expect(result.dataTrust.kind).toBe("unqualified");
+});
+
+test("returned metadata maps retain finite authored keys and optional writes, not metadata trust or unsupported effects", ({ scratch }) => {
+  const { source, value, observations } = fixture(scratch);
+  const result = readReturnedDictionary({ value: value("PresentMemberAttrMap"), observations });
+  expect(result.kind, result.kind === "unqualified" ? result.reason : "finite native map").toBe("qualified");
+  if (result.kind !== "qualified") {
+    throw new Error("missing actual returned dictionary");
+  }
+  expect(result.keys).toEqual(["data-size", "data-intent"]);
+  expect(result.writes.map((write) => write.optional)).toEqual([true]);
+  expect(result.dataTrust.kind).toBe("unqualified");
+  expect(readReturnedDictionary({ value: value("PresentMemberAttrMap"), observations }).kind).toBe("qualified");
+  expect(readReturnedDictionary({ value: value("NativeConvertedAttrMap"), observations }).kind).toBe("qualified");
+  for (const name of [
+    "EmptyAttrMap",
+    "FalseAttrMap",
+    "PrefixAttrMap",
+    "EscapedAttrMap",
+    "ExtraAttrMap",
+    "MutatedAttrMap",
+    "ErasedAttrMap",
+    "OpaqueAttrMap",
+    "ShadowConvertedAttrMap",
+    "TypedOnlyConvertedAttrMap",
+    "AssertedAbsentAttrMap",
+    "AbsentMemberAttrMap",
+    "AttrMap",
+    "AnnotatedMemberAttrMap",
+  ]) {
+    expect(readReturnedDictionary({ value: value(name), observations }).kind, name).toBe("unqualified");
+  }
+  const stale = value("PresentMemberAttrMap");
+  source.insertStatements(0, "export const nextMetadataEpoch = 1;");
+  expect(readReturnedDictionary({ value: stale, observations }).kind).toBe("unqualified");
 });

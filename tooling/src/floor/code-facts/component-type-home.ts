@@ -4,7 +4,7 @@ import { Node, SymbolFlags, SyntaxKind } from "ts-morph";
 import { worldOf } from "../compiler/project-worlds.ts";
 import { canonicalCompilerPath, descendantsOfKind, registeredSemanticSourceView, semanticWorkspaceOf } from "../compiler/ts-workspace.ts";
 import type { SemanticSourceView } from "../compiler/ts-workspace-contract.ts";
-import { observeCallReturns, readFunctionReturnPaths } from "./call-returns.ts";
+import { observeCallReturns, readCallBindings, readFunctionReturnPaths } from "./call-returns.ts";
 import type {
   ComponentLowerDataEvidence,
   ComponentRenderEvidence,
@@ -12,6 +12,7 @@ import type {
   ComponentTypeHomeResult,
   ComponentTypeHomeView,
   NativeComponentRenderContribution,
+  PrimitiveAttributeApiEvidence,
 } from "./component-type-home-contract.ts";
 import { ComponentTypeHomeComparisonError } from "./component-type-home-contract.ts";
 import { referenceResolutionServices, resolveStableExpression } from "./reference-fact.ts";
@@ -26,7 +27,7 @@ import { packageTypeHome } from "./type-home.ts";
 import { declaredByPackage, resolveTypeIdentityChain } from "./type-member-origin.ts";
 import { resolveTypePropertyOrigin } from "./type-member-origin-core.ts";
 import { readReturnedValue } from "./value-carrier.ts";
-import { readValueDependencyContribution } from "./value-dependency.ts";
+import { readReturnedDictionary, readValueDependencyContribution } from "./value-dependency.ts";
 
 /** Capture the delivered native owner's program/source epoch without opening another compiler world. */
 export function captureComponentTypeHomeView(view: SemanticSourceView): ComponentTypeHomeView {
@@ -226,10 +227,14 @@ function renderReturns(callable: MorphNode, sources: ReadonlySet<SourceFile>): r
   return expressions.some((value) => value.getKind() !== SyntaxKind.NullKeyword) ? expressions : undefined;
 }
 
-function supportingTypeKeys(parameter: ParameterDeclaration, graph: ComponentTypeGraph, view: ComponentTypeHomeView): ReadonlySet<string> {
+function supportingTypeKeys(
+  parameter: ParameterDeclaration | import("ts-morph").TypeNode,
+  graph: ComponentTypeGraph,
+  view: ComponentTypeHomeView,
+): ReadonlySet<string> {
   const identity = resolveTypeIdentityChain(parameter);
   const pending = identity.kind === "resolved" ? identity.value.flatMap((origin) => origin.declarations.map(inventoryDeclarationKey)) : [];
-  const annotation = parameter.getTypeNode();
+  const annotation = Node.isParameterDeclaration(parameter) ? parameter.getTypeNode() : parameter;
   if (annotation !== undefined) {
     for (const identifier of annotation.getDescendantsOfKind(SyntaxKind.Identifier)) {
       if (supportedGenericReference(identifier, view)) {
@@ -266,7 +271,8 @@ function componentEvidence(input: ComponentTypeHomeInput): ComponentOriginRead {
     }
     const { callable, parameter, returns, view } = rendered;
     const visited = supportingTypeKeys(parameter, graph, view);
-    if (visited.has(target)) {
+    const primitive = visited.has(target) ? undefined : primitiveAttributeEvidence(rendered, input, sources, graph);
+    if (visited.has(target) || primitive !== undefined) {
       evidence = {
         callable,
         parameter,
@@ -275,7 +281,8 @@ function componentEvidence(input: ComponentTypeHomeInput): ComponentOriginRead {
           const contribution = Node.isCallExpression(value) ? nativeRenderContribution(value) : undefined;
           return contribution === undefined ? [] : [contribution];
         }),
-        supportingDeclarations: graph.declarations.filter((type) => visited.has(inventoryDeclarationKey(type))),
+        ...(primitive === undefined ? {} : { primitiveAttributes: [primitive] }),
+        supportingDeclarations: graph.declarations.filter((type) => visited.has(inventoryDeclarationKey(type)) || type === input.declaration),
       };
       break;
     }
@@ -426,4 +433,178 @@ function nativeRenderTarget(
     program.getSourceFile(target.sourceFile.getFilePath()) !== target.sourceFile.compilerNode
     ? undefined
     : target;
+}
+
+function intrinsicDomTag(tag: MorphNode): MorphNode | undefined {
+  if (!Node.isIdentifier(tag)) {
+    return;
+  }
+  const program = tag.getProject().getProgram().compilerObject;
+  const map = tag.getSymbolsInScope(SymbolFlags.Type).find((symbol) => symbol.getName() === "HTMLElementTagNameMap");
+  const declaration = map?.getDeclarations()[0];
+  if (declaration === undefined || !program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode)) {
+    return;
+  }
+  const property = resolveTypePropertyOrigin(declaration, tag.getText());
+  return property.kind === "resolved" ? property.value[0] : undefined;
+}
+
+function spreadElement(
+  spread: import("ts-morph").JsxSpreadAttribute,
+): import("ts-morph").JsxOpeningElement | import("ts-morph").JsxSelfClosingElement | undefined {
+  return spread.getFirstAncestor(
+    (node): node is import("ts-morph").JsxOpeningElement | import("ts-morph").JsxSelfClosingElement =>
+      Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node),
+  );
+}
+
+function spreadCannotWrite(
+  spread: import("ts-morph").JsxSpreadAttribute,
+  keys: readonly string[],
+  observations: import("./reference-fact-contract.ts").CallReturnObservations,
+): boolean {
+  return keys.every((key) => {
+    const sources = readReturnedValue(spread.getExpression(), [key], observations, new Set());
+    return sources.kind === "resolved" && sources.value.every((source) => !source.present);
+  });
+}
+
+function laterAttributesRetain(
+  spread: import("ts-morph").JsxSpreadAttribute,
+  keys: readonly string[],
+  observations: import("./reference-fact-contract.ts").CallReturnObservations,
+): boolean {
+  const parent = spreadElement(spread);
+  if (parent === undefined) {
+    return false;
+  }
+  return parent
+    .getAttributes()
+    .slice(parent.getAttributes().indexOf(spread) + 1)
+    .every((attribute) =>
+      Node.isJsxAttribute(attribute)
+        ? !keys.includes(attribute.getNameNode().getText())
+        : Node.isJsxSpreadAttribute(attribute) && spreadCannotWrite(attribute, keys, observations),
+    );
+}
+
+function dictionaryApiDeclaration(
+  declaration: ComponentTypeHomeInput["declaration"],
+  callable: MorphNode,
+  origins: readonly MorphNode[],
+  context: { readonly input: ComponentTypeHomeInput; readonly graph: ComponentTypeGraph },
+): boolean {
+  if (!(Node.isFunctionDeclaration(callable) || Node.isArrowFunction(callable) || Node.isFunctionExpression(callable))) {
+    return false;
+  }
+  const returned = callable.getReturnTypeNode();
+  if (
+    returned !== undefined &&
+    Node.isTypeReference(returned) &&
+    declarationBindingKeys(returned.getTypeName()).includes(inventoryDeclarationKey(declaration))
+  ) {
+    return true;
+  }
+  const view = componentViews(context.input).find((candidate) => candidate.sourceFile === callable.getSourceFile());
+  if (returned === undefined || view === undefined || !supportingTypeKeys(returned, context.graph, view).has(inventoryDeclarationKey(declaration))) {
+    return false;
+  }
+  const body = Node.isTypeAliasDeclaration(declaration) ? declaration.getTypeNode() : undefined;
+  if (body === undefined || !Node.isIndexedAccessTypeNode(body) || body.getIndexTypeNode().getKind() !== SyntaxKind.NumberKeyword) {
+    return false;
+  }
+  let query = body.getObjectTypeNode();
+  while (Node.isParenthesizedTypeNode(query)) {
+    query = query.getTypeNode();
+  }
+  const originKeys = new Set(origins.map(inventoryDeclarationKey));
+  return Node.isTypeQuery(query) && declarationBindingKeys(query.getExprName()).some((key) => originKeys.has(key));
+}
+
+function returnedAttributeKeys(call: import("ts-morph").CallExpression, keys: readonly string[]): boolean {
+  const type = call.getType();
+  const properties = type.getProperties();
+  return (
+    properties.length === keys.length &&
+    properties.every((property) => keys.includes(property.getName())) &&
+    type.getStringIndexType() === undefined &&
+    type.getNumberIndexType() === undefined
+  );
+}
+
+function attributeHelper(
+  call: import("ts-morph").CallExpression,
+  sources: ReadonlySet<SourceFile>,
+):
+  | {
+      readonly callable: MorphNode;
+      readonly observations: import("./reference-fact-contract.ts").CallReturnObservations;
+      readonly dictionary: PrimitiveAttributeApiEvidence["dictionary"];
+    }
+  | undefined {
+  const helper = resolveCallableValueDeclaration(call);
+  if (helper.kind !== "resolved" || !sources.has(helper.value.sourceFile)) {
+    return;
+  }
+  const returned = readFunctionReturnPaths(helper.value.declaration);
+  if (returned.kind !== "resolved" || returned.value.length !== 1 || returned.value[0] === undefined) {
+    return;
+  }
+  const observations = observeCallReturns([call, ...helper.value.declaration.getDescendantsOfKind(SyntaxKind.CallExpression)], undefined, {
+    explicitAbsentReturns: true,
+  });
+  const dictionary = readReturnedDictionary({ value: returned.value[0], observations, bindings: readCallBindings(call, helper.value.declaration, new Map()) });
+  return dictionary.kind !== "qualified" ||
+    dictionary.keys.some((key) => !key.startsWith("data-") || key.length <= "data-".length) ||
+    !returnedAttributeKeys(call, dictionary.keys)
+    ? undefined
+    : { callable: helper.value.declaration, observations, dictionary };
+}
+
+function primitiveAttributeAtSpread(
+  spread: import("ts-morph").JsxSpreadAttribute,
+  context: {
+    readonly rendered: RenderedCallable;
+    readonly input: ComponentTypeHomeInput;
+    readonly sources: ReadonlySet<SourceFile>;
+    readonly graph: ComponentTypeGraph;
+  },
+): PrimitiveAttributeApiEvidence | undefined {
+  const site = spreadElement(spread);
+  const owner = spread.getFirstAncestor((node) => Node.isFunctionDeclaration(node) || Node.isArrowFunction(node) || Node.isFunctionExpression(node));
+  if (site === undefined || owner !== context.rendered.callable) {
+    return;
+  }
+  const domTag = intrinsicDomTag(site.getTagNameNode());
+  const call = referenceResolutionServices.unwrapExpression(spread.getExpression());
+  if (domTag === undefined || !Node.isCallExpression(call)) {
+    return;
+  }
+  const helper = attributeHelper(call, context.sources);
+  if (
+    helper === undefined ||
+    !laterAttributesRetain(spread, helper.dictionary.keys, helper.observations) ||
+    !dictionaryApiDeclaration(context.input.declaration, helper.callable, helper.dictionary.vocabularyOrigins, context)
+  ) {
+    return;
+  }
+  return { callable: helper.callable, call, consumedSpread: spread, domTag, dictionary: helper.dictionary };
+}
+
+function primitiveAttributeEvidence(
+  rendered: RenderedCallable,
+  input: ComponentTypeHomeInput,
+  sources: ReadonlySet<SourceFile>,
+  graph: ComponentTypeGraph,
+): PrimitiveAttributeApiEvidence | undefined {
+  for (const returned of rendered.returns) {
+    for (const spread of returned.getDescendantsOfKind(SyntaxKind.JsxSpreadAttribute)) {
+      const evidence = primitiveAttributeAtSpread(spread, { rendered, input, sources, graph });
+      if (evidence !== undefined) {
+        return evidence;
+      }
+    }
+  }
+  // biome-ignore lint/complexity/noUselessUndefined: noImplicitReturns requires the unsupported result.
+  return undefined;
 }
