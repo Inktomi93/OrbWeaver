@@ -1,6 +1,6 @@
 import type { CatalogRefreshSchedulerDeps } from "../catalog-refresh-scheduler.ts";
 import type { WorkloadScheduleSchedulerDeps } from "../workload-schedule-scheduler.ts";
-import type { WorkloadsWorkerDeps } from "../workloads-worker.ts";
+import type { WorkloadsWorkerDeps } from "./workloads-worker.ts";
 
 export interface ServiceJobsDeps {
   readonly catalog: CatalogRefreshSchedulerDeps;
