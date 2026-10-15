@@ -6,7 +6,6 @@ import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
 import { auditLogs, themes, userSettings } from "@orb/db";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { and, eq, inArray } from "drizzle-orm";
 import type { CorpusRead } from "../iso/corpus.ts";
 import { seedStats } from "./factories/stats.ts";
@@ -100,6 +99,8 @@ interface StatsSettingsCaptures {
     readonly character: Awaited<ReturnType<Caller["character"]["create"]>>;
     readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
     readonly rows: Awaited<ReturnType<typeof seedStats>>;
+    readonly turn: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["send"]>>;
+    readonly latency: CorpusRead<"stats.latency">;
     readonly projection: {
       readonly ownerCharacter: CorpusRead<"stats.character">;
       readonly foreignCharacter: CorpusRead<"stats.character">;
@@ -224,7 +225,12 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     }),
   });
   const foreignRoom = await foreign.chat.startChat({ characterIds: [foreignCharacter.id], opening: "none" });
-  await foreign.chat.commitMessage({ chatId: foreignRoom.chat.id, timeZone: UTC_TIME_ZONE, content: "A foreign owner keeps this distinct native history." });
+  const foreignTurn = await root.services.chat.send({
+    principal: await root.principalFor(foreignUserId),
+    chatId: foreignRoom.chat.id,
+    content: "A foreign owner keeps this distinct native history.",
+  });
+  const foreignLatency = await read<"stats.latency">({ kind: "character", characterId: foreignCharacter.id }, foreign.stats.latency);
   const foreignStats = await seedStats(root.db, root.services.stats.reconcile, foreignUserId);
   const reconciled = await read<"stats.reconcile">(undefined, caller.stats.reconcile);
   const rows = await seedStats(root.db, root.services.stats.reconcile, root.ownerId);
@@ -355,7 +361,15 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     rows,
     stats,
     afterRepeat,
-    foreign: { userId: foreignUserId, character: foreignCharacter, room: foreignRoom, rows: foreignStats, projection: foreignProjection },
+    foreign: {
+      userId: foreignUserId,
+      character: foreignCharacter,
+      room: foreignRoom,
+      rows: foreignStats,
+      turn: foreignTurn,
+      latency: foreignLatency,
+      projection: foreignProjection,
+    },
     settings: {
       before: settingsBefore,
       initialThemes,
