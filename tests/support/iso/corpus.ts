@@ -86,6 +86,20 @@ const corpusAuthSchema = z.strictObject({
   signedInMe: authMeSchema,
 });
 
+/** Public responses captured with one native cookie; these bytes do not authenticate another request. */
+export const corpusCookieIdentitySchema = z
+  .strictObject({ viewer: viewerViewSchema, authMe: authMeSchema, authConfig: authConfigSchema })
+  .refine(
+    ({ viewer, authMe, authConfig }) =>
+      authConfig.mode === "local" && authMe.authenticated && authMe.handle === viewer.handle && authMe.role === viewer.globalRole,
+    "Corpus cookie identity response mismatch",
+  );
+export type CorpusCookieIdentity = z.output<typeof corpusCookieIdentitySchema>;
+const memberIdentitiesSchema = z
+  .strictObject({ notificationReader: corpusCookieIdentitySchema, sharedMember: corpusCookieIdentitySchema })
+  .refine(({ notificationReader, sharedMember }) => notificationReader.viewer.userId !== sharedMember.viewer.userId, "Corpus member identity cohort mismatch");
+export type CorpusMemberIdentities = z.output<typeof memberIdentitiesSchema>;
+
 const corpusOidcSchema = z.strictObject({
   anonymousConfig: authConfigSchema,
   ownerMe: authMeSchema,
@@ -103,36 +117,52 @@ export const corpusReadInput = {
   document: ({ id }: Pick<z.output<typeof documentDetailViewSchema>, "id">): TrpcInput<"databank.get"> => ({ id, includeText: true }),
 };
 
-const publishedCorpusSchema = z.strictObject({
-  auth: corpusAuthSchema,
-  oidc: corpusOidcSchema.optional(),
-  health: healthResponseSchema,
-  notificationInbox: notificationInboxSchema.optional(),
-  chatLifecycleMember: chatLifecycleMemberSchema.optional(),
-  worldInfoLibrary: worldInfoLibrarySchema.optional(),
-  regexLibrary: regexLibrarySchema.optional(),
-  reads: z.strictObject({
-    "sessions.me": viewerViewSchema.array(),
-    "settings.getUserSettings": userSettingsViewSchema.array(),
-    "settings.listThemes": themeViewSchema.array().array(),
-    "character.list": listCharactersResultSchema.array(),
-    "character.count": z.int().nonnegative().array(),
-    "persona.list": personaDetailSchema.array().array(),
-    "persona.get": personaDetailSchema.array(),
-    "chat.listChats": chatListPageSchema.array(),
-    "chat.countChats": z.int().nonnegative().array(),
-    "chat.getChat": chatDetailSchema.array(),
-    "databank.get": documentDetailViewSchema.array(),
-    "databank.list": listDocumentsResultSchema.array(),
-    "databank.bankHealth": bankHealthViewSchema.array(),
-    "notifications.list": listInboxResultSchema.array(),
-    "tag.listPendingSuggestions": tagSuggestionViewSchema.array().array(),
-    "worldInfo.countBooks": z.int().nonnegative().array(),
-    "regex.countScripts": z.int().nonnegative().array(),
-    "rosterPreset.count": z.int().nonnegative().array(),
-    "automation.getOwnerBudgets": ownerBudgetViewSchema.array(),
-  }),
-});
+const publishedCorpusSchema = z
+  .strictObject({
+    auth: corpusAuthSchema,
+    oidc: corpusOidcSchema.optional(),
+    health: healthResponseSchema,
+    notificationInbox: notificationInboxSchema.optional(),
+    chatLifecycleMember: chatLifecycleMemberSchema.optional(),
+    worldInfoLibrary: worldInfoLibrarySchema.optional(),
+    regexLibrary: regexLibrarySchema.optional(),
+    memberIdentities: memberIdentitiesSchema.optional(),
+    reads: z.strictObject({
+      "sessions.me": viewerViewSchema.array(),
+      "settings.getUserSettings": userSettingsViewSchema.array(),
+      "settings.listThemes": themeViewSchema.array().array(),
+      "character.list": listCharactersResultSchema.array(),
+      "character.count": z.int().nonnegative().array(),
+      "persona.list": personaDetailSchema.array().array(),
+      "persona.get": personaDetailSchema.array(),
+      "chat.listChats": chatListPageSchema.array(),
+      "chat.countChats": z.int().nonnegative().array(),
+      "chat.getChat": chatDetailSchema.array(),
+      "databank.get": documentDetailViewSchema.array(),
+      "databank.list": listDocumentsResultSchema.array(),
+      "databank.bankHealth": bankHealthViewSchema.array(),
+      "notifications.list": listInboxResultSchema.array(),
+      "tag.listPendingSuggestions": tagSuggestionViewSchema.array().array(),
+      "worldInfo.countBooks": z.int().nonnegative().array(),
+      "regex.countScripts": z.int().nonnegative().array(),
+      "rosterPreset.count": z.int().nonnegative().array(),
+      "automation.getOwnerBudgets": ownerBudgetViewSchema.array(),
+    }),
+  })
+  .refine(({ memberIdentities, notificationInbox, chatLifecycleMember }) => {
+    if (memberIdentities === undefined) {
+      return true;
+    }
+    const readerId = memberIdentities.notificationReader.viewer.userId;
+    const sharedId = memberIdentities.sharedMember.viewer.userId;
+    return (
+      (notificationInbox === undefined ||
+        [notificationInbox.readerRaised, notificationInbox.readerRead, notificationInbox.readerSettled, notificationInbox.readerFinal].every(
+          (snapshot) => snapshot.viewerUserId === readerId,
+        )) &&
+      (chatLifecycleMember === undefined || Object.values(chatLifecycleMember).every((snapshot) => snapshot.viewerUserId === sharedId))
+    );
+  }, "Corpus member identity viewer mismatch");
 
 export interface CorpusReads {
   readonly "sessions.me": readonly CorpusRead<"sessions.me">[];
@@ -158,6 +188,7 @@ export interface CorpusReads {
 
 /** Serializable input produced by the Node publisher, not an intake for arbitrary procedure requests. */
 export interface CorpusWireInput {
+  readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
   readonly regexLibrary?: CorpusRegexLibrary;
   readonly auth: z.input<typeof corpusAuthSchema>;
@@ -169,6 +200,7 @@ export interface CorpusWireInput {
 }
 
 export interface CorpusWire {
+  readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
   readonly regexLibrary?: CorpusRegexLibrary;
   readonly auth: z.output<typeof corpusAuthSchema>;
@@ -188,6 +220,9 @@ function hydrateReads<P extends TrpcProcedurePath>(
 
 /** Validate published captures through their real owners while preserving each exact captured input. */
 export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
+  if (input.memberIdentities !== undefined) {
+    memberIdentitiesSchema.parse(input.memberIdentities);
+  }
   if (input.worldInfoLibrary !== undefined) {
     publishWorldInfoLibrary(input.worldInfoLibrary);
   }
@@ -205,6 +240,7 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
     auth: corpusAuthSchema.parse(input.auth),
     ...(input.oidc === undefined ? {} : { oidc: corpusOidcSchema.parse(input.oidc) }),
     health: healthResponseSchema.parse(input.health),
+    ...(input.memberIdentities === undefined ? {} : { memberIdentities: input.memberIdentities }),
     ...(input.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: input.worldInfoLibrary }),
     ...(input.regexLibrary === undefined ? {} : { regexLibrary: input.regexLibrary }),
     ...(input.notificationInbox === undefined ? {} : { notificationInbox: input.notificationInbox }),
@@ -290,6 +326,7 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
     auth: published.auth,
     ...(published.oidc === undefined ? {} : { oidc: published.oidc }),
     health: published.health,
+    ...(published.memberIdentities === undefined ? {} : { memberIdentities: published.memberIdentities }),
     ...(published.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: hydrateWorldInfoLibrary(published.worldInfoLibrary) }),
     ...(published.regexLibrary === undefined ? {} : { regexLibrary: hydrateRegexLibrary(published.regexLibrary) }),
     ...(published.notificationInbox === undefined ? {} : { notificationInbox: hydrateInbox(published.notificationInbox) }),
@@ -358,6 +395,7 @@ export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]
     auth: wire.auth,
     ...(wire.oidc === undefined ? {} : { oidc: wire.oidc }),
     health: wire.health,
+    ...(wire.memberIdentities === undefined ? {} : { memberIdentities: wire.memberIdentities }),
     ...(wire.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: publishWorldInfoLibrary(wire.worldInfoLibrary) }),
     ...(wire.regexLibrary === undefined ? {} : { regexLibrary: publishRegexLibrary(wire.regexLibrary) }),
     ...(wire.notificationInbox === undefined ? {} : { notificationInbox: publishInbox(wire.notificationInbox) }),

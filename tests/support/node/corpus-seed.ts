@@ -16,6 +16,7 @@ import type { SeedDemoResult } from "@orb/tooling/seed";
 import { loadDemoSeed, SECOND_HUMAN_HANDLE } from "@orb/tooling/seed";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
+import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
@@ -414,6 +415,8 @@ interface CorpusConnections {
 
 interface CapturedCookieAuth {
   readonly auth: CorpusWire["auth"];
+  readonly identity: Awaited<ReturnType<typeof captureCorpusCookieIdentity>>;
+  readonly cookie: string;
   readonly loginBuckets: Awaited<ReturnType<typeof seedLoginBuckets>>["buckets"];
   readonly secrets: readonly string[];
 }
@@ -564,9 +567,9 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
 }
 
 /** Capture the actual HTTP cookie path for Node corpus readers. */
-export async function captureCookieAuth(root: ServerHarness, owner: Principal, password: string): Promise<CapturedCookieAuth> {
+export async function captureCookieAuth(root: ServerHarness, viewer: Principal, password: string): Promise<CapturedCookieAuth> {
   const caller = await root.internalCallerFor(root.ownerId);
-  await caller.admin.resetPassword({ userId: root.ownerId, password });
+  await caller.admin.resetPassword({ userId: viewer.userId, password });
   const anonymousConfigResponse = await root.http.request("/api/auth/config");
   if (!anonymousConfigResponse.ok) {
     throw new Error(`synthetic corpus auth-config request failed (${anonymousConfigResponse.status})`);
@@ -588,26 +591,27 @@ export async function captureCookieAuth(root: ServerHarness, owner: Principal, p
     {
       method: "POST",
       headers: { [CSRF_HEADER]: "1", "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ handle: owner.handle, password }),
+      body: new URLSearchParams({ handle: viewer.handle, password }),
     },
   ]);
   if (!login.ok) {
-    throw new Error(`synthetic corpus owner login failed (${login.status})`);
+    throw new Error(`synthetic corpus viewer login failed (${login.status})`);
   }
+  await login.arrayBuffer();
   const cookie = login.headers
     .getSetCookie()
     .map((line) => line.split(";", 1).join(""))
     .join("; ");
   if (cookie === "") {
-    throw new Error("synthetic corpus owner login returned no session cookie");
+    throw new Error("synthetic corpus viewer login returned no session cookie");
   }
   const signedInMeResponse = await root.http.request("/api/auth/me", { headers: { cookie } });
   if (!signedInMeResponse.ok) {
     throw new Error(`synthetic corpus signed-in identity request failed (${signedInMeResponse.status})`);
   }
   const signedInMe = authMeSchema.parse(await signedInMeResponse.json());
-  if (!signedInMe.authenticated || signedInMe.handle !== owner.handle || signedInMe.role !== owner.role) {
-    throw new Error("synthetic corpus login cookie did not admit the actual seeded owner");
+  if (!signedInMe.authenticated || signedInMe.handle !== viewer.handle || signedInMe.role !== viewer.role) {
+    throw new Error("synthetic corpus login cookie did not admit the actual seeded viewer");
   }
   const signedInConfigResponse = await root.http.request("/api/auth/config", { headers: { cookie } });
   if (!signedInConfigResponse.ok) {
@@ -616,6 +620,8 @@ export async function captureCookieAuth(root: ServerHarness, owner: Principal, p
   const signedInConfig = authConfigSchema.parse(await signedInConfigResponse.json());
   return {
     auth: { anonymousConfig, anonymousMe, signedInConfig, signedInMe },
+    identity: await captureCorpusCookieIdentity(root, viewer, cookie),
+    cookie,
     loginBuckets,
     secrets: [password, cookie, readSessionCookie(new Headers({ cookie }), "http")].filter((value) => value !== null),
   };
