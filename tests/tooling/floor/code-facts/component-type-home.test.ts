@@ -283,15 +283,23 @@ test("native DOM origins establish arbitrary names, supporting variants, render 
 });
 
 test("names, unused declarations, wrappers and known lower-data overlaps never manufacture ownership", ({ scratch, repoRoot }) => {
-  const { read } = fixture(scratch, repoRoot);
-  for (const name of ["UnusedProps", "ImpostorProps", "WrappedApi", "MutatedApi"]) {
-    expect(read(name), name).toMatchObject({ kind: "unqualified", component: null });
+  beginReferencePass();
+  try {
+    const { read } = fixture(scratch, repoRoot);
+    for (const name of ["UnusedProps", "ImpostorProps", "WrappedApi", "MutatedApi"]) {
+      expect(read(name), name).toMatchObject({ kind: "unqualified", component: null });
+    }
+    for (const name of ["ErasedVocabulary", "ShadowVocabulary", "NativeNeverVocabulary"]) {
+      expect(read(name), name).toMatchObject({ kind: "unqualified", reason: expect.stringContaining("opaque generic") });
+    }
+    expect(read("CopyProps")).toMatchObject({
+      kind: "unqualified",
+      lowerData: { kind: "unqualified", comparisons: [{ shared: 4, agreeing: 4, exact: true }] },
+    });
+    expect(read("Derived")).toMatchObject({ kind: "owned", lowerData: { kind: "derived" } });
+  } finally {
+    endReferencePass();
   }
-  for (const name of ["ErasedVocabulary", "ShadowVocabulary", "NativeNeverVocabulary"]) {
-    expect(read(name), name).toMatchObject({ kind: "unqualified", reason: expect.stringContaining("opaque generic") });
-  }
-  expect(read("CopyProps")).toMatchObject({ kind: "unqualified", lowerData: { kind: "unqualified", comparisons: [{ shared: 4, agreeing: 4, exact: true }] } });
-  expect(read("Derived")).toMatchObject({ kind: "owned", lowerData: { kind: "derived" } });
 });
 
 test("Node React fallback, foreign/barrel views, and forgotten source identities refuse", ({ scratch, repoRoot }) => {
@@ -839,5 +847,74 @@ test("returned attribute API follows exact producer and final JSX spread, not ov
   }
   for (const name of ["DroppedMap", "UnknownMap", "UnusedMap", "TvShapedUnused", "UnusedDisplayKeys", "ErasedDisplayKeys", "MixedDisplayKeys", "WrongKeyMap"]) {
     expect(read(name).kind, name).toBe("unqualified");
+  }
+});
+
+test(
+  "actual cached search API owns its supplied options while the unresolved smooth lifetime stays explicit",
+  ({ repoRoot }) => {
+    const config = "packages/ui/tsconfig.json";
+    const workspace = createSemanticWorkspace({ root: repoRoot, programs: readCompilerPrograms(repoRoot).filter((program) => program.config === config) });
+    const result = readRealComponentHome(repoRoot, workspace, { config, path: "packages/ui/src/fuzzy-search/fuzzy-search.ts", name: "FuzzySearchOptions" });
+    expect(result.kind, result.kind !== "owned" ? result.reason : "actual supplied native search API").toBe("owned");
+    if (result.kind !== "owned") {
+      throw new Error("missing actual search API ownership");
+    }
+    expect(result.component.primitiveSearches?.length).toBe(1);
+    expect(result.lowerData.kind).toBe("unqualified");
+    const smooth = readRealComponentHome(repoRoot, workspace, {
+      config,
+      path: "packages/ui/src/stream/use-smooth-text.ts",
+      name: "UseSmoothTextOptions",
+      supportPath: "packages/ui/src/stream/stream-text.tsx",
+    });
+    expect(smooth.kind).toBe("unqualified");
+  },
+  scaledBudget(60_000),
+);
+
+test("native search ownership follows the actual options member and returned lookup, not names or an unused native call", async ({ plantedTree, repoRoot }) => {
+  const config = "packages/ui/tsconfig.json";
+  const path = "packages/ui/src/lookup.ts";
+  const body = (name: string, parameter: string, fields: string, returned: string): string =>
+    `export function ${name}(items:readonly {id:string,label:string}[],query:string,options:${parameter}) { const ms = new MiniSearch({fields:${fields} as string[]}); const hits = ms.search(query); const byId = new Map(items.map(it=>[it.id,it] as const)); const out:{id:string,label:string}[]=[]; for(const hit of hits) {const item=byId.get(hit.id as string); if(item!==undefined) {out.push(item);} } return ${returned}; }`;
+  const root = await plantedTree({
+    "package.json": '{"type":"module"}',
+    ".gitignore": "node_modules\n",
+    [config]: JSON.stringify({
+      compilerOptions: { strict: true, skipLibCheck: true, target: "ES2022", module: "ESNext", moduleResolution: "Bundler", lib: ["ES2022", "DOM"], types: [] },
+      files: ["src/lookup.ts"],
+    }),
+    "packages/ui/src/engine.ts": 'export {default as Engine} from "minisearch";',
+    [path]: `import MiniSearch from "minisearch";
+import {Engine as ForwardedEngine} from "./engine.js";
+export interface ArbitraryInput {readonly fields:readonly string[];}
+export interface CosmeticProps {readonly fields:readonly string[];}
+export interface DiscardedApi {readonly fields:readonly string[];}
+export type ForwardedOptions = {readonly fields:readonly string[]};
+export interface LiveSearchApi {fields:string[];}
+export interface DeadSearchApi {fields:string[];}
+export function LiveSearch(query:string,options:LiveSearchApi) { const ms=new MiniSearch({fields:options.fields}); return ms.search(query); }
+export function DeadSearch(query:string,options:DeadSearchApi) { return []; const ms=new MiniSearch({fields:options.fields}); return ms.search(query); }
+${body("Live", "ArbitraryInput", "options.fields", "out")}
+${body("UnusedInput", "CosmeticProps", '["label"]', "out")}
+${body("Discarded", "DiscardedApi", "options.fields", "items")}
+${body("Forwarded", "ForwardedOptions", "options.fields", "out").replace("new MiniSearch", "new ForwardedEngine")}
+`,
+  });
+  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  symlinkSync(join(repoRoot, "packages/ui/node_modules"), join(root, "packages/ui/node_modules"), "dir");
+  execFixtureGit(root, ["init", "--quiet", "--template="]);
+  const workspace = createSemanticWorkspace({ root });
+  const source = workspace.program(config)?.sourceFile(path);
+  if (source === undefined) {
+    throw new Error("missing actual native search fixture");
+  }
+  expect(source.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+  expect(readRealComponentHome(root, workspace, { config, path, name: "ArbitraryInput" }).kind).toBe("owned");
+  expect(readRealComponentHome(root, workspace, { config, path, name: "ForwardedOptions" }).kind).toBe("owned");
+  expect(readRealComponentHome(root, workspace, { config, path, name: "LiveSearchApi" }).kind).toBe("owned");
+  for (const name of ["CosmeticProps", "DiscardedApi", "DeadSearchApi"]) {
+    expect(readRealComponentHome(root, workspace, { config, path, name }).kind, name).toBe("unqualified");
   }
 });

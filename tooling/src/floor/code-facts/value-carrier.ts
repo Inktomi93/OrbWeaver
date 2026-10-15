@@ -7,14 +7,17 @@ import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts"
 import type {
   CallReturnAlternative,
   CallReturnObservations,
-  CallReturnProgram,
+  NativeValueTransferServices,
   ReferenceFact,
+  ReturnedValueContext,
   ReturnedValueInputs,
   ReturnedValueSource,
   ReturnedValueTerminals,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
 import { isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-writes.ts";
+import { readStaticAuthoredValue } from "./static-authored-value.ts";
+import { nativeParameterFieldsUnchanged, readNativeRetainedReturn, readNativeReturnedCall } from "./value-carrier-native.ts";
 
 /** The value a real object member carries; a method or opaque spread is not a property value. */
 export function propertyValue(property: Node | undefined): Node | undefined {
@@ -86,20 +89,18 @@ export function carryingLiterals(node: Node): readonly { readonly literal: Objec
   return out;
 }
 
-interface ReturnedValueContext {
-  readonly explicitAbsentReturns: boolean;
-  readonly program: CallReturnProgram | undefined;
-  readonly terminals: ReturnedValueTerminals;
-  readonly bindings: ReadonlyMap<Node, Node>;
-  readonly active: ReadonlySet<ts.Node>;
-}
-
 function valueRefusal(node: Node, reason: import("./reference-fact-contract.ts").ReferenceUnresolvedReason, detail: string): UnresolvedReferenceFact {
   return { kind: "unresolved", reason, detail, node, trace: { declarations: [], origin: node } };
 }
 
 function valueLeaf(value: Node, path: readonly string[], context: ReturnedValueContext, present = true): ReferenceFact<readonly ReturnedValueSource[]> {
-  return { kind: "resolved", value: [{ value, path, bindings: context.bindings, present }], trace: { declarations: [], origin: value } };
+  const parameter = N.isIdentifier(value) ? lexicalReferenceSymbol(value)?.getValueDeclaration() : undefined;
+  const iteration = parameter === undefined ? undefined : context.nativeIterations.get(parameter);
+  return {
+    kind: "resolved",
+    value: [{ value, path, bindings: context.bindings, present, ...(iteration === undefined ? {} : { nativeIteration: iteration }) }],
+    trace: { declarations: [], origin: value },
+  };
 }
 
 function valueAlternatives(node: Node, facts: readonly ReferenceFact<readonly ReturnedValueSource[]>[]): ReferenceFact<readonly ReturnedValueSource[]> {
@@ -184,6 +185,9 @@ function returnedObjectValue(
 }
 
 function projectedReturnPaths(alternative: CallReturnAlternative, context: ReturnedValueContext): ReferenceFact<readonly Node[]> {
+  if (context.nativeValueTransfers) {
+    return alternative.nativeReturns ?? valueRefusal(alternative.target, "missing", "native return projection was not requested in captured observations");
+  }
   return context.explicitAbsentReturns
     ? (alternative.explicitReturns ?? valueRefusal(alternative.target, "missing", "explicit return projection was not requested in captured observations"))
     : alternative.returns;
@@ -192,6 +196,10 @@ function projectedReturnPaths(alternative: CallReturnAlternative, context: Retur
 function returnedCallValue(call: CallExpression, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
   if (typeof context.terminals === "function" ? context.terminals(call) : context.terminals.has(call.compilerNode)) {
     return valueLeaf(call, path, context);
+  }
+  const native = context.nativeValueTransfers ? readNativeReturnedCall(call, path, context, nativeValueServices) : undefined;
+  if (native !== undefined) {
+    return native;
   }
   const observed = context.program?.byCall.get(call.compilerNode);
   if (observed === undefined) {
@@ -213,12 +221,14 @@ function returnedCallValue(call: CallExpression, path: readonly string[], contex
         paths.value.map((value) =>
           context.explicitAbsentReturns && N.isReturnStatement(value) && value.getExpression() === undefined
             ? valueLeaf(value, path, next, false)
-            : returnedValue(value, path, next),
+            : readNativeRetainedReturn(value, path, next, nativeValueServices),
         ),
       );
     }),
   );
 }
+
+const nativeValueServices: NativeValueTransferServices = { readValue: returnedValue, leaf: valueLeaf, alternatives: valueAlternatives, refusal: valueRefusal };
 
 function returnedDefaultValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
   const supplied = readSuppliedParameter(node, context.bindings, context.program);
@@ -247,14 +257,79 @@ function boundIdentifierValue(
   return bound === undefined ? undefined : returnedValue(bound, path, context);
 }
 
+function nativePrivateParameter(node: import("ts-morph").Identifier): import("ts-morph").ParameterDeclaration | undefined {
+  const parameter = lexicalReferenceSymbol(node)?.getValueDeclaration();
+  const owner = N.isParameterDeclaration(parameter) ? parameter.getParent() : undefined;
+  return N.isParameterDeclaration(parameter) && N.isFunctionDeclaration(owner) && !owner.isExported() ? parameter : undefined;
+}
+
+function returnedNativeSuppliedParameter(
+  node: import("ts-morph").Identifier,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> | undefined {
+  const parameter = nativePrivateParameter(node);
+  if (!context.nativeValueTransfers || parameter === undefined || context.nativeIterations.has(parameter)) {
+    return;
+  }
+  const supplied = readSuppliedParameter(node, context.bindings, context.program);
+  return supplied.kind === "unresolved"
+    ? supplied
+    : valueAlternatives(
+        node,
+        supplied.value.map((source) =>
+          source.present
+            ? returnedValue(source.value, [...source.path, ...path], { ...context, bindings: source.bindings })
+            : { kind: "resolved", value: [{ ...source, path }], trace: supplied.trace },
+        ),
+      );
+}
+
+function nativeParameterProjectionUnchanged(node: import("ts-morph").Identifier, path: readonly string[], context: ReturnedValueContext): boolean {
+  const parameter = nativePrivateParameter(node);
+  return (
+    !context.nativeValueTransfers ||
+    path.length === 0 ||
+    parameter === undefined ||
+    (context.program !== undefined && nativeParameterFieldsUnchanged(parameter, context.program))
+  );
+}
+
+function returnedBindingElement(
+  value: import("ts-morph").BindingElement,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  const pattern = value.getParent();
+  const parent = pattern.getParentIfKind(SyntaxKind.VariableDeclaration);
+  const initializer = parent?.getInitializer();
+  if (
+    initializer === undefined ||
+    value.getDotDotDotToken() !== undefined ||
+    value.getInitializer() !== undefined ||
+    !(N.isArrayBindingPattern(pattern) || N.isObjectBindingPattern(pattern))
+  ) {
+    return valueRefusal(value, "unsupported", "the returned destructuring source is opaque");
+  }
+  const key = N.isArrayBindingPattern(pattern) ? String(pattern.getElements().indexOf(value)) : (value.getPropertyNameNode()?.getText() ?? value.getName());
+  return returnedValue(initializer, [key, ...path], context);
+}
+
 function returnedIdentifierValue(
   node: import("ts-morph").Identifier,
   path: readonly string[],
   context: ReturnedValueContext,
 ): ReferenceFact<readonly ReturnedValueSource[]> {
+  if (!nativeParameterProjectionUnchanged(node, path, context)) {
+    return valueRefusal(node, "unsupported", "native helper fields have a mutated or escaping formal obligation");
+  }
   const bound = boundIdentifierValue(node, path, context);
   if (bound !== undefined) {
     return bound;
+  }
+  const supplied = returnedNativeSuppliedParameter(node, path, context);
+  if (supplied !== undefined) {
+    return supplied;
   }
   const stable = resolveStableExpression(node);
   const value = stable.kind === "resolved" ? stable.value : stable.node;
@@ -262,19 +337,7 @@ function returnedIdentifierValue(
     return stable;
   }
   if (N.isBindingElement(value)) {
-    const pattern = value.getParent();
-    const parent = pattern.getParentIfKind(SyntaxKind.VariableDeclaration);
-    const initializer = parent?.getInitializer();
-    if (
-      initializer === undefined ||
-      value.getDotDotDotToken() !== undefined ||
-      value.getInitializer() !== undefined ||
-      !(N.isArrayBindingPattern(pattern) || N.isObjectBindingPattern(pattern))
-    ) {
-      return valueRefusal(value, "unsupported", "the returned destructuring source is opaque");
-    }
-    const key = N.isArrayBindingPattern(pattern) ? String(pattern.getElements().indexOf(value)) : (value.getPropertyNameNode()?.getText() ?? value.getName());
-    return returnedValue(initializer, [key, ...path], context);
+    return returnedBindingElement(value, path, context);
   }
   const result =
     value.compilerNode === node.compilerNode || N.isParameterDeclaration(value) ? valueLeaf(node, path, context) : returnedValue(value, path, context);
@@ -300,6 +363,20 @@ function returnedArrayValue(
     : returnedValue(element, rest, context);
 }
 
+function returnedConditionalValue(
+  value: import("ts-morph").ConditionalExpression,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  if (context.nativeValueTransfers) {
+    const condition = readStaticAuthoredValue(value.getCondition());
+    if (condition.kind === "resolved" && condition.value.kind === "scalar" && typeof condition.value.value === "boolean") {
+      return returnedValue(condition.value.value ? value.getWhenTrue() : value.getWhenFalse(), path, context);
+    }
+  }
+  return valueAlternatives(value, [returnedValue(value.getWhenTrue(), path, context), returnedValue(value.getWhenFalse(), path, context)]);
+}
+
 function returnedValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
   const value = unwrapTarget(node);
   if (context.active.has(value.compilerNode)) {
@@ -313,7 +390,7 @@ function returnedValue(node: Node, path: readonly string[], context: ReturnedVal
     return returnedIdentifierValue(value, path, next);
   }
   if (N.isConditionalExpression(value)) {
-    return valueAlternatives(value, [returnedValue(value.getWhenTrue(), path, next), returnedValue(value.getWhenFalse(), path, next)]);
+    return returnedConditionalValue(value, path, next);
   }
   if (N.isObjectLiteralExpression(value)) {
     return returnedObjectValue(value, path, next);
@@ -393,11 +470,16 @@ export function readReturnedValue(
     return program;
   }
   const { terminals, bindings } = "terminals" in inputs ? inputs : { terminals: inputs, bindings: new Map<Node, Node>() };
+  if ("terminals" in inputs && inputs.nativeValueTransfers === true && program.value.nativeValueTransfers !== true) {
+    return valueRefusal(node, "missing", "native value transfer was not requested in captured observations");
+  }
   if ([...bindings].some((pair) => pair.some((bound) => readCallReturnProgram(bound, observations).kind === "unresolved"))) {
     return valueRefusal(node, "unsupported", "supplied value bindings are outside the captured native world or source epoch");
   }
   return returnedValue(node, path, {
     program: program.value,
+    nativeIterations: new Map(),
+    nativeValueTransfers: "terminals" in inputs && inputs.nativeValueTransfers === true,
     terminals,
     bindings,
     active: new Set(),
@@ -412,7 +494,15 @@ export function readAuthoredValueSources(
   bindings: ReadonlyMap<Node, Node> = new Map(),
   terminals: ReturnedValueTerminals = new Set(),
 ): ReferenceFact<readonly ReturnedValueSource[]> {
-  return returnedValue(node, path, { program: undefined, terminals, bindings, active: new Set(), explicitAbsentReturns: false });
+  return returnedValue(node, path, {
+    program: undefined,
+    terminals,
+    bindings,
+    active: new Set(),
+    explicitAbsentReturns: false,
+    nativeValueTransfers: false,
+    nativeIterations: new Map(),
+  });
 }
 
 function callableValue(node: Node): boolean {

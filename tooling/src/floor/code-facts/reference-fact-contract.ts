@@ -146,6 +146,7 @@ export interface CallReturnObservation {
 }
 
 export interface CallReturnAlternative {
+  readonly nativeReturns?: ReferenceFact<readonly Node[]>;
   readonly target: Node;
   readonly returns: ReferenceFact<readonly Node[]>;
   /** Captured only when authored bare-return absence was explicitly requested. */
@@ -153,6 +154,14 @@ export interface CallReturnAlternative {
 }
 
 export interface CallReturnProgram {
+  readonly nativeStatementReachable?: (node: Node) => ReferenceFact<true>;
+  readonly nativeSymbolServices?: {
+    readonly callableOrigin: typeof import("./reference-fact-call.ts").resolveCallableValueOrigin;
+    readonly memberOrigin: typeof import("./type-member-origin.ts").resolveTypeMemberOrigin;
+    readonly declaredByPackage: typeof import("./type-member-origin.ts").declaredByPackage;
+  };
+  readonly nativeReturnPaths?: (node: Node, explicitAbsentReturns: boolean) => ReferenceFact<readonly Node[]>;
+  readonly nativeValueTransfers?: true;
   readonly program: ts.Program;
   readonly sources: ReadonlyMap<SourceFile, ts.SourceFile>;
   readonly calls: readonly CallReturnObservation[];
@@ -166,8 +175,17 @@ export interface CallReturnObservations {
   readonly programs: readonly CallReturnProgram[];
 }
 
+/** Actual callback element provenance, without inventing a runtime array index or trusting its fields. */
+export interface NativeValueIteration {
+  readonly call: CallExpression;
+  readonly collection: Node;
+  readonly parameter: Node;
+}
+
 /** One authored returned-value leaf, with the exact supplied arguments that bind its parameters. */
 export interface ReturnedValueSource {
+  readonly nativeIteration?: NativeValueIteration;
+  readonly nativeLookup?: { readonly call: CallExpression; readonly key: Node };
   /** Absence is local to this alternative; only an absent spread member falls back. */
   readonly present: boolean;
   readonly value: Node;
@@ -175,8 +193,29 @@ export interface ReturnedValueSource {
   readonly bindings: ReadonlyMap<Node, Node>;
 }
 
+/** Shared traversal state; the native concern receives the same captured world, bindings and cycle set. */
+export interface ReturnedValueContext {
+  readonly nativeValueTransfers: boolean;
+  readonly nativeIterations: ReadonlyMap<Node, NativeValueIteration>;
+  readonly explicitAbsentReturns: boolean;
+  readonly program: CallReturnProgram | undefined;
+  readonly terminals: ReturnedValueTerminals;
+  readonly bindings: ReadonlyMap<Node, Node>;
+  readonly active: ReadonlySet<ts.Node>;
+}
+
+/** Native carriers reuse the sole value traversal and its alternative/refusal operations. */
+export interface NativeValueTransferServices {
+  readonly readValue: (node: Node, path: readonly string[], context: ReturnedValueContext) => ReferenceFact<readonly ReturnedValueSource[]>;
+  readonly leaf: (node: Node, path: readonly string[], context: ReturnedValueContext, present?: boolean) => ReferenceFact<readonly ReturnedValueSource[]>;
+  readonly alternatives: (node: Node, facts: readonly ReferenceFact<readonly ReturnedValueSource[]>[]) => ReferenceFact<readonly ReturnedValueSource[]>;
+  readonly refusal: (node: Node, reason: ReferenceUnresolvedReason, detail: string) => UnresolvedReferenceFact;
+}
+
 /** Returned-value consumers retain bindings already admitted by the same native invocation. */
 export interface ReturnedValueInputs {
+  /** Interpret supported native callback/cache carriers only in an explicitly captured native invocation. */
+  readonly nativeValueTransfers?: true;
   /** Preserve explicitly authored bare returns as absent alternatives; strict projection is the default. */
   readonly explicitAbsentReturns?: true;
   readonly terminals: ReturnedValueTerminals;

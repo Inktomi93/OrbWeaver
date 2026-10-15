@@ -2,6 +2,7 @@
 import type { CallExpression, Node as MorphNode, ts } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { readCallReturnProgram } from "./call-returns.ts";
+import { runtimeUndefinedValue } from "./call-supplied.ts";
 import {
   inspectBindingReassignment,
   inspectReferenceWrites,
@@ -93,9 +94,39 @@ function terminalContribution(source: ReturnedValueSource, context: DependencyCo
   return { kind: "read", contributions: [{ terminal: source.value, projection: source.path, uses: [source.value] }] };
 }
 
+function nativeLeafDependency(source: ReturnedValueSource, context: DependencyContext): DependencyRead | undefined {
+  if (context.input.nativeValueTransfers === true && source.path.length > 0 && (source.nativeLookup !== undefined || source.nativeIteration !== undefined)) {
+    return unqualified(source.value, "A projected native cache/iteration value has no proved member contribution.");
+  }
+  if (context.input.nativeValueTransfers === true && source.nativeLookup !== undefined) {
+    return dependencyUses(readDependency(source.nativeLookup.key, [], { ...context, bindings: source.bindings }), [source.nativeLookup.call]);
+  }
+  if (context.input.nativeValueTransfers === true && source.nativeIteration !== undefined) {
+    return dependencyUses(readDependency(source.nativeIteration.collection, [], { ...context, bindings: source.bindings }), [
+      source.nativeIteration.call,
+      source.nativeIteration.parameter,
+    ]);
+  }
+  return undefined;
+}
+
+function readCallLeaf(source: ReturnedValueSource, call: CallExpression, context: DependencyContext): DependencyRead {
+  if (source.path.length > 0) {
+    return unqualified(call, "A projected native result has no proved input/result transfer for that projection.");
+  }
+  const transfer = readNativeValueTransfer(call, context);
+  return transfer === undefined
+    ? unqualified(call, "The returned operation has no proved native input/result transfer.")
+    : dependencyUses(joined(transfer.inputs.map((input) => readDependency(input, [], context))), [call, ...transfer.declarations]);
+}
+
 function readLeaf(source: ReturnedValueSource, context: DependencyContext): DependencyRead {
   if (!source.present) {
     return unqualified(source.value, "A missing returned projection does not establish dependency.");
+  }
+  const native = nativeLeafDependency(source, context);
+  if (native !== undefined) {
+    return native;
   }
   const type = source.value.getType();
   if (type.isNever()) {
@@ -107,13 +138,7 @@ function readLeaf(source: ReturnedValueSource, context: DependencyContext): Depe
   }
   const inherited = { ...context, bindings: source.bindings };
   if (Node.isCallExpression(source.value)) {
-    if (source.path.length > 0) {
-      return unqualified(source.value, "A projected native result has no proved input/result transfer for that projection.");
-    }
-    const transfer = readNativeValueTransfer(source.value, context);
-    return transfer === undefined
-      ? unqualified(source.value, "The returned operation has no proved native input/result transfer.")
-      : dependencyUses(joined(transfer.inputs.map((input) => readDependency(input, [], inherited))), [source.value, ...transfer.declarations]);
+    return readCallLeaf(source, source.value, inherited);
   }
   if (Node.isArrayLiteralExpression(source.value)) {
     if (source.path.length > 0 || source.value.getElements().some(Node.isSpreadElement)) {
@@ -140,7 +165,11 @@ function readDependency(node: MorphNode, path: readonly string[], context: Depen
   if (collector !== undefined) {
     return collector;
   }
-  const carried = readReturnedValue(node, path, context.input.observations, { terminals: context.carriers, bindings: context.bindings });
+  const carried = readReturnedValue(node, path, context.input.observations, {
+    terminals: context.carriers,
+    bindings: context.bindings,
+    ...(context.input.nativeValueTransfers === true ? { nativeValueTransfers: true as const } : {}),
+  });
   return carried.kind === "unresolved" ? unqualified(carried.node, carried.detail) : joined(carried.value.map((source) => readLeaf(source, next)));
 }
 
@@ -249,6 +278,191 @@ function collectorUse(reference: MorphNode, scope: MorphNode, context: Dependenc
     : unqualified(reference, "A collector reference is not a proved native append or readonly length observation.");
 }
 
+function primitiveStringInput(node: MorphNode, context: DependencyContext): boolean {
+  const values = readReturnedValue(node, [], context.input.observations, {
+    terminals: context.carriers,
+    bindings: context.bindings,
+    nativeValueTransfers: true,
+  });
+  if (values.kind !== "resolved" || values.value.length !== 1) {
+    return false;
+  }
+  const source = values.value[0];
+  if (source === undefined || !source.present || source.path.length > 0) {
+    return false;
+  }
+  if (Node.isCallExpression(source.value)) {
+    const member = readMemberReference(source.value.getExpression());
+    const effect = readNativeValueTransfer(source.value, context);
+    const input = effect?.inputs[0];
+    return member.kind === "resolved" && effect?.inputs.length === 1 && input !== undefined && primitiveStringInput(input, context);
+  }
+  const declaration = Node.isIdentifier(source.value) ? lexicalReferenceSymbol(source.value)?.getValueDeclaration() : undefined;
+  return Node.isParameterDeclaration(declaration) && source.value.getType().isString();
+}
+
+function nativeCollectorPrefix(statement: MorphNode, context: DependencyContext): boolean {
+  if (Node.isVariableStatement(statement)) {
+    return (
+      statement.getDeclarationKind() === VariableDeclarationKind.Const &&
+      statement.getDeclarations().every((declaration) => declaration.getInitializer() !== undefined && !declaration.getInitializerOrThrow().getType().isNever())
+    );
+  }
+  if (!Node.isIfStatement(statement) || statement.getElseStatement() !== undefined) {
+    return false;
+  }
+  const condition = statement.getExpression();
+  const right = Node.isBinaryExpression(condition) ? condition.getRight() : undefined;
+  if (
+    !Node.isBinaryExpression(condition) ||
+    condition.getOperatorToken().getKind() !== SyntaxKind.EqualsEqualsEqualsToken ||
+    !Node.isNumericLiteral(right) ||
+    right.getLiteralValue() !== 0
+  ) {
+    return false;
+  }
+  const member = readMemberReference(condition.getLeft());
+  const branch = statement.getThenStatement();
+  const returns = Node.isBlock(branch) ? branch.getStatements() : [branch];
+  return (
+    member.kind === "resolved" &&
+    member.value.name === "length" &&
+    primitiveStringInput(member.value.receiver, context) &&
+    returns.length === 1 &&
+    Node.isReturnStatement(returns[0]) &&
+    returns[0].getExpression() !== undefined
+  );
+}
+
+function nativeCollectorCap(statement: MorphNode | undefined, binding: MorphNode): boolean {
+  if (!Node.isIfStatement(statement) || statement.getElseStatement() !== undefined) {
+    return false;
+  }
+  const condition = statement.getExpression();
+  if (
+    !Node.isBinaryExpression(condition) ||
+    condition.getOperatorToken().getKind() !== SyntaxKind.GreaterThanEqualsToken ||
+    !(condition.getRight().getType().isNumber() || condition.getRight().getType().isNumberLiteral())
+  ) {
+    return false;
+  }
+  const member = readMemberReference(condition.getLeft());
+  const branch = statement.getThenStatement();
+  const statements = Node.isBlock(branch) ? branch.getStatements() : [branch];
+  return (
+    member.kind === "resolved" &&
+    member.value.name === "length" &&
+    localVariable(member.value.receiver) === binding &&
+    statements.length === 1 &&
+    Node.isBreakStatement(statements[0]) &&
+    statements[0].getLabel() === undefined
+  );
+}
+
+function nativeLookupAppendClosed(call: MorphNode | undefined, writes: readonly MorphNode[], binding: MorphNode, value: MorphNode): boolean {
+  const argument = Node.isCallExpression(call) ? call.getArguments()[0] : undefined;
+  return (
+    Node.isCallExpression(call) &&
+    call.getArguments().length === 1 &&
+    argument !== undefined &&
+    localVariable(argument) === value &&
+    writes.length <= 2 &&
+    (writes.length !== 2 || nativeCollectorCap(writes[1], binding))
+  );
+}
+
+function nativeLookupLoop(
+  loop: import("ts-morph").ForOfStatement,
+  binding: MorphNode,
+  appends: ReadonlySet<import("ts-morph").ts.Node>,
+  context: DependencyContext,
+): boolean {
+  const list = loop.getInitializer();
+  const element =
+    Node.isVariableDeclarationList(list) && list.getDeclarationKind() === VariableDeclarationKind.Const && list.getDeclarations().length === 1
+      ? list.getDeclarations()[0]
+      : undefined;
+  const body = loop.getStatement();
+  const statements = Node.isBlock(body) ? body.getStatements() : [body];
+  const declarationStatement = statements[0];
+  const guard = statements[1];
+  if (
+    element === undefined ||
+    statements.length !== 2 ||
+    !Node.isVariableStatement(declarationStatement) ||
+    declarationStatement.getDeclarationKind() !== VariableDeclarationKind.Const ||
+    declarationStatement.getDeclarations().length !== 1 ||
+    !Node.isIfStatement(guard) ||
+    guard.getElseStatement() !== undefined
+  ) {
+    return false;
+  }
+  const value = declarationStatement.getDeclarations()[0];
+  const condition = guard.getExpression();
+  if (
+    value === undefined ||
+    !Node.isBinaryExpression(condition) ||
+    condition.getOperatorToken().getKind() !== SyntaxKind.ExclamationEqualsEqualsToken ||
+    !Node.isIdentifier(condition.getRight()) ||
+    !runtimeUndefinedValue(condition.getRight()) ||
+    localVariable(condition.getLeft()) !== value
+  ) {
+    return false;
+  }
+  const guarded = guard.getThenStatement();
+  const writes = Node.isBlock(guarded) ? guarded.getStatements() : [guarded];
+  const append = writes[0];
+  const call = Node.isExpressionStatement(append) ? append.getExpression() : undefined;
+  if (!(Node.isCallExpression(call) && appends.has(call.compilerNode) && nativeLookupAppendClosed(call, writes, binding, value))) {
+    return false;
+  }
+  const initial = value.getInitializer();
+  if (initial === undefined) {
+    return false;
+  }
+  const carried = readReturnedValue(initial, [], context.input.observations, {
+    terminals: context.carriers,
+    bindings: context.bindings,
+    nativeValueTransfers: true,
+  });
+  if (
+    carried.kind !== "resolved" ||
+    !carried.value.some((source) => source.present) ||
+    carried.value.some((source) => source.present && source.nativeLookup === undefined)
+  ) {
+    return false;
+  }
+  return carried.value.filter((source) => source.present).every((source) => nativeLookupElement(source, element, context));
+}
+
+function nativeLookupElement(source: ReturnedValueSource, element: MorphNode, context: DependencyContext): boolean {
+  const key = source.nativeLookup?.key;
+  if (key === undefined) {
+    return false;
+  }
+  const keys = readReturnedValue(key, [], context.input.observations, { terminals: context.carriers, bindings: source.bindings, nativeValueTransfers: true });
+  return keys.kind === "resolved" && keys.value.length > 0 && keys.value.every((keySource) => keySource.present && localVariable(keySource.value) === element);
+}
+
+function retainedLookupAppend(call: CallExpression, context: DependencyContext): DependencyRead {
+  const argument = call.getArguments()[0];
+  if (argument === undefined) {
+    return unqualified(call, "The guarded native append has no supplied value.");
+  }
+  const carried = readReturnedValue(argument, [], context.input.observations, {
+    terminals: context.carriers,
+    bindings: context.bindings,
+    nativeValueTransfers: true,
+  });
+  if (carried.kind !== "resolved") {
+    return unqualified(carried.node, carried.detail);
+  }
+  const retained = carried.value.filter((source) => source.present);
+  return retained.length === 0
+    ? unqualified(call, "The guarded native append has no retained lookup alternative.")
+    : joined(retained.map((source) => readLeaf(source, context)));
+}
+
 function closedCollectorPhase(
   node: MorphNode,
   declaration: MorphNode,
@@ -267,7 +481,11 @@ function closedCollectorPhase(
   }
   const statements = body.getStatements();
   const start = initialized === undefined ? -1 : statements.indexOf(initialized);
-  if (start !== 0 || statements.at(-1) !== returned) {
+  if (
+    start < 0 ||
+    statements.at(-1) !== returned ||
+    (context.input.nativeValueTransfers === true ? !statements.slice(0, start).every((statement) => nativeCollectorPrefix(statement, context)) : start !== 0)
+  ) {
     return false;
   }
   const nativeAppends = new Set<import("ts-morph").ts.Node>(pushes.map((call) => call.compilerNode));
@@ -283,7 +501,7 @@ function closedCollectorPhase(
       const loopBody = statement.getStatement();
       const loopStatements = Node.isBlock(loopBody) ? loopBody.getStatements() : [loopBody];
       if (!loopStatements.every(directAppend)) {
-        return false;
+        return context.input.nativeValueTransfers === true && nativeLookupLoop(statement, declaration, nativeAppends, context);
       }
       const initializer = statement.getInitializer();
       const element = Node.isVariableDeclarationList(initializer) ? initializer.getDeclarations()[0] : undefined;
@@ -294,7 +512,11 @@ function closedCollectorPhase(
         .filter((call) => call.getFirstAncestorByKind(SyntaxKind.ForOfStatement) === statement)
         .every((call) =>
           call.getArguments().every((argument) => {
-            const sources = readReturnedValue(argument, [], context.input.observations, { terminals: context.carriers, bindings: context.bindings });
+            const sources = readReturnedValue(argument, [], context.input.observations, {
+              terminals: context.carriers,
+              bindings: context.bindings,
+              ...(context.input.nativeValueTransfers === true ? { nativeValueTransfers: true as const } : {}),
+            });
             return (
               sources.kind === "resolved" &&
               sources.value.length > 0 &&
@@ -332,11 +554,16 @@ function readArrayCollector(node: MorphNode, path: readonly string[], context: D
       "The collector requires an initial empty-array declaration, a final return and closed appends from actual iterator elements or direct values.",
     );
   }
-  return dependencyUses(joined(pushes.flatMap((call) => call.getArguments().map((argument) => readDependency(argument, [], context)))), [
-    node,
-    declaration,
-    ...pushes,
-  ]);
+  return dependencyUses(
+    joined(
+      pushes.flatMap((call) =>
+        context.input.nativeValueTransfers === true && call.getFirstAncestorByKind(SyntaxKind.IfStatement) !== undefined
+          ? [retainedLookupAppend(call, context)]
+          : call.getArguments().map((argument) => readDependency(argument, [], context)),
+      ),
+    ),
+    [node, declaration, ...pushes],
+  );
 }
 
 function opaqueNativeData(read: DependencyRead, node: MorphNode, type = node.getType()): DependencyRead {
