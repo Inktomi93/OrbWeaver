@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-15
 priority: P1
 area: tooling
-lane: codex/type-homes-981
+lane: codex/native-pair-world-1027
 plan: test-foundation
 ---
 
@@ -33,3 +33,7 @@ Actual Node/browser controls distinguish the demonstrated Node false-clean, pin 
 Other typed families still use their existing checker or explicit native views. Complete migration, multi-consumer demand orchestration and real-root cost qualification remain open. Syntax carriers cannot supply native Type or signature meaning; retaining every native world in the parent is not an alternative.
 
 Reviewed `0c0ed382ec` delivers native ID brands and closed multi-consumer scalar demand through the same store. The physical schema upgrade preserves prior generations and pinned readers. Native delivery and affected upgrade controls pass; independent review accepts the correction. Evidence: `.claude/worktrees/codex-type-homes-981/reports/stickler/2026-10-15-1027-native-brand-delivery.md`. Integration preserves the existing callable reference selector. Mixed-demand and complete ID-policy controls pass with tooling types; root diagnostics remain unchanged. Evidence: `reports/review/native-brand-integrated.md`. Remaining typed families and actual production-world cost stay open.
+
+Reviewed `c6493ba16f` delivers native runtime-export callability through the same closed demand and store. Verb naming and firehose health preserve their distinct judgments. Native controls and physical upgrades pass independent review. FORMAT7 and schema3 retain historical generations; the default families remain unchanged. Evidence: `.claude/worktrees/codex-type-homes-981/reports/stickler/2026-10-15-1027-runtime-exports-independent-review.md`. Complete consumer migration and production-world qualification remain open.
+
+Exact shape pair/world delivery remains unbuilt. Its design requires complete native membership, demand-specific relation coverage and final validation of excluded worlds. Evidence: `.claude/worktrees/codex-type-homes-981/reports/review/1027-pair-world-demand-design.md`. Primary-owner-only comparison is not equivalent.

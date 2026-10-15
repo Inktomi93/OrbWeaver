@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-15
 priority: P1
 area: tenancy
-lane: codex/drizzle-facts-953
 plan: test-foundation
 ---
 
@@ -12,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Adjudicate the remaining selected owner-scoped-reads findings against actual SQL, ownership chains and production callers. Fix real query defects or repair the canonical shared Drizzle reader with discriminating controls. Preserve lawful cross-owner operations and close unauthorized reads without grants or budget inflation.
+Adjudicate retained owner-scoped reads against actual SQL, ownership chains and callers. Fix query defects or canonical Drizzle judgments with discriminating controls. Preserve lawful cross-owner operations without grants or budget inflation.
 
 ## Why
 
@@ -28,7 +27,7 @@ Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, p
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
 
-Reviewed `0b45eda681` retains winning descriptor provenance and closes callable storage per actual allocation. The same reviewer accepts the named-alias correction. Current actual-target observation emits an unsupported callable-use refusal; the outer command times out after that emission. No target or policy qualification follows. Trace the exact refusing native use before another replay. Evidence: `reports/review/1016-selected-provenance-actual-target.md`.
+Reviewed `0b45eda681` retains winning descriptor provenance and closes callable storage per actual allocation. Reviewed `4eb70893f5` excludes only the exact defining name from value-use judgment after native context and binding checks. Native import diagnostics establish that false refusal; focused controls and independent review pass. The corrected actual target exceeds its bounded run without a verdict. The external CPU trace identifies native reference and refinement cost. Bounded controls establish repeated native requests; guarded kernel reuse remains unimplemented. Evidence: `reports/review/1016-inert-definition-result.md`.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 
