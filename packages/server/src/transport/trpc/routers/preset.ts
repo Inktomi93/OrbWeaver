@@ -8,10 +8,16 @@
 // preset that already carries a broken wrapper still loads and can be fixed in the editor.
 
 import { capabilityTargetSchema } from "@orb/contracts/inference";
-import { presetImportOutcomeSchema, promptConfigWriteSchema } from "@orb/contracts/preset";
+import {
+  effectivePresetSchema,
+  presetDetailSchema,
+  presetImportOutcomeSchema,
+  presetSummarySchema,
+  presetUsageViewSchema,
+  promptConfigWriteSchema,
+} from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema } from "#domain/preset";
 import { authedProcedure, t } from "../trpc.ts";
 
 /** Upload bound for one `orb.preset` file. A preset blob is sections + knobs + templates — generous next to

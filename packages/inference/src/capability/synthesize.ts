@@ -10,11 +10,11 @@
 // dated measured `{}` must beat the advertised range — under a one-level merge `{...advertised, ...{}}` never
 // could. The same rule makes a connection's `declared.sampling` the WHOLE list it checkboxes.
 
-import type { CapabilityOverride, EmbeddingCapability, GenerationCapability, ModelKind, RerankCapability } from "@orb/contracts/inference";
+import type { CapabilityOverride, EmbeddingCapability, GenerationCapability, ModelKind, RerankCapability, ResolvedWarning } from "@orb/contracts/inference";
 import { EMBEDDING_FLOOR, ESTIMABLE_TURNS, GENERATION_FLOOR, RERANK_FLOOR, RERANK_MIN_WINDOW_TOKENS, TURNS_FLOOR } from "@orb/contracts/inference";
 import type { Evidence, SynthesizedCapability } from "../contract/capability.ts";
 import { assertNever } from "../contract/errors.ts";
-import type { ResolvedWarning } from "../contract/resolve.ts";
+
 import type { ModelFamily } from "../contract/runtime.ts";
 import { applyFamilyFloor } from "./sources/family-floor.ts";
 

@@ -2,12 +2,12 @@
 // beside the endpoint facts, so neither a turn nor a restart asks twice. Ordinary tokenize failures drop the
 // bias entry with a warning and are never cached; cancellation aborts the turn.
 
-import type { TokenizeApi, WordTokens } from "@orb/contracts/inference";
+import type { ResolvedWarning, TokenizeApi, WordTokens } from "@orb/contracts/inference";
 import { TOKEN_ID_KEY } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { endpointTokensKey, endpointTokensPrefix } from "#catalog";
-import type { Resolved, ResolvedSampling, ResolvedWarning } from "#contract";
+import type { Resolved, ResolvedSampling } from "#contract";
 import { ProviderError } from "#contract";
 import type { SnapshotStore } from "#src/deps.ts";
 import type { TokenLexicon, TokenTarget } from "../../contract/openai-backend.ts";

@@ -1,6 +1,6 @@
+import { fireViewSchema, testRunResultSchema } from "@orb/contracts/automation";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { fireViewSchema, testRunResultSchema } from "#server/domain/automation/contract/results.ts";
 
 test("dry-run predicate errors and previews are closed, but fire detail remains model-authored data", () => {
   const preview = { type: "set_variable", renderedPreview: "tone = quiet" };

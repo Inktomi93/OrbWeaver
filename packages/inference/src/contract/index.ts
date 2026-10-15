@@ -4,7 +4,19 @@
 // `@orb/contracts` so a consumer needs ONE import for the whole surface.
 
 export type { ResolvedSecret } from "@orb/contracts/credentials";
-export type { Capability, ChatApi, EmbeddingCapability, GenerationCapability, ModelCatalogEntry, RerankCapability, Task, Wire } from "@orb/contracts/inference";
+export type {
+  Capability,
+  ChatApi,
+  EmbeddingCapability,
+  GenerationCapability,
+  ModelCatalogEntry,
+  RerankCapability,
+  ResolvedWarning,
+  Task,
+  WarningCode,
+  Wire,
+} from "@orb/contracts/inference";
+export { WARNING_CODES } from "@orb/contracts/inference";
 export type {
   AccountCredits,
   EmbedResult,
@@ -88,10 +100,7 @@ export type {
   ResolvedEmbedKnobs,
   ResolvedReasoning,
   ResolvedSampling,
-  ResolvedWarning,
-  WarningCode,
 } from "./resolve.ts";
-export { WARNING_CODES } from "./resolve.ts";
 export type { ConnectionTransport, Resolved, ResponseMap } from "./resolved.ts";
 export { generationOf, withPresetWindow } from "./resolved.ts";
 export type {

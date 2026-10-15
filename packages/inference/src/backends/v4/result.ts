@@ -6,10 +6,10 @@
 import type { SharedV4ProviderMetadata, SharedV4Warning } from "@ai-sdk/provider";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { ChatUsage, GenerationUsage, NestedUsage } from "@orb/contracts/inference";
+import type { ChatUsage, GenerationUsage, NestedUsage, ResolvedWarning } from "@orb/contracts/inference";
 import { foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
 import { z } from "zod";
-import type { ChatEvent, ChatResult, ResolvedSampling, ResolvedWarning } from "#contract";
+import type { ChatEvent, ChatResult, ResolvedSampling } from "#contract";
 import { normalizeFinishReason } from "#contract";
 import type { MeasuredCost, ResultContext, StreamDrain } from "../../contract/v4.ts";
 import { variantProviderMetadataOf } from "../wire/provider-metadata.ts";

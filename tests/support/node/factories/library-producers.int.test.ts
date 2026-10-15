@@ -5,12 +5,12 @@
 import "../composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { personaDetailSchema } from "@orb/contracts/persona";
-import { parsePresetFile, presetImportOutcomeSchema } from "@orb/contracts/preset";
+import { parsePresetFile, presetDetailSchema, presetImportOutcomeSchema } from "@orb/contracts/preset";
 import { createRosterPresetSchema, rosterPresetViewSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema, pruneUnusedResultSchema, tagViewSchema } from "@orb/contracts/tag";
 import { auditLogs, characterTags, personas, presets, tags } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { ensureSystemDefaultPreset, presetDetailSchema } from "@orb/server/domain/preset";
+import { ensureSystemDefaultPreset } from "@orb/server/domain/preset";
 import { eq } from "drizzle-orm";
 import { makePromptConfig } from "../../iso/preset-config.ts";
 import { CORPUS_LIBRARY_RULE_PRESET } from "../corpus-library-views.ts";

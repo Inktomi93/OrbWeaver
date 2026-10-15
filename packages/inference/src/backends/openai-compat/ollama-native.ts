@@ -3,8 +3,9 @@
 // the samplers Ollama's Go decoder has no field for, so a row whose folded `features.nativeChat` is `ollama`
 // sends `/api/chat` instead. Both ends are translated inside `wrapFetch`, the request in `shapeBody` and the reply
 // after its tap, so the wire capture holds the native body and the native reply while the SDK reads OpenAI chunks.
+import type { ResolvedWarning } from "@orb/contracts/inference";
 import { z } from "zod";
-import type { ResolvedWarning } from "#contract";
+
 import { ProviderError } from "#contract";
 import type { NativeThink } from "../../contract/openai-backend.ts";
 import { serverRootOf } from "../http/fetch-json.ts";

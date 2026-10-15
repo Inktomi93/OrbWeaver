@@ -7,7 +7,17 @@ import type {
   SharedV4Warning,
 } from "@ai-sdk/provider";
 import type { TextSignature } from "@orb/contracts/chat";
-import type { CostDetails, EndpointFeatures, GenerationCapability, ProviderId, ResponseCache, TokenDetails, TokenUsage, Wire } from "@orb/contracts/inference";
+import type {
+  CostDetails,
+  EndpointFeatures,
+  GenerationCapability,
+  ProviderId,
+  ResolvedWarning,
+  ResponseCache,
+  TokenDetails,
+  TokenUsage,
+  Wire,
+} from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import type {
@@ -17,7 +27,6 @@ import type {
   ProviderScrubSet,
   RateLimitSnapshot,
   ReasoningContentPart,
-  ResolvedWarning,
   ResponseMap,
   ToolCallInput,
   WireCaptureSink,

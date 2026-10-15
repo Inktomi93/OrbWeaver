@@ -1,6 +1,5 @@
 // Wire-output builder for an automation rule read (`automation.listRules`, `automation.createRule`): an enabled,
-// preset-free rule on the chat bus with no actions. The rule view schema is server-domain, so the typed return
-// is the contract check; an override is spread after the defaults.
+// preset-free rule on the chat bus with no actions. Overrides retain the tRPC wire output type.
 
 import { ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";

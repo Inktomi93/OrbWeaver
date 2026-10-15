@@ -13,14 +13,6 @@
 
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { requireGenerationCapability, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
-import type { UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_MAX_OUTPUT_TOKENS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING } from "@orb/contracts/preset";
-import type { ResolvedChatKnobs } from "@orb/inference";
-import { postureOfTask, resolveCachePolicy, resolveChat } from "@orb/inference";
-import type { PresetContext } from "../context.ts";
-import { PresetNotFoundError } from "../contract/errors.ts";
-import type { ResolveEffectiveParams } from "../contract/params.ts";
-import type { PresetService } from "../contract/service.ts";
 import type {
   EffectiveKnob,
   EffectiveKnobReading,
@@ -30,8 +22,15 @@ import type {
   QualityMappingEntry,
   StaleCollectionKnob,
   StaleKnob,
-} from "../contract/views.ts";
-import { EFFECTIVE_KNOBS, STALE_COLLECTION_KNOBS } from "../contract/views.ts";
+  UserIntent,
+} from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS, EFFECTIVE_KNOBS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING, STALE_COLLECTION_KNOBS } from "@orb/contracts/preset";
+import type { ResolvedChatKnobs } from "@orb/inference";
+import { postureOfTask, resolveCachePolicy, resolveChat } from "@orb/inference";
+import type { PresetContext } from "../context.ts";
+import { PresetNotFoundError } from "../contract/errors.ts";
+import type { ResolveEffectiveParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
 import { readablePreset } from "../persistence/queries.ts";
 
 const LOGIT_BIAS_UNIT = "tokens";

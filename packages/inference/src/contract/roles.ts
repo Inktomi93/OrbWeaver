@@ -3,7 +3,7 @@
 // `connection` + `signal`. RESULT shapes live in `@orb/contracts/providers`, not redeclared here.
 
 import type { EmbeddingAccounting } from "@orb/contracts/embeddings";
-import type { EndpointFeatures, GenerationUsage, Task } from "@orb/contracts/inference";
+import type { EndpointFeatures, GenerationUsage, ResolvedWarning, Task } from "@orb/contracts/inference";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type {
@@ -21,7 +21,6 @@ import type { ModelId, UserId } from "@orb/kit/ids";
 import type { GenerationObservationCallback } from "./chat.ts";
 import type { GeneratedImage } from "./generation.ts";
 
-import type { ResolvedWarning } from "./resolve.ts";
 import type { Resolved } from "./resolved.ts";
 
 export type { GeneratedImage } from "./generation.ts";

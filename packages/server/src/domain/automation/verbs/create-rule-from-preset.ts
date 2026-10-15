@@ -27,13 +27,13 @@
 // (knob resolution, CEL parse, arm shape, book consent) happens in the planning pass, so a refused member
 // costs nothing to undo; the surviving members then commit in ONE `db.batch`, and the roster announces once.
 
+import type { RuleView } from "@orb/contracts/automation";
 import { automationTriggerFor } from "@orb/contracts/automation";
 import { RuleValidationError } from "../contract/errors.ts";
 import type { PlannedRuleInsert, PlanRule } from "../contract/ops.ts";
 import type { CreateRuleFromPresetParams } from "../contract/params.ts";
 import type { ErasedRulePresetDef } from "../contract/presets.ts";
 import { RULE_PRESETS } from "../contract/presets.ts";
-import type { RuleView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireChatHost } from "../guard.ts";
 import { insertRules, selectRuleRowsByIds, toRuleView } from "../persistence/rules.ts";

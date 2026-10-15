@@ -1,7 +1,7 @@
-import type { AgentSdkModel, ModelCatalogEntry, ModelInfoApi, ProviderDef, ResolveTaskParams, UserConnection } from "@orb/contracts/inference";
+import type { AgentSdkModel, ModelCatalogEntry, ModelInfoApi, ProviderDef, ResolvedWarning, ResolveTaskParams, UserConnection } from "@orb/contracts/inference";
 import type { Mirror } from "./catalog.ts";
 import type { ProviderRegistry } from "./registry.ts";
-import type { ResolvedWarning } from "./resolve.ts";
+
 import type { Resolved } from "./resolved.ts";
 import type { DetectedServer, EndpointModel, InferenceDeps, SpawnIdentity } from "./runtime.ts";
 

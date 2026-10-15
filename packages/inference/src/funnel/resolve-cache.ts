@@ -1,10 +1,10 @@
 // Cache policy is pure; adapters spell controls and the shared placer owns conversational boundaries.
-import type { CachePolicy, CachePolicyContext, GenerationCapability, PromptCacheSettings } from "@orb/contracts/inference";
+import type { CachePolicy, CachePolicyContext, GenerationCapability, PromptCacheSettings, ResolvedWarning } from "@orb/contracts/inference";
 import { clampRoleHandling, PROMPT_CACHE_TTLS, turnsLevelFor } from "@orb/contracts/inference";
 import { responseCacheControlSchema, responseCacheSettingsSchema } from "@orb/contracts/preset";
 import { detectModelFamily } from "../capability/families.ts";
 import { ProviderError } from "../contract/errors.ts";
-import type { ResolveCachePolicyInput, ResolvedCachePolicy, ResolvedWarning } from "../contract/resolve.ts";
+import type { ResolveCachePolicyInput, ResolvedCachePolicy } from "../contract/resolve.ts";
 
 function warn(warnings: ResolvedWarning[], message: string): void {
   warnings.push({ code: "cache_control_adjusted", message });

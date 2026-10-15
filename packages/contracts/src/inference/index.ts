@@ -29,6 +29,7 @@ export * from "./resolved.ts";
 export * from "./tasks.ts";
 export * from "./tokenize.ts";
 export * from "./usage.ts";
+export * from "./warnings.ts";
 export * from "./wire-limits.ts";
 export * from "./wire-subset.ts";
 export * from "./wires.ts";

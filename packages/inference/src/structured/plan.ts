@@ -2,12 +2,12 @@
 // tool choice); the plan is the one request this endpoint can carry, or every reason it cannot. Pure: backends
 // send the plan and spell nothing of their own; a caller that must choose between shapes asks the same planner.
 
-import type { StructuredVehicle, WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
+import type { ResolvedWarning, StructuredVehicle, WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { countWireSchemas, describeWireSchemaViolation, scrubViolations, scrubWireSchema, WIRE_SUBSETS } from "@orb/contracts/inference";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import type { ResponseFormat, ToolChoice, WireTool } from "../contract/chat.ts";
 import { assertNever, ProviderError, SCHEMA_REJECTED_DETAIL } from "../contract/errors.ts";
-import type { ResolvedWarning } from "../contract/resolve.ts";
+
 import type { Resolved } from "../contract/resolved.ts";
 import type { PlannedTool, StructuredAsk, StructuredPlan, StructuredRefusal, StructuredTarget } from "../contract/structured.ts";
 import type { StructuredFit } from "../contract/structured-turn.ts";

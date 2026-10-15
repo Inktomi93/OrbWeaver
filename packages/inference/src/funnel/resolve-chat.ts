@@ -7,7 +7,17 @@
 // resolution, mandatory clamp included.
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
-import type { EffortLevel, GenerationCapability, Range, SamplerKnob, SamplerStage, SamplingRangeKnob, Verbosity, Wire } from "@orb/contracts/inference";
+import type {
+  EffortLevel,
+  GenerationCapability,
+  Range,
+  ResolvedWarning,
+  SamplerKnob,
+  SamplerStage,
+  SamplingRangeKnob,
+  Verbosity,
+  Wire,
+} from "@orb/contracts/inference";
 import {
   bindsThinkingToPrefix,
   completeSamplerOrder,
@@ -21,7 +31,7 @@ import {
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolveChatOptions } from "../contract/funnel.ts";
-import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
+import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling } from "../contract/resolve.ts";
 import { ADAPTIVE_DEFAULT_EFFORT } from "../contract/resolve.ts";
 import type { ChatPosture } from "../contract/side-gen.ts";
 

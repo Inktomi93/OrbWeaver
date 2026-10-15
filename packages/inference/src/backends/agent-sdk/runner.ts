@@ -22,7 +22,7 @@ import type {
   SDKMessage,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import type { ChatUsage } from "@orb/contracts/inference";
+import type { ChatUsage, ResolvedWarning } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import type {
@@ -36,7 +36,6 @@ import type {
   ProviderScrubSet,
   RateLimitSnapshot,
   Resolved,
-  ResolvedWarning,
   ResponseFormat,
   ToolCallInput,
 } from "#contract";

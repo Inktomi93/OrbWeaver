@@ -3,10 +3,10 @@
 // preset's generation params while its own prompt stays unchanged.
 
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION, presetDetailSchema } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS, ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import type { IdSource } from "@orb/kit/ids";
-import { buildSideGenParams, presetDetailSchema } from "@orb/server/domain/preset";
+import { buildSideGenParams } from "@orb/server/domain/preset";
 import { makePresetDetail } from "./factories/preset-view.ts";
 
 export const CUSTOM_SYSTEM_TEMPLATE = "CUSTOM PRESET SYSTEM TEMPLATE — never a background prompt";

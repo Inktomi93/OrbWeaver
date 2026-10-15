@@ -3,6 +3,8 @@
 // never runtime-imports automation's internals sideways — the composition root injects the built
 // `AutomationService` + the watcher env. A6 wires the injected `runArm` dispatcher — through this same door.
 
+export type { ArmPreview, ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, TestRunResult } from "@orb/contracts/automation";
+export { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "@orb/contracts/automation";
 export type { AutomationContext } from "./context.ts";
 export {
   AutomationChatNotFoundError,
@@ -67,8 +69,7 @@ export type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "./contra
 // need to name a preset's shape; the CEL sources it builds stay behind the mint verb.
 export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RulePresetRuleDef } from "./contract/presets.ts";
 export { RULE_PRESETS } from "./contract/presets.ts";
-export type { ArmPreview, ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, StreamAuthority, TestRunResult } from "./contract/results.ts";
-export { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "./contract/results.ts";
+export type { StreamAuthority } from "./contract/results.ts";
 export type { AutomationService, AutomationServiceDeps, AutomationWatcherEnv, AutomationWatcherHandle } from "./contract/service.ts";
 export type { GlobalVariableView } from "./contract/views.ts";
 export { createArmExecutors } from "./engine/arm-executors.ts";

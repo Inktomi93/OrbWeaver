@@ -4,7 +4,17 @@
 // watcher/dispatch slice implement. The action-arms slice wires the injected `runArm` dispatcher + WIDENS
 // `AutomationOps` with the write ops — no stubs, no reserved slots here.
 
-import type { AutomationRuleTools, GlobalVariableView, OwnerBudgetView, RulePresetView } from "@orb/contracts/automation";
+import type {
+  AutomationRuleTools,
+  ConfirmSuggestionResult,
+  FireView,
+  GlobalVariableView,
+  OwnerBudgetView,
+  RulePresetView,
+  RuleView,
+  RunRuleNowResult,
+  TestRunResult,
+} from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
@@ -52,7 +62,7 @@ import type {
   UpdateRuleParams,
 } from "./params.ts";
 import type { PluginSubscriberRegistry } from "./plugin-subscribers.ts";
-import type { ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, StreamAuthority, TestRunResult } from "./results.ts";
+import type { StreamAuthority } from "./results.ts";
 
 /** The DI bundle the automation verbs close over. Assembled at the entry composition root and handed to
  *  `createAutomationService`. `now` is the injected clock; `prng` is the injected [0,1) source the dry-run

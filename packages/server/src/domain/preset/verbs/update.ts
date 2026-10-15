@@ -1,3 +1,4 @@
+import type { PresetDetail } from "@orb/contracts/preset";
 import { promptConfigConfig } from "@orb/contracts/preset";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
@@ -7,7 +8,6 @@ import type { PresetContext } from "../context.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { PresetForkIntent, UpdatePresetParams } from "../contract/params.ts";
 import type { PresetService } from "../contract/service.ts";
-import type { PresetDetail } from "../contract/views.ts";
 import {
   findOwnedForkOf,
   insertConvergedPresetForkIfAbsent,

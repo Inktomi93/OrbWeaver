@@ -24,14 +24,18 @@ import {
   automationRuleTimeZoneSchema,
   automationRuleToolsSchema,
   automationRuleUpdateSchema,
+  confirmSuggestionResultSchema,
+  fireViewSchema,
   ownerBudgetViewSchema,
   rulePresetIdSchema,
   rulePresetKnobValuesSchema,
   rulePresetViewSchema,
+  ruleViewSchema,
+  runRuleNowResultSchema,
+  testRunResultSchema,
 } from "@orb/contracts/automation";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "#domain/automation";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const automationRouter = t.router({

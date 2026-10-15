@@ -1,8 +1,9 @@
 // Native Google uses the shared funnel, prompt, stream reducer and pre-commit retry boundary.
+
 import type { JSONObject } from "@ai-sdk/provider";
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill } from "@orb/contracts/inference";
-import type { ChatResult, GoogleBackendDeps, GoogleChatRequest, RateLimitSnapshot, Resolved, ResolvedWarning } from "#contract";
+import type { ChatResult, GoogleBackendDeps, GoogleChatRequest, RateLimitSnapshot, Resolved } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveChat } from "#funnel";
 import { requireStructuredPlan, structuredChatResult } from "#structured";

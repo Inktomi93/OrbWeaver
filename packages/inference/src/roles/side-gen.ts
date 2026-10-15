@@ -2,6 +2,7 @@
 // the connection's own api, so the wire's chat path is the one request builder for both. This file maps an item
 // onto a chat request with the `side-gen` posture and folds the turn back into the item; it spells no wire body.
 
+import type { ResolvedWarning } from "@orb/contracts/inference";
 import type { ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
 import { rolePresetParamsOf, splittableTagPair, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/providers";
@@ -12,7 +13,7 @@ import { toImageUrl } from "../backends/wire/image-normalize.ts";
 import type { ChatHistoryMessage, ChatRequest, ChatResult, GenerationObservationCallback } from "../contract/chat.ts";
 import { GenerationObservationPersistenceError } from "../contract/chat.ts";
 import { ProviderError } from "../contract/errors.ts";
-import type { ResolvedWarning } from "../contract/resolve.ts";
+
 import type { Resolved } from "../contract/resolved.ts";
 import { withPresetWindow } from "../contract/resolved.ts";
 import type { StructuredRequest, SummarizeRequest } from "../contract/roles.ts";

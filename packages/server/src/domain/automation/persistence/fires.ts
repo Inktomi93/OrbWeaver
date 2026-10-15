@@ -4,7 +4,7 @@
 // the same `insertFire`. Autonomous arms first write the storage-only `reserved` state; every ordinary read
 // filters it before projection. `detail` is open JSON, read-seam parsed onto the view.
 
-import type { AutomationFireOutcome } from "@orb/contracts/automation";
+import type { AutomationFireOutcome, FireView } from "@orb/contracts/automation";
 import { AUTOMATION_CHAT_MAX_FIRES_PER_HOUR, AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationFires, automationRules } from "@orb/db";
@@ -12,7 +12,6 @@ import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { and, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
-import type { FireView } from "../contract/results.ts";
 import { stampRuleFiredAfterReservationStatement } from "./rules.ts";
 
 const DEFAULT_FIRE_LIMIT = 50;

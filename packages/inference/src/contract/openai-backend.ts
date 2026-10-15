@@ -1,18 +1,18 @@
-import type { CachePolicy, Dialect, EffortLevel, EndpointFeatures, ImageDetail, PromptCacheFormat, TokenizeApi, WordTokens } from "@orb/contracts/inference";
+import type {
+  CachePolicy,
+  Dialect,
+  EffortLevel,
+  EndpointFeatures,
+  ImageDetail,
+  PromptCacheFormat,
+  ResolvedWarning,
+  TokenizeApi,
+  WordTokens,
+} from "@orb/contracts/inference";
 import type { ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
-import type {
-  AddSpanEvent,
-  ConnectionTransport,
-  ProviderBackend,
-  ProviderScrubSet,
-  Reachability,
-  Resolved,
-  ResolvedWarning,
-  ScheduleTimeout,
-  WireCaptureSink,
-} from "#contract";
+import type { AddSpanEvent, ConnectionTransport, ProviderBackend, ProviderScrubSet, Reachability, Resolved, ScheduleTimeout, WireCaptureSink } from "#contract";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 import type { WirePlan, WrapFetchArgs } from "./v4.ts";
 import type { NormalizeImageBytes } from "./wire.ts";

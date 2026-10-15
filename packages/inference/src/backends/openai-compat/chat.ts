@@ -7,22 +7,13 @@
 // `warning` event (D41).
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
-import type { CachePolicy, Dialect, GenerationCapability, ResponseCache } from "@orb/contracts/inference";
+import type { CachePolicy, Dialect, GenerationCapability, ResolvedWarning, ResponseCache } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, honoursParallelControl } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
-import type {
-  ChatHistoryMessage,
-  ChatResult,
-  OpenAiCompatChatRequest,
-  RateLimitSnapshot,
-  Resolved,
-  ResolvedChatKnobs,
-  ResolvedWarning,
-  ScheduleTimeout,
-} from "#contract";
+import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs, ScheduleTimeout } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import { requireStructuredPlan, structuredChatResult } from "#structured";

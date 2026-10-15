@@ -6,9 +6,9 @@ import type { EffortLevel, HookJSONOutput, Options, ThinkingConfig } from "@anth
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from "@anthropic-ai/claude-agent-sdk";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import type { ChatPosture, ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "#contract";
+import type { ChatPosture, ResolvedChatKnobs, ResolvedReasoning } from "#contract";
 import { resolveChat } from "#funnel";
 import type { AgentSdkLog, ClaudeRuntimeOverrides, DisciplineOptions } from "../../contract/agent-sdk-backend.ts";
 

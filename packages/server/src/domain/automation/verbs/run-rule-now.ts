@@ -11,9 +11,9 @@
 // The rule must be ENABLED. A disabled rule is one the host has withdrawn consent from; "run it now" is not
 // a back door around that, it is a request to run a rule that is already live.
 
+import type { RunRuleNowResult } from "@orb/contracts/automation";
 import { RuleValidationError } from "../contract/errors.ts";
 import type { RunRuleNowParams } from "../contract/params.ts";
-import type { RunRuleNowResult } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireRuleAuthority } from "../guard.ts";
 import { dispatchRuleNow } from "../substrate/run-now.ts";

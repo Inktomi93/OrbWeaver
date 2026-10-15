@@ -3,9 +3,9 @@
 // disable countdown). The chat/owner/position/enabled state is immutable here (enable is its own verb;
 // reorder is its own verb). Returns the stored view.
 
+import type { RuleView } from "@orb/contracts/automation";
 import { AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR } from "@orb/contracts/automation";
 import type { UpdateRuleParams } from "../contract/params.ts";
-import type { RuleView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireRuleAuthority } from "../guard.ts";
 import { applyRuleUpdate, selectRuleRow, toRuleView } from "../persistence/rules.ts";
