@@ -3,7 +3,7 @@ kind: work
 status: doing
 updated: 2026-10-15
 priority: P1
-lane: codex/corpus-stats-qualification-959
+lane: codex/canonical-table-builders-959
 plan: test-foundation
 ---
 
@@ -35,6 +35,6 @@ Reviewed preset and automation wire schemas live in canonical contracts. Public 
 
 Integrated `0f010719c1` publishes native preset list/detail/effective reads, independently captured usage stages and live rules. Security review confirms native clone HTTP equality and ownership/member-splice rejection controls. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/959-preset-publication-independent-security-review.md`.
 
-The preset/parity combined capsule passes with its unchanged guard: `reports/runs/test/main-1608466-2026-10-15T10-16-33-248Z/test-report.json`. The preceding concurrent timeout remains failed evidence. Tooling and ISO types pass; root retains byte-identical existing diagnostics in `reports/review/preset-parity-integrated-types.log`. No clean application verdict follows.
+The combined native capsule passes with its unchanged guard on `e1d018555b`: `reports/runs/test/main-2224631-2026-10-15T12-37-53-280Z/test-report.json`. Owner-funded indexing settles before final search capture. Canonical identity breaks equal-distance image ties before candidate limits. Independent review accepts both corrections. Earlier failed runs remain preserved; this selected capsule does not establish complete application qualification.
 
-The closed canonical table population has accepted selected row-builder chains and lawful database fixtures. Source traces and allocated native assertions qualify that contract, not every persistence verb or wire output. Evidence: `reports/review/959-table-builder-semantics.json` and `reports/review/959-canonical-table-builder-evidence.md`. Portable search publication is integrated with native clone evidence; raw-to-captioned fallback remains supported. Combined main qualification fails when final image search finds its index rebuilding. Producer ordering requires correction, not a timeout increase. Evidence: `reports/runs/test/main-2033653-2026-10-15T11-57-05-303Z/test-report.json`. Contract-output coverage, remaining output builders and shared adoption remain open. These captures do not authorize general legacy ports.
+The closed canonical table population has accepted selected row-builder chains and lawful database fixtures, not every persistence verb or wire output. Evidence: `reports/review/959-table-builder-semantics.json` and `reports/review/959-canonical-table-builder-evidence.md`. Native contract-output boundary accounting is complete; supplier and runtime qualification remain partial. The canonical output assignment retains its allocation and limitations in `.claude/worktrees/codex-canonical-table-builders-959/reports/review/959-mounted-output-uses.json`. Shared adoption remains open. These captures do not authorize general legacy ports.

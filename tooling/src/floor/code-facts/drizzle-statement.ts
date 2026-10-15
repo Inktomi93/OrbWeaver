@@ -3,7 +3,7 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import { readCallReturnProgram, readFunctionReturnPaths } from "./call-returns.ts";
+import { readCallReturnProgram, readFunctionReturnPaths, readObservedCallableConsumers } from "./call-returns.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { readAnchorOf } from "./drizzle-query.ts";
 import type { DrizzleBuilderChain, ReadAnchor, ReadStatement } from "./drizzle-query-contract.ts";
@@ -234,25 +234,15 @@ function returnedSteps(fn: Node | undefined, state: BuilderFilterState, traversa
   if (traversal.returning.has(fn)) {
     return [{ calls: [], escapes: true, refusals: [refusal(fn, "cycle", "an editable builder return revisits its callable body")] }];
   }
-  if (!traversal.observations.referencesObserved) {
-    return [
-      { calls: [], escapes: true, refusals: [refusal(fn, "missing", "native callable-reference coverage was not supplied for the returned editable builder")] },
-    ];
+  const consumers = readObservedCallableConsumers(fn, traversal.observations);
+  if (consumers.kind === "unresolved") {
+    return [{ calls: [], escapes: true, refusals: [consumers] }];
   }
-  const escaped = traversal.observations.escapingReferences.get(fn.compilerNode) ?? [];
-  const incomplete: readonly StatementCalls[] = escaped.length === 0 ? [] : [{ calls: [], escapes: true, refusals: escaped }];
-  const callers = traversal.observations.callers.get(fn.compilerNode) ?? [];
-  if (callers.length === 0 && incomplete.length === 0) {
-    return [{ calls: [], escapes: true, refusals: [refusal(fn, "missing", "the returned editable builder has no admitted native caller continuation")] }];
-  }
-  return [
-    ...incomplete,
-    ...callers.map((caller) =>
-      caller.returns.kind === "unresolved"
-        ? { calls: [], escapes: true, refusals: [caller.returns] }
-        : statementCalls(caller.call, state, { seen: new Set(), observations: traversal.observations, returning: new Set([...traversal.returning, fn]) }),
-    ),
-  ];
+  return consumers.value.map((caller) =>
+    caller.returns.kind === "unresolved"
+      ? { calls: [], escapes: true, refusals: [caller.returns] }
+      : statementCalls(caller.call, state, { seen: new Set(), observations: traversal.observations, returning: new Set([...traversal.returning, fn]) }),
+  );
 }
 
 /** Returned builders continue at observed native callers; separate WHEREs remain alternatives. */
@@ -345,12 +335,12 @@ function predicateCallUse(
   }
   const member = readCalledMember(parent);
   return member.kind === "resolved" &&
-    member.value.name === WHERE_VERB &&
-    parent.getArguments()[0] === value &&
+    ((member.value.name === WHERE_VERB && parent.getArguments()[0] === value) ||
+      (member.value.name === INNER_JOIN_VERB && parent.getArguments()[1] === value)) &&
     member.value.declarations.length > 0 &&
     declaredInDrizzle(member.value.declarations)
     ? { kind: "resolved", value: [parent], trace: { declarations: [], origin: value } }
-    : refusal(parent, "unsupported", "predicate leaves native boolean/WHERE composition");
+    : refusal(parent, "unsupported", "predicate leaves native boolean/WHERE/INNER JOIN ON composition");
 }
 
 function predicateAliasUses(parent: import("ts-morph").VariableDeclaration): ReferenceFact<readonly Node[]> {
@@ -418,7 +408,7 @@ function predicateUses(value: Node, program: CallReturnProgram, active: Readonly
   );
 }
 
-/** All WHERE consumers of a native EXISTS, including authored predicate-return helpers. One escape,
+/** All filtering consumers of a native EXISTS, including authored predicate-return helpers. One escape,
  * unknown continuation or mismatched compiler epoch refuses the complete correlation proof. */
 export function readPredicateConsumers(anchor: Node, observations: CallReturnObservations): ReferenceFact<readonly CallExpression[]> {
   const program = readCallReturnProgram(anchor, observations);

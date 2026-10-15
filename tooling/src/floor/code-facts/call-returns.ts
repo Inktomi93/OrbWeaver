@@ -830,7 +830,9 @@ export function observeCallReturns(
       group = { calls: [], sources: new Map() };
       groups.set(project, group);
     }
-    const targets = projection.suppliedCallableTargets === true ? singleCallTargets(target) : readCallTargets(call, admitted);
+    const enumerate =
+      projection.suppliedCallableTargets !== true || (target.kind === "unresolved" && target.reason === "dynamic" && !optionalReceiverInvocation(call));
+    const targets = enumerate ? readCallTargets(call, admitted) : singleCallTargets(target);
     const alternatives = observeAlternatives(targets, projection);
     if (targets.kind === "resolved" && !optionalReceiverInvocation(call)) {
       directCalls.add(call.compilerNode);

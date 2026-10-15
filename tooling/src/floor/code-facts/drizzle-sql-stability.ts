@@ -1,6 +1,6 @@
 // Mutable native SQL and subquery carriers require a closed set of read-only local composition uses.
 import type { Node as MorphNode } from "ts-morph";
-import { Node } from "ts-morph";
+import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { readObservedCallableConsumers } from "./call-returns.ts";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { readDrizzleSelection, readFollowingSelectChain } from "./drizzle-select.ts";
@@ -242,6 +242,9 @@ function sqlContainingUse(value: MorphNode, active: ReadonlySet<object>, program
   if (Node.isPropertyAssignment(parent) && parent.getInitializer() === value) {
     return nativeProjectionUse(parent, active, program) ?? sqlAliasUseStable(parent.getParent(), active, program);
   }
+  if (Node.isShorthandPropertyAssignment(parent)) {
+    return sqlAliasUseStable(parent.getParent(), active, program);
+  }
   const returnedOwner = returnedSqlOwner(value);
   if (returnedOwner !== undefined) {
     return returnedSqlUse(returnedOwner, active, program);
@@ -294,6 +297,17 @@ function stableSqlDeclaration(
   program?: CallReturnProgram,
 ): boolean {
   if (Node.isBindingElement(declaration)) {
+    const pattern = declaration.getParent();
+    const variable = pattern.getParentIfKind(SyntaxKind.VariableDeclaration);
+    if (variable !== undefined) {
+      return (
+        Node.isObjectBindingPattern(pattern) &&
+        variable.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() === VariableDeclarationKind.Const &&
+        variable.getInitializer() !== undefined &&
+        declaration.getInitializer() === undefined &&
+        declaration.getDotDotDotToken() === undefined
+      );
+    }
     const owner = declaration.getFirstAncestor((node) => Node.isArrowFunction(node) || Node.isFunctionExpression(node));
     const call = owner?.getParent();
     const selected = program !== undefined && Node.isCallExpression(call) ? readSqlSelectionCallback(call, { bindings: new Map(), program }) : undefined;
@@ -306,8 +320,31 @@ function stableSqlDeclaration(
   return stable.kind === "resolved" || stable.reason === "dynamic";
 }
 
+function literalScalarSibling(node: MorphNode, program?: CallReturnProgram): boolean {
+  const sources = readSqlValueSources(node, { bindings: new Map(), program });
+  return (
+    sources.kind === "resolved" &&
+    sources.value.length > 0 &&
+    sources.value.every(
+      ({ value, path, present }) =>
+        present &&
+        path.length === 0 &&
+        (Node.isStringLiteral(value) ||
+          Node.isNoSubstitutionTemplateLiteral(value) ||
+          Node.isNumericLiteral(value) ||
+          Node.isBigIntLiteral(value) ||
+          [SyntaxKind.TrueKeyword, SyntaxKind.FalseKeyword, SyntaxKind.NullKeyword].includes(value.getKind())),
+    )
+  );
+}
+
 /** Every loaded reference and containing native carrier must preserve this SQL object. */
 export function sqlBindingStable(node: MorphNode, active: ReadonlySet<object>, program?: CallReturnProgram): boolean {
+  if (Node.isObjectBindingPattern(node)) {
+    return node
+      .getElements()
+      .every((element) => literalScalarSibling(element.getNameNode(), program) || sqlBindingStable(element.getNameNode(), active, program));
+  }
   if (!Node.isIdentifier(node)) {
     return false;
   }

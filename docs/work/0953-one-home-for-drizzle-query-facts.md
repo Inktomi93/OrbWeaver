@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-15
 priority: P1
-lane: codex/drizzle-native-953
 plan: test-foundation
 ---
 
@@ -31,8 +30,8 @@ Shared readers retain full-row subquery/CTE provenance, complete caller alternat
 
 Reviewed `cb26ce442e` extends supplied formals, finite actual callable bodies and imported/returned native carriers. One physical-use traversal follows SELECT, EXISTS, templates, aliases and first SQL conversion through complete consumers. Path-local cycle refusal replaces checker overflow. Runtime defaults cannot disappear through explicit undefined; native symbol identity distinguishes shadows. Callable VALUE identity supports namespace-merged functions without weakening module ambiguity or granting UI ownership.
 
-The same reviewer accepts the inline-wrapper and default-normalization corrections. Matching native positives, unsafe controls, actual runtime sharing and consumer cases pass. The final affected command retains a superseded fixture failure; its corrected case passes separately. Tooling types and exact lint pass; root types retain off-owned failures. No combined whole-command green is claimed.
+Native wrapper, default-normalization, runtime-sharing and unsafe controls pass. Tooling types and exact lint pass; root types retain off-owned errors. Matching checks remain reusable.
 
-Generic table enumeration, imported destructured CTE lifetimes, INNER JOIN ON correlations and unavailable higher-order consumers remain unqualified. Containment supplies no authority. Complete repository output/finding equivalence and remaining schema-case acceptance stay open.
+Reviewed `849095f170` qualifies finite generic table alternatives, imported destructured CTE lifetimes, INNER JOIN correlations and finite supplied callback consumers. Unknown, mutable and opaque alternatives refuse. Scalar metadata does not erase SQL-carrier obligations. Path-local cycle refusal replaces the CTE depth cutoff. Final affected controls and tooling types pass; superseded aggregate failures remain recorded. Evidence: `.claude/worktrees/codex-drizzle-native-953/reports/review/953-native-drizzle-independent-review.md`. Containment supplies no authority. Complete repository equivalence and schema qualification remain open.
 
 Reviewed `5423bfb5d9` stops fluent extraction at delivered await values. Native execution, mutable SQL lifetime and owner predicates remain separate judgments. Native policy positives and unsafe controls pass; complete equivalence remains open.
