@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-15
 priority: P2
 area: tooling
+lane: codex/zod-opaque-provenance-1029
 plan: test-foundation
 ---
 

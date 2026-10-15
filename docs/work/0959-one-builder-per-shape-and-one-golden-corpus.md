@@ -3,7 +3,7 @@ kind: work
 status: doing
 updated: 2026-10-15
 priority: P1
-lane: codex/corpus-library-builders-959
+lane: codex/corpus-stats-qualification-959
 plan: test-foundation
 ---
 
@@ -33,7 +33,7 @@ Reviewed `b29020315d` captures production-created library rows and fixes charact
 
 Reviewed `7c087293c8` captures actual member cookie identities and excludes ambient owner fallback as admission proof. Reviewed `97cbc929f5` qualifies fresh private login on the scrubbed clone through native credential setup and verification. Source credentials refuse. Scoped password reset and logout preserve the other viewer. Publication bytes and source rows remain unchanged; clone disposal joins before database close. Public identities do not authenticate clones or carry credentials.
 
-The combined main capsule and clone pass under the unchanged guard. Evidence: `reports/runs/test/main-243895-2026-10-15T05-26-44-771Z/test-report.json`. The complete root compiler log retains off-owned diagnostics and no changed-file diagnostic: `reports/review/current-foundation-integration-types.log`. This does not establish a clean application verdict.
+Reviewed `28d1757b51` captures native persona, preset, roster and tag producer variants while preserving prior rows and settings. The integrated capsule and scrubbed clone pass. Evidence: `reports/runs/test/main-598883-2026-10-15T06-30-13-813Z/test-report.json`. Complete root types retain off-owned diagnostics: `reports/review/ready-train-root-types.log`. No clean application verdict is established.
 
 Schema population is recorded in `reports/review/959-native-table-inventory.json`. Reference leads in `reports/review/959-table-builder-map.json` do not prove builders or writers. `reports/review/959-table-builder-semantics.json` separates production captures, lawful database fixtures and unresolved paths. Mounted uses in `reports/review/959-mounted-output-uses.json` establish parser presence, not canonical output or builder completeness.
 
