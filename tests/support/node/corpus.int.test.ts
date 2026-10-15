@@ -187,6 +187,14 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const sdkSessions = capsule.privateCaptures.sdkSessions;
   const notifications = capsule.privateCaptures.notifications;
   const imageVariants = capsule.privateCaptures.imageVariants;
+  expect(capsule.wire.notificationInbox).toBeDefined();
+  expect(capsule.wire.notificationInbox).toEqual(notifications.publication);
+  expect(capsule.wire.chatLifecycleMember).toBeDefined();
+  expect(capsule.wire.chatLifecycleMember).toEqual(lifecycle.publication);
+  expect(capsule.wire.worldInfoLibrary).toBeDefined();
+  expect(capsule.wire.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
+  expect(capsule.wire.regexLibrary).toBeDefined();
+  expect(capsule.wire.regexLibrary).toEqual(libraryViews.publication.regex);
   expect(imageVariants.skips.map(({ first }) => first.skip)).toMatchObject([
     { reason: "below-dimension-floor", width: 8, height: 8 },
     { reason: "below-dimension-floor", width: 8, height: 64 },
@@ -430,6 +438,14 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const fixture = ownership.use(await prepareCorpusFixture(capsule, join(parent, "stage clone")));
   const loaded = loadCorpusFixture(fixture.layout.root);
   expect(loaded.wire).toEqual(capsule.wire);
+  expect(loaded.wire.notificationInbox).toBeDefined();
+  expect(loaded.wire.notificationInbox).toEqual(notifications.publication);
+  expect(loaded.wire.chatLifecycleMember).toBeDefined();
+  expect(loaded.wire.chatLifecycleMember).toEqual(lifecycle.publication);
+  expect(loaded.wire.worldInfoLibrary).toBeDefined();
+  expect(loaded.wire.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
+  expect(loaded.wire.regexLibrary).toBeDefined();
+  expect(loaded.wire.regexLibrary).toEqual(libraryViews.publication.regex);
   const published = await readFile(join(fixture.layout.root, "corpus.json"), "utf8");
   expect(capsule.publishWire()).toBe(published);
   for (const privateMaterial of [
@@ -444,6 +460,14 @@ test("a completed migrated capsule closes its real producers before cloning scru
     expect(JSON.stringify(connections.diagnostics)).not.toContain(privateMaterial);
   }
   const portable = parseCorpusWire(published);
+  expect(portable.notificationInbox).toBeDefined();
+  expect(portable.notificationInbox).toEqual(notifications.publication);
+  expect(portable.chatLifecycleMember).toBeDefined();
+  expect(portable.chatLifecycleMember).toEqual(lifecycle.publication);
+  expect(portable.worldInfoLibrary).toBeDefined();
+  expect(portable.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
+  expect(portable.regexLibrary).toBeDefined();
+  expect(portable.regexLibrary).toEqual(libraryViews.publication.regex);
   expect(portable.reads["chat.getChat"].map(({ output }) => output.id)).toEqual([
     capsule.privateCaptures.baseline.identities.soloChatId,
     capsule.privateCaptures.baseline.identities.groupChatId,
