@@ -2097,3 +2097,45 @@ test("native resource projection retains foreign and stale capture refusal", () 
     endReferencePass();
   }
 });
+
+const DISPOSER_PARAMETER_CASES = [
+  { name: "erased this parameter", parameters: "this: {read:()=>number}", method: true, resolved: true },
+  { name: "closed default initializer", parameters: "this: {read:()=>number}, replacement=2", method: true, resolved: true },
+  { name: "receiver default initializer", parameters: "this: {read:()=>number}, replacement=(this.read=()=>2)", method: true, resolved: false },
+  { name: "nested binding default initializer", parameters: "this: {read:()=>number}, {replacement=(this.read=()=>2)}={}", method: true, resolved: false },
+  {
+    name: "computed binding receiver effect",
+    parameters: "this: {read:()=>number}, {[(this.read=()=>2,'replacement')]: replacement}={replacement:0}",
+    method: true,
+    resolved: false,
+  },
+  { name: "function-valued default initializer", parameters: "this: {read:()=>number}, replacement=(this.read=()=>2)", method: false, resolved: false },
+] as const;
+for (const scenario of DISPOSER_PARAMETER_CASES) {
+  test(`native disposal parameter effects retain ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts"], strict: true } });
+    const disposal = scenario.method
+      ? `async [Symbol.asyncDispose](${scenario.parameters}){}`
+      : `[Symbol.asyncDispose]:async function(${scenario.parameters}){}`;
+    const source = project.createSourceFile(
+      "/resource-parameters.ts",
+      `export {};const resources=new AsyncDisposableStack();function create(){return {read:()=>1,${disposal}};}const held=resources.use(create());await resources.disposeAsync();held.read();`,
+    );
+    expect(source.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const selected = calls.find((call) => call.getExpression().getText() === "held.read");
+    const expected = source.getFunctionOrThrow("create").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+    if (selected === undefined) {
+      throw new Error("the post-disposal call is missing");
+    }
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const fact = readAuthoredCallableSources(selected.getExpression(), undefined, observed);
+      expect(fact.kind, fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail}` : "resolved").toBe(scenario.resolved ? "resolved" : "unresolved");
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(scenario.resolved);
+    } finally {
+      endReferencePass();
+    }
+  });
+}

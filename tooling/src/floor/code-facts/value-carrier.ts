@@ -24,7 +24,7 @@ import { isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-w
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
 import {
   nativeDisposalPropertyKey,
-  nativeDisposerBodyClosed,
+  nativeDisposerReceiverClosed,
   nativeParameterFieldsUnchanged,
   readNativeResourceRegistration,
   readNativeRetainedReturn,
@@ -1304,7 +1304,7 @@ function ordinaryCallableRecord(node: Node, spread?: Node, program?: CallReturnP
     }
     const key = returnedPropertyName(property, program);
     if (key.kind === "resolved" && typeof key.value !== "string" && N.isMethodDeclaration(property)) {
-      return nativeDisposerBodyClosed(property);
+      return nativeDisposerReceiverClosed(property);
     }
     if (!(N.isPropertyAssignment(property) || N.isShorthandPropertyAssignment(property))) {
       return false;

@@ -604,17 +604,28 @@ function resourceReceiverClosed(receiver: Node, stack: string, context: NativeTr
 }
 
 /** Native disposal binds the resource as this; receiver-dependent effects need a separate closed proof. */
-export function nativeDisposerBodyClosed(value: Node): boolean {
+export function nativeDisposerReceiverClosed(value: Node): boolean {
   if (!(N.isMethodDeclaration(value) || N.isArrowFunction(value) || N.isFunctionExpression(value) || N.isFunctionDeclaration(value))) {
     return false;
   }
   const body = value.getBody();
-  return (
-    body !== undefined &&
-    body.getKind() !== SyntaxKind.ThisKeyword &&
-    body.getKind() !== SyntaxKind.SuperKeyword &&
-    body.getFirstDescendantByKind(SyntaxKind.ThisKeyword) === undefined &&
-    body.getFirstDescendantByKind(SyntaxKind.SuperKeyword) === undefined
+  if (body === undefined) {
+    return false;
+  }
+  // Defaults and binding patterns execute with the native receiver before the body; type annotations do not.
+  const runtime = [
+    body,
+    ...value.getParameters().flatMap((parameter) => {
+      const initializer = parameter.getInitializer();
+      return initializer === undefined ? [parameter.getNameNode()] : [parameter.getNameNode(), initializer];
+    }),
+  ];
+  return runtime.every(
+    (node) =>
+      node.getKind() !== SyntaxKind.ThisKeyword &&
+      node.getKind() !== SyntaxKind.SuperKeyword &&
+      node.getFirstDescendantByKind(SyntaxKind.ThisKeyword) === undefined &&
+      node.getFirstDescendantByKind(SyntaxKind.SuperKeyword) === undefined,
   );
 }
 
@@ -640,7 +651,7 @@ function resourceDisposalValue(property: Node, resource: ReturnedValueSource, co
     return context.services.refusal(property, "unsupported", "native resource disposal accessor effects are not closed");
   }
   if (N.isMethodDeclaration(property)) {
-    return nativeDisposerBodyClosed(property)
+    return nativeDisposerReceiverClosed(property)
       ? {
           kind: "resolved",
           value: [{ value: property, bindings: resource.bindings, path: [], present: true }],
@@ -684,7 +695,7 @@ function resourceDisposers(resource: ReturnedValueSource, stack: string, context
     if (values.value.every(nullishResource)) {
       continue;
     }
-    return values.value.length > 0 && values.value.every((source) => source.present && source.path.length === 0 && nativeDisposerBodyClosed(source.value))
+    return values.value.length > 0 && values.value.every((source) => source.present && source.path.length === 0 && nativeDisposerReceiverClosed(source.value))
       ? values
       : context.services.refusal(property, "unsupported", "native resource disposal value has no closed actual callable");
   }
