@@ -33,26 +33,22 @@
 // `packages/server/src/domain/admin/__cbbhr_in/context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
+// Native global/module origins and lexical declarations are registered during the walk and read only after seal.
 // FAMILY: a declared SINGLETON under its own id. Its readers (`floor/code-facts/reference-fact.ts` global/module origin,
-// `lib/origin-verdict.ts#bindsProvenNonModuleDeclaration`) are corpus-wide primitives; no sibling judges a context
+// `lib/origin-verdict.ts#bindsProvenNonModuleDeclarations`) are corpus-wide primitives; no sibling judges a context
 // bundle's `ReturnType`.
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { bindsProvenNonModuleDeclaration } from "../lib/origin-verdict.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
+import { bindsProvenNonModuleDeclarations } from "../lib/origin-verdict.ts";
 
 const UTILITY = "ReturnType";
+const ORIGIN_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["global", "module"], arguments: [] };
 const MESSAGE =
   "`ReturnType<>` in context.ts — the DI bundle type must be an explicit, hand-written interface (read it to know the feature's deps), never reflected off a builder. Write the interface. See Spine-TypeScript-and-Patterns.md §7.4.";
 const UNREADABLE =
   "this `ReturnType` in a context.ts binds to no declaration the checker can name, so whether it is TypeScript's reflected utility type or a local one CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
-
-/** Does this identifier bind SOME declaration the checker can point at? A local alias, an imported type, a
- *  type parameter — any of them proves the identifier is not the ambient utility, which is the only
- *  identity the law bans. No declaration at all is the unreadable arm, never a pass. */
-function bindsAnyDeclaration(node: Node): boolean {
-  return bindsProvenNonModuleDeclaration(node) || resolveModuleMemberOrigin(node).kind === "resolved";
-}
 
 export const gate = defineGate({
   id: "no-context-returntype",
@@ -69,28 +65,43 @@ export const gate = defineGate({
     "write the DI bundle as an explicit exported interface listing each dependency. A deliberate site is " +
     "waived with `@orb-waive no-context-returntype(<position>): <reason>` on the line above, where " +
     "<position> is the literal `ReturnType`.",
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.Identifier],
-        visit: (node): void => {
-          if (!Node.isIdentifier(node) || node.getText() !== UTILITY) {
-            return;
-          }
-          const origin = resolveGlobalMemberOrigin(node);
+  create: (ctx) => {
+    const native = ctx.nativeTypes;
+    if (native === undefined) {
+      throw new Error("native context utility evidence is unavailable");
+    }
+    const candidates: Node[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node): void => {
+            if (!Node.isIdentifier(node) || node.getText() !== UTILITY) {
+              return;
+            }
+            candidates.push(node);
+            native.request({ kind: "invocation-evidence", nodes: [node], plan: ORIGIN_PLAN });
+          },
+        },
+      ],
+      evaluate: () => {
+        const captures = native.invocationEvidence(candidates, ORIGIN_PLAN);
+        for (const node of candidates) {
+          const evidence = requiredInvocationFact(captures, node);
+          const origin = requiredInvocationFact(evidence.globals, node);
           if (origin.kind === "resolved") {
             if (origin.value.globalName === UTILITY && origin.value.memberPath.length === 0) {
               ctx.report.node(node, { token: UTILITY, offset: 0 });
             }
-            return;
+            continue;
           }
-          if (!bindsAnyDeclaration(node)) {
+          if (!bindsProvenNonModuleDeclarations(evidence.declarations(node)) && requiredInvocationFact(evidence.modules, node).kind !== "resolved") {
             ctx.report.node(node, { message: UNREADABLE, token: UTILITY, offset: 0 });
           }
-        },
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",
@@ -115,7 +126,7 @@ export const gate = defineGate({
         "packages/client/src/features/chat/context.ts": "declare function makeCtx(): { db: number };\nexport const x: unknown = ReturnType;\n",
       },
       expect: { count: 1, token: "ReturnType", messageIncludes: "CANNOT be established" },
-      why: "#1990/D1 — THE UNREADABLE ARM, PROVEN: `ReturnType` is only ever declared as a TYPE, so reading it in VALUE position binds no symbol at all — `identifier.getSymbol()` is undefined, so both `resolveGlobalMemberOrigin` and `bindsAnyDeclaration` (:30-32) refuse. Reported rather than passed (#944)",
+      why: "a type-only global utility read in value position has no value declaration; captured native origins preserve the unreadable finding rather than guessing identity from spelling",
     },
   ],
   mustPass: [
