@@ -37,6 +37,7 @@ export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
       track: deps.track,
     },
     worker: {
+      track: deps.track,
       runnerDeps: {
         db: deps.db,
         now: deps.now,

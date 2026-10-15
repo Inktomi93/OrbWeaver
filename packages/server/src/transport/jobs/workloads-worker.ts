@@ -37,18 +37,12 @@
 import { randomUUID } from "node:crypto";
 import type { WorkloadLane } from "@orb/contracts/workloads";
 import { WORKLOAD_LANES } from "@orb/contracts/workloads";
-import type { Db } from "@orb/db";
 import type { WorkloadId } from "@orb/kit/ids";
-import type {
-  ReapWorkloadsArgs,
-  WorkloadContributions,
-  WorkloadReapReason,
-  WorkloadRowAnyKind,
-  WorkloadRunnableRow,
-  WorkloadRunnerDeps,
-} from "#domain/workloads";
-import type { superviseDetached as Supervise } from "#foundation/observability";
+import type { WorkloadReapReason, WorkloadRunnableRow } from "#domain/workloads";
 import { getLog, superviseDetached } from "#foundation/observability";
+import type { WorkloadsWorkerDeps } from "./contract/workloads-worker.ts";
+
+export type { WorkloadsWorkerDeps } from "./contract/workloads-worker.ts";
 
 const LOG_COMPONENT = "workloads-worker";
 
@@ -65,50 +59,6 @@ const DEFAULT_REAP_INTERVAL_MS = 60_000;
 // (domain/chat/workload-contributions.ts `memoryAdmissionKey`), and relies on the `sweep` lane running them one
 // at a time. A sweep lane wider than one would let two of them summarize the same block and pay for it twice.
 const DEFAULT_LANE_CONCURRENCY = 1;
-
-// ── Injected op shapes (entry wires the real front-door fns; tests pass fakes). File-local: the structural
-//    shape rides on `WorkloadsWorkerDeps` (the one exported surface) — entry provides functions, not the
-//    aliases. ───────────────────────────────────────────────────────────────────────────────────────────
-
-// `nextRunnableWorkload` — the LANE-SCOPED queue-head poll (front door).
-type NextRunnableOp = (db: Db, contributions: WorkloadContributions, now: number, lane: WorkloadLane) => Promise<WorkloadRunnableRow | null>;
-// `runWorkload` — drive ONE claimed row end-to-end (the domain's per-row state machine; front door).
-type RunWorkloadOp = (deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, signal: AbortSignal) => Promise<void>;
-// `reapOrphanedWorkloads` — sweep stale in-flight rows from dead workers (front door). The args shape is the
-// domain's (`ReapWorkloadsArgs`) rather than re-spelled here, so its REQUIRED `reason` reaches this driver.
-type ReapOp = (args: ReapWorkloadsArgs) => Promise<number>;
-// `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door).
-type LoadWorkloadOp = (db: Db, contributions: WorkloadContributions, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
-// Subscribe to the workload event bus (`workloadStreamEmitter`); returns the unsubscribe. Injected so the
-// driver never imports the bus directly.
-type SubscribeWakeOp = (listener: () => void) => () => void;
-// A timer seam (entry wires `setInterval`/`setTimeout`; tests pass synchronous fakes). Returns a `clear`
-// closure so the handle type never leaks (no `NodeJS.Timeout`/`ReturnType<>` in the surface).
-type ScheduleOp = (fn: () => void, ms: number) => () => void;
-
-// @orb-waive no-inline-package-interface(WorkloadsWorkerDeps): baselined when the gate landed; burn-down item 952.
-/** The DI bundle the worker driver closes over — every cross-feature/engine/timer dep injected at entry/. */
-export interface WorkloadsWorkerDeps {
-  readonly supervise?: typeof Supervise;
-  /** The per-dispatch runner deps (db + the cross-feature `env` hub + the per-owner binder + the injected
-   *  clock + the lease cadences). Built at entry/compose; the worker threads it straight into `run`. */
-  readonly runnerDeps: WorkloadRunnerDeps;
-  /** Aborts the loop on shutdown AND is threaded into `run` so an in-flight workload aborts to `cancelled`. */
-  readonly signal: AbortSignal;
-  readonly nextRunnable: NextRunnableOp;
-  readonly run: RunWorkloadOp;
-  readonly reap: ReapOp;
-  readonly load: LoadWorkloadOp;
-  readonly subscribeWake: SubscribeWakeOp;
-  readonly scheduleInterval: ScheduleOp;
-  readonly scheduleTimeout: ScheduleOp;
-  readonly pollIntervalMs?: number;
-  readonly busyPollIntervalMs?: number;
-  readonly reapIntervalMs?: number;
-  /** Workers per execution lane (default 1 each). The seam is the lane TUPLE + the row's column; widening a
-   *  lane to N is this dep, never a migration. A lane omitted here runs the default, not zero workers. */
-  readonly laneConcurrency?: Partial<Record<WorkloadLane, number>>;
-}
 
 /** The outcome of one poll tick — `ran` (a row was dispatched) + `backOff` (poll/queue trouble → wait the
  *  full idle period instead of the busy cadence, so a wedged row burns one warning per period, not a flood). */
@@ -199,84 +149,99 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
   const busyMs = deps.busyPollIntervalMs ?? DEFAULT_BUSY_POLL_INTERVAL_MS;
   const reapMs = deps.reapIntervalMs ?? DEFAULT_REAP_INTERVAL_MS;
 
-  // Boot reap — orphans from a prior lifetime (idempotent; the verb's status guard protects terminal rows).
-  // This process just started, so anything still in flight died WITH the previous one: a restart, not a lease
-  // that aged out under a live worker (#560 — the two record different sentences on the row).
-  await reapOnce(deps, "worker_restart");
+  const initialized = Promise.withResolvers<void>();
+  deps.track?.(initialized.promise);
+  let clearReap: (() => void) | undefined;
+  let unsubscribe: (() => void) | undefined;
+  try {
+    // Boot reap — orphans from a prior lifetime (idempotent; the verb's status guard protects terminal rows).
+    // This process just started, so anything still in flight died WITH the previous one: a restart, not a lease
+    // that aged out under a live worker (#560 — the two record different sentences on the row).
+    await reapOnce(deps, "worker_restart");
 
-  // Periodic reap tick — the boot reap alone misses a fast crash-restart + a sibling replica's death. Errors
-  // are swallowed inside reapOnce; nothing here can kill the poll loops. This worker IS alive here, so a row
-  // it finds stale genuinely stopped bumping its lease.
-  const clearReap = deps.scheduleInterval(() => {
-    (deps.supervise ?? superviseDetached)(
-      `workload-reap:${String(deps.runnerDeps.now())}:${randomUUID()}`,
-      "workloads.reap",
-      { reason: "heartbeat_stale" },
-      () => reapOnce(deps, "heartbeat_stale"),
-    );
-  }, reapMs);
+    // Periodic reap tick — the boot reap alone misses a fast crash-restart + a sibling replica's death. Errors
+    // are swallowed inside reapOnce; nothing here can kill the poll loops. This worker IS alive here, so a row
+    // it finds stale genuinely stopped bumping its lease.
+    clearReap = deps.scheduleInterval(() => {
+      (deps.supervise ?? superviseDetached)(
+        `workload-reap:${String(deps.runnerDeps.now())}:${randomUUID()}`,
+        "workloads.reap",
+        { reason: "heartbeat_stale" },
+        () => reapOnce(deps, "heartbeat_stale"),
+      );
+    }, reapMs);
 
-  // Wake-on-emit: ANY workload event (started/progress/terminal — every emitter is a row already in flight)
-  // wakes EVERY sleeping lane to look for more work immediately, so there is never a poll-period gap between
-  // back-to-back items. A fresh ENQUEUE emits nothing and waits for the next poll (header, "wake-on-emit is a
-  // lifecycle wake"). The set holds each sleeping loop's resolver (one per lane worker); a fired event
-  // resolves them all.
-  const waiters = new Set<() => void>();
-  const unsubscribe = deps.subscribeWake(() => {
-    for (const wake of [...waiters]) {
-      wake();
-    }
-  });
-
-  // An abortable, wakeable sleep over the injected timer. Whichever fires first wins: the timer, the abort,
-  // or an emitted event.
-  const sleep = (ms: number): Promise<void> =>
-    new Promise<void>((resolve) => {
-      let settled = false;
-      let cancelTimer: (() => void) | null = null;
-      const finish = (): void => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        cancelTimer?.();
-        deps.signal.removeEventListener("abort", onAbort);
-        waiters.delete(finish);
-        resolve();
-      };
-      const onAbort = (): void => {
-        finish();
-      };
-      cancelTimer = deps.scheduleTimeout(finish, ms);
-      deps.signal.addEventListener("abort", onAbort, { once: true });
-      waiters.add(finish);
+    // Wake-on-emit: ANY workload event (started/progress/terminal — every emitter is a row already in flight)
+    // wakes EVERY sleeping lane to look for more work immediately, so there is never a poll-period gap between
+    // back-to-back items. A fresh ENQUEUE emits nothing and waits for the next poll (header, "wake-on-emit is a
+    // lifecycle wake"). The set holds each sleeping loop's resolver (one per lane worker); a fired event
+    // resolves them all.
+    const waiters = new Set<() => void>();
+    unsubscribe = deps.subscribeWake(() => {
+      for (const wake of [...waiters]) {
+        wake();
+      }
     });
 
-  /** ONE lane's poll loop — sequential within the lane, independent of every other lane. */
-  const runLane = async (lane: WorkloadLane): Promise<void> => {
-    while (!deps.signal.aborted) {
-      const outcome = await claimAndRunNext(deps, lane);
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tsc narrows `while (!deps.signal.aborted)` as still false here, but `.aborted` is a live getter that can flip true during the `await` above (shutdown mid-claim)
-      if (deps.signal.aborted) {
-        break;
+    // An abortable, wakeable sleep over the injected timer. Whichever fires first wins: the timer, the abort,
+    // or an emitted event.
+    const sleep = (ms: number): Promise<void> =>
+      new Promise<void>((resolve) => {
+        let settled = false;
+        let cancelTimer: (() => void) | null = null;
+        const finish = (): void => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          cancelTimer?.();
+          deps.signal.removeEventListener("abort", onAbort);
+          waiters.delete(finish);
+          resolve();
+        };
+        const onAbort = (): void => {
+          finish();
+        };
+        cancelTimer = deps.scheduleTimeout(finish, ms);
+        deps.signal.addEventListener("abort", onAbort, { once: true });
+        waiters.add(finish);
+      });
+
+    /** ONE lane's poll loop — sequential within the lane, independent of every other lane. */
+    const runLane = async (lane: WorkloadLane): Promise<void> => {
+      while (!deps.signal.aborted) {
+        const completed = Promise.withResolvers<void>();
+        deps.track?.(completed.promise);
+        let sleeping: Promise<void> | undefined;
+        try {
+          const outcome = await claimAndRunNext(deps, lane);
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the live getter can flip during the awaited native claim/run step.
+          if (!deps.signal.aborted) {
+            const waitMs = outcome.ran && !outcome.backOff ? busyMs : pollMs;
+            sleeping = sleep(waitMs);
+          }
+        } finally {
+          // The worker lifetime retains faults; tracking joins this finite step, including sleep registration.
+          completed.resolve();
+        }
+        if (sleeping !== undefined) {
+          await sleeping;
+        }
       }
-      const waitMs = outcome.ran && !outcome.backOff ? busyMs : pollMs;
-      // The loop MUST pace between polls (idle/busy cadence) — the sleep is the wakeable back-pressure seam.
-      await sleep(waitMs);
-    }
-  };
+    };
 
-  const loops = WORKLOAD_LANES.flatMap((lane) => {
-    const workers = deps.laneConcurrency?.[lane] ?? DEFAULT_LANE_CONCURRENCY;
-    return Array.from({ length: workers }, () => runLane(lane));
-  });
+    const loops = WORKLOAD_LANES.flatMap((lane) => {
+      const workers = deps.laneConcurrency?.[lane] ?? DEFAULT_LANE_CONCURRENCY;
+      return Array.from({ length: workers }, () => runLane(lane));
+    });
 
-  log.info({ pollIntervalMs: pollMs, lanes: WORKLOAD_LANES, loops: loops.length }, "workloads-worker: poll loops started");
-  try {
+    initialized.resolve();
+    log.info({ pollIntervalMs: pollMs, lanes: WORKLOAD_LANES, loops: loops.length }, "workloads-worker: poll loops started");
     await Promise.all(loops);
   } finally {
-    clearReap();
-    unsubscribe();
+    initialized.resolve();
+    clearReap?.();
+    unsubscribe?.();
     log.info("workloads-worker: poll loops stopped");
   }
 }

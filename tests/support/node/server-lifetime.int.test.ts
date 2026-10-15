@@ -124,11 +124,15 @@ test("service jobs start once and root disposal waits for every actual lane read
   const gate = held.hold(/from "workloads".*"lane".*"scheduled_at"/u, WORKLOAD_LANES.length);
   let harness: ServerTestHarness | undefined;
   let disposing: Promise<void> | undefined;
+  let background: Promise<void> | undefined;
+  let backgroundJoined = false;
   let stopObservation: (() => void) | undefined;
   try {
     harness = await createServerHarness({ db: held.db });
     await gate.reached;
-    await harness.settleBackground();
+    background = harness.settleBackground().then(() => {
+      backgroundJoined = true;
+    });
     const before = harness.timers.pending();
     harness.app.startJobs();
     expect(harness.timers.pending()).toBe(before);
@@ -149,15 +153,19 @@ test("service jobs start once and root disposal waits for every actual lane read
     });
     await stopped.promise;
     expect(disposed).toBe(false);
+    expect(backgroundJoined).toBe(false);
     expect(await held.db.all(sql`select 1 as live`)).toEqual([{ live: 1 }]);
     gate.release();
     await disposing;
+    await background;
+    expect(backgroundJoined).toBe(true);
     expect(harness.timers.pending()).toBe(0);
     expect(() => harness?.app.startJobs()).toThrow("service jobs are disposed");
     expect(await held.db.all(sql`select 1 as retained`)).toEqual([{ retained: 1 }]);
   } finally {
     gate.release();
     await disposing;
+    await background;
     await harness?.[Symbol.asyncDispose]();
     stopObservation?.();
   }
