@@ -1467,3 +1467,314 @@ test("interrupted native token lookup retries without caching a partial result a
     service.dispose();
   }
 });
+
+test("readonly native lexical scans reuse full-file positions while interpreting each symbol freshly", () => {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: { noLib: true, types: [], module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler },
+  });
+  project.createSourceFile("/base.ts", "export interface First { value:number } export interface Second { value:string }\n");
+  project.createSourceFile(
+    "/consumer.ts",
+    "import type {First,Second} from './base'; export declare const first:First; export declare const second:Second; export const a=first.value; export const b=second.value;\n",
+  );
+  const service = project.getLanguageService().compilerObject;
+  const program = fixtureValue(service.getProgram());
+  const base = fixtureValue(program.getSourceFile("/base.ts"));
+  const consumer = fixtureValue(program.getSourceFile("/consumer.ts"));
+  const positions = [base.text.indexOf("value"), base.text.lastIndexOf("value")];
+  const options = { includeDefinitionDisplay: false };
+  const expected = positions.map((position) => service.findReferences(base.fileName, position, options));
+  expect(expected[0]).not.toEqual(expected[1]);
+  const indexOf = String.prototype.indexOf;
+  let scans = 0;
+  const scan = vi.spyOn(String.prototype, "indexOf").mockImplementation(function (this: string, name, position) {
+    if (this === consumer.text && name === "value") {
+      scans++;
+    }
+    return indexOf.call(this, name, position);
+  });
+  const meaning = vi.spyOn(program.getTypeChecker(), "getSymbolAtLocation");
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(pass.findReferences(base.fileName, fixtureValue(positions[0]), options)).toEqual(expected[0]);
+    expect(scans).toBeGreaterThan(0);
+    scans = 0;
+    meaning.mockClear();
+    expect(pass.findReferences(base.fileName, fixtureValue(positions[1]), options)).toEqual(expected[1]);
+    expect(scans).toBe(0);
+    expect(meaning.mock.calls.some(([node]) => node.getSourceFile() === consumer)).toBe(true);
+    const returned = fixtureValue(pass.findReferences(base.fileName, fixtureValue(positions[0]), options));
+    fixtureValue(returned[0]).references.length = 0;
+    expect(pass.findReferences(base.fileName, fixtureValue(positions[0]), options)).toEqual(expected[0]);
+    expect(service.findReferences(base.fileName, fixtureValue(positions[1]), options)).toEqual(expected[1]);
+    expect(scans).toBeGreaterThan(0);
+  } finally {
+    pass.dispose();
+    meaning.mockRestore();
+    scan.mockRestore();
+    service.dispose();
+  }
+});
+
+function observeLexicalScans(
+  source: ts.SourceFile,
+  name: string,
+  onScan?: (position: number) => void,
+): { readonly count: number; reset: () => void; restore: () => void } {
+  const indexOf = String.prototype.indexOf;
+  let count = 0;
+  const spy = vi.spyOn(String.prototype, "indexOf").mockImplementation(function (this: string, search, start) {
+    const position = indexOf.call(this, search, start);
+    if (this === source.text && search === name) {
+      count++;
+      onScan?.(position);
+    }
+    return position;
+  });
+  return {
+    get count(): number {
+      return count;
+    },
+    reset: (): void => {
+      count = 0;
+    },
+    restore: (): void => spy.mockRestore(),
+  };
+}
+
+test.for(["aa", "value", "π", "𐐀", "$value"])("native lexical lists preserve ordered Unicode and boundary references: %s", (name) => {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: { noLib: true, types: [], module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler },
+  });
+  const baseText = `export interface First { ${name}:number } export interface Second { ${name}:string }`;
+  project.createSourceFile("/base.ts", baseText);
+  project.createSourceFile(
+    "/consumer.ts",
+    `import type {First,Second} from './base'; export declare const first:First; export declare const second:Second;
+/** ${name}${name} x${name} ${name}x é${name} ${name}é ${name} */
+export const text=${JSON.stringify(`${name} ${name}${name} x${name} ${name}x`)};
+export const a=first[${JSON.stringify(name)}]; export const b=second.${name}; export const ending=first.${name}`,
+  );
+  const service = project.getLanguageService().compilerObject;
+  const consumer = fixtureValue(service.getProgram()?.getSourceFile("/consumer.ts"));
+  const positions = [baseText.indexOf(name), baseText.lastIndexOf(name)];
+  const expected = positions.map((position) => service.findReferences("/base.ts", position));
+  expect(expected[0]).not.toEqual(expected[1]);
+  expect(
+    expected[0]?.flatMap((group) => group.references).some((reference) => reference.textSpan.start + reference.textSpan.length === consumer.text.length),
+  ).toBe(true);
+  const scan = observeLexicalScans(consumer, name);
+  const pass = service.createReadonlyReferencePass();
+  try {
+    for (const [index, position] of positions.entries()) {
+      expect(pass.findReferences("/base.ts", position)).toEqual(expected[index]);
+    }
+    expect(scan.count).toBeGreaterThan(0);
+    scan.reset();
+    for (const [index, position] of positions.entries()) {
+      expect(pass.findReferences("/base.ts", position)).toEqual(expected[index]);
+      expect(pass.findReferences("/base.ts", position, { includeDefinitionDisplay: false })).toEqual(
+        expected[index]?.map(({ definition, references }) => ({ definition: { ...definition, name: "", displayParts: [] }, references })),
+      );
+    }
+    expect(scan.count).toBe(0);
+  } finally {
+    pass.dispose();
+    scan.restore();
+    service.dispose();
+  }
+});
+
+test("native lexical lists leave local containers, rename and highlights uncached", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  project.createSourceFile("/base.ts", "export function first(local:number){return local+local;} export function second(local:string){return local;}\n");
+  const service = project.getLanguageService().compilerObject;
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/base.ts"));
+  const position = source.text.indexOf("local");
+  const expected = service.findReferences(source.fileName, position);
+  const rename = service.findRenameLocations(source.fileName, position, false, false, {});
+  const highlights = service.getDocumentHighlights(source.fileName, position, [source.fileName]);
+  const scan = observeLexicalScans(source, "local");
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(pass.findReferences(source.fileName, position)).toEqual(expected);
+    const cold = scan.count;
+    expect(cold).toBeGreaterThan(0);
+    scan.reset();
+    expect(pass.findReferences(source.fileName, position)).toEqual(expected);
+    expect(scan.count).toBe(cold);
+    scan.reset();
+    expect(service.findRenameLocations(source.fileName, position, false, false, {})).toEqual(rename);
+    expect(scan.count).toBeGreaterThan(0);
+    scan.reset();
+    expect(service.getDocumentHighlights(source.fileName, position, [source.fileName])).toEqual(highlights);
+    expect(scan.count).toBeGreaterThan(0);
+  } finally {
+    pass.dispose();
+    scan.restore();
+    service.dispose();
+  }
+});
+
+test("interrupted native lexical scans retry the complete list and warm hits still cancel", () => {
+  const fixture = nativeReferenceFixture();
+  const service = fixture.service;
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/consumer.ts"));
+  const position = fixtureValue(service.getProgram()?.getSourceFile("/base.ts")).text.indexOf("first");
+  const expected = service.findReferences("/base.ts", position);
+  let interrupt = true;
+  const scan = observeLexicalScans(source, "first", (found) => {
+    if (found > 20 && interrupt) {
+      interrupt = false;
+      throw new ts.OperationCanceledException();
+    }
+  });
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(() => pass.findReferences("/base.ts", position)).toThrow(ts.OperationCanceledException);
+    expect(scan.count).toBeGreaterThan(1);
+    scan.reset();
+    expect(pass.findReferences("/base.ts", position)).toEqual(expected);
+    expect(scan.count).toBeGreaterThan(1);
+    scan.reset();
+    expect(pass.findReferences("/base.ts", position)).toEqual(expected);
+    expect(scan.count).toBe(0);
+    fixture.cancel(true);
+    expect(() => pass.findReferences("/base.ts", position)).toThrow(ts.OperationCanceledException);
+    fixture.cancel(false);
+    expect(pass.findReferences("/base.ts", position)).toEqual(expected);
+    expect(scan.count).toBe(0);
+    pass.dispose();
+    const fresh = service.createReadonlyReferencePass();
+    try {
+      expect(fresh.findReferences("/base.ts", position)).toEqual(expected);
+      expect(scan.count).toBeGreaterThan(1);
+    } finally {
+      fresh.dispose();
+    }
+  } finally {
+    pass.dispose();
+    scan.restore();
+    service.dispose();
+  }
+});
+
+test("native lexical lists use source object identity and never retain an unadmitted source", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const text = "const value=1; export const use=value;\n";
+  project.createSourceFile("/first.ts", text);
+  project.createSourceFile("/second.ts", text);
+  const service = project.getLanguageService().compilerObject;
+  const program = fixtureValue(service.getProgram());
+  const first = fixtureValue(program.getSourceFile("/first.ts"));
+  const second = fixtureValue(program.getSourceFile("/second.ts"));
+  const position = text.indexOf("value");
+  const expected = [first, second].map((source) => service.findReferences(source.fileName, position));
+  expect(expected[0]).not.toEqual(expected[1]);
+  const scan = observeLexicalScans(first, "value");
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(pass.findReferences(first.fileName, position)).toEqual(expected[0]);
+    expect(scan.count).toBeGreaterThan(0);
+    scan.reset();
+    expect(pass.findReferences(second.fileName, position)).toEqual(expected[1]);
+    expect(scan.count).toBeGreaterThan(0);
+    scan.reset();
+    expect(pass.findReferences(first.fileName, position)).toEqual(expected[0]);
+    expect(pass.findReferences(second.fileName, position)).toEqual(expected[1]);
+    expect(scan.count).toBe(0);
+    pass.dispose();
+    const population = vi.spyOn(program, "getSourceFiles").mockReturnValue([second]);
+    const foreign = service.createReadonlyReferencePass();
+    try {
+      const native = service.findReferences(first.fileName, position);
+      scan.reset();
+      expect(foreign.findReferences(first.fileName, position)).toEqual(native);
+      expect(scan.count).toBeGreaterThan(0);
+      scan.reset();
+      expect(foreign.findReferences(first.fileName, position)).toEqual(native);
+      expect(scan.count).toBeGreaterThan(0);
+    } finally {
+      foreign.dispose();
+      population.mockRestore();
+    }
+  } finally {
+    pass.dispose();
+    scan.restore();
+    service.dispose();
+  }
+});
+
+test("full-cap native lexical lists preserve all fallback dimensions and release combined retention", { timeout: 125_000 }, async ({ scratch }) => {
+  const child = fileURLToPath(new URL("../../../support/node/native-lexical-memo-child.mjs", import.meta.url));
+  const output = join(scratch, "native-lexical-memo.json");
+  const result = await spawnNiced(process.execPath, ["--expose-gc", child, output], { timeoutMs: 120_000 });
+  console.log(result.stdout);
+  expect(result.code, result.stderr).toBe(0);
+  expect(result.timedOut).toBe(false);
+  expect(JSON.parse(readFileSync(output, "utf8"))).toMatchObject({
+    phase: "complete",
+    passed: true,
+    nameCapacity: 65_536,
+    positionCapacity: 1_048_576,
+    nameUnitCapacity: 8_388_608,
+    inputQueries: 65_537,
+    runtimeSha256: contentVersion(readFileSync(ts.sys.getExecutingFilePath())),
+    gcDisturbedRepresentationOnly: true,
+  });
+});
+
+test("native lexical reuse retains a complete empty candidate list without inventing escaped-name references", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  project.createSourceFile("/base.ts", "export const v\\u0061lue=1; export const use=v\\u0061lue;\n");
+  const service = project.getLanguageService().compilerObject;
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/base.ts"));
+  const expected = service.findReferences(source.fileName, 13);
+  const scan = observeLexicalScans(source, "value");
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(pass.findReferences(source.fileName, 13)).toEqual(expected);
+    expect(scan.count).toBe(1);
+    scan.reset();
+    expect(pass.findReferences(source.fileName, 13)).toEqual(expected);
+    expect(scan.count).toBe(0);
+  } finally {
+    pass.dispose();
+    scan.restore();
+    service.dispose();
+  }
+});
+
+test("a completed lexical list survives later native interpretation cancellation without retaining query results", () => {
+  const { service } = nativeReferenceFixture();
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/consumer.ts"));
+  const position = fixtureValue(service.getProgram()?.getSourceFile("/base.ts")).text.indexOf("first");
+  const expected = service.findReferences("/base.ts", position);
+  const scan = observeLexicalScans(source, "first");
+  const children = source.getChildren.bind(source);
+  let interrupt = true;
+  const traversal = vi.spyOn(source, "getChildren").mockImplementation((file) => {
+    if (interrupt) {
+      interrupt = false;
+      throw new ts.OperationCanceledException();
+    }
+    return children(file);
+  });
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(() => pass.findReferences("/base.ts", position)).toThrow(ts.OperationCanceledException);
+    expect(scan.count).toBeGreaterThan(1);
+    scan.reset();
+    traversal.mockClear();
+    expect(pass.findReferences("/base.ts", position)).toEqual(expected);
+    expect(scan.count).toBe(0);
+    expect(traversal).toHaveBeenCalled();
+  } finally {
+    pass.dispose();
+    traversal.mockRestore();
+    scan.restore();
+    service.dispose();
+  }
+});
