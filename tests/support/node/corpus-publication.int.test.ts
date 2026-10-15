@@ -53,10 +53,40 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
   const principal = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
   const wire = await publication(root);
+  const actors = await seedCorpusActors(root);
+  const shared = await captureCookieAuth(root, await root.principalFor(actors.secondUserId), "native-shared-publication-password");
   const result = await seedCorpusNotifications(root);
-  const secrets = [OWNER_PASSWORD, ...result.secrets];
-  const extended = { ...wire, notificationInbox: result.publication };
+  const secrets = [OWNER_PASSWORD, ...result.secrets, ...shared.secrets];
+  const memberIdentities = { notificationReader: result.admission.identity, sharedMember: shared.identity };
+  const extended = { ...wire, notificationInbox: result.publication, memberIdentities };
   const decoded = parseCorpusWire(serializeCorpusWire(extended, secrets));
+  expect(decoded.memberIdentities).toEqual(memberIdentities);
+  expect(memberIdentities.notificationReader.viewer).toEqual({ userId: result.reader.userId, handle: result.reader.handle, globalRole: result.reader.role });
+  expect(memberIdentities.sharedMember.viewer.userId).toBe(actors.secondUserId);
+  const identityRead = { viewerUserId: shared.identity.viewer.userId, read: { input: undefined, output: shared.identity.viewer } };
+  expect(createCorpusViewerReadResponder("sessions.me", actors.secondUserId, identityRead)(undefined)).toEqual(shared.identity.viewer);
+  expect(() => createCorpusViewerReadResponder("sessions.me", result.reader.userId, identityRead)).toThrow("snapshot viewer does not match");
+  const swapped = { notificationReader: shared.identity, sharedMember: result.admission.identity };
+  expect(() => serializeCorpusWire({ ...extended, memberIdentities: swapped }, secrets)).toThrow("identity viewer mismatch");
+  expect(() => serializeCorpusWire({ ...extended, memberIdentities: { notificationReader: shared.identity, sharedMember: shared.identity } }, secrets)).toThrow(
+    "identity cohort mismatch",
+  );
+  const mismatchedIdentity = structuredClone(extended);
+  Object.assign(mismatchedIdentity.memberIdentities.sharedMember.authMe, { role: result.host.role, handle: result.host.handle });
+  expect(() => serializeCorpusWire(mismatchedIdentity, secrets)).toThrow("identity response mismatch");
+  const driftedIdentity = structuredClone(extended);
+  Reflect.deleteProperty(driftedIdentity.memberIdentities.sharedMember.viewer, "globalRole");
+  expect(() => serializeCorpusWire(driftedIdentity, secrets)).toThrow("globalRole");
+  Object.assign(driftedIdentity.memberIdentities.sharedMember.authMe, { [shared.cookie]: true });
+  expect(() => serializeCorpusWire(driftedIdentity, secrets)).toThrow("Corpus publication contains private material");
+  const publicBytes = serializeCorpusWire(extended, secrets);
+  expect(secrets.some((secret) => publicBytes.includes(secret))).toBe(false);
+  for (const identity of Object.values(memberIdentities)) {
+    const witness = await seedUserCredential(root.db, root.services.credentials.add, { principal, provider: "custom-openai", key: identity.viewer.handle });
+    const knownIdentitySecret = [...secrets, identity.viewer.handle, witness.row.ciphertext, witness.row.iv, witness.row.tag];
+    expect(parseCorpusWire(serializeCorpusWire(wire, knownIdentitySecret))).toEqual(wire);
+    expect(() => serializeCorpusWire({ ...wire, memberIdentities }, knownIdentitySecret)).toThrow("Corpus publication contains private material");
+  }
   const snapshots = decoded.notificationInbox;
   if (snapshots === undefined) {
     throw new Error("portable notification snapshots disappeared");

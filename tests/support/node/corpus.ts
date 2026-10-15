@@ -26,6 +26,7 @@ import type { seedCorpusRpgRounds as produceCorpusRpgRounds } from "./corpus-rpg
 import type { seedCorpusSdkSessions as produceCorpusSdkSessions } from "./corpus-sdk-sessions.ts";
 import type { seedCorpusSearch as produceCorpusSearch } from "./corpus-search.ts";
 import type {
+  captureCookieAuth as produceCookieAuth,
   seedCorpusAutomation as produceCorpusAutomation,
   seedCorpusLibraries as produceCorpusLibraries,
   seedOidcCorpus as produceOidcCorpus,
@@ -38,6 +39,7 @@ import type { seedUserCredential as produceCredential } from "./factories/creden
 import type { ServerHarnessOptions } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
+const SHARED_MEMBER_PASSWORD = "synthetic-corpus-shared-member-password";
 
 export interface CorpusCapsuleOptions {
   readonly directory: string;
@@ -53,6 +55,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly sharedMemberAuthentication: Awaited<ReturnType<typeof produceCookieAuth>>;
   readonly imageVariants: Awaited<ReturnType<typeof produceCorpusImageVariants>>;
   readonly notifications: Awaited<ReturnType<typeof produceCorpusNotifications>>;
   readonly sdkSessions: Awaited<ReturnType<typeof produceCorpusSdkSessions>>;
@@ -178,8 +181,16 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     "./corpus-connection-wire.ts"
   );
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
-  const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
-    await import("./corpus-seed.ts");
+  const {
+    captureCookieAuth,
+    captureCorpusReads,
+    seedCorpusActors,
+    seedCorpusAutomation,
+    seedCorpusLibraries,
+    seedOidcCorpus,
+    seedRecallCorpus,
+    seedSyntheticCorpus,
+  } = await import("./corpus-seed.ts");
   await using lifetimes = new AsyncDisposableStack();
   const dbHold = createDbStatementHold();
   const chatWire = createCorpusChatWire();
@@ -280,6 +291,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   }
   const libraryViews = await seedCorpusLibraryViews(root, libraries, actors);
   const imageVariants = await seedCorpusImageVariants(root, imageWire, options.seed.ownerPassword);
+  const sharedMemberAuthentication = await captureCookieAuth(root, await root.principalFor(actors.secondUserId), SHARED_MEMBER_PASSWORD);
   const statsSettings = await seedCorpusStatsSettings(root, {
     characterId: knowledgeVariants.character.id,
     personaId: libraries.persona.id,
@@ -304,6 +316,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     chatLifecycleMember: chatLifecycle.publication,
     worldInfoLibrary: libraryViews.publication.worldInfo,
     regexLibrary: libraryViews.publication.regex,
+    memberIdentities: { notificationReader: notifications.admission.identity, sharedMember: sharedMemberAuthentication.identity },
   });
   const secrets = [
     options.privateCredential.key,
@@ -315,6 +328,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     CORPUS_CONNECTION_HOSTED_KEY,
     CORPUS_SDK_TOKEN,
     ...baseline.secrets,
+    ...sharedMemberAuthentication.secrets,
     ...oidc.secrets,
     ...imageVariants.secrets,
     ...notifications.secrets,
@@ -337,6 +351,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     wire,
     publishWire: () => serializeCorpusWire(wire, secrets),
     privateCaptures: {
+      sharedMemberAuthentication,
       imageVariants,
       notifications,
       sdkSessions,

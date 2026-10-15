@@ -195,6 +195,11 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.wire.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
   expect(capsule.wire.regexLibrary).toBeDefined();
   expect(capsule.wire.regexLibrary).toEqual(libraryViews.publication.regex);
+  expect(capsule.wire.memberIdentities).toBeDefined();
+  expect(capsule.wire.memberIdentities).toEqual({
+    notificationReader: notifications.admission.identity,
+    sharedMember: capsule.privateCaptures.sharedMemberAuthentication.identity,
+  });
   expect(imageVariants.skips.map(({ first }) => first.skip)).toMatchObject([
     { reason: "below-dimension-floor", width: 8, height: 8 },
     { reason: "below-dimension-floor", width: 8, height: 64 },
@@ -446,6 +451,11 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(loaded.wire.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
   expect(loaded.wire.regexLibrary).toBeDefined();
   expect(loaded.wire.regexLibrary).toEqual(libraryViews.publication.regex);
+  expect(loaded.wire.memberIdentities).toBeDefined();
+  expect(loaded.wire.memberIdentities).toEqual({
+    notificationReader: notifications.admission.identity,
+    sharedMember: capsule.privateCaptures.sharedMemberAuthentication.identity,
+  });
   const published = await readFile(join(fixture.layout.root, "corpus.json"), "utf8");
   expect(capsule.publishWire()).toBe(published);
   for (const privateMaterial of [
@@ -468,6 +478,11 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(portable.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
   expect(portable.regexLibrary).toBeDefined();
   expect(portable.regexLibrary).toEqual(libraryViews.publication.regex);
+  expect(portable.memberIdentities).toBeDefined();
+  expect(portable.memberIdentities).toEqual({
+    notificationReader: notifications.admission.identity,
+    sharedMember: capsule.privateCaptures.sharedMemberAuthentication.identity,
+  });
   expect(portable.reads["chat.getChat"].map(({ output }) => output.id)).toEqual([
     capsule.privateCaptures.baseline.identities.soloChatId,
     capsule.privateCaptures.baseline.identities.groupChatId,

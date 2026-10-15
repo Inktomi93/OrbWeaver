@@ -17,6 +17,7 @@ import { readSessionCookie } from "@orb/server/entry/auth";
 import { inArray } from "drizzle-orm";
 import { vi } from "vitest";
 import type { CorpusNotificationInbox } from "../iso/corpus.ts";
+import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { seedAutomationRule, seedAutomationRun } from "./factories/automation.ts";
 import { captureChatReplayRows } from "./factories/chat.ts";
@@ -73,6 +74,7 @@ interface ConsentCapture {
   readonly retractedBytes: string;
 }
 interface ReaderAdmission {
+  readonly identity: Awaited<ReturnType<typeof captureCorpusCookieIdentity>>;
   readonly cookie: string;
   readonly token: NonNullable<ReturnType<typeof readSessionCookie>>;
   readonly seededPending: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["list"]>>;
@@ -395,7 +397,7 @@ async function admitReader(root: ServerTestHarness, actors: NotificationActors, 
       }),
     );
   }
-  return { cookie, token, seededPending, answeredPending };
+  return { cookie, token, identity: await captureCorpusCookieIdentity(root, actors.reader, cookie), seededPending, answeredPending };
 }
 
 async function producersFor(
