@@ -267,5 +267,28 @@ export {
   resolvePluginBoundTiles,
   resolvePluginPrimaryButton,
 } from "./ui.ts";
-export type { PluginUpdateSource, PluginView } from "./view.ts";
-export { PLUGIN_UPDATE_SOURCES, pluginViewSchema } from "./view.ts";
+export type {
+  DistributedPluginView,
+  PluginBundleAssetView,
+  PluginDisplayTransformView,
+  PluginFanoutResult,
+  PluginFanoutSkip,
+  PluginFanoutSkipReason,
+  PluginLogView,
+  PluginSurfaceState,
+  PluginSurfaceView,
+  PluginUpdateSource,
+  PluginView,
+} from "./view.ts";
+export {
+  distributedPluginViewSchema,
+  PLUGIN_FANOUT_SKIP_REASONS,
+  PLUGIN_UPDATE_SOURCES,
+  pluginBundleAssetViewSchema,
+  pluginDisplayTransformViewSchema,
+  pluginFanoutResultSchema,
+  pluginLogViewSchema,
+  pluginSurfaceStateSchema,
+  pluginSurfaceViewSchema,
+  pluginViewSchema,
+} from "./view.ts";

@@ -11,7 +11,7 @@ import {
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import type { CorpusRead } from "./corpus.ts";
+import type { CorpusRead } from "./corpus-read.ts";
 
 const SEARCH_QUERY = "orbital ledger";
 const SEARCH_LIMIT = 20;

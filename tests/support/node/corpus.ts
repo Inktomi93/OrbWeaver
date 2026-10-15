@@ -446,6 +446,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     health,
     reads,
     searchLibrary: searchFinal.value,
+    pluginLibrary: plugins.library,
     notificationInbox: notifications.publication,
     chatLifecycleMember: chatLifecycle.publication,
     worldInfoLibrary: libraryViews.publication.worldInfo,
@@ -485,7 +486,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   return {
     wire,
     snapshotReplay: () => ({ version: 1, nowMs: clock.now(), idCursor: ids.snapshot() }),
-    publishWire: () => serializeCorpusWire(wire, secrets),
+    publishWire: () => serializeCorpusWire(wire, [...secrets, ...plugins.wirePrivateLiterals]),
     privateCaptures: {
       publicationSecrets: secrets,
       searchPublication: searchFinal.value,

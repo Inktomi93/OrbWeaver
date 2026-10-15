@@ -9,11 +9,11 @@
 // NOTHING HERE READS OR WRITES A `plugins` ROW. A distribution record describes a bundle; the copies are
 // ordinary per-owner rows minted by the real install verb under each recipient's own Principal.
 
+import type { DistributedPluginView } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { adminDistributedPlugins } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
-import type { DistributedPluginView } from "../contract/results.ts";
 
 /** The stored `admin_distributed_plugins` row — the db `$inferSelect` (the `PluginRow` precedent: LOCAL, not
  *  exported; a persistence row shape is not a cross-feature type home). */
