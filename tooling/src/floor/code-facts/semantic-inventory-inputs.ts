@@ -2,8 +2,18 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import type { FileSystemHost } from "ts-morph";
+import { readAuthoredRepositoryInventory } from "../compiler/authored-repository.ts";
 import type { CompilerProgram } from "../compiler/compiler-programs-contract.ts";
-import type { InventoryInput } from "./semantic-inventory-contract.ts";
+import type { InventoryInput, InventoryInputContext, InventoryOverlay } from "./semantic-inventory-contract.ts";
+
+/** Authorship follows physical identity, but unrelated roster entries are not native filesystem dependencies. */
+export function inventoryAuthoredFiles(root: string, overlay?: InventoryOverlay): ReadonlySet<string> {
+  return new Set(
+    [...readAuthoredRepositoryInventory(root).paths, ...(overlay?.files.map((file) => file.path) ?? [])].map((path) =>
+      canonicalInventoryPath(resolve(root, path)),
+    ),
+  );
+}
 
 /** Version bytes by content rather than timestamps. */
 export function contentVersion(text: string | Buffer): string {
@@ -16,8 +26,12 @@ export function descriptorVersion(program: CompilerProgram): string {
 }
 
 /** Content and physical identity versions include successful and failed native resolution inputs. */
-export function inputVersion(path: string, kind: InventoryInput["kind"], fileSystem?: FileSystemHost): string {
-  return VERSION_READERS[kind](path, fileSystem);
+export function inputVersion(
+  ...[path, kind, context]:
+    | [path: string, kind: Exclude<InventoryInput["kind"], "authored">, fileSystem?: FileSystemHost | undefined]
+    | [path: string, kind: "authored", authored: ReadonlySet<string>]
+): string {
+  return kind === "authored" ? String(context.has(path)) : VERSION_READERS[kind](path, context);
 }
 
 function existenceVersion(path: string, fileSystem?: FileSystemHost): string {
@@ -44,14 +58,16 @@ function directoryVersion(path: string, fileSystem?: FileSystemHost): string {
 }
 
 const VERSION_READERS = { file: fileVersion, directory: directoryVersion, exists: existenceVersion } satisfies Record<
-  InventoryInput["kind"],
+  Exclude<InventoryInput["kind"], "authored">,
   (path: string, fileSystem?: FileSystemHost) => string
 >;
 
 /** A failed lookup becomes stale when its candidate or containing directory changes. */
-export function inputsCurrent(inputs: Iterable<InventoryInput>, fileSystem?: FileSystemHost): boolean {
+export function inputsCurrent(inputs: Iterable<InventoryInput>, context: InventoryInputContext): boolean {
   for (const input of inputs) {
-    if (inputVersion(input.path, input.kind, fileSystem) !== input.version) {
+    const version =
+      input.kind === "authored" ? inputVersion(input.path, input.kind, context.authored) : inputVersion(input.path, input.kind, context.fileSystem);
+    if (version !== input.version) {
       return false;
     }
   }

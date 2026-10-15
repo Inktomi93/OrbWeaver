@@ -6,6 +6,7 @@ import {
   castRelationResultSchema,
   INVENTORY_FAMILIES,
   INVENTORY_FAMILY_FIELDS,
+  INVENTORY_INPUT_KINDS,
   INVENTORY_LISTS,
   inputSchema,
   partitionMetadataSchema,
@@ -54,7 +55,7 @@ export const inventoryRecordTables = {
   input: {
     name: "inventory_input",
     columns: "ordinal,path,kind,version",
-    definition: `${PARTITION},${ORDINAL},path TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('file','directory','exists')),version TEXT NOT NULL,PRIMARY KEY(partition,ordinal)`,
+    definition: `${PARTITION},${ORDINAL},path TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN (${INVENTORY_INPUT_KINDS.map((kind) => `'${kind}'`).join(",")})),version TEXT NOT NULL,PRIMARY KEY(partition,ordinal)`,
   },
   source: {
     name: "inventory_source",

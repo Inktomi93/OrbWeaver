@@ -278,7 +278,7 @@ test("parent publication and pinned queries never eagerly decode the complete re
   }
 });
 
-for (const legacyFormat of [1, 2, 3, 4]) {
+for (const legacyFormat of [1, 2, 3, 4, 5]) {
   test(`format ${String(legacyFormat)} adoption preserves the last generation across failure and publishes only a complete replacement`, ({ scratch }) => {
     initialize(scratch);
     const path = join(scratch, ".cache/semantic-inventory.sqlite");
