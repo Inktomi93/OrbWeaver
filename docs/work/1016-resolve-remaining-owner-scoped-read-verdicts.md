@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: doing
-updated: 2026-10-14
+updated: 2026-10-15
 priority: P1
 area: tenancy
 lane: codex/drizzle-facts-953
@@ -28,7 +28,7 @@ Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, p
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
 
-Selected run `main-3895302-2026-10-14T22-49-19-785Z` judges complete owner-read source at `6530fc2063`. The delivered-row correction removes false findings without additions. Findings and authority alarms remain; tool errors and withheld policies are absent. Rejudge retained projections and callers before edits; a finding does not establish an exploit.
+Selected run `main-281383-2026-10-15T01-06-15-141Z` judges the complete owner-read population after reviewed `eea5185f3b` and native memo integration. Its finding set matches `main-3895302-2026-10-14T22-49-19-785Z`. Findings and authority alarms remain; tool errors and withheld policies are absent. Bounded retained-relation acceptance does not qualify the actual tenancy judgment. Trace retained stats producers through that judgment before further edits; a finding does not establish an exploit.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 
@@ -36,7 +36,7 @@ Reviewed source `0b778e7a97` preserves distinct refinery Run and Estimate author
 
 Reviewed source `702430c3d9` adds stable native observations and compact predicate presence. Owner and FK proofs preserve absent operands and unsafe alternatives without Cartesian expansion. Native and retained policy controls pass.
 
-Reviewed `cb26ce442e` extends supplied formals, finite actual callees and native returned/imported lifetimes through canonical facts. Inline wrappers retain physical-use obligations; runtime defaults preserve every executed alternative. Native alias, mutation, cancellation, cycle and unsafe-order controls pass. The same reviewer accepts the bounded corrections. Containment supplies no ownership authority. Generic table enumeration, destructured CTE lifetimes, INNER JOIN ON correlation and complete current-population qualification remain open.
+Reviewed `cb26ce442e` preserves supplied formals, actual callees, physical uses and native returned/imported lifetimes. Runtime defaults retain every executed alternative. Native refusal controls pass. Containment supplies no authority. Generic table enumeration, destructured CTE lifetimes and INNER JOIN ON correlation remain unqualified.
 
 Reviewed source `a2356621ba` shares retained-owner projections and captures raw economic contributions with their signed deltas. The first atomic write refuses stale selected and nonselected usage. Native paid-race refusal, unchanged accounting and current-state retries pass. Reader qualification remains open.
 

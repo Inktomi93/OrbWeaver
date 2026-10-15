@@ -34,6 +34,6 @@ Reviewed `e70114404e` repairs syntax-carrier library collisions. Fingerprints re
 
 The completed root diagnostic identifies native token-location lookup as the dominant reference cost. Tracked identities remain stable; saturated counters do not establish a full hit rate. Profiling pauses prevent interpreting raw wall time as recoverable CPU. Its worker was stopped after capture; extraction and publication did not complete. The diagnostic at frozen `13e9674c64` retains its source, profile and process-release artifacts.
 
-The active isolated candidate adds bounded exact-source token lookup reuse within the existing readonly native pass. Normal native fallback, fresh query interpretation, disposal, mutation and memory controls are required. Representation memory and actual improvement remain unqualified. Frozen runtime guards must remain unchanged.
+Reviewed `2498d44650` adds bounded exact-source token lookup reuse within the existing readonly native pass. Native fallback, fresh interpretation, cancellation, disposal and mutation controls pass. The complete bounded fixture proves release and overflow parity; its memory measurement is not a world-level bound. Main resolves the reviewed runtime; protected frozen dependencies remain unchanged. Current-world improvement and complete-demand qualification remain open.
 
 Current complete-demand publication, collector equivalence, concurrent reuse and hosted memory remain open. A diagnostic stage is not reusable production data.
