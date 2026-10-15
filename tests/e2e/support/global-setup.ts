@@ -40,6 +40,7 @@ import {
   E2E_LOCAL_ENGINE_FALLBACK_MODEL,
   E2E_LOCAL_ENGINE_LABEL,
   E2E_LOCAL_ENGINE_PROVIDER,
+  E2E_REPORT_PREFIX,
   LOCAL_MEMBER,
   LOCAL_OWNER,
   SELECTED_CORPUS_FIXTURE,
@@ -206,7 +207,7 @@ async function seedMode(mode: ModeProject, fixtureBaseUrl?: string): Promise<voi
 const WARMUP_ATTEMPTS = 2;
 const SHELL_WARMUP_TIMEOUT = 120_000;
 const READY_EVENT_PREFIX = "e2e-ready:";
-const WARMUP_REPORT_DIR = "reports/e2e-results";
+const WARMUP_REPORT_DIR = `${E2E_REPORT_PREFIX}-results`;
 const DIAGNOSTIC_SAMPLE_COUNT = 5;
 const DIAGNOSTIC_SAMPLE_LENGTH = 250;
 

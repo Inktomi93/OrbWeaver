@@ -287,6 +287,8 @@ jobs:
         with:
           browsers: "true"
       - run: pnpm e2e:smoke
+      - name: Qualify the committed corpus through an independent writable clone
+        run: pnpm --config.verify-deps-before-run=false e2e:corpus
       - if: failure()
         name: Say how to reproduce
         run: |
@@ -294,6 +296,7 @@ jobs:
             echo "### $GITHUB_JOB failed"
             echo
             echo "Reproduce locally: \`pnpm e2e:smoke\`"
+            echo "Committed corpus: \`pnpm --config.verify-deps-before-run=false e2e:corpus\`"
             echo
             echo "Logs and reports are in the \`reports-e2e-smoke\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -3,7 +3,7 @@ import process from "node:process";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { ReporterDescription } from "@playwright/test";
 import { defineConfig, devices } from "@playwright/test";
-import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./tests/e2e/support/modes.ts";
+import { DEV_TARGET_ALLOWED, E2E_REPORT_PREFIX, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./tests/e2e/support/modes.ts";
 
 // E2E — full-stack `.spec.ts` under tests/e2e (NOT a src mirror; spans the whole app). Browser lane =
 // Playwright, never vitest (browser-mode hangs — docs/law/Spine-Testing.md §7). Separate runner, NOT in `pnpm
@@ -36,8 +36,8 @@ const requiredLiveReporter = resolve(import.meta.dirname, "tooling/src/verify/op
 const reporters: ReporterDescription[] = [
   ...(process.env["GITHUB_ACTIONS"] ? [["github"] as const] : []),
   ["list"],
-  ["json", { outputFile: "reports/e2e-report.json" }],
-  ["html", { outputFolder: "reports/e2e-report", open: "never" }],
+  ["json", { outputFile: `${E2E_REPORT_PREFIX}-report.json` }],
+  ["html", { outputFolder: `${E2E_REPORT_PREFIX}-report`, open: "never" }],
   ...(requireLiveEvidence ? [[requiredLiveReporter] as const] : []),
 ];
 
@@ -84,7 +84,7 @@ export default defineConfig({
   // stack's DB, never against this repo's working tree. Its returned teardown runs LAST, after every
   // spec and after the e2e seed's own teardown (if any), for the same reason.
   globalSetup: ["./tooling/src/floor/testing/working-tree-guard.ts", "./tests/e2e/support/global-setup.ts"],
-  outputDir: "reports/e2e-results", // reports/ is gitignored
+  outputDir: `${E2E_REPORT_PREFIX}-results`, // reports/ is gitignored
   fullyParallel: false,
   workers: 1, // serial — avoids libSQL :memory: state collisions once the stack is wired
   // 60s, not the 30s default. It USED to be the cold-boot budget: since single-user got its own stack, the

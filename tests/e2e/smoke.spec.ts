@@ -122,7 +122,7 @@ test("the home page renders the home surface (tRPC query works)", {
   await expect(page.getByText("Couldn't load your chats")).toHaveCount(0);
 });
 
-test("the selected corpus clone serves the captured room identity, content and visible title", { tag: "@smoke" }, async ({ page }) => {
+test("the selected corpus clone serves the captured room identity, content and visible title", { tag: ["@smoke", "@corpus"] }, async ({ page }) => {
   test.skip(SELECTED_CORPUS_FIXTURE === undefined, "No prepared corpus fixture selected");
   const capture = SELECTED_CORPUS_FIXTURE?.wire.reads["chat.getChat"].find(({ output }) => output.title !== null);
   if (capture === undefined) {

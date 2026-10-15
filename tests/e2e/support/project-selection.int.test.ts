@@ -3,11 +3,13 @@
 
 // Native collection is independent of the shared stack-boot/seed selector; no stack starts under --list.
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { JSONReport, JSONReportSuite } from "@playwright/test/reporter";
 import { selectedModeProjects } from "./modes.ts";
 
@@ -79,3 +81,38 @@ test("native collection refuses a missing explicit configuration instead of sile
   expect(collection.status, collection.stdout + collection.stderr).toBe(1);
   expect(collection.stderr).toContain(`${configFile} does not exist`);
 });
+
+for (const missing of [false, true]) {
+  test(`the public corpus smoke runner ${missing ? "propagates empty selection" : "selects the committed case"} and joins clone cleanup`, {
+    tags: ["slow"],
+  }, () => {
+    const result = runNicedSync(
+      "pnpm",
+      ["--config.verify-deps-before-run=false", "e2e:corpus", "--list", ...(missing ? ["absent-corpus-selection.spec.ts"] : [])],
+      {
+        env: inheritedProcessEnv({
+          ["E2E_CORPUS_FIXTURE"]: undefined,
+          ["CORPUS_PUBLICATION_FIXTURE"]: undefined,
+          ["CT_CORPUS_FIXTURE"]: undefined,
+          ["E2E_ALLOW_DEV_TARGET"]: "0",
+          ["E2E_LIVE"]: "0",
+        }),
+      },
+    );
+    const transcript = result.stdout + result.stderr;
+    const clone = /^Corpus E2E clone: (.+)$/mu.exec(result.stdout)?.[1];
+    expect(clone, transcript).toBeDefined();
+    if (clone === undefined) {
+      throw new Error("The corpus runner did not identify its owned clone");
+    }
+    expect(existsSync(clone)).toBe(false);
+    expect(existsSync(dirname(clone))).toBe(false);
+    expect(result.status, transcript).toBe(missing ? 1 : 0);
+    const fragments = missing
+      ? ["No tests found"]
+      : ["the selected corpus clone serves the captured room identity, content and visible title", "Total: 1 test in 1 file", "[single-user]"];
+    for (const fragment of fragments) {
+      expect(transcript).toContain(fragment);
+    }
+  });
+}
