@@ -44,8 +44,6 @@ import { createPluginNetEgress } from "./net-egress.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
-/** Per-instance limits derive from the same data the domain supplies. */
-export interface SandboxLimits extends PluginBudgets {}
 /** The `name` an ENDED invocation's error carries — the design's `PluginInvocationEnded` (03 §3), surfaced as
  *  DATA on the outcome (nothing crosses back into the guest: its realm is torn down). The domain's crash policy
  *  sees it as a rejected `invoke`, so a hang finally counts toward the 3-strike auto-disable. */
@@ -113,7 +111,7 @@ export interface EvalOutcome {
   readonly logs: readonly string[];
 }
 
-const DEFAULT_LIMITS: SandboxLimits = {
+const DEFAULT_LIMITS: PluginBudgets = {
   cpuDeadlineMs: PLUGIN_INVOCATION_CPU_MS,
   memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES,
   settleGraceMs: HOST_FN_DEADLINE_MS,
@@ -184,13 +182,13 @@ export class Sandbox implements Disposable {
   private outstanding = 0;
   private readonly ctx: QuickJSContext;
   private readonly log: LogRing;
-  private readonly limits: SandboxLimits;
+  private readonly limits: PluginBudgets;
   private readonly state: ResidentState;
   /** The realm's PRISTINE `JSON.parse`, captured before any guest code ran — the inbound args channel
    *  (`parseArgs`). Held for the instance lifetime, disposed with the context. */
   private readonly jsonParse: QuickJSHandle;
 
-  private constructor(init: { ctx: QuickJSContext; log: LogRing; limits: SandboxLimits; state: ResidentState; jsonParse: QuickJSHandle }) {
+  private constructor(init: { ctx: QuickJSContext; log: LogRing; limits: PluginBudgets; state: ResidentState; jsonParse: QuickJSHandle }) {
     this.ctx = init.ctx;
     this.log = init.log;
     this.limits = init.limits;
@@ -201,10 +199,10 @@ export class Sandbox implements Disposable {
   /** Boot a fresh guest instance: load the process module, mint an isolated context, cap its memory + stack,
    *  and install the injected-seam realm (+ the membrane, when `membrane` is supplied). Async because the WASM
    *  module loads once per process. */
-  static async create(seams: HostSeams, opts: { limits?: Partial<SandboxLimits>; membrane?: SandboxMembrane; logMirror?: LogMirror } = {}): Promise<Sandbox> {
+  static async create(seams: HostSeams, opts: { limits?: Partial<PluginBudgets>; membrane?: SandboxMembrane; logMirror?: LogMirror } = {}): Promise<Sandbox> {
     const mod: QuickJSWASMModule = await getPluginQuickJS();
     const ctx = mod.newContext();
-    const resolved: SandboxLimits = { ...DEFAULT_LIMITS, ...opts.limits };
+    const resolved: PluginBudgets = { ...DEFAULT_LIMITS, ...opts.limits };
     ctx.runtime.setMemoryLimit(resolved.memoryLimitBytes);
     // MANDATORY (see GUEST_MAX_STACK_BYTES): without an explicit soft stack ceiling a recursive guest crashes
     // the host and leaves the runtime un-disposable. This turns deep recursion into a clean contained RangeError.

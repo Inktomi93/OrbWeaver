@@ -2757,7 +2757,6 @@
   "[\"types\",\"packages/server/src/infra/plugin-host/index.ts\",\"\",\"GuestError\"]",
   "[\"types\",\"packages/server/src/infra/plugin-host/index.ts\",\"\",\"HostSeams\"]",
   "[\"types\",\"packages/server/src/infra/plugin-host/index.ts\",\"\",\"PluginHostSeamDeps\"]",
-  "[\"types\",\"packages/server/src/infra/plugin-host/index.ts\",\"\",\"SandboxLimits\"]",
   "[\"types\",\"packages/server/src/infra/plugin-host/sandbox.ts\",\"\",\"GuestError\"]",
   "[\"types\",\"packages/server/src/infra/relay/index.ts\",\"\",\"CloudflaredAsset\"]",
   "[\"types\",\"packages/server/src/infra/relay/index.ts\",\"\",\"CloudflaredBinary\"]",

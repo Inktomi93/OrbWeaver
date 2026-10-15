@@ -33,7 +33,7 @@ export { formatPluginBrokerArguments } from "./process-argv.ts";
 export { pluginBrokerExecArgv } from "./process-permission.ts";
 export { createPluginHost } from "./process-runtime.ts";
 export { AMBIENT_STUBS, type HostSeams, installRealm, LogRing } from "./realm.ts";
-export { type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox, type SandboxLimits } from "./sandbox.ts";
+export { type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox } from "./sandbox.ts";
 export { PluginHostBusyError } from "./warm-runtime-pool.ts";
 export {
   brokerWatchdogFailure,
