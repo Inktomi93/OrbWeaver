@@ -10,7 +10,7 @@ import {
 } from "./call-supplied.ts";
 import { isDocumentationLinkReference, resolveStableExpression } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
-import { resolveCallableAlternatives, resolveCallableDeclaration, resolveCallableOrigin } from "./reference-fact-call.ts";
+import { resolveCallableAlternatives, resolveCallableDeclaration, resolveCallableOrigin, resolveCallableValueOrigin } from "./reference-fact-call.ts";
 import type {
   CallReturnObservation,
   CallReturnObservations,
@@ -20,6 +20,8 @@ import type {
   ReturnedValueInputs,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
+import { readStaticAuthoredValue } from "./static-authored-value.ts";
+import { declaredByPackage, resolveTypeMemberOrigin } from "./type-member-origin.ts";
 
 interface Trace {
   readonly declarations: MorphNode[];
@@ -112,16 +114,179 @@ function returnedExpressions(fn: MorphNode, explicitAbsentReturns = false): read
     .filter((expression) => expression !== undefined);
 }
 
+interface NativeReturnFlow {
+  readonly statements: readonly MorphNode[];
+  readonly values: readonly MorphNode[];
+  readonly stops: boolean;
+}
+
+function nativeConditionalReturns(
+  statement: import("ts-morph").IfStatement,
+  owner: MorphNode,
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns">,
+  trace: Trace,
+): ReferenceFact<NativeReturnFlow> {
+  const empty: ReferenceFact<NativeReturnFlow> = {
+    kind: "resolved",
+    value: { values: [], stops: false, statements: [] },
+    trace: { declarations: trace.declarations, origin: statement },
+  };
+  const literal = readStaticAuthoredValue(statement.getExpression());
+  const known = literal.kind === "resolved" && literal.value.kind === "scalar" && typeof literal.value.value === "boolean" ? literal.value.value : undefined;
+  const alternative = statement.getElseStatement();
+  if (known === true) {
+    return nativeStatementReturns(statement.getThenStatement(), owner, projection, trace);
+  }
+  if (known === false) {
+    return alternative === undefined ? empty : nativeStatementReturns(alternative, owner, projection, trace);
+  }
+  const yes = nativeStatementReturns(statement.getThenStatement(), owner, projection, trace);
+  const no = alternative === undefined ? empty : nativeStatementReturns(alternative, owner, projection, trace);
+  if (yes.kind === "unresolved") {
+    return yes;
+  }
+  if (no.kind === "unresolved") {
+    return no;
+  }
+  return {
+    kind: "resolved",
+    value: {
+      values: [...yes.value.values, ...no.value.values],
+      stops: yes.value.stops && no.value.stops,
+      statements: [...yes.value.statements, ...no.value.statements],
+    },
+    trace: { declarations: trace.declarations, origin: statement },
+  };
+}
+
+function nativeStatementReturns(
+  statement: MorphNode,
+  owner: MorphNode,
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns">,
+  trace: Trace,
+): ReferenceFact<NativeReturnFlow> {
+  const empty = (): ReferenceFact<NativeReturnFlow> => ({
+    kind: "resolved",
+    value: { values: [], stops: false, statements: [statement] },
+    trace: { declarations: trace.declarations, origin: statement },
+  });
+  if (Node.isReturnStatement(statement)) {
+    const value = statement.getExpression();
+    return value === undefined && projection.explicitAbsentReturns !== true
+      ? unresolved("unsupported", statement, trace, "native return has an unrequested expressionless exit")
+      : {
+          kind: "resolved",
+          value: { values: [value ?? statement], stops: true, statements: [statement] },
+          trace: { declarations: trace.declarations, origin: statement },
+        };
+  }
+  if (Node.isThrowStatement(statement)) {
+    return { kind: "resolved", value: { values: [], stops: true, statements: [statement] }, trace: { declarations: trace.declarations, origin: statement } };
+  }
+  if (Node.isBlock(statement)) {
+    return nativeStatementSequence(statement.getStatements(), owner, projection, trace);
+  }
+  if (Node.isIfStatement(statement)) {
+    return nativeConditionalReturns(statement, owner, projection, trace);
+  }
+  if (
+    Node.isTryStatement(statement) ||
+    Node.isSwitchStatement(statement) ||
+    Node.isLabeledStatement(statement) ||
+    Node.isForStatement(statement) ||
+    Node.isForInStatement(statement) ||
+    Node.isWhileStatement(statement) ||
+    Node.isDoStatement(statement) ||
+    statement.getDescendants().some((node) => (Node.isReturnStatement(node) || Node.isThrowStatement(node)) && node.getFirstAncestor(isFunctionish) === owner)
+  ) {
+    return unresolved("unsupported", statement, trace, "native returned paths have an unsupported control exit");
+  }
+  return empty();
+}
+
+function nativeStatementSequence(
+  statements: readonly MorphNode[],
+  owner: MorphNode,
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns">,
+  trace: Trace,
+): ReferenceFact<NativeReturnFlow> {
+  const values: MorphNode[] = [];
+  const reachable: MorphNode[] = [];
+  for (const statement of statements) {
+    const fact = nativeStatementReturns(statement, owner, projection, trace);
+    if (fact.kind === "unresolved") {
+      return fact;
+    }
+    values.push(...fact.value.values);
+    reachable.push(...fact.value.statements);
+    if (fact.value.stops) {
+      return { ...fact, value: { values, stops: true, statements: reachable } };
+    }
+  }
+  return { kind: "resolved", value: { values, stops: false, statements: reachable }, trace: { declarations: trace.declarations, origin: owner } };
+}
+
+function nativeFunctionReturns(
+  fn: MorphNode,
+  body: MorphNode,
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns">,
+  trace: Trace,
+): ReferenceFact<readonly MorphNode[]> {
+  if (
+    (Node.isFunctionDeclaration(fn) || Node.isFunctionExpression(fn) || Node.isArrowFunction(fn) || Node.isMethodDeclaration(fn)) &&
+    (fn.isAsync() || (!Node.isArrowFunction(fn) && fn.isGenerator()))
+  ) {
+    return unresolved("unsupported", fn, trace, "native value paths do not project async/generator results");
+  }
+  if (!Node.isBlock(body)) {
+    return { kind: "resolved", value: [body], trace: { declarations: trace.declarations, origin: fn } };
+  }
+  const native = nativeStatementSequence(body.getStatements(), fn, projection, trace);
+  if (native.kind === "unresolved") {
+    return native;
+  }
+  if (!native.value.stops) {
+    return unresolved("unsupported", fn, trace, "native returned paths have an implicit exit");
+  }
+  return native.value.values.length === 0
+    ? unresolved("missing", fn, trace, "native returned paths have no retained expression")
+    : { kind: "resolved", value: native.value.values, trace: { declarations: trace.declarations, origin: fn } };
+}
+
+function nativeStatementReachable(node: MorphNode, program: CallReturnProgram): ReferenceFact<true> {
+  const captured = capturedProgram(node, { programs: [program] });
+  if (captured.kind === "unresolved") {
+    return captured;
+  }
+  const fn = node.getFirstAncestor(isFunctionish);
+  const body =
+    Node.isFunctionDeclaration(fn) || Node.isFunctionExpression(fn) || Node.isArrowFunction(fn) || Node.isMethodDeclaration(fn) ? fn.getBody() : undefined;
+  const trace = { declarations: fn === undefined ? [] : [fn] };
+  if (fn === undefined || !Node.isBlock(body)) {
+    return unresolved("unsupported", node, trace, "native writer has no captured authored block owner");
+  }
+  const flow = nativeStatementSequence(body.getStatements(), fn, { explicitAbsentReturns: true }, trace);
+  if (flow.kind === "unresolved") {
+    return flow;
+  }
+  return flow.value.statements.some((statement) => statement.compilerNode === node.compilerNode)
+    ? { kind: "resolved", value: true, trace: flow.trace }
+    : unresolved("unsupported", node, trace, "native writer statement has no reachable authored path");
+}
+
 /** Every visible exit must be authored; only an explicitly requested projection retains bare-return absence. */
 export function readFunctionReturnPaths(
   fn: MorphNode,
-  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns"> = {},
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns" | "nativeValueTransfers"> = {},
 ): ReferenceFact<readonly MorphNode[]> {
   const trace: Trace = { declarations: [fn] };
   const body =
     Node.isFunctionDeclaration(fn) || Node.isArrowFunction(fn) || Node.isFunctionExpression(fn) || Node.isMethodDeclaration(fn) ? fn.getBody() : undefined;
   if (body === undefined) {
     return unresolved("missing", fn, trace, "the callable has no authored body");
+  }
+  if (projection.nativeValueTransfers === true) {
+    return nativeFunctionReturns(fn, body, projection, trace);
   }
   const values = returnedExpressions(fn, true);
   if (Node.isBlock(body)) {
@@ -319,7 +484,7 @@ function escapingReferences(
 
 function observeAlternatives(
   targets: ReferenceFact<readonly MorphNode[]>,
-  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns">,
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns" | "nativeValueTransfers">,
 ): ReferenceFact<readonly import("./reference-fact-contract.ts").CallReturnAlternative[]> {
   return targets.kind === "unresolved"
     ? targets
@@ -328,7 +493,8 @@ function observeAlternatives(
         value: targets.value.map((target) => ({
           target,
           returns: readFunctionReturnPaths(target),
-          ...(projection.explicitAbsentReturns === true ? { explicitReturns: readFunctionReturnPaths(target, projection) } : {}),
+          ...(projection.nativeValueTransfers === true ? { nativeReturns: readFunctionReturnPaths(target, projection) } : {}),
+          ...(projection.explicitAbsentReturns === true ? { explicitReturns: readFunctionReturnPaths(target, { explicitAbsentReturns: true }) } : {}),
         })),
       };
 }
@@ -337,7 +503,7 @@ function observeAlternatives(
 export function observeCallReturns(
   roots: readonly CallExpression[],
   references?: readonly MorphNode[],
-  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns"> = {},
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns" | "nativeValueTransfers"> = {},
 ): CallReturnObservations {
   const groups = new Map<
     import("ts-morph").Project,
@@ -397,14 +563,27 @@ export function observeCallReturns(
           callers.set(target, previous);
         }
       }
-      return {
+      const captured: CallReturnProgram = {
         ...group,
+        ...(projection.nativeValueTransfers === true
+          ? {
+              nativeValueTransfers: true as const,
+              nativeStatementReachable: (node: MorphNode) => nativeStatementReachable(node, captured),
+              nativeSymbolServices: { callableOrigin: resolveCallableValueOrigin, memberOrigin: resolveTypeMemberOrigin, declaredByPackage },
+              nativeReturnPaths: (node: MorphNode, explicitAbsentReturns: boolean) =>
+                readFunctionReturnPaths(node, {
+                  nativeValueTransfers: true,
+                  ...(projection.explicitAbsentReturns === true && explicitAbsentReturns ? { explicitAbsentReturns: true } : {}),
+                }),
+            }
+          : {}),
         callers,
         byCall,
         escapingReferences: escapes,
         referencesObserved: references?.some((node) => node.getProject() === project) === true,
         program: project.getProgram().compilerObject,
       };
+      return captured;
     }),
   };
 }

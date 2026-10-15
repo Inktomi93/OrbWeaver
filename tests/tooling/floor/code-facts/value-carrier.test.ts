@@ -1,15 +1,17 @@
 // @subject tooling/src/floor/code-facts/value-carrier.ts
 // @subject tooling/src/verify/gates/json-column-read-parsed.ts
 
-import { symlinkSync } from "node:fs";
+import assert from "node:assert/strict";
+import { readFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
+import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
 import { readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/json-column-read-parsed.ts";
 import { isDirectParse } from "../../../../tooling/src/verify/lib/json-column-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -187,3 +189,160 @@ export async function persistedInput(db: Db) { const row = await db.select().fro
     ).toBe(scenario.columns.length === 0 && !("snapshot" in scenario));
   });
 }
+
+test("opted-in native memo and closed cached receiver retain possible authored results without changing strict interpretation", async ({
+  plantedTree,
+  repoRoot,
+}) => {
+  const config = "packages/ui/tsconfig.json";
+  const path = "packages/ui/src/native-channel.ts";
+  const root = await plantedTree({
+    "package.json": '{"type":"module"}',
+    "platform.d.ts": readFileSync(join(repoRoot, "platform.d.ts"), "utf8"),
+    ".gitignore": "node_modules\n",
+    [config]: JSON.stringify({
+      compilerOptions: { strict: true, skipLibCheck: true, target: "ESNext", module: "ESNext", moduleResolution: "Bundler", lib: ["ES2025", "DOM"], types: [] },
+      files: ["src/native-channel.ts", "../../platform.d.ts"],
+    }),
+    [path]: `import {useMemo as memo} from "react";
+const cache = new WeakMap<object, Map<string, {readonly marker:string}>>();
+function cached(items:object,key:string) {
+ const byConfig = cache.getOrInsertComputed(items, () => new Map<string, {readonly marker:string}>());
+ const hit = byConfig.get(key);
+ if(hit !== undefined) return hit as {readonly marker:string};
+ const built = {marker:"cached"};
+ byConfig.set(key,built);
+ return built;
+}
+export function Actual(items:object,key:string) { return memo(() => cached(items,key),[items,key]); }
+export function MapProjection(items:readonly {id:string}[],key:string) { const byId = new Map(items.map(it=>[it.id,it] as const)); return byId.get(key); }
+export function EmptyProjection(key:string) { const byId = new Map(([] as {id:string}[]).map(it=>[it.id,it] as const)); return byId.get(key); }
+export function ErasedProjection(items:readonly {id:string}[],key:string) { const byId = new Map(items.map(it=>[it.id,undefined] as const)); return byId.get(key); }
+declare function consumeMap(value:object):void;
+function liveWriter() { const table = new Map<string,{marker:string}>(); table.set("k",{marker:"live"}); const hit=table.get("k"); if(hit!==undefined) return hit; throw new Error("absent"); }
+function deadWriter() { const table = new Map<string,{marker:string}>(); if(false) table.set("k",{marker:"dead"}); const hit=table.get("k"); if(hit!==undefined) return hit; throw new Error("absent"); }
+function afterReturnWriter() { const table = new Map<string,{marker:string}>(); return table.get("k"); table.set("k",{marker:"dead"}); }
+function afterThrowWriter() { const table = new Map<string,{marker:string}>(); const hit=table.get("k"); if(hit!==undefined) return hit; throw new Error("absent"); table.set("k",{marker:"dead"}); }
+export function AfterReturnWriter() { return afterReturnWriter(); }
+export function AfterThrowWriter() { return afterThrowWriter(); }
+export function LiveWriter() { return liveWriter(); }
+export function DeadWriter() { return deadWriter(); }
+export function Overwritten(key:string) { const table = new Map<string,{readonly marker:string}|undefined>(); table.set(key,{marker:"erased"}); table.set(key,undefined); return table.get(key); }
+export function EscapedMap(key:string) { const table = new Map<string,{readonly marker:string}>(); consumeMap(table); table.set(key,{marker:"escaped"}); return table.get(key); }
+export function OtherKey(key:string) { const table = new Map<string,{readonly marker:string}>(); table.set("different",{marker:"unrelated"}); return table.get(key); }
+export function CyclicMemo():object { const factory = ():object => memo(factory,[]); return memo(factory,[]); }
+export function IfDeadMemo() {return memo(()=>{if(false) return {marker:"dead"};throw new Error("stop");},[]);}
+export function ElseDeadMemo() {return memo(()=>{if(true) return undefined;else {throw new Error("stop");return {marker:"dead"};}},[]);}
+export function EarlyMemo() {return memo(()=>{return undefined;return {marker:"dead"};},[]);}
+export function ExpressionDeadMemo() {return memo(()=>false ? {marker:"dead"} : undefined,[]);}
+export function ThrowMemo() {return memo(()=>{throw new Error("stop");return {marker:"dead"};},[]);}
+export function AsyncMemo() { return memo(async()=>({marker:"promise"}),[]); }
+export function Direct() { return memo(() => ({marker:"direct"}),[]); }
+export function Erased() { return memo(() => { ({marker:"erased"}); return undefined; },[]); }
+export function Shadow() { const memo = (factory:()=>object) => ({marker:"shadow"}); return memo(() => ({marker:"discarded"})); }
+`,
+  });
+  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  execFixtureGit(root, ["init", "--quiet", "--template="]);
+  const source = createSemanticWorkspace({ root }).program(config)?.sourceFile(path);
+  if (source === undefined) {
+    throw new Error("missing native UI channel source");
+  }
+  expect(source.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+  beginReferencePass();
+  try {
+    const observations = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendantsOfKind(SyntaxKind.Identifier), {
+      nativeValueTransfers: true,
+    });
+    const value = (name: string): import("ts-morph").Expression => {
+      const body = source.getFunctionOrThrow(name).getBodyOrThrow().asKindOrThrow(SyntaxKind.Block);
+      const returned = body.getStatements().filter(Node.isReturnStatement).at(-1);
+      if (returned === undefined) {
+        throw new Error("missing actual outer return");
+      }
+      return returned.getExpressionOrThrow();
+    };
+    const actual = value("Actual");
+    const direct = value("Direct");
+    const strict = readReturnedValue(direct, [], observations, new Set());
+    expect(strict.kind).toBe("unresolved");
+    const directFact = readReturnedValue(direct, ["marker"], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true });
+    expect(directFact.kind, directFact.kind === "unresolved" ? directFact.detail : "native callback return").toBe("resolved");
+    expect(directFact.kind === "resolved" && directFact.value.map((item) => item.value.getText())).toEqual(['"direct"']);
+    const projected = value("MapProjection");
+    const empty = value("EmptyProjection");
+    const erased = value("ErasedProjection");
+    const mapped = readReturnedValue(projected, [], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true });
+    expect(mapped.kind, mapped.kind === "unresolved" ? mapped.detail : "actual mapped value").toBe("resolved");
+    expect(
+      mapped.kind === "resolved" &&
+        mapped.value.some(
+          (item) => item.present && item.nativeIteration?.collection.getText() === "items" && item.nativeIteration.parameter.getText() === "it",
+        ),
+    ).toBe(true);
+    const missing = readReturnedValue(empty, [], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true });
+    expect(missing.kind === "resolved" && missing.value.every((item) => !item.present)).toBe(true);
+    expect(readReturnedValue(erased, [], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true }).kind).toBe("unresolved");
+    for (const name of [
+      "Overwritten",
+      "EscapedMap",
+      "OtherKey",
+      "CyclicMemo",
+      "AsyncMemo",
+      "ThrowMemo",
+      "DeadWriter",
+      "AfterReturnWriter",
+      "AfterThrowWriter",
+    ]) {
+      const unsafe = value(name);
+      expect(readReturnedValue(unsafe, ["marker"], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true }).kind, name).toBe(
+        "unresolved",
+      );
+    }
+    const shadow = value("Shadow");
+    const erasedMemo = value("Erased");
+    const shadowFact = readReturnedValue(shadow, ["marker"], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true });
+    expect(shadowFact.kind === "resolved" && shadowFact.value.map((item) => item.value.getText())).toEqual(['"shadow"']);
+    const erasedFact = readReturnedValue(erasedMemo, ["marker"], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true });
+    expect(erasedFact.kind === "resolved" && erasedFact.value.some((item) => item.present && item.path.length === 0)).toBe(false);
+    for (const name of ["IfDeadMemo", "ElseDeadMemo", "EarlyMemo", "ExpressionDeadMemo"]) {
+      const dead = value(name);
+      const fact = readReturnedValue(dead, ["marker"], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true });
+      expect(fact.kind === "resolved" && fact.value.some((item) => item.present && item.path.length === 0), name).toBe(false);
+    }
+    const liveWriterFact = readReturnedValue(value("LiveWriter"), ["marker"], observations, {
+      terminals: new Set(),
+      bindings: new Map(),
+      nativeValueTransfers: true,
+    });
+    assert(liveWriterFact.kind === "resolved");
+    expect(liveWriterFact.value.map((item) => ({ present: item.present, path: item.path, text: item.value.getText() }))).toEqual([
+      { present: true, path: [], text: '"live"' },
+    ]);
+
+    const uncaptured = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression));
+    expect(readReturnedValue(direct, [], uncaptured, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true }).kind).toBe("unresolved");
+    const cachedFact = readReturnedValue(actual, ["marker"], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true });
+    expect(cachedFact.kind, cachedFact.kind === "unresolved" ? `${cachedFact.detail} at ${cachedFact.node.getText()}` : "actual cache alternatives").toBe(
+      "resolved",
+    );
+    expect(
+      cachedFact.kind === "resolved" && cachedFact.value.every((item) => item.present && item.path.length === 0 && item.value.getText() === '"cached"'),
+    ).toBe(true);
+    const foreign = createSemanticWorkspace({ root })
+      .program(config)
+      ?.sourceFile(path)
+      ?.getFunctionOrThrow("Direct")
+      .getDescendantsOfKind(SyntaxKind.ReturnStatement)
+      .at(-1)
+      ?.getExpressionOrThrow();
+    if (foreign === undefined) {
+      throw new Error("missing foreign native channel");
+    }
+    expect(readReturnedValue(foreign, [], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true }).kind).toBe("unresolved");
+    source.insertStatements(0, "export const nextNativeEpoch = 1;");
+    expect(readReturnedValue(direct, [], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true }).kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});

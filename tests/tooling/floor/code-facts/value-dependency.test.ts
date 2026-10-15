@@ -8,8 +8,10 @@ import type { Node as MorphNode, SourceFile, ts } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { observeCallReturns } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
 import type { CallReturnObservations } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
+import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 test.beforeEach(() => {
   beginReferencePass();
@@ -90,6 +92,13 @@ export function AssertedAbsentAttrMap() { const attrs: Record<string, string> = 
 export function ShadowConvertedAttrMap() { function String(value: string): string | undefined { return undefined; } const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { const arm = String(axis); if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
 export function ExtraAttrMap(key: string) { const attrs: Record<string, string> = {}; for (const axis of ATTR_KEYS) { attrs[key] = "x"; } return attrs; }
 declare function opaqueDictionary(value: object): void;
+declare function keyRows(): readonly {readonly id:string}[];
+export function LookedUp(items:readonly {readonly id:string}[]) { const byId = new Map(items.map(it=>[it.id,it] as const)); const out:{readonly id:string}[]=[]; for(const hit of keyRows()) { const item = byId.get(hit.id); if(item !== undefined) { out.push(item); if(out.length >= 10) break; } } return out; }
+function retainedLookup(items:readonly {readonly id:string}[],key:string) { const byId = new Map(items.map(it=>[it.id,it] as const)); const hit=byId.get(key); if(hit!==undefined) return hit; throw new Error("absent"); }
+export function ProjectedLookup(items:readonly {readonly id:string}[]) { return retainedLookup(items,textSignal()).toString; }
+export function DirectProjectedLookup(items:readonly {readonly id:string}[]) { const byId = new Map(items.map(it=>[it.id,it] as const)); return byId.get(textSignal())!.toString; }
+export function EmptyLookup() { const byId = new Map(([] as {readonly id:string}[]).map(it=>[it.id,it] as const)); const out:{readonly id:string}[]=[]; for(const hit of keyRows()) { const item = byId.get(hit.id); if(item !== undefined) { out.push(item); } } return out; }
+export function UnrelatedLookup(items:readonly {readonly id:string}[]) { const byId = new Map(items.map(it=>[it.id,it] as const)); const out:{readonly id:string}[]=[]; for(const hit of keyRows()) { const item = byId.get("fixed"); if(item !== undefined) { out.push(item); } } return out; }
 export function ShadowAppend() { const out: number[] = []; out.push = () => 0; out.push(signal()); return out; }
 `,
   );
@@ -207,3 +216,42 @@ test("returned metadata maps retain finite authored keys and optional writes, no
   source.insertStatements(0, "export const nextMetadataEpoch = 1;");
   expect(readReturnedDictionary({ value: stale, observations }).kind).toBe("unqualified");
 });
+
+test("native mapped lookup retains the actual iterator key contribution while empty and unrelated keys refuse", ({ scratch }) => {
+  const { source, value } = fixture(scratch);
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const observations = observeCallReturns(calls, source.getDescendantsOfKind(SyntaxKind.Identifier), { nativeValueTransfers: true });
+  const terminals = new Set(calls.filter((call) => ["keyRows", "textSignal"].includes(call.getExpression().getText())).map((call) => call.compilerNode));
+  const positive = readValueDependencyContribution({ value: value("LookedUp"), observations, terminals, nativeValueTransfers: true });
+  expect(positive.kind, positive.kind === "unqualified" ? positive.reason : "actual native lookup").toBe("qualified");
+  for (const name of ["EmptyLookup", "UnrelatedLookup", "DirectProjectedLookup", "ProjectedLookup"]) {
+    expect(readValueDependencyContribution({ value: value(name), observations, terminals, nativeValueTransfers: true }).kind, name).toBe("unqualified");
+  }
+});
+
+test(
+  "actual cached fuzzy search retains its native result dependency without trusting vendor identifiers",
+  ({ repoRoot }) => {
+    const config = "packages/ui/tsconfig.json";
+    const workspace = createSemanticWorkspace({ root: repoRoot, programs: readCompilerPrograms(repoRoot).filter((program) => program.config === config) });
+    const source = workspace.program(config)?.sourceFile("packages/ui/src/fuzzy-search/fuzzy-search.ts");
+    if (source === undefined) {
+      throw new Error("missing actual fuzzy search owner");
+    }
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const observations = observeCallReturns(calls, source.getDescendantsOfKind(SyntaxKind.Identifier), { nativeValueTransfers: true });
+    const search = calls.find((call) => call.getExpression().getText().endsWith(".search"));
+    const value = source.getFunctionOrThrow("fuzzySearch").getDescendantsOfKind(SyntaxKind.ReturnStatement).at(-1)?.getExpression();
+    if (search === undefined || value === undefined) {
+      throw new Error("missing actual search result channel");
+    }
+    const result = readValueDependencyContribution({ value, observations, terminals: new Set([search.compilerNode]), nativeValueTransfers: true });
+    expect(result.kind, result.kind === "unqualified" ? result.reason : "actual original-item lookup").toBe("qualified");
+    if (result.kind !== "qualified") {
+      throw new Error("missing actual search dependency");
+    }
+    expect(result.contributions.map((contribution) => contribution.terminal)).toContain(search);
+    expect(result.dataTrust).toMatchObject({ kind: "unqualified", boundaries: expect.arrayContaining([expect.objectContaining({ kind: "any" })]) });
+  },
+  scaledBudget(60_000),
+);

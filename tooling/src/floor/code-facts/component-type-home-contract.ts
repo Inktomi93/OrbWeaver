@@ -33,7 +33,16 @@ export interface PrimitiveAttributeApiEvidence {
   readonly dictionary: Extract<ReturnedDictionaryResult, { readonly kind: "qualified" }>;
 }
 
+export interface PrimitiveSearchApiEvidence {
+  readonly call: CallExpression;
+  readonly constructor: Node;
+  readonly method: Node;
+  readonly fieldOrigins: readonly Node[];
+  readonly dependency: Extract<ValueDependencyResult, { readonly kind: "qualified" }>;
+}
+
 export interface ComponentRenderEvidence {
+  readonly primitiveSearches?: readonly PrimitiveSearchApiEvidence[];
   readonly callable: Node;
   readonly parameter: ParameterDeclaration;
   readonly returns: readonly Node[];

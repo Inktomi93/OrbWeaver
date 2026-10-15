@@ -3,6 +3,7 @@ import type { CallReturnObservations } from "./reference-fact-contract.ts";
 
 /** Neutral value contribution: consumers separately prove the native meaning of supplied terminals. */
 export interface ValueDependencyInput {
+  readonly nativeValueTransfers?: true;
   readonly value: Node;
   readonly path?: readonly string[];
   readonly observations: CallReturnObservations;

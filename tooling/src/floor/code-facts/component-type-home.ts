@@ -4,7 +4,7 @@ import { Node, SymbolFlags, SyntaxKind } from "ts-morph";
 import { worldOf } from "../compiler/project-worlds.ts";
 import { canonicalCompilerPath, descendantsOfKind, registeredSemanticSourceView, semanticWorkspaceOf } from "../compiler/ts-workspace.ts";
 import type { SemanticSourceView } from "../compiler/ts-workspace-contract.ts";
-import { observeCallReturns, readCallBindings, readFunctionReturnPaths } from "./call-returns.ts";
+import { observeCallReturns, readCallBindings, readCallReturnProgram, readFunctionReturnPaths } from "./call-returns.ts";
 import type {
   ComponentLowerDataEvidence,
   ComponentRenderEvidence,
@@ -13,6 +13,7 @@ import type {
   ComponentTypeHomeView,
   NativeComponentRenderContribution,
   PrimitiveAttributeApiEvidence,
+  PrimitiveSearchApiEvidence,
 } from "./component-type-home-contract.ts";
 import { ComponentTypeHomeComparisonError } from "./component-type-home-contract.ts";
 import { referenceResolutionServices, resolveStableExpression } from "./reference-fact.ts";
@@ -24,9 +25,10 @@ import { exportedShapeDeclarations } from "./shape-declaration.ts";
 import { directDerivationTargetKeys, readNativeGenericArgumentContribution } from "./shape-derivation.ts";
 import { ownDataFieldNames, resolvedShapeProperties } from "./shape-fields.ts";
 import { packageTypeHome } from "./type-home.ts";
-import { declaredByPackage, resolveTypeIdentityChain } from "./type-member-origin.ts";
-import { resolveTypePropertyOrigin } from "./type-member-origin-core.ts";
+import { declaredByPackage, resolveTypeIdentityChain, resolveTypeMemberOrigin } from "./type-member-origin.ts";
+import { resolveTypePropertyOrigin, resolveTypePropertyValue } from "./type-member-origin-core.ts";
 import { readReturnedValue } from "./value-carrier.ts";
+import { nativeParameterFieldsUnchanged } from "./value-carrier-native.ts";
 import { readReturnedDictionary, readValueDependencyContribution } from "./value-dependency.ts";
 
 /** Capture the delivered native owner's program/source epoch without opening another compiler world. */
@@ -287,12 +289,192 @@ function componentEvidence(input: ComponentTypeHomeInput): ComponentOriginRead {
       break;
     }
   }
+  evidence ??= primitiveSearchEvidence(input, views, graph);
   return {
     component: evidence,
     reason: graph.opaque.has(target)
       ? "Supporting API contribution through an opaque generic is unqualified."
       : "No exported local render callable parameter/supporting graph proves this API.",
   };
+}
+
+function nativeSearchConstructor(call: import("ts-morph").CallExpression, value: MorphNode, input: ComponentTypeHomeInput): MorphNode | undefined {
+  if (!Node.isNewExpression(value)) {
+    return;
+  }
+  const origin = resolveCallableValueOrigin(value);
+  const signature = value.getProject().getTypeChecker().getResolvedSignature(value)?.getDeclaration();
+  const method = call.getProject().getTypeChecker().getResolvedSignature(call)?.getDeclaration();
+  const member = resolveTypeMemberOrigin(call.getExpression());
+  if (member.kind !== "resolved" || referenceResolutionServices.inspectSymbolWrites(member.value.symbol, call.getExpression()).kind !== "resolved") {
+    return;
+  }
+  if (origin.kind !== "resolved" || origin.value.target.kind !== "module" || origin.value.target.canonical.kind !== "project") {
+    return;
+  }
+  const owner = origin.value.target.canonical.declaration;
+  return Node.isClassDeclaration(owner) &&
+    owner.getName() === "MiniSearch" &&
+    declaredByPackage([owner], "minisearch") &&
+    signature?.getParent().compilerNode === owner.compilerNode &&
+    method?.getParent().compilerNode === owner.compilerNode &&
+    input.view.nativeProgram.isSourceFileFromExternalLibrary(owner.getSourceFile().compilerNode) &&
+    member.value.declarations.every((declaration) => declaration.getParent()?.compilerNode === owner.compilerNode)
+    ? owner
+    : undefined;
+}
+
+function nativeSearchFieldOrigins(
+  value: MorphNode,
+  parameter: ParameterDeclaration,
+  observations: import("./reference-fact-contract.ts").CallReturnObservations,
+  input: ComponentTypeHomeInput,
+): readonly MorphNode[] | undefined {
+  if (!Node.isNewExpression(value)) {
+    return;
+  }
+  const program = readCallReturnProgram(parameter, observations);
+  if (program.kind !== "resolved" || !nativeParameterFieldsUnchanged(parameter, program.value)) {
+    return;
+  }
+  const options = value.getArguments()[0];
+  if (options === undefined) {
+    return;
+  }
+  const fields = readReturnedValue(options, ["fields"], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true });
+  if (fields.kind !== "resolved" || fields.value.some((field) => !field.present)) {
+    return;
+  }
+  const origins = fields.value.flatMap((field) => {
+    const declaration = Node.isIdentifier(field.value) ? field.value.getSymbol()?.getValueDeclaration() : undefined;
+    if (declaration !== parameter || field.path.length === 0) {
+      return [];
+    }
+    const property = resolveTypePropertyValue(field.value, field.path);
+    return property.kind === "resolved"
+      ? property.value.declarations.filter((origin) => {
+          const parent = origin.getParent();
+          return (
+            parent?.compilerNode === input.declaration.compilerNode ||
+            (Node.isTypeLiteral(parent) && parent.getParent().compilerNode === input.declaration.compilerNode)
+          );
+        })
+      : [];
+  });
+  return origins.length === 0 ? undefined : origins;
+}
+
+interface PrimitiveSearchContext {
+  readonly input: ComponentTypeHomeInput;
+  readonly observations: ReturnType<typeof observeCallReturns>;
+  readonly searches: readonly import("ts-morph").CallExpression[];
+  readonly graph: ReturnType<typeof componentTypeGraph>;
+}
+
+function primitiveSearchProof(
+  call: import("ts-morph").CallExpression,
+  parameter: ParameterDeclaration,
+  returns: readonly MorphNode[],
+  context: PrimitiveSearchContext,
+): PrimitiveSearchApiEvidence | undefined {
+  const expression = call.getExpression();
+  if (!Node.isPropertyAccessExpression(expression)) {
+    return;
+  }
+  const receivers = readReturnedValue(expression.getExpression(), [], context.observations, {
+    terminals: new Set(),
+    bindings: new Map(),
+    nativeValueTransfers: true,
+  });
+  if (
+    receivers.kind !== "resolved" ||
+    receivers.value.length === 0 ||
+    receivers.value.some(
+      (receiver) => !receiver.present || receiver.path.length > 0 || nativeSearchConstructor(call, receiver.value, context.input) === undefined,
+    )
+  ) {
+    return;
+  }
+  const origins = receivers.value.map((receiver) => nativeSearchFieldOrigins(receiver.value, parameter, context.observations, context.input));
+  if (origins.some((origin) => origin === undefined || origin.length === 0)) {
+    return;
+  }
+  const dependency = returns
+    .map((value) =>
+      readValueDependencyContribution({ value, observations: context.observations, terminals: new Set([call.compilerNode]), nativeValueTransfers: true }),
+    )
+    .find((result) => result.kind === "qualified");
+  const method = call.getProject().getTypeChecker().getResolvedSignature(call)?.getDeclaration();
+  const construction = receivers.value[0]?.value;
+  if (dependency?.kind !== "qualified" || method === undefined || construction === undefined) {
+    return;
+  }
+  return { call, constructor: construction, method, fieldOrigins: origins.flatMap((origin) => origin ?? []), dependency };
+}
+
+function primitiveCallableEvidence(exported: MorphNode, view: ComponentTypeHomeView, context: PrimitiveSearchContext): ComponentRenderEvidence | undefined {
+  if (!(Node.isFunctionDeclaration(exported) || Node.isVariableDeclaration(exported))) {
+    return;
+  }
+  const callable = exportedCallable(exported);
+  if (callable === undefined || !(Node.isFunctionDeclaration(callable) || Node.isArrowFunction(callable) || Node.isFunctionExpression(callable))) {
+    return;
+  }
+  const returns = readFunctionReturnPaths(callable, { nativeValueTransfers: true });
+  if (returns.kind !== "resolved") {
+    return;
+  }
+  for (const parameter of callable.getParameters()) {
+    const visited = supportingTypeKeys(parameter, context.graph, view);
+    if (!visited.has(inventoryDeclarationKey(context.input.declaration))) {
+      continue;
+    }
+    const searches = context.searches.filter(
+      (call) =>
+        call.getFirstAncestor((parent) => Node.isFunctionDeclaration(parent) || Node.isArrowFunction(parent) || Node.isFunctionExpression(parent)) === callable,
+    );
+    const search = searches.map((call) => primitiveSearchProof(call, parameter, returns.value, context)).find((proof) => proof !== undefined);
+    if (search !== undefined) {
+      return {
+        callable,
+        parameter,
+        returns: returns.value,
+        primitiveSearches: [search],
+        supportingDeclarations: context.graph.declarations.filter((declaration) => visited.has(inventoryDeclarationKey(declaration))),
+      };
+    }
+  }
+  return undefined;
+}
+
+function primitiveSearchEvidence(
+  input: ComponentTypeHomeInput,
+  views: readonly ComponentTypeHomeView[],
+  graph: ReturnType<typeof componentTypeGraph>,
+): ComponentRenderEvidence | undefined {
+  const calls = views.flatMap((view) => view.sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression));
+  const searches = calls.filter((call) => {
+    const expression = call.getExpression();
+    return Node.isPropertyAccessExpression(expression) && expression.getName() === "search";
+  });
+  if (searches.length === 0) {
+    return;
+  }
+  const observations = observeCallReturns(
+    calls,
+    views.flatMap((view) => view.sourceFile.getDescendantsOfKind(SyntaxKind.Identifier)),
+    { nativeValueTransfers: true },
+  );
+  const context = { input, observations, searches, graph };
+  for (const view of views) {
+    for (const exported of new Set([...inventoryExports(view.sourceFile).values()].flat())) {
+      const evidence = primitiveCallableEvidence(exported, view, context);
+      if (evidence !== undefined) {
+        return evidence;
+      }
+    }
+  }
+  return undefined;
 }
 
 interface RenderedCallable {
