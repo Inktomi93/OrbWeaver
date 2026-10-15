@@ -190,6 +190,7 @@
     "./node/factories/world-info.ts": "./node/factories/world-info.ts",
     "./iso/corpus.ts": "./iso/corpus.ts",
     "./node/corpus.ts": "./node/corpus.ts",
+    "./node/ct-corpus.ts": "./node/ct-corpus.ts",
     "./node/factories/credentials.ts": "./node/factories/credentials.ts",
     "./node/factories/plugin.ts": "./node/factories/plugin.ts",
     "./node/factories/sessions.ts": "./node/factories/sessions.ts",

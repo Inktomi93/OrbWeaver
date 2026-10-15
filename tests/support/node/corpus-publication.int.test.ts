@@ -187,8 +187,8 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
     [snapshots.hostAccepted, result.accepted, result.host.userId],
   ] as const) {
     expect(snapshot.viewerUserId).toBe(viewer);
-    expect(snapshot.read.input).toBeUndefined();
-    expect(createCorpusViewerReadResponder("notifications.list", viewer, snapshot)(undefined)).toEqual(output);
+    expect(snapshot.read.input).toEqual({});
+    expect(createCorpusViewerReadResponder("notifications.list", viewer, snapshot)({})).toEqual(output);
   }
   expect(snapshots.readerRaised.read.output).not.toEqual(snapshots.readerRead.read.output);
   expect(() => createCorpusViewerReadResponder("notifications.list", result.foreign.userId, snapshots.readerRaised)).toThrow("snapshot viewer does not match");
@@ -196,12 +196,15 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
     "Conflicting corpus captures",
   );
   const respond = createCorpusViewerReadResponder("notifications.list", result.reader.userId, snapshots.readerRaised);
+  expect(() => respond(undefined)).toThrow("Uncaptured corpus read");
   expect(() => Reflect.apply(respond, undefined, [null])).toThrow("Uncaptured corpus read");
   const mixed = structuredClone(snapshots);
   Object.assign(mixed.readerRaised, { read: mixed.foreignBefore.read });
   expect(() => serializeCorpusWire({ ...wire, notificationInbox: mixed }, secrets)).toThrow("recipient mismatch");
   const malformed = structuredClone(snapshots);
   Object.assign(malformed.readerRaised.read, { input: null });
+  expect(() => serializeCorpusWire(hydrateCorpusWire({ ...wire, notificationInbox: malformed }), secrets)).toThrow("publication recipe");
+  Object.assign(malformed.readerRaised.read, { input: undefined });
   expect(() => serializeCorpusWire(hydrateCorpusWire({ ...wire, notificationInbox: malformed }), secrets)).toThrow("publication recipe");
   const drifted = structuredClone(snapshots);
   Reflect.deleteProperty(drifted.readerFinal.read.output, "nextCursor");
