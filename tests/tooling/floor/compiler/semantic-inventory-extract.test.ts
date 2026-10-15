@@ -1,14 +1,17 @@
 import { mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest, InventorySpan } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { latestInventoryGeneration, openInventoryDatabase, publishInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
-import { canonicalInventoryPath, inputsCurrent, inputVersion } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
+import { canonicalInventoryPath, contentVersion, inputsCurrent, inputVersion } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { DocumentSpan, LanguageService, Node, Program, Project, SourceFile, SyntaxKind, TypeChecker, ts } from "ts-morph";
 import { vi } from "vitest";
 
@@ -1319,5 +1322,148 @@ test("compiler and store implementation bytes are versioned and changed runtime 
     ).toThrow("inputs changed during extraction");
   } finally {
     runtimeRead.mockRestore();
+  }
+});
+
+test("readonly native token lookups avoid repeated traversal without caching symbol meaning", () => {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: { noLib: true, types: [], module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler },
+  });
+  project.createSourceFile("/base.ts", "export interface First { value:number } export interface Second { value:string }\n");
+  project.createSourceFile(
+    "/consumer.ts",
+    "import type {First,Second} from './base'; export declare const first:First; export declare const second:Second; export const a=first.value; export const b=second.value;\n",
+  );
+  const service = project.getLanguageService().compilerObject;
+  const program = fixtureValue(service.getProgram());
+  const base = fixtureValue(program.getSourceFile("/base.ts"));
+  const consumer = fixtureValue(program.getSourceFile("/consumer.ts"));
+  const positions = [base.text.indexOf("value"), base.text.lastIndexOf("value")];
+  const options = { includeDefinitionDisplay: false };
+  const expected = positions.map((position) => service.findReferences(base.fileName, position, options));
+  expect(expected[0]).not.toEqual(expected[1]);
+  const traversal = vi.spyOn(consumer, "getChildren");
+  const meaning = vi.spyOn(program.getTypeChecker(), "getSymbolAtLocation");
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(pass.findReferences(base.fileName, fixtureValue(positions[0]), options)).toEqual(expected[0]);
+    expect(traversal).toHaveBeenCalled();
+    traversal.mockClear();
+    meaning.mockClear();
+    expect(pass.findReferences(base.fileName, fixtureValue(positions[1]), options)).toEqual(expected[1]);
+    expect(traversal.mock.calls.length).toBe(0);
+    expect(meaning.mock.calls.some(([node]) => node.getSourceFile() === consumer)).toBe(true);
+    const returned = fixtureValue(pass.findReferences(base.fileName, fixtureValue(positions[0]), options));
+    fixtureValue(returned[0]).references.length = 0;
+    expect(pass.findReferences(base.fileName, fixtureValue(positions[0]), options)).toEqual(expected[0]);
+    traversal.mockClear();
+    expect(service.findReferences(base.fileName, fixtureValue(positions[1]), options)).toEqual(expected[1]);
+    expect(traversal).toHaveBeenCalled();
+  } finally {
+    pass.dispose();
+    meaning.mockRestore();
+    traversal.mockRestore();
+    service.dispose();
+  }
+});
+
+test("full-cap native token memo preserves fallback and releases its bounded retained representation", { timeout: 125_000 }, async ({ scratch }) => {
+  const child = fileURLToPath(new URL("../../../support/node/native-token-memo-child.mjs", import.meta.url));
+  const output = join(scratch, "native-token-memo.json");
+  const result = await spawnNiced(process.execPath, ["--expose-gc", child, output], { timeoutMs: 120_000 });
+  console.log(result.stdout);
+  expect(result.code, result.stderr).toBe(0);
+  expect(result.timedOut).toBe(false);
+  expect(JSON.parse(readFileSync(output, "utf8"))).toMatchObject({
+    phase: "complete",
+    passed: true,
+    capacity: 524_288,
+    inputReferences: 524_304,
+    runtimeSha256: contentVersion(readFileSync(ts.sys.getExecutingFilePath())),
+    gcDisturbedRepresentationOnly: true,
+  });
+});
+
+test("native token memo belongs to one readonly pass and leaves rename and highlight paths native", () => {
+  const { service } = nativeReferenceFixture();
+  const program = fixtureValue(service.getProgram());
+  const consumer = fixtureValue(program.getSourceFile("/consumer.ts"));
+  const position = fixtureValue(program.getSourceFile("/base.ts")).text.indexOf("first");
+  const options = { includeDefinitionDisplay: false };
+  const expected = service.findReferences("/base.ts", position, options);
+  const rename = service.findRenameLocations("/base.ts", position, false, false, {});
+  const highlights = service.getDocumentHighlights("/base.ts", position, ["/base.ts", "/consumer.ts"]);
+  const traversal = vi.spyOn(consumer, "getChildren");
+  const first = service.createReadonlyReferencePass();
+  const second = service.createReadonlyReferencePass();
+  try {
+    expect(first.findReferences("/base.ts", position, options)).toEqual(expected);
+    expect(traversal).toHaveBeenCalled();
+    traversal.mockClear();
+    expect(first.findReferences("/base.ts", position, options)).toEqual(expected);
+    expect(traversal.mock.calls.length).toBe(0);
+    expect(second.findReferences("/base.ts", position, options)).toEqual(expected);
+    expect(traversal).toHaveBeenCalled();
+    second.dispose();
+    traversal.mockClear();
+    expect(first.findReferences("/base.ts", position, options)).toEqual(expected);
+    expect(traversal.mock.calls.length).toBe(0);
+    expect(service.findRenameLocations("/base.ts", position, false, false, {})).toEqual(rename);
+    expect(traversal).toHaveBeenCalled();
+    traversal.mockClear();
+    expect(service.getDocumentHighlights("/base.ts", position, ["/base.ts", "/consumer.ts"])).toEqual(highlights);
+    expect(traversal).toHaveBeenCalled();
+    first.dispose();
+    const fresh = service.createReadonlyReferencePass();
+    try {
+      traversal.mockClear();
+      expect(fresh.findReferences("/base.ts", position, options)).toEqual(expected);
+      expect(traversal).toHaveBeenCalled();
+    } finally {
+      fresh.dispose();
+    }
+  } finally {
+    first.dispose();
+    second.dispose();
+    traversal.mockRestore();
+    service.dispose();
+  }
+});
+
+test("interrupted native token lookup retries without caching a partial result and warm hits still cancel", () => {
+  const fixture = nativeReferenceFixture();
+  const service = fixture.service;
+  const consumer = fixtureValue(service.getProgram()?.getSourceFile("/consumer.ts"));
+  const position = fixtureValue(service.getProgram()?.getSourceFile("/base.ts")).text.indexOf("first");
+  const options = { includeDefinitionDisplay: false };
+  const expected = service.findReferences("/base.ts", position, options);
+  const getChildren = consumer.getChildren.bind(consumer);
+  let interrupt = true;
+  const traversal = vi.spyOn(consumer, "getChildren").mockImplementation((source) => {
+    if (interrupt) {
+      interrupt = false;
+      throw new ts.OperationCanceledException();
+    }
+    return getChildren(source);
+  });
+  const pass = service.createReadonlyReferencePass();
+  try {
+    expect(() => pass.findReferences("/base.ts", position, options)).toThrow(ts.OperationCanceledException);
+    traversal.mockClear();
+    expect(pass.findReferences("/base.ts", position, options)).toEqual(expected);
+    expect(traversal).toHaveBeenCalled();
+    traversal.mockClear();
+    expect(pass.findReferences("/base.ts", position, options)).toEqual(expected);
+    expect(traversal.mock.calls.length).toBe(0);
+    fixture.cancel(true);
+    expect(() => pass.findReferences("/base.ts", position, options)).toThrow(ts.OperationCanceledException);
+    fixture.cancel(false);
+    expect(pass.findReferences("/base.ts", position, options)).toEqual(expected);
+    expect(traversal.mock.calls.length).toBe(0);
+  } finally {
+    pass.dispose();
+    traversal.mockRestore();
+    service.dispose();
   }
 });
