@@ -302,6 +302,8 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     reads,
     notificationInbox: notifications.publication,
     chatLifecycleMember: chatLifecycle.publication,
+    worldInfoLibrary: libraryViews.publication.worldInfo,
+    regexLibrary: libraryViews.publication.regex,
   });
   const secrets = [
     options.privateCredential.key,
