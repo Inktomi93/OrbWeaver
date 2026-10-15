@@ -208,6 +208,8 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.wire.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
   expect(capsule.wire.regexLibrary).toBeDefined();
   expect(capsule.wire.regexLibrary).toEqual(libraryViews.publication.regex);
+  expect(capsule.wire.libraryRelations).toBeDefined();
+  expect(capsule.wire.libraryRelations).toEqual(libraryViews.publication.relations);
   expect(capsule.wire.memberIdentities).toBeDefined();
   expect(capsule.wire.memberIdentities).toEqual({
     notificationReader: notifications.admission.identity,
@@ -469,6 +471,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(loaded.wire.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
   expect(loaded.wire.regexLibrary).toBeDefined();
   expect(loaded.wire.regexLibrary).toEqual(libraryViews.publication.regex);
+  expect(loaded.wire.libraryRelations).toEqual(libraryViews.publication.relations);
   expect(loaded.wire.memberIdentities).toBeDefined();
   expect(loaded.wire.memberIdentities).toEqual({
     notificationReader: notifications.admission.identity,
@@ -496,6 +499,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(portable.worldInfoLibrary).toEqual(libraryViews.publication.worldInfo);
   expect(portable.regexLibrary).toBeDefined();
   expect(portable.regexLibrary).toEqual(libraryViews.publication.regex);
+  expect(portable.libraryRelations).toEqual(libraryViews.publication.relations);
   expect(portable.memberIdentities).toBeDefined();
   expect(portable.memberIdentities).toEqual({
     notificationReader: notifications.admission.identity,
@@ -665,6 +669,34 @@ test("a completed migrated capsule closes its real producers before cloning scru
         temporaryParentDir: parent,
         pluginSpawn: spawn,
       });
+      const relations = loaded.wire.libraryRelations;
+      assert(relations !== undefined, "prepared clone lost its native library relation stages");
+      const ownerCaller = await cloneRoot.internalCallerFor(relations.viewerUserId);
+      const relationReads = relations.reads;
+      expect(await ownerCaller.rosterPreset.get(relationReads.rosterDetail.input)).toEqual(relationReads.rosterDetail.output);
+      expect((await ownerCaller.rosterPreset.list(relationReads.rosterList.input)).find((row) => row.id === relations.ids.rosterPresetId)).toEqual(
+        relationReads.rosterList.output.find((row) => row.id === relations.ids.rosterPresetId),
+      );
+      expect(await ownerCaller.persona.listConnectedToCharacter(relationReads.personaConnected.input)).toEqual(relationReads.personaConnected.output);
+      expect(await ownerCaller.persona.listConnectedCharacters(relationReads.personaCharacters.input)).toEqual(relationReads.personaCharacters.output);
+      for (const reach of [
+        relationReads.characterReach,
+        relationReads.chatReach,
+        relationReads.worldBookReach,
+        relationReads.personaReach,
+        relationReads.presetReach,
+      ]) {
+        expect(await ownerCaller.tag.listAttachedEntities(reach.input)).toEqual(reach.output);
+      }
+      expect(await ownerCaller.tag.listPendingSuggestions(relationReads.tagPendingAfter.input)).toEqual(relationReads.tagPendingAfter.output);
+      const nativeUsage = (await ownerCaller.tag.listTagsWithUsage()).find((tag) => tag.id === relations.ids.tagId);
+      expect(nativeUsage).toEqual(relationReads.tagUsage.output.find((tag) => tag.id === relations.ids.tagId));
+      expect(nativeUsage).not.toEqual(relationReads.tagBefore.output.find((tag) => tag.id === relations.ids.tagId));
+      expect(await ownerCaller.rosterPreset.applyToChat(relationReads.rosterAppliedAgain.input)).toEqual(relationReads.rosterAppliedAgain.output);
+      const foreignCaller = await cloneRoot.internalCallerFor(capsule.privateCaptures.sharedMemberAuthentication.identity.viewer.userId);
+      await expect(foreignCaller.rosterPreset.get(relationReads.rosterDetail.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(foreignCaller.tag.listAttachedEntities(relationReads.characterReach.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(foreignCaller.persona.listConnectedCharacters(relationReads.personaCharacters.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
       const identities = loaded.wire.memberIdentities;
       assert(identities !== undefined, "prepared clone lost its actual member identities");
       const reader = await cloneRoot.principalFor(identities.notificationReader.viewer.userId);

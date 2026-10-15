@@ -33,6 +33,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   const actors = await seedCorpusActors(root);
   const library = await seedCorpusLibraries(root);
   const result = await seedCorpusLibraryViews(root, library, actors);
+  expect(result.publication.relations.viewerUserId).toBe(root.ownerId);
   const world = result.world;
   expect(world.ordered).toMatchObject({
     input: { bookId: world.book.id, orderedEntryIds: [world.second.id, world.first.id, world.second.id] },
@@ -244,10 +245,75 @@ test("native library projections retain canonical usage, ordering, intake and re
       preset: regex.preset,
     },
   };
-  const captured = { ...base, worldInfoLibrary, regexLibrary };
+  const libraryRelations = result.publication.relations;
+  const captured = { ...base, worldInfoLibrary, regexLibrary, libraryRelations };
   const parsed = parseCorpusWire(serializeCorpusWire(captured, authentication.secrets));
   expect(parsed.worldInfoLibrary).toEqual(worldInfoLibrary);
   expect(parsed.regexLibrary).toEqual(regexLibrary);
+  expect(parsed.libraryRelations).toEqual(libraryRelations);
+  expect(libraryRelations.reads.rosterChat.output.viewerUserId).toBe(root.ownerId);
+  const relabeled = structuredClone(captured);
+  Object.assign(relabeled.libraryRelations, { viewerUserId: actors.secondUserId });
+  expect.soft(() => serializeCorpusWire(relabeled, authentication.secrets)).toThrow("relation identity mismatch");
+  const published = serializeCorpusWire(captured, authentication.secrets);
+  const viewerMarker = `"libraryRelations":{"viewerUserId":${JSON.stringify(root.ownerId)}`;
+  expect(published.split(viewerMarker)).toHaveLength(2);
+  const relabeledPublished = published.replace(viewerMarker, `"libraryRelations":{"viewerUserId":${JSON.stringify(actors.secondUserId)}`);
+  expect.soft(() => parseCorpusWire(relabeledPublished)).toThrow("relation identity mismatch");
+  expect(libraryRelations.reads).toEqual({
+    tagPending: tags.pending,
+    tagPendingAfter: tags.pendingAfter,
+    tagBefore: tags.before,
+    tagUsage: tags.usage,
+    tagList: tags.list,
+    tagVocabulary: tags.vocabulary,
+    characterReach: tags.reaches[0],
+    chatReach: tags.reaches[1],
+    worldBookReach: tags.reaches[2],
+    personaReach: tags.reaches[3],
+    presetReach: tags.reaches[4],
+    personaConnected: result.persona.connected,
+    personaCharacters: result.persona.characters,
+    rosterDetail: roster.detail,
+    rosterList: roster.list,
+    rosterApplied: roster.applied,
+    rosterAppliedAgain: roster.appliedAgain,
+    rosterChat: roster.chat,
+    ruleCatalog: roster.ruleCatalog,
+  });
+  for (const index of Object.values(libraryRelations.reads).keys()) {
+    const malformed = structuredClone(captured);
+    const read = Object.values(malformed.libraryRelations.reads)[index];
+    if (read === undefined) {
+      throw new Error("native library publication lost its selected request");
+    }
+    Object.assign(read, { input: null });
+    expect(() => serializeCorpusWire(hydrateCorpusWire(malformed), authentication.secrets)).toThrow("publication recipe");
+  }
+  const tagSnapshot = { viewerUserId: libraryRelations.viewerUserId, read: libraryRelations.reads.characterReach };
+  const tagRespond = createCorpusViewerReadResponder("tag.listAttachedEntities", root.ownerId, tagSnapshot);
+  expect(tagRespond(tagSnapshot.read.input)).toEqual(tags.reaches[0]?.output);
+  expect(() => tagRespond(libraryRelations.reads.personaReach.input)).toThrow("Uncaptured corpus read");
+  expect(() => createCorpusViewerReadResponder("tag.listAttachedEntities", actors.secondUserId, tagSnapshot)).toThrow("snapshot viewer does not match");
+  expect(() => createCorpusReadResponder("tag.listPendingSuggestions", [tags.pending, tags.pendingAfter])).toThrow("Conflicting corpus captures");
+  expect(() => createCorpusReadResponder("tag.listTagsWithUsage", [tags.before, tags.usage])).toThrow("Conflicting corpus captures");
+  expect(() => createCorpusReadResponder("rosterPreset.applyToChat", [roster.applied, roster.appliedAgain])).toThrow("Conflicting corpus captures");
+  const driftedRelations = structuredClone(captured);
+  Reflect.deleteProperty(driftedRelations.libraryRelations.reads.rosterApplied.output, "rulesMinted");
+  expect(() => serializeCorpusWire(driftedRelations, authentication.secrets)).toThrow("rulesMinted");
+  const driftedUsage = structuredClone(captured);
+  const usageWitness = driftedUsage.libraryRelations.reads.tagUsage.output.find((tag) => tag.id === tags.tag.id);
+  if (usageWitness === undefined) {
+    throw new Error("native tag publication omitted its produced usage witness");
+  }
+  Reflect.deleteProperty(usageWitness, "pendingSuggestions");
+  expect(() => serializeCorpusWire(driftedUsage, authentication.secrets)).toThrow("pendingSuggestions");
+  const swappedRelations = structuredClone(captured);
+  Object.assign(swappedRelations.libraryRelations.ids, { rosterChatId: library.room.chat.id });
+  expect(() => serializeCorpusWire(swappedRelations, authentication.secrets)).toThrow("relation identity mismatch");
+  const swappedReach = structuredClone(captured);
+  Object.assign(swappedReach.libraryRelations.reads.characterReach, { output: libraryRelations.reads.personaReach.output });
+  expect(() => serializeCorpusWire(swappedReach, authentication.secrets)).toThrow("relation identity mismatch");
   expect(result.publication.worldInfo).toEqual(worldInfoLibrary);
   expect(result.publication.regex).toEqual(regexLibrary);
   expect(parsed.reads).toEqual(base.reads);
@@ -296,6 +362,18 @@ test("native library projections retain canonical usage, ordering, intake and re
     const echoed = structuredClone(captured);
     Object.assign(echoed.worldInfoLibrary.reads.entry, { output });
     expect(() => serializeCorpusWire(echoed, secrets)).toThrow("Corpus publication contains private material");
+    await caller.tag.updateTag({ tagId: tags.tag.id, patch: { name: spelling } });
+    const tagList = await caller.tag.listTags();
+    expect(tagList.find((tag) => tag.id === tags.tag.id)?.name).toBe(spelling);
+    const echoedRelations = structuredClone(captured);
+    Object.assign(echoedRelations.libraryRelations.reads.tagList, { output: tagList });
+    expect(() => serializeCorpusWire(echoedRelations, secrets)).toThrow("Corpus publication contains private material");
+    await caller.persona.update({ personaId: library.persona.id, input: { name: spelling } });
+    const connected = await caller.persona.listConnectedToCharacter(result.persona.connected.input);
+    expect(connected.find((persona) => persona.id === library.persona.id)?.name).toBe(spelling);
+    Object.assign(echoedRelations.libraryRelations.reads.tagList, { output: tags.list.output });
+    Object.assign(echoedRelations.libraryRelations.reads.personaConnected, { output: connected });
+    expect(() => serializeCorpusWire(echoedRelations, secrets)).toThrow("Corpus publication contains private material");
     await caller.regex.updateScript({ scriptId: regex.first.id, input: { name: spelling } });
     const scripts = await caller.regex.listScripts();
     expect(scripts.find((script) => script.id === regex.first.id)?.name).toBe(spelling);
@@ -307,5 +385,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(() => serializeCorpusWire(drifted, secrets)).toThrow("Corpus publication contains private material");
   Object.assign(regexDrift.regexLibrary.reads.usage.output, { [secret]: true });
   expect(() => serializeCorpusWire(regexDrift, secrets)).toThrow("Corpus publication contains private material");
+  Object.assign(driftedRelations.libraryRelations.reads.rosterApplied.output, { [secret]: true });
+  expect(() => serializeCorpusWire(driftedRelations, secrets)).toThrow("Corpus publication contains private material");
   expect(parseCorpusWire(serializeCorpusWire(base, secrets))).toEqual(base);
 });

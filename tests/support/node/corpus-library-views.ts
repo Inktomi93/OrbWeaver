@@ -22,7 +22,7 @@ import {
 } from "@orb/db";
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { CorpusRead, CorpusRegexLibrary, CorpusWorldInfoLibrary } from "../iso/corpus.ts";
+import type { CorpusLibraryRelations, CorpusRead, CorpusRegexLibrary, CorpusWorldInfoLibrary } from "../iso/corpus.ts";
 import type { seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import type { AuditLogRow } from "./factories/credentials.ts";
@@ -187,7 +187,7 @@ interface CapturedEffects {
 }
 
 interface LibraryViews {
-  readonly publication: { readonly worldInfo: CorpusWorldInfoLibrary; readonly regex: CorpusRegexLibrary };
+  readonly publication: { readonly worldInfo: CorpusWorldInfoLibrary; readonly regex: CorpusRegexLibrary; readonly relations: CorpusLibraryRelations };
   readonly world: WorldViews;
   readonly regex: RegexViews;
   readonly tags: TagViews;
@@ -606,6 +606,10 @@ export async function seedCorpusLibraryViews(root: ServerTestHarness, library: L
   const after = await effects(root, world, regex, documents);
   await root.settleBackground();
   const viewer = await caller.sessions.me();
+  const [characterReach, chatReach, worldBookReach, personaReach, presetReach] = tags.reaches;
+  if (characterReach === undefined || chatReach === undefined || worldBookReach === undefined || personaReach === undefined || presetReach === undefined) {
+    throw new Error("native tag publication omitted an attachment target capture");
+  }
   return {
     world,
     regex,
@@ -616,6 +620,37 @@ export async function seedCorpusLibraryViews(root: ServerTestHarness, library: L
     documents,
     refusals: { errors, foreignBlobs, before, after },
     publication: {
+      relations: {
+        viewerUserId: viewer.userId,
+        ids: {
+          tagId: tags.tag.id,
+          characterId: library.character.id,
+          personaId: library.persona.id,
+          rosterPresetId: roster.persisted.preset.id,
+          rosterChatId: roster.room.chat.id,
+        },
+        reads: {
+          tagPending: tags.pending,
+          tagPendingAfter: tags.pendingAfter,
+          tagBefore: tags.before,
+          tagUsage: tags.usage,
+          tagList: tags.list,
+          tagVocabulary: tags.vocabulary,
+          characterReach,
+          chatReach,
+          worldBookReach,
+          personaReach,
+          presetReach,
+          personaConnected: persona.connected,
+          personaCharacters: persona.characters,
+          rosterDetail: roster.detail,
+          rosterList: roster.list,
+          rosterApplied: roster.applied,
+          rosterAppliedAgain: roster.appliedAgain,
+          rosterChat: roster.chat,
+          ruleCatalog: roster.ruleCatalog,
+        },
+      },
       worldInfo: {
         viewerUserId: viewer.userId,
         ids: {
