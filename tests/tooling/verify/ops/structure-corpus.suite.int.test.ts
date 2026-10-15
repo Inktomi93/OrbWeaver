@@ -1,6 +1,6 @@
 // THE CORPUS PROOF (docs/law/gate-runtime-standardization.md §1) at the production door: `cli.ts structure`
 // spawned over planted roots whose gates dir holds real policies as RE-EXPORT SHIMS
-// (`baseui-render-prop-composition` ordinary, `no-raw-intl-time` reviewed-grant, `root-development-dependencies`
+// (`no-mutating-register-api` ordinary, `no-raw-intl-time` reviewed-grant, `root-development-dependencies`
 // hard/resource). A shim imports the real module by absolute file URL, so the object the door runs IS the
 // production descriptor (the loader's identity law refuses a copy, proven in lib/loader.test.ts) and the shim's
 // basename is the id (the filename law).
@@ -33,7 +33,7 @@ const RUN_TIMEOUT_MS = scaledBudget(120_000);
 /** An id that names NOTHING in any corpus — the subject of the unknown-policy waiver alarm below. `probe-`
  *  marks it as this suite's own fixture rather than a corpus member anyone could mistake for a real gate. */
 const ABSENT_POLICY = "probe-no-such-policy";
-const ORDINARY = "baseui-render-prop-composition";
+const ORDINARY = "no-mutating-register-api";
 const REVIEWED = "no-raw-intl-time";
 const HARD_RESOURCE = "root-development-dependencies";
 /** THE NONBLOCKING-WARNING SUBJECT IS PLANTED, NOT BORROWED (#2497) — this file's own §"MATERIALIZE the
@@ -81,9 +81,9 @@ function shim(repoRoot: string, id: string): string {
   return `export { gate } from ${JSON.stringify(pathToFileURL(join(repoRoot, GATES, `${id}.ts`)).href)};\n`;
 }
 
-// The ordinary subject: the Radix spelling on a Base UI part, under the @ui population root.
-const UI_MENU = "packages/ui/src/primitives/probe/menu.tsx";
-const AS_CHILD_LINE = "export const G = <Menu.Trigger asChild />;\n";
+// The ordinary subject: a client registration API judged by the unchanged syntax policy.
+const ORDINARY_SUBJECT = "packages/client/src/lib/probe.ts";
+const ORDINARY_LINE = "export function register(): void {}\n";
 /** A raw Intl formatter is effective outside the exact subjects of the central reviewed grants. */
 const GRANT_SUBJECT = "packages/kit/src/time/index.ts";
 const INTL_GRANT_IDS = ["no-raw-intl-time:kit-time"] as const;
@@ -130,7 +130,7 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [STRAY_READ]: INTL_LINE }));
+  const root = await plantedTree(mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [STRAY_READ]: INTL_LINE }));
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({}), () => runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }));
   // violations, no tool error: exit 1, one artifact, one completeness line naming the roster it ran
   await expect(res).toExitWith(1);
@@ -162,7 +162,14 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   expect(ordinary.population.effectiveSourcePaths).toBeGreaterThan(0);
   expect(ordinary.population.requestedPaths).toBeNull();
   expect(ordinary.violations).toEqual([
-    { file: UI_MENU, line: 1, column: 32, token: "asChild", severity: "error", message: expect.stringContaining("Radix's composition idiom") },
+    {
+      file: ORDINARY_SUBJECT,
+      line: 1,
+      column: 17,
+      token: "register",
+      severity: "error",
+      message: expect.stringContaining("side-effect registration is banned"),
+    },
   ]);
   expect(Object.keys(ordinary.timing.phaseMs).toSorted()).toEqual([...POLICY_PHASES].toSorted());
   const reviewed = rowOf(report, REVIEWED);
@@ -189,7 +196,7 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
 }) => {
   const root = await plantedTree({
     ...mixedTree(repoRoot, {
-      [UI_MENU]: AS_CHILD_LINE,
+      [ORDINARY_SUBJECT]: ORDINARY_LINE,
       [STRAY_READ]: INTL_LINE,
       "packages/client/src/styles/probe.css": PLATELESS_COMPOSER,
       "packages/ui/src/styles/keep.css": ".keep { color: var(--color-foreground); }\n",
@@ -233,10 +240,10 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
   const root = await plantedTree(
     mixedTree(repoRoot, {
       // the central door on a final ordinary finding, at the reported position: waived
-      [UI_MENU]: `// @orb-waive ${ORDINARY}(asChild): planted — the central door on an ordinary finding\n${AS_CHILD_LINE}`,
+      [ORDINARY_SUBJECT]: `// @orb-waive ${ORDINARY}(register): planted — the central door on an ordinary finding\n${ORDINARY_LINE}`,
       // the central door naming an id NOBODY REGISTERS: the engine reports it rather than absorbing it.
       // DECLARED LIMIT (the engine's marker universe, not the door): the dispatcher acquires carriers only from
-      // its policies' effective populations, and this planted roster covers @client/@ui only — on the real tree
+      // its policies' effective populations, and this planted roster covers the client carriers — on the real tree
       // every authored TS/TSX path sits inside some population. The carrier below is inside one, deliberately.
       [CLIENT_STRAY_FILE]: `// @orb-waive ${ABSENT_POLICY}(cache): planted — names a policy the corpus does not hold\nexport const y = 1;\n`,
       // the central door naming a REVIEWED-GRANT policy: no waiver door there — wrong authority
@@ -270,7 +277,7 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
 test("a reviewed grant reaches only a final reviewed-grant policy: the real row's subject is granted, the other real rows stay stale", {
   timeout: RUN_TIMEOUT_MS,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [GRANT_SUBJECT]: INTL_LINE }));
+  const root = await plantedTree(mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [GRANT_SUBJECT]: INTL_LINE }));
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [REVIEWED]: 1 }), () =>
     runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }),
   );
@@ -293,7 +300,7 @@ test("a planted budget that differs from what the tree waives alarms: a rise say
   timeout: RUN_TIMEOUT_MS * 2,
 }, async ({ plantedTree, repoRoot, runCli }) => {
   const root = await plantedTree(
-    mixedTree(repoRoot, { [UI_MENU]: `// @orb-waive ${ORDINARY}(asChild): planted — one waiver against a mismatched budget\n${AS_CHILD_LINE}` }),
+    mixedTree(repoRoot, { [ORDINARY_SUBJECT]: `// @orb-waive ${ORDINARY}(register): planted — one waiver against a mismatched budget\n${ORDINARY_LINE}` }),
   );
   const budgetAlarms = async (budget: Readonly<Record<string, number>>): Promise<readonly unknown[]> => {
     await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget(budget), () => runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }));
@@ -355,7 +362,7 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   const root = await plantedTree(
     mixedTree(repoRoot, {
       [`${GATES}/${HARD_RESOURCE}.ts`]: shim(repoRoot, HARD_RESOURCE),
-      [UI_MENU]: `// @orb-waive ${ORDINARY}(asChild): planted — reconciled beside a failed owner\n${AS_CHILD_LINE}`,
+      [ORDINARY_SUBJECT]: `// @orb-waive ${ORDINARY}(register): planted — reconciled beside a failed owner\n${ORDINARY_LINE}`,
     }),
   );
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [ORDINARY]: 1 }), () =>
@@ -406,7 +413,7 @@ test("two runs over the same tree produce the same exit and the same artifact mo
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [GRANT_SUBJECT]: INTL_LINE }));
+  const root = await plantedTree(mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [GRANT_SUBJECT]: INTL_LINE }));
   const first = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const firstReport = stable(readArtifact(root));
   const second = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
@@ -421,12 +428,12 @@ test("check:show reads the artifact: a policy row in its own vocabulary, with it
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE }));
+  const root = await plantedTree(mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE }));
   expect((await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS })).code).toBe(1);
   const shown = await runCli("verify", ["show", "--gate", ORDINARY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   expect(shown.stdout).toContain(`✗ ${ORDINARY} (1 violation)`);
   expect(shown.stdout).toContain("final ordinary/error · population");
-  expect(shown.stdout).toContain(`${UI_MENU}:1:32`);
+  expect(shown.stdout).toContain(`${ORDINARY_SUBJECT}:1:17`);
   const all = await runCli("verify", ["show", "--errors-only"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(all).toExitWith(1);
   expect(all.stdout).toContain("AUTHORITY ALARM");

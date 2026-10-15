@@ -2,7 +2,6 @@
   "blind": {
     "assets-single-writer": ["bracket", "namespace"],
     "baseui-portal-container-seam": ["namespace"],
-    "baseui-render-prop-composition": ["bracket"],
     "bounded-list-limit": ["namespace"],
     "bus-on-data-no-store-write": ["bracket"],
     "caught-failure-ownership": ["bracket"],

@@ -11,7 +11,6 @@
 // would make each other speak.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as baseuiRenderPropComposition } from "../../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
 import { gate as classTokenSplice } from "../../../../../tooling/src/verify/gates/class-token-splice.ts";
 import { gate as cssFamilyDirectClientMechanism } from "../../../../../tooling/src/verify/gates/css-family-direct-client-mechanism.ts";
 import { gate as cssFamilyOwnership } from "../../../../../tooling/src/verify/gates/css-family-ownership.ts";
@@ -61,11 +60,6 @@ function featureClass(name: string, className: string): RealCorpusOverlay {
 }
 
 export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: baseuiRenderPropComposition,
-    overlays: [add(`${UI}/menu/liveness-menu.tsx`, 'export const G = <Menu.Trigger asChild><button type="button">x</button></Menu.Trigger>;\n')],
-    messageIncludes: "asChild",
-  },
   {
     policy: classTokenSplice,
     overlays: [add("packages/ui/src/liveness-splice.tsx", 'const side = "end";\nexport const x = <div className={`inset-${side}-0 p-2`} />;\n')],
