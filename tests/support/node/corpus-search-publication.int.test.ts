@@ -15,7 +15,7 @@ import {
   similarArtHitSchema,
   unifiedSearchResultSchema,
 } from "@orb/contracts/search";
-import { closeDb, createDb, localPath, runMigrations } from "@orb/db";
+import { closeDb, createDb, localPath, optimizeDb, preCloseHousekeeping, runMigrations } from "@orb/db";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
@@ -96,6 +96,22 @@ test("settled search publication survives native authenticated clone reads and r
         summarizeConnectionId: actors.connections.text.id,
       });
       const images = await seedCorpusKnowledgeImages(root);
+      const tiedCards: (typeof images.cards)[number][] = [];
+      const tiedAssets = images.assets.toSorted((a, b) => b.hash.localeCompare(a.hash));
+      const ownerCaller = await root.internalCallerFor(root.ownerId);
+      // Shared native avatars make exact vector ties cross the overfetch boundary in a different hash order.
+      for (let index = 0; index < 8; index += 1) {
+        const asset = tiedAssets[index % tiedAssets.length];
+        assert(asset !== undefined);
+        const card = await ownerCaller.character.create({
+          input: createCharacterSchema.parse({
+            handle: `tied-portrait-${index}`,
+            name: `Tied portrait ${index}`,
+            description: "A character sharing an owned portrait.",
+          }),
+        });
+        tiedCards.push(await ownerCaller.character.update({ characterId: card.id, input: { avatarAssetId: asset.id } }));
+      }
       const source = await seedCorpusSearch(root, { actors, libraries, recall, images });
       expect(source.lexical.foreignSuggestions).toEqual([]);
       const earlier = structuredClone(source.reads);
@@ -233,26 +249,52 @@ test("settled search publication survives native authenticated clone reads and r
       expect(restored.reads.imagesRaw.output.hits.length).toBeGreaterThan(0);
       expect(restored.reads.imagesRaw.output.hits.every((hit) => hit.lens === "image-raw")).toBe(true);
       expect(restored.reads.status.output).toEqual({ paused: false, embed: false, imageEmbed: false });
+      const expectedNeighbours = restored.reads.similarRaw.output.map((hit) => hit.characterId).toSorted();
+      expect(expectedNeighbours).toEqual(expect.arrayContaining(tiedCards.map((card) => card.id)));
+      expect(restored.reads.similarRaw.output.map((hit) => hit.characterId)).toEqual(expectedNeighbours);
+      expect(restored.reads.similarRaw.output.every((hit) => hit.score === 0 && hit.relevance === 1)).toBe(true);
+      // Graceful source shutdown refreshes planner statistics before the real DB/CAS clone is read.
+      await optimizeDb(sourceDb);
+      const analyzed = await captureCorpusSearchPublication(root, source);
+      expect(analyzed.reads.similarRaw).toEqual(restored.reads.similarRaw);
+      expect(analyzed.reads.similarCaptioned).toEqual(restored.reads.similarCaptioned);
+      expect(analyzed.reads.imagesRaw).toEqual(restored.reads.imagesRaw);
+      expect(analyzed.reads.imagesCaptioned).toEqual(restored.reads.imagesCaptioned);
+      for (const read of [restored.reads.similarRaw, restored.reads.similarCaptioned]) {
+        expect(await caller.search.similarArt({ ...read.input, topN: 1 })).toEqual(read.output.slice(0, 1));
+      }
+      for (const read of [restored.reads.imagesRaw, restored.reads.imagesCaptioned]) {
+        assert(read.output.over === "images");
+        expect(read.output.hits.every((hit) => hit.score === 0 && hit.relevance === 1)).toBe(true);
+        const assetIds = read.output.hits.map((hit) => hit.assetId);
+        expect(assetIds).toEqual(assetIds.toSorted());
+        expect((await caller.search.search({ ...read.input, topN: 1 })).hits).toEqual(read.output.hits.slice(0, 1));
+      }
       await caller.connection.setBinding({ task: "imageEmbed", connectionId: null });
       await root.settleBackground();
       // Clearing retains the completed generation until the next native sweep selects captioned fallback.
       expect(await caller.search.spaceStatus()).toEqual({ paused: false, embed: false, imageEmbed: false });
       const fallbackJobs = await settleCorpusSearchImages(root);
       expect(fallbackJobs).toMatchObject([{ kind: "index", status: "succeeded", params: { source: "image" } }]);
+      const fallback = await captureCorpusSearchPublication(root, source);
+      assert(fallback.reads.imagesRaw.output.over === "images");
+      expect(fallback.reads.imagesRaw.output.hits.length).toBeGreaterThan(0);
+      expect(fallback.reads.imagesRaw.output.hits.every((hit) => hit.lens === "image-captioned")).toBe(true);
+      expect(fallback.reads.similarRaw.output.length).toBeGreaterThan(0);
+      expect(fallback.reads.similarRaw.output.every((hit) => hit.lens === "image-captioned")).toBe(true);
+      expect(fallback.reads.imagesRaw.input.lens).toBe("image-raw");
+      await caller.connection.setBinding({ task: "imageEmbed", connectionId: images.connection.id });
+      expect(await settleCorpusSearchImages(root)).toMatchObject([{ kind: "index", status: "succeeded", params: { source: "image" } }]);
       const final = await physical.capture(() => captureCorpusSearchPublication(root, source));
-      assert(final.value.reads.imagesRaw.output.over === "images");
-      expect(final.value.reads.imagesRaw.output.hits.length).toBeGreaterThan(0);
-      expect(final.value.reads.imagesRaw.output.hits.every((hit) => hit.lens === "image-captioned")).toBe(true);
-      expect(final.value.reads.similarRaw.output.length).toBeGreaterThan(0);
-      expect(final.value.reads.similarRaw.output.every((hit) => hit.lens === "image-captioned")).toBe(true);
-      expect(final.value.reads.imagesRaw.input.lens).toBe("image-raw");
+      expect(final.value.reads.similarRaw.output).toEqual(restored.reads.similarRaw.output);
+      expect(final.value.reads.similarCaptioned.output).toEqual(restored.reads.similarCaptioned.output);
       expect(final.value.reads.status.output).toEqual({ paused: false, embed: false, imageEmbed: false });
       const wire = { ...base, searchLibrary: final.value };
       expect(parseCorpusWire(serializeCorpusWire(wire, secrets)).searchLibrary).toEqual(final.value);
       await root.settleBackground();
       return { wire, exchanges: final.exchanges, authentication, foreignId: actors.secondUserId };
     } finally {
-      closeDb(sourceDb);
+      await preCloseHousekeeping(sourceDb);
     }
   })();
   const cloneLayout = resolveDataLayout({ ["DATA_DIR"]: join(parent, "clone") });
