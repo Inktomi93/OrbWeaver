@@ -888,6 +888,76 @@ async function actualCompactionBinding(project: Project, repoRoot: string): Prom
 
 for (const readonly of [false, true]) {
   for (const scenario of [
+    { name: "one import binding", second: "", resolved: true },
+    { name: "two import bindings", second: "function gather(){return chosen();}gather();", resolved: true },
+    { name: "opaque imported escape", second: "escape(chosen);", resolved: false },
+    { name: "const imported alias escape", second: "const alias=chosen;escape(alias);", resolved: false },
+    { name: "mutable imported alias", second: "let alias=chosen;alias=()=>2;", resolved: false },
+    { name: "imported alias property write", second: "const alias=chosen;alias.extra=2;", resolved: false },
+    { name: "imported alias record storage", second: "const saved={copy:chosen};escape(saved);", resolved: false },
+    { name: "returned imported value", second: "function gather(){return chosen;}gather();", resolved: false },
+    { name: "re-exported import binding", second: "", barrel: true, resolved: true },
+    { name: "re-exported const alias escape", second: "const alias=chosen;escape(alias);", barrel: true, resolved: false },
+  ] as const) {
+    test(`${readonly ? "readonly" : "raw"} named imported data closure retains ${scenario.name}`, () => {
+      const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+      const implementation = project.createSourceFile("/repo/chosen.ts", "export function chosen(){return 1;}");
+      const producer = project.createSourceFile(
+        "/repo/producer.ts",
+        `${"barrel" in scenario ? "import {renamed as chosen} from './barrel';" : "import {chosen} from './chosen';"}declare function escape(value:object):void;
+        function create(ctx:{settle:()=>number;payload:object}){const {payload}=ctx;escape(payload);return ctx.settle();}
+        const context={settle:chosen,payload:{}};create(context);`,
+      );
+      const sources = [implementation, producer];
+      if ("barrel" in scenario) {
+        sources.push(project.createSourceFile("/repo/barrel.ts", "export {chosen as renamed} from './chosen';"));
+      }
+      if (scenario.second.length > 0) {
+        sources.push(
+          project.createSourceFile(
+            "/repo/other.ts",
+            `${"barrel" in scenario ? "import {renamed as chosen} from './barrel';" : "import {chosen} from './chosen';"}declare function escape(value:object):void;${scenario.second}`,
+          ),
+        );
+      }
+      const calls = sources.flatMap((source) => source.getDescendantsOfKind(SyntaxKind.CallExpression));
+      const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+      if (selected === undefined) {
+        throw new Error("the actual selected imported callback invocation is missing");
+      }
+      if (readonly) {
+        beginReferencePass();
+      }
+      try {
+        const observations = observeCallReturns(
+          calls,
+          sources.flatMap((source) => source.getDescendants()),
+          { suppliedCallableTargets: true },
+        );
+        const targets = queriedTargets(selected, observations);
+        const declaration = implementation.getFunctionOrThrow("chosen");
+        expect(
+          targets.kind,
+          JSON.stringify({
+            target: compactionTargetDescription(targets),
+            refusedAtOriginalDeclarationName: targets.kind === "unresolved" && targets.node.compilerNode === declaration.getNameNodeOrThrow().compilerNode,
+            refusedParentKind: targets.kind === "unresolved" ? targets.node.getParent()?.getKindName() : undefined,
+          }),
+        ).toBe(scenario.resolved ? "resolved" : "unresolved");
+        expect(
+          targets.kind === "resolved" && targets.value.length > 0 && targets.value.every((target) => target.compilerNode === declaration.compilerNode),
+        ).toBe(scenario.resolved);
+      } finally {
+        if (readonly) {
+          endReferencePass();
+        }
+      }
+    });
+  }
+}
+
+for (const readonly of [false, true]) {
+  for (const scenario of [
     { name: "unused supplied sibling", extra: "", supplied: true, factory: false, resolved: true },
     { name: "escaped supplied sibling", extra: "escape(other);", supplied: true, factory: false, resolved: false },
     { name: "escaped supplied sibling const alias", extra: "const alias=other;escape(alias);", supplied: true, factory: false, resolved: false },

@@ -831,7 +831,8 @@ function selectedCallableOriginUses(origin: ReturnedValueSource, receiver: Retur
     if (unrelated !== undefined) {
       return unrelated;
     }
-    if (isDocumentationLinkReference(use) || isIdentityObservation(use.getParent())) {
+    // Alias-group reference lists include the original declaration name, which is not a value use.
+    if (use.compilerNode === name.compilerNode || isDocumentationLinkReference(use) || isIdentityObservation(use.getParent())) {
       return true;
     }
     if (isReferenceWriteTarget(use)) {
