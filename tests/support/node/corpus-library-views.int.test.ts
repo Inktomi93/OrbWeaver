@@ -2,12 +2,18 @@
 // @subject tests/support/node/factories/embedding-generation.ts
 // @subject packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts
 import "./composed-real.ts";
+import { randomBytes } from "node:crypto";
 import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
+import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { assertReferentialIntegrity } from "@orb/db";
+import { authConfigFromEnv } from "@orb/server/entry/auth";
+import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../browser/corpus-read-responder.ts";
+import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { CORPUS_LIBRARY_RULE_PRESET, seedCorpusLibraryViews } from "./corpus-library-views.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
+import { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
+import { seedUserCredential } from "./factories/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -19,7 +25,11 @@ test("native library projections retain canonical usage, ordering, intake and re
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using root = await createServerHarness({ providerFetch: wire.execute });
+  await using root = await createServerHarness({
+    providerFetch: wire.execute,
+    secretBoxKey: randomBytes(32),
+    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+  });
   const actors = await seedCorpusActors(root);
   const library = await seedCorpusLibraries(root);
   const result = await seedCorpusLibraryViews(root, library, actors);
@@ -190,4 +200,112 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(result.refusals.after).toEqual(result.refusals.before);
   expect(wire.requests).toContain("POST /v1/embeddings");
   await assertReferentialIntegrity(root.db);
+  const authentication = await captureCookieAuth(root, actors.owner, "native-library-publication-password");
+  const reads = await captureCorpusReads(root, { soloChatId: library.room.chat.id, groupChatId: library.room.chat.id, documentId: library.document.id });
+  const base = hydrateCorpusWire({ auth: authentication.auth, reads, health: healthResponseSchema.parse(await (await root.http.request("/healthz")).json()) });
+  const worldInfoLibrary = {
+    viewerUserId: root.ownerId,
+    ids: {
+      libraryBookId: library.world.book.id,
+      orderedBookId: world.book.id,
+      entryId: world.first.id,
+      demotedCharacterId: world.character.id,
+      characterId: library.character.id,
+      personaId: library.persona.id,
+      chatId: library.room.chat.id,
+    },
+    reads: {
+      orderedEntries: world.orderedEntries,
+      demoted: world.demoted,
+      books: world.books,
+      detail: world.detail,
+      usage: world.usage,
+      targets: world.targets,
+      entry: world.entry,
+      characterBooks: world.characterBooks,
+      personaBooks: world.personaBooks,
+      globalBooks: world.globalBooks,
+      chatBooks: world.chatBooks,
+      inheritedBooks: world.inheritedBooks,
+    },
+  };
+  const regexLibrary = {
+    viewerUserId: root.ownerId,
+    ids: { scriptId: regex.first.id, characterId: library.character.id, presetId: library.preset.id, chatId: library.room.chat.id },
+    reads: {
+      before: regex.before,
+      after: regex.after,
+      displayOff: regex.displayOff,
+      displayOn: regex.displayOn,
+      list: regex.list,
+      usage: regex.usage,
+      global: regex.global,
+      character: regex.character,
+      preset: regex.preset,
+    },
+  };
+  const captured = { ...base, worldInfoLibrary, regexLibrary };
+  const parsed = parseCorpusWire(serializeCorpusWire(captured, authentication.secrets));
+  expect(parsed.worldInfoLibrary).toEqual(worldInfoLibrary);
+  expect(parsed.regexLibrary).toEqual(regexLibrary);
+  expect(result.publication.worldInfo).toEqual(worldInfoLibrary);
+  expect(result.publication.regex).toEqual(regexLibrary);
+  expect(parsed.reads).toEqual(base.reads);
+  const worldSnapshot = { viewerUserId: worldInfoLibrary.viewerUserId, read: worldInfoLibrary.reads.inheritedBooks };
+  const respond = createCorpusViewerReadResponder("worldInfo.listForChat", root.ownerId, worldSnapshot);
+  expect(respond(worldSnapshot.read.input)).toEqual(world.inheritedBooks.output);
+  expect(() => respond(world.chatBooks.input)).toThrow("Uncaptured corpus read");
+  expect(() => respond({ chatId: library.room.chat.id, includeInherited: false })).toThrow("Uncaptured corpus read");
+  expect(() => createCorpusViewerReadResponder("worldInfo.listForChat", actors.secondUserId, worldSnapshot)).toThrow("snapshot viewer does not match");
+  const regexSnapshot = { viewerUserId: regexLibrary.viewerUserId, read: regexLibrary.reads.after };
+  expect(createCorpusViewerReadResponder("regex.listForChat", root.ownerId, regexSnapshot)(regex.after.input)).toEqual(regex.after.output);
+  expect(() => createCorpusViewerReadResponder("regex.listForChat", actors.secondUserId, regexSnapshot)).toThrow("snapshot viewer does not match");
+  expect(() => createCorpusReadResponder("regex.listForChat", [regex.before, regex.after])).toThrow("Conflicting corpus captures");
+  expect(() => createCorpusReadResponder("regex.listRoomDisplayScripts", [regex.displayOff, regex.displayOn])).toThrow("Conflicting corpus captures");
+  const changedWorld = structuredClone(captured);
+  Object.assign(changedWorld.worldInfoLibrary.reads.inheritedBooks, { input: world.chatBooks.input });
+  expect(() => serializeCorpusWire(hydrateCorpusWire(changedWorld), authentication.secrets)).toThrow("publication recipe");
+  Object.assign(changedWorld.worldInfoLibrary.reads.inheritedBooks, { input: world.inheritedBooks.input });
+  Object.assign(changedWorld.worldInfoLibrary.reads.books, { input: null });
+  expect(() => serializeCorpusWire(hydrateCorpusWire(changedWorld), authentication.secrets)).toThrow("publication recipe");
+  Object.assign(changedWorld.worldInfoLibrary.reads.books, { input: { limit: 1 } });
+  expect(() => serializeCorpusWire(changedWorld, authentication.secrets)).toThrow("publication recipe");
+  const changedRegex = structuredClone(captured);
+  Object.assign(changedRegex.regexLibrary.reads.after, { input: { chatId: result.roster.room.chat.id } });
+  expect(() => serializeCorpusWire(hydrateCorpusWire(changedRegex), authentication.secrets)).toThrow("publication recipe");
+  Object.assign(changedRegex.regexLibrary.reads.after, { input: null });
+  expect(() => serializeCorpusWire(hydrateCorpusWire(changedRegex), authentication.secrets)).toThrow("publication recipe");
+  const mismatched = structuredClone(captured);
+  Object.assign(mismatched.worldInfoLibrary.ids, { libraryBookId: world.book.id });
+  expect(() => serializeCorpusWire(mismatched, authentication.secrets)).toThrow("identity mismatch");
+  const drifted = structuredClone(captured);
+  Reflect.deleteProperty(drifted.worldInfoLibrary.reads.entry.output, "priority");
+  expect(() => serializeCorpusWire(drifted, authentication.secrets)).toThrow("priority");
+  const regexDrift = structuredClone(captured);
+  Reflect.deleteProperty(regexDrift.regexLibrary.reads.usage.output, "rooms");
+  expect(() => serializeCorpusWire(regexDrift, authentication.secrets)).toThrow("rooms");
+  const secret = 'native-library-"credential"\\959';
+  const credential = await seedUserCredential(root.db, root.services.credentials.add, { principal: actors.owner, provider: "custom-openai", key: secret });
+  const secrets = [...authentication.secrets, secret, credential.row.ciphertext, credential.row.iv, credential.row.tag];
+  expect(parseCorpusWire(serializeCorpusWire(captured, secrets))).toEqual(parsed);
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const spelling of [secret, JSON.stringify(secret), JSON.stringify({ echo: secret })]) {
+    await caller.worldInfo.updateEntry({ entryId: world.first.id, input: { content: spelling } });
+    const output = await caller.worldInfo.getEntry(world.entry.input);
+    expect(output.content).toBe(spelling);
+    const echoed = structuredClone(captured);
+    Object.assign(echoed.worldInfoLibrary.reads.entry, { output });
+    expect(() => serializeCorpusWire(echoed, secrets)).toThrow("Corpus publication contains private material");
+    await caller.regex.updateScript({ scriptId: regex.first.id, input: { name: spelling } });
+    const scripts = await caller.regex.listScripts();
+    expect(scripts.find((script) => script.id === regex.first.id)?.name).toBe(spelling);
+    Object.assign(echoed.regexLibrary.reads.list, { output: scripts });
+    Object.assign(echoed.worldInfoLibrary.reads.entry, { output: world.entry.output });
+    expect(() => serializeCorpusWire(echoed, secrets)).toThrow("Corpus publication contains private material");
+  }
+  Object.assign(drifted.worldInfoLibrary.reads.entry.output, { [secret]: true });
+  expect(() => serializeCorpusWire(drifted, secrets)).toThrow("Corpus publication contains private material");
+  Object.assign(regexDrift.regexLibrary.reads.usage.output, { [secret]: true });
+  expect(() => serializeCorpusWire(regexDrift, secrets)).toThrow("Corpus publication contains private material");
+  expect(parseCorpusWire(serializeCorpusWire(base, secrets))).toEqual(base);
 });

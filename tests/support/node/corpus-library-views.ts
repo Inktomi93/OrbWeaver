@@ -22,7 +22,7 @@ import {
 } from "@orb/db";
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { CorpusRead } from "../iso/corpus.ts";
+import type { CorpusRead, CorpusRegexLibrary, CorpusWorldInfoLibrary } from "../iso/corpus.ts";
 import type { seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import type { AuditLogRow } from "./factories/credentials.ts";
@@ -187,6 +187,7 @@ interface CapturedEffects {
 }
 
 interface LibraryViews {
+  readonly publication: { readonly worldInfo: CorpusWorldInfoLibrary; readonly regex: CorpusRegexLibrary };
   readonly world: WorldViews;
   readonly regex: RegexViews;
   readonly tags: TagViews;
@@ -604,5 +605,58 @@ export async function seedCorpusLibraryViews(root: ServerTestHarness, library: L
   const foreignBlobs = await other.assets.resolveBlobRefs({ assetIds: [library.asset.assetId] });
   const after = await effects(root, world, regex, documents);
   await root.settleBackground();
-  return { world, regex, tags, persona, roster, preset, documents, refusals: { errors, foreignBlobs, before, after } };
+  const viewer = await caller.sessions.me();
+  return {
+    world,
+    regex,
+    tags,
+    persona,
+    roster,
+    preset,
+    documents,
+    refusals: { errors, foreignBlobs, before, after },
+    publication: {
+      worldInfo: {
+        viewerUserId: viewer.userId,
+        ids: {
+          libraryBookId: library.world.book.id,
+          orderedBookId: world.book.id,
+          entryId: world.first.id,
+          demotedCharacterId: world.character.id,
+          characterId: library.character.id,
+          personaId: library.persona.id,
+          chatId: library.room.chat.id,
+        },
+        reads: {
+          orderedEntries: world.orderedEntries,
+          demoted: world.demoted,
+          books: world.books,
+          detail: world.detail,
+          usage: world.usage,
+          targets: world.targets,
+          entry: world.entry,
+          characterBooks: world.characterBooks,
+          personaBooks: world.personaBooks,
+          globalBooks: world.globalBooks,
+          chatBooks: world.chatBooks,
+          inheritedBooks: world.inheritedBooks,
+        },
+      },
+      regex: {
+        viewerUserId: viewer.userId,
+        ids: { scriptId: regex.first.id, characterId: library.character.id, presetId: library.preset.id, chatId: library.room.chat.id },
+        reads: {
+          before: regex.before,
+          after: regex.after,
+          displayOff: regex.displayOff,
+          displayOn: regex.displayOn,
+          list: regex.list,
+          usage: regex.usage,
+          global: regex.global,
+          character: regex.character,
+          preset: regex.preset,
+        },
+      },
+    },
+  };
 }
