@@ -12,7 +12,7 @@ import { characterDocuments, characters, chatDocuments, documents, globalDocumen
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
-import { DatabankCharacterNotFoundError } from "../contract/errors.ts";
+import { DatabankCharacterNotFoundError, DocumentNotFoundError } from "../contract/errors.ts";
 import type { DocumentListFilter, DocumentPhaseScope } from "../contract/params.ts";
 import type { DocumentAttachmentRows } from "../contract/views.ts";
 
@@ -70,6 +70,15 @@ export async function loadOwnedMeta(db: Db, ownerId: UserId, id: DocumentId): Pr
     .where(and(eq(documents.id, id), eq(documents.ownerId, ownerId)))
     .limit(LIMIT_ONE);
   return rows[0];
+}
+
+/** Every document view uses the same SQL count without loading source text into a list or producer response. */
+export async function requireOwnedMeta(db: Db, ownerId: UserId, id: DocumentId): Promise<DocumentMetaRow> {
+  const meta = await loadOwnedMeta(db, ownerId, id);
+  if (meta === undefined) {
+    throw new DocumentNotFoundError(id);
+  }
+  return meta;
 }
 
 /** The character-scope attach TARGET gate (DB8): the character must be the caller's own. Reads the `characters`

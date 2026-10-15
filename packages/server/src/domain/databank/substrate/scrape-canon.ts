@@ -12,7 +12,7 @@ import { sha256Hex } from "#primitives/content-hash";
 import type { ScrapeName, ScrapeWrite } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext } from "../contract/service.ts";
-import { findByImportHash, toDocumentView } from "../persistence/queries.ts";
+import { findByImportHash, requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 import { attachIngestDestination, insertIngestDocument, requireIngestDestination } from "../persistence/scope.ts";
 import { activeSpaceModel } from "./active-space.ts";
 import { queueIngest } from "./queue-ingest.ts";
@@ -92,19 +92,6 @@ export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): 
   // reaches this function, and the duplicate arm above returns before any write.
   ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
 
-  const document = toDocumentView(
-    {
-      id,
-      name,
-      mime: write.mime,
-      origin: write.origin,
-      sourceUrl: write.sourceUrl,
-      byteSize: write.bytes.length,
-      charCount: extracted.text.length,
-      createdAt: at,
-      updatedAt: at,
-    },
-    0,
-  );
+  const document = toDocumentView(await requireOwnedMeta(ctx.db, ownerId, id), 0);
   return { document, outcome: "created", ingest: queued.ingest, ...(extracted.meta.charCount === 0 ? { warning: "empty-extraction" as const } : {}) };
 }

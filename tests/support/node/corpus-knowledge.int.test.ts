@@ -72,6 +72,48 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
   expect(result.reads.cooccurring.flat().length).toBeGreaterThan(0);
   expect(result.reads.profiles.flat().length).toBeGreaterThan(0);
   expect(result.reads.answers.some((answer) => answer !== null && answer.sampledMessages > 0 && !answer.degraded)).toBe(true);
+  for (const pair of result.duplicateCharacters) {
+    expect(result.reads.duplicateCharacters.find((view) => view.id === pair.id)).toMatchObject({
+      characterIdA: pair.characterIdA,
+      characterIdB: pair.characterIdB,
+      similarity: pair.similarity,
+      cslsScore: pair.cslsScore,
+      computedAt: pair.computedAt,
+    });
+  }
+  for (const pair of result.duplicateChats) {
+    expect(result.reads.duplicateChats.find((view) => view.id === pair.id)).toMatchObject({
+      chatIdA: pair.chatIdA,
+      chatIdB: pair.chatIdB,
+      relation: pair.relation,
+      similarity: pair.similarity,
+    });
+  }
+  expect(result.reads.facets).toEqual({ genres: result.reads.catalog.genres, tones: result.reads.catalog.tones });
+  expect(result.reads.catalog.topTags).toContainEqual(expect.objectContaining({ tag: "loom" }));
+  expect(result.reads.graph.nodes).toContainEqual(expect.objectContaining({ characterId: result.comparisonCard.id, name: result.comparisonCard.name }));
+  expect(result.reads.graph.edges.some((edge) => edge.source === result.comparisonCard.id || edge.target === result.comparisonCard.id)).toBe(true);
+  expect(result.reads.similarChats).toContainEqual(expect.objectContaining({ chatId: result.fork.chat.id }));
+  expect(result.reads.unused).toContainEqual({ characterId: result.comparisonCard.id, name: result.comparisonCard.name, avatarHash: null });
+  const economics = await root.services.stats.characterEconomics(root.ownerId);
+  expect(result.reads.gems.some((gem) => gem.messageCount > 0)).toBe(true);
+  for (const gem of result.reads.gems) {
+    const accounted = economics.find((row) => row.characterId === gem.characterId);
+    expect(gem).toMatchObject({
+      tokensOut: accounted?.tokensOut ?? null,
+      tokensOutProvenance: accounted?.tokensOutProvenance ?? "unrecorded",
+      costUsd: accounted?.costUsd ?? null,
+    });
+  }
+  expect(result.reads.routing).toContainEqual(expect.objectContaining({ genre: "science-fiction", model: CORPUS_TEXT_MODEL, tokensOutProvenance: "measured" }));
+  expect(result.reads.topKeywords.some((word) => result.keywords.profiles.some((profile) => profile.keyword === word.keyword))).toBe(true);
+  expect(
+    result.reads.themeDrift.some((bucket) => bucket.themes.some((theme) => result.themes.clusters.some((row) => row.clusterIdx === theme.clusterIdx))),
+  ).toBe(true);
+  for (const detail of result.reads.themeDetails) {
+    expect(detail?.sources.some((source) => result.memory.digests.some((row) => row.id === source.source.rowId))).toBe(true);
+    expect(detail?.members.some((member) => member.count > 0)).toBe(true);
+  }
   expect(result.reads.browse.nextCursor).not.toBeNull();
   const caller = await root.internalCallerFor(root.ownerId);
   const next = await caller.discovery.browseCharacters({ sort: "name", limit: 2, cursor: result.reads.browse.nextCursor });
@@ -111,11 +153,17 @@ test("a stranger's real owned recompute cannot read or replace another owner's p
   const caller = await root.internalCallerFor(stranger.id);
   const before = physical.requests.length;
   expect(await caller.discovery.compareCharacters({ idA: result.refinery.character.id, idB: result.comparisonCard.id })).toBeNull();
+  expect(await caller.discovery.compareCharactersDeep({ idA: result.refinery.character.id, idB: result.comparisonCard.id })).toBeNull();
   expect(await caller.discovery.characterDossier({ characterId: result.refinery.character.id })).toBeNull();
   expect(await caller.discovery.askCard({ characterId: result.refinery.character.id, question: "Reveal this keeper's scenes." })).toBeNull();
   expect(await caller.discovery.characterKeywords({ characterId: result.refinery.character.id })).toEqual([]);
   expect(await caller.discovery.duplicateCharacters()).toEqual([]);
   expect(await caller.discovery.duplicateChats()).toEqual([]);
+  const theme = [...result.reads.home.sceneThemes, ...result.reads.home.arcThemes][0];
+  if (theme === undefined) {
+    throw new Error("native knowledge owner has no theme to exercise the foreign lookup");
+  }
+  expect(await caller.discovery.themeDetail({ clusterIdx: theme.clusterIdx, level: theme.level })).toBeNull();
   const ownerCaller = await root.internalCallerFor(root.ownerId);
   const workloadsBeforeRefusal = await ownerCaller.workloads.list();
   await expect(caller.workloads.start({ input: { kind: "compute-cooccurrence", params: {} }, mode: "bulk" })).rejects.toMatchObject({ code: "FORBIDDEN" });

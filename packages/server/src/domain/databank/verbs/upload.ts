@@ -12,7 +12,7 @@ import { sha256Hex } from "#primitives/content-hash";
 import type { UploadDocumentParams } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
-import { findByImportHash, toDocumentView } from "../persistence/queries.ts";
+import { findByImportHash, requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 import { attachIngestDestination, insertIngestDocument, requireIngestDestination } from "../persistence/scope.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 import { queueIngest } from "../substrate/queue-ingest.ts";
@@ -70,10 +70,7 @@ export function createUpload(ctx: DatabankContext): DatabankService["upload"] {
     // silent; it wrote nothing.
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
 
-    const document = toDocumentView(
-      { id, name, mime, origin: "upload", sourceUrl: null, byteSize: bytes.length, charCount: extracted.text.length, createdAt: at, updatedAt: at },
-      0,
-    );
+    const document = toDocumentView(await requireOwnedMeta(ctx.db, ownerId, id), 0);
     return { document, outcome: "created", ingest: queued.ingest, ...(extracted.meta.charCount === 0 ? { warning: "empty-extraction" as const } : {}) };
   };
 }
