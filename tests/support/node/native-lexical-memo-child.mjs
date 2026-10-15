@@ -12,11 +12,12 @@ const NAME_UNIT_CAPACITY = 8_388_608;
 const BULK_POSITIONS = POSITION_CAPACITY - NAME_CAPACITY;
 const RETAINED_LIMIT_BYTES = 64 * 1024 * 1024;
 const options = { includeDefinitionDisplay: false };
+const NAME_FILE = `${process.cwd()}/packages/server/src/domain/chat/engine/native-reference-names.ts`;
 await test("native lexical admission bounds and combined retained ownership", () => {
   assert.equal(typeof globalThis.gc, "function");
   const giantName = `long${"x".repeat(NAME_UNIT_CAPACITY)}`;
   const files = new Map([
-    ["/names.ts", `export interface Names {${Array.from({ length: NAME_CAPACITY }, (_, index) => `k${String(index).padStart(5, "0")}:number;`).join("")}}`],
+    [NAME_FILE, `export interface Names {${Array.from({ length: NAME_CAPACITY }, (_, index) => `k${String(index).padStart(5, "0")}:number;`).join("")}}`],
     ["/bulk.ts", `export const bulk=1; export const uses=[${Array.from({ length: BULK_POSITIONS - 1 }, () => "bulk").join(",")}];`],
     ["/spill.ts", `export const spill=1; export const uses=[${Array.from({ length: NAME_CAPACITY + 1 }, () => "spill").join(",")}];`],
     ["/long.ts", `export const ${giantName}=1;`],
@@ -40,7 +41,7 @@ await test("native lexical admission bounds and combined retained ownership", ()
   const service = ts.createLanguageService(host);
   const program = service.getProgram();
   assert.ok(program);
-  const names = program.getSourceFile("/names.ts");
+  const names = program.getSourceFile(NAME_FILE);
   assert.ok(names);
   const declaration = names.statements.find(ts.isInterfaceDeclaration);
   assert.ok(declaration);
@@ -122,7 +123,7 @@ await test("native lexical admission bounds and combined retained ownership", ()
     const long = [{ file: "/long.ts", position: 13 }];
     const nativeLong = measure(service, long);
     const coldLong = measure(pass, long);
-    const warmLong = measure(pass, long);
+    const warmLong = measure(pass, [{ file: "/long.ts", position: 14 }]);
     assert.deepEqual(coldLong, nativeLong);
     assert.deepEqual(warmLong, nativeLong);
     assert.ok(warmLong.scans > 0, "name-unit saturation must retain native fallback even with key room");

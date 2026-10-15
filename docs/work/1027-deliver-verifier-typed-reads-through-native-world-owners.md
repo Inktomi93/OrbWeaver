@@ -24,7 +24,7 @@ Actual structure and scoped entrypoints preserve native options, roots, closure 
 
 ## Evidence
 
-Reviewed `f6d8656ea2` adds run-owned lazy native source acquisition and qualifies actual generated-token delivery through structure and scoped preparation. Its skipped-owner demand defect is corrected. This bounded family preserves separate Node/browser contexts and does not replace the ordinary syntax checker.
+Reviewed `f6d8656ea2` qualifies lazy generated-token delivery through actual entrypoints. Skipped-owner demand refuses. Separate Node/browser contexts do not replace the ordinary syntax checker.
 
 Reviewed `c5718256ff` delivers native value-cast relations through the existing worker and normalized store to the actual structure and scoped consumers. Explicit family presence separates missing facts from empty results. Requests retain native roots, closure and importing-world meaning; workers exit before publication. Cast-only demand performs no reference extraction.
 
@@ -36,4 +36,4 @@ Reviewed `0c0ed382ec` delivers native ID brands and closed multi-consumer scalar
 
 Reviewed `c6493ba16f` delivers native runtime-export callability through the same closed demand and store. Verb naming and firehose health preserve their distinct judgments. Native controls and physical upgrades pass independent review. FORMAT7 and schema3 retain historical generations; the default families remain unchanged. Evidence: `.claude/worktrees/codex-type-homes-981/reports/stickler/2026-10-15-1027-runtime-exports-independent-review.md`. Complete consumer migration and production-world qualification remain open.
 
-Integrated `6d0130e815` delivers shape catalogs and closed pair demand through complete descriptor membership and co-located native worlds. FORMAT8 and schema4 preserve prior generations and default families. Excluded-world changes refuse publication. Copy, hand-shape, AST exact/near and component lower-data consumers share this path. Review accepts the destructured-export correction: `.claude/worktrees/codex-native-pair-world-1027/reports/stickler/2026-10-15-native-pair-world-1027.md`. Integration retains physical source admission and native helper compiler meaning. Combined qualification remains open.
+Integrated `6d0130e815` delivers shape catalogs and closed pair demand through complete descriptor membership and co-located native worlds. FORMAT8 and schema4 preserve prior generations and default families. Excluded-world changes refuse publication. Copy, hand-shape, AST exact/near and component lower-data consumers share this path. Review accepts the destructured-export correction: `.claude/worktrees/codex-native-pair-world-1027/reports/stickler/2026-10-15-native-pair-world-1027.md`. Affected integration preserves physical source admission and native helper meaning: `reports/review/shape-binding-integrated.md`. Full-world qualification remains open.
