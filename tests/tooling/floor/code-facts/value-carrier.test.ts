@@ -7,11 +7,12 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
 import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
-import { readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
+import { readAuthoredCallableSources, readAuthoredValueSources, readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
 import { gate } from "../../../../tooling/src/verify/gates/json-column-read-parsed.ts";
 import { isDirectParse } from "../../../../tooling/src/verify/lib/json-column-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -344,5 +345,70 @@ export function Shadow() { const memo = (factory:()=>object) => ({marker:"shadow
     expect(readReturnedValue(direct, [], observations, { terminals: new Set(), bindings: new Map(), nativeValueTransfers: true }).kind).toBe("unresolved");
   } finally {
     endReferencePass();
+  }
+});
+
+test("returned object projection avoids property-array materialization without changing ordered overrides", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/value.ts", "const selected={value:terminal(), ...{value:1}, ['value']:2};");
+  const object = source.getVariableDeclarationOrThrow("selected").getInitializerOrThrow().asKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+  const terminal = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const properties = vi.spyOn(object, "getProperties");
+  try {
+    const result = readAuthoredValueSources(object, ["value"], new Map(), new Set([terminal.compilerNode]));
+    expect(result.kind === "resolved" ? result.value.map((value) => ({ text: value.value.getText(), present: value.present, path: value.path })) : []).toEqual([
+      { text: "2", present: true, path: [] },
+    ]);
+    expect(properties).not.toHaveBeenCalled();
+  } finally {
+    properties.mockRestore();
+  }
+});
+
+test("a terminal callback forgetting a later object property retains native snapshot refusal", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/value.ts", "const selected={value:terminal(), value:2};");
+  const object = source.getVariableDeclarationOrThrow("selected").getInitializerOrThrow().asKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+  const later = object.getProperties()[1];
+  if (later === undefined) {
+    throw new Error("the later native property is missing");
+  }
+  const native = source.compilerNode;
+  let calls = 0;
+  expect(() =>
+    readAuthoredValueSources(object, ["value"], new Map(), () => {
+      calls++;
+      later.forget();
+      return true;
+    }),
+  ).toThrow(/forgotten/);
+  expect(calls).toBe(1);
+  expect(source.compilerNode === native).toBe(true);
+  expect(object.wasForgotten()).toBe(false);
+});
+
+test("captured callable projection streams the actual supplied record's properties", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/callable.ts", "function invoke(ctx:{run:()=>number}){return ctx.run();}const context={run:()=>1};invoke(context);");
+  const object = source.getVariableDeclarationOrThrow("context").getInitializerOrThrow().asKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+  const call = source.getFunctionOrThrow("invoke").getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const target = object.getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+  const observations = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants(), { suppliedCallableTargets: true });
+  const original = object.getProperties.bind(object);
+  const callers: string[] = [];
+  const materialization = vi.spyOn(object, "getProperties").mockImplementation(() => {
+    const caller = new Error("property materialization observer").stack?.split("\n").find((line) => line.includes("/tooling/src/"));
+    if (caller === undefined) {
+      throw new Error("the real property materialization caller is unavailable");
+    }
+    callers.push(caller);
+    return original();
+  });
+  try {
+    const result = readAuthoredCallableSources(call.getExpression(), undefined, observations);
+    expect(result.kind === "resolved" && result.value.length === 1 && result.value[0]?.value === target).toBe(true);
+    expect(callers.filter((caller) => caller.includes("returnedObjectValue")).length).toBe(0);
+  } finally {
+    materialization.mockRestore();
   }
 });

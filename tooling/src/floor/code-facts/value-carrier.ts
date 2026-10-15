@@ -1,6 +1,7 @@
 // Value carriers and lexical reference uses; consumers judge whether an observed use is permitted.
 import type { CallExpression, Identifier, Node, ObjectLiteralExpression, ts } from "ts-morph";
 import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { readonlyObjectProperties } from "../compiler/ts-workspace.ts";
 import { readCallBindings, readCallReturnProgram, readObservedCallableConsumers, readSuppliedParameter, runtimeUndefinedValue } from "./call-supplied.ts";
 import { isDocumentationLinkReference, readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
@@ -187,8 +188,10 @@ function returnedObjectValue(
     value: [{ value: object, path, bindings: context.bindings, present: false }],
     trace: { declarations: [], origin: object },
   };
+  // An external terminal predicate can forget unvisited wrappers without changing the source's native epoch.
+  const properties = typeof context.terminals === "function" ? object.getProperties() : readonlyObjectProperties(object);
   // Apply writes in order: present alternatives replace, absent alternatives alone inherit earlier values.
-  for (const property of object.getProperties()) {
+  for (const property of properties) {
     if (N.isSpreadAssignment(property)) {
       result = overlayReturnedValue(result, returnedValue(property.getExpression(), path, context));
     } else {

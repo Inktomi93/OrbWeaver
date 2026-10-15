@@ -256,3 +256,38 @@ for (const mutation of ["options", "source", "foreign"] as const) {
     expect({ kind: result.kind, reason: result.kind === "unresolved" ? result.reason : undefined }).toEqual({ kind: "unresolved", reason: "unsupported" });
   });
 }
+
+test("captured epoch validation visits every source without materializing map entries", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const first = project.createSourceFile("/first.ts", "export function first(){return 1;}first();");
+  const second = project.createSourceFile("/second.ts", "export function second(){return 2;}second();");
+  const sources = [first, second];
+  const observations = observeCallReturns(sources.flatMap((source) => source.getDescendantsOfKind(SyntaxKind.CallExpression)));
+  const program = observations.programs[0];
+  if (program === undefined) {
+    throw new Error("the native source capture is missing");
+  }
+  expect(program.sources.size).toBe(2);
+  const entries = vi.spyOn(program.sources, Symbol.iterator);
+  const firstChecked = vi.spyOn(first, "wasForgotten");
+  const secondChecked = vi.spyOn(second, "wasForgotten");
+  const nativeChecked = vi.spyOn(project, "getProgram");
+  try {
+    for (const source of sources) {
+      const result = readCallReturnProgram(source, observations);
+      expect(result.kind === "resolved" && result.value === program).toBe(true);
+    }
+    expect(firstChecked.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(secondChecked.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(nativeChecked.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(entries).not.toHaveBeenCalled();
+  } finally {
+    entries.mockRestore();
+    firstChecked.mockRestore();
+    secondChecked.mockRestore();
+    nativeChecked.mockRestore();
+  }
+  second.forget();
+  const refused = readCallReturnProgram(first, observations);
+  expect({ kind: refused.kind, reason: refused.kind === "unresolved" ? refused.reason : undefined }).toEqual({ kind: "unresolved", reason: "unsupported" });
+});

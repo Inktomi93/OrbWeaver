@@ -14,7 +14,7 @@
 import { existsSync, globSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
-import type { FileSystemHost, Identifier, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
+import type { FileSystemHost, Identifier, KindToNodeMappings, Node, ObjectLiteralElementLike, ObjectLiteralExpression, SourceFile, SyntaxKind } from "ts-morph";
 import { createWrappedNode, Project, Node as TsNode, ts } from "ts-morph";
 import { createSourceBindingUsage } from "../code-facts/binding-usage.ts";
 import type { SourceBindingUsage } from "../code-facts/binding-usage-contract.ts";
@@ -672,6 +672,20 @@ export type KindVisitor = (node: Node, sf: SourceFile) => void;
  *  the internal name is spelled; every raw-walk primitive below wraps through it. */
 function wrapDoor(sf: SourceFile): (compilerNode: ts.Node) => Node {
   return (sf as unknown as { _getNodeFromCompilerNode: (compilerNode: ts.Node) => Node })._getNodeFromCompilerNode.bind(sf);
+}
+
+/** Read-only native property order; callers with mutation callbacks must retain a wrapper snapshot. */
+export function* readonlyObjectProperties(object: ObjectLiteralExpression): IterableIterator<ObjectLiteralElementLike> {
+  const source = object.getSourceFile();
+  const sourceNode = source.compilerNode;
+  const objectNode = object.compilerNode;
+  const wrap = wrapDoor(source);
+  for (const property of objectNode.properties) {
+    if (object.wasForgotten() || source.wasForgotten() || object.compilerNode !== objectNode || source.compilerNode !== sourceNode) {
+      throw new Error("native object property traversal belongs to a forgotten or changed source");
+    }
+    yield wrap(property).asKindOrThrow(property.kind);
+  }
 }
 
 /** Include the complete native closure; a native Program receives one standalone context backed by its own checker. */

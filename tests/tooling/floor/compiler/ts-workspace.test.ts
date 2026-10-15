@@ -2,9 +2,9 @@ import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { buildLiveness, collectOrphanCandidates, collectTypeOnlyCandidates } from "@orb/tooling/ast";
-import { createSemanticWorkspace, getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
+import { createSemanticWorkspace, getWorkspace, readonlyObjectProperties } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { Node } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 
 function write(root: string, path: string, text: string): void {
@@ -192,3 +192,42 @@ test("semantic workspace refuses a repository with only an empty template", ({ s
   initializeZeroProgramRepository(scratch, { "tsconfig.base.json": '{"files":[]}\n', "src/a.ts": "export const a = 1;\n" });
   expect(() => createSemanticWorkspace({ root: scratch })).toThrow(/no runnable TypeScript programs/u);
 });
+
+test("readonly property traversal retains native order and distinct same-path world wrappers", () => {
+  const declarations =
+    "declare const spread:object;declare const key:string;const value=1;const selected={value, ...spread, value:2, [key]:3, method(){return 4;},get accessor(){return 5;},set accessor(next:number){}};";
+  const worlds = [new Project({ useInMemoryFileSystem: true }), new Project({ useInMemoryFileSystem: true })];
+  const objects = worlds.map((project) =>
+    project
+      .createSourceFile("/same.ts", declarations)
+      .getVariableDeclarationOrThrow("selected")
+      .getInitializerOrThrow()
+      .asKindOrThrow(SyntaxKind.ObjectLiteralExpression),
+  );
+  const identities = objects.map((object) => {
+    const expected = object.getProperties();
+    const actual = [...readonlyObjectProperties(object)];
+    expect(actual.length).toBe(expected.length);
+    expect(actual.every((property, index) => property === expected[index])).toBe(true);
+    expect(actual.map((property) => property.getKindName())).toEqual(expected.map((property) => property.getKindName()));
+    expect(actual.every((property) => property.getSourceFile() === object.getSourceFile())).toBe(true);
+    return actual.map((property) => property.compilerNode);
+  });
+  expect(identities[0]?.every((node, index) => node !== identities[1]?.[index])).toBe(true);
+});
+
+for (const change of ["source", "wrapper"] as const) {
+  test(`readonly property traversal refuses a changed ${change} between visits`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/same.ts", "const selected={first:1,second:2};");
+    const object = source.getVariableDeclarationOrThrow("selected").getInitializerOrThrow().asKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+    const properties = readonlyObjectProperties(object);
+    expect(properties.next().done).toBe(false);
+    if (change === "source") {
+      source.replaceWithText("const selected={first:3,second:4};");
+    } else {
+      object.forget();
+    }
+    expect(() => properties.next()).toThrow(/forgotten or changed source/);
+  });
+}
