@@ -35,6 +35,7 @@ export function createAttach(ctx: TagContext): AttachTrio {
       tagId: params.tagId,
       taggerId: ownerId,
       status: params.status ?? DEFAULT_ATTACH_STATUS,
+      at: ctx.now(),
     });
     await ctx.audit({
       actorUserId: ownerId,
@@ -104,6 +105,7 @@ export function createAttach(ctx: TagContext): AttachTrio {
       tagIds: params.tagIds,
       taggerId: ownerId,
       status: params.status ?? DEFAULT_ATTACH_STATUS,
+      at: ctx.now(),
     });
     await ctx.audit({
       actorUserId: ownerId,

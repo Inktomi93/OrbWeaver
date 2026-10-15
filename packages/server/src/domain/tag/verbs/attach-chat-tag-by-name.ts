@@ -25,7 +25,8 @@ export function createAttachChatTagByName(ctx: TagContext): TagService["attachCh
     if (name === "") {
       return false;
     }
-    const created = await insertTagIfAbsent({ db: ctx.db, ownerId, name, tagId: ctx.newTagId(), source });
+    const at = ctx.now();
+    const created = await insertTagIfAbsent({ db: ctx.db, ownerId, name, tagId: ctx.newTagId(), source, at });
     const tagId = created ?? (await findTagIdByName(ctx.db, ownerId, name));
     if (tagId === undefined) {
       // Unreachable: the INSERT conflicted, so an owned row folding to this name exists and the lookup
@@ -34,7 +35,7 @@ export function createAttachChatTagByName(ctx: TagContext): TagService["attachCh
     }
     // `status` is inert on the chat arm (the junction has no such column) — passed only because the shared
     // dispatch's `AttachArgs` is one shape across five target types.
-    await insertJunctionRow({ db: ctx.db, targetType: "chat", targetId: chatId, tagId, taggerId: ownerId, status: "accepted" });
+    await insertJunctionRow({ db: ctx.db, targetType: "chat", targetId: chatId, tagId, taggerId: ownerId, status: "accepted", at });
     return true;
   };
 }

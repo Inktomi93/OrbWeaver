@@ -13,6 +13,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
@@ -31,14 +32,16 @@ export interface TagHarness {
 }
 
 /** Build a TagContext over a real db: seeded ids + a recording membership-gate fake (default-deny) + a
- *  recording audit fake (tag is clockless — the root binds the timestamp, so the op takes only the entry). */
+ *  recording audit fake; row births use the same frozen-clock seam as production. */
 export function makeTagHarness(db: Db): TagHarness {
   const ids = createSeededIds();
+  const clock = createFrozenClock();
   const allowed = new Set<string>();
   const participantChecks: ChatId[] = [];
   const audits: AuditEntry[] = [];
   const ctx: TagContext = {
     db,
+    now: clock.now,
     readAttachedEntity: (_caller, target) => Promise.resolve({ ...target, name: target.targetId }),
     newTagId: (): TagId => castId<TagId>(ids.next("tag")),
     requireParticipant: (_principal: Principal, chatId: ChatId): Promise<void> => {

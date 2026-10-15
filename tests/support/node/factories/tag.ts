@@ -1,4 +1,4 @@
-// Tag producers own admission and normalization; the canonical rows retain their SQL-owned timestamps.
+// Tag producers own admission, normalization and injected-clock births; captures retain the persisted rows unchanged.
 import type { Db } from "@orb/db";
 import { characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";

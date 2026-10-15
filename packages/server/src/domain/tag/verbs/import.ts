@@ -4,7 +4,6 @@
 // collapse to first. A malformed file throws DomainOperationError; the portability core wraps it per-file so
 // one bad file never aborts a bundle.
 
-import type { tags } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { normalizeTagName } from "@orb/kit/tag";
@@ -24,7 +23,8 @@ export function createImport(ctx: TagContext): (ownerId: UserId, bytes: Uint8Arr
     const library = parsed.value;
 
     const seen = new Set<string>();
-    const values: (typeof tags.$inferInsert)[] = [];
+    const values: Parameters<typeof restoreOwnedTags>[2][number][] = [];
+    const at = ctx.now();
     for (const t of library.tags) {
       const name = normalizeTagName(t.name);
       if (name.length === 0) {
@@ -45,6 +45,7 @@ export function createImport(ctx: TagContext): (ownerId: UserId, bytes: Uint8Arr
         folderType: t.folderType,
         sortOrder: t.sortOrder,
         isHiddenOnCard: t.isHiddenOnCard,
+        createdAt: at,
       });
     }
 

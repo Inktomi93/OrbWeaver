@@ -73,7 +73,7 @@ describe("tag persistence/junctions", () => {
     expect(h.participantChecks).toEqual([memberChat, otherChat]);
   });
 
-  test("a character attach UPSERTs status: pending suggestion → accepted on re-attach (the Accept flip)", async () => {
+  test("a character attach UPSERTs status: pending suggestion → accepted on re-attach (the Accept flip)", async ({ clock }) => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const characterId = await seedCharacter(db, owner);
@@ -86,6 +86,7 @@ describe("tag persistence/junctions", () => {
       tagId,
       taggerId: owner,
       status: "pending",
+      at: clock.now(),
     });
     const pending = await db
       .select()
@@ -100,13 +101,14 @@ describe("tag persistence/junctions", () => {
       tagId,
       taggerId: owner,
       status: "accepted",
+      at: clock.now(),
     });
     const accepted = await db.select().from(characterTags).where(eq(characterTags.tagId, tagId));
     expect(accepted).toHaveLength(1);
     expect(accepted[0]?.status).toBe("accepted");
   });
 
-  test("a chat attach stamps the tagger's ownerId, and detach removes only that tagger's overlay row (D30)", async () => {
+  test("a chat attach stamps the tagger's ownerId, and detach removes only that tagger's overlay row (D30)", async ({ clock }) => {
     const db = await freshDb();
     const tagger = await seedUser(db, "user_tagger");
     const otherTagger = await seedUser(db, "user_other");
@@ -121,6 +123,7 @@ describe("tag persistence/junctions", () => {
       tagId,
       taggerId: tagger,
       status: "accepted",
+      at: clock.now(),
     });
     await insertJunctionRow({
       db,
@@ -129,6 +132,7 @@ describe("tag persistence/junctions", () => {
       tagId,
       taggerId: otherTagger,
       status: "accepted",
+      at: clock.now(),
     });
     expect(await db.select().from(chatTags).where(eq(chatTags.tagId, tagId))).toHaveLength(2);
 
@@ -138,7 +142,7 @@ describe("tag persistence/junctions", () => {
     expect(remaining[0]?.ownerId).toBe(otherTagger);
   });
 
-  test("bulkInsertJunctionRows attaches many tags to one target in one call", async () => {
+  test("bulkInsertJunctionRows attaches many tags to one target in one call", async ({ clock }) => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const characterId = await seedCharacter(db, owner);
@@ -152,12 +156,13 @@ describe("tag persistence/junctions", () => {
       tagIds: [a, b],
       taggerId: owner,
       status: "accepted",
+      at: clock.now(),
     });
     const rows = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(rows.map((r) => r.tagId).sort()).toEqual([a, b].sort());
   });
 
-  test("a missing-character attach fails on the FK (the registry is the only insertion path)", async () => {
+  test("a missing-character attach fails on the FK (the registry is the only insertion path)", async ({ clock }) => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
@@ -169,6 +174,7 @@ describe("tag persistence/junctions", () => {
         tagId,
         taggerId: owner,
         status: "accepted",
+        at: clock.now(),
       }),
     ).rejects.toThrow();
   });

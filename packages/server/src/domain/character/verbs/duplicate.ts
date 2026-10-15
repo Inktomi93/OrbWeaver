@@ -81,6 +81,7 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
         themeOverride: source.themeOverride,
         backgroundOverride: source.backgroundOverride,
         createdAt: at,
+        updatedAt: at,
         ...card,
       },
       ctx.bumpStatsCanonVersion,

@@ -24,6 +24,7 @@ import { and, eq, inArray, notExists, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 type TagRow = typeof tags.$inferSelect;
+type TagInsert = typeof tags.$inferInsert & Required<Pick<typeof tags.$inferInsert, "createdAt">>;
 
 /** Project a `tags` row onto the cross-boundary `TagView` (drops `ownerId`/`createdAt` — the wire shape). */
 export function toTagView(row: TagRow): TagView {
@@ -60,13 +61,14 @@ export async function insertTagIfAbsent(args: {
   readonly name: string;
   readonly tagId: TagId;
   readonly source: TagSource;
+  readonly at: number;
 }): Promise<TagId | undefined> {
-  const { db, ownerId, name, tagId, source } = args;
+  const { db, ownerId, name, tagId, source, at } = args;
   // Conflict target is the (ownerId, lower(name)) functional unique — a case-variant no-ops onto the
   // existing row like an exact-name dup.
   const inserted = await db
     .insert(tags)
-    .values({ id: tagId, ownerId, name, source })
+    .values({ id: tagId, ownerId, name, source, createdAt: at })
     .onConflictDoNothing({ target: [tags.ownerId, sql`lower(${tags.name})`] })
     .returning({ id: tags.id });
   return inserted[0]?.id;
@@ -97,7 +99,7 @@ export async function fetchOwnedTagIds(db: Db, ownerId: UserId, ids: readonly Ta
  *  UPDATED in place — it keeps its id, so every junction survives, and takes the backup's presentation axes.
  *  Returns the newly-inserted count, so a re-import of the same library still reports `created: 0`. Caller
  *  pre-normalizes each name and mints each id. */
-export async function restoreOwnedTags(db: Db, ownerId: UserId, values: readonly (typeof tags.$inferInsert)[]): Promise<number> {
+export async function restoreOwnedTags(db: Db, ownerId: UserId, values: readonly TagInsert[]): Promise<number> {
   if (values.length === 0) {
     return 0;
   }

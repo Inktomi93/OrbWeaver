@@ -704,6 +704,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.
   const tagCtx: TagContext = {
     db,
+    now,
     newTagId: minter(ID_PREFIX.tag, idSource),
     readAttachedEntity: createReadAttachedEntity({
       characterName: (caller, id) => character.get({ principal: caller, characterId: id }),
@@ -713,7 +714,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       presetName: (userId, id) => preset.get({ userId, id }),
     }),
     requireParticipant: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
-    // Tag is clockless (rows born-stamp via SQL default), so the audit timestamp is pre-bound here.
     audit: (entry): Promise<void> => audit(entry, now()),
     emitUserEvent: publishUserEvent,
   };

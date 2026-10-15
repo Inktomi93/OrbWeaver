@@ -28,6 +28,7 @@ export function createCreate(ctx: TagContext): TagService["createTag"] {
           name,
           color: input.color ?? null,
           source: input.source ?? null,
+          createdAt: ctx.now(),
         })
         .returning();
       const row = inserted[0];

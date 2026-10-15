@@ -169,6 +169,7 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
             // same-owner `duplicate` carries them), so the spread above must not be the one exception.
             refinery: null,
             createdAt: at,
+            updatedAt: at,
           },
           ctx,
         );

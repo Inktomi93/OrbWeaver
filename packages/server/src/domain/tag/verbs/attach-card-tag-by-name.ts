@@ -18,12 +18,14 @@ export function createAttachCardTagByName(ctx: TagContext): TagService["attachCa
     if (name === "") {
       return false;
     }
+    const at = ctx.now();
     const created = await insertTagIfAbsent({
       db: ctx.db,
       ownerId,
       name,
       tagId: ctx.newTagId(),
       source,
+      at,
     });
     const tagId = created ?? (await findTagIdByName(ctx.db, ownerId, name));
     if (tagId === undefined) {
@@ -31,7 +33,7 @@ export function createAttachCardTagByName(ctx: TagContext): TagService["attachCa
       // lookup re-reads it.
       throw new DomainOperationError("tag_resolve_failed", `resolve-or-create tag "${name}" found no row after a unique conflict`);
     }
-    const newlyAttached = await attachCharacterTag({ db: ctx.db, characterId, tagId, status });
+    const newlyAttached = await attachCharacterTag({ db: ctx.db, characterId, tagId, status, at });
     // Best-effort audit only on a new attach — a re-import/re-add no-op writes no row, so a bulk re-import
     // doesn't spam the log.
     if (newlyAttached) {

@@ -33,10 +33,10 @@ import type { PruneUnusedResult } from "./results.ts";
  *  member. Wired at the composition root with chat's real guard; never sideways-imported. */
 export type RequireParticipant = (principal: Principal, chatId: ChatId) => Promise<void>;
 
-/** The DI bundle the tag verbs close over. Tag rows have no clock dependency — `createdAt` is a SQL default
- *  and `audit` takes no `at` param, keeping the verbs clockless. */
+/** The DI bundle the tag verbs close over; row births use the injected product clock. */
 export interface TagContext {
   readonly db: Db;
+  readonly now: () => number;
   readonly readAttachedEntity: (caller: Principal, target: TagTargetRef) => Promise<TagAttachedEntity>;
   readonly newTagId: () => TagId;
   readonly requireParticipant: RequireParticipant;

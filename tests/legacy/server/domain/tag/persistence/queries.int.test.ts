@@ -67,7 +67,7 @@ describe("tag persistence/queries", () => {
     expect(await updateOwnedTag(db, tagId, other, { color: "#000" })).toBeUndefined();
   });
 
-  test("deleteOwnedTag removes the row and CASCADES its junction rows", async () => {
+  test("deleteOwnedTag removes the row and CASCADES its junction rows", async ({ clock }) => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const characterId = await seedCharacter(db, owner);
@@ -79,6 +79,7 @@ describe("tag persistence/queries", () => {
       tagId,
       taggerId: owner,
       status: "accepted",
+      at: clock.now(),
     });
 
     const removed = await deleteOwnedTag(db, tagId, owner);
@@ -100,7 +101,7 @@ describe("tag persistence/queries", () => {
     expect(rowA[0]?.sortOrder).toBe(1);
   });
 
-  test("listOwnedTagsWithUsage rolls up mixed-junction coverage and totals", async () => {
+  test("listOwnedTagsWithUsage rolls up mixed-junction coverage and totals", async ({ clock }) => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const characterId = await seedCharacter(db, owner);
@@ -114,6 +115,7 @@ describe("tag persistence/queries", () => {
       tagId: used,
       taggerId: owner,
       status: "accepted",
+      at: clock.now(),
     });
     await insertJunctionRow({
       db,
@@ -122,6 +124,7 @@ describe("tag persistence/queries", () => {
       tagId: used,
       taggerId: owner,
       status: "accepted",
+      at: clock.now(),
     });
 
     const rollup = await listOwnedTagsWithUsage(db, owner);
@@ -131,7 +134,7 @@ describe("tag persistence/queries", () => {
     expect(unusedRow?.usage).toMatchObject({ total: 0 });
   });
 
-  test("pruneZeroUsageTags deletes only zero-usage tags and returns the count", async () => {
+  test("pruneZeroUsageTags deletes only zero-usage tags and returns the count", async ({ clock }) => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const characterId = await seedCharacter(db, owner);
@@ -145,6 +148,7 @@ describe("tag persistence/queries", () => {
       tagId: used,
       taggerId: owner,
       status: "accepted",
+      at: clock.now(),
     });
 
     const removed = await pruneZeroUsageTags(db, owner);

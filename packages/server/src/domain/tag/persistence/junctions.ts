@@ -91,39 +91,40 @@ interface AttachArgs {
   readonly taggerId: UserId;
   /** The proposed/accepted surface — used ONLY by the character arm. */
   readonly status: TagStatus;
+  readonly at: number;
 }
 type JunctionInserter = (args: AttachArgs) => Promise<unknown>;
 
 const INSERTERS: Record<TagTargetType, JunctionInserter> = {
   // character carries `status` and UPSERTs it: re-attach flips a pending row → accepted (the "Accept").
-  character: ({ db, targetId, tagId, status }) =>
+  character: ({ db, targetId, tagId, status, at }) =>
     db
       .insert(characterTags)
-      .values({ characterId: castId<CharacterId>(targetId), tagId, status })
+      .values({ characterId: castId<CharacterId>(targetId), tagId, status, createdAt: at })
       .onConflictDoUpdate({
         target: [characterTags.characterId, characterTags.tagId],
         set: { status },
       }),
   // chat carries the tagger's own `ownerId` (D30); a same-tagger duplicate is a no-op.
-  chat: ({ db, targetId, tagId, taggerId }) =>
+  chat: ({ db, targetId, tagId, taggerId, at }) =>
     db
       .insert(chatTags)
-      .values({ chatId: castId<ChatId>(targetId), tagId, ownerId: taggerId })
+      .values({ chatId: castId<ChatId>(targetId), tagId, ownerId: taggerId, createdAt: at })
       .onConflictDoNothing(),
-  worldBook: ({ db, targetId, tagId }) =>
+  worldBook: ({ db, targetId, tagId, at }) =>
     db
       .insert(worldBookTags)
-      .values({ worldBookId: castId<WorldBookId>(targetId), tagId })
+      .values({ worldBookId: castId<WorldBookId>(targetId), tagId, createdAt: at })
       .onConflictDoNothing(),
-  persona: ({ db, targetId, tagId }) =>
+  persona: ({ db, targetId, tagId, at }) =>
     db
       .insert(personaTags)
-      .values({ personaId: castId<PersonaId>(targetId), tagId })
+      .values({ personaId: castId<PersonaId>(targetId), tagId, createdAt: at })
       .onConflictDoNothing(),
-  preset: ({ db, targetId, tagId }) =>
+  preset: ({ db, targetId, tagId, at }) =>
     db
       .insert(presetTags)
-      .values({ presetId: castId<PresetId>(targetId), tagId })
+      .values({ presetId: castId<PresetId>(targetId), tagId, createdAt: at })
       .onConflictDoNothing(),
 };
 
@@ -135,6 +136,7 @@ export async function insertJunctionRow(args: {
   readonly tagId: TagId;
   readonly taggerId: UserId;
   readonly status: TagStatus;
+  readonly at: number;
 }): Promise<void> {
   await INSERTERS[args.targetType](args);
 }
@@ -148,10 +150,11 @@ export async function attachCharacterTag(args: {
   readonly characterId: CharacterId;
   readonly tagId: TagId;
   readonly status: TagStatus;
+  readonly at: number;
 }): Promise<boolean> {
   const inserted = await args.db
     .insert(characterTags)
-    .values({ characterId: args.characterId, tagId: args.tagId, status: args.status })
+    .values({ characterId: args.characterId, tagId: args.tagId, status: args.status, createdAt: args.at })
     .onConflictDoNothing({ target: [characterTags.characterId, characterTags.tagId] })
     .returning({ tagId: characterTags.tagId });
   return inserted.length > 0;
@@ -173,37 +176,38 @@ interface BulkAttachArgs {
   readonly tagIds: readonly TagId[];
   readonly taggerId: UserId;
   readonly status: TagStatus;
+  readonly at: number;
 }
 type JunctionBulkInserter = (args: BulkAttachArgs) => Promise<unknown>;
 
 const BULK_INSERTERS: Record<TagTargetType, JunctionBulkInserter> = {
-  character: ({ db, targetId, tagIds, status }) =>
+  character: ({ db, targetId, tagIds, status, at }) =>
     db
       .insert(characterTags)
-      .values(tagIds.map((tagId) => ({ characterId: castId<CharacterId>(targetId), tagId, status })))
+      .values(tagIds.map((tagId) => ({ characterId: castId<CharacterId>(targetId), tagId, status, createdAt: at })))
       .onConflictDoUpdate({
         target: [characterTags.characterId, characterTags.tagId],
         set: { status },
       }),
-  chat: ({ db, targetId, tagIds, taggerId }) =>
+  chat: ({ db, targetId, tagIds, taggerId, at }) =>
     db
       .insert(chatTags)
-      .values(tagIds.map((tagId) => ({ chatId: castId<ChatId>(targetId), tagId, ownerId: taggerId })))
+      .values(tagIds.map((tagId) => ({ chatId: castId<ChatId>(targetId), tagId, ownerId: taggerId, createdAt: at })))
       .onConflictDoNothing(),
-  worldBook: ({ db, targetId, tagIds }) =>
+  worldBook: ({ db, targetId, tagIds, at }) =>
     db
       .insert(worldBookTags)
-      .values(tagIds.map((tagId) => ({ worldBookId: castId<WorldBookId>(targetId), tagId })))
+      .values(tagIds.map((tagId) => ({ worldBookId: castId<WorldBookId>(targetId), tagId, createdAt: at })))
       .onConflictDoNothing(),
-  persona: ({ db, targetId, tagIds }) =>
+  persona: ({ db, targetId, tagIds, at }) =>
     db
       .insert(personaTags)
-      .values(tagIds.map((tagId) => ({ personaId: castId<PersonaId>(targetId), tagId })))
+      .values(tagIds.map((tagId) => ({ personaId: castId<PersonaId>(targetId), tagId, createdAt: at })))
       .onConflictDoNothing(),
-  preset: ({ db, targetId, tagIds }) =>
+  preset: ({ db, targetId, tagIds, at }) =>
     db
       .insert(presetTags)
-      .values(tagIds.map((tagId) => ({ presetId: castId<PresetId>(targetId), tagId })))
+      .values(tagIds.map((tagId) => ({ presetId: castId<PresetId>(targetId), tagId, createdAt: at })))
       .onConflictDoNothing(),
 };
 
@@ -216,6 +220,7 @@ export async function bulkInsertJunctionRows(args: {
   readonly tagIds: readonly TagId[];
   readonly taggerId: UserId;
   readonly status: TagStatus;
+  readonly at: number;
 }): Promise<void> {
   await BULK_INSERTERS[args.targetType](args);
 }

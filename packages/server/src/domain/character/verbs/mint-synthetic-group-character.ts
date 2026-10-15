@@ -38,6 +38,7 @@ export function createMintSyntheticGroupCharacter(ctx: CharacterContext): Charac
 
     const characterId = ctx.newCharacterId();
     const card = buildGroupCard();
+    const at = ctx.now();
     try {
       await insertCharacter(
         ctx.db,
@@ -48,7 +49,8 @@ export function createMintSyntheticGroupCharacter(ctx: CharacterContext): Charac
           synthetic: true,
           contentHash: cardContentHash(card),
           tokenSize: cardTokenSize(card),
-          createdAt: ctx.now(),
+          createdAt: at,
+          updatedAt: at,
           ...card,
         },
         ctx.bumpStatsCanonVersion,

@@ -34,7 +34,7 @@ import type { CardWriteBasis } from "../contract/params.ts";
 // written needs its own name (the refinery schema-library precedent).
 const claimedBy = alias(characters, "claimed_by");
 
-type CharacterInsert = typeof characters.$inferInsert;
+type CharacterInsert = typeof characters.$inferInsert & Required<Pick<typeof characters.$inferInsert, "createdAt" | "updatedAt">>;
 type CharacterEdits = Partial<CharacterInsert>;
 type SnapshotInsert = typeof characterSnapshots.$inferInsert;
 
