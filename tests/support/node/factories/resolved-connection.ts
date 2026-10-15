@@ -6,11 +6,14 @@ import type { CachePolicy, Capability, GenerationCapability, ResolvedCacheConnec
 import { builtinProvider, foldFeatures, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds } from "../../iso/ids.ts";
 import { makeCapability, makeGenerationCapability } from "../../iso/inference-capability.ts";
 import type { TrpcWireOutput } from "../route-trpc.ts";
 
 export { makeCapability, makeGenerationCapability } from "../../iso/inference-capability.ts";
+
+const viewIds = createIdSource(createSeededIds().next);
 
 /** The default keyless endpoint provider a test connection resolves through. */
 export const TEST_PROVIDER_ID = "custom-openai";
@@ -93,10 +96,10 @@ export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOve
   };
 }
 
-/** The `connection.resolveChatCapability` wire shape — the credential-free projection of `makeResolved`. */
+/** A credential-free snapshot; an explicit connection id links it to another supplied fixture. */
 export function makeResolvedView(overrides: Partial<ResolvedConnectionView> = {}): ResolvedConnectionView {
-  const { task, connectionId, providerId, wire, api, model, capability, requirement } = makeResolved();
-  return { task, connectionId, providerId, wire, api, model, capability, requirement, ...overrides };
+  const { task, providerId, wire, api, model, capability, requirement } = makeResolved();
+  return { task, connectionId: viewIds.typeId(ID_PREFIX.userConnection), providerId, wire, api, model, capability, requirement, ...overrides };
 }
 
 /** The internal cache read port extends the unchanged public view fixture. */

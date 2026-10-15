@@ -1,19 +1,19 @@
-// Wire-output builder for a saved connection row (`connection.list`, `connection.get`): a hosted OpenRouter chat
-// connection with a stored key. An override is spread after the defaults.
+// Saved hosted-connection snapshots may lack a credential; a read model is not execution authority.
 
-import { ID_PREFIX } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import type { TrpcWireOutput } from "../route-trpc.ts";
 
-const ids = createSeededIds();
+const ids = createIdSource(createSeededIds().next);
 
 type ConnectionRowWire = TrpcWireOutput<"connection.list">[number];
 
 export function makeConnectionRow(overrides: Partial<ConnectionRowWire> = {}): ConnectionRowWire {
   return {
-    id: ids.next(ID_PREFIX.userConnection),
-    ownerId: ids.next("user"),
+    id: ids.typeId(ID_PREFIX.userConnection),
+    ownerId: ids.unprefixed<UserId>(),
     label: "Everyday chat",
     providerId: "openrouter",
     providerLabel: "OpenRouter",
