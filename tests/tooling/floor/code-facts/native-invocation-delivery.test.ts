@@ -96,6 +96,37 @@ function snapshot(node: MorphNode, evidence: NativeInvocationEvidence): object {
 }
 
 test(
+  "native value queries distinguish same-span import specifiers and identifiers from their source file",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, source } = controls(scratch);
+    const specifier = source.getFirstDescendantByKindOrThrow(SyntaxKind.ImportSpecifier);
+    const identifier = specifier.getNameNode();
+    expect([specifier.getStart(), specifier.getEnd()]).toEqual([identifier.getStart(), identifier.getEnd()]);
+    expect(specifier.getKind()).not.toBe(identifier.getKind());
+    const plan: InventoryInvocationPlan = { mode: "value", facets: ["module"], arguments: [] };
+    const nodes = [specifier, identifier, source];
+    using inventory = createSemanticInventory({
+      root: scratch,
+      programs: [descriptor],
+      families: ["invocation-evidence", "global-origins", "computed-names"],
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: nodes.map((node) => ({ program: descriptor.id, query: { ...plan, node: span(node) } })),
+    });
+    for (const node of nodes) {
+      const delivered = inventory.invocationEvidence(node, descriptor.id, plan);
+      expect(encodeInvocationEvidence(node, plan, { ...delivered, sources: [source] }, span)).toEqual(
+        encodeInvocationEvidence(node, plan, { ...captureInvocationEvidence(node, plan), sources: [source] }, span),
+      );
+      expect([...delivered.modules.keys()]).toEqual([node]);
+    }
+  },
+  scaledBudget(30_000),
+);
+
+test(
   "native invocation graphs retain exact canonical wrapper order, capture markers, union predicates and nested refusal traces",
   ({ scratch, repoRoot }) => {
     setup(scratch, repoRoot);

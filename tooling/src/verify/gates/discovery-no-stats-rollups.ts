@@ -24,10 +24,18 @@
 // `packages/server/src/domain/discovery/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";
+import type { OriginReferenceServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+import {
+  possibleSealedReference,
+  prepareSealedReference,
+  readSealedOrigin,
+  reportSealedReference,
+  sealedOriginReports,
+  sealedReferenceServices,
+} from "../lib/sealed-origin.ts";
 
 /** The four rollup tables declared in `packages/db/src/schema/stats.ts`. The home is the schema DIRECTORY
  *  rather than the one file so a schema split cannot silently retire the seal. */
@@ -60,7 +68,7 @@ const DISCOVERY_POPULATION = { in: ["@server"], under: ["packages/server/src/dom
 /** The per-file candidate prefilter: an `ImportSpecifier`'s `getName()` is the ORIGINAL exported name even
  *  under an alias, and a namespace member is spelled with the exported name, so the rollup NAMES gate the
  *  expensive origin resolution without losing an alias or a namespace read. */
-function candidate(node: Node): { readonly name: string; readonly anchor: Node } | null {
+function candidate(node: Node, services: OriginReferenceServices): { readonly name: string; readonly anchor: Node } | null {
   if (Node.isImportSpecifier(node)) {
     const name = node.getName();
     return STATS_ROLLUP_HOME.exportedNames.has(name) ? { name, anchor: node } : null;
@@ -68,7 +76,7 @@ function candidate(node: Node): { readonly name: string; readonly anchor: Node }
   if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
     return null;
   }
-  const member = readMemberReference(node);
+  const member = readMemberReferenceWithName(node, services.readComputedName);
   return member.kind === "resolved" && STATS_ROLLUP_HOME.exportedNames.has(member.value.name) ? { name: member.value.name, anchor: node } : null;
 }
 
@@ -84,32 +92,43 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-        visit: (node) => {
-          const hit = candidate(node);
+  create: (ctx) => {
+    const pending: Node[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node) => {
+            if (possibleSealedReference(node, STATS_ROLLUP_HOME.exportedNames)) {
+              pending.push(node);
+              prepareSealedReference(ctx, node);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const node of pending) {
+          const services = sealedReferenceServices(ctx, node);
+          const hit = candidate(node, services);
           if (hit === null) {
-            return;
+            continue;
           }
           // FAIL-CLOSED THROUGH THE SHARED DECISION: a rollup NAME whose IMPORT DOOR cannot be read is
           // reported (a seam an unreadable barrel can walk through is not a seam), while a candidate that
           // provably binds something else — a local object's key, a project interface's property — is not a
           // subject at all. `readSealedOrigin` returns the VERDICT; `sealedOriginReports` is the decision.
-          const verdict = readSealedOrigin(hit.anchor, STATS_ROLLUP_HOME);
-          if (!sealedOriginReports(verdict, hit.anchor)) {
-            return;
+          const verdict = readSealedOrigin(hit.anchor, STATS_ROLLUP_HOME, services.moduleOrigin);
+          if (!sealedOriginReports(verdict, hit.anchor, services.declarations)) {
+            continue;
           }
           // Past the decision, `unresolved` can only be the UNREADABLE half of it — a `foreign` verdict
           // already returned and a refusal that provably binds elsewhere is not a subject.
           const unreadable = verdict.kind === "unresolved";
-          const offset = hit.anchor.getText().indexOf(hit.name);
-          ctx.report.node(hit.anchor, unreadable ? { token: hit.name, offset, message: UNREADABLE } : { token: hit.name, offset });
-        },
+          reportSealedReference(ctx, hit.anchor, hit.name, unreadable ? UNREADABLE : undefined);
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

@@ -54,12 +54,13 @@
 // findings 0 → 0, grant consumption unchanged at 1. A security SEAL over a clean tree.
 // CURRENT 2026-09-21: `@product` includes shipped showcase/default-content sources, closing the historical
 // showcase narrowing above. The widened policy remains clean on the real tree.
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";
+import type { OriginReferenceServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import { SCRUBBER_HOME, SCRUBBER_SYMBOL } from "../lib/scrubber-home.ts";
-import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+import { possibleSealedReference, prepareSealedReference, readSealedOrigin, sealedOriginReports, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const OPERATION = "hidden-span-scrubber-construction";
 
@@ -72,18 +73,17 @@ const FIX =
 
 /** THE CANDIDATE PREFILTER: the import specifier (whose `getName()` is the exported name even under an
  *  alias), a member read spelled with the exported name, and a call whose callee is either. */
-function candidate(node: MorphNode): MorphNode | undefined {
+function candidate(node: MorphNode, services: OriginReferenceServices): MorphNode | undefined {
   if (Node.isImportSpecifier(node)) {
     return node.getName() === SCRUBBER_SYMBOL ? node : undefined;
   }
-  if (Node.isCallExpression(node)) {
-    const callee = node.getExpression();
-    return Node.isIdentifier(callee) && callee.getText() === SCRUBBER_SYMBOL ? callee : undefined;
+  if (Node.isIdentifier(node)) {
+    return node.getText() === SCRUBBER_SYMBOL ? node : undefined;
   }
   if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
     return;
   }
-  const member = readMemberReference(node);
+  const member = readMemberReferenceWithName(node, services.readComputedName);
   return member.kind === "resolved" && member.value.name === SCRUBBER_SYMBOL ? node : undefined;
 }
 
@@ -101,26 +101,41 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const reachers = new Map<string, MorphNode>();
+    const pending: MorphNode[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-          visit: (node, sourceFile: SourceFile) => {
-            const anchor = candidate(node);
-            if (anchor === undefined || !sealedOriginReports(readSealedOrigin(anchor, SCRUBBER_HOME), anchor)) {
+          visit: (node) => {
+            if (
+              !(
+                possibleSealedReference(node, SCRUBBER_HOME.exportedNames) ||
+                (Node.isCallExpression(node) && Node.isIdentifier(node.getExpression()) && node.getExpression().getText() === SCRUBBER_SYMBOL)
+              )
+            ) {
               return;
             }
-            const subject = ctx.relativePath(sourceFile);
-            // ONE finding per carrier: the producer stamp imports the factory AND calls it twice, and a
-            // reviewed grant licenses one `(subject, operation)` — three findings would make its row
-            // OVER-BROAD and license none of them.
-            if (!reachers.has(subject)) {
-              reachers.set(subject, anchor);
-            }
+            const reference = Node.isCallExpression(node) ? node.getExpression() : node;
+            pending.push(reference);
+            prepareSealedReference(ctx, reference);
           },
         },
       ],
       evaluate: () => {
+        for (const node of pending) {
+          const services = sealedReferenceServices(ctx, node);
+          const anchor = candidate(node, services);
+          if (anchor === undefined || !sealedOriginReports(readSealedOrigin(anchor, SCRUBBER_HOME, services.moduleOrigin), anchor, services.declarations)) {
+            continue;
+          }
+          const subject = ctx.relativePath(node.getSourceFile());
+          // ONE finding per carrier: the producer stamp imports the factory AND calls it twice, and a
+          // reviewed grant licenses one `(subject, operation)` — three findings would make its row
+          // OVER-BROAD and license none of them.
+          if (!reachers.has(subject)) {
+            reachers.set(subject, anchor);
+          }
+        }
         for (const [subject, anchor] of [...reachers].toSorted(([left], [right]) => left.localeCompare(right))) {
           ctx.report.node(anchor, { subject, operation: OPERATION, message: `${MESSAGE} Reacher: ${subject}.`, fix: FIX });
         }

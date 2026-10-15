@@ -3,12 +3,13 @@
 // Domain and entry are both admitted; exact existing per-module grants license the sanctioned identity homes.
 // Renamed reexports remain the candidate-prefilter limit; no policy-local permission or reader is added.
 // Singleton: identity-root origin is its own semantic question; shared floor primitives do not define a family.
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";
+import type { OriginReferenceServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+import { possibleSealedReference, prepareSealedReference, readSealedOrigin, sealedOriginReports, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const TABLE = "users";
 const OPERATION = "users-table-reference";
@@ -25,14 +26,14 @@ const FIX = "take userId from the resolved Principal (the injected context); the
 /** THE CANDIDATE PREFILTER: an `ImportSpecifier`'s `getName()` is the exported name even under an alias, and
  *  a namespace member is spelled with the exported name too. A re-export under a DIFFERENT name is the one
  *  loss, declared in a `mustPass` row and shared with the legacy reader. */
-function candidate(node: MorphNode): MorphNode | undefined {
+function candidate(node: MorphNode, services: OriginReferenceServices): MorphNode | undefined {
   if (Node.isImportSpecifier(node)) {
     return node.getName() === TABLE ? node : undefined;
   }
   if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
     return;
   }
-  const member = readMemberReference(node);
+  const member = readMemberReferenceWithName(node, services.readComputedName);
   return member.kind === "resolved" && member.value.name === TABLE ? node : undefined;
 }
 
@@ -50,25 +51,34 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const readers = new Map<string, MorphNode>();
+    const pending: MorphNode[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-          visit: (node, sourceFile: SourceFile) => {
-            const anchor = candidate(node);
-            if (anchor === undefined || !sealedOriginReports(readSealedOrigin(anchor, USERS_HOME), anchor)) {
+          visit: (node) => {
+            if (!possibleSealedReference(node, USERS_HOME.exportedNames)) {
               return;
             }
-            const subject = ctx.relativePath(sourceFile);
-            // ONE finding per carrier: a grant licenses one `(subject, operation)`, and a module that both
-            // imports and dereferences the table would otherwise make its own row OVER-BROAD.
-            if (!readers.has(subject)) {
-              readers.set(subject, anchor);
-            }
+            pending.push(node);
+            prepareSealedReference(ctx, node);
           },
         },
       ],
       evaluate: () => {
+        for (const node of pending) {
+          const services = sealedReferenceServices(ctx, node);
+          const anchor = candidate(node, services);
+          if (anchor === undefined || !sealedOriginReports(readSealedOrigin(anchor, USERS_HOME, services.moduleOrigin), anchor, services.declarations)) {
+            continue;
+          }
+          const subject = ctx.relativePath(node.getSourceFile());
+          // ONE finding per carrier: a grant licenses one `(subject, operation)`, and a module that both
+          // imports and dereferences the table would otherwise make its own row OVER-BROAD.
+          if (!readers.has(subject)) {
+            readers.set(subject, anchor);
+          }
+        }
         for (const [subject, anchor] of [...readers].toSorted(([left], [right]) => left.localeCompare(right))) {
           ctx.report.node(anchor, { subject, operation: OPERATION, message: `${MESSAGE} Reader: ${subject}.`, fix: FIX });
         }

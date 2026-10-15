@@ -29,9 +29,10 @@
 //
 // FAMILY: a declared SINGLETON under its own id. `lib/sealed-origin.ts#readSealedOrigin` is a shared primitive five
 // seals use; no sibling judges the world-info regex watchdog.
+import type { PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readSealedOrigin } from "../lib/sealed-origin.ts";
+import { prepareSealedReference, readSealedOrigin, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const COMPOSE_DIR = "packages/server/src/entry/compose/";
 const COMPOSE_ANCHOR = `${COMPOSE_DIR}chat.ts`;
@@ -62,6 +63,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     let seams = 0;
+    const pending: PropertyAssignment[] = [];
     return {
       visitors: [
         {
@@ -73,14 +75,22 @@ export const gate = defineGate({
             seams += 1;
             const initializer = node.getInitializer();
             const callee = initializer !== undefined && Node.isCallExpression(initializer) ? initializer.getExpression() : undefined;
-            const safe = callee !== undefined && readSealedOrigin(callee, REGEX_KIT_HOME).kind === "sealed";
-            if (!safe) {
-              ctx.report.node(node, { token: PROPERTY, offset: 0, message: MESSAGE, fix: FIX });
+            pending.push(node);
+            if (callee !== undefined) {
+              prepareSealedReference(ctx, callee);
             }
           },
         },
       ],
       evaluate: (): void => {
+        for (const node of pending) {
+          const initializer = node.getInitializer();
+          const callee = initializer !== undefined && Node.isCallExpression(initializer) ? initializer.getExpression() : undefined;
+          const safe = callee !== undefined && readSealedOrigin(callee, REGEX_KIT_HOME, sealedReferenceServices(ctx, callee).moduleOrigin).kind === "sealed";
+          if (!safe) {
+            ctx.report.node(node, { token: PROPERTY, offset: 0, message: MESSAGE, fix: FIX });
+          }
+        }
         // THE BLINDNESS ARM, as a receipt rather than a finding: the canonical property disappearing means
         // this policy has no execution boundary left to judge, and a zero-member receipt REFUSES the run.
         ctx.receipt({ kind: "population", source: SEAM_POPULATION, members: seams, unresolved: 0 });

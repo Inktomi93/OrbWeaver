@@ -5,8 +5,9 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
 import type { SealedHome } from "../../../../tooling/src/verify/lib/sealed-origin.ts";
-import { originModuleSpecifier, readSealedOrigin } from "../../../../tooling/src/verify/lib/sealed-origin.ts";
+import { originModuleSpecifier, readSealedOrigin, sealedOriginReports } from "../../../../tooling/src/verify/lib/sealed-origin.ts";
 
 const ROOT = "/repo";
 const HOME: SealedHome = { pathInfix: "/packages/server/src/infra/providers/", exportedNames: new Set(["deriveRunner"]) };
@@ -101,4 +102,30 @@ test("originModuleSpecifier reports the external package for a door with no proj
 
   expect(verdict.kind).toBe("foreign");
   expect(verdict.kind === "foreign" ? originModuleSpecifier(verdict.origin) : "").toBe("some-package");
+});
+
+test("delivered declarations preserve the scoped refusal decision without consulting syntax symbols", () => {
+  const project = projectOf({
+    "packages/server/src/domain/chat/local.ts": "const local={deriveRunner:()=>1};local.deriveRunner();",
+  });
+  const source = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/domain/chat/local.ts`);
+  const anchor = source.getFirstDescendantByKindOrThrow(SyntaxKind.PropertyAccessExpression);
+  const declaration = source.getVariableDeclarationOrThrow("local");
+  const fact = { kind: "unresolved", reason: "unsupported", node: anchor, detail: "local value", trace: { origin: anchor, declarations: [] } } as const;
+  const verdict = { kind: "unresolved", fact } as const;
+  const symbols = vi.spyOn(anchor.getNameNode(), "getSymbol").mockImplementation(() => {
+    throw new Error("syntax sealed Symbol read");
+  });
+  try {
+    expect(sealedOriginReports(verdict, anchor, () => [declaration])).toBe(false);
+    expect(sealedOriginReports(verdict, anchor, () => [])).toBe(true);
+    expect(sealedOriginReports({ kind: "unresolved", fact: { ...fact, reason: "write" } }, anchor, () => [declaration])).toBe(true);
+    expect(() =>
+      sealedOriginReports(verdict, anchor, () => {
+        throw new Error("missing captured declarations");
+      }),
+    ).toThrow("missing captured declarations");
+  } finally {
+    symbols.mockRestore();
+  }
 });
