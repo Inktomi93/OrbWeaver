@@ -8,10 +8,10 @@
 // then exercise the ordinary commit path and pass against the bug. Suppressing the mousedown default keeps
 // focus in the field, so the value genuinely changes underneath a live edit, which is the whole scenario.
 
-import { TrackerValue } from "@orb/client/components";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { TrackerValue } from "#client/features/rpg/components/tracker-blocks/index.ts";
 
 /** The value arrives from elsewhere (a model write, another seat) while the user has the field open. */
 export function TrackerValueTwoWriters(): ReactElement {

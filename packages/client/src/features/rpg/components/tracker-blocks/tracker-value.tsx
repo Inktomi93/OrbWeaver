@@ -1,30 +1,7 @@
-// The shared VALUE affordance for the tracker block kit. Editable-in-place is the LAW, not an option — but the panel is an INSTRUMENT, not a
-// form: an editable value renders as STATIC display AT REST (indistinguishable from the read-only arm) and
-// reveals its inline input only on click/focus (the "click the value → inline input → Enter/blur
-// commits" grammar). The read-only arm (no `onEdit`) is the honest-arms fallback (a non-editor viewer),
-// never a silent degrade. The value TEXT is always the datum: the rest state is a real <button>
-// CARRYING that text (keyboard-reachable, focus-ringed), the edit state an input pre-filled with it.
-// Escape cancels the draft; Enter/blur commits. A passive re-render never clobbers an open draft
-// (the draft is seeded ONCE, when the editor opens).
-//
-// AND THE COMMIT IS JUDGED AGAINST THE VALUE AT OPEN TIME, NEVER THE CURRENT ONE (#1485). Those two
-// sentences are the same ruling read from both ends: because an external change mid-edit deliberately does
-// NOT reseed the draft, the draft and the live value can disagree for a reason that is not "the user typed
-// something" — and a `draft !== current` guard reads that disagreement as an edit and writes the value the
-// user opened with back over the one that arrived. That is the stale-writer bug in its purest form: the
-// comparison meant to SUPPRESS a pointless write is exactly what performs a destructive one. An open editor
-// therefore remembers what it opened with, and the three cases are distinct:
-//   • the draft still equals what it opened with → the user changed nothing, so NOTHING is sent, however
-//     far the world has moved underneath;
-//   • the user edited and the value did not move → an ordinary commit;
-//   • the user edited AND the value moved → a real CONFLICT between two writers, which is surfaced
-//     (`data-conflict`, the invalid skin, a title naming the incoming value) instead of silently resolved.
-//     Confirming again overwrites deliberately; Escape takes the incoming value. Reseeding the draft was
-//     the other arm and is refused: it destroys keystrokes the user can still see.
-//
-// THE DECISION ITSELF LIVES IN `lib/edit-session.ts` (#1561), because the same three cases turned up in a
-// second editor (the chronicle beat body) with only two of them implemented. This file owns the SURFACE of
-// the conflict — the attribute, the invalid skin, the title, the key grammar — and nothing else.
+// RPG values display at rest and seed their edit session only when opened.
+// Commits compare with the opening value; concurrent changes require an explicit second commit.
+// Escape cancels without writing, and passive rerenders never replace an open draft.
+
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Text } from "@orb/ui/text";

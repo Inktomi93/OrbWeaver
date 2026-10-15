@@ -17,12 +17,12 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { GreetingStudio } from "#components";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { cn, notify } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
+import { GreetingStudio } from "./greeting-studio.tsx";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
@@ -296,8 +296,7 @@ function GreetingActions({
         // The greeting studio (audit §3): accept appends the result as a NEW alternate (the original is
         // preserved — the source's swipe semantics, but durable on the card). The push routes through the
         // D78 store-subscription driver (autosaves through character.update), then jumps to the new opening.
-        // The one-line explainer mirrors the draft-row dialog's description (the mount owns its copy) —
-        // side-eye cold-read finding: without it, Rewrite-vs-Make-new is opaque in the primary home.
+        // The explainer distinguishes rewriting the current greeting from generating a new one.
         <Stack gap="row">
           {/* A SENTENCE, so it takes `gloss` + the `prose` length modifier (#573) rather than the raw
               label/muted pair: `prose` lifts gloss's micro step to `label` — the step this line already

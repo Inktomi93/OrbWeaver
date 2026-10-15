@@ -19,10 +19,11 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { BeatLine, ConfirmDialog, TrackerValue } from "#components";
+import { ConfirmDialog } from "#components";
 import type { EditSession } from "#lib";
 import { resolveCommit } from "#lib";
 import { journalRowLabel } from "../lib/journal-labels.ts";
+import { BeatLine, TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The host's per-beat write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
 export interface BeatEdit {

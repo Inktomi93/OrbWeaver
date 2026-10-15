@@ -1,11 +1,5 @@
-// The CAST CARD and its header slots (both extracted from tracker-blocks.tsx under the component-size cap —
-// the card followed its slots here rather than splitting one unit across two files: it is nothing but their
-// arrangement, and no other component composes them). The slots: the
-// relationship slot (a display-at-rest badge whose CLICK opens the closed 6-token kind PICKER — Tier-0,
-// but never a RESTING dropdown) and the mood slot (display-at-rest,
-// input-on-click via TrackerValue) and the GUIDE lines (RV-11 — the standing appearance/outfit/thoughts the
-// story writes every beat, which reached no reader at all until the panel and the steering reminder grew one).
-// All three are editable-in-place by default per the kit doctrine.
+// RPG cast cards share editable relationship, mood and guide slots.
+// Missing read-only values omit their slots rather than inventing a reading.
 
 import type { RpgNpcGuideField, RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { RPG_NPC_GUIDE_FIELDS, RPG_RELATIONSHIP_KINDS } from "@orb/contracts/rpg";
@@ -25,7 +19,7 @@ interface NpcRelationshipProps {
   readonly relationship?: RpgRelationship;
   readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
   /** An optional relationship glyph (aria-hidden) for the SEED state only ("+ relationship") — the feature
-   *  supplies it (the tier-2 kit can't reach a feature glyph lib). Once a badge renders it carries its OWN
+   *  supplies it (the card does not choose its seed glyph). Once a badge renders it carries its OWN
    *  glyph, so the seed glyph must not double up beside it (owner double-star report, 08-01). */
   readonly relationshipGlyph?: ReactNode;
 }
@@ -236,7 +230,7 @@ export interface NpcCardProps {
    *  unconstructable). Present ⇒ the badge becomes a compact kind picker. */
   readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
   /** An optional leading relationship glyph (aria-hidden decoration) shown beside the picker in EDIT mode —
-   *  the feature supplies it from its glyph resolver, since the tier-2 kit can't reach a feature lib. In
+   *  the caller supplies it from its glyph resolver. In
    *  read mode the badge carries its own glyph, so this is only used when the picker is shown. */
   readonly relationshipGlyph?: ReactNode;
 }

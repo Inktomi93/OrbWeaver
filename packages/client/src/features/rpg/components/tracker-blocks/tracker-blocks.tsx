@@ -1,22 +1,5 @@
-// The tracker BLOCK KIT — ONE shared component family, seven blocks,
-// specced as shared from birth (the §3.1 rung table: the CP-3 Trackers tab and the CP-4 takeover both
-// consume it). Client-shared composites over @orb/ui (the ConfirmDialog/LibraryRow homing precedent —
-// NOT @orb/ui itself; ui stays parts-only). Every block:
-//   • rides tokens only (composed from @orb/ui primitives + <Stack>/<Row>; no raw HTML, no raw values);
-//   • carries a LABEL always (a bare number failed the CP-1 cold read — §3.2) and `tabular-nums`;
-//   • treats bars/rings as decoration (aria-hidden in TrackBar/RingGauge) with the value TEXT as the
-//     accessible datum (§4.9);
-//   • NEVER SYNTHESIZES A READING (side-eye 08-01): an unset value/ceiling is `null` all the way to the
-//     render, where it draws the em-dash arm + an empty rail. A meter that folds unset to `0` publishes an
-//     invention as a measurement — and because the text IS the datum, a screen reader reads it aloud;
-//   • is EDITABLE IN PLACE by default (the value is an inline field when an `onEdit*` is supplied) with
-//     a READ-ONLY arm for the honest-arms doctrine (§4.4 — never a silent degrade). Display-only is the
-//     named corruption-trainer failure (§3.2).
-// The write path arrives with the D59 data wave (stint 2); THIS kit ships the interaction SHAPE — the
-// callbacks — so the data wave wires verbs to already-built affordances.
-//
-// The two low-level geometry PARTS (TrackBar, RingGauge) live in @orb/ui (a raw <div>/<svg> with a
-// token fill can only be painted at the kit tier — the client paint law); these blocks compose them.
+// RPG tracker blocks keep labels and value text as the accessible datum; rails are decorative.
+// Unset readings stay null. Edit callbacks enable in-place authoring; their absence is read-only.
 
 import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";

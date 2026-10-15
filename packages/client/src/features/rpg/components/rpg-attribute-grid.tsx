@@ -17,9 +17,9 @@
 import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
 import { Grid, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { StatCell } from "#components";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
+import { StatCell } from "./tracker-blocks/index.ts";
 
 /** The attributes plane — the profile vocabulary as stat cells (hint on title). A profile with NO attributes
  *  says so and points at where they are authored (the Game tab's Stat profile section — RV-4/RV-12). */

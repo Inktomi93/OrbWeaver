@@ -26,7 +26,7 @@ import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { TrackerValue, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
+import { VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations.ts";
@@ -39,6 +39,7 @@ import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgPopulateControl } from "./rpg-populate-control.tsx";
 import { TrackerGrantsEditor } from "./rpg-tracker-grants.tsx";
+import { TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The hand-only progression LEVEL (§2.6) — `Level N`, editable-in-place for the sheet owner/host. A null level
  *  is omitted from a READ-ONLY view (nullable-honesty: no phantom "Level 0"); an editable view shows an empty
