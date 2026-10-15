@@ -39,9 +39,9 @@
 import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile, Statement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
 import { defineGate } from "../contract/policy.ts";
+import type { NativeTypeContext } from "../contract/project-context.ts";
 import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { quickjsLookalikeProof, quickjsProof } from "./_proof/quickjs.ts";
 
@@ -80,17 +80,7 @@ function alwaysExits(node: MorphNode): boolean {
   return alternate !== undefined && alwaysExits(node.getThenStatement()) && alwaysExits(alternate);
 }
 
-/** The guard call inside `if (!<guard>(…)) …`, when that guard is the membrane's own declaration.
- *
- *  CANONICAL-GUARD IDENTITY IS A DECLARATION QUESTION, and since #2163 the shared reader answers it: the
- *  callee must denote a `handleSafeToDump` FUNCTION DECLARATION whose home is the membrane file itself.
- *  Two properties of the shared verdict are load-bearing here and neither is incidental —
- *    · a BODYLESS declaration still RESOLVES (`declare function handleSafeToDump`, `mustFlag[1]`), because
- *      this arm asks WHICH function, never what it does; and
- *    · an IMPORTED same-named guard resolves to its own file, so the home test refuses it (`mustFlag[5]`)
- *      — where the pre-migration chain refused it only because the local `ImportSpecifier` was not a
- *      `FunctionDeclaration`, i.e. for a reason that would have evaporated the moment the reader improved. */
-function negatedGuardCall(statement: Statement, membrane: SourceFile): CallExpression | undefined {
+function negatedConditionCall(statement: MorphNode): CallExpression | undefined {
   if (!Node.isIfStatement(statement)) {
     return;
   }
@@ -102,7 +92,32 @@ function negatedGuardCall(statement: Statement, membrane: SourceFile): CallExpre
   if (!Node.isCallExpression(call)) {
     return;
   }
-  const callable = resolveCallableDeclaration(call);
+  return call;
+}
+
+/** The guard call inside `if (!<guard>(…)) …`, when that guard is the membrane's own declaration.
+ *
+ *  CANONICAL-GUARD IDENTITY IS A DECLARATION QUESTION, and since #2163 the shared reader answers it: the
+ *  callee must denote a `handleSafeToDump` FUNCTION DECLARATION whose home is the membrane file itself.
+ *  Two properties of the shared verdict are load-bearing here and neither is incidental —
+ *    · a BODYLESS declaration still RESOLVES (`declare function handleSafeToDump`, `mustFlag[1]`), because
+ *      this arm asks WHICH function, never what it does; and
+ *    · an IMPORTED same-named guard resolves to its own file, so the home test refuses it (`mustFlag[5]`)
+ *      — where the pre-migration chain refused it only because the local `ImportSpecifier` was not a
+ *      `FunctionDeclaration`, i.e. for a reason that would have evaporated the moment the reader improved. */
+function negatedGuardCall(
+  statement: Statement,
+  membrane: SourceFile,
+  callables: ReturnType<NativeTypeContext["callableDeclarations"]>,
+): CallExpression | undefined {
+  const call = negatedConditionCall(statement);
+  if (call === undefined) {
+    return;
+  }
+  const callable = callables.get(call);
+  if (callable === undefined) {
+    throw new Error("native callable declaration is unavailable");
+  }
   const declaration = callable.kind === "resolved" ? callable.value.declaration : undefined;
   const isMembraneGuard =
     callable.kind === "resolved" &&
@@ -121,7 +136,7 @@ function owningStatement(body: MorphNode, node: MorphNode): Statement | undefine
 }
 
 /** Is this dump the ONE materialization inside the canonical helper, dominated by its own handle guard? */
-function guardedHelperDump(node: CallExpression, membrane: SourceFile): boolean {
+function guardedHelperDump(node: CallExpression, membrane: SourceFile, callables: ReturnType<NativeTypeContext["callableDeclarations"]>): boolean {
   const fn: FunctionDeclaration | undefined = node.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration);
   if (fn?.getName() !== HELPER) {
     return false;
@@ -135,7 +150,7 @@ function guardedHelperDump(node: CallExpression, membrane: SourceFile): boolean 
   }
   return Node.isBlock(body)
     ? body.getStatements().some((statement) => {
-        const guard = statement.getStart() < dumpStatement.getStart() ? negatedGuardCall(statement, membrane) : undefined;
+        const guard = statement.getStart() < dumpStatement.getStart() ? negatedGuardCall(statement, membrane, callables) : undefined;
         const [guardContext, guardHandle] = guard?.getArguments() ?? [];
         return (
           guard !== undefined &&
@@ -162,6 +177,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const candidates: CallExpression[] = [];
+    const guardCandidates: CallExpression[] = [];
     let dumpSites = 0;
     const inspectDumps = (): void => {
       if (candidates.length === 0) {
@@ -171,6 +187,7 @@ export const gate = defineGate({
         throw new Error("native call member origin context is unavailable");
       }
       const origins = ctx.nativeTypes.callMemberOrigins(candidates);
+      const callables = ctx.nativeTypes.callableDeclarations(guardCandidates);
       for (const node of candidates) {
         const origin = origins.get(node);
         if (origin === undefined) {
@@ -180,7 +197,7 @@ export const gate = defineGate({
           continue;
         }
         dumpSites += 1;
-        if (!guardedHelperDump(node, node.getSourceFile())) {
+        if (!guardedHelperDump(node, node.getSourceFile(), callables)) {
           ctx.report.node(node, { token: DUMP, offset: node.getText().indexOf(DUMP), message: MESSAGE, fix: FIX });
         }
       }
@@ -203,6 +220,23 @@ export const gate = defineGate({
             }
             candidates.push(node);
             ctx.nativeTypes.request({ kind: "type-member-origins", nodes: [node] });
+          },
+        },
+        {
+          kinds: [SyntaxKind.IfStatement],
+          visit: (node, sourceFile): void => {
+            if (ctx.relativePath(sourceFile) !== MEMBRANE) {
+              return;
+            }
+            const call = negatedConditionCall(node);
+            if (call === undefined) {
+              return;
+            }
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native callable declaration context is unavailable");
+            }
+            guardCandidates.push(call);
+            ctx.nativeTypes.request({ kind: "callable-declarations", nodes: [call] });
           },
         },
       ],

@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { InventoryFactKind, InventoryPartition, InventoryRecord, InventoryRecordTable, InventorySpan } from "./semantic-inventory-contract.ts";
 import {
+  callableDeclarationSchema,
   castRelationResultSchema,
   INVENTORY_FAMILIES,
   INVENTORY_FAMILY_FIELDS,
@@ -31,6 +32,16 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  callableDeclaration: {
+    name: "inventory_callable_declaration",
+    columns: "ordinal,node,origin,state,declaration,body,reason,detail,refusalNode,traceCount",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,origin INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('resolved','unresolved')),declaration INTEGER,body INTEGER,reason TEXT,detail TEXT,refusalNode INTEGER,traceCount INTEGER NOT NULL CHECK(traceCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE},FOREIGN KEY(partition,origin) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,declaration) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,body) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,refusalNode) REFERENCES inventory_span(partition,ordinal),CHECK((state='resolved' AND declaration IS NOT NULL AND reason IS NULL AND detail IS NULL AND refusalNode IS NULL) OR (state='unresolved' AND declaration IS NULL AND body IS NULL AND reason IS NOT NULL AND detail IS NOT NULL AND refusalNode IS NOT NULL))`,
+  },
+  callableTrace: {
+    name: "inventory_callable_trace",
+    columns: "owner,ordinal,node",
+    definition: `${PARTITION},owner INTEGER NOT NULL,${ORDINAL},node INTEGER NOT NULL,PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_callable_declaration(partition,ordinal),${SPAN_REFERENCE}`,
+  },
   memberOrigin: {
     name: "inventory_member_origin",
     columns: "ordinal,node,name,leaf,origin,state,reason,detail,refusalNode,valueCount,traceCount,leafCount",
@@ -307,6 +318,26 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
         emit("memberDeclaration", ordinal, "value", index, spanId(node));
       });
     }
+  });
+  partition.callableDeclarations.forEach((entry, ordinal) => {
+    const fact = callableDeclarationSchema.parse(entry);
+    const result = fact.result;
+    emit(
+      "callableDeclaration",
+      ordinal,
+      spanId(fact.node),
+      spanId(fact.trace.origin),
+      result.kind,
+      result.kind === "resolved" ? spanId(result.declaration) : null,
+      result.kind === "resolved" && result.body !== null ? spanId(result.body) : null,
+      result.kind === "unresolved" ? result.reason : null,
+      result.kind === "unresolved" ? inventoryString(result.detail) : null,
+      result.kind === "unresolved" ? spanId(result.node) : null,
+      fact.trace.declarations.length,
+    );
+    fact.trace.declarations.forEach((node, index) => {
+      emit("callableTrace", ordinal, index, spanId(node));
+    });
   });
   partition.shapes.forEach((shape, ordinal) => {
     emit("shape", ordinal, spanId(shape.node), Number(shape.copy !== null), Number(shape.respell !== null));

@@ -8,6 +8,7 @@ import type { AsExpression, Node, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
 import { SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
 import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
 import type { SemanticSourceView, SemanticWorkspace } from "../../floor/compiler/ts-workspace-contract.ts";
 import type { NativeTypeContext, NativeTypeFactReader, NativeTypeFacts, NativeTypeRequest, ProjectContext } from "../contract/project-context.ts";
@@ -94,6 +95,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
           case "type-member-origins":
+          case "callable-declarations":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
           case "shape-relations":
@@ -137,6 +139,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "type-member-origins", nodes).callMemberOrigins(nodes);
+    },
+    callableDeclarations: (owner, nodes): ReturnType<NativeTypeContext["callableDeclarations"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "callable-declarations", nodes).callableDeclarations(nodes);
     },
     idBrands: (owner, nodes): ReturnType<NativeTypeContext["idBrands"]> => {
       if (nodes.length === 0) {
@@ -215,6 +224,18 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   const inventory = createSemanticInventory({
     root,
     programs: descriptors,
+    ...(families.includes("callable-declarations")
+      ? {
+          callableQueries: queries
+            .filter((query) => query.kind === "callable-declarations")
+            .flatMap((query) =>
+              query.nodes.map((node) => ({
+                program: owner(node),
+                node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+              })),
+            ),
+        }
+      : {}),
     ...(families.length === 0 ? {} : { families }),
     ...(shapes.length === 0
       ? {}
@@ -231,6 +252,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    callableDeclarations: (calls): ReturnType<NativeTypeFactReader["callableDeclarations"]> =>
+      new Map(calls.map((node) => [node, inventory.callableDeclaration(node, owner(node))])),
     callMemberOrigins: (calls): ReturnType<NativeTypeFactReader["callMemberOrigins"]> =>
       new Map(calls.map((node) => [node, inventory.callMemberOrigin(node, owner(node))])),
     declarationOutputs: (declarations): ReturnType<NativeTypeFactReader["declarationOutputs"]> =>

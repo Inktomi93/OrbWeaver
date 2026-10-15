@@ -31,7 +31,7 @@ import { gate as diagnosticLegibility } from "../../../../tooling/src/verify/gat
 import { gate as evaluateNoScopeCapture } from "../../../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/callback-provenance-family";
 
@@ -51,7 +51,16 @@ function projectOf(files: Readonly<Record<string, string>>): Project {
 }
 
 function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project: projectOf(files), reviewedGrants: [], failOnWarnings: false });
+  const project = projectOf(files);
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 test("the five converted policies pass their production proof runtime", () => {

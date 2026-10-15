@@ -95,9 +95,9 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import type { NativeTypeContext } from "../contract/project-context.ts";
 import { callChainRoot, isTestCallShape } from "../lib/test-call-shape.ts";
 
 const MAX_HELPER_DEPTH = 4;
@@ -207,13 +207,17 @@ function isBareExpectStatement(statement: MorphNode): boolean {
  *  not, because following one would make the verdict depend on a file the `selected-files` request need
  *  not contain — a scope-shaped false negative under `--changed`. So the resolution is shared and the
  *  SAME-FILE restriction is this policy's own, stated once, in one place, and killed by `mustFlag[7]`. */
-function resolveCalleeBody(call: CallExpression): MorphNode | undefined {
-  const callable = resolveCallableDeclaration(call);
+function resolveCalleeBody(call: CallExpression, callables: ReturnType<NativeTypeContext["callableDeclarations"]>): MorphNode | undefined {
+  const callable = callables.get(call);
+  if (callable === undefined) {
+    throw new Error("native callable declaration is unavailable");
+  }
   return callable.kind === "resolved" && callable.value.sourceFile === call.getSourceFile() ? callable.value.body : undefined;
 }
 
 /** One file's indexed evidence. Every list holds nodes the SHARED walk delivered for THAT file. */
 interface FileIndex {
+  callables: ReturnType<NativeTypeContext["callableDeclarations"]>;
   readonly matcherExpects: CallExpression[];
   readonly helperCalls: CallExpression[];
   readonly awaits: MorphNode[];
@@ -222,7 +226,7 @@ interface FileIndex {
 }
 
 function emptyIndex(): FileIndex {
-  return { matcherExpects: [], helperCalls: [], awaits: [], testCalls: [], bareExpects: [] };
+  return { callables: new Map(), matcherExpects: [], helperCalls: [], awaits: [], testCalls: [], bareExpects: [] };
 }
 
 interface PassState {
@@ -265,7 +269,7 @@ function assertsWithin(index: FileIndex, node: MorphNode, seen: Set<MorphNode>, 
     if (!within(call, start, end)) {
       return false;
     }
-    const body = resolveCalleeBody(call);
+    const body = resolveCalleeBody(call, index.callables);
     return body !== undefined && assertsWithin(index, body, seen, depth + 1);
   });
 }
@@ -332,6 +336,23 @@ export const gate = defineGate({
       describeCalls: [],
       hookCalls: [],
     };
+    const registerHelper = (index: FileIndex, node: CallExpression): void => {
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native callable declaration context is unavailable");
+      }
+      index.helperCalls.push(node);
+      ctx.nativeTypes.request({ kind: "callable-declarations", nodes: [node] });
+    };
+    const helperDeclarations = (): ReturnType<NativeTypeContext["callableDeclarations"]> => {
+      const helpers = [...state.byFile.values()].flatMap((index) => index.helperCalls);
+      if (helpers.length === 0) {
+        return new Map();
+      }
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native callable declaration context is unavailable");
+      }
+      return ctx.nativeTypes.callableDeclarations(helpers);
+    };
     return {
       // Every admitted file gets an index even when it holds none of the indexed kinds, so a file with a
       // test call and no assertion call at all still reconciles against an empty list rather than a
@@ -352,7 +373,7 @@ export const gate = defineGate({
             }
             const name = calleeName(node);
             if (name !== undefined && ASSERTION_HELPER_RE.test(name)) {
-              index.helperCalls.push(node);
+              registerHelper(index, node);
             }
             if (isDescribeCall(node)) {
               state.describeCalls.push(node);
@@ -394,6 +415,10 @@ export const gate = defineGate({
         },
       ],
       evaluate: (): void => {
+        const callables = helperDeclarations();
+        for (const index of state.byFile.values()) {
+          index.callables = callables;
+        }
         for (const call of state.describeCalls) {
           auditDescribeCall(ctx, state, call);
         }
