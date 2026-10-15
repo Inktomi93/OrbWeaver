@@ -14,6 +14,7 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { gate as determinism } from "../../../../tooling/src/verify/gates/test-determinism.ts";
 import { gate as mocks } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { readPackageExportOrigin } from "../../../../tooling/src/verify/lib/project-home-origin.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 interface NativeProgram {
@@ -328,6 +329,56 @@ test("native external JWT protocol values remain an explicit policy fork", async
   expect(result.toolErrors).toEqual([]);
   expect(result.policies[0]?.owner.status).toBe("success");
   expect(result.authority.effectiveFindings).toHaveLength(2);
+  expect(result.authority.authorityAlarms).toEqual([]);
+});
+
+test("native Node crypto identity retains ambient draws without classifying local or foreign UUID declarations", async ({ plantedTree, repoRoot }) => {
+  const { project, root, source } = await nativeProgram(
+    { plantedTree, repoRoot },
+    `import {randomUUID} from 'node:crypto';
+import {randomUUID as renamed} from 'crypto';
+import * as crypto from 'node:crypto';
+import {draw as republished} from './crypto-door.ts';
+import {randomUUID as foreign} from './foreign-uuid.ts';
+const bound=randomUUID.bind(null);
+export const named=randomUUID();
+export const alias=renamed();
+export const member=crypto['randomUUID']();
+export const captured=bound();
+export const called=randomUUID.call(null);
+export const applied=randomUUID.apply(null,[]);
+export const barrel=republished();
+const local={randomUUID:()=> 'fixed-local'};
+export const shadow=local.randomUUID();
+export const unrelated=foreign();`,
+    {
+      "tests/support/node/crypto-door.ts": "export {randomUUID as draw} from 'node:crypto';",
+      "tests/support/node/foreign-uuid.ts": "export const randomUUID=():string=>'fixed-foreign';",
+    },
+  );
+  const ambient = ["named", "alias", "member", "captured", "called", "applied", "barrel"];
+  for (const name of ambient) {
+    const invocation = readCallableInvocation(source.getVariableDeclarationOrThrow(name).getInitializerOrThrow());
+    expect(invocation.kind).toBe("resolved");
+    if (invocation.kind !== "resolved") {
+      throw new Error(`native crypto invocation ${name} did not resolve`);
+    }
+    expect(readPackageExportOrigin(invocation.value.callee, ["node:crypto", "crypto"], new Set(["randomUUID"]))).toEqual({
+      verdict: "home",
+      exportedName: "randomUUID",
+    });
+  }
+  for (const name of ["shadow", "unrelated"]) {
+    const initializer = source.getVariableDeclarationOrThrow(name).getInitializerIfKindOrThrow(SyntaxKind.CallExpression);
+    expect(readPackageExportOrigin(initializer.getExpression(), ["node:crypto", "crypto"], new Set(["randomUUID"])).verdict).toBe("other");
+  }
+  const result = runPolicyPass({ knownPolicies: [determinism], policies: [determinism], root, project, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.authority.effectiveFindings).toHaveLength(ambient.length);
+  expect(result.authority.effectiveFindings.map(({ line }) => line).sort((left, right) => left - right)).toEqual(
+    ambient.map((name) => source.getVariableDeclarationOrThrow(name).getInitializerOrThrow().getStartLineNumber()).sort((left, right) => left - right),
+  );
   expect(result.authority.authorityAlarms).toEqual([]);
 });
 
