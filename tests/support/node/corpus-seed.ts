@@ -10,6 +10,7 @@ import type { ChatId, DocumentId, Handle, PersonaId, UserConnectionId } from "@o
 import { brandedId, ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
+import { readSessionCookie } from "@orb/server/entry/auth";
 import { seedDefaultPreset, seedThemes, seedUserContent } from "@orb/server/entry/boot";
 import type { SeedDemoResult } from "@orb/tooling/seed";
 import { loadDemoSeed, SECOND_HUMAN_HANDLE } from "@orb/tooling/seed";
@@ -414,10 +415,12 @@ interface CorpusConnections {
 interface CapturedCookieAuth {
   readonly auth: CorpusWire["auth"];
   readonly loginBuckets: Awaited<ReturnType<typeof seedLoginBuckets>>["buckets"];
+  readonly secrets: readonly string[];
 }
 
 interface SyntheticCorpus {
   readonly ownerId: ServerHarness["ownerId"];
+  readonly secrets: readonly string[];
   readonly identities: CorpusReadIdentities;
   readonly bootCharacters: readonly NonNullable<Awaited<ReturnType<ServerHarness["services"]["character"]["findByHandle"]>>>[];
   readonly seed: SeedDemoResult;
@@ -529,7 +532,7 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
     throw new Error("synthetic corpus document ingestion produced no canonical embedded chunks");
   }
 
-  const { auth, loginBuckets } = await captureCookieAuth(root, owner, options.ownerPassword);
+  const { auth, loginBuckets, secrets } = await captureCookieAuth(root, owner, options.ownerPassword);
   await root.settleBackground();
   const ownerStats = await seedStats(root.db, root.services.stats.reconcile, root.ownerId);
   const secondUserStats = await seedStats(root.db, root.services.stats.reconcile, seed.secondUserId);
@@ -537,6 +540,7 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
 
   return {
     ownerId: root.ownerId,
+    secrets,
     identities,
     bootCharacters,
     seed,
@@ -559,8 +563,8 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
   };
 }
 
-// Password and session bytes never leave this request capture; only canonical public projections do.
-async function captureCookieAuth(root: ServerHarness, owner: Principal, password: string): Promise<CapturedCookieAuth> {
+/** Capture the actual HTTP cookie path for Node corpus readers. */
+export async function captureCookieAuth(root: ServerHarness, owner: Principal, password: string): Promise<CapturedCookieAuth> {
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.admin.resetPassword({ userId: root.ownerId, password });
   const anonymousConfigResponse = await root.http.request("/api/auth/config");
@@ -610,5 +614,9 @@ async function captureCookieAuth(root: ServerHarness, owner: Principal, password
     throw new Error(`synthetic corpus signed-in auth-config request failed (${signedInConfigResponse.status})`);
   }
   const signedInConfig = authConfigSchema.parse(await signedInConfigResponse.json());
-  return { auth: { anonymousConfig, anonymousMe, signedInConfig, signedInMe }, loginBuckets };
+  return {
+    auth: { anonymousConfig, anonymousMe, signedInConfig, signedInMe },
+    loginBuckets,
+    secrets: [password, cookie, readSessionCookie(new Headers({ cookie }), "http")].filter((value) => value !== null),
+  };
 }

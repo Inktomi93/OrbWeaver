@@ -82,6 +82,7 @@ export interface CorpusCapsule extends AsyncDisposable {
   readonly layout: DataLayout;
   readonly wire: CorpusWire;
   readonly privateCaptures: CorpusPrivateCaptures;
+  readonly publishWire: () => string;
 }
 
 export interface CorpusFixture {
@@ -111,6 +112,7 @@ export function loadCorpusFixture(directory: string): CorpusFixture {
 
 /** Clone only a completed capsule; the caller retains this ownership until every stage process stops. */
 export async function prepareCorpusFixture(capsule: CorpusCapsule, directory: string): Promise<PreparedCorpusFixture> {
+  const published = capsule.publishWire();
   const root = resolve(directory);
   await mkdir(root);
   await using ownership = new AsyncDisposableStack();
@@ -118,7 +120,7 @@ export async function prepareCorpusFixture(capsule: CorpusCapsule, directory: st
   const layout = resolveDataLayout({ ["DATA_DIR"]: root });
   const { cloneStageDb } = await import("@orb/tooling/snap");
   cloneStageDb(corpusDatabaseFile(capsule.layout), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets });
-  await writeFile(join(root, CORPUS_WIRE_FILE), serializeCorpusWire(capsule.wire), { encoding: "utf8", flag: "wx" });
+  await writeFile(join(root, CORPUS_WIRE_FILE), published, { encoding: "utf8", flag: "wx" });
   const fixture = loadCorpusFixture(root);
   const lifetime = ownership.move();
   return { ...fixture, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
@@ -127,6 +129,7 @@ export async function prepareCorpusFixture(capsule: CorpusCapsule, directory: st
 interface CapturedCapsule {
   readonly wire: CorpusWire;
   readonly privateCaptures: CorpusPrivateCaptures;
+  readonly publishWire: CorpusCapsule["publishWire"];
 }
 
 /** Create only a new directory; teardown removes only this capsule, never a pre-existing data root. */
@@ -170,7 +173,10 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusSdkSessions } = await import("./corpus-sdk-sessions.ts");
   const { seedCorpusNotifications } = await import("./corpus-notifications.ts");
   const { createCorpusSdkExecution } = await import("./corpus-sdk-wire.ts");
-  const { createCorpusConnectionWire } = await import("./corpus-connection-wire.ts");
+  const { CORPUS_SDK_TOKEN } = await import("./corpus-sdk-protocol.ts");
+  const { createCorpusConnectionWire, CORPUS_CONNECTION_KEY, CORPUS_CONNECTION_FOREIGN_KEY, CORPUS_CONNECTION_HOSTED_KEY } = await import(
+    "./corpus-connection-wire.ts"
+  );
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
   const { captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedOidcCorpus, seedRecallCorpus, seedSyntheticCorpus } =
     await import("./corpus-seed.ts");
@@ -289,8 +295,38 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   }
   const health = healthResponseSchema.parse(await response.json());
   const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
+  const wire = hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads });
+  const secrets = [
+    options.privateCredential.key,
+    options.seed.ownerPassword,
+    options.server.secretBoxKey?.toString("hex"),
+    NATIVE_OIDC_SETTINGS.OIDC_CLIENT_SECRET,
+    CORPUS_CONNECTION_KEY,
+    CORPUS_CONNECTION_FOREIGN_KEY,
+    CORPUS_CONNECTION_HOSTED_KEY,
+    CORPUS_SDK_TOKEN,
+    ...baseline.secrets,
+    ...oidc.secrets,
+    ...imageVariants.secrets,
+    ...notifications.secrets,
+    ...[credential, connection.own.credential, connection.foreign.credential, connection.account.hosted.credential, sdkSessions.credential].flatMap(
+      ({ row }) => [row.ciphertext, row.iv, row.tag],
+    ),
+    ...oidc.transactions.flatMap((row) => [row.state, row.codeVerifier, row.nonce, row.inviteTokenHash]),
+    oidc.pending.secretHash,
+    oidc.pending.inviteTokenHash,
+    oidc.pending.idTokenCiphertext,
+    oidc.pending.idTokenIv,
+    oidc.pending.idTokenTag,
+    ...[...oidc.ownerSessions, ...oidc.joinerSessions].flatMap((row) => [row.tokenHash, row.oidcIdTokenCiphertext, row.oidcIdTokenIv, row.oidcIdTokenTag]),
+    ...sdkSessions.receipts.flatMap(({ sessionId, resume }) => [sessionId, resume]),
+    chatLifecycle.held.invite.tokenHash,
+    chatLifecycle.aborted.invite.tokenHash,
+    chatLifecycle.handoff.invite.tokenHash,
+  ].filter((value) => value !== null && value !== undefined);
   return {
-    wire: hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads }),
+    wire,
+    publishWire: () => serializeCorpusWire(wire, secrets),
     privateCaptures: {
       imageVariants,
       notifications,
