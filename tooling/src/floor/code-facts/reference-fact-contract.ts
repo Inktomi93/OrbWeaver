@@ -148,6 +148,8 @@ export interface CallReturnObservation {
 export interface CallReturnAlternative {
   readonly target: Node;
   readonly returns: ReferenceFact<readonly Node[]>;
+  /** Captured only when authored bare-return absence was explicitly requested. */
+  readonly explicitReturns?: ReferenceFact<readonly Node[]>;
 }
 
 export interface CallReturnProgram {
@@ -175,9 +177,28 @@ export interface ReturnedValueSource {
 
 /** Returned-value consumers retain bindings already admitted by the same native invocation. */
 export interface ReturnedValueInputs {
+  /** Preserve explicitly authored bare returns as absent alternatives; strict projection is the default. */
+  readonly explicitAbsentReturns?: true;
   readonly terminals: ReturnedValueTerminals;
   readonly bindings: ReadonlyMap<Node, Node>;
 }
 
 /** Consumers identify actual native terminal calls on demand, without an additional call inventory. */
 export type ReturnedValueTerminals = ReadonlySet<ts.CallExpression> | ((call: CallExpression) => boolean);
+
+/** Canonical scope/value admission operations supplied to the ambient native classifier. */
+export interface NativeAmbientCallServices extends ReferenceResolutionServices {
+  readonly readCallReturnProgram: (node: Node, observations: CallReturnObservations) => ReferenceFact<CallReturnProgram>;
+  readonly resolveStableExpression: (node: Node) => ReferenceFact<Node>;
+}
+
+/** Selected installed String operation evidence; it establishes no input-data trust or execution theorem. */
+export interface NativeStringCall {
+  readonly call: CallExpression;
+  readonly origin: GlobalMemberOrigin;
+  readonly valueDeclaration: Node;
+  readonly signature: import("ts-morph").Signature;
+  readonly argument: Node;
+  readonly argumentType: import("ts-morph").Type;
+  readonly program: CallReturnProgram;
+}

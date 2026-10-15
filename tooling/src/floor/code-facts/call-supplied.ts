@@ -1,7 +1,7 @@
 // Supplied formals and complete callable consumers reuse the captured native call/return graph.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { resolveStableExpression } from "./reference-fact.ts";
+import { isDocumentationLinkReference, resolveStableExpression } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
 import type {
   CallReturnObservation,
@@ -68,7 +68,7 @@ export function readObservedCallableConsumers(owner: MorphNode, program: CallRet
   }
   if (Node.isIdentifier(name)) {
     const accepted = new Set([name, ...callers.flatMap((caller) => [caller.call.getExpression(), ...caller.call.getExpression().getDescendants()])]);
-    const missing = unprovenReferenceUse(name, accepted);
+    const missing = unprovenReferenceUse(name, (use) => isDocumentationLinkReference(use) || accepted.has(use));
     if (missing !== undefined) {
       return unresolved("unsupported", missing, "an actual callable reference has no admitted supplied consumer", [owner]);
     }
