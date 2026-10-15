@@ -125,6 +125,25 @@ export interface CallableCaptureRefusal extends UnresolvedReferenceFact {
 
 export type CallableInvocationFact = ReferenceFact<CallableInvocation> | CallableCaptureRefusal;
 
+/** Original member declarations and native call signatures, without a runtime instance-origin grant. */
+export interface InstanceMethodTarget {
+  readonly member: import("./type-member-origin-contract.ts").TypeMemberOrigin;
+  /** Overloaded originals retain ambiguity; a wrapper's selected return signature cannot select their identity. */
+  readonly signature: ReferenceFact<import("ts-morph").Signature>;
+}
+
+/** Native wrapper mechanics and declared instance evidence remain separate from actual receiver provenance. */
+export interface InstanceMethodInvocation {
+  readonly invocation: CallableInvocation["invocation"];
+  readonly target: InstanceMethodTarget;
+  readonly callee: Node;
+  readonly captureDeclarations: readonly Node[];
+  readonly arguments: ReferenceFact<readonly Node[]>;
+  readonly thisArgument: ReferenceFact<Node | undefined>;
+  readonly receiverSource: ReferenceFact<Node | undefined>;
+  readonly executedSignature: ReferenceFact<import("ts-morph").Signature>;
+}
+
 /** The binding primitives injected into module-origin traversal to keep one resolver implementation. */
 export interface ReferenceResolutionServices {
   readonly unwrapExpression: (node: Node) => Node;
