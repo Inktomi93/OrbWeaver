@@ -1,18 +1,26 @@
 // @subject tests/support/node/factories/imagery.ts
 // @subject packages/server/src/domain/imagery/persistence/queries.ts
 import { createCharacterSchema } from "@orb/contracts/character";
+import { generationProvenanceSchema } from "@orb/contracts/imagery";
 import type { PortableFile } from "@orb/contracts/portability";
 import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { createCorpusProviderExecution } from "@orb/testkit/node/corpus-provider.ts";
 import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
 import { seedImageryGenerations, seedNativeImageryImportClaim } from "@orb/testkit/node/factories/imagery.ts";
+import { makeGenerationProvenance } from "@orb/testkit/node/factories/imagery-view.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, inArray } from "drizzle-orm";
 
 const ENDPOINT = "http://127.0.0.1:8703/v1";
 const MODEL = "corpus-image-model";
+
+test("default provenance is parsed by the canonical required-field contract without a shadow shape", () => {
+  const provenance = makeGenerationProvenance();
+  expect(generationProvenanceSchema.parse(provenance)).toEqual(provenance);
+  expect(provenance.usage.costProvenance).toBeNull();
+});
 
 // Only raw provider HTTP varies; the graph resolves, shapes, accounts and stores every image itself.
 type ImageExecution = ReturnType<typeof createCorpusProviderExecution> & Pick<Parameters<typeof createCorpusProviderExecution>[0], "images">;
