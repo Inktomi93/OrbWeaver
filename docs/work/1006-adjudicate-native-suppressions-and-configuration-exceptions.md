@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-14
+status: doing
+updated: 2026-10-15
 priority: P2
 area: tooling
+lane: codex/native-duplicate-deps-1006
 plan: test-foundation
 ---
 

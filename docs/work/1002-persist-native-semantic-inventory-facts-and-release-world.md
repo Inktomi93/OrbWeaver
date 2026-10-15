@@ -35,3 +35,5 @@ The completed post-memo diagnostic isolates remaining lexical and token-lookup c
 Item 1027 owns demand-specific native cast relations through this same store and worker. Preserve explicit family presence, native interpretation and atomic generation identity; syntax carriers cannot supply Type or assignability queries. Cast-only requests must not perform unrequested reference extraction.
 
 Complete demanded-world publication, collector equivalence, cross-world reuse and hosted memory remain open. The complete-demand plan retains the full roster and missing collector phases. Qualified root data remains frozen; diagnostic stages and old partitions cannot become current by relabeling.
+
+The post-lexical diagnostic completes capture and process reaping without publication or a complete replay verdict. Evidence: `reports/review/1002-format4-post-lexical-cost-diagnosis.md`. Current-format qualification follows the physical schema correction in item 1027. Demand routing and invalidation costs remain under source investigation.

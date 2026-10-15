@@ -28,7 +28,7 @@ Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, p
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
 
-Selected run `main-281383-2026-10-15T01-06-15-141Z` judges the complete owner-read population after reviewed `eea5185f3b` and native memo integration. Its finding set matches `main-3895302-2026-10-14T22-49-19-785Z`. Findings and authority alarms remain; tool errors and withheld policies are absent. Bounded retained-relation acceptance does not qualify the actual tenancy judgment. Trace retained stats producers through that judgment before further edits; a finding does not establish an exploit.
+Reviewed `f42d4ba241` integrates supplied callable origins and readonly native references. Actual retained-owner analysis completes with an unsupported destructuring refusal, not a proven target or clean policy. Evidence: `.claude/worktrees/codex-funding-core-integration-969/reports/review/1016-native-policy-retained-owner.md`. The bounded correction must preserve actual receiver identity and unsafe alias refusal. Complete-policy findings and authority alarms remain unresolved.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 
