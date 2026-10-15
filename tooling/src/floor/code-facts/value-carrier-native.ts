@@ -1,10 +1,17 @@
 // Opted-in native callback/cache interpretation; the value carrier remains the only traversal.
-import type { CallExpression, Node } from "ts-morph";
+import type { CallExpression, Node, ts } from "ts-morph";
 import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { readCallReturnProgram, runtimeUndefinedValue } from "./call-supplied.ts";
 import { readStaticString, referenceResolutionServices, resolveGlobalMemberOrigin, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
-import type { CallReturnProgram, NativeValueTransferServices, ReferenceFact, ReturnedValueContext, ReturnedValueSource } from "./reference-fact-contract.ts";
+import type {
+  CallReturnProgram,
+  NativeResourceRegistration,
+  NativeValueTransferServices,
+  ReferenceFact,
+  ReturnedValueContext,
+  ReturnedValueSource,
+} from "./reference-fact-contract.ts";
 import { isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-writes.ts";
 
 /** Native field origins retain the whole formal's write/escape obligation before any actual substitution. */
@@ -199,7 +206,7 @@ function nativeCallbackSource(
       );
 }
 
-function nativeMapConstruction(value: Node, context: NativeTransferContext): string | undefined {
+function nativeConstruction(value: Node, context: NativeTransferContext): string | undefined {
   if (!N.isNewExpression(value) || context.program === undefined) {
     return;
   }
@@ -213,7 +220,6 @@ function nativeMapConstruction(value: Node, context: NativeTransferContext): str
     return;
   }
   const native =
-    ["Map", "WeakMap"].includes(origin.value.globalName) &&
     origin.value.memberPath.length === 0 &&
     signature !== undefined &&
     program.program.isSourceFileDefaultLibrary(signature.getSourceFile().compilerNode) &&
@@ -317,7 +323,7 @@ function nativeMapInitialValues(construction: Node, path: readonly string[], con
     member?.name !== "map" ||
     origin?.kind !== "resolved" ||
     program === undefined ||
-    !origin.value.declarations.every((declaration) => program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode)) ||
+    !origin.value.declarations.every((candidate) => program.program.isSourceFileDefaultLibrary(candidate.getSourceFile().compilerNode)) ||
     referenceResolutionServices.inspectSymbolWrites(origin.value.symbol, initial.getExpression()).kind !== "resolved" ||
     !program.byCall.has(initial.compilerNode)
   ) {
@@ -448,7 +454,7 @@ function returnedNativeMap(
   }
   const signatureParent = call.getProject().getTypeChecker().getResolvedSignature(call)?.getDeclaration().getParent();
   const receiverKind = N.isInterfaceDeclaration(signatureParent) ? signatureParent.getName() : undefined;
-  if (receivers.value.some((source) => !source.present || source.path.length > 0 || nativeMapConstruction(source.value, context) !== receiverKind)) {
+  if (receivers.value.some((source) => !source.present || source.path.length > 0 || nativeConstruction(source.value, context) !== receiverKind)) {
     return context.services.refusal(call, "unsupported", "native cache receiver has no actual native construction alternatives");
   }
 
@@ -498,6 +504,13 @@ function returnedNativeCallValue(
   if (context.program?.byCall.has(call.compilerNode) !== true) {
     return context.services.refusal(call, "missing", "native value call was not captured");
   }
+  const resource = readNativeResourceRegistration(call, context, context.services);
+  if (resource !== undefined) {
+    return resource.kind === "unresolved" ? resource : context.services.readValue(resource.value.argument, path, context);
+  }
+  if (!context.nativeValueTransfers) {
+    return;
+  }
   if (nativeMemo(call, context)) {
     const factory = call.getArguments()[0];
     return factory === undefined
@@ -505,4 +518,235 @@ function returnedNativeCallValue(
       : nativeCallbackValues(factory, undefined, path, { ...context, bindings: new Map() });
   }
   return returnedNativeMap(call, path, context);
+}
+
+const NATIVE_RESOURCE_STACKS = ["DisposableStack", "AsyncDisposableStack"] as const;
+const NATIVE_DISPOSAL_KEYS = ["dispose", "asyncDispose"] as const;
+
+/** A well-known native symbol stays a symbol; it cannot collide with a carried string member. */
+export function nativeDisposalPropertyKey(name: Node, program: CallReturnProgram | undefined): ts.Symbol | undefined {
+  if (!N.isComputedPropertyName(name) || program === undefined || readCallReturnProgram(name, { programs: [program] }).kind !== "resolved") {
+    return;
+  }
+  const origin = resolveGlobalMemberOrigin(name.getExpression());
+  if (origin.kind !== "resolved" || origin.value.globalName !== "Symbol" || origin.value.memberPath.length !== 1) {
+    return;
+  }
+  const member = origin.value.memberPath[0];
+  if (
+    !(
+      NATIVE_DISPOSAL_KEYS.some((key) => key === member) &&
+      origin.value.declarations.every((candidate) => program.program.isSourceFileDefaultLibrary(candidate.getSourceFile().compilerNode))
+    )
+  ) {
+    return;
+  }
+  const declaration = origin.value.declarations.find((value) => N.isPropertySignature(value) && value.getName() === member);
+  return declaration?.getSymbol()?.compilerSymbol;
+}
+
+interface ResourceMethod {
+  readonly receiver: Node;
+  readonly stack: string;
+  readonly name: string;
+}
+
+function nativeResourceMethod(call: CallExpression, context: NativeTransferContext): ResourceMethod | undefined {
+  const program = context.program;
+  const member = program?.nativeSymbolServices?.memberOrigin(call.getExpression());
+  const signature = call.getProject().getTypeChecker().getResolvedSignature(call)?.getDeclaration();
+  const owner = signature?.getParent();
+  if (
+    program === undefined ||
+    member?.kind !== "resolved" ||
+    signature === undefined ||
+    !N.isInterfaceDeclaration(owner) ||
+    !NATIVE_RESOURCE_STACKS.some((name) => name === owner.getName())
+  ) {
+    return;
+  }
+  if (
+    !(
+      program.program.isSourceFileDefaultLibrary(signature.getSourceFile().compilerNode) &&
+      member.value.declarations.every((declaration) => program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode))
+    ) ||
+    referenceResolutionServices.inspectSymbolWrites(member.value.symbol, call.getExpression()).kind !== "resolved"
+  ) {
+    return;
+  }
+  return { receiver: member.value.receiver, stack: owner.getName(), name: member.value.name };
+}
+
+function resourceReceiverClosed(receiver: Node, stack: string, context: NativeTransferContext): boolean {
+  const name = unwrapTarget(receiver);
+  if (N.isNewExpression(name)) {
+    return true;
+  }
+  if (!N.isIdentifier(name)) {
+    return false;
+  }
+  return (
+    unprovenReferenceUse(name, (use) => {
+      const access = use.getParent();
+      const call = access?.getParent();
+      if (
+        !N.isCallExpression(call) ||
+        call.getExpression() !== access ||
+        staticMemberAccess(access)?.receiver !== use ||
+        context.program?.byCall.has(call.compilerNode) !== true
+      ) {
+        return false;
+      }
+      const method = nativeResourceMethod(call, context);
+      return method?.stack === stack;
+    }) === undefined
+  );
+}
+
+/** Native disposal binds the resource as this; receiver-dependent effects need a separate closed proof. */
+export function nativeDisposerReceiverClosed(value: Node): boolean {
+  if (!(N.isMethodDeclaration(value) || N.isArrowFunction(value) || N.isFunctionExpression(value) || N.isFunctionDeclaration(value))) {
+    return false;
+  }
+  const body = value.getBody();
+  if (body === undefined) {
+    return false;
+  }
+  // Defaults and binding patterns execute with the native receiver before the body; type annotations do not.
+  const runtime = [
+    body,
+    ...value.getParameters().flatMap((parameter) => {
+      const initializer = parameter.getInitializer();
+      return initializer === undefined ? [parameter.getNameNode()] : [parameter.getNameNode(), initializer];
+    }),
+  ];
+  return runtime.every(
+    (node) =>
+      node.getKind() !== SyntaxKind.ThisKeyword &&
+      node.getKind() !== SyntaxKind.SuperKeyword &&
+      node.getFirstDescendantByKind(SyntaxKind.ThisKeyword) === undefined &&
+      node.getFirstDescendantByKind(SyntaxKind.SuperKeyword) === undefined,
+  );
+}
+
+function resourceDisposalSlots(object: import("ts-morph").ObjectLiteralExpression, context: NativeTransferContext): ReferenceFact<ReadonlyMap<string, Node>> {
+  const slots = new Map<string, Node>();
+  for (const property of object.getProperties()) {
+    if (N.isSpreadAssignment(property)) {
+      return context.services.refusal(property, "unsupported", "native resource disposal through a spread is not closed");
+    }
+    const name = property.getNameNode();
+    const key = nativeDisposalPropertyKey(name, context.program);
+    if (key !== undefined) {
+      slots.set(key.getName(), property);
+    } else if (N.isComputedPropertyName(name) || property.getName() === "__proto__") {
+      return context.services.refusal(property, "unsupported", "native resource has an unresolved own disposal descriptor");
+    }
+  }
+  return { kind: "resolved", value: slots, trace: { declarations: [], origin: object } };
+}
+
+function resourceDisposalValue(property: Node, resource: ReturnedValueSource, context: NativeTransferContext): ReferenceFact<readonly ReturnedValueSource[]> {
+  if (N.isGetAccessorDeclaration(property) || N.isSetAccessorDeclaration(property)) {
+    return context.services.refusal(property, "unsupported", "native resource disposal accessor effects are not closed");
+  }
+  if (N.isMethodDeclaration(property)) {
+    return nativeDisposerReceiverClosed(property)
+      ? {
+          kind: "resolved",
+          value: [{ value: property, bindings: resource.bindings, path: [], present: true }],
+          trace: { declarations: [property], origin: property },
+        }
+      : context.services.refusal(property, "unsupported", "native disposer receiver effects are not closed");
+  }
+  const initial = N.isPropertyAssignment(property) ? property.getInitializer() : undefined;
+  if (initial === undefined) {
+    return context.services.refusal(property, "unsupported", "native resource disposal value has no actual initializer");
+  }
+  return context.services.readValue(initial, [], { ...context, bindings: resource.bindings });
+}
+
+function nullishResource(source: ReturnedValueSource): boolean {
+  return source.present && source.path.length === 0 && (source.value.getKind() === SyntaxKind.NullKeyword || runtimeUndefinedValue(source.value));
+}
+
+function resourceDisposers(resource: ReturnedValueSource, stack: string, context: NativeTransferContext): ReferenceFact<readonly ReturnedValueSource[]> {
+  const object = resource.value;
+  if (nullishResource(resource)) {
+    return { kind: "resolved", value: [], trace: { declarations: [], origin: object } };
+  }
+  if (!resource.present || resource.path.length > 0 || !N.isObjectLiteralExpression(object)) {
+    return context.services.refusal(object, "unsupported", "native resource registration requires a closed actual own-object resource");
+  }
+  const slots = resourceDisposalSlots(object, context);
+  if (slots.kind === "unresolved") {
+    return slots;
+  }
+  const order = stack === "AsyncDisposableStack" ? [...NATIVE_DISPOSAL_KEYS].reverse() : [NATIVE_DISPOSAL_KEYS[0]];
+  for (const key of order) {
+    const property = slots.value.get(key);
+    if (property === undefined) {
+      continue;
+    }
+    const values = resourceDisposalValue(property, resource, context);
+    if (values.kind === "unresolved") {
+      return values;
+    }
+    if (values.value.every(nullishResource)) {
+      continue;
+    }
+    return values.value.length > 0 && values.value.every((source) => source.present && source.path.length === 0 && nativeDisposerReceiverClosed(source.value))
+      ? values
+      : context.services.refusal(property, "unsupported", "native resource disposal value has no closed actual callable");
+  }
+  return context.services.refusal(object, "missing", "native resource has no proven own disposal method");
+}
+
+/** Native use returns its argument, but retaining the disposal consumers is a separate lifetime obligation. */
+export function readNativeResourceRegistration(
+  call: CallExpression,
+  context: ReturnedValueContext,
+  services: NativeValueTransferServices,
+): ReferenceFact<NativeResourceRegistration> | undefined {
+  if (staticMemberAccess(call.getExpression())?.name !== "use") {
+    return;
+  }
+  const native = { ...context, services };
+  const method = nativeResourceMethod(call, native);
+  if (method === undefined || method.name !== "use") {
+    return;
+  }
+  if (context.program?.byCall.has(call.compilerNode) !== true || readCallReturnProgram(call, { programs: [context.program] }).kind !== "resolved") {
+    return services.refusal(call, "missing", "native resource registration is outside its captured call epoch");
+  }
+  const argument = call.getArguments()[0];
+  if (argument === undefined || call.getArguments().length !== 1 || N.isSpreadElement(argument)) {
+    return services.refusal(call, "unsupported", "native resource use requires one actual argument");
+  }
+  const receivers = services.readValue(method.receiver, [], context);
+  if (receivers.kind === "unresolved") {
+    return receivers;
+  }
+  if (
+    receivers.value.length === 0 ||
+    receivers.value.some((source) => !source.present || source.path.length > 0 || nativeConstruction(source.value, native) !== method.stack) ||
+    ![
+      method.receiver,
+      ...receivers.trace.declarations.flatMap((declaration) => (N.isVariableDeclaration(declaration) ? [declaration.getNameNode()] : [])),
+    ].every((receiver) => resourceReceiverClosed(receiver, method.stack, native))
+  ) {
+    return services.refusal(call, "unsupported", "native resource receiver has no closed unchanged construction");
+  }
+  const resources = services.readValue(argument, [], context);
+  if (resources.kind === "unresolved") {
+    return resources;
+  }
+  if (resources.value.length === 0) {
+    return services.refusal(argument, "missing", "native resource registration has no actual value alternatives");
+  }
+  const disposers = services.alternatives(
+    argument,
+    resources.value.map((resource) => resourceDisposers(resource, method.stack, native)),
+  );
+  return disposers.kind === "unresolved" ? disposers : { ...disposers, value: { argument, disposers: disposers.value } };
 }

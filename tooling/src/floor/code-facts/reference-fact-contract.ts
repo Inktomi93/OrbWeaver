@@ -221,6 +221,12 @@ export interface NativeValueIteration {
   readonly parameter: Node;
 }
 
+/** Native resource registration retains disposal consumers as well as the returned argument identity. */
+export interface NativeResourceRegistration {
+  readonly argument: Node;
+  readonly disposers: readonly ReturnedValueSource[];
+}
+
 /** One authored returned-value leaf, with the exact supplied arguments that bind its parameters. */
 export interface ReturnedValueSource {
   /** Winning own-data value hops retain the bindings at selection, before formal refinement. */

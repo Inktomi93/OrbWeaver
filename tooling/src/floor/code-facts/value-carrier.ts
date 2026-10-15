@@ -22,7 +22,14 @@ import type {
 } from "./reference-fact-contract.ts";
 import { isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
-import { nativeParameterFieldsUnchanged, readNativeRetainedReturn, readNativeReturnedCall } from "./value-carrier-native.ts";
+import {
+  nativeDisposalPropertyKey,
+  nativeDisposerReceiverClosed,
+  nativeParameterFieldsUnchanged,
+  readNativeResourceRegistration,
+  readNativeRetainedReturn,
+  readNativeReturnedCall,
+} from "./value-carrier-native.ts";
 
 /** The value a real object member carries; a method or opaque spread is not a property value. */
 export function propertyValue(property: Node | undefined): Node | undefined {
@@ -132,7 +139,7 @@ function returnedPropertyValue(
   rest: readonly string[],
   context: ReturnedValueContext,
 ): ReferenceFact<readonly ReturnedValueSource[]> | undefined {
-  const keyName = returnedPropertyName(property);
+  const keyName = returnedPropertyName(property, context.program);
   if (keyName.kind === "unresolved") {
     return keyName;
   }
@@ -159,9 +166,14 @@ function returnedPropertyValue(
 
 function returnedPropertyName(
   property: Exclude<ReturnType<ObjectLiteralExpression["getProperties"]>[number], import("ts-morph").SpreadAssignment>,
-): ReferenceFact<string> {
+  program?: CallReturnProgram,
+): ReferenceFact<string | ts.Symbol> {
   const key = property.getNameNode();
   if (N.isComputedPropertyName(key)) {
+    const disposal = nativeDisposalPropertyKey(key, program);
+    if (disposal !== undefined) {
+      return { kind: "resolved", value: disposal, trace: { declarations: [], origin: key } };
+    }
     return readStaticString(key.getExpression());
   }
   return { kind: "resolved", value: property.getName(), trace: { declarations: [], origin: property } };
@@ -220,7 +232,7 @@ function returnedCallValue(call: CallExpression, path: readonly string[], contex
   if (typeof context.terminals === "function" ? context.terminals(call) : context.terminals.has(call.compilerNode)) {
     return valueLeaf(call, path, context);
   }
-  const native = context.nativeValueTransfers ? readNativeReturnedCall(call, path, context, nativeValueServices) : undefined;
+  const native = context.nativeValueTransfers || context.callableValues === true ? readNativeReturnedCall(call, path, context, nativeValueServices) : undefined;
   if (native !== undefined) {
     return native;
   }
@@ -490,7 +502,7 @@ function returnedComputedValue(
       .map((property) =>
         N.isSpreadAssignment(property)
           ? valueRefusal(property, "unsupported", "computed selection through object spreads is not closed")
-          : returnedPropertyName(property),
+          : returnedPropertyName(property, context.program),
       );
     const failed = keys.find((key) => key.kind === "unresolved");
     const missing = selected.some((key) => !keys.some((candidate) => candidate.kind === "resolved" && candidate.value === key));
@@ -501,7 +513,7 @@ function returnedComputedValue(
         : valueAlternatives(
             member,
             keys.flatMap((key) =>
-              key.kind === "resolved" && selected.includes(key.value)
+              key.kind === "resolved" && typeof key.value === "string" && selected.includes(key.value)
                 ? [returnedValue(source.value, [key.value, ...path], { ...context, bindings: source.bindings })]
                 : [],
             ),
@@ -1036,7 +1048,7 @@ function freshCallableReceiver(receiver: ReturnedValueSource, key: string, proof
       if (!N.isPropertyAssignment(property) || property.getInitializer() !== origin.value || property.getParent() !== literal) {
         return false;
       }
-      const selected = returnedPropertyName(property);
+      const selected = returnedPropertyName(property, proof.program);
       return selected.kind === "resolved" && selected.value !== key && matchingAllocationBindings(literal, receiver, origin);
     }) || selectedCallableReceiver(receiver, key, proof)
   );
@@ -1046,7 +1058,7 @@ function closedCallableRecord(receiver: ReturnedValueSource, key: string, progra
   if (!N.isObjectLiteralExpression(receiver.value)) {
     return false;
   }
-  if (ordinaryCallableRecord(receiver.value)) {
+  if (ordinaryCallableRecord(receiver.value, undefined, program)) {
     return true;
   }
   const spreads = receiver.value.getProperties().filter(N.isSpreadAssignment);
@@ -1054,7 +1066,7 @@ function closedCallableRecord(receiver: ReturnedValueSource, key: string, progra
   return (
     spreads.length === 1 &&
     spread !== undefined &&
-    ordinaryCallableRecord(receiver.value, spread) &&
+    ordinaryCallableRecord(receiver.value, spread, program) &&
     ordinarySpreadDataPresence(spread.getExpression(), key, receiver, program) !== undefined
   );
 }
@@ -1174,7 +1186,7 @@ function selectedCallableOriginUses(origin: ReturnedValueSource, receiver: Retur
 
 function selectedCallableStorageUse(use: Node, origin: ReturnedValueSource, proof: CallableUseProof): boolean {
   const containers = carryingLiterals(use);
-  if (containers.length === 0 || containers.some(({ literal, key }) => key === undefined || !ordinaryCallableRecord(literal))) {
+  if (containers.length === 0 || containers.some(({ literal, key }) => key === undefined || !ordinaryCallableRecord(literal, undefined, proof.program))) {
     return false;
   }
   const site = valueSite(use);
@@ -1205,7 +1217,7 @@ function ordinarySpreadDataPresence(expression: Node, key: string, receiver: Ret
   if (
     sources.kind === "unresolved" ||
     sources.value.length === 0 ||
-    sources.value.some((source) => !source.present || source.path.length > 0 || !ordinaryCallableRecord(source.value))
+    sources.value.some((source) => !source.present || source.path.length > 0 || !ordinaryCallableRecord(source.value, undefined, program))
   ) {
     return;
   }
@@ -1216,7 +1228,7 @@ function ordinarySpreadDataPresence(expression: Node, key: string, receiver: Ret
         if (N.isSpreadAssignment(property)) {
           return false;
         }
-        const name = returnedPropertyName(property);
+        const name = returnedPropertyName(property, program);
         return name.kind === "resolved" && name.value === key;
       }),
   );
@@ -1247,7 +1259,7 @@ function ownDataProperty(receiver: ReturnedValueSource, key: string, program: Ca
       data = spreadOwnData(data, property.getExpression(), key, { receiver, program });
       continue;
     }
-    const name = returnedPropertyName(property);
+    const name = returnedPropertyName(property, program);
     if (name.kind === "unresolved") {
       data = false;
     } else if (name.value === key) {
@@ -1279,7 +1291,7 @@ function freshCallableDataRead(member: import("./reference-fact-contract.ts").Me
   });
 }
 
-function ordinaryCallableRecord(node: Node, spread?: Node): boolean {
+function ordinaryCallableRecord(node: Node, spread?: Node, program?: CallReturnProgram): boolean {
   if (!N.isObjectLiteralExpression(node)) {
     return false;
   }
@@ -1287,10 +1299,16 @@ function ordinaryCallableRecord(node: Node, spread?: Node): boolean {
     if (property === spread) {
       return true;
     }
+    if (N.isSpreadAssignment(property)) {
+      return false;
+    }
+    const key = returnedPropertyName(property, program);
+    if (key.kind === "resolved" && typeof key.value !== "string" && N.isMethodDeclaration(property)) {
+      return nativeDisposerReceiverClosed(property);
+    }
     if (!(N.isPropertyAssignment(property) || N.isShorthandPropertyAssignment(property))) {
       return false;
     }
-    const key = returnedPropertyName(property);
     const name = property.getNameNode();
     return (
       key.kind === "resolved" &&
@@ -1306,17 +1324,47 @@ function callableRecordCopy(use: Node, proof: CallableUseProof): boolean | undef
   if (proof.program === undefined || !N.isSpreadAssignment(spread) || spread.getExpression() !== use || !N.isObjectLiteralExpression(literal)) {
     return;
   }
-  if (proof.active.has(literal.compilerNode) || !ordinaryCallableRecord(literal, spread)) {
+  if (proof.active.has(literal.compilerNode) || !ordinaryCallableRecord(literal, spread, proof.program)) {
     return refuseCallableUse(proof, valueRefusal(literal, "unsupported", "the supplied record copy is cyclic or has an opaque own descriptor"));
   }
   const sources = callableSuppliedLeaves(use, [], proof.program, { bindings: proof.bindings, active: new Set() });
   if (sources.kind === "unresolved") {
     return refuseCallableUse(proof, sources);
   }
-  if (sources.value.length === 0 || sources.value.some((source) => !source.present || source.path.length > 0 || !ordinaryCallableRecord(source.value))) {
+  if (
+    sources.value.length === 0 ||
+    sources.value.some((source) => !source.present || source.path.length > 0 || !ordinaryCallableRecord(source.value, undefined, proof.program))
+  ) {
     return refuseCallableUse(proof, valueRefusal(use, "unsupported", "the supplied record copy has no finite ordinary own data sources"));
   }
   return callableProjectionUse(literal, { ...proof, active: new Set(proof.active).add(literal.compilerNode) });
+}
+
+function callableResourceHandoff(call: CallExpression, path: readonly string[], proof: CallableUseProof): boolean | undefined {
+  if (proof.program === undefined) {
+    return;
+  }
+  const context: ReturnedValueContext = {
+    program: proof.program,
+    bindings: proof.bindings,
+    active: new Set(),
+    terminals: new Set(),
+    nativeIterations: new Map(),
+    explicitAbsentReturns: false,
+    nativeValueTransfers: false,
+    callableValues: true,
+  };
+  const resource = readNativeResourceRegistration(call, context, nativeValueServices);
+  if (resource === undefined) {
+    return;
+  }
+  if (resource.kind === "unresolved") {
+    return refuseCallableUse(proof, resource);
+  }
+  if (resource.value.disposers.some((disposer) => proof.origins.some((origin) => origin.value.compilerNode === disposer.value.compilerNode))) {
+    return refuseCallableUse(proof, valueRefusal(call, "unsupported", "the selected callable has an implicit native disposal consumer"));
+  }
+  return callableProjectionUse(call, { ...proof, path: [...path, ...proof.path] });
 }
 
 function callableArgumentHandoff(use: Node, proof: CallableUseProof): boolean | undefined {
@@ -1334,6 +1382,10 @@ function callableArgumentHandoff(use: Node, proof: CallableUseProof): boolean | 
   const argumentCall = site.getParent();
   if (!(N.isCallExpression(argumentCall) && argumentCall.getArguments().includes(site) && callableAdmits(proof.admits, argumentCall))) {
     return;
+  }
+  const registered = callableResourceHandoff(argumentCall, path, proof);
+  if (registered !== undefined) {
+    return registered;
   }
   let targets = proof.program?.byCall.get(argumentCall.compilerNode)?.targets;
   if (targets?.kind !== "resolved") {
@@ -1657,10 +1709,13 @@ function callableOwnerUses(
   if (!(N.isPropertyAssignment(property) && property.getInitializer() === owner && N.isObjectLiteralExpression(literal))) {
     return valueRefusal(owner, "unsupported", "the anonymous supplied callable has no closed authored record home");
   }
-  const selected = returnedPropertyName(property);
+  const selected = returnedPropertyName(property, program);
+  if (selected.kind === "unresolved") {
+    return selected;
+  }
   const containers = carryingLiterals(literal);
-  if (selected.kind === "unresolved" || containers.some(({ key }) => key === undefined)) {
-    return selected.kind === "unresolved" ? selected : valueRefusal(owner, "unsupported", "the supplied callable record is copied through an opaque key");
+  if (typeof selected.value !== "string" || containers.some(({ key }) => key === undefined)) {
+    return valueRefusal(owner, "unsupported", "the supplied callable record is copied through an opaque key");
   }
   const path = [...containers].reverse().flatMap(({ key }) => (key === undefined ? [] : [key]));
   const site = valueSite(literal);
