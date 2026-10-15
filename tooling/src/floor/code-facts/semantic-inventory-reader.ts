@@ -21,6 +21,7 @@ import {
   readInventoryBindings,
   readInventoryBrands,
   readInventoryCasts,
+  readInventoryDeclarationOutputs,
   readInventoryExports,
   readInventoryModules,
   readInventoryPairs,
@@ -217,6 +218,15 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    declarationOutput: (node, program) => {
+      const { partition, span } = nativeSpan(node, program, "declaration-outputs");
+      const matches = [...readInventoryDeclarationOutputs(db, partition.id, span)];
+      const match = matches[0];
+      if (matches.length !== 1 || match === undefined) {
+        throw new SemanticInventoryError("native declaration output span is unavailable in its native partition");
+      }
+      return match.unknown;
+    },
     assertShapeSource: (source) => {
       assertOpen();
       const selected = worlds(source);

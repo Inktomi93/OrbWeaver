@@ -249,6 +249,22 @@ export function* readInventoryBrands(db: DatabaseSync, id: string, node?: Invent
   }
 }
 
+/** A present null row is a non-exported declaration, not missing native evidence. */
+export function* readInventoryDeclarationOutputs(
+  db: DatabaseSync,
+  id: string,
+  node: InventorySpan,
+): Iterable<InventoryPartition["declarationOutputs"][number]> {
+  requireInventoryFamily(db, id, "declaration-outputs");
+  for (const row of db
+    .prepare(
+      "SELECT s.file,s.start,s.end,s.kind,o.unknownOutput FROM inventory_declaration_output o JOIN inventory_span s ON s.partition=o.partition AND s.ordinal=o.node WHERE o.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY o.ordinal",
+    )
+    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
+    yield { node: spanRow.parse(row), unknown: row["unknownOutput"] === null ? null : boolean.parse(row["unknownOutput"]) };
+  }
+}
+
 /** Missing catalog rows are not an object with no fields. */
 export function readInventoryShape(db: DatabaseSync, id: string, node: InventorySpan): InventoryPartition["shapes"][number] {
   requireInventoryFamily(db, id, "shape-catalog");

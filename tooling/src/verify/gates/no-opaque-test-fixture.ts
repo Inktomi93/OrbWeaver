@@ -52,7 +52,7 @@
 // members are OR'd, and its globs are matched against the whole repo-relative path.
 //
 // RETIRED MARKERS: none — a new policy, no legacy owner and no marker census to port.
-import type { Node as MorphNode, Type } from "ts-morph";
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
@@ -69,38 +69,17 @@ const FIX =
   "where the position is the reported authored token: the type annotation's own leading slice when one is " +
   "written, and the declaration's NAME when the `unknown` is inferred.";
 
-/** Does this resolved type hand the caller an `unknown`? Exactly `unknown`, and `Promise<unknown>` is
- *  DELIBERATELY NOT unwrapped — see the header's third declared limit for the measurement that decided it. */
-function isOpaque(type: Type): boolean {
-  return type.isUnknown();
-}
-
-interface Subject {
-  /** The resolved type whose opacity decides the verdict. */
-  readonly type: Type;
-  /** The AUTHORED annotation, when one is written — the position an author waives. */
-  readonly annotation: MorphNode | undefined;
-}
-
-function subjectOfFunction(node: MorphNode): Subject | undefined {
-  if (!Node.isFunctionDeclaration(node)) {
-    return;
+function outputAnnotation(node: MorphNode): MorphNode | undefined {
+  if (Node.isFunctionDeclaration(node)) {
+    return node.getReturnTypeNode();
   }
-  return node.isExported() ? { type: node.getReturnType(), annotation: node.getReturnTypeNode() } : undefined;
-}
-
-function subjectOfVariable(node: MorphNode): Subject | undefined {
-  if (!Node.isVariableDeclaration(node) || node.getVariableStatement()?.isExported() !== true) {
-    return;
+  if (!Node.isVariableDeclaration(node)) {
+    throw new Error("native declaration output selected another declaration kind");
   }
   const initializer = node.getInitializer();
-  // A callable export's CONTRACT is what it RETURNS; its own type is a signature and never `unknown`, so
-  // `export const f = (): unknown => …` has to be read one level in to reach the same subject
-  // `export function f(): unknown` states directly.
-  if (initializer !== undefined && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))) {
-    return { type: initializer.getReturnType(), annotation: initializer.getReturnTypeNode() };
-  }
-  return { type: node.getType(), annotation: node.getTypeNode() };
+  return initializer !== undefined && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))
+    ? initializer.getReturnTypeNode()
+    : node.getTypeNode();
 }
 
 /** The node a finding anchors on and the exact authored slice it reports. The annotation is preferred —
@@ -127,33 +106,51 @@ export const gate = defineGate({
     in: ["@tests"],
     under: ["**/support/**", "**/fixtures.ts", "**/fixtures.tsx", "**/*.fixtures.ts", "**/*.fixtures.tsx"],
   },
-  // The claim is about a RESOLVED type, not a spelling: `Promise<unknown>`, a `type Opaque = unknown`
-  // alias and an unannotated helper whose return INFERS `unknown` are the same defect, and a syntax reader
-  // that matched the literal keyword would be evadable by all three.
+  // Native output meaning is required: aliases and inferred unknown cannot be judged by keyword matching.
   analysis: "types",
   execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.FunctionDeclaration, SyntaxKind.VariableDeclaration],
-        visit: (node): void => {
-          const subject = subjectOfFunction(node) ?? subjectOfVariable(node);
-          if (subject === undefined || !isOpaque(subject.type)) {
-            return;
-          }
-          const anchor = anchorOf(node, subject.annotation);
-          if (anchor === undefined) {
-            return;
-          }
-          ctx.report.node(anchor.node, { token: anchor.token, offset: 0 });
+  create: (ctx) => {
+    const declarations: MorphNode[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.FunctionDeclaration, SyntaxKind.VariableDeclaration],
+          visit: (node): void => {
+            if (!(Node.isFunctionDeclaration(node) || Node.isVariableDeclaration(node))) {
+              return;
+            }
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native declaration output context is unavailable");
+            }
+            declarations.push(node);
+            ctx.nativeTypes.request({ kind: "declaration-outputs", nodes: [node] });
+          },
         },
+      ],
+      evaluate: () => {
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native declaration output context is unavailable");
+        }
+        const outputs = ctx.nativeTypes.declarationOutputs(declarations);
+        for (const declaration of declarations) {
+          const output = outputs.get(declaration);
+          if (output === undefined) {
+            throw new Error("native declaration output is unavailable");
+          }
+          if (output === true) {
+            const anchor = anchorOf(declaration, outputAnnotation(declaration));
+            if (anchor !== undefined) {
+              ctx.report.node(anchor.node, { token: anchor.token, offset: 0 });
+            }
+          }
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",
