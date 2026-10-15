@@ -32,7 +32,7 @@
 // whole in the CONTEXT readout (§16 row 29), and the zone budget went with it (§7's Prompt panel).
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { MarkerType, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_CONTINUE_POSTFIX, DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { FieldLayout } from "@orb/ui/field";
@@ -43,13 +43,14 @@ import { useState } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { closePresetSectionDrill, drillPresetSection, selectPresetSection, useDrilledPresetSectionId, useSelectedPresetSectionId } from "#state";
 import { makeSection } from "../lib/assembly-model.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { CONTINUE_POSTFIX_ITEMS, continuePostfixLabel, NAMES_BEHAVIOR_ITEMS, namesBehaviorLabel } from "../lib/preset-nav.ts";
 import { AssemblyToolbar } from "./assembly-toolbar.tsx";
 import { MessageHandlingSection } from "./message-handling-section.tsx";
 import { AssemblyRack } from "./prompt-assembly/assembly-rack.tsx";
 import { SectionDrillIn } from "./prompt-assembly/section-drill-in.tsx";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 interface PresetStructureTabsProps {
   readonly form: AppForm;

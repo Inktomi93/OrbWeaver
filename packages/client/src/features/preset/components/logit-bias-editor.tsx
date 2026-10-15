@@ -4,7 +4,6 @@
 
 import type { TokenizeResult, WordTokens } from "@orb/contracts/inference";
 import { TOKEN_ID_KEY, TOKENIZE_WORD_CHARS_MAX, TOKENIZE_WORDS_MAX } from "@orb/contracts/inference";
-import type { PromptConfig } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
@@ -19,9 +18,10 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 type Bias = Readonly<Record<string, number>>;
 
 // The OpenAI-family bias scale every local server also takes: -100 bans a token, 100 all but forces it.

@@ -34,7 +34,7 @@
 // (`--width-label-col`), and the two tokens are deliberately different widths (see their descriptions).
 
 import type { EffortLevel, GenerationCapability, Range } from "@orb/contracts/inference";
-import type { PromptConfig, Quality } from "@orb/contracts/preset";
+import type { Quality } from "@orb/contracts/preset";
 import { Field } from "@orb/ui/field";
 import { Section, Stack, Surface } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -57,6 +57,7 @@ import {
 } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { MIROSTAT_SKIPPED_GLOSS, mirostatSkipped, qualityDeckGloss } from "../lib/effective-knobs.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
 import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
@@ -68,7 +69,7 @@ import { DrySequenceBreakers } from "./sequence-chips.tsx";
 import type { StalenessRowProps } from "./staleness-row.tsx";
 import { StalenessRow } from "./staleness-row.tsx";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 export interface ParamsDeckProps {
   readonly form: AppForm;

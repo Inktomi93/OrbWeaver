@@ -66,6 +66,8 @@ import { chatCapabilityOf } from "../lib/chat-capability.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
 import { seedConfig, validatePresetConfig } from "../lib/preset-editor-model.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "../lib/preset-editor-values.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import type { ViewContentProps } from "../lib/preset-view-content.tsx";
 import { viewContent } from "../lib/preset-view-content.tsx";
@@ -79,8 +81,10 @@ import type { ReadFailure } from "../lib/resolve-failure.ts";
 // carrying full free-text literal/templated-marker bodies, comparable in loss-severity to the
 // character card). Same owner exception to the obligation-5 doctrine's autosave-omits-draft default
 // as the character editor — see that surface's header for the full citation.
-const PresetForm = createAutosaveEntityForm<PromptConfig>({
-  defaultValues: DEFAULT_PROMPT_CONFIG,
+const PresetForm = createAutosaveEntityForm<PresetEditorValues>({
+  defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
+  canonicalValues: canonicalPresetValues,
+  admitValues: admitPresetValues,
   draft: presetDraftStore,
   // THE ONE VALIDATOR ON THIS FORM, and it REFUSES a write rather than advising — `validatePresetProse`'s
   // header carries the why. `onDynamic` is the slot `revalidateLogic()` drives (the factory sets it).
@@ -214,7 +218,11 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
 
   return (
     <SaveUnwritableContext value={configUnreadable !== null}>
-      <PresetForm entityId={presetId} serverValues={seedConfig(preset.config)} save={autosave.save}>
+      <PresetForm
+        entityId={presetId}
+        serverValues={presetEditorValues(seedConfig(preset.config))}
+        save={(values): Promise<void> => autosave.save(canonicalPresetValues(values))}
+      >
         {(session): ReactElement => (
           <PresetEditorBody
             session={session}
@@ -256,7 +264,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
 }
 
 interface PresetEditorBodyProps {
-  readonly session: AutosaveSession<PromptConfig>;
+  readonly session: AutosaveSession<PresetEditorValues>;
   readonly presetId: PresetId;
   readonly presetName: string;
   /** This preset is the ACTIVE-for-generation pick (the built-in ⇔ `defaultPresetId === null`). */
@@ -298,7 +306,7 @@ function PresetEditorBody({
   configUnreadable,
   onRevealSection,
 }: PresetEditorBodyProps): ReactElement {
-  const { form, saveState, retrySave, reseed } = session;
+  const { form, saveState, restored, retrySave, reseed } = session;
 
   // The reset ACT — the header owns the door and its confirm; the write is a SESSION concern (the mutation
   // plus the reseed that lands its response row), so it is wired here and injected.
@@ -306,14 +314,14 @@ function PresetEditorBody({
     // Reseed from the mutation's RESPONSE row (§5) — the verb returns the freshly-reset PresetDetail, so
     // there is no post-invalidation cache read to race. `reseed` discard-flags the outgoing session so the
     // dirty pre-reset form is dropped, never written back over the starter (the F2 write-back vector).
-    reset.mutate({ id: presetId }, { onSuccess: (row): void => reseed(seedConfig(row.config)) });
+    reset.mutate({ id: presetId }, { onSuccess: (row): void => reseed(presetEditorValues(seedConfig(row.config))) });
   };
 
   // The session's `form` is the boundary's widened surface minus `reset`; the view bodies are typed
   // against the full `AppFormInstance` (the editor never calls `reset`), so widen once here. NOTHING
   // publishes it any more: the form BRIDGE is deleted with the CONTEXT inspector (§5.2) — CONTEXT is a
   // pure-query readout now, so no sibling shell region needs a live form handle.
-  const boundForm = form as AppFormInstance<PromptConfig>;
+  const boundForm = form as AppFormInstance<PresetEditorValues>;
 
   // `attachable` is the NEGATION of the SAME `isSystemDefault` wire flag the header's Reset arm reads — the
   // client never sniffs the built-in from its sentinel id (`domain/preset/constants.ts`: "Not cross-boundary").
@@ -339,7 +347,7 @@ function PresetEditorBody({
           isSystemDefault={isSystemDefault}
           onActivate={onActivate}
           onRename={onRename}
-          saveState={saveState}
+          saveState={restored && saveState === "saved" ? "restored" : saveState}
           onRetrySave={retrySave}
           onConfirmReset={confirmReset}
         />

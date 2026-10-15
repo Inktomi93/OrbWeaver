@@ -6,7 +6,7 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { Key, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { removeActionName } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
@@ -21,6 +21,8 @@ export interface EntryListEditorProps<TItem> {
   /** The Add button label. */
   readonly addLabel: string;
   readonly items: readonly TItem[];
+  /** Draft owners supply their row identity; purely positional displays may omit it. */
+  readonly getKey?: (item: TItem, index: number) => Key | undefined;
   readonly getTitle: (item: TItem, index: number) => string;
   readonly getSubtitle: (item: TItem, index: number) => string;
   readonly onAdd: () => void;
@@ -47,6 +49,7 @@ export function EntryListEditor<TItem>({
   emptyText,
   addLabel,
   items,
+  getKey,
   getTitle,
   getSubtitle,
   onAdd,
@@ -121,8 +124,8 @@ export function EntryListEditor<TItem>({
                 </Row>
               }
               clickable={true}
-              // biome-ignore lint/suspicious/noArrayIndexKey: callbacks address current positions; removal consent separately expires when the items snapshot changes.
-              key={index}
+              // biome-ignore lint/suspicious/noArrayIndexKey: draft owners supply stable keys; the fallback is for positional displays without row identity.
+              key={getKey === undefined ? index : getKey(item, index)}
               onClick={(): void => onEdit(index)}
               subtitle={getSubtitle(item, index)}
               title={getTitle(item, index)}

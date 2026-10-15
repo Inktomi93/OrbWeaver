@@ -21,7 +21,6 @@
 // otherwise see, so the row says so quietly. The preset names come off the host-gated config view
 // (`presetMacroNames`), never re-derived here.
 
-import type { UserMacroSpec } from "@orb/contracts/preset";
 import { userMacroSchema } from "@orb/contracts/preset";
 import type { RpgConfigView } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
@@ -34,11 +33,16 @@ import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { notify, withUserMacros } from "#lib";
+import { admitUserMacroValues, canonicalUserMacroValues, newMacroRowIds } from "../../../components/user-macro-editor-model.ts";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
 // The autosave macro-list form. Module scope (stable identity — the D54 §13.1 factory pattern); keyed by the
 // chatId so switching chats with the Game tab open is a full remount seeded from the new game's macros.
-const GameMacrosFormBoundary = createAutosaveEntityForm<UserMacrosFormValues>({ defaultValues: { userMacros: [] } });
+const GameMacrosFormBoundary = createAutosaveEntityForm<UserMacrosFormValues>({
+  defaultValues: { userMacros: [], macroRowIds: [] },
+  canonicalValues: canonicalUserMacroValues,
+  admitValues: admitUserMacroValues,
+});
 
 export interface RpgGameMacrosProps {
   readonly chatId: ChatId;
@@ -52,7 +56,7 @@ export function RpgGameMacros({ chatId, config }: RpgGameMacrosProps): ReactElem
   const updateConfig = useUpdateConfig({ trpc, invalidation });
   const save = (values: UserMacrosFormValues): Promise<unknown> => updateConfig.mutateAsync({ chatId, patch: { userMacros: values.userMacros } });
   return (
-    <GameMacrosFormBoundary entityId={`rpg-game-macros:${chatId}`} serverValues={{ userMacros: [...config.userMacros] }} save={save}>
+    <GameMacrosFormBoundary entityId={`rpg-game-macros:${chatId}`} serverValues={{ userMacros: [...config.userMacros], macroRowIds: [] }} save={save}>
       {(session): ReactElement => <GameMacrosBody session={session} presetMacroNames={config.presetMacroNames} />}
     </GameMacrosFormBoundary>
   );
@@ -67,25 +71,27 @@ function GameMacrosBody({
   readonly presetMacroNames: readonly string[];
 }): ReactElement {
   const { form } = session;
-  // The open editor targets a macro INDEX (`null` = closed). Add pushes then opens the new tail.
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const shadowed = new Set(presetMacroNames);
 
   const onAdd = (): void => {
-    // Capture the PRE-push length (pushFieldValue applies synchronously — the Variables-tab off-by-one).
-    const newIndex = form.state.values.userMacros.length;
     // Minted THROUGH the schema (the preset tab's Add does the same) — every other field is a schema default.
-    form.pushFieldValue("userMacros", userMacroSchema.parse({ name: "new_macro", body: "" }));
-    setEditIndex(newIndex);
+    const macro = userMacroSchema.parse({ name: "new_macro", body: "" });
+    const ids = newMacroRowIds(macro);
+    form.pushFieldValue("userMacros", macro);
+    form.pushFieldValue("macroRowIds", ids);
+    setEditId(ids.id);
   };
 
   return (
     <Stack gap="field" data-slot="rpg-game-macros">
-      <form.Subscribe selector={(state): readonly UserMacroSpec[] => state.values.userMacros}>
-        {(userMacros): ReactElement => (
+      <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>
+        {(values): ReactElement => (
           <EntryListEditor
             addLabel="Add macro"
-            editIndex={editIndex}
+            editIndex={
+              editId === null || !values.macroRowIds.some((row) => row.id === editId) ? null : values.macroRowIds.findIndex((row) => row.id === editId)
+            }
             // An empty list must say what empty MEANS here ([[empty-states-are-load-bearing]]): the feature
             // exists, this game just hasn't defined one — not "macros are unavailable".
             emptyText="No game macros yet — the ones you add here live with this game and leave with it."
@@ -100,22 +106,26 @@ function GameMacrosBody({
             getTitle={(macro): string => (macro.name === "" ? "Unnamed macro" : `{{${macro.name}}}`)}
             heading="Game macros"
             helperText="Template macros scoped to THIS game — usable anywhere macros resolve while it runs, and offered in Macro picks. Your preset's macros keep working alongside them."
-            items={userMacros}
+            items={values.userMacros}
+            getKey={(_macro, index): string | undefined => values.macroRowIds[index]?.id}
             onAdd={onAdd}
-            onEdit={setEditIndex}
+            onEdit={(index): void => setEditId(values.macroRowIds[index]?.id ?? null)}
             onRemove={(index): void => {
-              form.removeFieldValue("userMacros", index).catch(() => notify.error("Couldn't remove the macro."));
+              Promise.all([form.removeFieldValue("userMacros", index), form.removeFieldValue("macroRowIds", index)]).catch(() =>
+                notify.error("Couldn't remove the macro."),
+              );
             }}
             renderEditor={(index): ReactElement => (
               <UserMacroEditorDialog
+                key={values.macroRowIds[index]?.id}
                 form={form}
                 index={index}
-                onClose={(): void => setEditIndex(null)}
+                onClose={(): void => setEditId(null)}
                 // BOTH planes, in the resolver's precedence (game defs first — `withUserMacros` registers
                 // them first, so a shadowed preset name never reaches the popover as a second row). The
                 // preset half is NAMES only by the least-privilege view: those rows say where they come
                 // from and nothing they cannot know.
-                suggestions={withUserMacros(userMacros, presetMacroNames)}
+                suggestions={withUserMacros(values.userMacros, presetMacroNames)}
               />
             )}
           />

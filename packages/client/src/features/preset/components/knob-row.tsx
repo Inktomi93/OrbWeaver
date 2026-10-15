@@ -31,7 +31,6 @@
 // Every KnobRow MUST be mounted inside a KnobGrid; the two are exported together from this module so the
 // pairing has one home.
 
-import type { PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, RotateCcw } from "@orb/ui/icons";
@@ -45,6 +44,7 @@ import type { AppFormInstance } from "#forms/editor";
 import type { EffectiveKnobRow, KnobGhost } from "../lib/effective-knobs.ts";
 import { clampGloss, knobGhost } from "../lib/effective-knobs.ts";
 import { PRESET_NUMBER_FORMAT } from "../lib/format-count.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import type { KnobBinding } from "../lib/sampling-knob-catalog.ts";
 
 /** The placeholder for a knob whose funnel reports NO value on this model — the honest empty (§4.3): the
@@ -66,7 +66,7 @@ function inheritedValueText(ghost: KnobGhost | null): string {
 }
 
 export interface KnobRowProps {
-  readonly form: AppFormInstance<PromptConfig>;
+  readonly form: AppFormInstance<PresetEditorValues>;
   /** The `params.*` path both controls bind (§16 row 12 — ONE field, two modalities). */
   readonly name: KnobBinding["field"];
   readonly label: string;

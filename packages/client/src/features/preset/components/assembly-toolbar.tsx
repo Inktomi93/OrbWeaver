@@ -8,7 +8,7 @@
 // one-way door). Picking one appends the section AND drills straight into its editor, where the NAME field
 // is: naming is part of creating, one flow, not "add a row then go find it".
 
-import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { MarkerType, PromptSection } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Toolbar } from "@orb/ui/layout";
@@ -16,8 +16,9 @@ import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { addableSections } from "../lib/assembly-model.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 
-type AssemblyForm = AppFormInstance<PromptConfig>;
+type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 export interface AssemblyToolbarProps {
   readonly form: AssemblyForm;

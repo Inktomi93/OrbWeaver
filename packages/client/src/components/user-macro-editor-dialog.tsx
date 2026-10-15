@@ -28,14 +28,14 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { notify } from "#lib";
 import { FormDialog } from "./form-dialog.tsx";
+import type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
 
-/** The minimal form value shape the dialog binds — any editor form carrying a `userMacros` array. */
-export interface UserMacrosFormValues {
-  readonly userMacros: UserMacroSpec[];
-}
+/** The shared macro editor's draft values, including parallel row identities. */
+export type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
 
 // The form the dialog binds — a direct-bind form OR the autosave factory's reset-less form (the dialog never
 // calls `reset`, so it accepts the wider shape; the RegexEditorDialog precedent).
@@ -44,7 +44,6 @@ type UserMacroEditorForm = Omit<AppFormInstance<UserMacrosFormValues>, "reset">;
 /** One declared arg / one typed input — the schema doesn't export the element types, so derive them. */
 type UserMacroArg = UserMacroSpec["args"][number];
 type UserMacroInput = UserMacroSpec["inputs"][number];
-type UserMacroInputOption = UserMacroInput["options"][number];
 
 /** One input's field-path base — a TEMPLATE-LITERAL type (not `string`) so `${base}.knob` stays inside
  *  the form's typed DeepKeys union. */
@@ -161,17 +160,17 @@ function makeArg(): UserMacroArg {
 /** The declared-args list — the SAME arg contract builtins declare; enforced at render by checkMacroArgs. */
 function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly index: number }): ReactElement {
   const argsName = `userMacros[${index}].args` as const;
+  const addButton = useRef<HTMLButtonElement>(null);
   return (
     <Section heading="Arguments">
       <Text size="micro" tone="muted">
         Positional args a call passes ({"{{name::a::b}}"}) — each binds by name inside the template. Optional args must come last.
       </Text>
-      <form.Subscribe selector={(state): readonly UserMacroArg[] => state.values.userMacros[index]?.args ?? []}>
-        {(args): ReactElement => (
+      <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>
+        {(values): ReactElement => (
           <Stack gap="field">
-            {args.map((_arg, j) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: args are a positional, id-less list edited in place by index — the index IS the identity.
-              <Row key={j} gap="field" align="end">
+            {values.macroRowIds[index]?.args.map((id, j) => (
+              <Row key={id} gap="field" align="end" role="group" aria-label={`Argument ${j + 1}`}>
                 <form.AppField name={`userMacros[${index}].args[${j}].name`}>{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
                 <form.AppField name={`userMacros[${index}].args[${j}].type`}>
                   {(field): ReactElement => <field.SelectField label="Type" items={MACRO_ARG_TYPE_ITEMS} />}
@@ -184,7 +183,10 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
                   intent="ghost"
                   size="sm"
                   onClick={(): void => {
-                    form.removeFieldValue(argsName, j).catch(() => notify.error("Couldn't update the macro."));
+                    addButton.current?.focus();
+                    Promise.all([form.removeFieldValue(argsName, j), form.removeFieldValue(`macroRowIds[${index}].args`, j)]).catch(() =>
+                      notify.error("Couldn't update the macro."),
+                    );
                   }}
                 >
                   Remove
@@ -193,10 +195,12 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
             ))}
             <Row>
               <Button
+                ref={addButton}
                 intent="secondary"
                 size="sm"
                 onClick={(): void => {
                   form.pushFieldValue(argsName, makeArg());
+                  form.pushFieldValue(`macroRowIds[${index}].args`, crypto.randomUUID());
                 }}
               >
                 <Icon icon={Plus} size="sm" />
@@ -227,32 +231,40 @@ function makeInput(): UserMacroInput {
 /** The typed-inputs list (#24) — each input is a per-user, per-turn control; the kind picks the knobs. */
 function InputList({ form, index }: { readonly form: UserMacroEditorForm; readonly index: number }): ReactElement {
   const inputsName = `userMacros[${index}].inputs` as const;
+  const addButton = useRef<HTMLButtonElement>(null);
   return (
     <Section heading="Inputs">
       <Text size="micro" tone="muted">
         Typed controls each user answers per turn — the pick binds by name inside the template. Random pick draws one from the selected pool every generation
         (swipes replay the same draw).
       </Text>
-      <form.Subscribe selector={(state): readonly UserMacroInput[] => state.values.userMacros[index]?.inputs ?? []}>
-        {(inputs): ReactElement => (
+      <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>
+        {(values): ReactElement => (
           <Stack gap="field">
-            {inputs.map((input, j) => (
+            {values.userMacros[index]?.inputs.map((input, j) => (
               <InputEditor
-                // biome-ignore lint/suspicious/noArrayIndexKey: inputs are a positional, id-less list edited in place by index — the index IS the identity.
-                key={j}
+                key={values.macroRowIds[index]?.inputs[j]?.id}
                 form={form}
                 macroIndex={index}
                 inputIndex={j}
                 kind={input.kind}
-                onRemove={(): void => void form.removeFieldValue(inputsName, j).catch(() => notify.error("Couldn't update the macro."))}
+                onRemove={(): void => {
+                  addButton.current?.focus();
+                  Promise.all([form.removeFieldValue(inputsName, j), form.removeFieldValue(`macroRowIds[${index}].inputs`, j)]).catch(() =>
+                    notify.error("Couldn't update the macro."),
+                  );
+                }}
               />
             ))}
             <Row>
               <Button
+                ref={addButton}
                 intent="secondary"
                 size="sm"
                 onClick={(): void => {
-                  form.pushFieldValue(inputsName, makeInput());
+                  const input = makeInput();
+                  form.pushFieldValue(inputsName, input);
+                  form.pushFieldValue(`macroRowIds[${index}].inputs`, { id: crypto.randomUUID(), options: input.options.map(() => crypto.randomUUID()) });
                 }}
               >
                 <Icon icon={Plus} size="sm" />
@@ -283,7 +295,7 @@ function InputEditor({
   const base = `userMacros[${macroIndex}].inputs[${inputIndex}]` as const;
   const hasOptions = kind !== "boolean-toggle";
   return (
-    <Card tone="neutral">
+    <Card tone="neutral" role="group" aria-label={`Macro input ${inputIndex + 1}`}>
       <Stack gap="field">
         <Row gap="field" align="end" justify="between">
           <form.AppField name={`${base}.kind`}>{(field): ReactElement => <field.SelectField label="Kind" items={USER_MACRO_INPUT_KIND_ITEMS} />}</form.AppField>
@@ -363,20 +375,24 @@ function InputOptionList({
   readonly inputIndex: number;
 }): ReactElement {
   const optionsName = `${base}.options` as const;
+  const addButton = useRef<HTMLButtonElement>(null);
   return (
-    <form.Subscribe selector={(state): readonly UserMacroInputOption[] => state.values.userMacros[macroIndex]?.inputs[inputIndex]?.options ?? []}>
-      {(options): ReactElement => (
+    <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>
+      {(values): ReactElement => (
         <Stack gap="field">
-          {options.map((_option, k) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: options are a positional, id-less list edited in place by index — the index IS the identity.
-            <Row key={k} gap="field" align="end">
+          {values.macroRowIds[macroIndex]?.inputs[inputIndex]?.options.map((id, k) => (
+            <Row key={id} gap="field" align="end" role="group" aria-label={`Input option ${k + 1}`}>
               <form.AppField name={`${base}.options[${k}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
               <form.AppField name={`${base}.options[${k}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
               <Button
                 intent="ghost"
                 size="sm"
                 onClick={(): void => {
-                  form.removeFieldValue(optionsName, k).catch(() => notify.error("Couldn't update the macro."));
+                  addButton.current?.focus();
+                  Promise.all([
+                    form.removeFieldValue(optionsName, k),
+                    form.removeFieldValue(`macroRowIds[${macroIndex}].inputs[${inputIndex}].options`, k),
+                  ]).catch(() => notify.error("Couldn't update the macro."));
                 }}
               >
                 Remove
@@ -385,10 +401,12 @@ function InputOptionList({
           ))}
           <Row>
             <Button
+              ref={addButton}
               intent="secondary"
               size="sm"
               onClick={(): void => {
                 form.pushFieldValue(optionsName, { label: "Option", value: "" });
+                form.pushFieldValue(`macroRowIds[${macroIndex}].inputs[${inputIndex}].options`, crypto.randomUUID());
               }}
             >
               <Icon icon={Plus} size="sm" />

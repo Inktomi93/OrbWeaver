@@ -5,7 +5,6 @@
 
 import type { SamplerStage } from "@orb/contracts/inference";
 import { completeSamplerOrder, TERMINAL_SAMPLER_STAGES } from "@orb/contracts/inference";
-import type { PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
 import { HintTrigger } from "@orb/ui/hint-trigger";
@@ -15,13 +14,14 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { SAMPLER_STAGE_LABELS } from "../lib/capability-panel-model.ts";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 
 const LEGEND = SAMPLING_FLAG_LABELS.samplerOrder;
 const HINT = "The order the server applies its samplers in. Drag a row, or focus its grip and use Space and the arrow keys.";
 const FIXED_LAST_GLOSS = "always runs last";
 
-export function SamplerOrder({ form, stages }: { readonly form: AppFormInstance<PromptConfig>; readonly stages: readonly SamplerStage[] }): ReactElement {
+export function SamplerOrder({ form, stages }: { readonly form: AppFormInstance<PresetEditorValues>; readonly stages: readonly SamplerStage[] }): ReactElement {
   return (
     <form.AppField name="params.samplerOrder">
       {(field): ReactElement => {

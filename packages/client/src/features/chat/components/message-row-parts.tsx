@@ -202,12 +202,12 @@ export function renderRowBubble(args: {
       // declared `outside` for exactly that reason and never reaches this with a header. Rendering it at
       // the head of the stack anyway keeps the slot TOTAL: a future trains skin that chose `inside` would
       // paint a header above its pills, never silently drop the speaker.
-      <Stack gap="field" data-slot="message-bubble-train">
+      <Stack key={args.message.content} gap="field" data-slot="message-bubble-train">
         {args.header}
         {args.reasoning}
         {args.trainParagraphs.map((paragraph, index) => (
           <Stack
-            // biome-ignore lint/suspicious/noArrayIndexKey: paragraphs are a stable re-split of the SAME settled message.content each render — the index IS the paragraph identity.
+            // biome-ignore lint/suspicious/noArrayIndexKey: ordinal paragraphs belong to the keyed immutable message snapshot; replacement expires descendant state.
             key={index}
             gap="row"
             data-slot="message-bubble"

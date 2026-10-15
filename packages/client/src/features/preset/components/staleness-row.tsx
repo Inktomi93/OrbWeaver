@@ -4,7 +4,6 @@
 
 import type { SamplerKnob } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS } from "@orb/contracts/inference";
-import type { PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
@@ -13,9 +12,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms/editor";
+import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { SAMPLING_KNOBS } from "../lib/sampling-knob-catalog.ts";
 
-type AppForm = AppFormInstance<PromptConfig>;
+type AppForm = AppFormInstance<PresetEditorValues>;
 
 /** The staleness row's vocabulary (§4.2): every knob the effective read can report as STORED-BUT-DROPPED,
  *  with the WIRE name the row prints and the one write that unsets it. A closure per row rather than a

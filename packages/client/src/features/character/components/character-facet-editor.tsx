@@ -320,10 +320,10 @@ function ExampleTranscript({
     return <Text voice="quiet">No example messages yet.</Text>;
   }
   return (
-    <Stack gap="block">
+    <Stack key={value} gap="block">
       {blocks.map((block, index) => (
         <Stack
-          // biome-ignore lint/suspicious/noArrayIndexKey: example blocks are a positional `<START>` array with no stable id — the index IS the identity.
+          // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to the keyed immutable transcript snapshot; replacement remounts native Markdown state.
           key={index}
           gap="row"
           padding="field"

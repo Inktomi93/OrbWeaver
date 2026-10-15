@@ -3,7 +3,6 @@
 // schema→home map (Data and Transforms simply stack the leaves that used to be sub-tabs).
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -16,12 +15,13 @@ import type { StalenessRowProps } from "../components/staleness-row.tsx";
 import { UserMacrosTab } from "../components/user-macros-tab.tsx";
 import { VariablesTab } from "../components/variables-tab.tsx";
 import type { EffectiveProfileRow } from "./effective-knobs.ts";
+import type { PresetEditorValues } from "./preset-editor-values.ts";
 import type { PresetEditorView } from "./preset-nav.ts";
 import { openSectionInPrompt } from "./preset-nav.ts";
 import type { ReadFailure } from "./resolve-failure.ts";
 
 export interface ViewContentProps {
-  readonly form: AppFormInstance<PromptConfig>;
+  readonly form: AppFormInstance<PresetEditorValues>;
   readonly capability: GenerationCapability | undefined;
   readonly capabilityError: ReadFailure | null;
   /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
