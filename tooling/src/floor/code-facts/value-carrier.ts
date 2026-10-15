@@ -803,6 +803,9 @@ function createCallableUseSharing(
   admission: CallableAdmission | undefined,
 ): CallableUseSharing | undefined {
   const context = program?.callableContext;
+  if (typeof admission === "function") {
+    context?.untrackedRead?.();
+  }
   if (program === undefined || context === undefined || typeof admission === "function") {
     return;
   }

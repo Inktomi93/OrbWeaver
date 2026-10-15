@@ -1,7 +1,8 @@
 // The expressions the function a call targets returns, entered through a factory that is local, imported or a const-bound arrow.
 // Every answer is a `ReferenceFact`: an unreadable factory is an `unresolved` fact with a reason, never an empty list.
-import type { CallExpression, Node as MorphNode } from "ts-morph";
+import type { CallExpression, Node as MorphNode, ts } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { captureNativeReferenceReads } from "../compiler/ts-workspace.ts";
 import {
   readObservedCallableConsumers as callableConsumers,
   readCallReturnProgram as capturedProgram,
@@ -31,7 +32,6 @@ import type {
 } from "./reference-fact-contract.ts";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "./type-member-origin.ts";
-
 import { readAuthoredCallableSources } from "./value-carrier.ts";
 
 interface Trace {
@@ -631,6 +631,7 @@ interface CapturedCallGroup {
   calls: CallReturnObservation[];
   readonly sources: Map<import("ts-morph").SourceFile, import("ts-morph").ts.SourceFile>;
   settled?: SettledCapture;
+  readonly refinement: CapturedRefinementIndexes;
 }
 
 // Forgetting a wrapper leaves its native Program alive, so index reuse also retains each input wrapper identity.
@@ -660,6 +661,439 @@ function settledNodes(indexes: CapturedCallIndexes, references: readonly MorphNo
   return nodes;
 }
 
+function sameCaptureProjection(left: Readonly<Record<keyof CallReturnCaptureOptions, boolean>>, right: CallReturnCaptureOptions): boolean {
+  return (
+    (left.explicitAbsentReturns === true) === (right.explicitAbsentReturns === true) &&
+    (left.nativeValueTransfers === true) === (right.nativeValueTransfers === true) &&
+    (left.suppliedCallableTargets === true) === (right.suppliedCallableTargets === true)
+  );
+}
+
+function sameCapturedNode(left: MorphNode, right: MorphNode): boolean {
+  return !(left.wasForgotten() || right.wasForgotten()) && left.compilerNode === right.compilerNode;
+}
+
+function sameOrdered<T>(left: readonly T[], right: readonly T[], same: (left: T, right: T) => boolean): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => {
+      const other = right[index];
+      return other !== undefined && same(value, other);
+    })
+  );
+}
+
+function sameCapturedFact<T>(left: ReferenceFact<T>, right: ReferenceFact<T>, same: (left: T, right: T) => boolean): boolean {
+  if (!(sameCapturedNode(left.trace.origin, right.trace.origin) && sameOrdered(left.trace.declarations, right.trace.declarations, sameCapturedNode))) {
+    return false;
+  }
+  return left.kind === "unresolved"
+    ? right.kind === "unresolved" && left.reason === right.reason && left.detail === right.detail && sameCapturedNode(left.node, right.node)
+    : right.kind === "resolved" && same(left.value, right.value);
+}
+
+function sameCapturedNodes(left: readonly MorphNode[], right: readonly MorphNode[]): boolean {
+  return sameOrdered(left, right, sameCapturedNode);
+}
+
+function sameOptionalFact<T>(left: ReferenceFact<T> | undefined, right: ReferenceFact<T> | undefined, same: (left: T, right: T) => boolean): boolean {
+  return left === undefined || right === undefined ? left === right : sameCapturedFact(left, right, same);
+}
+
+function sameCapturedAlternative(
+  left: import("./reference-fact-contract.ts").CallReturnAlternative,
+  right: import("./reference-fact-contract.ts").CallReturnAlternative,
+): boolean {
+  return (
+    sameCapturedNode(left.target, right.target) &&
+    sameCapturedFact(left.returns, right.returns, sameCapturedNodes) &&
+    sameOptionalFact(left.explicitReturns, right.explicitReturns, sameCapturedNodes) &&
+    sameOptionalFact(left.nativeReturns, right.nativeReturns, sameCapturedNodes)
+  );
+}
+
+function sameCapturedObservation(left: CallReturnObservation, right: CallReturnObservation): boolean {
+  return (
+    sameCapturedNode(left.call, right.call) &&
+    sameCapturedFact(left.target, right.target, sameCapturedNode) &&
+    sameCapturedFact(left.targets, right.targets, sameCapturedNodes) &&
+    sameOptionalFact(left.invocationTargets, right.invocationTargets, sameCapturedNodes) &&
+    sameCapturedFact(left.returns, right.returns, sameCapturedNodes) &&
+    sameCapturedFact(left.alternatives, right.alternatives, (a, b) => sameOrdered(a, b, sameCapturedAlternative))
+  );
+}
+
+function capturedFactNodes<T>(fact: ReferenceFact<T>, nodes: (value: T) => readonly MorphNode[]): readonly MorphNode[] {
+  return [fact.trace.origin, ...fact.trace.declarations, ...(fact.kind === "resolved" ? nodes(fact.value) : [fact.node])];
+}
+
+function observationNodes(observation: CallReturnObservation): readonly MorphNode[] {
+  const facts = [observation.targets, observation.returns, ...(observation.invocationTargets === undefined ? [] : [observation.invocationTargets])];
+  return [
+    observation.call,
+    ...capturedFactNodes(observation.target, (value) => [value]),
+    ...facts.flatMap((fact) => capturedFactNodes(fact, (value) => value)),
+    ...capturedFactNodes(observation.alternatives, (values) =>
+      values.flatMap((value) => [
+        value.target,
+        ...[
+          value.returns,
+          ...(value.explicitReturns === undefined ? [] : [value.explicitReturns]),
+          ...(value.nativeReturns === undefined ? [] : [value.nativeReturns]),
+        ].flatMap((fact) => capturedFactNodes(fact, (nodes) => nodes)),
+      ]),
+    ),
+  ];
+}
+
+interface RefinementCell {
+  readonly users: Set<ts.CallExpression>;
+  readonly refresh: () => boolean;
+}
+
+interface RefinementReadSet {
+  readonly cells: Set<RefinementCell>;
+  readonly nodes: Map<MorphNode, ts.Node>;
+  opaque: boolean;
+}
+
+interface RefinementEntry extends RefinementReadSet {
+  readonly projection: Readonly<Record<keyof CallReturnCaptureOptions, boolean>>;
+  readonly nativeProgram: ts.Program;
+  readonly sources: CallReturnProgram["sources"];
+  readonly context: CallReturnProofContext | undefined;
+  readonly referencesObserved: boolean;
+  readonly supplied: boolean;
+  readonly nativeValues: boolean;
+  readonly sourceCount: number;
+  readonly validateNative: (() => boolean) | undefined;
+}
+
+class RefinementMap<K, V extends object> extends Map<K, V> {
+  readonly #read: (key: K, value: V | undefined, presence: boolean) => void;
+  readonly #opaque: () => void;
+  constructor(values: Iterable<readonly [K, V]>, read: (key: K, value: V | undefined, presence: boolean) => void, opaque: () => void) {
+    super(values);
+    this.#read = read;
+    this.#opaque = opaque;
+  }
+  override get(key: K): V | undefined {
+    const value = super.get(key);
+    this.#read(key, value, false);
+    return value;
+  }
+  override has(key: K): boolean {
+    const value = super.has(key);
+    this.#read(key, super.get(key), true);
+    return value;
+  }
+  override get size(): number {
+    this.#opaque();
+    return super.size;
+  }
+  override entries(): ReturnType<Map<K, V>["entries"]> {
+    this.#opaque();
+    return super.entries();
+  }
+  override keys(): ReturnType<Map<K, V>["keys"]> {
+    this.#opaque();
+    return super.keys();
+  }
+  override values(): ReturnType<Map<K, V>["values"]> {
+    this.#opaque();
+    return super.values();
+  }
+  override [Symbol.iterator](): ReturnType<Map<K, V>[typeof Symbol.iterator]> {
+    this.#opaque();
+    return super[Symbol.iterator]();
+  }
+  override forEach(...args: Parameters<Map<K, V>["forEach"]>): void {
+    this.#opaque();
+    super.forEach(...args);
+  }
+}
+
+class RefinementIndex<K, V extends object> {
+  readonly #ledger: RefinementLedger;
+  readonly #same: (left: V, right: V) => boolean;
+  readonly #nodes: (value: V) => readonly MorphNode[];
+  readonly #reads = new Map<K, RefinementCell>();
+  readonly #presence = new Map<K, RefinementCell>();
+  #current: ReadonlyMap<K, V> = new Map();
+  constructor(ledger: RefinementLedger, same: (left: V, right: V) => boolean, nodes: (value: V) => readonly MorphNode[]) {
+    this.#ledger = ledger;
+    this.#same = same;
+    this.#nodes = nodes;
+    ledger.releaseReaders.add(() => {
+      this.#reads.clear();
+      this.#presence.clear();
+    });
+  }
+  map(values: Iterable<readonly [K, V]>): ReadonlyMap<K, V> {
+    this.#ledger.opaque();
+    const current: RefinementMap<K, V> = new RefinementMap(
+      values,
+      (key, value, presence) => this.#record(current, key, value, presence),
+      () => this.#ledger.opaque(),
+    );
+    this.#current = current;
+    return current;
+  }
+  #record(view: ReadonlyMap<K, V>, key: K, value: V | undefined, presence: boolean): void {
+    const read = this.#ledger.active;
+    if (read === undefined || read.opaque) {
+      return;
+    }
+    if (view !== this.#current) {
+      this.#ledger.opaque();
+      return;
+    }
+    const cells = presence ? this.#presence : this.#reads;
+    let cell = cells.get(key);
+    if (cell === undefined) {
+      let prior = value;
+      cell = {
+        users: new Set(),
+        refresh: (): boolean => {
+          const next = this.#current.get(key);
+          const valuesEqual = prior === undefined || next === undefined ? prior === next : this.#same(prior, next);
+          const equal = presence ? (prior === undefined) === (next === undefined) : valuesEqual;
+          prior = next;
+          return !equal;
+        },
+      };
+      cells.set(key, cell);
+      this.#ledger.cells.add(cell);
+    }
+    read.cells.add(cell);
+    if (!presence && value !== undefined) {
+      this.#ledger.remember(this.#nodes(value));
+    }
+  }
+}
+
+class RefinementMembership extends Set<ts.CallExpression> {
+  readonly #ledger: RefinementLedger;
+  readonly #reads = new Map<ts.CallExpression, RefinementCell>();
+  constructor(values: Iterable<ts.CallExpression>, ledger: RefinementLedger) {
+    super(values);
+    this.#ledger = ledger;
+    ledger.releaseReaders.add(() => this.#reads.clear());
+  }
+  override has(key: ts.CallExpression): boolean {
+    const value = super.has(key);
+    const read = this.#ledger.active;
+    if (read !== undefined && !read.opaque) {
+      let cell = this.#reads.get(key);
+      if (cell === undefined) {
+        let prior = value;
+        cell = {
+          users: new Set(),
+          refresh: (): boolean => {
+            const next = super.has(key);
+            const changed = next !== prior;
+            prior = next;
+            return changed;
+          },
+        };
+        this.#reads.set(key, cell);
+        this.#ledger.cells.add(cell);
+      }
+      read.cells.add(cell);
+    }
+    return value;
+  }
+  override get size(): number {
+    this.#ledger.opaque();
+    return super.size;
+  }
+  override entries(): ReturnType<Set<ts.CallExpression>["entries"]> {
+    this.#ledger.opaque();
+    return super.entries();
+  }
+  override keys(): ReturnType<Set<ts.CallExpression>["keys"]> {
+    this.#ledger.opaque();
+    return super.keys();
+  }
+  override values(): ReturnType<Set<ts.CallExpression>["values"]> {
+    this.#ledger.opaque();
+    return super.values();
+  }
+  override [Symbol.iterator](): ReturnType<Set<ts.CallExpression>[typeof Symbol.iterator]> {
+    this.#ledger.opaque();
+    return super[Symbol.iterator]();
+  }
+  override forEach(...args: Parameters<Set<ts.CallExpression>["forEach"]>): void {
+    this.#ledger.opaque();
+    super.forEach(...args);
+  }
+}
+
+class RefinementLedger {
+  readonly cells = new Set<RefinementCell>();
+  readonly releaseReaders = new Set<() => void>();
+  readonly release = (): void => {
+    this.opaque();
+    for (const cell of this.cells) {
+      cell.users.clear();
+    }
+    this.cells.clear();
+    this.#entries.clear();
+    this.#dirty.clear();
+    for (const release of this.releaseReaders) {
+      release();
+    }
+  };
+  readonly #entries = new Map<ts.CallExpression, RefinementEntry>();
+  readonly #dirty = new Set<ts.CallExpression>();
+  active: RefinementReadSet | undefined;
+  opaque(): void {
+    if (this.active !== undefined) {
+      this.active.opaque = true;
+      this.active.cells.clear();
+      this.active.nodes.clear();
+    }
+  }
+  remember(nodes: readonly MorphNode[]): void {
+    const read = this.active;
+    if (read === undefined || read.opaque) {
+      return;
+    }
+    for (const node of nodes) {
+      if (node.wasForgotten()) {
+        this.opaque();
+        return;
+      }
+      read.nodes.set(node, node.compilerNode);
+    }
+  }
+  refresh(): void {
+    for (const cell of this.cells) {
+      if (cell.refresh()) {
+        for (const user of cell.users) {
+          this.#dirty.add(user);
+        }
+      }
+    }
+  }
+  #remove(key: ts.CallExpression): void {
+    const previous = this.#entries.get(key);
+    for (const cell of previous?.cells ?? []) {
+      cell.users.delete(key);
+    }
+    this.#entries.delete(key);
+  }
+  #current(previous: CallReturnObservation, observed: CallReturnObservations, entry: RefinementEntry): boolean {
+    const admitted = capturedProgram(previous.call, observed);
+    if (admitted.kind !== "resolved") {
+      return false;
+    }
+    const program = admitted.value;
+    if (
+      program.program !== entry.nativeProgram ||
+      program.sources !== entry.sources ||
+      program.sources.size !== entry.sourceCount ||
+      program.callableContext !== entry.context ||
+      program.referencesObserved !== entry.referencesObserved ||
+      (program.suppliedCallableTargets === true) !== entry.supplied ||
+      (program.nativeValueTransfers === true) !== entry.nativeValues
+    ) {
+      return false;
+    }
+    for (const [node, native] of entry.nodes) {
+      if (node.wasForgotten() || node.compilerNode !== native) {
+        return false;
+      }
+    }
+    return true;
+  }
+  reuse(previous: CallReturnObservation, observed: CallReturnObservations, projection: CallReturnCaptureOptions): boolean {
+    const key = previous.call.compilerNode;
+    const entry = this.#entries.get(key);
+    if (entry === undefined || this.#dirty.has(key) || !sameCaptureProjection(entry.projection, projection) || !this.#current(previous, observed, entry)) {
+      return false;
+    }
+    return (entry.validateNative?.() ?? true) && sameCaptureProjection(entry.projection, projection) && this.#current(previous, observed, entry);
+  }
+  evaluate(
+    previous: CallReturnObservation,
+    observed: CallReturnObservations,
+    projection: CallReturnCaptureOptions,
+    compute: () => CallReturnObservation,
+  ): CallReturnObservation {
+    if (this.active !== undefined) {
+      this.opaque();
+      return compute();
+    }
+    const key = previous.call.compilerNode;
+    this.#remove(key);
+    this.#dirty.delete(key);
+    const read: RefinementReadSet = { cells: new Set(), nodes: new Map(), opaque: false };
+    const native = captureNativeReferenceReads(this.release);
+    const options = {
+      suppliedCallableTargets: projection.suppliedCallableTargets === true,
+      explicitAbsentReturns: projection.explicitAbsentReturns === true,
+      nativeValueTransfers: projection.nativeValueTransfers === true,
+    } satisfies Readonly<Record<keyof CallReturnCaptureOptions, boolean>>;
+    this.active = read;
+    try {
+      const next = compute();
+      this.remember(observationNodes(next));
+      const captured = capturedProgram(previous.call, observed);
+      const validation = native();
+      if (
+        !read.opaque &&
+        captured.kind === "resolved" &&
+        sameCaptureProjection(options, projection) &&
+        (!validation.used || validation.validate !== undefined)
+      ) {
+        const program = captured.value;
+        const entry: RefinementEntry = {
+          ...read,
+          projection: options,
+          nativeProgram: program.program,
+          sources: program.sources,
+          context: program.callableContext,
+          referencesObserved: program.referencesObserved,
+          supplied: program.suppliedCallableTargets === true,
+          nativeValues: program.nativeValueTransfers === true,
+          sourceCount: program.sources.size,
+          validateNative: validation.validate,
+        };
+        this.#entries.set(key, entry);
+        for (const cell of entry.cells) {
+          cell.users.add(key);
+        }
+      }
+      return sameCapturedObservation(previous, next) ? previous : next;
+    } finally {
+      this.active = undefined;
+    }
+  }
+}
+
+interface CapturedRefinementIndexes {
+  readonly calls: RefinementIndex<ts.CallExpression, CallReturnObservation>;
+  readonly callers: RefinementIndex<ts.Node, readonly CallReturnObservation[]>;
+  readonly escapes: RefinementIndex<ts.Node, readonly UnresolvedReferenceFact[]>;
+}
+
+function refinementIndexes(ledger: RefinementLedger): CapturedRefinementIndexes {
+  return {
+    calls: new RefinementIndex(ledger, sameCapturedObservation, observationNodes),
+    callers: new RefinementIndex(
+      ledger,
+      (left, right) => sameOrdered(left, right, sameCapturedObservation),
+      (rows) => rows.flatMap(observationNodes),
+    ),
+    escapes: new RefinementIndex(
+      ledger,
+      (left, right) => sameOrdered(left, right, (a, b) => sameCapturedFact(a, b, () => true)),
+      (rows) => rows.flatMap((fact) => capturedFactNodes(fact, () => [])),
+    ),
+  };
+}
+
 function captureObservationSources(group: CapturedCallGroup, observation: CallReturnObservation): void {
   const { call, targets, alternatives } = observation;
   const paths =
@@ -685,7 +1119,7 @@ interface SuppliedRefinement {
   readonly capture: (call: CallExpression) => void;
   readonly snapshot: () => CallReturnObservations;
   readonly onBodyNode: ((node: MorphNode) => void) | undefined;
-  readonly targetKey: (targets: ReferenceFact<readonly MorphNode[]> | undefined) => string;
+  readonly ledger: RefinementLedger;
 }
 
 function enterObservationBodies(observation: CallReturnObservation, group: CapturedCallGroup, inputs: SuppliedRefinement): readonly CallExpression[] {
@@ -705,7 +1139,11 @@ function enterObservationBodies(observation: CallReturnObservation, group: Captu
 
 function refineSuppliedRound(groups: ReadonlyMap<import("ts-morph").Project, CapturedCallGroup>, inputs: SuppliedRefinement): boolean {
   const observed = inputs.snapshot();
+  inputs.ledger.refresh();
   const demandedBefore = inputs.demandedOwners.size;
+  const referencesBefore = inputs.references.length;
+  const directBefore = inputs.directCalls.size;
+  const sourcesBefore = [...groups.values()].map((group) => group.sources.size);
   const keys = callableHomeKeys(inputs.demandedOwners);
   const newCalls: CallExpression[] = [];
   let changed = false;
@@ -715,15 +1153,13 @@ function refineSuppliedRound(groups: ReadonlyMap<import("ts-morph").Project, Cap
       if (inputs.directCalls.has(previous.call.compilerNode) || !incomingCallableCandidate(previous.call, keys)) {
         return previous;
       }
-      const refined = refinedObservation(previous, inputs.admitted, observed, inputs.projection);
+      const refined = inputs.ledger.reuse(previous, observed, inputs.projection)
+        ? previous
+        : inputs.ledger.evaluate(previous, observed, inputs.projection, () => refinedObservation(previous, inputs.admitted, observed, inputs.projection));
       newCalls.push(...enterObservationBodies(refined, group, inputs));
       return refined;
     });
-    changed ||= group.calls.some(
-      (observation, index) =>
-        inputs.targetKey(observation.targets) !== inputs.targetKey(previousCalls[index]?.targets) ||
-        inputs.targetKey(observation.invocationTargets) !== inputs.targetKey(previousCalls[index]?.invocationTargets),
-    );
+    changed ||= group.calls.some((observation, index) => previousCalls[index] === undefined || !sameCapturedObservation(observation, previousCalls[index]));
   }
   for (const call of newCalls) {
     if (inputs.admitted.has(call.compilerNode)) {
@@ -733,7 +1169,13 @@ function refineSuppliedRound(groups: ReadonlyMap<import("ts-morph").Project, Cap
     inputs.capture(call);
     changed = true;
   }
-  return changed || inputs.demandedOwners.size !== demandedBefore;
+  return (
+    changed ||
+    inputs.demandedOwners.size !== demandedBefore ||
+    inputs.references.length !== referencesBefore ||
+    inputs.directCalls.size !== directBefore ||
+    [...groups.values()].some((group, index) => group.sources.size !== sourcesBefore[index])
+  );
 }
 
 function refuseCyclicRefinement(
@@ -753,37 +1195,39 @@ function refuseCyclicRefinement(
 
 function refineSuppliedCapture(
   groups: ReadonlyMap<import("ts-morph").Project, CapturedCallGroup>,
-  context: Omit<SuppliedRefinement, "targetKey" | "enteredBodies">,
+  context: Omit<SuppliedRefinement, "enteredBodies">,
 ): CallReturnObservations {
-  const nodeIds = new Map<object, number>();
-  const identity = (node: MorphNode): number => {
-    const previous = nodeIds.get(node.compilerNode);
-    if (previous !== undefined) {
-      return previous;
-    }
-    const id = nodeIds.size;
-    nodeIds.set(node.compilerNode, id);
-    return id;
-  };
   const calls = [...groups.values()].flatMap((group) => group.calls);
   const inputs: SuppliedRefinement = {
     ...context,
-    targetKey: (targets) => (targets?.kind === "resolved" ? targets.value.map(identity).join(",") : "?"),
     enteredBodies: new Set(calls.flatMap((call) => (call.targets.kind === "resolved" ? call.targets.value.map((target) => target.compilerNode) : []))),
   };
-  const states = new Set<string>();
+  const states: {
+    readonly calls: readonly CallReturnObservation[];
+    readonly owners: readonly MorphNode[];
+    readonly references: number;
+    readonly direct: readonly ts.CallExpression[];
+  }[] = [];
   for (;;) {
-    const state =
-      [...inputs.demandedOwners].map(identity).join(",") +
-      ":" +
-      [...groups.values()]
-        .flatMap((group) => group.calls.map((call) => `${identity(call.call)}:${inputs.targetKey(call.targets)}:${inputs.targetKey(call.invocationTargets)}`))
-        .join(";");
-    if (states.has(state)) {
+    const state = {
+      calls: [...groups.values()].flatMap((group) => group.calls),
+      owners: [...inputs.demandedOwners],
+      references: inputs.references.length,
+      direct: [...inputs.directCalls],
+    };
+    if (
+      states.some(
+        (previous) =>
+          sameOrdered(previous.calls, state.calls, sameCapturedObservation) &&
+          sameOrdered(previous.owners, state.owners, sameCapturedNode) &&
+          previous.references === state.references &&
+          sameOrdered(previous.direct, state.direct, (left, right) => left === right),
+      )
+    ) {
       refuseCyclicRefinement(groups, inputs.directCalls);
       return inputs.snapshot();
     }
-    states.add(state);
+    states.push(state);
     if (!refineSuppliedRound(groups, inputs)) {
       return inputs.snapshot();
     }
@@ -817,7 +1261,7 @@ function captureCallableValue(node: MorphNode, captured: CallReturnProgram, grou
 
 function suppliedCallableUseReader(
   captured: () => CallReturnProgram,
-  context: { readonly activeOwners: Set<import("ts-morph").ts.Node>; readonly demand: (owner: MorphNode) => void },
+  context: { readonly activeOwners: Set<import("ts-morph").ts.Node>; readonly demand: (owner: MorphNode) => void; readonly opaque: () => void },
 ): (owner: MorphNode) => ReferenceFact<true> {
   const { activeOwners, demand } = context;
   return (owner: MorphNode): ReferenceFact<true> => {
@@ -826,6 +1270,7 @@ function suppliedCallableUseReader(
     if (epoch.kind === "unresolved") {
       return epoch;
     }
+    context.opaque();
     if (activeOwners.has(owner.compilerNode)) {
       return unresolved("cycle", owner, { declarations: [] }, "the supplied callable owner revisits its containing uses");
     }
@@ -856,6 +1301,7 @@ export function observeCallReturns(
     projection.nativeValueTransfers === true || projection.suppliedCallableTargets === true
       ? { nativeSymbolServices: { callableOrigin: resolveCallableValueOrigin, memberOrigin: resolveTypeMemberOrigin, declaredByPackage } }
       : {};
+  const ledger = new RefinementLedger();
   const groups = new Map<import("ts-morph").Project, CapturedCallGroup>();
   const observedReferences = [...(references ?? [])];
   const onBodyNode =
@@ -867,7 +1313,10 @@ export function observeCallReturns(
           }
         };
   const closure = readCallClosure(roots, onBodyNode);
-  const admitted = new Set(closure.map((call) => call.compilerNode));
+  const admitted = new RefinementMembership(
+    closure.map((call) => call.compilerNode),
+    ledger,
+  );
   const directCalls = new Set<import("ts-morph").ts.CallExpression>();
   const capture = (call: CallExpression): void => {
     const target = projection.suppliedCallableTargets === true ? authoredCallTarget(call) : readCallTarget(call);
@@ -875,7 +1324,7 @@ export function observeCallReturns(
     const project = call.getProject();
     let group = groups.get(project);
     if (group === undefined) {
-      group = { calls: [], sources: new Map() };
+      group = { calls: [], sources: new Map(), refinement: refinementIndexes(ledger) };
       groups.set(project, group);
     }
     const enumerate =
@@ -897,21 +1346,27 @@ export function observeCallReturns(
   let refining = false;
   let settledDemandCount = 0;
   const callableContext: CallReturnProofContext = {
+    untrackedRead: () => ledger.opaque(),
     admitted,
     activeOwners,
     get referenceRevision(): number {
+      ledger.opaque();
       return observedReferences.length;
     },
     get demandRevision(): number {
+      ledger.opaque();
       return demandedOwners.size;
     },
     get directRevision(): number {
+      ledger.opaque();
       return directCalls.size;
     },
     get settledDemandRevision(): number {
+      ledger.opaque();
       return settledDemandCount;
     },
     get refining(): boolean {
+      ledger.opaque();
       return refining;
     },
   };
@@ -922,7 +1377,17 @@ export function observeCallReturns(
     }
     refining = true;
     try {
-      refineSuppliedCapture(groups, { admitted, directCalls, references: observedReferences, demandedOwners, projection, capture, snapshot, onBodyNode });
+      refineSuppliedCapture(groups, {
+        admitted,
+        directCalls,
+        references: observedReferences,
+        demandedOwners,
+        projection,
+        capture,
+        snapshot,
+        onBodyNode,
+        ledger,
+      });
       for (const publish of publishers) {
         publish();
       }
@@ -954,7 +1419,7 @@ export function observeCallReturns(
           nodes = previous.nodes;
           return previous.indexes;
         }
-        const byCall = new Map(group.calls.map((observation) => [observation.call.compilerNode, observation]));
+        const byCall = group.refinement.calls.map(group.calls.map((observation) => [observation.call.compilerNode, observation] as const));
         const currentReferences = observedReferences.filter((node) => node.getProject() === project);
         for (const reference of currentReferences) {
           const source = reference.getSourceFile();
@@ -962,9 +1427,9 @@ export function observeCallReturns(
         }
         const indexes = {
           calls: group.calls,
-          callers: capturedCallers(group.calls),
+          callers: group.refinement.callers.map(capturedCallers(group.calls)),
           byCall,
-          escapingReferences: escapingReferences(currentReferences, byCall),
+          escapingReferences: group.refinement.escapes.map(escapingReferences(currentReferences, byCall)),
         };
         if (projection.suppliedCallableTargets === true) {
           nodes = settledNodes(indexes, currentReferences);
@@ -995,11 +1460,12 @@ export function observeCallReturns(
           ? {
               suppliedCallableTargets: true as const,
               callableContext,
-              suppliedCallableUses: suppliedCallableUseReader(() => captured, { activeOwners, demand }),
+              suppliedCallableUses: suppliedCallableUseReader(() => captured, { activeOwners, demand, opaque: () => ledger.opaque() }),
               suppliedCallableValue: (node: MorphNode) => captureCallableValue(node, captured, group),
             }
           : {}),
         get calls(): CallReturnProgram["calls"] {
+          ledger.opaque();
           return indexes.calls;
         },
         get callers(): CallReturnProgram["callers"] {

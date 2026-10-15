@@ -176,6 +176,8 @@ export interface CallReturnAlternative {
 
 /** Mutable capture owners expose their read-only proof inputs without hiding admission in a predicate. */
 export interface CallReturnProofContext {
+  /** Opaque admission effects cannot grant dependency-directed refinement reuse. */
+  readonly untrackedRead?: () => void;
   readonly admitted: ReadonlySet<ts.CallExpression>;
   readonly activeOwners: ReadonlySet<ts.Node>;
   readonly referenceRevision: number;
