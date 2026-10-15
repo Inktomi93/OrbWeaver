@@ -1,11 +1,11 @@
 import type { LocalLightCpuPercent, LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
-import type { ProviderBackend } from "#contract";
 import type { LoadTransformersKernel } from "#src/contract/local-light-kernel.ts";
 import type { LocalLightLoadProgress, LocalLightRerankServing } from "#src/contract/local-light-worker.ts";
 import type { EmbedRequest } from "#src/contract/roles.ts";
 import type { LocalLightModelSlot } from "#src/contract/runtime.ts";
+import type { ProviderBackend } from "./backend.ts";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 
 export interface LocalLightBackendDeps {

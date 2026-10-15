@@ -1,4 +1,4 @@
-import type { ScheduleTimeout } from "#contract";
+import type { ScheduleTimeout } from "#src/contract/runtime.ts";
 
 export const realScheduleTimeout: ScheduleTimeout = (callback, ms) => {
   const timer = setTimeout(callback, ms);

@@ -45,7 +45,7 @@ The staged-selection release-promotion cases fail on current qualification gener
 
 JSON and wire parsing allowances are zero; whole-application qualification remains open.
 
-Edit feedback reports a type-only import cycle between `packages/inference/src/contract/agent-sdk-execution.ts` and `packages/inference/src/contract/runtime.ts`. Both contracts import each other; repair shared declaration ownership without an exemption.
+Inference SDK hook types share a leaf contract. Worker dependencies use direct contract imports. Scoped inference imports, inference/server types and independent review pass. Evidence: `reports/review/inference-contract-leaves-independent-review.md`.
 
 Native ESLint partition and real CLI controls pass. The [hosted artifact](https://github.com/Inktomi93/OrbWeaver/actions/runs/38544900781) leaves shared-declaration and `contract-verb-presence` native-library qualification open. Arbitrary owner selection and legacy fixture repairs are not remedies.
 

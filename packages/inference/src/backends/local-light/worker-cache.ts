@@ -6,7 +6,6 @@ import { Worker } from "node:worker_threads";
 import { isHubModelId } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
-import type { ScheduleTimeout } from "#contract";
 import type { ProviderErrorInit } from "#src/contract/errors.ts";
 import { ProviderError } from "#src/contract/errors.ts";
 import type {
@@ -18,6 +17,7 @@ import type {
   LocalLightWorkerOptions,
   LocalLightWorkerValue,
 } from "#src/contract/local-light-worker.ts";
+import type { ScheduleTimeout } from "#src/contract/runtime.ts";
 import type { InferenceLog } from "#src/deps.ts";
 import type { WorkerModelCache } from "../../contract/local-light.ts";
 import { realScheduleTimeout } from "../http/timers.ts";
