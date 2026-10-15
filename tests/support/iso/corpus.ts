@@ -39,9 +39,12 @@ import {
 } from "./corpus-library.ts";
 import type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
 import { hydrateLibraryRelations, libraryRelationsSchema, publishLibraryRelations } from "./corpus-library-relations.ts";
+import type { CorpusSearchLibrary } from "./corpus-search.ts";
+import { corpusSearchSchema, hydrateCorpusSearch, publishCorpusSearch } from "./corpus-search.ts";
 
 export type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 export type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
+export type { CorpusSearchLibrary } from "./corpus-search.ts";
 
 const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
 
@@ -142,6 +145,7 @@ const publishedCorpusSchema = z
     worldInfoLibrary: worldInfoLibrarySchema.optional(),
     regexLibrary: regexLibrarySchema.optional(),
     libraryRelations: libraryRelationsSchema.optional(),
+    searchLibrary: corpusSearchSchema.optional(),
     memberIdentities: memberIdentitiesSchema.optional(),
     reads: z.strictObject({
       "sessions.me": viewerViewSchema.array(),
@@ -222,6 +226,7 @@ export interface CorpusReads {
 
 /** Serializable input produced by the Node publisher, not an intake for arbitrary procedure requests. */
 export interface CorpusWireInput {
+  readonly searchLibrary?: CorpusSearchLibrary;
   readonly libraryRelations?: CorpusLibraryRelations;
   readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
@@ -235,6 +240,7 @@ export interface CorpusWireInput {
 }
 
 export interface CorpusWire {
+  readonly searchLibrary?: CorpusSearchLibrary;
   readonly libraryRelations?: CorpusLibraryRelations;
   readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
@@ -256,6 +262,9 @@ function hydrateReads<P extends TrpcProcedurePath>(
 
 /** Validate published captures through their real owners while preserving each exact captured input. */
 export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
+  if (input.searchLibrary !== undefined) {
+    publishCorpusSearch(input.searchLibrary);
+  }
   if (input.libraryRelations !== undefined) {
     publishLibraryRelations(input.libraryRelations);
   }
@@ -279,6 +288,7 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
     auth: corpusAuthSchema.parse(input.auth),
     ...(input.oidc === undefined ? {} : { oidc: corpusOidcSchema.parse(input.oidc) }),
     health: healthResponseSchema.parse(input.health),
+    ...(input.searchLibrary === undefined ? {} : { searchLibrary: input.searchLibrary }),
     ...(input.libraryRelations === undefined ? {} : { libraryRelations: input.libraryRelations }),
     ...(input.memberIdentities === undefined ? {} : { memberIdentities: input.memberIdentities }),
     ...(input.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: input.worldInfoLibrary }),
@@ -375,6 +385,7 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
     auth: published.auth,
     ...(published.oidc === undefined ? {} : { oidc: published.oidc }),
     health: published.health,
+    ...(published.searchLibrary === undefined ? {} : { searchLibrary: hydrateCorpusSearch(published.searchLibrary) }),
     ...(published.libraryRelations === undefined ? {} : { libraryRelations: hydrateLibraryRelations(published.libraryRelations) }),
     ...(published.memberIdentities === undefined ? {} : { memberIdentities: published.memberIdentities }),
     ...(published.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: hydrateWorldInfoLibrary(published.worldInfoLibrary) }),
@@ -429,6 +440,8 @@ function capturedSnapshotInputs(wire: CorpusWire): string {
   const request = <T>(input: T): { readonly present: boolean; readonly value?: T } =>
     input === undefined ? { present: false } : { present: true, value: input };
   return stableStringify({
+    searchLibrary: Object.fromEntries(Object.entries(wire.searchLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
+    searchRooms: wire.searchLibrary?.rooms.map((room) => request(room.input)) ?? [],
     libraryRelations: Object.fromEntries(Object.entries(wire.libraryRelations?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     worldInfoLibrary: Object.fromEntries(Object.entries(wire.worldInfoLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     regexLibrary: Object.fromEntries(Object.entries(wire.regexLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
@@ -455,6 +468,7 @@ export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]
     auth: wire.auth,
     ...(wire.oidc === undefined ? {} : { oidc: wire.oidc }),
     health: wire.health,
+    ...(wire.searchLibrary === undefined ? {} : { searchLibrary: publishCorpusSearch(wire.searchLibrary) }),
     ...(wire.libraryRelations === undefined ? {} : { libraryRelations: publishLibraryRelations(wire.libraryRelations) }),
     ...(wire.memberIdentities === undefined ? {} : { memberIdentities: wire.memberIdentities }),
     ...(wire.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: publishWorldInfoLibrary(wire.worldInfoLibrary) }),
