@@ -14,12 +14,19 @@
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { ResponseCacheSettings } from "@orb/contracts/preset";
 import { modelDisplayName } from "@orb/kit/model-name";
-import type { EffectiveKnobRow, EffectiveProfileRow } from "../contract/effective-profile.ts";
+import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "./sampling-knob-catalog.ts";
 
-export type { EffectiveKnobRow, EffectiveProfileRow } from "../contract/effective-profile.ts";
+export type EffectiveProfileRow = Pick<
+  inferOutput<Trpc["preset"]["resolveEffective"]>,
+  "cache" | "cacheWarnings" | "model" | "knobs" | "stale" | "qualityMapping"
+>;
 
 /** The ghost also accepts client-only window provenance; its value still derives the actual wire reading. */
+export type EffectiveKnobRow = Pick<WireKnobReading, "value"> & { readonly provenance: string };
+
+type WireKnobReading = NonNullable<EffectiveProfileRow["knobs"][keyof EffectiveProfileRow["knobs"]]>;
 
 export const RESPONSE_REPLAY_CHOICES = ["inherit", "off", "on"] as const;
 export const RESPONSE_REPLAY_LABELS: Readonly<Record<(typeof RESPONSE_REPLAY_CHOICES)[number], string>> = {

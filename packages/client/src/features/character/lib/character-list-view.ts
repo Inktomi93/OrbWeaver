@@ -19,10 +19,15 @@
 // `character.listTagGroups` now — one census over the same scope the page pages — and this file's job
 // shrank to what only the client can do: put the rows it HAS under the headers the server named.
 
+import type { CharacterSummary, ListCharacterTagGroupsResult } from "@orb/contracts/character";
+import type { TagView } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
-import type { FilterableRow, RowTag, TagGroupCensus } from "../contract/library.ts";
 
-export type { FilterableRow, RowTag, TagGroupCensus } from "../contract/library.ts";
+export type RowTag = Pick<TagView, "id" | "name" | "isHiddenOnCard" | "folderType">;
+
+export type FilterableRow = { readonly [K in keyof Pick<CharacterSummary, "tags">]: readonly RowTag[] };
+
+export type TagGroupCensus = ListCharacterTagGroupsResult;
 
 /** A categorized bucket: a visible tag (or the null "Uncategorized" catch-all), the members this pane has
  *  PAGED IN, and how big the bucket is in the library. */

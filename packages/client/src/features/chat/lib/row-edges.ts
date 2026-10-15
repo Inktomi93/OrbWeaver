@@ -3,14 +3,20 @@
 // half (pager-chrome.ts). Every paint here applies only while the header is pinned (`usePinnedHeader`).
 
 import type { MessageRole } from "@orb/kit/message-role";
-import type { ActionsRow } from "../contract/row-edges.ts";
+
+/** What the header bar carries. `identity: false` is a bar with no speaker (stock document): only the
+ *  actions, as a quiet chip at the trailing edge, with a line of its own on the last row only. `surface` is
+ *  the plate the actions cluster itself paints: it fades in and out with the actions, so a chip that sits
+ *  over the page is never an empty box and never glyphs on bare words. */
+export interface ActionsRow {
+  readonly identity: boolean;
+  readonly surface: string;
+}
 
 /** The bar's paint while pinned, for a row of this role. */
 export interface PinnedHeader {
   readonly paint: (role: MessageRole) => string;
 }
-
-export type { ActionsRow } from "../contract/row-edges.ts";
 
 // The fade under a pinned bar: the bar's own surface dissolving to nothing over one block step, so the line
 // scrolling under the bar's edge is faded, never guillotined. Out of flow (`top-full`), so it adds no box to

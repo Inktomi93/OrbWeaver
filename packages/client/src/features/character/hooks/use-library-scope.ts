@@ -14,15 +14,19 @@
 // seam, and the two regions cannot disagree about the answer.
 
 import { useQuery } from "@tanstack/react-query";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { useTRPC } from "#data";
 import { useDebouncedValue } from "#lib";
 import { useCharacterSearch, useFavoritesOnly, useFiltersOpen, useShowArchived, useTagFilter } from "#state";
-import type { LibraryScopeArgs } from "../contract/library.ts";
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
 import { CHARACTER_SEARCH_DEBOUNCE_MS, effectiveTagFilter, knownTagIds, tagVocabulary } from "../lib/character-library-lens.ts";
 import { useLibraryLens } from "./use-library-lens.ts";
 
-export type { LibraryScopeArgs } from "../contract/library.ts";
+export type LibraryScopeArgs = Pick<
+  Exclude<inferInput<Trpc["character"]["list"]>, void>,
+  "search" | "starred" | "archived" | "includeTagIds" | "excludeTagIds"
+>;
 
 export interface LibraryScope {
   /** The narrowing arguments, ready to spread into `character.list`. */

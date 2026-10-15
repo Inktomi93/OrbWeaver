@@ -46,17 +46,20 @@
 // footer and the name row; not one of them touches the message body.
 
 import type { MessageView } from "@orb/contracts/chat";
+import type { AppearanceSettings } from "@orb/contracts/settings";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
 import { cn, timeLib } from "#lib";
-import type { MessageMetadataVisibility } from "../contract/presentation.ts";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
 import { cacheTokensLabel, canRevealGenerationCost } from "../lib/message-readout.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
-export type { MessageMetadataVisibility } from "../contract/presentation.ts";
+export type MessageMetadataVisibility = Pick<
+  AppearanceSettings,
+  "showTimestamps" | "showMessageId" | "showModelIcon" | "showTokenCount" | "showGenerationTimer" | "showGenerationCost"
+>;
 
 export interface MessageMetadataRowProps {
   readonly message: MessageView;

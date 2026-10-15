@@ -1,22 +1,49 @@
 // The Share card's view-model: the share preconditions as rows, the start refusal each row owns, and the
 // memory that notices a relay coming back under a new URL. Pure, so every verdict is unit-proved.
 
-import type { AuthMode, IpCertificateRefusal, IpCertificateState, RelayDownReason, RelayStatus, ShareState, ShareStatus } from "@orb/contracts/identity";
-import { IP_CERTIFICATE_REFUSALS, RELAY_BINARY_REFUSALS, SHARE_MODE_REFUSAL, SHARE_REFUSALS } from "@orb/contracts/identity";
-import { trpcErrorReason } from "#lib";
 import type {
-  IpCertificateFormValues,
-  IpCertificateRefusalView,
-  PreconditionRow,
-  PreconditionVerdict,
-  ShareFactsView,
-  SharePrecondition,
-  ShareStartFailure,
-  ShareStartRefusal,
-} from "../contract/share.ts";
-import { SHARE_PRECONDITIONS } from "../contract/share.ts";
+  AuthMode,
+  IpCertificateRefusal,
+  IpCertificateState,
+  RelayBinaryRefusal,
+  RelayDownReason,
+  RelayStatus,
+  ShareRefusal,
+  ShareState,
+  ShareStatus,
+  SignInModeView,
+} from "@orb/contracts/identity";
+import { IP_CERTIFICATE_REFUSALS, RELAY_BINARY_REFUSALS, SHARE_MODE_REFUSAL, SHARE_REFUSALS } from "@orb/contracts/identity";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
+import { trpcErrorReason } from "#lib";
 
-export type { IpCertificateFormValues, IpCertificateRefusalView, PreconditionRow, ShareFactsView, ShareStartFailure } from "../contract/share.ts";
+export type ShareFactsView = Pick<SignInModeView, "mode"> &
+  Pick<EffectiveAppConfig, "localMultiUser" | "discreetLogin"> & { readonly refusal: ShareStartFailure["code"] | null };
+
+export type PreconditionRow = Readonly<{ id: (typeof SHARE_PRECONDITIONS)[number]; verdict: (typeof PRECONDITION_VERDICTS)[number] }>;
+
+export type IpCertificateRefusalView = Omit<ShareStartFailure, "code"> & { readonly code: IpCertificateRefusal };
+
+const SHARE_PRECONDITIONS = ["mode", "owner", "seating", "relay"] as const;
+
+type SharePrecondition = (typeof SHARE_PRECONDITIONS)[number];
+
+const PRECONDITION_VERDICTS = ["met", "unmet", "waiting", "unchecked", "refused"] as const;
+
+type PreconditionVerdict = (typeof PRECONDITION_VERDICTS)[number];
+
+type ShareStartRefusal = ShareRefusal | RelayBinaryRefusal;
+
+export interface ShareStartFailure {
+  readonly code: ShareStartRefusal;
+  readonly message: string;
+}
+
+export interface IpCertificateFormValues {
+  readonly address: string;
+  readonly httpsPort: number | null;
+  readonly challengePort: number | null;
+}
 
 /** How a visitor signs in under each mode, in the words the mode row and the Multi-user sign-in helper both use. */
 export const MODE_NAME: Record<AuthMode, string> = {

@@ -7,9 +7,8 @@ import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import type { WorkloadProgressView } from "../contract/progress.ts";
 
-export type { WorkloadProgressView } from "../contract/progress.ts";
+export type WorkloadProgressView = Readonly<{ pct: NonNullable<WorkloadProgress["pct"]> | null; label: NonNullable<WorkloadProgress["message"]> | null }>;
 
 /** The kinds the run dialog offers: singular-capable + built (not a stub). Every `singular: true` mode is
  *  already `stub: false` by construction, so the filter only needs `.singular`. */

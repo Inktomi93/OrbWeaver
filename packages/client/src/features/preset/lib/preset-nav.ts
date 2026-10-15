@@ -16,10 +16,18 @@ import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } 
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select/items";
 import { selectPresetSection, setPresetEditorView } from "#state";
-import type { PresetEditorView, PresetEditorViewId } from "../contract/editor-view.ts";
-import { PRESET_EDITOR_VIEW_TUPLE } from "../contract/editor-view.ts";
 
-export type { PresetEditorView } from "../contract/editor-view.ts";
+export type PresetEditorView = Readonly<Pick<(typeof PRESET_EDITOR_VIEW_TUPLE)[number], "id"> & { label: string }>;
+
+const PRESET_EDITOR_VIEW_TUPLE = [
+  { id: "params", label: "Params" },
+  { id: "prompt", label: "Prompt" },
+  { id: "actions", label: "Actions" },
+  { id: "data", label: "Data" },
+  { id: "transforms", label: "Transforms" },
+] as const;
+
+type PresetEditorViewId = (typeof PRESET_EDITOR_VIEW_TUPLE)[number]["id"];
 
 /** THE CROSS-VIEW SECTION DOOR (crunch-list O-13). A rack section is only reachable in the PROMPT view, so
  *  every "go to that section" affordance elsewhere on the surface — the Actions header's Guided-instruction
@@ -34,13 +42,6 @@ export function openSectionInPrompt(sectionId: string): void {
   setPresetEditorView(PROMPT_VIEW);
   selectPresetSection(sectionId);
 }
-
-/** The five flat views, in strip order (redesign §3). Each `id` drives exactly one content body; the
- *  §3 schema→home map decides which fields live under which view. Keyed off `as const` so the view-id
- *  union derives from the tuple and a new view is a `tsc` error until it has a label AND a body. */
-
-/** The view-id union (file-local — §7.4 forbids an exported bare `type` alias in a feature lib; consumers
- *  read it via the `PresetEditorView.id` interface field). Derived from the tuple. */
 
 // @orb-waive no-vanity-alias(PRESET_EDITOR_VIEWS): baselined when the gate widened; burn-down item 906.
 /** The ONE tab strip's views, in render order. `[0]` is the default the strip resolves an unset store
