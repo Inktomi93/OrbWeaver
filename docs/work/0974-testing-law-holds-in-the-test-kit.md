@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-15
 priority: P2
+lane: codex/testkit-law-qualification-974
 plan: test-foundation
 ---
 

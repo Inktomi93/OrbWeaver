@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-15
 priority: P1
 area: tooling
-lane: codex/type-homes-981
 plan: test-foundation
 ---
 
