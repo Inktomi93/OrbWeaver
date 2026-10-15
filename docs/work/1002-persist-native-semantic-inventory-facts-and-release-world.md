@@ -24,7 +24,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Frozen tests-DOM and root qualifications establish selected extraction, publication, release and overlapping warm reuse, not complete-demand acceptance. Preserve their source, dependencies, databases and reports. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
+Frozen world qualifications establish selected extraction, publication, release and warm reuse, not complete-demand acceptance. Preserve frozen inputs. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
 
 Authored-input admission, native JS-depth origins, ID-brand publication, indexed reads, stale-source refusal and release have selected controls. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Reviewed collector corrections preserve source admission and typed-world meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
 
@@ -36,4 +36,4 @@ Reviewed contextual sharing, optional invocation and native resource registratio
 
 Reviewed `58e33bd1f3` adds dependency-directed refinement and native validation without reference search. Bounded controls pass. Normal isolated materialization at `8dbbc1c953` reproduces the reviewed runtime; tooling types pass and root types retain inherited errors. Evidence: `.claude/worktrees/codex-native-reference-reuse-1002/reports/review/1002-dependency-directed-refinement-implementation.md` and its independent review.
 
-The installed diagnostic completes but refuses `ctx.backgroundSignal`. A bounded handoff control rejects an unsound absence relaxation. Canonical inherited-read-effect coverage is assigned. Evidence: `.claude/worktrees/codex-native-reference-reuse-1002/reports/review/1002-conditional-sibling-read-boundary.md`. Complete publication, equivalence, reuse and hosted cost remain open; item 1027 owns typed delivery.
+Reviewed `2daa074ab9` preserves inherited-effect inputs and contextual keys, bindings and allocations. Scoped controls, review and ordinary tooling types pass; root errors remain. Its full trace refuses mutable lifecycle `db` before the sibling-read boundary. This is neither resolved-target nor equivalent-work performance acceptance. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Complete publication, equivalence, reuse and hosted cost remain open; item 1027 owns typed delivery.
