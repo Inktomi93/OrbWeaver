@@ -56,7 +56,7 @@ Use a structural gate only for a judgment the compiler and maintained tools cann
 Shared code-facts readers own remaining typed analysis; gates and code commands consume the same facts.
 The test-foundation plan owns reader migration and native replacement qualification.
 
-(338 registered gates)
+(337 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -222,7 +222,6 @@ The test-foundation plan owns reader migration and native replacement qualificat
 | `no-mutating-register-api` | — | ordinary/error | @client | a mutating register()-named… |
 | `no-nul-bytes-in-source` | — | hard/error | none | a raw NUL (0x00) byte in a text… |
 | `no-off-token-inline-style` | — | ordinary/error | @client,@ui | off-token raw-literal inline style… |
-| `no-off-token-radius-shadow` | tailwind-class-token | ordinary/error | @client,@ui | off-token default-scale radius/shadow… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
 | `no-parallel-section-map` | registry-definitions | ordinary/error | @client | a hardcoded map (object literal / {… |
 | `no-pointer-variants-in-features` | ui-pointer-capability-tier | ordinary/error | @client | pointer/hover capability variant in a… |

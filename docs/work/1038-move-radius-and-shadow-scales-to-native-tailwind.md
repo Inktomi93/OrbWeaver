@@ -24,4 +24,4 @@ Native compiler and effective ESLint reject off-token classes without changing s
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed `861568105a` configures native radius and shadow namespaces and removes the duplicate custom policy. Canonical utility output remains identical; native carrier, token-contract and retained-policy controls pass. The actual source scan reports only tracked unrelated shell-class errors. UI and tooling types pass; root retains off-owned errors. Evidence: `.claude/worktrees/codex-native-token-scales/reports/review/1038-native-token-scales-delivery.md` and adjacent independent review. The regenerated active-gates index matches the removal. Complete application qualification remains open.

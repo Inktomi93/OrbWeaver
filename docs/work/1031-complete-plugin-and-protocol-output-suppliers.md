@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-15
 priority: P1
-lane: codex/identity-notification-suppliers-1036
 plan: test-foundation
 ---
 
@@ -29,4 +28,4 @@ Reviewed `1f1f330a2f` qualifies native version-diverged withdrawal, frame expiry
 
 Reviewed `8f390f927f` and `87237ed150` qualify selected public plugin stages through the shared corpus, default native continuation and Extensions CT. Existing output parsers have one canonical contracts home. Independent source and complete payload-delta reviews preserve private state, native ownership and prior captures. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-plugin-shared-adoption-payload-delivery.md`. Other variants, unavailable hardstate and complete protocol adoption remain open.
 
-Reviewed `0a3151f610` renders host-authored positional templates once before pricing and framing. Raw storage, ordered variable effects, neutralized guest text, host funding and anchor persona rules remain intact. Native provider-byte regression and foreign/member/own-room controls pass. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1031-in-chat-macro-independent-security-review.md`. Server types and exact lint pass; root retains off-owned errors. Corpus-capture impact remains under adjudication.
+Reviewed `0a3151f610` renders host-authored positional templates once before pricing and framing. Raw storage, ordered variable effects, neutralized guest text, host funding and anchor persona rules remain intact. Native provider-byte regression and foreign/member/own-room controls pass. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1031-in-chat-macro-independent-security-review.md`. Server types and exact lint pass; root retains off-owned errors. The shared recipe uses plain authored notes; canonical rendering preserves their bytes and continuation. Existing corpus publication evidence is reusable. Impact: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1031-injection-corpus-impact.md`.

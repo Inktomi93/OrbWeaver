@@ -42,7 +42,7 @@ Every adapted finding is origin-tagged: `Finding.origin === "impeccable"` in the
   Puppeteer, not Playwright; it carries its own severity vocabulary and ignore grammar that would fork
   our P0-P3 report contract.
 - Their source-regex engine (`detect-text.mjs`) is not adopted either. Source enforcement is the gate
-  battery's job (the tokens-only biome hook, `density-tier`, `no-off-token-radius-shadow`, and more); a
+  battery's job (native Tailwind class validation, `density-tier`, and the token policies); a
   second source scanner would double-home enforcement. Our detector judges rendered truth only.
 - **Chosen shape:** an in-page fact walker gathers raw samples, pure Node checks decide, the runner
   reports. Thresholds and detection recipes come from impeccable, credited; the code is written to our
@@ -145,7 +145,7 @@ translucent stop, as `image-indeterminate` (hand-verify) rather than trusting al
 | `overused-font` | the owner-pinned brand font is Geist, which sits on impeccable's own overused list; adoption would permanently red a deliberate choice |
 | `ai-color-palette` | palette is owner-sacred; off-token color is already source-red via the tokens-only biome hook |
 | `cream-palette` | a dark owner-themed app; the failure class cannot ship through the token pipeline |
-| `gpt-thin-border-wide-shadow` | measured: the rule's border-alpha floor never engages against our low-alpha bordered overlays; the defect class it points at, a hand-rolled elevation recipe instead of the sanctioned shadow token, is already owned at source by `no-off-token-radius-shadow` |
+| `gpt-thin-border-wide-shadow` | measured: the rule's border-alpha floor never engages against our low-alpha bordered overlays; native Tailwind class validation rejects stock shadow scales against the generated theme |
 | `pulsing-dot` | this app's presence/typing indicators are genuinely-live indicators, the rule's own carve-out |
 | `blinking-cursor` | the streaming caret is real live activity, not a decorative hero cursor |
 
