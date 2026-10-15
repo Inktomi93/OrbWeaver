@@ -56,10 +56,24 @@ export async function seedCreatedPersona(
   params: Parameters<PersonaService["create"]>[0],
 ): Promise<SeededCreatedPersona> {
   const view = await create(params);
+  return await captureCreatedPersona(db, view, params.principal.userId);
+}
+
+/** Macro inversion and source provenance belong to the actual character-derived persona writer. */
+export async function seedPersonaFromCharacter(
+  db: Db,
+  createFromCharacter: PersonaService["createFromCharacter"],
+  params: Parameters<PersonaService["createFromCharacter"]>[0],
+): Promise<SeededCreatedPersona> {
+  const view = await createFromCharacter(params);
+  return await captureCreatedPersona(db, view, params.principal.userId);
+}
+
+async function captureCreatedPersona(db: Db, view: SeededCreatedPersona["view"], ownerId: PersonaRow["ownerId"]): Promise<SeededCreatedPersona> {
   const row = await db
     .select()
     .from(personas)
-    .where(and(eq(personas.id, view.id), eq(personas.ownerId, params.principal.userId)))
+    .where(and(eq(personas.id, view.id), eq(personas.ownerId, ownerId)))
     .get();
   if (row === undefined) {
     throw new Error("production persona creation left no canonical owned row");

@@ -10,6 +10,7 @@ export type RosterPresetRuleRow = typeof rosterPresetRules.$inferSelect;
 
 /** One real producer's parent and embedded FK rows, not a second application view. */
 export interface SeededRosterPreset {
+  readonly view: Awaited<ReturnType<RosterPresetService["create"]>>;
   readonly preset: RosterPresetRow;
   readonly members: readonly RosterPresetMemberRow[];
   readonly rules: readonly RosterPresetRuleRow[];
@@ -33,7 +34,7 @@ export async function seedRosterPreset(
   if (members.length !== view.members.length || rules.length !== view.rules.length) {
     throw new Error("production roster rows do not match the produced member/rule census");
   }
-  return { preset, members, rules };
+  return { view, preset, members, rules };
 }
 
 /** Capture the exact created roster IDs and their full child sets, including legitimately empty rule sets. */
