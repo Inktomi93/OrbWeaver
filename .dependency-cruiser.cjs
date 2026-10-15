@@ -884,15 +884,16 @@ module.exports = {
       to: { couldNotResolve: true, pathNot: ["^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\?url$"] },
     },
     {
-      // Overrides recommended-strict's ERROR-severity rule, per dep-cruiser's own prescription for
-      // intentional cases. WHY: react/react-dom are deliberately peer+dev in @orb/ui (peer = the
-      // consumer provides the runtime copy; dev = local typecheck/CT — ui-package-design.md §1), and
-      // the rule has no peer carve-out knob. Cost accepted: the (non-peer) dep+devDep double-listing
-      // mistake class is no longer machine-caught — biome noUndeclaredDependencies + review carry it.
       name: "no-duplicate-dep-types",
-      severity: "ignore",
+      comment:
+        "Peer+dev supplies local checks without bundling the consumer's runtime (ui-package-design.md §1). Any additional runtime, optional or bundled declaration remains a duplicate; type-only edges retain the native preset's exclusion.",
+      severity: "error",
       from: {},
-      to: { moreThanOneDependencyType: true },
+      to: {
+        moreThanOneDependencyType: true,
+        dependencyTypes: ["npm", "npm-optional", "npm-bundled"],
+        dependencyTypesNot: ["type-only"],
+      },
     },
     {
       name: "not-to-dev-dep",
