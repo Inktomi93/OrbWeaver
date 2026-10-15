@@ -4,7 +4,7 @@ import type { GateFact, GateFactValue } from "./fact.ts";
 import type { GateAuthority, GateSeverity } from "./gate-authority.ts";
 import type { GatePolicyAnalysis, GatePolicyReceipt, GatePolicyVisitor } from "./policy-primitives.ts";
 import type { PopulationExpr } from "./population.ts";
-import type { NativeCastRelations } from "./project-context.ts";
+import type { NativeTypeContext } from "./project-context.ts";
 import type { GateResourceRequest } from "./resource-declaration.ts";
 import type { ResourceHost } from "./resource-host.ts";
 
@@ -107,7 +107,7 @@ export interface GatePolicyReportSink {
 
 /** The policy-visible surface. Deliberately contains no Project, root, filesystem, parser, or grants. */
 export interface GatePolicyContext {
-  readonly castRelations?: NativeCastRelations["read"];
+  readonly nativeTypes?: NativeTypeContext;
   readonly files: readonly SourceFile[];
   /** Resource inputs remain complete; resource-backed predicates use this before judging a subject row. */
   readonly includesSubject: (repoRelativePath: string) => boolean;

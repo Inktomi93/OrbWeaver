@@ -1,5 +1,6 @@
 // Reject casts that erase type checking or launder a value directly into a canonical id brand.
 //
+// Native context/epoch failure withholds this owner; it never becomes the primitive's unbranded null answer.
 // NO #944 THIRD ANSWER EXISTS HERE, audited #2041 — recorded rather than faked. Both arms are decided
 // without a reference-origin reader, so there is no refusal to classify: `as never` is pure syntax, and the
 // brand arm asks the CHECKER for the target type's `[brand]` property, which answers "this type does not
@@ -11,7 +12,7 @@
 // ladder, not by a shared origin reader. Its family siblings (`no-mint-via-cast`, `no-fake-disabled-id`,
 // `no-raw-id`) DO resolve origins and each carries the arm with a `messageIncludes` row.
 //
-// FAMILY (`id-brand-flow`): the shared reader is `lib/id-brand.ts` (`canonicalIdBrand`, the checker-backed
+// FAMILY (`id-brand-flow`): the shared reader is `floor/code-facts/id-brand.ts` (`canonicalIdBrand`, the checker-backed
 // brand-property test, shared with `brand-in-name-position`). No private reader, table or walk — the `as
 // never` arm is pure syntax off the visited node.
 //
@@ -44,8 +45,9 @@
 // the product declares it. MEASURED (`pnpm check:structure --check no-loose-id-cast`, whole tree, before and
 // after): population 3,315 → 3,427 (+112, `packages/inference/src/`), findings 0 → 0. A SEAL over a clean
 // tree, not a debt discovery — worth what it costs the day a laundering cast is written in that package.
+import type { TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { canonicalIdBrand, ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
+import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { defineGate } from "../contract/policy.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
@@ -107,35 +109,56 @@ export const gate = defineGate({
     "schema; remove broad cast laundering. A deliberate site is waived with `@orb-waive " +
     "no-loose-id-cast(<position>): <reason>` on the line above, where <position> is the cast expression's " +
     "own text (the value being cast).",
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.AsExpression],
-        visit: (node) => {
-          if (!Node.isAsExpression(node)) {
-            return;
-          }
-          const expression = node.getExpression();
-          const anchor = castAnchor(expression);
-          const raw = anchor.getText().trim();
-          // `?? raw` is the REFUSAL path, not a fallback that hides one: an operand with no anchorable head
-          // hands the raw text to the door, which refuses it loudly (#2107). Dropping the finding here would
-          // trade a visible tool error for a silent blind spot.
-          const token = waivableCoordinate(raw) ?? raw;
-          if (node.getTypeNode()?.isKind(SyntaxKind.NeverKeyword) === true) {
-            ctx.report.node(anchor, { token, offset: 0 });
-            return;
-          }
-          const semanticExpression = unwrapParentheses(expression);
-          const inner = Node.isAsExpression(semanticExpression) && semanticExpression.getTypeNode()?.isKind(SyntaxKind.UnknownKeyword) === true;
-          const target = node.getTypeNode();
-          if (inner && target !== undefined && canonicalIdBrand(ctx.checker().getTypeAtLocation(target), target, ctx.checker()) !== null) {
-            ctx.report.node(anchor, { token, offset: 0 });
-          }
+  create: (ctx) => {
+    const candidates: { readonly target: TypeNode; readonly anchor: Node; readonly token: string }[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.AsExpression],
+          visit: (node) => {
+            if (!Node.isAsExpression(node)) {
+              return;
+            }
+            const expression = node.getExpression();
+            const anchor = castAnchor(expression);
+            const raw = anchor.getText().trim();
+            // `?? raw` is the REFUSAL path, not a fallback that hides one: an operand with no anchorable head
+            // hands the raw text to the door, which refuses it loudly (#2107). Dropping the finding here would
+            // trade a visible tool error for a silent blind spot.
+            const token = waivableCoordinate(raw) ?? raw;
+            if (node.getTypeNode()?.isKind(SyntaxKind.NeverKeyword) === true) {
+              ctx.report.node(anchor, { token, offset: 0 });
+              return;
+            }
+            const semanticExpression = unwrapParentheses(expression);
+            const inner = Node.isAsExpression(semanticExpression) && semanticExpression.getTypeNode()?.isKind(SyntaxKind.UnknownKeyword) === true;
+            const target = node.getTypeNode();
+            if (inner && target !== undefined) {
+              ctx.nativeTypes?.request({ kind: "id-brands", nodes: [target] });
+              candidates.push({ target, anchor, token });
+            }
+          },
         },
+      ],
+      evaluate: () => {
+        if (candidates.length === 0) {
+          return;
+        }
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("no-loose-id-cast: native brand context is unavailable");
+        }
+        const brands = ctx.nativeTypes.idBrands(candidates.map(({ target }) => target));
+        for (const { target, anchor, token } of candidates) {
+          if (!brands.has(target)) {
+            throw new Error("no-loose-id-cast: native brand query is unavailable");
+          }
+          if (brands.get(target) !== null) {
+            ctx.report.node(anchor, { token, offset: 0 });
+          }
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

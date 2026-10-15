@@ -36,8 +36,8 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   assertInvocationPolicies(input.policies);
   assertSelectedPoliciesAreLoaded(input.knownPolicies, input.policies);
   assertOwnerPlans(input);
-  using nativeCasts = input.nativeCastRelations?.();
-  const castOptions = nativeCasts === undefined ? {} : { castRelations: nativeCasts.read };
+  using nativeTypes = input.nativeTypeFacts?.();
+  const nativeOptions = nativeTypes === undefined ? {} : { nativeTypes };
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
   const factErrors: GateFactToolError[] = [];
@@ -54,13 +54,13 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   };
   // The ONE path resolution: every owner context looks its files up here instead of re-deriving them per visit.
   const paths: ReadonlyMap<object, string> = new Map([...sourceFiles].map(([path, sourceFile]) => [sourceFile.compilerNode, path]));
-  createFactRuns({ runs: factRuns, paths, resources, checker: sharedChecker, ...castOptions, control: factControl });
+  createFactRuns({ runs: factRuns, paths, resources, checker: sharedChecker, ...nativeOptions, control: factControl });
   createRuns({
     runs,
     paths,
     resources,
     checker: sharedChecker,
-    ...castOptions,
+    ...nativeOptions,
     errors: toolErrors,
     factValues,
     ...(input.applicationPaths === undefined ? {} : { applicationPaths: input.applicationPaths }),
@@ -69,6 +69,12 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   beginReferencePass();
   try {
     walkRuns({ runs, factRuns, sourceFiles, errors: toolErrors, factControl });
+    nativeTypes?.seal(
+      new Set([
+        ...runs.filter((run) => run.owner.status === "success").map((run) => run.policy.id),
+        ...factRuns.filter((run) => run.status === "success").map((run) => run.fact.id),
+      ]),
+    );
     finishFactRuns(factRuns, factControl);
     withholdFactDependents(runs, toolErrors, factValues);
     evaluateRuns(runs, toolErrors);

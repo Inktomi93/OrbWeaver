@@ -135,7 +135,7 @@ export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanEx
       policies,
       root: input.root,
       project: input.project,
-      ...(input.nativeCastRelations === undefined ? {} : { nativeCastRelations: input.nativeCastRelations }),
+      ...(input.nativeTypeFacts === undefined ? {} : { nativeTypeFacts: input.nativeTypeFacts }),
       ...(requestedPaths === undefined ? {} : { requestedPaths }),
       ...(input.plan.applicationPaths === undefined ? {} : { applicationPaths: input.plan.applicationPaths }),
       ownerPlansByPolicy: new Map(input.plan.policies.map(({ policyId, mode, reason, population }) => [policyId, { mode, reason, population }])),

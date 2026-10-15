@@ -4,13 +4,12 @@
 // WORKSPACE, not the descriptor runtime.
 import { posix } from "node:path";
 import { createSemanticWorkspace, getWorkspace, registeredSemanticSourceView } from "@orb/tooling/floor/compiler/ts-workspace";
-import type { AsExpression } from "ts-morph";
+import type { AsExpression, Node, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
-import type { SemanticInventory } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import type { SemanticSourceView, SemanticWorkspace } from "../../floor/compiler/ts-workspace-contract.ts";
-import type { NativeCastRelations, ProjectContext } from "../contract/project-context.ts";
+import type { NativeTypeContext, NativeTypeFactReader, NativeTypeFacts, NativeTypeRequest, ProjectContext } from "../contract/project-context.ts";
 
 /** repo-relative posix path for an absolute path under `root`. */
 export function repoRel(root: string, absPath: string): string {
@@ -29,7 +28,7 @@ export function projectCtx(root: string): ProjectContext {
     root,
     project,
     files: project.getSourceFiles(),
-    nativeCastRelations: () => castRelations(root, nativeWorkspace),
+    nativeTypeFacts: () => nativeTypeFactSession((queries) => nativeTypeReader(root, nativeWorkspace(), queries)),
     nativeSourceView: (path): SemanticSourceView | undefined => {
       const source = nativeWorkspace().sourceCorpus().getSourceFile(path);
       return source === undefined ? undefined : registeredSemanticSourceView(source);
@@ -37,54 +36,132 @@ export function projectCtx(root: string): ProjectContext {
   };
 }
 
-function castRelations(root: string, workspace: () => SemanticWorkspace): NativeCastRelations {
-  let inventory: SemanticInventory | undefined;
+/** One request ledger is shared by production and the existing isolated proof adapter. */
+export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequest[]) => NativeTypeFactReader): NativeTypeFacts {
+  const requests = new Map<string, NativeTypeRequest[]>();
+  let reader: NativeTypeFactReader | undefined;
+  let failure: { readonly error: unknown } | undefined;
+  let sealed = false;
   let open = true;
+  const assertOpen = (): void => {
+    if (!open) {
+      throw new Error("native type fact context is disposed");
+    }
+  };
+  const assertReadable = (): void => {
+    assertOpen();
+    if (!sealed) {
+      throw new Error("native type requests must be sealed before reading");
+    }
+  };
+  const selected = (owner: string, kind: NativeTypeRequest["kind"], nodes: readonly Node[]): NativeTypeFactReader => {
+    assertReadable();
+    const admitted = new Set<Node>((requests.get(owner) ?? []).filter((query) => query.kind === kind).flatMap((query) => [...query.nodes]));
+    if (nodes.some((node) => !admitted.has(node))) {
+      throw new Error("native type query was not registered by this owner");
+    }
+    if (failure !== undefined) {
+      throw failure.error;
+    }
+    try {
+      reader ??= acquire([...requests.values()].flat());
+      return reader;
+    } catch (error) {
+      failure = { error };
+      throw error;
+    }
+  };
   return {
-    read: (nodes): ReturnType<NativeCastRelations["read"]> => {
-      if (!open) {
-        throw new SemanticInventoryError("native cast relation context is disposed");
+    request: (owner, query): void => {
+      assertOpen();
+      if (sealed) {
+        throw new Error("native type request registration is sealed");
       }
+      if (query.nodes.length > 0) {
+        const rows = requests.get(owner) ?? [];
+        rows.push(query.kind === "cast-relations" ? { kind: query.kind, nodes: [...query.nodes] } : { kind: query.kind, nodes: [...query.nodes] });
+        requests.set(owner, rows);
+      }
+    },
+    seal: (owners): void => {
+      assertOpen();
+      if (sealed) {
+        throw new Error("native type request registration is already sealed");
+      }
+      for (const owner of requests.keys()) {
+        if (!owners.has(owner)) {
+          requests.delete(owner);
+        }
+      }
+      sealed = true;
+    },
+    castRelations: (owner, nodes): ReturnType<NativeTypeContext["castRelations"]> => {
       if (nodes.length === 0) {
+        assertReadable();
         return new Map();
       }
-      const worlds = workspace();
-      const selected = nodes.map((node) => {
-        if (node.wasForgotten()) {
-          throw new SemanticInventoryError("native cast source was forgotten");
-        }
-        const owner = worlds.primaryOwner(node.getSourceFile().getFilePath());
-        if (owner === undefined) {
-          throw new SemanticInventoryError("native cast source has no unambiguous primary compiler owner");
-        }
-        return { node, owner };
-      });
-      const descriptors = [...new Map(selected.map(({ owner }) => [owner.descriptor.id, owner.descriptor])).values()];
-      inventory ??= createSemanticInventory({ root, programs: descriptors, families: ["cast-relations"] });
-      const captured = inventory;
-      if (descriptors.some((descriptor) => !captured.programs.includes(descriptor.id))) {
-        throw new SemanticInventoryError("native cast demand changed after generation pinning");
+      return selected(owner, "cast-relations", nodes).castRelations(nodes);
+    },
+    idBrands: (owner, nodes): ReturnType<NativeTypeContext["idBrands"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
       }
-      const values = new Map<AsExpression, TypeRelation>();
-      for (const { node, owner } of selected) {
-        const result = captured.castRelation(node, owner.descriptor.id);
-        if (result.kind === "unavailable") {
-          throw new SemanticInventoryError(`native cast relation unavailable: ${result.reason}`);
-        }
-        values.set(node, result.value);
-      }
-      return values;
+      return selected(owner, "id-brands", nodes).idBrands(nodes);
     },
     [Symbol.dispose]: (): void => {
       if (open) {
         open = false;
-        inventory?.[Symbol.dispose]();
+        reader?.[Symbol.dispose]();
+        requests.clear();
       }
     },
   };
 }
 
+function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: readonly NativeTypeRequest[]): NativeTypeFactReader {
+  const nodes = queries.flatMap((query) => [...query.nodes]);
+  const owner = (node: Node): string => {
+    if (node.wasForgotten()) {
+      throw new SemanticInventoryError("native typed source was forgotten");
+    }
+    const selected = workspace.primaryOwner(node.getSourceFile().getFilePath());
+    if (selected === undefined) {
+      throw new SemanticInventoryError("native typed source has no unambiguous primary compiler owner");
+    }
+    return selected.descriptor.id;
+  };
+  const descriptors = [
+    ...new Map(
+      nodes.map((node) => {
+        const selected = workspace.program(owner(node));
+        if (selected === undefined) {
+          throw new SemanticInventoryError("native typed primary compiler owner is unavailable");
+        }
+        return [selected.descriptor.id, selected.descriptor] as const;
+      }),
+    ).values(),
+  ];
+  const families = [...new Set(queries.map((query) => query.kind))];
+  // biome-ignore lint/nursery/useDisposables: this reader transfers the store handle to its run-owned session.
+  const inventory = createSemanticInventory({ root, programs: descriptors, families });
+  return {
+    castRelations: (casts): ReadonlyMap<AsExpression, TypeRelation> =>
+      new Map(
+        casts.map((node) => {
+          const result = inventory.castRelation(node, owner(node));
+          if (result.kind === "unavailable") {
+            throw new SemanticInventoryError(`native cast relation unavailable: ${result.reason}`);
+          }
+          return [node, result.value];
+        }),
+      ),
+    idBrands: (brands): ReadonlyMap<TypeNode, string | null> => new Map(brands.map((node) => [node, inventory.idBrand(node, owner(node))])),
+    [Symbol.dispose]: (): void => inventory[Symbol.dispose](),
+  };
+}
+
 /** Share optional acquisition plumbing between both execution doors. */
-export function nativeCastRelationOptions(context: Pick<ProjectContext, "nativeCastRelations">): Pick<ProjectContext, "nativeCastRelations"> {
-  return context.nativeCastRelations === undefined ? {} : { nativeCastRelations: context.nativeCastRelations };
+export function nativeTypeFactOptions(context: Pick<ProjectContext, "nativeTypeFacts">): Pick<ProjectContext, "nativeTypeFacts"> {
+  return context.nativeTypeFacts === undefined ? {} : { nativeTypeFacts: context.nativeTypeFacts };
 }

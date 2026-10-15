@@ -4,7 +4,7 @@ import { collectByKinds } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import type { PolicyFactValueRegistry, PolicyToolError } from "../contract/policy-pass.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
-import type { NativeCastRelations } from "../contract/project-context.ts";
+import type { NativeTypeFacts } from "../contract/project-context.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { makeFactContext, makePolicyContext } from "./policy-pass-context.ts";
 import type { FactControl, FactRun, PolicyRun } from "./policy-pass-types.ts";
@@ -16,7 +16,7 @@ interface CreateRunsInput {
   readonly paths: ReadonlyMap<object, string>;
   readonly resources: ResourceHost;
   readonly checker: () => TypeChecker;
-  readonly castRelations?: NativeCastRelations["read"];
+  readonly nativeTypes?: NativeTypeFacts;
   readonly errors: PolicyToolError[];
   readonly factValues: PolicyFactValueRegistry;
   readonly applicationPaths?: readonly string[];
@@ -34,7 +34,7 @@ function narrowedRequest(run: PolicyRun, applicationPaths: readonly string[] | u
   return covers ? {} : { requestedPaths: requested };
 }
 
-export function createRuns({ runs, paths, resources, checker, castRelations, errors, factValues, applicationPaths }: CreateRunsInput): void {
+export function createRuns({ runs, paths, resources, checker, nativeTypes, errors, factValues, applicationPaths }: CreateRunsInput): void {
   for (const run of runs) {
     if (run.owner.status !== "success") {
       continue;
@@ -47,7 +47,7 @@ export function createRuns({ runs, paths, resources, checker, castRelations, err
       resources,
       resourceRequests: run.resourceRequests,
       checker,
-      ...(castRelations === undefined ? {} : { castRelations }),
+      ...(nativeTypes === undefined ? {} : { nativeTypes }),
       findings: run.findings,
       factValues,
       ...(applicationPaths === undefined ? {} : { applicationPaths: new Set(applicationPaths) }),
@@ -76,11 +76,11 @@ interface CreateFactRunsInput {
   readonly paths: ReadonlyMap<object, string>;
   readonly resources: ResourceHost;
   readonly checker: () => TypeChecker;
-  readonly castRelations?: NativeCastRelations["read"];
+  readonly nativeTypes?: NativeTypeFacts;
   readonly control: FactControl;
 }
 
-export function createFactRuns({ runs, paths, resources, checker, castRelations, control }: CreateFactRunsInput): void {
+export function createFactRuns({ runs, paths, resources, checker, nativeTypes, control }: CreateFactRunsInput): void {
   for (const run of runs) {
     if (run.status !== "success") {
       continue;
@@ -94,7 +94,7 @@ export function createFactRuns({ runs, paths, resources, checker, castRelations,
       resources,
       resourceRequests: run.resourceRequests,
       checker,
-      ...(castRelations === undefined ? {} : { castRelations }),
+      ...(nativeTypes === undefined ? {} : { nativeTypes }),
     });
     run.finishReceipts = runtime.finishReceipts;
     run.unconsumedResources = runtime.unconsumedResources;

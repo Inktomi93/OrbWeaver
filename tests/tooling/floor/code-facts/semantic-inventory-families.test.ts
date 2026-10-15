@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { canonicalIdBrand, nativeIdBrand } from "@orb/tooling/floor/code-facts/id-brand";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { DEFAULT_INVENTORY_FAMILIES, inventoryFamilies } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
@@ -13,12 +14,14 @@ import {
 } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
+import { createSemanticWorkspace, nativeCompilerSourceFiles } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { LanguageService } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { readInventoryReferences } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
+import { idBrandProofModule } from "../../../../tooling/src/verify/gates/_proof/id-brand.ts";
 
 function write(root: string, path: string, text: string): void {
   mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -62,11 +65,15 @@ test("cast-only extraction requests no reference pass while default inventory ke
     expect(casts.casts.map(({ result }) => result)).toEqual([
       { kind: "resolved", value: { leftToRight: false, rightToLeft: true, leftIsAny: false, rightIsAny: false } },
     ]);
-    expect([casts.exports, casts.modules, casts.bindings, casts.witnesses, casts.references]).toEqual([[], [], [], [], []]);
+    expect([casts.exports, casts.modules, casts.bindings, casts.witnesses, casts.references, casts.brands]).toEqual([[], [], [], [], [], []]);
+    const brands = extractInventoryPartition({ ...request, families: ["id-brands"] });
+    expect(passes).toBe(0);
+    expect(brands.brands.map(({ brand }) => brand)).toEqual([null]);
+    expect([brands.casts, brands.exports, brands.modules, brands.bindings, brands.witnesses, brands.references]).toEqual([[], [], [], [], [], []]);
     const legacy = extractInventoryPartition(request);
     expect(passes).toBe(1);
     expect(legacy.families).toEqual([...DEFAULT_INVENTORY_FAMILIES].toSorted());
-    expect(legacy.casts).toEqual([]);
+    expect([legacy.casts, legacy.brands]).toEqual([[], []]);
     expect(legacy.exports.length).toBeGreaterThan(0);
     expect(legacy.references.length).toBeGreaterThan(0);
   } finally {
@@ -93,6 +100,7 @@ test("closed family presence refuses absent queries and reuses compatible exited
   expect(casts.castRelation(node, "tsconfig.json")).toMatchObject({ kind: "resolved", value: { leftToRight: false } });
   expect(() => casts.exports(file)).toThrow("family unavailable: exports");
   expect(() => casts.references(node)).toThrow("family unavailable: references");
+  expect(() => casts.idBrand(node, "tsconfig.json")).toThrow("family unavailable: id-brands");
   using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
   const partition = readInventoryGeneration(database, casts.generation)[0];
   if (partition === undefined || partition.workerPid === undefined) {
@@ -157,5 +165,71 @@ test("an unavailable native primitive survives extraction and indexed storage wi
     });
   } finally {
     primitive.mockRestore();
+  }
+});
+
+test("native brand scalar preserves the public checker reader over aliases, unions, plain and counterfeit types", ({ scratch }) => {
+  initialize(scratch);
+  write(
+    scratch,
+    "tsconfig.json",
+    JSON.stringify({ compilerOptions: { noLib: true, types: [], strict: true }, files: ["source.ts", "packages/kit/src/ids/index.ts"] }),
+  );
+  write(scratch, "packages/kit/src/ids/index.ts", idBrandProofModule('export type ChatId = TypeIdOf<"chat">;'));
+  write(
+    scratch,
+    "source.ts",
+    `
+import type {Branded, ChatId} from './packages/kit/src/ids/index';
+type Original=ChatId;
+type Alias=Original;
+type Plain=string;
+declare const brand:unique symbol;
+type Counterfeit=string & {readonly [brand]:"chat"};
+type Nullable=Original|undefined;
+type Union=Original|Branded<"other">;
+type Generic<T extends string>=Branded<T>;
+`,
+  );
+  const owner = createSemanticWorkspace({ root: scratch }).program("tsconfig.json");
+  if (owner === undefined) {
+    throw new Error("missing canonical native fixture owner");
+  }
+  const project = owner.project();
+  const source = project.getSourceFileOrThrow(join(scratch, "source.ts"));
+  const before = new Map(
+    source.getTypeAliases().map((alias) => {
+      const target = alias.getTypeNodeOrThrow();
+      return [alias.getName(), canonicalIdBrand(target.getType(), target, project.getTypeChecker())];
+    }),
+  );
+  const wrapped = nativeCompilerSourceFiles(project.getProgram().compilerObject);
+  try {
+    const admitted = wrapped.find((file) => file.getFilePath() === source.getFilePath());
+    if (admitted === undefined) {
+      throw new Error("missing admitted native wrapper");
+    }
+    const after = new Map(admitted.getTypeAliases().map((alias) => [alias.getName(), nativeIdBrand(alias.getTypeNodeOrThrow())]));
+    expect(after).toEqual(before);
+    expect(["Original", "Alias"].map((name) => after.get(name))).toEqual(['"chat"', '"chat"']);
+    expect(["Plain", "Counterfeit", "Nullable"].map((name) => after.get(name))).toEqual([null, null, null]);
+    using stored = createSemanticInventory({ root: scratch, families: ["id-brands"] });
+    const carrier = stored.sourceCorpus().getSourceFile("source.ts");
+    if (carrier === undefined) {
+      throw new Error("missing stored brand source");
+    }
+    expect(new Map(carrier.getTypeAliases().map((alias) => [alias.getName(), stored.idBrand(alias.getTypeNodeOrThrow(), "tsconfig.json")]))).toEqual(before);
+    expect(() => stored.idBrand(carrier.getTypeAliasOrThrow("Original").getNameNode(), "tsconfig.json")).toThrow("brand span is unavailable");
+    expect(() => stored.castRelation(carrier.getTypeAliasOrThrow("Original"), "tsconfig.json")).toThrow("family unavailable: cast-relations");
+    expect(() => stored.idBrand(carrier.getTypeAliasOrThrow("Plain").getTypeNodeOrThrow(), "foreign-world")).toThrow("partition is unavailable");
+    carrier.replaceWithText("type Original=string;");
+    const changed = carrier.getTypeAliasOrThrow("Original").getTypeNodeOrThrow();
+    expect(() => stored.idBrand(changed, "tsconfig.json")).toThrow("source/epoch");
+    stored[Symbol.dispose]();
+    expect(() => stored.idBrand(changed, "tsconfig.json")).toThrow("disposed");
+  } finally {
+    for (const file of wrapped) {
+      file.forget();
+    }
   }
 });

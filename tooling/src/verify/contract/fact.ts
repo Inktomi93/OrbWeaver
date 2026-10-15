@@ -2,12 +2,12 @@
 import type { SourceFile, TypeChecker } from "ts-morph";
 import type { GatePolicyAnalysis, GatePolicyReceipt, GatePolicyVisitor } from "./policy-primitives.ts";
 import type { PopulationExpr } from "./population.ts";
-import type { NativeCastRelations } from "./project-context.ts";
+import type { NativeTypeContext } from "./project-context.ts";
 import type { GateResourceRequest } from "./resource-declaration.ts";
 import type { ResourceHost } from "./resource-host.ts";
 
 export interface GateFactContext {
-  readonly castRelations?: NativeCastRelations["read"];
+  readonly nativeTypes?: NativeTypeContext;
   readonly files: readonly SourceFile[];
   readonly resourcePaths: readonly string[];
   readonly resources: ResourceHost;

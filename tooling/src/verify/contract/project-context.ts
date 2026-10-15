@@ -8,16 +8,36 @@
 // `requestedPaths` and acquires the checker through the policy context, so re-exposing either here would
 // be a second spelling of a decision `lib/policy-pass.ts` already owns.
 
-import type { AsExpression, Project, SourceFile } from "ts-morph";
+import type { AsExpression, Project, SourceFile, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { SemanticSourceView } from "../../floor/compiler/ts-workspace-contract.ts";
 
-export interface NativeCastRelations extends Disposable {
-  readonly read: (nodes: readonly AsExpression[]) => ReadonlyMap<AsExpression, TypeRelation>;
+export type NativeTypeRequest =
+  | { readonly kind: "cast-relations"; readonly nodes: readonly AsExpression[] }
+  | { readonly kind: "id-brands"; readonly nodes: readonly TypeNode[] };
+
+/** A producer owns native or isolated-proof provenance; neither exposes a checker through this capability. */
+export interface NativeTypeFactReader extends Disposable {
+  readonly castRelations: (nodes: readonly AsExpression[]) => ReadonlyMap<AsExpression, TypeRelation>;
+  readonly idBrands: (nodes: readonly TypeNode[]) => ReadonlyMap<TypeNode, string | null>;
+}
+
+export interface NativeTypeContext {
+  readonly request: (query: NativeTypeRequest) => void;
+  readonly castRelations: NativeTypeFactReader["castRelations"];
+  readonly idBrands: NativeTypeFactReader["idBrands"];
+}
+
+/** Registration is owner-scoped during the existing walk; a sealed run reads one closed native generation. */
+export interface NativeTypeFacts extends Disposable {
+  readonly request: (owner: string, query: NativeTypeRequest) => void;
+  readonly seal: (owners: ReadonlySet<string>) => void;
+  readonly castRelations: (owner: string, nodes: readonly AsExpression[]) => ReadonlyMap<AsExpression, TypeRelation>;
+  readonly idBrands: (owner: string, nodes: readonly TypeNode[]) => ReadonlyMap<TypeNode, string | null>;
 }
 
 export interface ProjectContext {
-  readonly nativeCastRelations?: () => NativeCastRelations;
+  readonly nativeTypeFacts?: () => NativeTypeFacts;
   /** On-demand canonical primary owner; ordinary syntax and checker selection remain unchanged. */
   readonly nativeSourceView?: (path: string) => SemanticSourceView | undefined;
   readonly root: string;
