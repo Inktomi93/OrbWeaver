@@ -611,9 +611,47 @@ function incomingCallableCandidate(call: CallExpression, keys: ReadonlySet<strin
   return member === undefined || keys.has(member.name) || optionalReceiverInvocation(call);
 }
 
+type CapturedCallIndexes = Pick<CallReturnProgram, "calls" | "callers" | "byCall" | "escapingReferences">;
+
+interface SettledCapture {
+  readonly owner: CallReturnProgram;
+  readonly indexes: CapturedCallIndexes;
+  readonly callCount: number;
+  readonly referenceRevision: number;
+  readonly nodes: ReadonlyMap<MorphNode, import("ts-morph").ts.Node>;
+}
+
 interface CapturedCallGroup {
   calls: CallReturnObservation[];
   readonly sources: Map<import("ts-morph").SourceFile, import("ts-morph").ts.SourceFile>;
+  settled?: SettledCapture;
+}
+
+// Forgetting a wrapper leaves its native Program alive, so index reuse also retains each input wrapper identity.
+function settledNodes(indexes: CapturedCallIndexes, references: readonly MorphNode[]): ReadonlyMap<MorphNode, import("ts-morph").ts.Node> {
+  const nodes = new Map<MorphNode, import("ts-morph").ts.Node>();
+  const capture = (node: MorphNode): void => {
+    nodes.set(node, node.compilerNode);
+  };
+  for (const observation of indexes.calls) {
+    capture(observation.call);
+    if (observation.target.kind === "resolved") {
+      capture(observation.target.value);
+    }
+    const invocation = observation.invocationTargets ?? observation.targets;
+    if (invocation.kind === "resolved") {
+      invocation.value.forEach(capture);
+    }
+  }
+  references.forEach(capture);
+  for (const facts of indexes.escapingReferences.values()) {
+    for (const fact of facts) {
+      capture(fact.node);
+      capture(fact.trace.origin);
+      fact.trace.declarations.forEach(capture);
+    }
+  }
+  return nodes;
 }
 
 function captureObservationSources(group: CapturedCallGroup, observation: CallReturnObservation): void {
@@ -871,14 +909,38 @@ export function observeCallReturns(
         const source = reference.getSourceFile();
         group.sources.set(source, source.compilerNode);
       }
-      const settled = (): Pick<CallReturnProgram, "calls" | "callers" | "byCall" | "escapingReferences"> => {
+      let nodes: SettledCapture["nodes"] = new Map();
+      const settled = (): CapturedCallIndexes => {
+        const previous = group.settled;
+        const first = group.calls[0]?.call;
+        if (
+          previous !== undefined &&
+          previous.indexes.calls === group.calls &&
+          previous.callCount === group.calls.length &&
+          previous.referenceRevision === observedReferences.length &&
+          first !== undefined &&
+          capturedProgram(first, { programs: [previous.owner] }).kind === "resolved" &&
+          [...previous.nodes].every(([node, native]) => !node.wasForgotten() && node.compilerNode === native)
+        ) {
+          nodes = previous.nodes;
+          return previous.indexes;
+        }
         const byCall = new Map(group.calls.map((observation) => [observation.call.compilerNode, observation]));
         const currentReferences = observedReferences.filter((node) => node.getProject() === project);
         for (const reference of currentReferences) {
           const source = reference.getSourceFile();
           group.sources.set(source, source.compilerNode);
         }
-        return { calls: group.calls, callers: capturedCallers(group.calls), byCall, escapingReferences: escapingReferences(currentReferences, byCall) };
+        const indexes = {
+          calls: group.calls,
+          callers: capturedCallers(group.calls),
+          byCall,
+          escapingReferences: escapingReferences(currentReferences, byCall),
+        };
+        if (projection.suppliedCallableTargets === true) {
+          nodes = settledNodes(indexes, currentReferences);
+        }
+        return indexes;
       };
       let indexes = settled();
       if (published) {
@@ -887,7 +949,7 @@ export function observeCallReturns(
         });
       }
       const captured: CallReturnProgram = {
-        ...group,
+        sources: group.sources,
         ...(projection.nativeValueTransfers === true
           ? {
               nativeValueTransfers: true as const,
@@ -922,6 +984,9 @@ export function observeCallReturns(
         referencesObserved: references?.some((node) => node.getProject() === project) === true,
         program: project.getProgram().compilerObject,
       };
+      if (projection.suppliedCallableTargets === true) {
+        group.settled = { owner: captured, indexes, callCount: group.calls.length, referenceRevision: observedReferences.length, nodes };
+      }
       return captured;
     }),
   });
