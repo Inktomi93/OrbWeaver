@@ -6,9 +6,11 @@ import type { ComponentTypeHomeResult, ComponentTypeHomeView } from "@orb/toolin
 import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
 import { readNativeGenericArgumentContribution } from "@orb/tooling/floor/code-facts/shape-derivation";
 import { judgeTypeHomeDeclaration } from "@orb/tooling/floor/code-facts/type-home-declaration";
+import { readReturnedDictionary } from "@orb/tooling/floor/code-facts/value-dependency";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
+import { observeCallReturns } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { canonicalCompilerPath, createSemanticWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { SemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace-contract.ts";
@@ -97,6 +99,40 @@ export type ErasedHeritage = { ignored: string };
 interface EmptyBase<T> { caption: string; }
 export interface HeritageCarrier extends EmptyBase<ErasedHeritage> {}
 export function Heritage(props: HeritageCarrier) { return <div>{props.caption}</div>; }
+export const META_KEYS = ["side", "theme"] as const;
+export type DisplayKeys = (typeof META_KEYS)[number];
+export type UnusedDisplayKeys = (typeof META_KEYS)[number];
+export type DisplayedMap = Partial<Record<\`data-\${DisplayKeys}\`, string>>;
+function makeDisplayedMap(source: Readonly<Record<string, string | undefined>>): DisplayedMap { const attrs: Record<string, string> = {}; for (const axis of META_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export type KeptMap = Partial<Record<\`data-\${DisplayKeys}\`, string>>;
+function makeKeptMap(source: Readonly<Record<string, string | undefined>>): KeptMap { const attrs: Record<string, string> = {}; for (const axis of META_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export type DroppedMap = Partial<Record<\`data-\${DisplayKeys}\`, string>>;
+function makeDroppedMap(source: Readonly<Record<string, string | undefined>>): DroppedMap { const attrs: Record<string, string> = {}; for (const axis of META_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export type UnknownMap = Partial<Record<\`data-\${DisplayKeys}\`, string>>;
+function makeUnknownMap(source: Readonly<Record<string, string | undefined>>): UnknownMap { const attrs: Record<string, string> = {}; for (const axis of META_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export type UnusedMap = Partial<Record<\`data-\${DisplayKeys}\`, string>>;
+function makeUnusedMap(source: Readonly<Record<string, string | undefined>>): UnusedMap { const attrs: Record<string, string> = {}; for (const axis of META_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export type TvShapedUnused = DisplayedMap;
+function fakeNativeTv(source: object): TvShapedUnused { return {}; }
+export function FakeMetadataNative(props: ActualApi) { return <div {...fakeNativeTv(props)} />; }
+export type ErasedDisplayKeys = (typeof META_KEYS)[number];
+export type MixedDisplayKeys = (typeof META_KEYS)[number];
+type IgnoreMetadataKey<T> = "side";
+export type ErasedKeyMap = Partial<Record<\`data-\${IgnoreMetadataKey<ErasedDisplayKeys>}\`, string>>;
+export type MixedKeyMap = Partial<Record<\`data-\${DisplayKeys | MixedDisplayKeys}\`, string>>;
+export type WrongKeyMap = Partial<{ unrelated: string }>;
+function makeErasedKeyMap(source: Readonly<Record<string, string | undefined>>): ErasedKeyMap { const attrs: Record<string, string> = {}; for (const axis of META_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function ShowErasedKeyMap(props: ActualApi) { return <div {...makeErasedKeyMap({side: props.caption})} />; }
+function makeMixedKeyMap(source: Readonly<Record<string, string | undefined>>): MixedKeyMap { const attrs: Record<string, string> = {}; for (const axis of META_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function ShowMixedKeyMap(props: ActualApi) { return <div {...makeMixedKeyMap({side: props.caption})} />; }
+function makeWrongKeyMap(source: Readonly<Record<string, string | undefined>>): WrongKeyMap { const attrs: Record<string, string> = {}; for (const axis of META_KEYS) { const arm = source[axis]; if (arm !== undefined) { attrs[\`data-\${axis}\`] = arm; } } return attrs; }
+export function ShowWrongKeyMap(props: ActualApi) { return <div {...makeWrongKeyMap({side: props.caption})} />; }
+export interface MetadataRootApi { caption: string; extra: Readonly<Record<string, string>>; }
+export function MetadataDisplay(props: MetadataRootApi) { return <div {...makeDisplayedMap({side: props.caption})} />; }
+export function MetadataKept(props: MetadataRootApi) { return <div {...makeKeptMap({side: props.caption})} {...{title: props.caption}} />; }
+export function MetadataDropped(props: MetadataRootApi) { return <div {...makeDroppedMap({side: props.caption})} data-side="overwritten" data-theme="overwritten" />; }
+export function MetadataUnknown(props: MetadataRootApi) { return <div {...makeUnknownMap({side: props.caption})} {...props.extra} />; }
+export function MetadataUnused(props: MetadataRootApi) { makeUnusedMap({side: props.caption}); return <div />; }
 export interface Handle { focus(): void; }
 export interface RefApi { ref?: Ref<Handle>; }
 export function RefSurface(props: RefApi) { return <div />; }
@@ -707,5 +743,101 @@ test("schema output projection refuses opaque any, never and an erased generic i
         .kind,
       name,
     ).toBe("unresolved");
+  }
+});
+
+test(
+  "real metadata-only returned attribute API and finite key vocabulary belong to the consuming native render root",
+  ({ repoRoot }) => {
+    const config = "packages/ui/tsconfig.json";
+    const workspace = createSemanticWorkspace({ root: repoRoot, programs: readCompilerPrograms(repoRoot).filter((program) => program.config === config) });
+    const source = workspace.program(config)?.sourceFile("packages/ui/src/lib/variant-attrs.ts");
+    if (source === undefined) {
+      throw new Error("missing actual metadata source");
+    }
+    const helper = source.getFunctionOrThrow("variantAttrs");
+    const value = helper.getDescendantsOfKind(SyntaxKind.ReturnStatement).at(-1)?.getExpression();
+    if (value === undefined) {
+      throw new Error("missing actual metadata return");
+    }
+    beginReferencePass();
+    try {
+      const observations = observeCallReturns(helper.getDescendantsOfKind(SyntaxKind.CallExpression), undefined, { explicitAbsentReturns: true });
+      const dictionary = readReturnedDictionary({ value, observations });
+      expect(dictionary.kind, dictionary.kind === "unqualified" ? dictionary.reason : "actual native metadata map").toBe("qualified");
+    } finally {
+      endReferencePass();
+    }
+    for (const name of ["VariantAxisAttrs", "StampedVariantAxis"]) {
+      const result = readRealComponentHome(repoRoot, workspace, {
+        config,
+        path: "packages/ui/src/lib/variant-attrs.ts",
+        name,
+        supportPath: "packages/ui/src/primitives/status-chip/status-chip.tsx",
+      });
+      expect(result.kind, name).toBe("owned");
+      if (result.kind !== "owned") {
+        throw new Error(`missing returned-map ownership ${name}`);
+      }
+      expect(result.lowerData.kind).toBe("unqualified");
+      expect(result.component.primitiveAttributes?.[0]?.dictionary.dataTrust.kind).toBe("unqualified");
+      const owner = workspace.program(config);
+      const support = owner?.sourceFile("packages/ui/src/primitives/status-chip/status-chip.tsx");
+      if (owner === undefined || support === undefined) {
+        throw new Error("missing actual primitive owner");
+      }
+      const judgment = judgeTypeHomeDeclaration(source.getTypeAliasOrThrow(name), {
+        path: "packages/ui/src/lib/variant-attrs.ts",
+        claim: "alias-or-schema",
+        component: {
+          view: captureComponentTypeHomeView({ program: owner, sourceFile: source, canonicalPath: canonicalCompilerPath(repoRoot, source.getFilePath()) }),
+          supportingViews: [
+            captureComponentTypeHomeView({ program: owner, sourceFile: support, canonicalPath: canonicalCompilerPath(repoRoot, support.getFilePath()) }),
+          ],
+          lowerDeclarations: [],
+        },
+      });
+      expect(judgment.kind === "subject" ? judgment.ownership.kind : judgment.kind).toBe("component-owned");
+      const overwritten = readRealComponentHome(repoRoot, workspace, {
+        config,
+        path: "packages/ui/src/lib/variant-attrs.ts",
+        name,
+        supportPath: "packages/ui/src/primitives/avatar/avatar.tsx",
+      });
+      expect(overwritten.kind, "actual Avatar has a later unknown rest spread").toBe("unqualified");
+    }
+    for (const name of ["VariantClassRecipe", "VariantStampProps"]) {
+      expect(
+        readRealComponentHome(repoRoot, workspace, {
+          config,
+          path: "packages/ui/src/lib/variant-attrs.ts",
+          name,
+          supportPath: "packages/ui/src/primitives/status-chip/status-chip.tsx",
+        }).kind,
+        "dynamic class chain remains unsupported",
+      ).toBe("unqualified");
+    }
+  },
+  scaledBudget(60_000),
+);
+
+test("returned attribute API follows exact producer and final JSX spread, not overwrite, unknown spreads or unused calls", ({ scratch, repoRoot }) => {
+  const { read, sourceFile, view } = fixture(scratch, repoRoot);
+  const outer = sourceFile.getTypeAliasOrThrow("DisplayedMap").getTypeNodeOrThrow();
+  if (!Node.isTypeReference(outer)) {
+    throw new Error("missing native optional reference");
+  }
+  const argument = outer.getTypeArguments()[0];
+  const binding = argument?.getDescendantsOfKind(SyntaxKind.Identifier).find((identifier) => identifier.getText() === "DisplayKeys");
+  if (argument === undefined || binding === undefined) {
+    throw new Error("missing exact mapped key fixture binding");
+  }
+  const contribution = readNativeGenericArgumentContribution({ reference: outer, argument, binding, program: view.nativeProgram, source: view.nativeSource });
+  expect(contribution.kind, contribution.kind === "unresolved" ? contribution.detail : "actual key contribution").toBe("resolved");
+  for (const name of ["DisplayedMap", "KeptMap", "DisplayKeys"]) {
+    expect(read(name).kind, name).toBe("owned");
+  }
+  for (const name of ["DroppedMap", "UnknownMap", "UnusedMap", "TvShapedUnused", "UnusedDisplayKeys", "ErasedDisplayKeys", "MixedDisplayKeys", "WrongKeyMap"]) {
+    expect(read(name).kind, name).toBe("unqualified");
   }
 });

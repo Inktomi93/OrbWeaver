@@ -1,7 +1,7 @@
 import type { CallExpression, InterfaceDeclaration, Node, ParameterDeclaration, TypeAliasDeclaration, ts } from "ts-morph";
 import type { SemanticSourceView } from "../compiler/ts-workspace-contract.ts";
 import type { ShapeCopyComparison } from "./shape-copy-contract.ts";
-import type { ValueDependencyResult } from "./value-dependency-contract.ts";
+import type { ReturnedDictionaryResult, ValueDependencyResult } from "./value-dependency-contract.ts";
 
 export interface ComponentTypeHomeView extends SemanticSourceView {
   readonly nativeProgram: ts.Program;
@@ -25,11 +25,20 @@ export interface NativeComponentRenderContribution {
   readonly dependency: Extract<ValueDependencyResult, { readonly kind: "qualified" }>;
 }
 
+export interface PrimitiveAttributeApiEvidence {
+  readonly callable: Node;
+  readonly call: CallExpression;
+  readonly consumedSpread: Node;
+  readonly domTag: Node;
+  readonly dictionary: Extract<ReturnedDictionaryResult, { readonly kind: "qualified" }>;
+}
+
 export interface ComponentRenderEvidence {
   readonly callable: Node;
   readonly parameter: ParameterDeclaration;
   readonly returns: readonly Node[];
   readonly nativeRenders?: readonly NativeComponentRenderContribution[];
+  readonly primitiveAttributes?: readonly PrimitiveAttributeApiEvidence[];
   readonly supportingDeclarations: readonly (InterfaceDeclaration | TypeAliasDeclaration)[];
 }
 

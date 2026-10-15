@@ -31,3 +31,30 @@ export type ValueDependencyResult =
       readonly dataTrust: { readonly kind: "unqualified"; readonly boundaries: readonly OpaqueNativeValueBoundary[] };
     }
   | { readonly kind: "unqualified"; readonly reason: string; readonly node: Node };
+
+export interface ReturnedDictionaryInput {
+  readonly bindings?: ReadonlyMap<Node, Node>;
+  readonly value: Node;
+  readonly observations: CallReturnObservations;
+}
+
+export interface ReturnedDictionaryWrite {
+  readonly keys: readonly string[];
+  readonly key: Node;
+  readonly value: Node;
+  readonly statement: Node;
+  readonly optional: boolean;
+}
+
+/** Closed possible keys, not guaranteed presence, evaluated terminals or trusted metadata. */
+export type ReturnedDictionaryResult =
+  | {
+      readonly kind: "qualified";
+      readonly binding: Node;
+      readonly returned: Node;
+      readonly keys: readonly string[];
+      readonly writes: readonly ReturnedDictionaryWrite[];
+      readonly vocabularyOrigins: readonly Node[];
+      readonly dataTrust: { readonly kind: "unqualified" };
+    }
+  | { readonly kind: "unqualified"; readonly reason: string; readonly node: Node };
