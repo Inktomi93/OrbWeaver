@@ -7,6 +7,14 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../iso/clock.ts";
+import type { CorpusPluginLibrary, CorpusPluginStage } from "../iso/corpus-plugin.ts";
+import { corpusPluginInput } from "../iso/corpus-plugin.ts";
+import {
+  CORPUS_PLUGIN_OUTPUT_MANIFEST,
+  CORPUS_PLUGIN_OUTPUT_PRIVATE_VALUE,
+  CORPUS_PLUGIN_OUTPUT_SOURCE,
+  CORPUS_PLUGIN_OUTPUT_SURFACE,
+} from "./corpus-plugin-outputs.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { capturePluginRows, makePluginBundle, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
 import { seedAdminProvider, seedPluginProviders } from "./factories/provider.ts";
@@ -27,6 +35,7 @@ export const CORPUS_PLUGIN_MANIFEST = pluginManifestSchema.parse({
 
 export const CORPUS_PLUGIN_PROVIDER_MANIFEST = pluginManifestSchema.parse({
   ...CORPUS_PLUGIN_MANIFEST,
+  capabilities: CORPUS_PLUGIN_OUTPUT_MANIFEST.capabilities,
   providers: [
     {
       id: "plugin:corpus-ledger/text",
@@ -66,6 +75,8 @@ export function corpusPluginBundle(
 }
 
 export interface SeededCorpusPlugins {
+  readonly library: CorpusPluginLibrary;
+  readonly wirePrivateLiterals: readonly string[];
   readonly installed: Awaited<ReturnType<typeof seedInstalledPlugin>>;
   readonly providers: Awaited<ReturnType<typeof seedPluginProviders>>;
   readonly distribution: Awaited<ReturnType<typeof seedDistributedPlugin>>;
@@ -77,19 +88,46 @@ export interface SeededCorpusPlugins {
   readonly publication: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["listDistributedPlugins"]>>;
 }
 
+/** Capture the actual routed publications under one native viewer, not private canonical row projections. */
+export async function captureCorpusPluginStage(root: ServerTestHarness, viewerUserId: UserId, ids: CorpusPluginStage["ids"]): Promise<CorpusPluginStage> {
+  const caller = await root.internalCallerFor(viewerUserId);
+  const input = corpusPluginInput(ids);
+  return {
+    viewerUserId,
+    ids,
+    reads: {
+      plugins: { input: input.plugins, output: await caller.plugin.list(input.plugins) },
+      surfaces: { input: input.surfaces, output: await caller.plugin.listSurfaces(input.surfaces) },
+      commands: { input: input.commands, output: await caller.plugin.listCommands(input.commands) },
+      displayTransforms: { input: input.displayTransforms, output: await caller.plugin.listDisplayTransforms(input.displayTransforms) },
+      assets: { input: input.assets, output: await caller.plugin.listBundleAssets(input.assets) },
+      log: { input: input.log, output: await caller.plugin.getLog(input.log) },
+      state: { input: input.state, output: await caller.plugin.getSurfaceState(input.state) },
+    },
+  };
+}
+
 /** Use an existing real recipient; only that recipient's explicit grant may start their guest. */
 export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: UserId): Promise<SeededCorpusPlugins> {
   const caller = await root.principalFor(root.ownerId);
   const recipientCaller = await root.principalFor(recipientId);
   const manifest = CORPUS_PLUGIN_PROVIDER_MANIFEST;
-  const bytes = corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), manifest, GUEST_SOURCE, root.clock.now());
+  const bytes = corpusPluginBundle(
+    makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
+    manifest,
+    `${CORPUS_PLUGIN_OUTPUT_SOURCE}\n${GUEST_SOURCE}`,
+    root.clock.now(),
+  );
   const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, { caller, bundle: bytes, grant: [] });
+  const ownerIds = { pluginId: installed.outcome.id, surfaceId: CORPUS_PLUGIN_OUTPUT_SURFACE };
+  const ownerPending = await captureCorpusPluginStage(root, caller.userId, ownerIds);
   const providers = await seedPluginProviders(
     root.db,
     root.services.plugin.setGrant,
     { caller, pluginId: installed.outcome.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true },
     (manifest.providers ?? []).map((provider) => provider.id),
   );
+  const ownerActive = await captureCorpusPluginStage(root, caller.userId, ownerIds);
   const distribution = await seedDistributedPlugin(root.db, root.services.plugin.installForAllUsers, { caller, bundle: bytes });
   const recipientInstall = distribution.installs.find(({ plugin }) => plugin.ownerId === recipientCaller.userId);
   if (recipientInstall === undefined) {
@@ -102,7 +140,9 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
     acknowledgedNetHosts: [],
     enable: true,
   });
+  const recipientActive = await captureCorpusPluginStage(root, recipientCaller.userId, { ...ownerIds, pluginId: recipient.outcome.id });
   await root.services.plugin.setEnabled({ caller, pluginId: installed.outcome.id, enabled: false });
+  const ownerDisabled = await captureCorpusPluginStage(root, caller.userId, ownerIds);
   const tombstones = await root.db
     .select()
     .from(pluginProviderClaims)
@@ -130,8 +170,29 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
     acknowledgedNetHosts: [],
     enable: true,
   });
-  const publication = await root.services.plugin.listDistributedPlugins({ caller });
-  return { installed, providers, distribution, recipient, repeated, tombstones, admin, refused, publication };
+  const rpc = await root.internalCallerFor(caller.userId);
+  const publication = await rpc.plugin.listDistributed();
+  const library: CorpusPluginLibrary = {
+    ownerPending,
+    ownerActive,
+    recipientActive,
+    ownerDisabled,
+    ownerFinal: { viewerUserId: caller.userId, read: { input: undefined, output: await rpc.plugin.list() } },
+    distribution: { viewerUserId: caller.userId, read: { input: undefined, output: publication }, installed: distribution.outcome, repeated: repeated.outcome },
+  };
+  return {
+    installed,
+    providers,
+    distribution,
+    recipient,
+    repeated,
+    tombstones,
+    admin,
+    refused,
+    publication,
+    library,
+    wirePrivateLiterals: [CORPUS_PLUGIN_STORAGE_VALUE, CORPUS_PLUGIN_OUTPUT_PRIVATE_VALUE],
+  };
 }
 
 type PluginService = ServerTestHarness["services"]["plugin"];

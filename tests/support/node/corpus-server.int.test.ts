@@ -2,10 +2,13 @@
 // @subject packages/server/src/entry/auth/seam.ts
 // @subject packages/server/src/domain/persona/verbs/create.ts
 import "./composed-real.ts";
+import { spawn } from "node:child_process";
 import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { createPersonaSchema, personaDetailSchema } from "@orb/contracts/persona";
+import { pluginSurfaceStateSchema, pluginSurfaceViewSchema } from "@orb/contracts/plugin";
 import { z } from "zod";
 import { corpusReadInput } from "../iso/corpus.ts";
+import { captureCookieAuth } from "./corpus-auth.ts";
 import { createCorpusHarness, expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";
 import { createServerHarness } from "./server.ts";
@@ -150,4 +153,65 @@ test("independently restored corpus graphs continue deterministic production wri
     }),
   );
   expect(written[0]).toEqual(written[1]);
+});
+
+test("the default corpus resumes native plugin ownership, public registrations and disable cleanup under fresh cookies", { tags: "slow" }, async () => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const library = root.corpus.wire.pluginLibrary;
+  const foreignViewer = root.corpus.wire.memberIdentities?.sharedMember.viewer;
+  if (library === undefined || foreignViewer === undefined) {
+    throw new Error("The committed corpus has no native plugin adoption cohort");
+  }
+  const active = library.ownerActive;
+  const auth = await captureCookieAuth(root, await root.principalFor(root.ownerId), PASSWORD);
+  expect(auth.identity.viewer.userId).toBe(active.viewerUserId);
+  const headers = { cookie: auth.cookie, forwarded: "" };
+  const statePath = `/api/trpc/plugin.getSurfaceState?input=${encodeURIComponent(JSON.stringify(active.reads.state.input))}`;
+  const readState = async (): Promise<ReturnType<typeof pluginSurfaceStateSchema.parse> | null> => {
+    const response = await root.http.request(statePath, { headers });
+    expect(response.status).toBe(200);
+    return z.object({ result: z.object({ data: pluginSurfaceStateSchema.nullable() }) }).parse(await response.json()).result.data;
+  };
+  expect(await readState()).toBeNull();
+  const enable = await root.http.request("/api/trpc/plugin.setEnabled", {
+    method: "POST",
+    headers: { ...headers, [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify({ pluginId: active.ids.pluginId, enabled: true }),
+  });
+  expect(enable.status).toBe(200);
+  await enable.arrayBuffer();
+  expect(await readState()).toEqual(active.reads.state.output);
+  const surfaces = await root.http.request("/api/trpc/plugin.listSurfaces", { headers });
+  expect(surfaces.status).toBe(200);
+  expect(z.object({ result: z.object({ data: pluginSurfaceViewSchema.array() }) }).parse(await surfaces.json()).result.data).toEqual(
+    active.reads.surfaces.output,
+  );
+  const action = await root.http.request("/api/trpc/plugin.invokeUiAction", {
+    method: "POST",
+    headers: { ...headers, [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify({ ...active.reads.state.input, actionId: "record", values: { entry: "Native clone entry" } }),
+  });
+  expect(action.status).toBe(200);
+  await action.arrayBuffer();
+  expect(await readState()).toEqual({ actionId: "record", values: { entry: "Native clone entry" }, inRoom: false });
+  const foreign = await captureCookieAuth(root, await root.principalFor(foreignViewer.userId), MEMBER_PASSWORD);
+  const refused = await root.http.request(statePath, { headers: { cookie: foreign.cookie, forwarded: "" } });
+  expect(refused.status).toBe(404);
+  const refusedBytes = await refused.text();
+  expect(refusedBytes).toContain("NOT_FOUND");
+  expect(refusedBytes).not.toContain("Native clone entry");
+  expect(await readState()).toEqual({ actionId: "record", values: { entry: "Native clone entry" }, inRoom: false });
+  const disable = await root.http.request("/api/trpc/plugin.setEnabled", {
+    method: "POST",
+    headers: { ...headers, [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify({ pluginId: active.ids.pluginId, enabled: false }),
+  });
+  expect(disable.status).toBe(200);
+  await disable.arrayBuffer();
+  expect(await readState()).toBeNull();
+  const rpc = await root.internalCallerFor(root.ownerId);
+  expect(await rpc.plugin.listSurfaces()).toEqual(library.ownerDisabled.reads.surfaces.output);
+  expect(await rpc.plugin.listCommands()).toEqual(library.ownerDisabled.reads.commands.output);
+  expect(await rpc.plugin.getLog(active.reads.log.input)).toEqual(library.ownerDisabled.reads.log.output);
+  expect(await rpc.plugin.listBundleAssets(active.reads.assets.input)).toEqual(active.reads.assets.output);
 });

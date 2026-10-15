@@ -109,6 +109,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.privateCaptures.oidc.ownerId).toBe(capsule.privateCaptures.baseline.ownerId);
   expect(capsule.privateCaptures.recall.traces.some((trace) => trace.queryEmbedded && trace.poolSize > 0)).toBe(true);
   expect(capsule.privateCaptures.recall.memory.speakers.length).toBeGreaterThan(0);
+  expect(capsule.wire.pluginLibrary).toEqual(capsule.privateCaptures.plugins.library);
   expect(capsule.privateCaptures.plugins.recipient.plugin).toMatchObject({ ownerId: capsule.privateCaptures.oidc.joiner.id, status: "enabled" });
   expect(capsule.privateCaptures.plugins.tombstones.map((row) => row.pluginId)).toEqual([null]);
   expect(capsule.privateCaptures.plugins.refused.outcome.status).toBe("errored");
@@ -469,6 +470,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   });
   const published = await readFile(join(fixture.layout.root, "corpus.json"), "utf8");
   expect(capsule.publishWire()).toBe(published);
+  expect(capsule.privateCaptures.plugins.wirePrivateLiterals.some((value) => published.includes(value))).toBe(false);
   for (const privateMaterial of [
     CORPUS_CONNECTION_KEY,
     CORPUS_CONNECTION_FOREIGN_KEY,

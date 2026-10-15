@@ -6,11 +6,10 @@
 // serializable meta (the `onAction` handle stays server-side, re-entered only by `invokeUiAction`) tagged with
 // its `pluginId` so the client joins to the plugin's own name/glyph for the labeled shell.
 
-import type { PluginSurfaceRegistration } from "@orb/contracts/plugin";
+import type { PluginSurfaceRegistration, PluginSurfaceView } from "@orb/contracts/plugin";
 import { pluginToolWireName } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import type { ListSurfacesParams } from "../contract/params.ts";
-import type { PluginSurfaceView } from "../contract/results.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
 

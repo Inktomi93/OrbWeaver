@@ -24,8 +24,6 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-The store retains native worlds, versioned inputs, atomic generations and isolated overlays. Unported typed consumers require native evidence.
-
 Frozen tests-DOM and root qualifications establish selected extraction, publication, release and overlapping warm reuse, not complete-demand acceptance. Preserve their source, dependencies, databases and reports. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
 
 Authored-input admission, native JS-depth origins, ID-brand publication, indexed reads, stale-source refusal and release have selected controls. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Reviewed collector corrections preserve source admission and typed-world meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
@@ -34,6 +32,8 @@ Corrected comparison from frozen `638adf6e65` completes the store, but its nativ
 
 Reviewed native reference storage, guarded bindings, settled capture indexes and allocation-free native traversal are integrated. Their bounded controls pass independent review. Callable provenance reads TypeScript; it does not execute a database query. Evidence: `reports/review/native-reference-string-integration.md` and `reports/review/shape-binding-integrated.md`.
 
-Reviewed `34ed85d7bb` shares completed successes within the existing callable proof owner. Native admission, binding contents, allocation identity, active cycles, refusal order and capture invalidation remain authoritative. Opaque callbacks remain uncached. Evidence: `.claude/worktrees/codex-native-reference-reuse-1002/reports/review/1002-contextual-obligation-sharing.md` and its independent review.
+Reviewed contextual sharing, optional invocation and native resource registration preserve bindings, allocations, disposal, refusal order and capture invalidation. Opaque callbacks remain uncached. Evidence: `reports/review/native-resource-integrated.md` and its linked reviews.
 
-Reviewed `83b2382756` preserves optional invocation. Reviewed `1486b4a545` and `2ed8e97058` preserve native registration, allocation bindings, disposal descriptors and executable parameters. Scoped controls and review pass. The actual query times out on `d9624cce70`; measure proof obligations before another repair. Evidence: `reports/review/native-resource-integrated.md`. Complete publication, collector equivalence, cross-world reuse and hosted memory remain open. Item 1027 owns typed-family delivery.
+Reviewed `58e33bd1f3` adds dependency-directed refinement and native validation without reference search. Bounded controls pass. Normal isolated materialization at `8dbbc1c953` reproduces the reviewed runtime; tooling types pass and root types retain inherited errors. Evidence: `.claude/worktrees/codex-native-reference-reuse-1002/reports/review/1002-dependency-directed-refinement-implementation.md` and its independent review.
+
+The actual installed query still reaches the diagnostic deadline without a target fact. No resolved success is established. The diagnostic cutoff is not a product acceptance requirement. Measure completion, CPU and scheduler behavior with a longer bounded trace before another repair. Complete publication, collector equivalence, cross-world reuse and hosted memory remain open. Item 1027 owns typed-family delivery.

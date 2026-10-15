@@ -10,13 +10,13 @@
 // the row (the FK CASCADE takes these with it, so an after-the-fact read returns nothing to reap) and by
 // `listBundleAssets` on the render path.
 
+import type { PluginBundleAssetView } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { pluginAssets } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { AssetId, PluginId } from "@orb/kit/ids";
 import { and, eq, ne } from "drizzle-orm";
 import type { PluginBundleAssetLink } from "../contract/bundle-assets.ts";
-import type { PluginBundleAssetView } from "../contract/results.ts";
 
 /** The `bundle_path` value for a RUNTIME-fetched cover — the schema's "not a bundle asset" sentinel, spelled
  *  once here so the writers and the readers cannot disagree about it (SQLite cannot use NULL: it does not

@@ -8,6 +8,7 @@ import { createServerHarness } from "@orb/testkit/node/server.ts";
 import {
   CORPUS_ADMIN_PROVIDER,
   CORPUS_PLUGIN_ASSET_PATH,
+  CORPUS_PLUGIN_MANIFEST,
   CORPUS_PLUGIN_PROVIDER_MANIFEST,
   CORPUS_PLUGIN_STORAGE_KEY,
   CORPUS_PLUGIN_STORAGE_VALUE,
@@ -48,6 +49,11 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const other = await root.actor();
   const captured = await seedCorpusPlugins(root, other.id);
+  const recipientRpc = await root.internalCallerFor(other.id);
+  expect(await recipientRpc.plugin.listSurfaces()).toEqual([
+    expect.objectContaining({ pluginId: captured.recipient.outcome.id, id: "ledger", anchor: "page", tier: "static" }),
+    expect.objectContaining({ pluginId: captured.recipient.outcome.id, id: "detail", anchor: "dialog", tier: "static" }),
+  ]);
   expect(captured.installed.plugin.status).toBe("disabled");
   expect(captured.installed.plugin.grantedCapabilities).toEqual([]);
   expect(captured.installed.kv).toEqual([]);
@@ -81,15 +87,43 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
   const owned = captured.distribution.installs.find(({ plugin }) => plugin.ownerId === root.ownerId);
   const pending = captured.distribution.installs.find(({ plugin }) => plugin.ownerId === other.id);
   expect(owned?.plugin.status).toBe("enabled");
-  expect(owned?.kv.map((row) => [row.ownerId, row.key, row.value])).toEqual([[root.ownerId, CORPUS_PLUGIN_STORAGE_KEY, CORPUS_PLUGIN_STORAGE_VALUE]]);
+  expect(owned?.kv.map((row) => [row.ownerId, row.key, row.value])).toEqual([
+    [root.ownerId, "entry", "private ledger value"],
+    [root.ownerId, CORPUS_PLUGIN_STORAGE_KEY, CORPUS_PLUGIN_STORAGE_VALUE],
+  ]);
   expect(pending?.plugin).toMatchObject({ status: "disabled", grantedCapabilities: [], pendingReconsent: true });
   expect(pending?.kv).toEqual([]);
   expect(new Set(captured.distribution.installs.map(({ plugin }) => plugin.bundleAssetId)).size).toBe(2);
   expect(captured.recipient.plugin).toMatchObject({ id: pending?.plugin.id, ownerId: other.id, status: "enabled", pendingReconsent: false });
-  expect(captured.recipient.kv.map((row) => [row.ownerId, row.key, row.value])).toEqual([[other.id, CORPUS_PLUGIN_STORAGE_KEY, CORPUS_PLUGIN_STORAGE_VALUE]]);
+  expect(captured.recipient.kv.map((row) => [row.ownerId, row.key, row.value])).toEqual([
+    [other.id, "entry", "private ledger value"],
+    [other.id, CORPUS_PLUGIN_STORAGE_KEY, CORPUS_PLUGIN_STORAGE_VALUE],
+  ]);
   expect(captured.tombstones.map((row) => [row.ownerId, row.providerId, row.pluginId, row.definitionHash])).toEqual(
     captured.providers.map(({ claim }) => [root.ownerId, claim.providerId, null, claim.definitionHash]),
   );
+  const snapshots = captured.library;
+  expect(snapshots.ownerPending.reads.surfaces.output).toEqual([]);
+  expect(snapshots.ownerPending.reads.state.output).toBeNull();
+  expect(snapshots.ownerActive.reads.surfaces.output.map(({ id }) => id)).toEqual(["ledger", "detail"]);
+  expect(snapshots.ownerActive.reads.commands.output.map(({ name }) => name)).toEqual(["record", "revise"]);
+  expect(snapshots.ownerActive.reads.state.output).toEqual({ entry: "Initial ledger entry" });
+  expect(snapshots.ownerActive.reads.log.output).toEqual([{ level: "info", message: "ledger activated", at: root.clock.now() }]);
+  expect(snapshots.ownerActive.reads.displayTransforms.output).toEqual([{ pluginId: captured.installed.outcome.id, name: "annotate" }]);
+  expect(snapshots.ownerDisabled.reads.surfaces.output).toEqual([]);
+  expect(snapshots.ownerDisabled.reads.commands.output).toEqual([]);
+  expect(snapshots.ownerDisabled.reads.displayTransforms.output).toEqual([]);
+  expect(snapshots.ownerDisabled.reads.log.output).toEqual([]);
+  expect(snapshots.ownerDisabled.reads.state.output).toBeNull();
+  expect(snapshots.ownerDisabled.reads.assets.output).toEqual(snapshots.ownerActive.reads.assets.output);
+  expect(snapshots.recipientActive.viewerUserId).toBe(other.id);
+  expect(snapshots.recipientActive.reads.surfaces.output).toEqual(await recipientRpc.plugin.listSurfaces());
+  expect(snapshots.ownerFinal.read.output.find(({ id }) => id === captured.refused.outcome.id)?.status).toBe("errored");
+  expect(snapshots.distribution.read.output).toEqual(captured.publication);
+  expect(snapshots.distribution.installed).toEqual(captured.distribution.outcome);
+  expect(snapshots.distribution.repeated).toEqual(captured.repeated.outcome);
+  await expect(recipientRpc.plugin.getSurfaceState(snapshots.ownerActive.reads.state.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  expect(await recipientRpc.plugin.getSurfaceState(snapshots.recipientActive.reads.state.input)).toEqual({ entry: "Initial ledger entry" });
   const registry = root.services.connection.registry;
   for (const provider of CORPUS_PLUGIN_PROVIDER_MANIFEST.providers ?? []) {
     expect(registry.get(provider.id, root.ownerId)).toBeUndefined();
@@ -113,7 +147,7 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
   expect(captured.refused.outcome.status).toBe("errored");
   expect(captured.refused.plugin.lastError).toContain("corpus guest activation refused");
   expect(captured.refused.kv).toEqual([]);
-  expect(captured.refused.plugin.grantedCapabilities).toEqual(CORPUS_PLUGIN_PROVIDER_MANIFEST.capabilities);
+  expect(captured.refused.plugin.grantedCapabilities).toEqual(CORPUS_PLUGIN_MANIFEST.capabilities);
   expect(captured.refused.assets.map((row) => row.pluginId)).toEqual([captured.refused.outcome.id]);
   await assertReferentialIntegrity(root.db);
 });

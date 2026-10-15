@@ -29,19 +29,39 @@
 // so the domain front door stays the one import for a plugin consumer.
 
 export type {
+  DistributedPluginView,
   PluginCommandView,
   PluginDisplayTransformRegistration,
+  PluginDisplayTransformView,
   PluginEventSubscription,
+  PluginFanoutResult,
+  PluginFanoutSkip,
+  PluginFanoutSkipReason,
   PluginHandlerRef,
   PluginInstance,
+  PluginLogView,
   PluginMacroRegistration,
   PluginSurfaceRegistration,
+  PluginSurfaceState,
+  PluginSurfaceView,
   PluginToolRegistration,
   PluginTransformRegistration,
   PluginView,
   SnippetResult,
 } from "@orb/contracts/plugin";
-export { pluginCommandViewSchema, pluginViewSchema, snippetResultSchema } from "@orb/contracts/plugin";
+export {
+  distributedPluginViewSchema,
+  PLUGIN_FANOUT_SKIP_REASONS,
+  pluginBundleAssetViewSchema,
+  pluginCommandViewSchema,
+  pluginDisplayTransformViewSchema,
+  pluginFanoutResultSchema,
+  pluginLogViewSchema,
+  pluginSurfaceStateSchema,
+  pluginSurfaceViewSchema,
+  pluginViewSchema,
+  snippetResultSchema,
+} from "@orb/contracts/plugin";
 export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy.ts";
 export type { PluginContext } from "./context.ts";
 export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./contract/distributed-seed.ts";
@@ -106,31 +126,10 @@ export type {
   UpgradeFromStoredGitParams,
   UpgradePluginParams,
 } from "./contract/params.ts";
-export type {
-  DistributedPluginApplication,
-  DistributedPluginView,
-  PluginDisplayTransformView,
-  PluginFanoutResult,
-  PluginFanoutSkip,
-  PluginFanoutSkipReason,
-  PluginGitPreview,
-  PluginLogView,
-  PluginSurfaceState,
-  PluginSurfaceView,
-  PluginUpdateCheck,
-  PluginUrlPreview,
-} from "./contract/results.ts";
+export type { DistributedPluginApplication, PluginGitPreview, PluginUpdateCheck, PluginUrlPreview } from "./contract/results.ts";
 export {
-  distributedPluginViewSchema,
-  PLUGIN_FANOUT_SKIP_REASONS,
-  pluginBundleAssetViewSchema,
   pluginDisplayTransformResultSchema,
-  pluginDisplayTransformViewSchema,
-  pluginFanoutResultSchema,
   pluginGitPreviewSchema,
-  pluginLogViewSchema,
-  pluginSurfaceStateSchema,
-  pluginSurfaceViewSchema,
   pluginUiHostCallResultSchema,
   pluginUpdateCheckSchema,
   pluginUrlPreviewSchema,

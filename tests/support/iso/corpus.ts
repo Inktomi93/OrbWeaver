@@ -39,26 +39,21 @@ import {
 } from "./corpus-library.ts";
 import type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
 import { hydrateLibraryRelations, libraryRelationsSchema, publishLibraryRelations } from "./corpus-library-relations.ts";
+import type { CorpusPluginLibrary } from "./corpus-plugin.ts";
+import { hydrateCorpusPlugins, pluginLibrarySchema, publishCorpusPlugins } from "./corpus-plugin.ts";
+import type { CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
 import type { CorpusSearchLibrary } from "./corpus-search.ts";
 import { corpusSearchSchema, hydrateCorpusSearch, publishCorpusSearch } from "./corpus-search.ts";
 
 export type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 export type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
+export type { CorpusPluginLibrary, CorpusPluginStage } from "./corpus-plugin.ts";
+export { corpusPluginInput } from "./corpus-plugin.ts";
 export type { CorpusSearchLibrary } from "./corpus-search.ts";
 
 const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
 
-/** A production route capture; inputs retain their presence and their canonical procedure type. */
-export interface CorpusRead<P extends TrpcProcedurePath> {
-  readonly input: TrpcInput<P>;
-  readonly output: TrpcWireOutput<P>;
-}
-
-/** A captured viewer is fixture-selection evidence, never a browser authentication credential. */
-export interface CorpusViewerRead<P extends TrpcProcedurePath> {
-  readonly viewerUserId: UserId;
-  readonly read: CorpusRead<P>;
-}
+export type { CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
 
 export interface CorpusMemberMessagesRead extends CorpusViewerRead<"chat.listMessages"> {
   readonly chatId: ChatId;
@@ -141,6 +136,7 @@ const publishedCorpusSchema = z
     auth: corpusAuthSchema,
     oidc: corpusOidcSchema.optional(),
     health: healthResponseSchema,
+    pluginLibrary: pluginLibrarySchema.optional(),
     notificationInbox: notificationInboxSchema.optional(),
     chatLifecycleMember: chatLifecycleMemberSchema.optional(),
     worldInfoLibrary: worldInfoLibrarySchema.optional(),
@@ -192,7 +188,11 @@ const publishedCorpusSchema = z
         )) &&
       (chatLifecycleMember === undefined || Object.values(chatLifecycleMember).every((snapshot) => snapshot.viewerUserId === sharedId))
     );
-  }, "Corpus member identity viewer mismatch");
+  }, "Corpus member identity viewer mismatch")
+  .refine(
+    ({ pluginLibrary, reads }) => pluginLibrary === undefined || pluginLibrary.ownerActive.viewerUserId === reads["sessions.me"][0]?.userId,
+    "Corpus plugin owner viewer mismatch",
+  );
 
 export interface CorpusReads {
   readonly "sessions.me": readonly CorpusRead<"sessions.me">[];
@@ -227,6 +227,7 @@ export interface CorpusReads {
 
 /** Serializable input produced by the Node publisher, not an intake for arbitrary procedure requests. */
 export interface CorpusWireInput {
+  readonly pluginLibrary?: CorpusPluginLibrary;
   readonly searchLibrary?: CorpusSearchLibrary;
   readonly libraryRelations?: CorpusLibraryRelations;
   readonly memberIdentities?: CorpusMemberIdentities;
@@ -241,6 +242,7 @@ export interface CorpusWireInput {
 }
 
 export interface CorpusWire {
+  readonly pluginLibrary?: CorpusPluginLibrary;
   readonly searchLibrary?: CorpusSearchLibrary;
   readonly libraryRelations?: CorpusLibraryRelations;
   readonly memberIdentities?: CorpusMemberIdentities;
@@ -261,8 +263,10 @@ function hydrateReads<P extends TrpcProcedurePath>(
   return records.map((record) => ({ input: record.input, output: outputSchema.parse(record.output) }));
 }
 
-/** Validate published captures through their real owners while preserving each exact captured input. */
-export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
+function validateCorpusSections(input: CorpusWireInput): void {
+  if (input.pluginLibrary !== undefined) {
+    publishCorpusPlugins(input.pluginLibrary);
+  }
   if (input.searchLibrary !== undefined) {
     publishCorpusSearch(input.searchLibrary);
   }
@@ -285,10 +289,16 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
   if (input.chatLifecycleMember !== undefined) {
     publishMemberMessages(input.chatLifecycleMember);
   }
+}
+
+/** Validate published captures through their real owners while preserving each exact captured input. */
+export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
+  validateCorpusSections(input);
   return {
     auth: corpusAuthSchema.parse(input.auth),
     ...(input.oidc === undefined ? {} : { oidc: corpusOidcSchema.parse(input.oidc) }),
     health: healthResponseSchema.parse(input.health),
+    ...(input.pluginLibrary === undefined ? {} : { pluginLibrary: input.pluginLibrary }),
     ...(input.searchLibrary === undefined ? {} : { searchLibrary: input.searchLibrary }),
     ...(input.libraryRelations === undefined ? {} : { libraryRelations: input.libraryRelations }),
     ...(input.memberIdentities === undefined ? {} : { memberIdentities: input.memberIdentities }),
@@ -386,6 +396,7 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
     auth: published.auth,
     ...(published.oidc === undefined ? {} : { oidc: published.oidc }),
     health: published.health,
+    ...(published.pluginLibrary === undefined ? {} : { pluginLibrary: hydrateCorpusPlugins(published.pluginLibrary) }),
     ...(published.searchLibrary === undefined ? {} : { searchLibrary: hydrateCorpusSearch(published.searchLibrary) }),
     ...(published.libraryRelations === undefined ? {} : { libraryRelations: hydrateLibraryRelations(published.libraryRelations) }),
     ...(published.memberIdentities === undefined ? {} : { memberIdentities: published.memberIdentities }),
@@ -440,7 +451,23 @@ function capturedInputs(reads: CorpusReads): string {
 function capturedSnapshotInputs(wire: CorpusWire): string {
   const request = <T>(input: T): { readonly present: boolean; readonly value?: T } =>
     input === undefined ? { present: false } : { present: true, value: input };
+  const plugins = wire.pluginLibrary;
   return stableStringify({
+    pluginLibrary:
+      plugins === undefined
+        ? {}
+        : {
+            ...Object.fromEntries(
+              Object.entries({
+                ownerPending: plugins.ownerPending,
+                ownerActive: plugins.ownerActive,
+                recipientActive: plugins.recipientActive,
+                ownerDisabled: plugins.ownerDisabled,
+              }).map(([name, stage]) => [name, Object.fromEntries(Object.entries(stage.reads).map(([key, read]) => [key, request(read.input)]))]),
+            ),
+            ownerFinal: request(plugins.ownerFinal.read.input),
+            distribution: request(plugins.distribution.read.input),
+          },
     searchLibrary: Object.fromEntries(Object.entries(wire.searchLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     searchRooms: wire.searchLibrary?.rooms.map((room) => request(room.input)) ?? [],
     libraryRelations: Object.fromEntries(Object.entries(wire.libraryRelations?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
@@ -469,6 +496,7 @@ export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]
     auth: wire.auth,
     ...(wire.oidc === undefined ? {} : { oidc: wire.oidc }),
     health: wire.health,
+    ...(wire.pluginLibrary === undefined ? {} : { pluginLibrary: publishCorpusPlugins(wire.pluginLibrary) }),
     ...(wire.searchLibrary === undefined ? {} : { searchLibrary: publishCorpusSearch(wire.searchLibrary) }),
     ...(wire.libraryRelations === undefined ? {} : { libraryRelations: publishLibraryRelations(wire.libraryRelations) }),
     ...(wire.memberIdentities === undefined ? {} : { memberIdentities: wire.memberIdentities }),
