@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-15
 priority: P1
 area: code-facts
-lane: codex/share-acme-harness-958
+lane: codex/native-config-999
 plan: test-foundation
 ---
 
@@ -24,4 +24,4 @@ Real installed-method and bound-write controls preserve receiver and ordered arg
 
 ## Evidence
 
-Native installed database controls reproduce direct-write detection with missing bound-write findings. The structural stand-in does not establish this defect. Native Function wrappers retain their library signatures, so signatures alone cannot establish receiver provenance. Implementation and ownership-policy qualification remain open.
+Reviewed source `98dbff8488` separates native declarations, signatures, wrapper arguments and effective receivers from unresolved receiver provenance. Installed database controls and existing strict invocation controls pass. A finding-specific correction preserves legacy binding fields and key order. Tooling types pass; root retains off-owned errors. Ownership-policy consumption and qualification remain open.
