@@ -239,6 +239,10 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     relativePath,
     sourceFile,
     nativeTypes: {
+      invocationEvidence: (
+        nodes: Parameters<NativeTypeContext["invocationEvidence"]>[0],
+        plan: Parameters<NativeTypeContext["invocationEvidence"]>[1],
+      ): ReturnType<NativeTypeContext["invocationEvidence"]> => nativeFacts(nodes).invocationEvidence(input.ownerId, nodes, plan),
       globalOrigins: (nodes: Parameters<NativeTypeContext["globalOrigins"]>[0]): ReturnType<NativeTypeContext["globalOrigins"]> =>
         nativeFacts(nodes).globalOrigins(input.ownerId, nodes),
       globalBindings: (nodes: Parameters<NativeTypeContext["globalBindings"]>[0]): ReturnType<NativeTypeContext["globalBindings"]> =>

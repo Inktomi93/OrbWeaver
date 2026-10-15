@@ -4,12 +4,19 @@
 // Population preserves every authored test tree, including nested tests; production sources are outside this policy.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { isAuthoredModuleNamespace } from "../../floor/code-facts/module-namespace.ts";
-import { readStaticString, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
-import { readCallableInvocation } from "../../floor/code-facts/reference-fact-invocation.ts";
+import { hasAuthoredModuleNamespaceDeclaration } from "../../floor/code-facts/module-namespace.ts";
+import type { InventoryInvocationPlan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { invocationOriginServices, requiredInvocationFact } from "../lib/native-invocation.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
 import { readSealedOrigin } from "../lib/sealed-origin.ts";
+
+const INVOCATION_PLAN: InventoryInvocationPlan = {
+  mode: "invocation",
+  facets: ["module"],
+  arguments: [{ index: 0, facets: ["module", "namespace", "string", "stable"] }],
+};
 
 const VITEST_MODULE = "vitest";
 /** `mock` is hoisted, `doMock` is not; both replace an internal module with a fake and both are the ban's
@@ -33,15 +40,18 @@ const SPY_VITEST = "export const vi = { spyOn: (target: object, name: string): v
 /** Legacy `scanRoot` was `p.includes("tests/")` — every authored `tests/` tree, including the nested ones. */
 const TEST_POPULATION = { in: ["@authored"], under: ["tests/**", "**/tests/**"] } as const;
 
-function replacementInvocation(node: import("ts-morph").CallExpression): { readonly verb: string; readonly argument: MorphNode } | undefined {
-  const invocation = readCallableInvocation(node);
+function replacementInvocation(evidence: NativeInvocationEvidence): { readonly verb: string; readonly argument: MorphNode } | undefined {
+  const invocation = evidence.invocation;
+  if (invocation === undefined) {
+    throw new Error("test-mock-doctrine native invocation capture is unavailable");
+  }
   if (invocation.kind === "unresolved" && "capture" in invocation) {
     throw new Error(`test-mock-doctrine cannot prove native bound callable capture: ${invocation.detail}`);
   }
   if (invocation.kind !== "resolved" || invocation.value.invocation === "bind") {
     return;
   }
-  const native = readPackageExportOrigin(invocation.value.callee, [VITEST_MODULE], new Set([...MOCK_MEMBERS, SPY_MEMBER]));
+  const native = readPackageExportOrigin(invocation.value.callee, [VITEST_MODULE], new Set([...MOCK_MEMBERS, SPY_MEMBER]), invocationOriginServices(evidence));
   if (native.verdict !== "home" || native.exportedName === null) {
     return;
   }
@@ -58,42 +68,60 @@ function isInternalTarget(specifier: string): boolean {
   return INTERNAL_PREFIXES.some((prefix) => specifier.startsWith(prefix));
 }
 
-function isClassHome(declaration: MorphNode): boolean {
+function isClassHome(declaration: MorphNode, evidence: NativeInvocationEvidence): boolean {
   if (Node.isClassDeclaration(declaration)) {
     return true;
   }
   if (!Node.isVariableDeclaration(declaration)) {
     return false;
   }
-  const value = resolveStableExpression(declaration.getNameNode());
+  const value = requiredInvocationFact(evidence.canonicalValues, declaration);
   return value.kind === "resolved" && Node.isClassExpression(value.value);
 }
 
 /** The finding message when this vitest call replaces internal code, else undefined. */
-function replacementMessage(verb: string, target: MorphNode): string | undefined {
+function replacementMessage(verb: string, target: MorphNode, evidence: NativeInvocationEvidence): string | undefined {
   if (verb === SPY_MEMBER) {
-    if (isAuthoredModuleNamespace(target)) {
+    if (hasAuthoredModuleNamespaceDeclaration(requiredInvocationFact(evidence.namespaces, target))) {
       return SPY_MESSAGE;
     }
-    const prototype = resolveModuleMemberOrigin(target);
+    const prototype = requiredInvocationFact(evidence.modules, target);
     if (
       prototype.kind === "resolved" &&
       prototype.value.memberPath.at(-1) === "prototype" &&
       prototype.value.canonical.kind === "project" &&
-      isClassHome(prototype.value.canonical.declaration) &&
+      isClassHome(prototype.value.canonical.declaration, evidence) &&
       !prototype.value.canonical.sourceFile.isInNodeModules()
     ) {
       return "vi.spyOn on an authored class prototype replaces behavior for every instance — inject the collaborator at its port (Spine-Testing.md §3).";
     }
-    const logger = readSealedOrigin(target, { pathInfix: "/packages/server/src/foundation/observability/logger.ts", exportedNames: new Set(["logger"]) });
+    const logger = readSealedOrigin(
+      target,
+      { pathInfix: "/packages/server/src/foundation/observability/logger.ts", exportedNames: new Set(["logger"]) },
+      invocationOriginServices(evidence).moduleOrigin,
+    );
     return logger.kind === "sealed"
       ? "vi.spyOn on the production logger replaces the shared observability sink — inject an edge recorder (Spine-Testing.md §3)."
       : undefined;
   }
-  const specifier = readStaticString(target);
+  const specifier = requiredInvocationFact(evidence.strings, target);
   // FAIL-CLOSED: a target the static reader cannot resolve is exactly where an internal module
   // hides — a computed specifier is not evidence that the edge is third-party.
   return specifier.kind !== "resolved" || isInternalTarget(specifier.value) ? MESSAGE : undefined;
+}
+
+function reportReplacement(node: import("ts-morph").CallExpression, evidence: NativeInvocationEvidence, ctx: GatePolicyContext): void {
+  const replacement = replacementInvocation(evidence);
+  if (replacement === undefined) {
+    return;
+  }
+  const { verb, argument } = replacement;
+  const message = replacementMessage(verb, argument, evidence);
+  if (message !== undefined) {
+    const expression = node.getExpression();
+    const offset = expression.getText().indexOf(verb);
+    ctx.report.node(expression, { ...(offset < 0 ? {} : { token: verb, offset }), message });
+  }
 }
 
 export const gate = defineGate({
@@ -108,29 +136,38 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.CallExpression],
-        visit: (node) => {
-          if (!Node.isCallExpression(node)) {
-            return;
-          }
-          const replacement = replacementInvocation(node);
-          if (replacement === undefined) {
-            return;
-          }
-          const { verb, argument } = replacement;
-          const message = replacementMessage(verb, argument);
-          if (message !== undefined) {
-            const expression = node.getExpression();
-            const offset = expression.getText().indexOf(verb);
-            ctx.report.node(expression, { ...(offset < 0 ? {} : { token: verb, offset }), message });
-          }
+  create: (ctx) => {
+    const pending: import("ts-morph").CallExpression[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node) => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            pending.push(node);
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native invocation context is unavailable");
+            }
+            ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: [node], plan: INVOCATION_PLAN });
+          },
         },
+      ],
+      evaluate: (): void => {
+        if (pending.length === 0) {
+          return;
+        }
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native invocation context is unavailable");
+        }
+        for (const node of pending) {
+          const evidence = requiredInvocationFact(ctx.nativeTypes.invocationEvidence([node], INVOCATION_PLAN), node);
+          reportReplacement(node, evidence, ctx);
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

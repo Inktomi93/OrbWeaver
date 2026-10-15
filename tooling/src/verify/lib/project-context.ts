@@ -7,7 +7,7 @@ import { createSemanticWorkspace, getWorkspace, registeredSemanticSourceView } f
 import type { AsExpression, Node, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
-import { SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
 import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
 import type { SemanticSourceView, SemanticWorkspace } from "../../floor/compiler/ts-workspace-contract.ts";
@@ -56,9 +56,25 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       throw new Error("native type requests must be sealed before reading");
     }
   };
-  const selected = (owner: string, kind: NativeTypeRequest["kind"], nodes: readonly Node[]): NativeTypeFactReader => {
+  const selected = (
+    owner: string,
+    kind: NativeTypeRequest["kind"],
+    nodes: readonly Node[],
+    plan?: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan,
+  ): NativeTypeFactReader => {
     assertReadable();
-    const admitted = new Set<Node>((requests.get(owner) ?? []).filter((query) => query.kind === kind).flatMap((query) => [...query.nodes]));
+    const admitted = new Set<Node>(
+      (requests.get(owner) ?? [])
+        .filter(
+          (query) =>
+            query.kind === kind &&
+            (query.kind !== "invocation-evidence" ||
+              (plan !== undefined &&
+                invocationQueryKey({ ...query.plan, node: { file: "", start: 0, end: 0, kind: 0 } }) ===
+                  invocationQueryKey({ ...plan, node: { file: "", start: 0, end: 0, kind: 0 } }))),
+        )
+        .flatMap((query) => [...query.nodes]),
+    );
     if (nodes.some((node) => !admitted.has(node))) {
       throw new Error("native type query was not registered by this owner");
     }
@@ -82,6 +98,9 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (query.nodes.length > 0) {
         const rows = requests.get(owner) ?? [];
         switch (query.kind) {
+          case "invocation-evidence":
+            rows.push({ kind: query.kind, nodes: [...query.nodes], plan: invocationPlanSchema.parse(query.plan) });
+            break;
           case "cast-relations":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
@@ -123,6 +142,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         }
       }
       sealed = true;
+    },
+    invocationEvidence: (owner, nodes, plan): ReturnType<NativeTypeContext["invocationEvidence"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "invocation-evidence", nodes, plan).invocationEvidence(nodes, plan);
     },
     castRelations: (owner, nodes): ReturnType<NativeTypeContext["castRelations"]> => {
       if (nodes.length === 0) {
@@ -240,6 +266,9 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
         if (query.kind === "shape-relations") {
           return [];
         }
+        if (query.kind === "invocation-evidence") {
+          return ["invocation-evidence", "global-origins", "computed-names"] as const;
+        }
         if (query.kind === "global-bindings") {
           return ["global-origins"] as const;
         }
@@ -253,6 +282,21 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   const inventory = createSemanticInventory({
     root,
     programs: descriptors,
+    ...(families.includes("invocation-evidence")
+      ? {
+          invocationQueries: queries
+            .filter((query) => query.kind === "invocation-evidence")
+            .flatMap((query) =>
+              query.nodes.map((node) => ({
+                program: owner(node),
+                query: {
+                  ...query.plan,
+                  node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+                },
+              })),
+            ),
+        }
+      : {}),
     ...(families.includes("global-origins")
       ? {
           globalOriginQueries: queries
@@ -313,6 +357,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    invocationEvidence: (subjects, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> =>
+      new Map(subjects.map((node) => [node, inventory.invocationEvidence(node, owner(node), plan)])),
     globalOrigins: (subjects): ReturnType<NativeTypeFactReader["globalOrigins"]> =>
       new Map(subjects.map((node) => [node, inventory.globalOrigin(node, owner(node))])),
     globalBindings: (subjects): ReturnType<NativeTypeFactReader["globalBindings"]> =>

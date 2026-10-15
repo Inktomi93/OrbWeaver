@@ -136,6 +136,7 @@ test("unqualified syntax carriers refuse native importer, test and runtime reach
     computedNames: [],
     globalOrigins: [],
     globalBindings: [],
+    invocationEvidence: [],
     declarationOutputs: [],
     runtimeExports: [],
     shapes: [],

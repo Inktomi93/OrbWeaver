@@ -6,7 +6,7 @@
 // `ctx.relativePath` refuses by contract.
 
 import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { ModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact-contract";
+import type { ModuleMemberOrigin, ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import type { SealedOriginVerdict } from "../contract/sealed-origin.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
@@ -23,16 +23,19 @@ function projectPath(origin: ModuleMemberOrigin): string | null {
 }
 
 /** Resolve one reference against a sealed implementation home. */
-export function readSealedOrigin(node: MorphNode, home: SealedHome): SealedOriginVerdict {
-  const origin = resolveModuleMemberOrigin(node);
+export function readSealedOrigin(
+  node: MorphNode,
+  home: SealedHome,
+  readOrigin: (node: MorphNode) => ReferenceFact<ModuleMemberOrigin> = resolveModuleMemberOrigin,
+): SealedOriginVerdict {
+  const origin = readOrigin(node);
   if (origin.kind === "unresolved") {
     return { kind: "unresolved", fact: origin };
   }
   const path = projectPath(origin.value);
   const exportedName = origin.value.canonical.exportedName;
-  return path !== null && path.includes(home.pathInfix) && home.exportedNames.has(exportedName)
-    ? { kind: "sealed", exportedName, origin: origin.value }
-    : { kind: "foreign", origin: origin.value };
+  const matches = path?.includes(home.pathInfix) ?? false;
+  return matches && home.exportedNames.has(exportedName) ? { kind: "sealed", exportedName, origin: origin.value } : { kind: "foreign", origin: origin.value };
 }
 
 /** Does one candidate REPORT under a seal? `sealed` always does, `foreign` never does, and an `unresolved`

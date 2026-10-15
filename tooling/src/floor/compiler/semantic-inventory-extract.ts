@@ -14,10 +14,19 @@ import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import { beginReferencePass, endReferencePass, referenceResolutionServices, resolveGlobalMemberOrigin } from "../code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
-import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
+import type {
+  InventoryBuildRequest,
+  InventoryFamily,
+  InventoryInput,
+  InventoryInvocationQuery,
+  InventoryPartition,
+  InventorySpan,
+  InventorySymbols,
+} from "../code-facts/semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT, inventoryFamilies, inventoryNodeQueryKey } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
+import { captureInvocationEvidence, encodeInvocationEvidence } from "./invocation-evidence-extract.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
 import { extractShape, extractShapePairs } from "./shape-inventory-extract.ts";
 import { collectByKinds, descendantsOfKind, nativeCompilerSourceFiles, nativeReferenceNode } from "./ts-workspace.ts";
@@ -159,6 +168,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
+    ...invocationImplementationInputs(families),
     fileURLToPath(new URL("./shape-inventory-extract.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/shape-fields.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/shape-derivation.ts", import.meta.url)),
@@ -246,6 +256,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const computedNameQueries = computedDemandFor(request, families, roots);
   const globalOriginQueries = globalDemandFor(request, families, roots, "globalOriginQueries");
   const globalBindingQueries = globalDemandFor(request, families, roots, "globalBindingQueries");
+  const invocationQueries = invocationDemandFor(request, families, roots);
   const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
   const authored = (path: string): boolean => {
     const version = inputVersion(path, "authored", authoredFiles);
@@ -272,6 +283,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           computedNames: [],
           globalOrigins: [],
           globalBindings: [],
+          invocationEvidence: [],
           shapes: [],
           pairs: [],
           references: [],
@@ -286,6 +298,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           computedNameQueries,
           globalOriginQueries,
           globalBindingQueries,
+          invocationQueries,
         });
   return {
     intent: request.intent ?? "facts",
@@ -331,9 +344,13 @@ function extractTypedFacts(
     readonly computedNameQueries: readonly InventorySpan[];
     readonly globalOriginQueries: readonly InventorySpan[];
     readonly globalBindingQueries: readonly InventorySpan[];
+    readonly invocationQueries: readonly InventoryInvocationQuery[];
   },
 ): SourceFactValues & Pick<InventoryPartition, "pairs" | "references"> {
-  const { sources, authored, spans, families, queries, callableQueries, computedNameQueries, globalOriginQueries, globalBindingQueries } = input;
+  const { sources, authored, spans, families, queries, callableQueries, computedNameQueries, globalOriginQueries, globalBindingQueries, invocationQueries } =
+    input;
+  const invocationProgram = invocationQueries.length === 0 ? undefined : project.getProgram().compilerObject;
+  const invocationSources = invocationQueries.length === 0 ? [] : nativeCompilerSourceFiles(project);
   const service = project.getLanguageService().compilerObject;
   const program = service.getProgram();
   if (program === undefined) {
@@ -351,12 +368,23 @@ function extractTypedFacts(
       computedNameQueries,
       globalOriginQueries,
       globalBindingQueries,
+      invocationQueries,
+      invocationSources,
+      invocationProgram,
     });
-    return {
+    const facts = {
       ...sourceFacts,
       pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
       references: families.includes("references") ? extractReferenceFacts(service, program, referenceDeclarations, spans) : [],
     };
+    // A later LS-owned family must not silently replace the Project owner whose invocation bytes were captured.
+    for (const source of invocationSources) {
+      if (invocationProgram === undefined) {
+        throw new Error("native invocation owner Program is unavailable");
+      }
+      assertInvocationSource(source, invocationProgram);
+    }
+    return facts;
   } finally {
     if (callablePass) {
       endReferencePass();
@@ -427,6 +455,7 @@ type SourceFactValues = Pick<
   | "computedNames"
   | "globalOrigins"
   | "globalBindings"
+  | "invocationEvidence"
   | "shapes"
 >;
 interface SourceFactCollection {
@@ -443,6 +472,7 @@ interface SourceFactCollection {
   readonly globalOriginQueries: Set<string>;
   readonly globalBindingQueries: Set<string>;
   readonly globalKinds: ReadonlySet<SyntaxKind>;
+  readonly invocationBindings: Map<string, InventorySymbols>;
 }
 
 function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void {
@@ -483,7 +513,12 @@ function collectIdentifierFacts(node: MorphNode, context: SourceFactCollection):
   const span = context.spans.node(node);
   const closed = context.globalBindingQueries.delete(inventoryNodeQueryKey(span));
   if (context.families.has("bindings") || closed) {
-    context.values.bindings.push({ node: context.spans.node(node), symbols: bindingFacts(node, context.spans) });
+    const symbols = bindingFacts(node, context.spans);
+    const expected = context.invocationBindings.get(inventoryNodeQueryKey(span));
+    if (expected !== undefined && JSON.stringify(expected) !== JSON.stringify(symbols)) {
+      throw new Error("native invocation binding differs between its admitted Project and language-service owners");
+    }
+    context.values.bindings.push({ node: span, symbols });
   }
   if (closed) {
     context.values.globalBindings.push(span);
@@ -667,6 +702,9 @@ function extractSourceFacts(
     readonly computedNameQueries: readonly InventorySpan[];
     readonly globalOriginQueries: readonly InventorySpan[];
     readonly globalBindingQueries: readonly InventorySpan[];
+    readonly invocationQueries: readonly InventoryInvocationQuery[];
+    readonly invocationSources: readonly SourceFile[];
+    readonly invocationProgram: ts.Program | undefined;
   },
 ): SourceFactValues & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
   const { spans } = input;
@@ -693,8 +731,10 @@ function extractSourceFacts(
       computedNames: [],
       globalOrigins: [],
       globalBindings: [],
+      invocationEvidence: [],
       shapes: [],
     },
+    invocationBindings: new Map(),
     referenceDeclarations: new Map(),
     shapeNodes: new WeakSet(),
     checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),
@@ -702,6 +742,7 @@ function extractSourceFacts(
   const standaloneSources = nativeCompilerSourceFiles(program);
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
   try {
+    collectInvocationFacts(input.invocationQueries, input.invocationSources, context, input.invocationProgram);
     for (const original of sources.files) {
       const sf = sharedSourceFile(program, sources.nativeSources.get(original.getFilePath()), byCompilerSource);
       if (sf === undefined) {
@@ -856,4 +897,176 @@ function globalDemandFor(
     throw new Error("native global origins and bindings require closed demand in native roots/family");
   }
   return queries;
+}
+
+interface InvocationCollection {
+  readonly context: SourceFactCollection;
+  readonly program: ts.Program;
+  readonly byFile: ReadonlyMap<string, SourceFile>;
+  readonly related: Map<string, InventoryPartition["invocationEvidence"][number]["sources"][number]>;
+  readonly bindingKeys: Set<string>;
+  readonly computedKeys: Set<string>;
+  readonly globalKeys: Set<string>;
+}
+
+/** Requested roots close related binding/name sources before the ordinary authored walk forgets wrappers. */
+function collectInvocationFacts(
+  queries: readonly InventoryInvocationQuery[],
+  sources: readonly SourceFile[],
+  context: SourceFactCollection,
+  program: ts.Program | undefined,
+): void {
+  if (queries.length === 0) {
+    return;
+  }
+  if (program === undefined) {
+    throw new Error("native invocation owner Program is unavailable");
+  }
+  const state: InvocationCollection = {
+    context,
+    program,
+    byFile: new Map(sources.map((source) => [context.spans.path(source.getFilePath()), source])),
+    related: new Map(),
+    bindingKeys: new Set(),
+    computedKeys: new Set(context.values.computedNames.map((fact) => inventoryNodeQueryKey(fact.node))),
+    globalKeys: new Set(context.values.globalOrigins.map((fact) => inventoryNodeQueryKey(fact.node))),
+  };
+  for (const source of sources) {
+    assertInvocationSource(source, program);
+  }
+  for (const query of queries) {
+    collectInvocationQuery(query, state);
+  }
+  for (const source of sources) {
+    assertInvocationSource(source, program);
+    source.forgetDescendants();
+  }
+}
+function assertInvocationSource(source: SourceFile, program: ts.Program): void {
+  if (source.getProject().getProgram().compilerObject !== program || program.getSourceFile(source.getFilePath()) !== source.compilerNode) {
+    throw new Error("native invocation Project source differs from its captured native Program");
+  }
+}
+function collectInvocationQuery(query: InventoryInvocationQuery, state: InvocationCollection): void {
+  const { context, byFile, program } = state;
+  const source = byFile.get(query.node.file);
+  const node = source?.getDescendantAtStartWithWidth(query.node.start, query.node.end - query.node.start);
+  if (node === undefined || node.getKind() !== query.node.kind) {
+    throw new Error("native invocation query span is unavailable in its captured native program");
+  }
+  assertInvocationSource(node.getSourceFile(), program);
+  const evidence = captureInvocationEvidence(node, query);
+  assertInvocationSource(node.getSourceFile(), program);
+  const wire = encodeInvocationEvidence(node, query, evidence, context.spans.node);
+  const closed = closeInvocationSources(evidence.sources, state);
+  for (const [subject, fact] of evidence.globals) {
+    const span = context.spans.node(subject);
+    const key = inventoryNodeQueryKey(span);
+    if (state.globalKeys.has(key)) {
+      continue;
+    }
+    state.globalKeys.add(key);
+    context.globalOriginQueries.delete(key);
+    context.values.globalOrigins.push({
+      node: span,
+      trace: { origin: context.spans.node(fact.trace.origin), declarations: fact.trace.declarations.map(context.spans.node) },
+      result:
+        fact.kind === "resolved"
+          ? {
+              kind: fact.kind,
+              globalName: fact.value.globalName,
+              memberPath: [...fact.value.memberPath],
+              declarations: fact.value.declarations.map(context.spans.node),
+            }
+          : { kind: fact.kind, reason: fact.reason, detail: fact.detail, node: context.spans.node(fact.node) },
+    });
+  }
+  context.values.invocationEvidence.push({ ...wire, sources: [...closed.values()] });
+}
+function closeInvocationSources(sources: readonly SourceFile[], state: InvocationCollection): InvocationCollection["related"] {
+  const closed: InvocationCollection["related"] = new Map();
+  for (const source of sources) {
+    const file = state.context.spans.path(source.getFilePath());
+    if (!state.byFile.has(file)) {
+      throw new Error("native invocation related source is outside its captured native closure");
+    }
+    closed.set(file, collectInvocationSource(source, state));
+  }
+  return closed;
+}
+function collectInvocationSource(source: SourceFile, state: InvocationCollection): InventoryPartition["invocationEvidence"][number]["sources"][number] {
+  const file = state.context.spans.path(source.getFilePath());
+  const previous = state.related.get(file);
+  if (previous !== undefined) {
+    return previous;
+  }
+  const identifiers = descendantsOfKind(source, SyntaxKind.Identifier);
+  const result = { file, bindings: identifiers.length, computed: [] as InventorySpan[] };
+  state.related.set(file, result);
+  for (const identifier of identifiers) {
+    collectInvocationBinding(identifier, state);
+  }
+  for (const member of descendantsOfKind(source, SyntaxKind.ElementAccessExpression)) {
+    const keyNode = member.getArgumentExpression();
+    if (keyNode === undefined) {
+      continue;
+    }
+    const span = state.context.spans.node(keyNode);
+    const key = inventoryNodeQueryKey(span);
+    result.computed.push(span);
+    if (!state.computedKeys.has(key)) {
+      state.computedKeys.add(key);
+      state.context.computedNameQueries.add(key);
+      collectComputedNameFact(keyNode, state.context);
+    }
+  }
+  return result;
+}
+function collectInvocationBinding(identifier: MorphNode, state: InvocationCollection): void {
+  const { context } = state;
+  const node = context.spans.node(identifier);
+  const key = inventoryNodeQueryKey(node);
+  if (state.bindingKeys.has(key)) {
+    return;
+  }
+  state.bindingKeys.add(key);
+  context.globalBindingQueries.delete(key);
+  context.values.globalBindings.push(node);
+  const symbols = bindingFacts(identifier, context.spans);
+  context.invocationBindings.set(key, symbols);
+  // Complete authored order stays with its walk; matching normalized bytes prove the shared row for both owners.
+  if (!(context.families.has("bindings") && context.authored(node.file))) {
+    context.values.bindings.push({ node, symbols });
+  }
+}
+
+function invocationDemandFor(
+  request: InventoryBuildRequest,
+  families: readonly InventoryFamily[],
+  roots: readonly string[],
+): readonly InventoryInvocationQuery[] {
+  const invocationQueries = request.invocationQueries ?? [];
+  if (
+    (families.includes("invocation-evidence") &&
+      (request.invocationQueries === undefined || !families.includes("computed-names") || !families.includes("global-origins"))) ||
+    invocationQueries.some((query) => !roots.includes(query.node.file)) ||
+    (invocationQueries.length > 0 && !families.includes("invocation-evidence"))
+  ) {
+    throw new Error("native invocation queries require closed native root/family demand");
+  }
+  return invocationQueries;
+}
+
+function invocationImplementationInputs(families: readonly InventoryFamily[]): readonly string[] {
+  return families.includes("invocation-evidence")
+    ? [
+        "./invocation-evidence-extract.ts",
+        "../code-facts/invocation-evidence-replay.ts",
+        "../code-facts/reference-fact-invocation.ts",
+        "../code-facts/call-supplied.ts",
+        "../code-facts/module-namespace.ts",
+        "../code-facts/reference-documentation.ts",
+        "../code-facts/type-member-origin-core.ts",
+      ].map((name) => fileURLToPath(new URL(name, import.meta.url)))
+    : [];
 }

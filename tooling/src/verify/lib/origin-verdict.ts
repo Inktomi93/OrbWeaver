@@ -40,7 +40,11 @@ export function originRefusalDeclarations(node: MorphNode, declarations?: Origin
 /** Does this reference PROVABLY bind a declaration that is not a module import at all — a local function,
  *  parameter, method, class or property? That is case (a): a different identity, not an unreadable one. */
 export function bindsProvenNonModuleDeclaration(node: MorphNode): boolean {
-  const declarations = originRefusalDeclarations(node);
+  return bindsProvenNonModuleDeclarations(originRefusalDeclarations(node));
+}
+
+/** The same local-vs-import judgment for an explicitly captured declaration population. */
+export function bindsProvenNonModuleDeclarations(declarations: readonly MorphNode[]): boolean {
   return declarations.length > 0 && !declarations.some(isModuleAliasDeclaration);
 }
 

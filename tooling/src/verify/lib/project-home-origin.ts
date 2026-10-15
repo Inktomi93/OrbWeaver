@@ -20,7 +20,7 @@ import {
 } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
-import type { ProjectHomeVerdict } from "../contract/origin-verdict.ts";
+import type { ModuleOriginServices, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { declaredByAnyPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "./type-member-origin.ts";
 
@@ -90,10 +90,15 @@ export function classifyProjectHomeOrigin(node: MorphNode, home: LocatedProjectH
  *  specifier to its shipped declarations), or — when the checker could not reach the package at all — the
  *  door the consumer authored must be that package. The second arm is what keeps a proof honest in a
  *  workspace where the vendor is not installed; the first is what a real run uses. */
-export function readPackageExportOrigin(node: MorphNode, packageNames: readonly string[], names: ReadonlySet<string>): PackageExportOrigin {
-  const origin = resolveModuleMemberOrigin(node);
+export function readPackageExportOrigin(
+  node: MorphNode,
+  packageNames: readonly string[],
+  names: ReadonlySet<string>,
+  services?: ModuleOriginServices,
+): PackageExportOrigin {
+  const origin = services === undefined ? resolveModuleMemberOrigin(node) : services.moduleOrigin(node);
   if (origin.kind === "unresolved") {
-    return { verdict: classifyOriginRefusal(origin.reason, node), exportedName: null };
+    return { verdict: classifyOriginRefusal(origin.reason, node, services?.declarations), exportedName: null };
   }
   const { canonical, memberPath } = origin.value;
   const named = memberPath.length === 0 ? canonical.exportedName : memberPath.at(-1);

@@ -3,6 +3,6 @@ import { gate as determinism } from "../../../../tooling/src/verify/gates/test-d
 import { gate as mocks } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
-test("testkit determinism and mock doctrine discriminate their declared subjects", () => {
-  expect(verifyPolicyProofs([determinism, mocks])).toEqual([]);
+test.for([determinism, mocks])("$id discriminates its complete declared subjects", (policy) => {
+  expect(verifyPolicyProofs([policy])).toEqual([]);
 });
