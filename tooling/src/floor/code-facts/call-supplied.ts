@@ -173,11 +173,16 @@ export function readCallReturnProgram(node: MorphNode, observations: CallReturnO
   }
   const source = node.getSourceFile();
   const program = observations.programs.find((candidate) => candidate.sources.has(source));
-  if (
-    program === undefined ||
-    [...program.sources].some(([file, snapshot]) => file.wasForgotten() || file.compilerNode !== snapshot) ||
-    node.getProject().getProgram().compilerObject !== program.program
-  ) {
+  let staleSource = false;
+  if (program !== undefined) {
+    for (const file of program.sources.keys()) {
+      if (file.wasForgotten() || file.compilerNode !== program.sources.get(file)) {
+        staleSource = true;
+        break;
+      }
+    }
+  }
+  if (program === undefined || staleSource || node.getProject().getProgram().compilerObject !== program.program) {
     return unresolved("unsupported", node, "call/return observations belong to another compiler world or a stale source/program epoch");
   }
   return { kind: "resolved", value: program, trace: { declarations: [], origin: node } };
