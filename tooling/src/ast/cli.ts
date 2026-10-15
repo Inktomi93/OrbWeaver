@@ -18,6 +18,8 @@ import { warn } from "../floor/cli/log.ts";
 import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import { SemanticInventoryError } from "../floor/code-facts/semantic-inventory-contract.ts";
 import { semanticInventoryOf } from "../floor/code-facts/semantic-inventory-reader.ts";
+import { bindShapeInventory } from "../floor/code-facts/shape-inventory-scope.ts";
+import type { Flags } from "./contract/types.ts";
 import {
   ANTIPATTERNS_VERB,
   ARGLESS_VERBS,
@@ -42,6 +44,8 @@ import {
   VERBS,
   WIDE_SYNTACTIC_VERBS,
 } from "./index.ts";
+import { REPO_ROOT } from "./lib/root.ts";
+import { prepareRespellInventory } from "./ops/respell.ts";
 
 /** Which corpus label a run's epilogue carries — the three arms `loadProject` can produce. */
 function corpusOf(typed: boolean, wide: boolean, verb: string): string {
@@ -117,6 +121,19 @@ function mapKnownError(e: unknown): number {
   throw e;
 }
 
+function invocationCorpus(verb: string, typed: boolean, wide: boolean): ReturnType<typeof loadProject> {
+  if (verb === "respell") {
+    return loadProject(false);
+  }
+  return INVENTORY_VERBS.has(verb) ? loadInventoryProject() : loadProject(typed, wide);
+}
+
+function dispatchCorpus(verb: string, corpus: ReturnType<typeof loadProject>, arg: string, flags: Flags): void {
+  using inventory = verb === "respell" ? prepareRespellInventory(REPO_ROOT, corpus, arg, flags) : semanticInventoryOf(corpus);
+  using _binding = verb === "respell" && inventory !== undefined ? bindShapeInventory(corpus.getSourceFiles(), inventory) : undefined;
+  VERBS[verb]?.(corpus, arg, flags);
+}
+
 async function main(): Promise<number> {
   const [verb, arg, ...rest] = process.argv.slice(2);
   // The usage door, both spellings: bare, and the `--help` every other CLI on this box answers to (#452 —
@@ -147,9 +164,8 @@ async function main(): Promise<number> {
   beginRun(verb, corpusOf(typed, wide, verb), flags);
   // @orb-waive caught-failure-ownership(e): the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean.
   try {
-    const corpus = INVENTORY_VERBS.has(verb) ? loadInventoryProject() : loadProject(typed, wide);
-    using _inventory = semanticInventoryOf(corpus);
-    VERBS[verb]?.(corpus, invocation.effectiveArg, flags);
+    const corpus = invocationCorpus(verb, typed, wide);
+    dispatchCorpus(verb, corpus, invocation.effectiveArg, flags);
   } catch (e) {
     return mapKnownError(e);
   }

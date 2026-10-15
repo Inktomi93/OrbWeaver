@@ -533,6 +533,9 @@ function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (): NativeTypeFactReader => ({
+      prepareShapes: (requested): void => {
+        checkerFor(requested);
+      },
       castRelations: (nodes): ReturnType<NativeTypeFactReader["castRelations"]> => {
         const checker = readAssignabilityChecker(checkerFor(nodes));
         if (checker === undefined) {

@@ -239,6 +239,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     relativePath,
     sourceFile,
     nativeTypes: {
+      prepareShapes: (sources: Parameters<NativeTypeContext["prepareShapes"]>[0]): void => nativeFacts(sources).prepareShapes(input.ownerId, sources),
       request: (query: NativeTypeRequest): void => {
         const facts = nativeFacts(query.nodes);
         facts.request(input.ownerId, query);

@@ -11,6 +11,8 @@ import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { observeCallReturns } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
+import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
+import { bindShapeInventory, collectShapeQueries } from "../../../../tooling/src/floor/code-facts/shape-inventory-scope.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { canonicalCompilerPath, createSemanticWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { SemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace-contract.ts";
@@ -918,3 +920,39 @@ ${body("Forwarded", "ForwardedOptions", "options.fields", "out").replace("new Mi
     expect(readRealComponentHome(root, workspace, { config, path, name }).kind, name).toBe("unqualified");
   }
 });
+
+test(
+  "component lower-data preserves overlap and derivation through run-owned native pair facts",
+  ({ scratch, repoRoot }) => {
+    const { sourceFile, read, view } = fixture(scratch, repoRoot);
+    const lower = sourceFile
+      .getImportDeclarations()
+      .find((node) => node.getModuleSpecifierValue().endsWith("/wire.ts"))
+      ?.getModuleSpecifierSourceFile();
+    if (lower === undefined) {
+      throw new Error("missing lower owner");
+    }
+    const sources = [sourceFile, lower];
+    using inventory = createSemanticInventory({
+      root: scratch,
+      shapePlan: {
+        sources,
+        owners: new Map(sources.map((source) => [source, view.program.descriptor])),
+        prepare: (catalog) => {
+          using _scope = bindShapeInventory(sources, catalog);
+          return collectShapeQueries(catalog, () => {
+            read("CopyProps");
+            read("Derived");
+          });
+        },
+      },
+    });
+    using _scope = bindShapeInventory(sources, inventory);
+    expect(read("CopyProps")).toMatchObject({
+      kind: "unqualified",
+      lowerData: { kind: "unqualified", comparisons: [{ shared: 4, agreeing: 4, exact: true }] },
+    });
+    expect(read("Derived")).toMatchObject({ kind: "owned", lowerData: { kind: "derived" } });
+  },
+  scaledBudget(60_000),
+);

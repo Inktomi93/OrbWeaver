@@ -3,15 +3,23 @@ import type { TypeChecker } from "ts-morph";
 import type { RefuseAssignability } from "./assignability.ts";
 import { fieldTypesAgree, readAssignabilityChecker } from "./assignability.ts";
 import type { ShapeCopyCandidate, ShapeCopySource, ShapeFieldAgreement } from "./shape-copy-contract.ts";
+import { storedShapeAgreement } from "./shape-facts.ts";
 
 /** Preserve native lenient field agreement without choosing a copy policy or swallowing a refusal. */
-export function createShapeFieldAgreement(checker: Pick<TypeChecker, "compilerObject">, refuse: RefuseAssignability): ShapeFieldAgreement {
-  const assignability = readAssignabilityChecker(checker);
-  if (assignability === undefined) {
-    return refuse("primitive-absent", []);
-  }
-  const context = { checker: assignability, refuse, lenient: true };
-  return (candidate, source, field) => fieldTypesAgree(context, { decl: candidate, name: field }, { decl: source, name: field });
+export function createShapeFieldAgreement(
+  checker: Pick<TypeChecker, "compilerObject"> | (() => Pick<TypeChecker, "compilerObject">),
+  refuse: RefuseAssignability,
+): ShapeFieldAgreement {
+  let acquired = typeof checker === "function" ? undefined : (readAssignabilityChecker(checker) ?? refuse("primitive-absent", []));
+  return (candidate, source, field) => {
+    const stored = storedShapeAgreement({ refuse, lenient: true }, { node: candidate, field }, { node: source, field });
+    if (stored !== undefined) {
+      return stored;
+    }
+    acquired ??= readAssignabilityChecker(typeof checker === "function" ? checker() : checker);
+    const assignability = acquired ?? refuse("primitive-absent", []);
+    return fieldTypesAgree({ checker: assignability, refuse, lenient: true }, { decl: candidate, name: field }, { decl: source, name: field });
+  };
 }
 
 /** Index contract shapes by field name, so a candidate is compared only with shapes it shares a field with. */

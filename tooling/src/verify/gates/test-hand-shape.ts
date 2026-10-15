@@ -3,11 +3,12 @@
 // shape, or that kept most of its field names after drifting. Judged by fields, never by name. DECLARED LIMIT: the
 // drift test (4 shared names, 80 %, one retype) is calibrated, and a row of generic field names can trip it. FAMILY
 // `contract-derives-not-respells` (`lib/contract-structural-copy.ts`). Debt: `lib/reviewed-grants-test-hand-shape.ts`.
-import type { InterfaceDeclaration, TypeAliasDeclaration } from "ts-morph";
+import type { InterfaceDeclaration, SourceFile, TypeAliasDeclaration } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { indexByField } from "../../floor/code-facts/shape-copy.ts";
 import type { ShapeCopySource as ContractFieldShape, ShapeCopyComparison as StructuralCopyMatch } from "../../floor/code-facts/shape-copy-contract.ts";
 import { exportedShapeDeclarations, isHandWrittenShape } from "../../floor/code-facts/shape-declaration.ts";
+import { planShapeQueries } from "../../floor/code-facts/shape-facts.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import { bestCopyMatch, bestOverlapMatch, candidateFields, contractFields, createFieldAgreement } from "../lib/contract-structural-copy.ts";
@@ -60,6 +61,17 @@ function handShapeVerdict(node: HandShape, index: ReadonlyMap<string, readonly C
     : { match: overlap, relation: `shares ${String(overlap.shared)} of its ${String(fields.size)} field names with`, operation: OVERLAP_OPERATION };
 }
 
+function productionFieldShapes(files: readonly SourceFile[], relativePath: (source: SourceFile) => string): ContractFieldShape[] {
+  return files
+    .filter((source) => !relativePath(source).startsWith(TESTS))
+    .flatMap((source) =>
+      exportedShapeDeclarations(source).flatMap(([name, declaration]) => {
+        const shape = contractFields(declaration);
+        return shape === undefined ? [] : [{ name, file: relativePath(source), decl: declaration, fields: shape }];
+      }),
+    );
+}
+
 export const gate = defineGate({
   id: "test-hand-shape",
   family: "contract-derives-not-respells",
@@ -76,19 +88,23 @@ export const gate = defineGate({
   create: (ctx) => {
     const fields: ContractFieldShape[] = [];
     const candidates: { readonly node: HandShape; readonly file: string }[] = [];
-    return {
-      visitFile: (sourceFile) => {
-        const file = ctx.relativePath(sourceFile);
-        if (file.startsWith(TESTS)) {
-          return;
-        }
-        for (const [name, declaration] of exportedShapeDeclarations(sourceFile)) {
-          const shape = contractFields(declaration);
-          if (shape !== undefined) {
-            fields.push({ name, file, decl: declaration, fields: shape });
+    if (ctx.nativeTypes === undefined) {
+      throw new Error("native shape context is unavailable");
+    }
+    ctx.nativeTypes.request({
+      kind: "shape-relations",
+      nodes: ctx.files,
+      prepare: () =>
+        planShapeQueries(ctx.files, () => {
+          const catalog = productionFieldShapes(ctx.files, ctx.relativePath);
+          const index = indexByField(catalog);
+          const agree = createFieldAgreement("test-hand-shape", ctx.checker);
+          for (const { node } of candidates) {
+            handShapeVerdict(node, index, agree);
           }
-        }
-      },
+        }),
+    });
+    return {
       visitors: [
         {
           kinds: [SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration],
@@ -101,9 +117,11 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
+        ctx.nativeTypes?.prepareShapes(ctx.files);
+        fields.push(...productionFieldShapes(ctx.files, ctx.relativePath));
         ctx.receipt({ kind: "population", source: "production-exported-shapes", members: fields.length });
         const index = indexByField(fields);
-        const agree = createFieldAgreement("test-hand-shape", ctx.checker());
+        const agree = createFieldAgreement("test-hand-shape", ctx.checker);
         for (const { node, file } of candidates) {
           const verdict = handShapeVerdict(node, index, agree);
           if (verdict !== undefined) {

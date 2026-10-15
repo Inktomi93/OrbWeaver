@@ -5,19 +5,33 @@ import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compile
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
 
-export const INVENTORY_FORMAT = 7;
-export const INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses", "cast-relations", "id-brands", "runtime-exports"] as const;
+export const INVENTORY_FORMAT = 8;
+export const INVENTORY_FAMILIES = [
+  "exports",
+  "modules",
+  "bindings",
+  "references",
+  "witnesses",
+  "cast-relations",
+  "id-brands",
+  "runtime-exports",
+  "shape-catalog",
+  "shape-pairs",
+] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
 const familySchema = z
   .array(z.enum(INVENTORY_FAMILIES))
-  .min(1)
   .refine((values) => new Set(values).size === values.length, "duplicate inventory family")
   .readonly();
 
 /** Normalize a closed demand before worker acquisition; omitted demand preserves the existing inventory. */
 export function inventoryFamilies(families: unknown): readonly InventoryFamily[] {
-  return familySchema.parse(families ?? DEFAULT_INVENTORY_FAMILIES).toSorted();
+  const parsed = familySchema.parse(families ?? DEFAULT_INVENTORY_FAMILIES);
+  if (parsed.length === 0) {
+    throw new Error("empty native fact demand requires explicit membership intent");
+  }
+  return parsed.toSorted();
 }
 export const INVENTORY_KEY_SEPARATOR = "\0";
 export const INVENTORY_CONSUMER_CLASSES = ["product", "tooling", "test"] as const;
@@ -42,8 +56,51 @@ export const runtimeExportSchema = z.object({
   initializer: z.object({ kind: z.number().int(), callable: z.boolean() }).nullable(),
 });
 export type InventoryRuntimeExport = z.infer<typeof runtimeExportSchema>;
+const RELATION_VALUE_COUNT = 4;
+export const SHAPE_PAIR_PROJECTIONS = ["mutual", "relation"] as const;
+export const shapePairQuerySchema = z.object({
+  left: spanSchema,
+  right: spanSchema,
+  leftField: z.string().nullable(),
+  rightField: z.string().nullable(),
+  projection: z.enum(SHAPE_PAIR_PROJECTIONS),
+  lenient: z.boolean(),
+});
+export type InventoryShapeQuery = z.infer<typeof shapePairQuerySchema>;
+export interface ShapeQuerySide {
+  readonly node: Node;
+  readonly field: string | null;
+}
+/** Stable query identity includes both independent member projections and strictness. */
+export function shapePairKey(query: InventoryShapeQuery): string {
+  return JSON.stringify(shapePairQuerySchema.parse(query));
+}
+export const shapePairResultSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("answer"), values: z.union([z.tuple([z.boolean()]), z.tuple([z.boolean(), z.boolean(), z.boolean(), z.boolean()])]) }),
+  z.object({ kind: z.literal("no-comparable") }),
+  z.object({ kind: z.literal("unavailable"), reason: z.enum(["primitive-absent", "node-absent"]) }),
+]);
+export type InventoryShapePairResult = z.infer<typeof shapePairResultSchema>;
+export const shapePairSchema = z
+  .object({ query: shapePairQuerySchema, result: shapePairResultSchema })
+  .refine(
+    ({ query, result }) => result.kind !== "answer" || result.values.length === (query.projection === "mutual" ? 1 : RELATION_VALUE_COUNT),
+    "native shape pair answer does not match its projection",
+  );
+export const shapeCatalogSchema = z.object({
+  node: spanSchema,
+  copy: z.array(z.object({ name: z.string(), type: z.string() })).nullable(),
+  respell: z.array(z.object({ name: z.string(), type: z.string() })).nullable(),
+  direct: z.array(z.string()),
+  queries: z.array(z.string()),
+});
+export type InventoryShape = z.infer<typeof shapeCatalogSchema>;
 export const partitionSchema = z.object({
+  intent: z.enum(["facts", "membership"]),
   families: familySchema,
+  available: z.array(z.string()),
+  shapes: z.array(shapeCatalogSchema),
+  pairs: z.array(shapePairSchema),
   runtimeExports: z.array(runtimeExportSchema),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
@@ -70,6 +127,8 @@ export const partitionSchema = z.object({
 });
 
 export const partitionMetadataSchema = partitionSchema.omit({
+  shapes: true,
+  pairs: true,
   runtimeExports: true,
   casts: true,
   brands: true,
@@ -83,7 +142,7 @@ export const partitionMetadataSchema = partitionSchema.omit({
 });
 export const storedPartitionSchema = partitionMetadataSchema.extend({ id: z.string() });
 export type StoredInventoryPartition = z.infer<typeof storedPartitionSchema>;
-export const INVENTORY_LISTS = ["configPaths", "projectReferences", "roots", "nativeRoots"] as const;
+export const INVENTORY_LISTS = ["configPaths", "projectReferences", "roots", "nativeRoots", "available"] as const;
 export const INVENTORY_FAMILY_FIELDS = {
   exports: "exports",
   modules: "modules",
@@ -93,6 +152,8 @@ export const INVENTORY_FAMILY_FIELDS = {
   "cast-relations": "casts",
   "id-brands": "brands",
   "runtime-exports": "runtimeExports",
+  "shape-catalog": "shapes",
+  "shape-pairs": "pairs",
 } as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
@@ -110,6 +171,10 @@ export const INVENTORY_RECORD_TABLES = [
   "cast",
   "brand",
   "runtimeExport",
+  "shape",
+  "shapeField",
+  "shapeOrigin",
+  "pair",
 ] as const;
 export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
 export interface InventoryRecord {
@@ -137,6 +202,8 @@ export interface InventoryOverlay {
 }
 
 export interface InventoryBuildRequest {
+  readonly intent?: "facts" | "membership";
+  readonly shapeQueries?: readonly InventoryShapeQuery[];
   readonly families?: readonly InventoryFamily[];
   readonly root: string;
   readonly descriptor: CompilerProgram;
@@ -145,6 +212,12 @@ export interface InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
+  readonly shapePlan?: {
+    readonly sources: readonly SourceFile[];
+    /** Existing native source contexts, when discovery is not the primary authored-root interpretation. */
+    readonly owners?: ReadonlyMap<SourceFile, CompilerProgram>;
+    readonly prepare: (catalog: SemanticInventory) => readonly InventoryShapeQuery[];
+  };
   readonly families?: readonly InventoryFamily[];
   readonly root: string;
   readonly programs?: readonly CompilerProgram[];
@@ -158,6 +231,9 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly assertShapeSource: (source: SourceFile) => void;
+  readonly shape: (node: Node) => InventoryShape;
+  readonly shapePair: (query: InventoryShapeQuery) => readonly { readonly program: string; readonly result: InventoryShapePairResult }[];
   readonly runtimeExports: (node: SourceFile, program: string) => readonly InventoryRuntimeExport[];
   readonly castRelation: (node: Node, program: string) => InventoryCastRelationResult;
   readonly idBrand: (node: Node, program: string) => string | null;
@@ -173,6 +249,8 @@ export interface SemanticInventory extends Disposable {
 }
 
 export interface InventoryReaderStorage {
+  readonly shapeCohort?: boolean;
+  readonly shapeOwners?: ReadonlyMap<SourceFile, string>;
   readonly db: DatabaseSync;
   readonly dispose: () => void;
 }

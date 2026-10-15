@@ -4,13 +4,17 @@ import process from "node:process";
 import type { Node, Project } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
+import type { SemanticInventory } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { shapeFactsOf } from "../../floor/code-facts/shape-facts.ts";
+import { bindShapeInventory, collectShapeQueries } from "../../floor/code-facts/shape-inventory-scope.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticWorkspaceOf } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, MalformedNearPairMarker, NearPairExemption, StaleNearPairMarker } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
-import { RESPELL_NEAR_PROPERTY_FLOOR } from "../lib/respell-near-analysis.ts";
+import { RESPELL_NEAR_PROPERTY_FLOOR, respellNearCandidatesFor } from "../lib/respell-near-analysis.ts";
 import { respellNearAuditFor } from "../lib/respell-near-markers.ts";
 import { malformedNearPairMarkerEvidence, nearPairExemptionEvidence, nearPairHit, staleNearPairMarkerEvidence } from "../lib/respell-near-report.ts";
 import { assignabilityChecker, domainsWithContracts, RESPELL_PROPERTY_FLOOR, respellHitsFor } from "../lib/respell-shapes.ts";
@@ -23,7 +27,7 @@ function checkerProjectOf(corpus: SourceCorpus): Pick<Project, "getTypeChecker">
   }
   const project = semanticWorkspaceOf(corpus)?.programs[0]?.project();
   if (project === undefined) {
-    exitToolError("ast respell: semantic corpus has no runnable compiler program");
+    return exitToolError("ast respell: semantic corpus has no runnable compiler program");
   }
   return project;
 }
@@ -80,7 +84,7 @@ interface RespellNearScope {
 }
 
 /** The additive near tier: classify all markers once, then emit a separate result beside exact respell. */
-function cmdRespellNear(project: SourceCorpus, checker: AssignabilityChecker, scope: RespellNearScope, flags: Flags): void {
+function cmdRespellNear(project: SourceCorpus, checker: AssignabilityChecker | undefined, scope: RespellNearScope, flags: Flags): void {
   const { domains, thresholdPct } = scope;
   const audits = domains.map((domain) => respellNearAuditFor(project, checker, domain, thresholdPct));
   const candidates = audits.flatMap((audit) => audit.candidates);
@@ -105,19 +109,57 @@ function cmdRespellNear(project: SourceCorpus, checker: AssignabilityChecker, sc
   });
 }
 
+/** The CLI/run owner supplies the repository explicitly; programmatic command evaluation never acquires it. */
+export function prepareRespellInventory(root: string, input: SourceCorpus, arg: string, flags: Flags): SemanticInventory | undefined {
+  const domains = domainsWithContracts(input, arg);
+  if (domains.length === 0) {
+    return;
+  }
+  const sources = input
+    .getSourceFiles()
+    .filter((source) =>
+      domains.some(
+        (domain) =>
+          source.getFilePath().includes(`/packages/contracts/src/${domain}/`) ||
+          source.getFilePath().includes(`/packages/server/src/domain/${domain}/contract/`),
+      ),
+    );
+  return createSemanticInventory({
+    root,
+    shapePlan: {
+      sources,
+      prepare: (catalog) => {
+        using _binding = bindShapeInventory(sources, catalog);
+        return collectShapeQueries(catalog, () => {
+          for (const domain of domains) {
+            respellHitsFor(input, undefined, domain);
+            if (flags.near !== null) {
+              respellNearCandidatesFor(input, undefined, domain, flags.near);
+            }
+          }
+        });
+      },
+    },
+  });
+}
+
 /** Domain `contract/` shapes structurally identical to a shape the sibling `@orb/contracts/<domain>` already
  *  exports. Optional arg selects one domain; bare selects all domains. */
-export function cmdRespell(project: SourceCorpus, arg: string, flags: Flags): void {
-  const domains = domainsWithContracts(project, arg);
+export function cmdRespell(input: SourceCorpus, arg: string, flags: Flags): void {
+  const domains = domainsWithContracts(input, arg);
   noteUnits("domains", domains.length);
   if (domains.length === 0) {
     exitToolError(`ast respell: no domain contract/ dir matched "${arg}" — try a domain name (chat, rpg, preset, …) or run bare for all.`);
   }
+  const project = input;
+  const first = project
+    .getSourceFiles()
+    .find((source) => domains.some((domain) => source.getFilePath().includes(`/packages/server/src/domain/${domain}/contract/`)));
+  const checker = first !== undefined && shapeFactsOf(first) !== undefined ? undefined : assignabilityChecker(checkerProjectOf(project));
   scanCorpus(project, {
     scope: domains.flatMap((domain) => [`/packages/contracts/src/${domain}/`, `/packages/server/src/domain/${domain}/contract/`]),
     label: `path:domain-contracts(${domains.length})`,
   });
-  const checker = assignabilityChecker(checkerProjectOf(project));
   const hits = domains.flatMap((domain) => respellHitsFor(project, checker, domain));
   narrate(
     flags,

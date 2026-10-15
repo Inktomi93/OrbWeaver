@@ -1,9 +1,12 @@
 // Pure Jaccard candidate analysis for `ast respell --near`.
 
+import { Node } from "ts-morph";
 import type { AssignabilityChecker, AssignabilityRefusalKind, FieldIdentity, RefuseAssignability } from "../../floor/code-facts/assignability.ts";
 import { fieldTypesAgree } from "../../floor/code-facts/assignability.ts";
 import { inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import { directDerivationTargetKeys } from "../../floor/code-facts/shape-derivation.ts";
+import { shapeFactsOf } from "../../floor/code-facts/shape-facts.ts";
+import { collectingShapeQueries } from "../../floor/code-facts/shape-inventory-scope.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
 import { exitToolError } from "./ledger.ts";
@@ -21,11 +24,11 @@ interface NearAdmission {
 }
 
 function fieldIdentityLabel(field: FieldIdentity): string {
-  return `${field.decl.getSymbol()?.getName() ?? field.decl.getKindName()}.${field.name}`;
+  return `${(Node.hasName(field.decl) ? field.decl.getName() : undefined) ?? field.decl.getKindName()}.${field.name}`;
 }
 
 /** Whether two fields are mutually assignable in every native compiler program that owns both. */
-function semanticallyEqualFieldType(checker: AssignabilityChecker, leftField: FieldIdentity, rightField: FieldIdentity): boolean {
+function semanticallyEqualFieldType(checker: AssignabilityChecker | undefined, leftField: FieldIdentity, rightField: FieldIdentity): boolean {
   const refuse: RefuseAssignability = (kind, answers) => {
     const perProgram = answers.map((answer, index) => `program ${String(index + 1)}=${String(answer)}`).join(", ");
     const messages: Readonly<Record<AssignabilityRefusalKind, string>> = {
@@ -35,7 +38,7 @@ function semanticallyEqualFieldType(checker: AssignabilityChecker, leftField: Fi
     };
     return exitToolError(messages[kind]);
   };
-  return fieldTypesAgree({ checker, refuse }, leftField, rightField);
+  return fieldTypesAgree({ ...(checker === undefined ? {} : { checker }), refuse }, leftField, rightField);
 }
 
 function nameOnlyJaccardPct(domainFields: readonly FieldPair[], contractsFields: readonly FieldPair[]): number {
@@ -44,7 +47,7 @@ function nameOnlyJaccardPct(domainFields: readonly FieldPair[], contractsFields:
   return (sharedCount / (domainFields.length + contractsFields.length - sharedCount)) * PCT_SCALE;
 }
 
-function nearAdmissionOf(checker: AssignabilityChecker, domainShape: ShapeEntry, contractsShape: ShapeEntry): NearAdmission {
+function nearAdmissionOf(checker: AssignabilityChecker | undefined, domainShape: ShapeEntry, contractsShape: ShapeEntry): NearAdmission {
   const { fields: domainFields, decl: domainDecl } = domainShape;
   const { fields: contractsFields, decl: contractsDecl } = contractsShape;
   const sharedNames = new Set(
@@ -64,7 +67,12 @@ function nearAdmissionOf(checker: AssignabilityChecker, domainShape: ShapeEntry,
   return { pct, sharedCount, totalFields, sharedNames };
 }
 
-function nearFieldDiffOf(checker: AssignabilityChecker, domainShape: ShapeEntry, contractsShape: ShapeEntry, admission: NearAdmission): NearFieldDiff {
+function nearFieldDiffOf(
+  checker: AssignabilityChecker | undefined,
+  domainShape: ShapeEntry,
+  contractsShape: ShapeEntry,
+  admission: NearAdmission,
+): NearFieldDiff {
   const { fields: domainFields, decl: domainDecl } = domainShape;
   const { fields: contractsFields, decl: contractsDecl } = contractsShape;
   const { pct, sharedCount, totalFields, sharedNames } = admission;
@@ -91,7 +99,7 @@ function nearFieldDiffOf(checker: AssignabilityChecker, domainShape: ShapeEntry,
 }
 
 interface NearPairScope {
-  readonly checker: AssignabilityChecker;
+  readonly checker: AssignabilityChecker | undefined;
   readonly domain: string;
   readonly thresholdPct: number;
   readonly derivedFrom: ReadonlySet<string>;
@@ -107,7 +115,7 @@ function nearCandidateForPair(scope: NearPairScope): NearPairCandidate | undefin
     const exact = twin.signature === domainShape.signature && mutuallyAssignable(checker, domainShape.decl, twin.decl);
     if (!exact) {
       const admission = nearAdmissionOf(checker, domainShape, twin);
-      if (admission.pct >= thresholdPct) {
+      if (admission.pct >= thresholdPct || collectingShapeQueries(shapeFactsOf(domainShape.decl))) {
         candidate = {
           domain,
           domainName: domainShape.name,
@@ -123,7 +131,12 @@ function nearCandidateForPair(scope: NearPairScope): NearPairCandidate | undefin
 }
 
 /** One domain's near-tier candidates, excluding exact/derived matches and shapes below the field floor. */
-export function respellNearCandidatesFor(project: SourceCorpus, checker: AssignabilityChecker, domain: string, thresholdPct: number): NearPairCandidate[] {
+export function respellNearCandidatesFor(
+  project: SourceCorpus,
+  checker: AssignabilityChecker | undefined,
+  domain: string,
+  thresholdPct: number,
+): NearPairCandidate[] {
   const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`).filter((shape) => shape.fields.length >= RESPELL_NEAR_PROPERTY_FLOOR);
   if (contractsShapes.length === 0) {
     return [];

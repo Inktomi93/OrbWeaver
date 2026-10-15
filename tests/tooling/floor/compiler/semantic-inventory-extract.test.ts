@@ -2106,3 +2106,28 @@ test("a completed lexical list survives later native interpretation cancellation
     service.dispose();
   }
 });
+
+test.for(["identical", "different", "symlink"] as const)(
+  "membership-only source availability matches the canonical Project across native redirects: %s",
+  (variant, { scratch }) => {
+    const request = redirectFixture(scratch, variant);
+    const membership = extractInventoryPartition({ ...request, intent: "membership", families: [] });
+    const owner = createSemanticWorkspace({ root: scratch }).program(request.descriptor.config);
+    if (owner === undefined) {
+      throw new Error("missing native descriptor");
+    }
+    const project = owner.project();
+    const expected = [
+      ...new Set(
+        project
+          .getSourceFiles()
+          .map((source) => canonicalInventoryPath(source.getFilePath()))
+          .filter((path) => project.getSourceFile(path) !== undefined),
+      ),
+    ];
+    expect(membership.available).toEqual(expected);
+    expect(membership.nativeRoots).toEqual([...project.getProgram().compilerObject.getRootFileNames()]);
+    expect(membership.compilerOptionsJson).toBe(JSON.stringify(project.getCompilerOptions()));
+    expect(membership.inputs.some(({ kind, path }) => kind === "exists" && path.endsWith("absent.ts"))).toBe(true);
+  },
+);

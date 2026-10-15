@@ -15,6 +15,7 @@ import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryP
 import { INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
+import { extractShape, extractShapePairs } from "./shape-inventory-extract.ts";
 import { collectByKinds, descendantsOfKind, nativeCompilerSourceFiles, nativeReferenceNode } from "./ts-workspace.ts";
 
 interface InventorySpans {
@@ -144,13 +145,19 @@ function witnessFacts(sf: SourceFile, spans: InventorySpans): InventoryPartition
 
 /** Extract primitive compiler facts without running any consumer classification. */
 export function extractInventoryPartition(request: InventoryBuildRequest): InventoryPartition {
-  const families = inventoryFamilies(request.families);
+  const families = request.intent === "membership" ? [] : inventoryFamilies(request.families);
+  if (request.intent === "membership" && request.families !== undefined && request.families.length > 0) {
+    throw new Error("membership extraction cannot supply typed families");
+  }
   const inputs = new Map<string, InventoryInput>();
   const base = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
   const fileSystem = inventoryFileSystem(base, request.overlay, inputs);
   const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
+    fileURLToPath(new URL("./shape-inventory-extract.ts", import.meta.url)),
+    fileURLToPath(new URL("../code-facts/shape-fields.ts", import.meta.url)),
+    fileURLToPath(new URL("../code-facts/shape-derivation.ts", import.meta.url)),
     ...(families.includes("runtime-exports")
       ? [
           fileURLToPath(new URL("../code-facts/runtime-export.ts", import.meta.url)),
@@ -158,7 +165,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
         ]
       : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
-    ...(families.includes("cast-relations")
+    ...(families.some((family) => family === "cast-relations" || family === "shape-pairs")
       ? [
           fileURLToPath(new URL("../code-facts/assignability.ts", import.meta.url)),
           fileURLToPath(new URL("../code-facts/assignability-contract.ts", import.meta.url)),
@@ -211,14 +218,21 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     }
     return version === "true";
   };
-  const service = project.getLanguageService().compilerObject;
-  const program = service.getProgram();
-  if (program === undefined) {
-    throw new Error("native inventory language service has no Program");
-  }
-  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, { spans, families: new Set(families) });
-  const facts = { ...sourceFacts, references: families.includes("references") ? extractReferenceFacts(service, program, referenceDeclarations, spans) : [] };
+  const available = [
+    ...new Set(
+      project
+        .getSourceFiles()
+        .map((source) => spans.path(source.getFilePath()))
+        .filter((path) => project.getSourceFile(path) !== undefined),
+    ),
+  ];
+  const facts =
+    request.intent === "membership"
+      ? { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [], runtimeExports: [], shapes: [], pairs: [], references: [] }
+      : extractTypedFacts(project, { sources, authored, spans, families, queries: request.shapeQueries ?? [] });
   return {
+    intent: request.intent ?? "facts",
+    available,
     format: INVENTORY_FORMAT,
     families,
     program: request.descriptor.id,
@@ -246,6 +260,30 @@ interface ReferenceDeclaration {
   readonly declaration: InventorySpan;
   readonly name: InventorySpan | undefined;
   readonly query: { readonly file: string; readonly start: number };
+}
+
+function extractTypedFacts(
+  project: Project,
+  input: {
+    readonly sources: InventorySources;
+    readonly authored: (path: string) => boolean;
+    readonly spans: InventorySpans;
+    readonly families: readonly InventoryFamily[];
+    readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryShapeQuery[];
+  },
+): SourceFactValues & Pick<InventoryPartition, "pairs" | "references"> {
+  const { sources, authored, spans, families, queries } = input;
+  const service = project.getLanguageService().compilerObject;
+  const program = service.getProgram();
+  if (program === undefined) {
+    throw new Error("native inventory language service has no Program");
+  }
+  const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, { spans, families: new Set(families) });
+  return {
+    ...sourceFacts,
+    pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
+    references: families.includes("references") ? extractReferenceFacts(service, program, referenceDeclarations, spans) : [],
+  };
 }
 
 function registerReferenceDeclarations(
@@ -296,26 +334,47 @@ function assertAuthoredSyntax(original: SourceFile, admitted: SourceFile, spans:
   }
 }
 
-type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands" | "runtimeExports">;
+type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands" | "runtimeExports" | "shapes">;
 interface SourceFactCollection {
   readonly families: ReadonlySet<InventoryFamily>;
   readonly spans: InventorySpans;
   readonly authored: (path: string) => boolean;
   readonly values: SourceFactValues;
   readonly referenceDeclarations: Map<InventorySpan, ReferenceDeclaration>;
+  readonly shapeNodes: WeakSet<ts.Node>;
   readonly checker: AssignabilityChecker | undefined;
 }
 
 function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void {
-  if (!(context.families.has("exports") || context.families.has("references"))) {
+  if (!(context.families.has("exports") || context.families.has("references") || context.families.has("shape-catalog"))) {
     return;
   }
   for (const [name, declarations] of sf.getExportedDeclarations()) {
+    collectExportShapes(sf, declarations, context);
     if (context.families.has("exports")) {
       context.values.exports.push({ file: context.spans.path(sf.getFilePath()), name, declarations: declarations.map(context.spans.node) });
     }
     if (context.families.has("references")) {
       registerReferenceDeclarations(declarations, context.authored, context.referenceDeclarations, context.spans);
+    }
+  }
+}
+
+function collectShapeFact(node: MorphNode, context: SourceFactCollection): void {
+  if (context.shapeNodes.has(node.compilerNode)) {
+    return;
+  }
+  context.shapeNodes.add(node.compilerNode);
+  context.values.shapes.push(extractShape(node, context.spans.node));
+}
+
+function collectExportShapes(sf: SourceFile, declarations: readonly MorphNode[], context: SourceFactCollection): void {
+  if (!(context.families.has("shape-catalog") && context.authored(context.spans.path(sf.getFilePath())))) {
+    return;
+  }
+  for (const declaration of declarations) {
+    if (declaration.getSourceFile().compilerNode === sf.compilerNode) {
+      collectShapeFact(declaration, context);
     }
   }
 }
@@ -364,6 +423,24 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
     values.witnesses.push(...witnessFacts(sf, spans));
   }
   const visitors = new Map<SyntaxKind, ((node: MorphNode) => void)[]>();
+  if (families.has("shape-catalog")) {
+    for (const kind of [
+      SyntaxKind.InterfaceDeclaration,
+      SyntaxKind.TypeAliasDeclaration,
+      SyntaxKind.ClassDeclaration,
+      SyntaxKind.TypeLiteral,
+      SyntaxKind.VariableDeclaration,
+      SyntaxKind.FunctionDeclaration,
+      SyntaxKind.EnumDeclaration,
+      SyntaxKind.ExportAssignment,
+    ]) {
+      visitors.set(kind, [
+        (node): void => {
+          collectShapeFact(node, context);
+        },
+      ]);
+    }
+  }
   if (families.has("bindings") || families.has("references")) {
     visitors.set(SyntaxKind.Identifier, [(node): void => collectIdentifierFacts(node, context)]);
   }
@@ -371,7 +448,7 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
     visitors.set(SyntaxKind.AsExpression, [(node): void => collectCastFact(node, context)]);
   }
   if (families.has("id-brands")) {
-    visitors.set(SyntaxKind.TypeAliasDeclaration, [(node): void => collectBrandFact(node, context)]);
+    visitors.set(SyntaxKind.TypeAliasDeclaration, [...(visitors.get(SyntaxKind.TypeAliasDeclaration) ?? []), (node): void => collectBrandFact(node, context)]);
     visitors.set(SyntaxKind.AsExpression, [...(visitors.get(SyntaxKind.AsExpression) ?? []), (node): void => collectBrandFact(node, context)]);
   }
   collectByKinds([sf], visitors);
@@ -387,8 +464,9 @@ function extractSourceFacts(
   const context: SourceFactCollection = {
     ...input,
     authored,
-    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [], runtimeExports: [] },
+    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [], runtimeExports: [], shapes: [] },
     referenceDeclarations: new Map(),
+    shapeNodes: new WeakSet(),
     checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),
   };
   const standaloneSources = nativeCompilerSourceFiles(program);

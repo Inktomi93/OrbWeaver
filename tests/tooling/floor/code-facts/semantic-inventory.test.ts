@@ -68,11 +68,15 @@ function partition(request: InventoryBuildRequest): InventoryPartition {
     version: inputVersion(path, "file"),
   }));
   return {
+    intent: "facts",
+    available: sources.map((source) => source.file),
     format: INVENTORY_FORMAT,
     families: inventoryFamilies(request.families),
     casts: [],
     brands: [],
     runtimeExports: [],
+    shapes: [],
+    pairs: [],
     program: request.descriptor.id,
     descriptorVersion: descriptorVersion(request.descriptor),
     compilerOptionsJson: JSON.stringify(request.descriptor.commandLine.options),
@@ -98,6 +102,8 @@ function completePartition(database: ReturnType<typeof openInventoryDatabase>, s
     casts: stored.families.includes("cast-relations") ? [...readInventoryCasts(database, id)] : [],
     brands: stored.families.includes("id-brands") ? [...readInventoryBrands(database, id)] : [],
     runtimeExports: [],
+    shapes: [],
+    pairs: [],
     sources: [...readInventorySources(database, id)],
     exports: [...readInventoryExports(database, id)],
     modules: [...readInventoryModules(database, id)],
@@ -280,7 +286,7 @@ test("parent publication and pinned queries never eagerly decode the complete re
   }
 });
 
-for (const legacyFormat of [1, 2, 3, 4, 5]) {
+for (const legacyFormat of [1, 2, 3, 4, 5, 6, 7]) {
   test(`format ${String(legacyFormat)} adoption preserves the last generation across failure and publishes only a complete replacement`, ({ scratch }) => {
     initialize(scratch);
     const path = join(scratch, ".cache/semantic-inventory.sqlite");
@@ -295,7 +301,7 @@ for (const legacyFormat of [1, 2, 3, 4, 5]) {
       if (legacyFormat >= 2) {
         database
           .prepare(
-            "INSERT INTO inventory_descriptor(partition,program,descriptorVersion,compilerOptionsJson,workerPid) VALUES('legacy','tsconfig.a.json',?,?,NULL)",
+            "INSERT INTO inventory_descriptor(partition,program,descriptorVersion,compilerOptionsJson,workerPid,intent) VALUES('legacy','tsconfig.a.json',?,?,NULL,'facts')",
           )
           .run(descriptorVersion(descriptor), JSON.stringify(descriptor.commandLine.options));
       }
@@ -425,6 +431,10 @@ test("all scalar metadata and indexed keys preserve UTF-16 without hash collisio
     casts: [],
     brands: [],
     runtimeExports: [],
+    shapes: [],
+    pairs: [],
+    intent: "facts",
+    available: [value],
     format: INVENTORY_FORMAT,
     program: value,
     descriptorVersion: value,

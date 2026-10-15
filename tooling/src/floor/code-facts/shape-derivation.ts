@@ -6,6 +6,7 @@ import type { ReferenceFact } from "./reference-fact-contract.ts";
 import { INVENTORY_KEY_SEPARATOR } from "./semantic-inventory-contract.ts";
 import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
 import type { NativeGenericArgumentContribution, NativeGenericArgumentInput } from "./shape-derivation-contract.ts";
+import { shapeFactsOf } from "./shape-facts.ts";
 import { readNativeSubstitutedTypeSlots } from "./type-member-origin.ts";
 import { annotationReferenceOrigin, resolved, resolveTypePropertyValue, unresolved } from "./type-member-origin-core.ts";
 
@@ -50,11 +51,19 @@ function heritageTargetKeys(decl: MorphNode): Set<string> {
 
 /** Direct alias and heritage targets, resolved to declaration identities rather than names. */
 export function directDerivationTargetKeys(decl: MorphNode): Set<string> {
+  const facts = shapeFactsOf(decl);
+  if (facts !== undefined) {
+    return new Set(facts.shape(decl).direct);
+  }
   return new Set([...bareAliasTargetKeys(decl), ...heritageTargetKeys(decl)]);
 }
 
 /** Shared `typeof value` provenance through a generic derive (`z.infer`, `ReturnType`, and equivalents). */
 export function typeQueryDerivationKeys(decl: MorphNode): Set<string> {
+  const facts = shapeFactsOf(decl);
+  if (facts !== undefined) {
+    return new Set(facts.shape(decl).queries);
+  }
   const keys = new Set<string>();
   if (!Node.isTypeAliasDeclaration(decl)) {
     return keys;

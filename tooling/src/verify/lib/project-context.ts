@@ -8,6 +8,7 @@ import type { AsExpression, Node, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
 import { SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
 import type { SemanticSourceView, SemanticWorkspace } from "../../floor/compiler/ts-workspace-contract.ts";
 import type { NativeTypeContext, NativeTypeFactReader, NativeTypeFacts, NativeTypeRequest, ProjectContext } from "../contract/project-context.ts";
 
@@ -89,6 +90,9 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
           case "runtime-exports":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
+          case "shape-relations":
+            rows.push({ kind: query.kind, nodes: [...query.nodes], prepare: query.prepare });
+            break;
           default:
             assertNeverRequest(query);
         }
@@ -120,6 +124,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "id-brands", nodes).idBrands(nodes);
+    },
+    prepareShapes: (owner, sources): void => {
+      if (sources.length === 0) {
+        assertReadable();
+        return;
+      }
+      selected(owner, "shape-relations", sources).prepareShapes(sources);
     },
     runtimeExports: (owner, nodes): ReturnType<NativeTypeContext["runtimeExports"]> => {
       if (nodes.length === 0) {
@@ -156,19 +167,46 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   };
   const descriptors = [
     ...new Map(
-      nodes.map((node) => {
-        const selected = workspace.program(owner(node));
-        if (selected === undefined) {
-          throw new SemanticInventoryError("native typed primary compiler owner is unavailable");
-        }
-        return [selected.descriptor.id, selected.descriptor] as const;
-      }),
+      queries
+        .filter((query) => query.kind !== "shape-relations")
+        .flatMap((query) => [...query.nodes])
+        .map((node) => {
+          const selected = workspace.program(owner(node));
+          if (selected === undefined) {
+            throw new SemanticInventoryError("native typed primary compiler owner is unavailable");
+          }
+          return [selected.descriptor.id, selected.descriptor] as const;
+        }),
     ).values(),
   ];
-  const families = [...new Set(queries.map((query) => query.kind))];
+  const families = [...new Set(queries.flatMap((query) => (query.kind === "shape-relations" ? [] : [query.kind])))];
+  const shapes = queries.filter((query) => query.kind === "shape-relations");
+  const capturedSources = [...new Set(nodes.map((node) => node.getSourceFile()))];
   // biome-ignore lint/nursery/useDisposables: this reader transfers the store handle to its run-owned session.
-  const inventory = createSemanticInventory({ root, programs: descriptors, families });
+  const inventory = createSemanticInventory({
+    root,
+    programs: descriptors,
+    ...(families.length === 0 ? {} : { families }),
+    ...(shapes.length === 0
+      ? {}
+      : {
+          shapePlan: {
+            sources: shapes.flatMap((query) => [...query.nodes]),
+            prepare: (catalog) => {
+              using _binding = bindShapeInventory(capturedSources, catalog);
+              return shapes.flatMap((query) => [...query.prepare()]);
+            },
+          },
+        }),
+  });
+  // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
+  const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    prepareShapes: (requested): void => {
+      for (const source of requested) {
+        inventory.assertShapeSource(source);
+      }
+    },
     runtimeExports: (sources): ReturnType<NativeTypeFactReader["runtimeExports"]> =>
       new Map(sources.map((source) => [source, inventory.runtimeExports(source, owner(source))])),
     castRelations: (casts): ReadonlyMap<AsExpression, TypeRelation> =>
@@ -182,7 +220,10 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
         }),
       ),
     idBrands: (brands): ReadonlyMap<TypeNode, string | null> => new Map(brands.map((node) => [node, inventory.idBrand(node, owner(node))])),
-    [Symbol.dispose]: (): void => inventory[Symbol.dispose](),
+    [Symbol.dispose]: (): void => {
+      binding?.[Symbol.dispose]();
+      inventory[Symbol.dispose]();
+    },
   };
 }
 

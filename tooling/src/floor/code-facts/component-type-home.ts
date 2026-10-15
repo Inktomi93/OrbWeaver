@@ -23,7 +23,8 @@ import { agreeingCount, createShapeFieldAgreement, indexByField, sharedFieldCoun
 import type { ShapeCopyComparison, ShapeCopySource } from "./shape-copy-contract.ts";
 import { exportedShapeDeclarations } from "./shape-declaration.ts";
 import { directDerivationTargetKeys, readNativeGenericArgumentContribution } from "./shape-derivation.ts";
-import { ownDataFieldNames, resolvedShapeProperties } from "./shape-fields.ts";
+import { readShapeFields } from "./shape-facts.ts";
+import { ownDataFieldNames } from "./shape-fields.ts";
 import { packageTypeHome } from "./type-home.ts";
 import { declaredByPackage, resolveTypeIdentityChain, resolveTypeMemberOrigin } from "./type-member-origin.ts";
 import { resolveTypePropertyOrigin, resolveTypePropertyValue } from "./type-member-origin-core.ts";
@@ -508,14 +509,17 @@ function lowerData(input: ComponentTypeHomeInput): ComponentLowerDataEvidence {
     return { kind: "derived", origins };
   }
   const sources: ShapeCopySource[] = input.lowerDeclarations.flatMap((decl) => {
-    const properties = resolvedShapeProperties(decl, "copy");
+    const properties = readShapeFields(decl, "copy");
     return properties === undefined
       ? []
-      : [{ name: decl.getName(), file: decl.getSourceFile().getFilePath(), decl, fields: new Set(properties.map((property) => property.getName())) }];
+      : [{ name: decl.getName(), file: decl.getSourceFile().getFilePath(), decl, fields: new Set(properties.map((property) => property.name)) }];
   });
-  const agree = createShapeFieldAgreement(declaration.getProject().getTypeChecker(), (kind): never => {
-    throw new ComponentTypeHomeComparisonError(`Component lower-data comparison refused: ${kind}`);
-  });
+  const agree = createShapeFieldAgreement(
+    () => declaration.getProject().getTypeChecker(),
+    (kind): never => {
+      throw new ComponentTypeHomeComparisonError(`Component lower-data comparison refused: ${kind}`);
+    },
+  );
   const comparisons: ShapeCopyComparison[] = [...sharedFieldCounts(fields, indexByField(sources))].map(([contract, shared]) => ({
     contract,
     shared,
@@ -531,7 +535,11 @@ export function componentTypeHome(input: ComponentTypeHomeInput): ComponentTypeH
   if (refusal !== undefined) {
     return { kind: "refused", reason: refusal };
   }
-  if (!exportedShapeDeclarations(input.declaration.getSourceFile()).some(([, declaration]) => declaration === input.declaration)) {
+  if (
+    !exportedShapeDeclarations(input.declaration.getSourceFile()).some(
+      ([, declaration]) => inventoryDeclarationKey(declaration) === inventoryDeclarationKey(input.declaration),
+    )
+  ) {
     return unavailable("The candidate is not a local exported type origin.");
   }
   if (input.lowerDeclarations.some((declaration) => declaration.wasForgotten() || declaration.getProject() !== input.declaration.getProject())) {

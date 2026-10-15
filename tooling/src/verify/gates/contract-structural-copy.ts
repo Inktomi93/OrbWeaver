@@ -8,8 +8,10 @@
 // needs a wider population, a type graph and ordinary authority. Both read `DOMAIN_CONTRACT_RE` for the domain home.
 import type { InterfaceDeclaration, Node, SourceFile, TypeLiteralNode } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import { indexByField } from "../../floor/code-facts/shape-copy.ts";
 import type { ShapeCopySource as ContractFieldShape, ShapeCopyCandidate as CopyCandidate } from "../../floor/code-facts/shape-copy-contract.ts";
+import { planShapeQueries, shapeExports } from "../../floor/code-facts/shape-facts.ts";
 import { defineGate } from "../contract/policy.ts";
 import { DOMAIN_CONTRACT_RE } from "../lib/contract-derives-not-respells.ts";
 import { bestCopyMatch, candidateFields, contractFields, createFieldAgreement, isAliasBody } from "../lib/contract-structural-copy.ts";
@@ -38,9 +40,9 @@ interface Candidate extends CopyCandidate {
 
 function contractShapesOf(sf: SourceFile, rel: string): ContractFieldShape[] {
   const shapes: ContractFieldShape[] = [];
-  for (const [name, decls] of sf.getExportedDeclarations()) {
+  for (const [name, decls] of shapeExports(sf)) {
     for (const decl of decls) {
-      if ((N.isInterfaceDeclaration(decl) || N.isTypeAliasDeclaration(decl)) && decl.getSourceFile() === sf) {
+      if ((N.isInterfaceDeclaration(decl) || N.isTypeAliasDeclaration(decl)) && inventoryDeclarationKey(decl.getSourceFile()) === inventoryDeclarationKey(sf)) {
         const fields = contractFields(decl);
         if (fields !== undefined) {
           shapes.push({ name, file: rel, decl, fields });
@@ -92,6 +94,25 @@ export const gate = defineGate({
         candidates.push(candidate);
       }
     };
+    if (ctx.nativeTypes === undefined) {
+      throw new Error("native shape context is unavailable");
+    }
+    ctx.nativeTypes.request({
+      kind: "shape-relations",
+      nodes: ctx.files,
+      prepare: () =>
+        planShapeQueries(ctx.files, () => {
+          const shapes = ctx.files.flatMap((sf) => {
+            const rel = ctx.relativePath(sf);
+            return isContractHome(rel) ? contractShapesOf(sf, rel) : [];
+          });
+          const index = indexByField(shapes);
+          const agree = createFieldAgreement("contract-structural-copy", ctx.checker);
+          for (const candidate of candidates) {
+            bestCopyMatch(candidate, index, agree);
+          }
+        }),
+    });
     return {
       visitors: [
         {
@@ -109,13 +130,14 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
+        ctx.nativeTypes?.prepareShapes(ctx.files);
         const shapes = ctx.files.flatMap((sf) => {
           const rel = ctx.relativePath(sf);
           return isContractHome(rel) ? contractShapesOf(sf, rel) : [];
         });
         ctx.receipt({ kind: "population", source: "contract-export-shapes", members: shapes.length });
         const index = indexByField(shapes);
-        const agree = createFieldAgreement("contract-structural-copy", ctx.checker());
+        const agree = createFieldAgreement("contract-structural-copy", ctx.checker);
         for (const candidate of candidates) {
           const match = bestCopyMatch(candidate, index, agree);
           if (match !== undefined) {

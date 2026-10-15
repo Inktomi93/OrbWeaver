@@ -3,6 +3,7 @@
 import type { Node, Project, Symbol as TsSymbol, Type, TypeChecker } from "ts-morph";
 import { coLocatedSemanticNodes } from "../compiler/ts-workspace.ts";
 import type { TypeRelation } from "./assignability-contract.ts";
+import { storedShapeAgreement } from "./shape-facts.ts";
 
 export type { TypeRelation } from "./assignability-contract.ts";
 
@@ -30,7 +31,7 @@ export type TypePairReader = (left: Node, right: Node) => readonly [Type, Type] 
 /** What a comparison needs besides the nodes: the single-Project checker, the caller's refusal, and its leniency. */
 export interface AgreementContext {
   /** Judges the single-Project path; a co-located program judges with its own checker. */
-  readonly checker: AssignabilityChecker;
+  readonly checker?: AssignabilityChecker;
   readonly refuse: RefuseAssignability;
   /** Optionality and `readonly` are not type differences at any depth: `T?` agrees with `T`, `readonly T[]` with `T[]`,
    *  and `{ readonly a: T }` with `{ a: T }`. A copy that differs only there is still a copy. */
@@ -132,7 +133,7 @@ function compareAcross<Answer extends readonly boolean[]>(
     if (left.getProject() !== right.getProject()) {
       return context.refuse("no-shared-program", []);
     }
-    return judge(context.checker, left, right);
+    return judge(context.checker ?? context.refuse("primitive-absent", []), left, right);
   }
   const answers = colocated.map(({ project, left: a, right: b }) => judge(checkerOfProject(project, context.refuse), a, b));
   if (new Set(answers.map((answer) => (answer === undefined ? "unreadable" : answer.join("|")))).size !== 1) {
@@ -149,11 +150,15 @@ export function mutuallyAssignableAcross(context: AgreementContext, left: Node, 
   const answer = compareAcross(context, left, right, (checker, a, b) => {
     const pair = read(a, b);
     return [
-      pair !== undefined &&
-        (context.lenient === true ? typesAgree(checker, { type: pair[0], at: a }, { type: pair[1], at: b }, new Map()) : mutual(checker, pair[0], pair[1])),
+      pair !== undefined && readNativeMutualAgreement({ checker, lenient: context.lenient === true }, { type: pair[0], at: a }, { type: pair[1], at: b }),
     ];
   });
   return answer?.[0] === true;
+}
+
+/** Local native computation; standalone native wrappers intentionally expose no Project. */
+export function readNativeMutualAgreement(context: Required<Pick<AgreementContext, "checker" | "lenient">>, left: Side, right: Side): boolean {
+  return context.lenient ? typesAgree(context.checker, left, right, new Map()) : mutual(context.checker, left.type, right.type);
 }
 
 /** Scalar relation computation, not declaration provenance: the supplying native or isolated-proof owner holds
@@ -201,10 +206,22 @@ function fieldTypeOf(field: FieldIdentity, decl: Node): Type | undefined {
 
 /** Whether two declarations' named fields have the same type in every native program that owns both. */
 export function fieldTypesAgree(context: AgreementContext, left: FieldIdentity, right: FieldIdentity): boolean {
+  const stored = storedShapeAgreement(context, { node: left.decl, field: left.name }, { node: right.decl, field: right.name });
+  if (stored !== undefined) {
+    return stored;
+  }
   const read: TypePairReader = (a, b) => {
     const leftType = fieldTypeOf(left, a);
     const rightType = fieldTypeOf(right, b);
     return leftType === undefined || rightType === undefined ? undefined : [leftType, rightType];
   };
   return mutuallyAssignableAcross(context, left.decl, right.decl, read);
+}
+
+/** Declaration projection shared by native and persisted shape consumers. */
+export function declarationTypesAgree(context: AgreementContext, left: Node, right: Node): boolean {
+  return (
+    storedShapeAgreement(context, { node: left, field: null }, { node: right, field: null }) ??
+    mutuallyAssignableAcross(context, left, right, (a, b) => [a.getType(), b.getType()])
+  );
 }

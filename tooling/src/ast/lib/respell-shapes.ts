@@ -2,11 +2,11 @@
 
 import type { Node, Project } from "ts-morph";
 import type { AssignabilityChecker, AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
-import { mutuallyAssignableAcross, readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import { declarationTypesAgree, readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
 import { inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import { directDerivationTargetKeys, typeQueryDerivationKeys } from "../../floor/code-facts/shape-derivation.ts";
+import { readShapeFields } from "../../floor/code-facts/shape-facts.ts";
 import type { ShapeField as FieldPair } from "../../floor/code-facts/shape-fields.ts";
-import { resolvedShapeProperties } from "../../floor/code-facts/shape-fields.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
 import { hitOf } from "./emit.ts";
@@ -54,8 +54,8 @@ function refuseDeclarationComparison(kind: AssignabilityRefusalKind): never {
  *  type TEXT) is the comparison because a text signature is ALIAS-SENSITIVE: `CharacterId` and
  *  `TypeIdOf<"character">` print differently and are the same type, so a text lens reports a clean zero on a
  *  literal re-spell (measured — the first cut of this lens missed a planted twin for exactly that reason). */
-export function mutuallyAssignable(checker: AssignabilityChecker, a: Node, b: Node): boolean {
-  return mutuallyAssignableAcross({ checker, refuse: refuseDeclarationComparison }, a, b, (left, right) => [left.getType(), right.getType()]);
+export function mutuallyAssignable(checker: AssignabilityChecker | undefined, a: Node, b: Node): boolean {
+  return declarationTypesAgree({ ...(checker === undefined ? {} : { checker }), refuse: refuseDeclarationComparison }, a, b);
 }
 
 /** Every exported declaration of the files under `prefix` that HAS a shape signature. */
@@ -67,10 +67,10 @@ export function shapesUnder(project: SourceCorpus, prefix: string): ShapeEntry[]
       continue;
     }
     for (const { name, decl } of ownExports(sf)) {
-      const discovered = resolvedShapeProperties(decl, "respell");
+      const discovered = readShapeFields(decl, "respell");
       const fields =
         discovered !== undefined && discovered.length >= RESPELL_PROPERTY_FLOOR
-          ? discovered.map((property) => ({ name: property.getName(), type: property.getTypeAtLocation(decl).getText() }))
+          ? discovered.map((property) => ({ name: property.name, type: property.type }))
           : undefined;
       if (fields !== undefined) {
         const signature = fields
@@ -104,7 +104,7 @@ function overlaps(left: ReadonlySet<string>, right: ReadonlySet<string>): boolea
 
 /** ONE domain's structural twins, excluding aliases with the same direct target or resolved generic
  *  `typeof` provenance because those already derive from the shared declaration. */
-export function respellHitsFor(project: SourceCorpus, checker: AssignabilityChecker, domain: string): Hit[] {
+export function respellHitsFor(project: SourceCorpus, checker: AssignabilityChecker | undefined, domain: string): Hit[] {
   const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`);
   if (contractsShapes.length === 0) {
     return [];

@@ -16,6 +16,10 @@ import {
   inputSchema,
   partitionSchema,
   SemanticInventoryError,
+  shapeCatalogSchema,
+  shapePairQuerySchema,
+  shapePairResultSchema,
+  shapePairSchema,
   spanSchema,
   storedSourceSchema,
 } from "./semantic-inventory-contract.ts";
@@ -242,6 +246,59 @@ export function* readInventoryBrands(db: DatabaseSync, id: string, node?: Invent
     )
     .iterate(...values)) {
     yield { node: spanRow.parse(row), brand: row["brand"] === null ? null : inventoryStringSchema.parse(row["brand"]) };
+  }
+}
+
+/** Missing catalog rows are not an object with no fields. */
+export function readInventoryShape(db: DatabaseSync, id: string, node: InventorySpan): InventoryPartition["shapes"][number] {
+  requireInventoryFamily(db, id, "shape-catalog");
+  const row = db
+    .prepare(
+      "SELECT s.ordinal,s.node,s.copyObject,s.respellObject FROM inventory_shape s JOIN inventory_span n ON n.partition=s.partition AND n.ordinal=s.node WHERE s.partition=? AND n.file=? AND n.start=? AND n.end=? AND n.kind=?",
+    )
+    .get(id, inventoryString(node.file), node.start, node.end, node.kind);
+  if (row === undefined) {
+    throw new SemanticInventoryError("native shape catalog span is unavailable");
+  }
+  const owner = integer.parse(row["ordinal"]);
+  const fields = (mode: "copy" | "respell"): InventoryPartition["shapes"][number]["copy"] =>
+    !boolean.parse(row[mode === "copy" ? "copyObject" : "respellObject"])
+      ? null
+      : db
+          .prepare("SELECT name,type FROM inventory_shape_field WHERE partition=? AND owner=? AND mode=? ORDER BY ordinal")
+          .all(id, owner, mode)
+          .map((field) => ({ name: inventoryStringSchema.parse(field["name"]), type: inventoryStringSchema.parse(field["type"]) }));
+  const origins = (kind: "direct" | "queries"): string[] =>
+    db
+      .prepare("SELECT value FROM inventory_shape_origin WHERE partition=? AND owner=? AND kind=? ORDER BY ordinal")
+      .all(id, owner, kind)
+      .map((value) => inventoryStringSchema.parse(value["value"]));
+  return shapeCatalogSchema.parse({ node, copy: fields("copy"), respell: fields("respell"), direct: origins("direct"), queries: origins("queries") });
+}
+
+/** Coverage is the actual normalized query set, not family presence. */
+export function* readInventoryPairs(db: DatabaseSync, id: string, queryKey?: string): Iterable<InventoryPartition["pairs"][number]> {
+  requireInventoryFamily(db, id, "shape-pairs");
+  const values: SQLInputValue[] = queryKey === undefined ? [id] : [id, inventoryString(queryKey)];
+  for (const row of db
+    .prepare(
+      `SELECT leftNode,rightNode,leftField,rightField,projection,lenient,state,reason,a,b,c,d FROM inventory_pair WHERE partition=?${queryKey === undefined ? "" : " AND key=?"} ORDER BY ordinal`,
+    )
+    .iterate(...values)) {
+    const query = shapePairQuerySchema.parse({
+      left: spanOf(db, id, integer.parse(row["leftNode"])),
+      right: spanOf(db, id, integer.parse(row["rightNode"])),
+      leftField: row["leftField"] === null ? null : inventoryStringSchema.parse(row["leftField"]),
+      rightField: row["rightField"] === null ? null : inventoryStringSchema.parse(row["rightField"]),
+      projection: row["projection"],
+      lenient: boolean.parse(row["lenient"]),
+    });
+    const result = shapePairResultSchema.parse({
+      kind: row["state"],
+      values: [row["a"], row["b"], row["c"], row["d"]].filter((value) => value !== null).map((value) => boolean.parse(value)),
+      reason: row["reason"],
+    });
+    yield shapePairSchema.parse({ query, result });
   }
 }
 
