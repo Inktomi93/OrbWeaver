@@ -1,4 +1,5 @@
 // Native facts retain their order and multiplicity; only physical spans are interned for storage.
+
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { InventoryFactKind, InventoryPartition, InventoryRecord, InventoryRecordTable, InventorySpan } from "./semantic-inventory-contract.ts";
@@ -11,6 +12,8 @@ import {
   inputSchema,
   partitionMetadataSchema,
   partitionSchema,
+  shapePairKey,
+  shapePairSchema,
   spanSchema,
 } from "./semantic-inventory-contract.ts";
 
@@ -27,6 +30,26 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  shape: {
+    name: "inventory_shape",
+    columns: "ordinal,node,copyObject,respellObject",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,copyObject INTEGER NOT NULL CHECK(copyObject IN (0,1)),respellObject INTEGER NOT NULL CHECK(respellObject IN (0,1)),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE}`,
+  },
+  shapeField: {
+    name: "inventory_shape_field",
+    columns: "owner,mode,ordinal,name,type",
+    definition: `${PARTITION},owner INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('copy','respell')),${ORDINAL},name TEXT NOT NULL,type TEXT NOT NULL,PRIMARY KEY(partition,owner,mode,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_shape(partition,ordinal)`,
+  },
+  shapeOrigin: {
+    name: "inventory_shape_origin",
+    columns: "owner,kind,ordinal,value",
+    definition: `${PARTITION},owner INTEGER NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('direct','queries')),${ORDINAL},value TEXT NOT NULL,PRIMARY KEY(partition,owner,kind,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_shape(partition,ordinal)`,
+  },
+  pair: {
+    name: "inventory_pair",
+    columns: "ordinal,key,leftNode,rightNode,leftField,rightField,projection,lenient,state,reason,a,b,c,d",
+    definition: `${PARTITION},${ORDINAL},key TEXT NOT NULL,leftNode INTEGER NOT NULL,rightNode INTEGER NOT NULL,leftField TEXT,rightField TEXT,projection TEXT NOT NULL CHECK(projection IN ('mutual','relation')),lenient INTEGER NOT NULL CHECK(lenient IN (0,1)),state TEXT NOT NULL CHECK(state IN ('answer','no-comparable','unavailable')),reason TEXT,a INTEGER CHECK(a IN (0,1)),b INTEGER CHECK(b IN (0,1)),c INTEGER CHECK(c IN (0,1)),d INTEGER CHECK(d IN (0,1)),CHECK((state='answer' AND reason IS NULL AND a IS NOT NULL AND ((projection='mutual' AND b IS NULL AND c IS NULL AND d IS NULL) OR (projection='relation' AND b IS NOT NULL AND c IS NOT NULL AND d IS NOT NULL))) OR (state='no-comparable' AND projection='relation' AND reason IS NULL AND a IS NULL AND b IS NULL AND c IS NULL AND d IS NULL) OR (state='unavailable' AND reason IN ('primitive-absent','node-absent') AND a IS NULL AND b IS NULL AND c IS NULL AND d IS NULL)),PRIMARY KEY(partition,ordinal),UNIQUE(partition,key),FOREIGN KEY(partition,leftNode) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,rightNode) REFERENCES inventory_span(partition,ordinal)`,
+  },
   runtimeExport: {
     name: "inventory_runtime_export",
     columns: "ordinal,file,name,node,callable,initializerKind,initializerCallable",
@@ -49,13 +72,13 @@ export const inventoryRecordTables = {
   },
   descriptor: {
     name: "inventory_descriptor",
-    columns: "program,descriptorVersion,compilerOptionsJson,workerPid",
-    definition: `${PARTITION} PRIMARY KEY,program TEXT NOT NULL,descriptorVersion TEXT NOT NULL,compilerOptionsJson TEXT NOT NULL,workerPid INTEGER`,
+    columns: "program,descriptorVersion,compilerOptionsJson,workerPid,intent",
+    definition: `${PARTITION} PRIMARY KEY,program TEXT NOT NULL,descriptorVersion TEXT NOT NULL,compilerOptionsJson TEXT NOT NULL,workerPid INTEGER,intent TEXT NOT NULL CHECK(intent IN ('facts','membership'))`,
   },
   list: {
     name: "inventory_list",
     columns: "kind,ordinal,value",
-    definition: `${PARTITION},kind TEXT NOT NULL CHECK(kind IN ('configPaths','projectReferences','roots','nativeRoots')),${ORDINAL},value TEXT NOT NULL,PRIMARY KEY(partition,kind,ordinal)`,
+    definition: `${PARTITION},kind TEXT NOT NULL CHECK(kind IN ('configPaths','projectReferences','roots','nativeRoots','available')),${ORDINAL},value TEXT NOT NULL,PRIMARY KEY(partition,kind,ordinal)`,
   },
   input: {
     name: "inventory_input",
@@ -120,6 +143,9 @@ export function inventoryTextVersion(parts: Iterable<string>): string {
 /** Stream normalized rows to hashing or SQLite without constructing a serialized population. */
 export function visitInventoryRecords(partition: InventoryPartition, write: (record: InventoryRecord) => void): void {
   const metadata = partitionMetadataSchema.parse(partition);
+  if ((metadata.intent === "membership") !== (metadata.families.length === 0)) {
+    throw new Error("native membership and typed fact intent disagree");
+  }
   for (const family of INVENTORY_FAMILIES) {
     if (!metadata.families.includes(family) && partition[INVENTORY_FAMILY_FIELDS[family]].length > 0) {
       throw new Error(`native inventory populated an undeclared family: ${family}`);
@@ -132,6 +158,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     inventoryString(metadata.descriptorVersion),
     inventoryString(metadata.compilerOptionsJson),
     metadata.workerPid ?? null,
+    metadata.intent,
   );
   metadata.families.forEach((family, ordinal) => {
     emit("family", ordinal, family);
@@ -225,6 +252,37 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
   partition.brands.forEach((entry, ordinal) => {
     const fact = partitionSchema.shape.brands.element.parse(entry);
     emit("brand", ordinal, spanId(fact.node), fact.brand === null ? null : inventoryString(fact.brand));
+  });
+  partition.shapes.forEach((shape, ordinal) => {
+    emit("shape", ordinal, spanId(shape.node), Number(shape.copy !== null), Number(shape.respell !== null));
+    for (const mode of ["copy", "respell"] as const) {
+      shape[mode]?.forEach((field, index) => {
+        emit("shapeField", ordinal, mode, index, inventoryString(field.name), inventoryString(field.type));
+      });
+    }
+    for (const kind of ["direct", "queries"] as const) {
+      shape[kind].forEach((value, index) => {
+        emit("shapeOrigin", ordinal, kind, index, inventoryString(value));
+      });
+    }
+  });
+  partition.pairs.forEach((entry, ordinal) => {
+    const { query, result } = shapePairSchema.parse(entry);
+    const values = result.kind === "answer" ? result.values : [];
+    emit(
+      "pair",
+      ordinal,
+      inventoryString(shapePairKey(query)),
+      spanId(query.left),
+      spanId(query.right),
+      query.leftField === null ? null : inventoryString(query.leftField),
+      query.rightField === null ? null : inventoryString(query.rightField),
+      query.projection,
+      Number(query.lenient),
+      result.kind,
+      result.kind === "unavailable" ? result.reason : null,
+      ...Array.from({ length: 4 }, (_, index) => (values[index] === undefined ? null : Number(values[index]))),
+    );
   });
   partition.runtimeExports.forEach((entry, ordinal) => {
     const fact = partitionSchema.shape.runtimeExports.element.parse(entry);

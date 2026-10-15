@@ -1,6 +1,6 @@
 // Scope normalization + validation (a zero-file scope is a tool error) + ownExports.
 import type { Node, SourceFile } from "ts-morph";
-import { inventoryExports } from "../../floor/code-facts/semantic-inventory-reader.ts";
+import { shapeExports } from "../../floor/code-facts/shape-facts.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Scope } from "../contract/types.ts";
 import { exitToolError, noteScope } from "./ledger.ts";
@@ -47,7 +47,7 @@ export function resolveScope(project: SourceCorpus, arg: string, verb: string): 
  *  ORIGIN is `sf` (re-export slots — decls that live elsewhere — belong to their own file, not here). */
 export function* ownExports(sf: SourceFile): Generator<{ name: string; decl: Node }> {
   const fp = sf.getFilePath();
-  for (const [name, decls] of inventoryExports(sf)) {
+  for (const [name, decls] of shapeExports(sf)) {
     const d = decls[0];
     if (d !== undefined && d.getSourceFile().getFilePath() === fp) {
       yield { name, decl: d };

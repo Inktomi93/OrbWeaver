@@ -1471,6 +1471,7 @@ test("the public context type and runtime surface expose neither Project nor roo
     "fact",
     "files",
     "includesSubject",
+    "nativeTypes",
     "receipt",
     "relativePath",
     "report",

@@ -13,7 +13,7 @@ import type {
   StoredInventoryPartition,
   StoredInventorySource,
 } from "./semantic-inventory-contract.ts";
-import { INVENTORY_KEY_SEPARATOR, SemanticInventoryError } from "./semantic-inventory-contract.ts";
+import { INVENTORY_KEY_SEPARATOR, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 import {
   readInventoryBindings,
@@ -21,8 +21,10 @@ import {
   readInventoryCasts,
   readInventoryExports,
   readInventoryModules,
+  readInventoryPairs,
   readInventoryReferences,
   readInventoryRuntimeExports,
+  readInventoryShape,
   readInventorySourceMetadata,
   readInventorySourceText,
   readInventoryWitnesses,
@@ -59,7 +61,8 @@ export function inventoryReader(
   partitions: readonly StoredInventoryPartition[],
   storage: InventoryReaderStorage,
 ): SemanticInventory {
-  const { db, dispose } = storage;
+  const { db, dispose, shapeCohort } = storage;
+  const shapeOwners = new Map(storage.shapeOwners);
   let indexes = [...partitions];
   let open = true;
   const assertOpen = (): void => {
@@ -129,6 +132,8 @@ export function inventoryReader(
     const captured = readInventorySourceText(db, text.partition, text.source);
     const created = carrier.createSourceFile(file, captured);
     capturedTexts.set(created, captured);
+    inventories.set(created, inventory);
+    inventories.set(created.compilerNode, inventory);
     return created;
   };
   const assertCapturedSource = (node: Node): void => {
@@ -157,7 +162,8 @@ export function inventoryReader(
   const worlds = (node: Node): readonly StoredInventoryPartition[] => {
     const file = canonicalPath(node.getSourceFile().getFilePath());
     assertOpen();
-    const context = contextWorlds.get(node.getProject());
+    const sourceOwner = shapeOwners.get(node.getSourceFile());
+    const context = sourceOwner === undefined ? contextWorlds.get(node.getProject()) : [sourceOwner];
     if (context !== undefined) {
       return indexes.filter((partition) => context.includes(partition.program));
     }
@@ -208,6 +214,59 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    assertShapeSource: (source) => {
+      assertOpen();
+      const selected = worlds(source);
+      if (selected.length !== 1) {
+        throw new SemanticInventoryError("native shape catalog context is unavailable");
+      }
+      requireFamily(selected, "shape-catalog");
+      if (source.wasForgotten()) {
+        throw new SemanticInventoryError("native shape source/epoch is unavailable");
+      }
+      const text = source.getFullText();
+      const captured = capturedTexts.get(source);
+      if (captured !== undefined) {
+        if (text !== captured) {
+          throw new SemanticInventoryError("native shape source/epoch is unavailable");
+        }
+        return;
+      }
+      const recorded = texts.get(canonicalPath(source.getFilePath()));
+      if (recorded === undefined || inventoryTextVersion(inventoryTextParts(text)) !== recorded.source.textVersion) {
+        throw new SemanticInventoryError("native shape source/epoch is unavailable");
+      }
+      capturedTexts.set(source, text);
+    },
+    shape: (node) => {
+      const selected = worlds(node);
+      const partition = selected[0];
+      if (selected.length !== 1 || partition === undefined) {
+        throw new SemanticInventoryError("native shape source has no unambiguous catalog owner");
+      }
+      inventory.assertShapeSource(node.getSourceFile());
+      return readInventoryShape(db, partition.id, capturedSpan(node));
+    },
+    shapePair: (query) => {
+      assertOpen();
+      if (shapeCohort !== true) {
+        throw new SemanticInventoryError("native shape membership cohort is unavailable");
+      }
+      if (!(texts.has(query.left.file) && texts.has(query.right.file))) {
+        throw new SemanticInventoryError("native shape pair source is unavailable");
+      }
+      const key = shapePairKey(query);
+      return indexes
+        .filter((partition) => partition.available.includes(query.left.file) && partition.available.includes(query.right.file))
+        .map((partition) => {
+          const matches = [...readInventoryPairs(db, partition.id, key)];
+          const match = matches[0];
+          if (matches.length !== 1 || match === undefined) {
+            throw new SemanticInventoryError("native shape pair query coverage is unavailable");
+          }
+          return { program: partition.program, result: match.result };
+        });
+    },
     runtimeExports: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "runtime-exports");
       if (!TsNode.isSourceFile(node)) {
@@ -315,9 +374,10 @@ export function inventoryReader(
       open = false;
       indexes = [];
       texts.clear();
+      capturedTexts.clear();
+      shapeOwners.clear();
       aliases.clear();
       authored.clear();
-      capturedTexts.clear();
       for (const source of project.getSourceFiles()) {
         source.forget();
       }
@@ -379,6 +439,6 @@ export function inventoryStaticTarget(node: Node): SourceFile | undefined {
 /** Physical declaration identity is shared by candidates and every consumer of a stored origin. */
 export function inventoryDeclarationKey(node: Node): string {
   const path = node.getSourceFile().getFilePath();
-  const canonical = semanticInventoryOf(node.getProject())?.canonicalPath(path) ?? canonicalInventoryPath(path);
+  const canonical = semanticInventoryOf(node.getSourceFile().compilerNode)?.canonicalPath(path) ?? canonicalInventoryPath(path);
   return `${canonical}${INVENTORY_KEY_SEPARATOR}${String(node.getStart())}`;
 }

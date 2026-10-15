@@ -11,7 +11,8 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 3;
+const STORAGE_SCHEMA_VERSION = 4;
+const RUNTIME_EXPORT_SCHEMA_VERSION = 3;
 
 const generationRow = z.object({ generation: z.number() });
 const memberRow = z.object({ program: inventoryStringSchema, partition: z.string() });
@@ -23,6 +24,7 @@ const descriptorRow = z.object({
   descriptorVersion: inventoryStringSchema,
   compilerOptionsJson: inventoryStringSchema,
   workerPid: z.number().int().nullable(),
+  intent: z.enum(["facts", "membership"]),
 });
 const SQLITE_BUSY = 5;
 const WRITER_RETRY_MS = 50;
@@ -44,7 +46,7 @@ export function openInventoryDatabase(path: string): DatabaseSync {
 
 function storageSchemaVersion(db: DatabaseSync): number {
   const version = storageVersionRow.parse(db.prepare("PRAGMA user_version").get()).user_version;
-  if (version !== 0 && version !== 1 && version !== 2 && version !== STORAGE_SCHEMA_VERSION) {
+  if (version !== 0 && version !== 1 && version !== 2 && version !== RUNTIME_EXPORT_SCHEMA_VERSION && version !== STORAGE_SCHEMA_VERSION) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
   }
   return version;
@@ -95,7 +97,7 @@ function initializeStorageSchema(db: DatabaseSync): void {
       db.exec("ALTER TABLE inventory_family_upgrade RENAME TO inventory_family;");
     }
     if (version < STORAGE_SCHEMA_VERSION) {
-      db.exec("CREATE INDEX IF NOT EXISTS inventory_runtime_export_file ON inventory_runtime_export(partition,file,ordinal);");
+      upgradeShapeStorage(db);
     }
     if (version < STORAGE_SCHEMA_VERSION) {
       db.exec(`PRAGMA user_version=${String(STORAGE_SCHEMA_VERSION)};`);
@@ -107,6 +109,25 @@ function initializeStorageSchema(db: DatabaseSync): void {
     }
     throw error;
   }
+}
+
+function upgradeShapeStorage(db: DatabaseSync): void {
+  for (const table of ["shape", "shapeField", "shapeOrigin", "pair"] as const) {
+    db.exec(`CREATE TABLE IF NOT EXISTS ${inventoryRecordTables[table].name}(${inventoryRecordTables[table].definition}) STRICT;`);
+  }
+  if (
+    !db
+      .prepare("PRAGMA table_info(inventory_descriptor)")
+      .all()
+      .some((row) => row["name"] === "intent")
+  ) {
+    db.exec("ALTER TABLE inventory_descriptor ADD COLUMN intent TEXT NOT NULL DEFAULT 'facts' CHECK(intent IN ('facts','membership'));");
+  }
+  db.exec(`CREATE TABLE inventory_list_upgrade(${inventoryRecordTables.list.definition}) STRICT;`);
+  db.exec("INSERT INTO inventory_list_upgrade(partition,kind,ordinal,value) SELECT partition,kind,ordinal,value FROM inventory_list;");
+  db.exec("DROP TABLE inventory_list;");
+  db.exec("ALTER TABLE inventory_list_upgrade RENAME TO inventory_list;");
+  db.exec("CREATE INDEX IF NOT EXISTS inventory_runtime_export_file ON inventory_runtime_export(partition,file,ordinal);");
 }
 
 /** Wait for the active writer; SQLite releases its lock even when its process fails. */
@@ -132,7 +153,7 @@ function readPartition(db: DatabaseSync, id: string): StoredInventoryPartition {
   const row = descriptorRow.parse(
     db
       .prepare(
-        "SELECT p.id,p.format,d.program,d.descriptorVersion,d.compilerOptionsJson,d.workerPid FROM inventory_partition p JOIN inventory_descriptor d ON d.partition=p.id WHERE p.id=?",
+        "SELECT p.id,p.format,d.program,d.descriptorVersion,d.compilerOptionsJson,d.workerPid,d.intent FROM inventory_partition p JOIN inventory_descriptor d ON d.partition=p.id WHERE p.id=?",
       )
       .get(id),
   );

@@ -71,7 +71,7 @@ function pairMatchesMarker(candidate: NearPairCandidate, marker: NearPairMarker)
 
 /** One domain's single classified result. Candidate enumeration happens once; exemption and staleness both
  *  consume that result, keyed by the domain declaration plus the named contracts declaration identity. */
-export function respellNearAuditFor(project: SourceCorpus, checker: AssignabilityChecker, domain: string, thresholdPct: number): NearPairAudit {
+export function respellNearAuditFor(project: SourceCorpus, checker: AssignabilityChecker | undefined, domain: string, thresholdPct: number): NearPairAudit {
   const candidates = respellNearCandidatesFor(project, checker, domain, thresholdPct);
   const exemptions: NearPairExemption[] = [];
   const staleMarkers: StaleNearPairMarker[] = [];

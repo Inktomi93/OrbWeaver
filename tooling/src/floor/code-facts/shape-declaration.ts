@@ -1,7 +1,8 @@
 // Declaration and data-shape recognition over delivered nodes; population and reporting belong to consumers.
 import type { InterfaceDeclaration, Node as MorphNode, SourceFile, Type, TypeAliasDeclaration, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { inventoryDeclarationKey, inventoryExports } from "./semantic-inventory-reader.ts";
+import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
+import { shapeExports } from "./shape-facts.ts";
 import { isFactoryCallFromPackage, ZOD_PACKAGE } from "./zod-origin.ts";
 
 /** True when the interface and every type it nests are data: no call or construct signature anywhere. A hook
@@ -41,7 +42,7 @@ function isZodShapeCall(initializer: MorphNode): boolean {
 
 function isLocallyExported(node: MorphNode): boolean {
   const key = inventoryDeclarationKey(node);
-  return [...inventoryExports(node.getSourceFile()).values()].some((declarations) =>
+  return [...shapeExports(node.getSourceFile()).values()].some((declarations) =>
     declarations.some((declaration) => inventoryDeclarationKey(declaration) === key),
   );
 }
@@ -68,7 +69,7 @@ export function inlineShapeNames(node: MorphNode): readonly MorphNode[] {
 export function exportedShapeDeclarations(sf: SourceFile): readonly (readonly [string, InterfaceDeclaration | TypeAliasDeclaration])[] {
   const seen = new Set<string>();
   const home = inventoryDeclarationKey(sf);
-  return [...inventoryExports(sf)].flatMap(([name, declarations]) =>
+  return [...shapeExports(sf)].flatMap(([name, declarations]) =>
     declarations.flatMap((declaration) => {
       if (!(Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration))) {
         return [];

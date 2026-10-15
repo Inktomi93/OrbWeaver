@@ -8,7 +8,8 @@ import { Node as N } from "ts-morph";
 import type { AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
 import { agreeingCount, createShapeFieldAgreement, sharedFieldCounts } from "../../floor/code-facts/shape-copy.ts";
 import type { ShapeCopyCandidate, ShapeCopyComparison, ShapeCopySource, ShapeFieldAgreement } from "../../floor/code-facts/shape-copy-contract.ts";
-import { ownDataFieldNames, resolvedShapeProperties } from "../../floor/code-facts/shape-fields.ts";
+import { readShapeFields } from "../../floor/code-facts/shape-facts.ts";
+import { ownDataFieldNames } from "../../floor/code-facts/shape-fields.ts";
 
 /** A candidate needs this many own data fields; three-field overlaps are mostly coincidence. */
 export const MIN_COPY_FIELDS = 4;
@@ -23,7 +24,10 @@ const REFUSALS: Readonly<Record<AssignabilityRefusalKind, string>> = {
 };
 
 /** The checker-backed agreement for one policy run. Refuses loudly, in the policy's voice, when it cannot compare. */
-export function createFieldAgreement(policyId: string, checker: Pick<TypeChecker, "compilerObject">): ShapeFieldAgreement {
+export function createFieldAgreement(
+  policyId: string,
+  checker: Pick<TypeChecker, "compilerObject"> | (() => Pick<TypeChecker, "compilerObject">),
+): ShapeFieldAgreement {
   return createShapeFieldAgreement(checker, (kind): never => {
     throw new Error(`${policyId}: ${REFUSALS[kind]}`);
   });
@@ -31,8 +35,8 @@ export function createFieldAgreement(policyId: string, checker: Pick<TypeChecker
 
 /** The data field names of one exported contract type, or undefined when it is not a plain object shape. */
 export function contractFields(decl: InterfaceDeclaration | TypeAliasDeclaration): ReadonlySet<string> | undefined {
-  const properties = resolvedShapeProperties(decl, "copy");
-  const fields = properties === undefined ? undefined : new Set(properties.map((property) => property.getName()));
+  const properties = readShapeFields(decl, "copy");
+  const fields = properties === undefined ? undefined : new Set(properties.map((property) => property.name));
   return fields !== undefined && fields.size >= MIN_COPY_FIELDS ? fields : undefined;
 }
 
