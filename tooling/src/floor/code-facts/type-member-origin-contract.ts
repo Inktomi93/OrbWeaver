@@ -10,6 +10,17 @@ import type {
   TypeReferenceNode,
   ts,
 } from "ts-morph";
+import type { ReferenceFact } from "./reference-fact-contract.ts";
+
+export interface CallMemberDeclarationOrigin {
+  readonly name: string | null;
+  readonly origin: ReferenceFact<readonly Node[]>;
+}
+
+/** Declaration-only native delivery; lexical leaf bindings retain the refusal classifier's own subject. */
+export interface NativeCallMemberOrigin extends CallMemberDeclarationOrigin {
+  readonly leafDeclarations: readonly Node[];
+}
 
 /** One property read whose property SYMBOL the checker resolved off the receiver's type. */
 export interface TypeMemberOrigin {

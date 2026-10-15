@@ -14,6 +14,7 @@ import {
   castRelationResultSchema,
   INVENTORY_FACTS,
   inputSchema,
+  memberOriginSchema,
   partitionSchema,
   SemanticInventoryError,
   shapeCatalogSchema,
@@ -262,6 +263,52 @@ export function* readInventoryDeclarationOutputs(
     )
     .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
     yield { node: spanRow.parse(row), unknown: row["unknownOutput"] === null ? null : boolean.parse(row["unknownOutput"]) };
+  }
+}
+
+/** Member facts retain every declaration and the original normalization/refusal trace. */
+export function* readInventoryMemberOrigins(db: DatabaseSync, id: string, node: InventorySpan): Iterable<InventoryPartition["memberOrigins"][number]> {
+  requireInventoryFamily(db, id, "type-member-origins");
+  requireInventoryFamily(db, id, "bindings");
+  const memberDeclarations = (owner: number, role: string, count: number): InventorySpan[] => {
+    const rows = db
+      .prepare(
+        "SELECT d.ordinal,s.file,s.start,s.end,s.kind FROM inventory_member_declaration d JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node WHERE d.partition=? AND d.owner=? AND d.role=? ORDER BY d.ordinal",
+      )
+      .all(id, owner, role);
+    if (rows.length !== count || rows.some((row, index) => row["ordinal"] !== index)) {
+      throw new SemanticInventoryError("native call member declaration population is incomplete");
+    }
+    return rows.map((row) => spanRow.parse(row));
+  };
+  for (const row of db
+    .prepare(
+      "SELECT o.ordinal,o.node,o.name,o.leaf,o.origin,o.state,o.reason,o.detail,o.refusalNode,o.valueCount,o.traceCount,o.leafCount FROM inventory_member_origin o JOIN inventory_span s ON s.partition=o.partition AND s.ordinal=o.node WHERE o.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY o.ordinal",
+    )
+    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
+    const owner = integer.parse(row["ordinal"]);
+    const span = (column: string): InventorySpan => spanOf(db, id, integer.parse(row[column]));
+    const value = memberDeclarations(owner, "value", integer.parse(row["valueCount"]));
+    const trace = memberDeclarations(owner, "trace", integer.parse(row["traceCount"]));
+    if (row["leaf"] !== null) {
+      const bindings = [...readInventoryBindings(db, id, span("leaf"))];
+      if (bindings.length !== 1) {
+        throw new SemanticInventoryError("native call member leaf binding is unavailable in its native partition");
+      }
+      if (bindings[0]?.symbols.lexical.length !== integer.parse(row["leafCount"])) {
+        throw new SemanticInventoryError("native call member declaration population is incomplete");
+      }
+    }
+    yield memberOriginSchema.parse({
+      node,
+      name: row["name"] === null ? null : inventoryStringSchema.parse(row["name"]),
+      leaf: row["leaf"] === null ? null : span("leaf"),
+      trace: { origin: span("origin"), declarations: trace },
+      result:
+        row["state"] === "resolved"
+          ? { kind: "resolved", declarations: value }
+          : { kind: row["state"], reason: row["reason"], detail: inventoryStringSchema.parse(row["detail"]), node: span("refusalNode") },
+    });
   }
 }
 

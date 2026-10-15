@@ -10,6 +10,7 @@ import {
   INVENTORY_INPUT_KINDS,
   INVENTORY_LISTS,
   inputSchema,
+  memberOriginSchema,
   partitionMetadataSchema,
   partitionSchema,
   shapePairKey,
@@ -30,6 +31,16 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  memberOrigin: {
+    name: "inventory_member_origin",
+    columns: "ordinal,node,name,leaf,origin,state,reason,detail,refusalNode,valueCount,traceCount,leafCount",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,name TEXT,leaf INTEGER,origin INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('resolved','unresolved')),reason TEXT,detail TEXT,refusalNode INTEGER,valueCount INTEGER NOT NULL CHECK(valueCount>=0),traceCount INTEGER NOT NULL CHECK(traceCount>=0),leafCount INTEGER CHECK(leafCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE},FOREIGN KEY(partition,leaf) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,origin) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,refusalNode) REFERENCES inventory_span(partition,ordinal),CHECK((state='resolved' AND name IS NOT NULL AND reason IS NULL AND detail IS NULL AND refusalNode IS NULL AND valueCount>0) OR (state='unresolved' AND reason IS NOT NULL AND detail IS NOT NULL AND refusalNode IS NOT NULL AND valueCount=0))`,
+  },
+  memberDeclaration: {
+    name: "inventory_member_declaration",
+    columns: "owner,role,ordinal,node",
+    definition: `${PARTITION},owner INTEGER NOT NULL,role TEXT NOT NULL CHECK(role IN ('value','trace')),${ORDINAL},node INTEGER NOT NULL,PRIMARY KEY(partition,owner,role,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_member_origin(partition,ordinal),${SPAN_REFERENCE}`,
+  },
   declarationOutput: {
     name: "inventory_declaration_output",
     columns: "ordinal,node,unknownOutput",
@@ -244,8 +255,11 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     );
     declarations("modules", ordinal, "declarations", entry.declarations);
   });
+  const bindingCounts = new Map<number, number | null>();
   partition.bindings.forEach((entry, ordinal) => {
-    emit("fact", "bindings", ordinal, null, null, spanId(entry.node), null, null, null);
+    const node = spanId(entry.node);
+    bindingCounts.set(node, bindingCounts.has(node) ? null : entry.symbols.lexical.length);
+    emit("fact", "bindings", ordinal, null, null, node, null, null, null);
     declarations("bindings", ordinal, "lexical", entry.symbols.lexical);
     declarations("bindings", ordinal, "origins", entry.symbols.origins);
   });
@@ -261,6 +275,38 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
   partition.declarationOutputs.forEach((entry, ordinal) => {
     const fact = partitionSchema.shape.declarationOutputs.element.parse(entry);
     emit("declarationOutput", ordinal, spanId(fact.node), fact.unknown === null ? null : Number(fact.unknown));
+  });
+  partition.memberOrigins.forEach((entry, ordinal) => {
+    const fact = memberOriginSchema.parse(entry);
+    const result = fact.result;
+    const outcome =
+      result.kind === "resolved"
+        ? [result.kind, null, null, null, result.declarations.length]
+        : [result.kind, result.reason, inventoryString(result.detail), spanId(result.node), 0];
+    const leaf = fact.leaf === null ? null : spanId(fact.leaf);
+    const leafCount = leaf === null ? null : bindingCounts.get(leaf);
+    if (metadata.families.includes("bindings") && leaf !== null && (leafCount === null || leafCount === undefined)) {
+      throw new Error("native call member leaf binding is unavailable in its native partition");
+    }
+    emit(
+      "memberOrigin",
+      ordinal,
+      spanId(fact.node),
+      fact.name === null ? null : inventoryString(fact.name),
+      leaf,
+      spanId(fact.trace.origin),
+      ...outcome,
+      fact.trace.declarations.length,
+      leafCount ?? null,
+    );
+    fact.trace.declarations.forEach((node, index) => {
+      emit("memberDeclaration", ordinal, "trace", index, spanId(node));
+    });
+    if (result.kind === "resolved") {
+      result.declarations.forEach((node, index) => {
+        emit("memberDeclaration", ordinal, "value", index, spanId(node));
+      });
+    }
   });
   partition.shapes.forEach((shape, ordinal) => {
     emit("shape", ordinal, spanId(shape.node), Number(shape.copy !== null), Number(shape.respell !== null));

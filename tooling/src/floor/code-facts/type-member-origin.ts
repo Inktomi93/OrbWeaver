@@ -1,10 +1,11 @@
 // Native member and type declaration facts; receiver and member refusal anchors remain distinct.
 import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { Node as MorphNode, SourceFile, Type } from "ts-morph";
+import type { CallExpression, Node as MorphNode, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableDeclaration } from "./reference-fact-call.ts";
 import type {
+  CallMemberDeclarationOrigin,
   ContextualMemberOrigin,
   NativeSubstitutedTypeInput,
   NativeSubstitutedTypeSlot,
@@ -12,6 +13,22 @@ import type {
   TypeMemberOrigin,
 } from "./type-member-origin-contract.ts";
 import { annotationReferenceOrigin, normalizedPath, resolved, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
+
+/** The refusal classifier deliberately treats only a dotted member's name as its binding leaf. */
+export function originRefusalLeaf(node: MorphNode): MorphNode {
+  return Node.isPropertyAccessExpression(node) ? node.getNameNode() : node;
+}
+
+/** Project existing invoked-member meaning without retaining its native property Symbol. */
+export function readCallMemberDeclarationOrigin(call: CallExpression): CallMemberDeclarationOrigin {
+  const callee = call.getExpression();
+  const member = readMemberReference(callee);
+  const origin = member.kind === "resolved" ? resolveTypeMemberOrigin(callee) : member;
+  return {
+    name: member.kind === "resolved" ? member.value.name : null,
+    origin: origin.kind === "resolved" ? { ...origin, value: origin.value.declarations } : origin,
+  };
+}
 
 /** Resolve one property read to the declarations of the property symbol the checker found on the receiver's
  *  type. Dotted, optional, and computed-literal spellings normalize through the shared member reader, so a

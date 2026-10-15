@@ -93,6 +93,9 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
           case "declaration-outputs":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
+          case "type-member-origins":
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
           case "shape-relations":
             rows.push({ kind: query.kind, nodes: [...query.nodes], prepare: query.prepare });
             break;
@@ -127,6 +130,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "declaration-outputs", nodes).declarationOutputs(nodes);
+    },
+    callMemberOrigins: (owner, nodes): ReturnType<NativeTypeContext["callMemberOrigins"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "type-member-origins", nodes).callMemberOrigins(nodes);
     },
     idBrands: (owner, nodes): ReturnType<NativeTypeContext["idBrands"]> => {
       if (nodes.length === 0) {
@@ -189,7 +199,16 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
         }),
     ).values(),
   ];
-  const families = [...new Set(queries.flatMap((query) => (query.kind === "shape-relations" ? [] : [query.kind])))];
+  const families = [
+    ...new Set(
+      queries.flatMap((query) => {
+        if (query.kind === "shape-relations") {
+          return [];
+        }
+        return query.kind === "type-member-origins" ? ([query.kind, "bindings"] as const) : [query.kind];
+      }),
+    ),
+  ];
   const shapes = queries.filter((query) => query.kind === "shape-relations");
   const capturedSources = [...new Set(nodes.map((node) => node.getSourceFile()))];
   // biome-ignore lint/nursery/useDisposables: this reader transfers the store handle to its run-owned session.
@@ -212,6 +231,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    callMemberOrigins: (calls): ReturnType<NativeTypeFactReader["callMemberOrigins"]> =>
+      new Map(calls.map((node) => [node, inventory.callMemberOrigin(node, owner(node))])),
     declarationOutputs: (declarations): ReturnType<NativeTypeFactReader["declarationOutputs"]> =>
       new Map(declarations.map((node) => [node, inventory.declarationOutput(node, owner(node))])),
     prepareShapes: (requested): void => {

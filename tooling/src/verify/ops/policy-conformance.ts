@@ -12,6 +12,7 @@ import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/co
 import { readDeclarationOutput } from "../../floor/code-facts/declaration-output.ts";
 import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
+import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation, GatePolicyProofGrant } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
@@ -19,6 +20,7 @@ import { POLICY_REFUSAL_PREFIXES } from "../contract/policy-conformance.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { NativeTypeFactReader, NativeTypeFacts } from "../contract/project-context.ts";
 import type { ResourceHostOptions } from "../contract/resource-host.ts";
+import { originRefusalDeclarations } from "../lib/origin-verdict.ts";
 import { declaresModuleName } from "../lib/policy-descriptor-read.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyProofRows } from "../lib/policy-proof-rows.ts";
@@ -535,6 +537,12 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (): NativeTypeFactReader => ({
+      callMemberOrigins: (nodes): ReturnType<NativeTypeFactReader["callMemberOrigins"]> => {
+        checkerFor(nodes);
+        return new Map(
+          nodes.map((node) => [node, { ...readCallMemberDeclarationOrigin(node), leafDeclarations: originRefusalDeclarations(node.getExpression()) }]),
+        );
+      },
       declarationOutputs: (nodes): ReturnType<NativeTypeFactReader["declarationOutputs"]> => {
         checkerFor(nodes);
         return new Map(nodes.map((node) => [node, readDeclarationOutput(node)]));

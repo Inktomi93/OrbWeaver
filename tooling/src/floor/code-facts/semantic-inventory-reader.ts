@@ -23,6 +23,7 @@ import {
   readInventoryCasts,
   readInventoryDeclarationOutputs,
   readInventoryExports,
+  readInventoryMemberOrigins,
   readInventoryModules,
   readInventoryPairs,
   readInventoryReferences,
@@ -218,6 +219,29 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    callMemberOrigin: (node, program) => {
+      const { partition, span } = nativeSpan(node, program, "type-member-origins");
+      requireFamily([partition], "bindings");
+      const matches = [...readInventoryMemberOrigins(db, partition.id, span)];
+      const fact = matches[0];
+      if (matches.length !== 1 || fact === undefined) {
+        throw new SemanticInventoryError("native call member origin span is unavailable in its native partition");
+      }
+      const materialize = (value: InventorySpan): Node => nodeOf(value, [program]);
+      const bindings = fact.leaf === null ? [] : [...readInventoryBindings(db, partition.id, fact.leaf)];
+      if (fact.leaf !== null && bindings.length !== 1) {
+        throw new SemanticInventoryError("native call member leaf binding is unavailable in its native partition");
+      }
+      const trace = { origin: materialize(fact.trace.origin), declarations: fact.trace.declarations.map(materialize) };
+      return {
+        name: fact.name,
+        leafDeclarations: (bindings[0]?.symbols.lexical ?? []).map(materialize),
+        origin:
+          fact.result.kind === "resolved"
+            ? { kind: "resolved", value: fact.result.declarations.map(materialize), trace }
+            : { kind: "unresolved", reason: fact.result.reason, detail: fact.result.detail, node: materialize(fact.result.node), trace },
+      };
+    },
     declarationOutput: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "declaration-outputs");
       const matches = [...readInventoryDeclarationOutputs(db, partition.id, span)];

@@ -15,6 +15,7 @@ import { readRuntimeExports } from "../code-facts/runtime-export.ts";
 import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
+import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
 import { extractShape, extractShapePairs } from "./shape-inventory-extract.ts";
 import { collectByKinds, descendantsOfKind, nativeCompilerSourceFiles, nativeReferenceNode } from "./ts-workspace.ts";
@@ -167,6 +168,17 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
       : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
     ...(families.includes("declaration-outputs") ? [fileURLToPath(new URL("../code-facts/declaration-output.ts", import.meta.url))] : []),
+    ...(families.includes("type-member-origins")
+      ? [
+          fileURLToPath(new URL("../code-facts/type-member-origin.ts", import.meta.url)),
+          fileURLToPath(new URL("../code-facts/type-member-origin-core.ts", import.meta.url)),
+          fileURLToPath(new URL("../code-facts/reference-fact.ts", import.meta.url)),
+          fileURLToPath(new URL("../code-facts/reference-fact-alias.ts", import.meta.url)),
+          fileURLToPath(new URL("../code-facts/reference-fact-member.ts", import.meta.url)),
+          fileURLToPath(new URL("../code-facts/reference-fact-writes.ts", import.meta.url)),
+          fileURLToPath(new URL("../code-facts/reference-fact-contract.ts", import.meta.url)),
+        ]
+      : []),
     ...(families.some((family) => family === "cast-relations" || family === "shape-pairs")
       ? [
           fileURLToPath(new URL("../code-facts/assignability.ts", import.meta.url)),
@@ -239,6 +251,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           brands: [],
           runtimeExports: [],
           declarationOutputs: [],
+          memberOrigins: [],
           shapes: [],
           pairs: [],
           references: [],
@@ -350,7 +363,7 @@ function assertAuthoredSyntax(original: SourceFile, admitted: SourceFile, spans:
 
 type SourceFactValues = Pick<
   InventoryPartition,
-  "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands" | "runtimeExports" | "declarationOutputs" | "shapes"
+  "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands" | "runtimeExports" | "declarationOutputs" | "memberOrigins" | "shapes"
 >;
 interface SourceFactCollection {
   readonly families: ReadonlySet<InventoryFamily>;
@@ -428,7 +441,26 @@ function collectBrandFact(node: MorphNode, context: SourceFactCollection): void 
   }
 }
 
-function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): void {
+function collectMemberOriginFact(node: MorphNode, context: SourceFactCollection): void {
+  if (!Node.isCallExpression(node)) {
+    throw new Error("native call member visitor received another node kind");
+  }
+  const fact = readCallMemberDeclarationOrigin(node);
+  const origin = fact.origin;
+  const leaf = originRefusalLeaf(node.getExpression());
+  context.values.memberOrigins.push({
+    node: context.spans.node(node),
+    name: fact.name,
+    leaf: Node.isIdentifier(leaf) ? context.spans.node(leaf) : null,
+    trace: { origin: context.spans.node(origin.trace.origin), declarations: origin.trace.declarations.map(context.spans.node) },
+    result:
+      origin.kind === "resolved"
+        ? { kind: "resolved", declarations: origin.value.map(context.spans.node) }
+        : { kind: "unresolved", reason: origin.reason, detail: origin.detail, node: context.spans.node(origin.node) },
+  });
+}
+
+function collectFileFacts(sf: SourceFile, context: SourceFactCollection): void {
   const { families, spans, values } = context;
   if (families.has("runtime-exports")) {
     values.runtimeExports.push(...readRuntimeExports(sf, spans.node));
@@ -439,6 +471,11 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
   if (families.has("witnesses")) {
     values.witnesses.push(...witnessFacts(sf, spans));
   }
+}
+
+function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): void {
+  const { families, spans, values } = context;
+  collectFileFacts(sf, context);
   const visitors = new Map<SyntaxKind, ((node: MorphNode) => void)[]>();
   if (families.has("shape-catalog")) {
     for (const kind of [
@@ -475,6 +512,9 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
     visitors.set(SyntaxKind.FunctionDeclaration, [...(visitors.get(SyntaxKind.FunctionDeclaration) ?? []), collect]);
     visitors.set(SyntaxKind.VariableDeclaration, [...(visitors.get(SyntaxKind.VariableDeclaration) ?? []), collect]);
   }
+  if (families.has("type-member-origins")) {
+    visitors.set(SyntaxKind.CallExpression, [(node): void => collectMemberOriginFact(node, context)]);
+  }
   collectByKinds([sf], visitors);
 }
 
@@ -488,7 +528,18 @@ function extractSourceFacts(
   const context: SourceFactCollection = {
     ...input,
     authored,
-    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [], runtimeExports: [], declarationOutputs: [], shapes: [] },
+    values: {
+      exports: [],
+      modules: [],
+      bindings: [],
+      witnesses: [],
+      casts: [],
+      brands: [],
+      runtimeExports: [],
+      declarationOutputs: [],
+      memberOrigins: [],
+      shapes: [],
+    },
     referenceDeclarations: new Map(),
     shapeNodes: new WeakSet(),
     checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),

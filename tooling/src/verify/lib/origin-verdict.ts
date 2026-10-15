@@ -16,6 +16,7 @@ import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fac
 import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
+import { originRefusalLeaf } from "../../floor/code-facts/type-member-origin.ts";
 import type { OriginRefusalVerdict } from "../contract/origin-verdict.ts";
 
 /** Refusals that mean "no ONE authored source exists", whatever the leaf symbol says. A written binding, a
@@ -27,34 +28,22 @@ function isModuleAliasDeclaration(declaration: MorphNode): boolean {
   return Node.isImportSpecifier(declaration) || Node.isImportClause(declaration) || Node.isNamespaceImport(declaration) || Node.isExportSpecifier(declaration);
 }
 
-/** The leaf identifier whose symbol carries this reference's binding: a member read is bound by its NAME,
- *  a bare reference by itself.
- *
- *  IT HANDLES THE DOTTED SPELLING ONLY, AND THAT ASYMMETRY IS A CALLER'S PROBLEM TO AVOID (#2058). An
- *  `ElementAccessExpression` falls through to the `node` arm, `Node.isIdentifier` rejects it, and
- *  `bindsProvenNonModuleDeclaration` answers FALSE for a receiver it never looked at — so a caller that
- *  hands this a whole member read gets `unreadable` for `bag["key"]` and `other` for `bag.key`. It cost
- *  `tooling-argv-front-door` two real-tree errors on JSON bags.
- *
- *  THE FIX IS AT THE CALLER, NOT HERE, and the direction is why: widening this function ACQUITS, and it
- *  sits under every canonical-origin policy's fail-closed arm, so a blind widening silently narrows a
- *  dozen catches at once (guide §6's sealed-origin polarity rule, one axis over). **A caller asking "is
- *  this member read taken off X" passes the RECEIVER** — its own subject — the way
- *  `lib/process-member-origin.ts:61` now does. Callers that already pass a `callee` or an
- *  `expression()` are correct by construction. */
-function leafIdentifier(node: MorphNode): MorphNode {
-  return Node.isPropertyAccessExpression(node) ? node.getNameNode() : node;
+/** Native bindings for the classifier keep dotted member names distinct from computed accesses. */
+export function originRefusalDeclarations(node: MorphNode): readonly MorphNode[] {
+  const leaf = originRefusalLeaf(node);
+  return Node.isIdentifier(leaf) ? (leaf.getSymbol()?.getDeclarations() ?? []) : [];
 }
 
 /** Does this reference PROVABLY bind a declaration that is not a module import at all — a local function,
  *  parameter, method, class or property? That is case (a): a different identity, not an unreadable one. */
 export function bindsProvenNonModuleDeclaration(node: MorphNode): boolean {
-  const leaf = leafIdentifier(node);
-  if (!Node.isIdentifier(leaf)) {
-    return false;
-  }
-  const declarations = leaf.getSymbol()?.getDeclarations() ?? [];
+  const declarations = originRefusalDeclarations(node);
   return declarations.length > 0 && !declarations.some(isModuleAliasDeclaration);
+}
+
+/** Stored native bindings and live native bindings share the same refusal judgment. */
+export function classifyOriginRefusalDeclarations(reason: ReferenceUnresolvedReason, declarations: readonly MorphNode[]): OriginRefusalVerdict {
+  return AMBIGUOUS_REASONS.has(reason) || declarations.length === 0 || declarations.some(isModuleAliasDeclaration) ? "unreadable" : "other";
 }
 
 /** Classify one refusal into the policy's two answers. Fail-closed by default: only a PROVEN foreign
@@ -63,7 +52,7 @@ export function classifyOriginRefusal(reason: ReferenceUnresolvedReason, node: M
   if (AMBIGUOUS_REASONS.has(reason)) {
     return "unreadable";
   }
-  return bindsProvenNonModuleDeclaration(node) ? "other" : "unreadable";
+  return classifyOriginRefusalDeclarations(reason, originRefusalDeclarations(node));
 }
 
 /** Does this reference NAME `exportedName` — as a bare identifier, through an import specifier whose

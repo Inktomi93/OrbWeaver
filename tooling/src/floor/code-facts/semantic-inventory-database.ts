@@ -11,7 +11,8 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 5;
+const STORAGE_SCHEMA_VERSION = 6;
+const DECLARATION_OUTPUT_SCHEMA_VERSION = 5;
 const SHAPE_SCHEMA_VERSION = 4;
 const RUNTIME_EXPORT_SCHEMA_VERSION = 3;
 
@@ -53,6 +54,7 @@ function storageSchemaVersion(db: DatabaseSync): number {
     version !== 2 &&
     version !== RUNTIME_EXPORT_SCHEMA_VERSION &&
     version !== SHAPE_SCHEMA_VERSION &&
+    version !== DECLARATION_OUTPUT_SCHEMA_VERSION &&
     version !== STORAGE_SCHEMA_VERSION
   ) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
@@ -98,6 +100,9 @@ function initializeStorageSchema(db: DatabaseSync): void {
       db.exec("ALTER TABLE inventory_input_upgrade RENAME TO inventory_input;");
     }
     if (version > 0 && version < STORAGE_SCHEMA_VERSION) {
+      for (const table of ["memberOrigin", "memberDeclaration"] as const) {
+        db.exec(`CREATE TABLE IF NOT EXISTS ${inventoryRecordTables[table].name}(${inventoryRecordTables[table].definition}) STRICT;`);
+      }
       db.exec(`CREATE TABLE IF NOT EXISTS inventory_declaration_output(${inventoryRecordTables.declarationOutput.definition}) STRICT;`);
       db.exec(`CREATE TABLE IF NOT EXISTS inventory_runtime_export(${inventoryRecordTables.runtimeExport.definition}) STRICT;`);
       db.exec(`CREATE TABLE inventory_family_upgrade(${inventoryRecordTables.family.definition}) STRICT;`);

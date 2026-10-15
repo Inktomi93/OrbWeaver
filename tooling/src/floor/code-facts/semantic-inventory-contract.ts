@@ -5,8 +5,10 @@ import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compile
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
 import type { SourceBindingUsage } from "./binding-usage-contract.ts";
+import { REFERENCE_UNRESOLVED_REASONS } from "./reference-fact-contract.ts";
+import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
 
-export const INVENTORY_FORMAT = 9;
+export const INVENTORY_FORMAT = 10;
 export const INVENTORY_FAMILIES = [
   "exports",
   "modules",
@@ -19,6 +21,7 @@ export const INVENTORY_FAMILIES = [
   "shape-catalog",
   "shape-pairs",
   "declaration-outputs",
+  "type-member-origins",
 ] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
@@ -45,6 +48,17 @@ export const spanSchema = z.object({ file: z.string(), start: z.number().int(), 
 export const INVENTORY_INPUT_KINDS = ["file", "directory", "exists", "authored"] as const;
 export const inputSchema = z.object({ path: z.string(), kind: z.enum(INVENTORY_INPUT_KINDS), version: z.string() });
 export const symbolSchema = z.object({ lexical: z.array(spanSchema), origins: z.array(spanSchema) });
+export const memberOriginSchema = z.object({
+  node: spanSchema,
+  name: z.string().nullable(),
+  leaf: spanSchema.nullable(),
+  trace: z.object({ origin: spanSchema, declarations: z.array(spanSchema) }),
+  result: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("resolved"), declarations: z.array(spanSchema).min(1) }),
+    z.object({ kind: z.literal("unresolved"), reason: z.enum(REFERENCE_UNRESOLVED_REASONS), detail: z.string(), node: spanSchema }),
+  ]),
+});
+export type InventoryMemberOrigin = z.infer<typeof memberOriginSchema>;
 export const castRelationResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("resolved"), value: typeRelationSchema }),
   z.object({ kind: z.literal("unavailable"), reason: z.literal("primitive-absent") }),
@@ -105,6 +119,7 @@ export const partitionSchema = z.object({
   pairs: z.array(shapePairSchema),
   runtimeExports: z.array(runtimeExportSchema),
   declarationOutputs: z.array(z.object({ node: spanSchema, unknown: z.boolean().nullable() })),
+  memberOrigins: z.array(memberOriginSchema),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
   format: z.literal(INVENTORY_FORMAT),
@@ -130,6 +145,7 @@ export const partitionSchema = z.object({
 });
 
 export const partitionMetadataSchema = partitionSchema.omit({
+  memberOrigins: true,
   declarationOutputs: true,
   shapes: true,
   pairs: true,
@@ -159,6 +175,7 @@ export const INVENTORY_FAMILY_FIELDS = {
   "shape-catalog": "shapes",
   "shape-pairs": "pairs",
   "declaration-outputs": "declarationOutputs",
+  "type-member-origins": "memberOrigins",
 } as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
@@ -181,6 +198,8 @@ export const INVENTORY_RECORD_TABLES = [
   "shapeOrigin",
   "pair",
   "declarationOutput",
+  "memberOrigin",
+  "memberDeclaration",
 ] as const;
 export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
 export interface InventoryRecord {
@@ -237,6 +256,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly callMemberOrigin: (node: Node, program: string) => NativeCallMemberOrigin;
   readonly declarationOutput: (node: Node, program: string) => boolean | null;
   readonly assertShapeSource: (source: SourceFile) => void;
   readonly shape: (node: Node) => InventoryShape;
