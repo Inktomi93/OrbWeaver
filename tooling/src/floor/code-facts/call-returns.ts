@@ -8,10 +8,12 @@ import {
   readCallBindings as suppliedBindings,
   readSuppliedParameter as suppliedParameter,
 } from "./call-supplied.ts";
-import { isDocumentationLinkReference, resolveStableExpression } from "./reference-fact.ts";
+import { isDocumentationLinkReference, readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
-import { resolveCallableAlternatives, resolveCallableDeclaration, resolveCallableOrigin } from "./reference-fact-call.ts";
+import { resolveCallableAlternatives, resolveCallableDeclaration, resolveCallableOrigin, resolveCallableValueDeclaration } from "./reference-fact-call.ts";
 import type {
+  CallableDeclaration,
+  CallReturnCaptureOptions,
   CallReturnObservation,
   CallReturnObservations,
   CallReturnProgram,
@@ -20,6 +22,8 @@ import type {
   ReturnedValueInputs,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
+
+import { readAuthoredCallableSources } from "./value-carrier.ts";
 
 interface Trace {
   readonly declarations: MorphNode[];
@@ -154,13 +158,40 @@ export function readCallTarget(call: CallExpression): ReferenceFact<MorphNode> {
   return calleeFunction(call, { declarations: [] });
 }
 
+function authoredCallTarget(call: CallExpression): ReferenceFact<MorphNode> {
+  const authored = resolveCallableDeclaration(call);
+  return authored.kind === "resolved" ? { ...authored, value: authored.value.declaration } : authored;
+}
+
+function singleCallTargets(target: ReferenceFact<MorphNode>): ReferenceFact<readonly MorphNode[]> {
+  return target.kind === "resolved" ? { ...target, value: [target.value] } : target;
+}
+
 /** The same authored invocation can select several closed literal callable bodies. */
-export function readCallTargets(call: CallExpression, admitted?: ReadonlySet<import("ts-morph").ts.CallExpression>): ReferenceFact<readonly MorphNode[]> {
-  const direct = readCallTarget(call);
-  if (direct.kind === "resolved") {
-    return { ...direct, value: [direct.value] };
+export function readCallTargets(
+  call: CallExpression,
+  admitted?: ReadonlySet<import("ts-morph").ts.CallExpression>,
+  observations?: CallReturnObservations,
+  optionalInvocation = false,
+): ReferenceFact<readonly MorphNode[]> {
+  let supplied = false;
+  if (observations !== undefined) {
+    const captured = capturedProgram(call, observations);
+    if (captured.kind === "unresolved") {
+      return captured;
+    }
+    supplied = captured.value.suppliedCallableTargets === true;
   }
-  const alternatives = resolveCallableAlternatives(call, admitted);
+  const direct = supplied ? authoredCallTarget(call) : readCallTarget(call);
+  const expression = unwrapTarget(call.getExpression());
+  const optional =
+    observations !== undefined &&
+    (Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) &&
+    expression.hasQuestionDotToken();
+  if (direct.kind === "resolved" && !optional) {
+    return singleCallTargets(direct);
+  }
+  const alternatives = resolveCallableAlternatives(call, admitted, observations, optionalInvocation);
   return alternatives.kind === "unresolved" ? alternatives : { ...alternatives, value: alternatives.value.map((target) => target.declaration) };
 }
 
@@ -333,30 +364,293 @@ function observeAlternatives(
       };
 }
 
+function optionalReceiverInvocation(call: CallExpression): boolean {
+  const expression = unwrapTarget(call.getExpression());
+  return (Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) && expression.hasQuestionDotToken();
+}
+
+function capturedCallers(calls: readonly CallReturnObservation[]): ReadonlyMap<import("ts-morph").ts.Node, readonly CallReturnObservation[]> {
+  const callers = new Map<import("ts-morph").ts.Node, CallReturnObservation[]>();
+  for (const observation of calls) {
+    const invocation = observation.invocationTargets ?? observation.targets;
+    for (const callable of invocation.kind === "resolved" ? invocation.value : []) {
+      const target = callable.compilerNode;
+      const previous = callers.get(target) ?? [];
+      previous.push(observation);
+      callers.set(target, previous);
+    }
+  }
+  return callers;
+}
+
+function refinedObservation(
+  previous: CallReturnObservation,
+  admitted: ReadonlySet<import("ts-morph").ts.CallExpression>,
+  observed: CallReturnObservations,
+  projection: CallReturnCaptureOptions,
+): CallReturnObservation {
+  const targets = readCallTargets(previous.call, admitted, observed);
+  const invocationTargets =
+    targets.kind === "unresolved" && optionalReceiverInvocation(previous.call) ? readCallTargets(previous.call, admitted, observed, true) : undefined;
+  const first = targets.kind === "resolved" && targets.value.length === 1 ? targets.value[0] : undefined;
+  let target: ReferenceFact<MorphNode> = targets.kind === "unresolved" ? targets : readCallTarget(previous.call);
+  if (first !== undefined) {
+    target = { ...targets, kind: "resolved", value: first };
+  }
+  return {
+    call: previous.call,
+    target,
+    targets,
+    alternatives: observeAlternatives(targets, projection),
+    returns: target.kind === "resolved" ? readFunctionReturnPaths(target.value) : target,
+    ...(invocationTargets === undefined ? {} : { invocationTargets }),
+  };
+}
+
+function callableHomeKey(owner: MorphNode): string | undefined {
+  if (Node.isCallExpression(owner)) {
+    return staticMemberAccess(unwrapTarget(owner.getExpression()))?.name;
+  }
+  const property = owner.getParent();
+  if (!Node.isPropertyAssignment(property) || property.getInitializer() !== owner) {
+    return;
+  }
+  const name = property.getNameNode();
+  const literal = Node.isComputedPropertyName(name) ? readStaticString(name.getExpression()) : undefined;
+  return literal?.kind === "unresolved" ? undefined : (literal?.value ?? (Node.isStringLiteral(name) ? name.getLiteralText() : property.getName()));
+}
+
+function callableHomeKeys(owners: ReadonlySet<MorphNode>): ReadonlySet<string> {
+  return new Set(
+    [...owners].flatMap((owner) => {
+      const key = callableHomeKey(owner);
+      return key === undefined ? [] : [key];
+    }),
+  );
+}
+
+function incomingCallableCandidate(call: CallExpression, keys: ReadonlySet<string>): boolean {
+  const callee = unwrapTarget(call.getExpression());
+  // A dynamic selector or extracted alias cannot be ruled out by one authored property's key.
+  if (!Node.isPropertyAccessExpression(callee)) {
+    return true;
+  }
+  const member = staticMemberAccess(callee);
+  return member === undefined || keys.has(member.name) || optionalReceiverInvocation(call);
+}
+
+interface CapturedCallGroup {
+  calls: CallReturnObservation[];
+  readonly sources: Map<import("ts-morph").SourceFile, import("ts-morph").ts.SourceFile>;
+}
+
+function captureObservationSources(group: CapturedCallGroup, observation: CallReturnObservation): void {
+  const { call, targets, alternatives } = observation;
+  const paths =
+    alternatives.kind === "resolved"
+      ? alternatives.value.flatMap((alternative) => {
+          const captured = alternative.explicitReturns ?? alternative.returns;
+          return captured.kind === "resolved" ? captured.value : [];
+        })
+      : [];
+  for (const node of [call, ...(targets.kind === "resolved" ? targets.value : []), ...paths]) {
+    const source = node.getSourceFile();
+    group.sources.set(source, source.compilerNode);
+  }
+}
+
+interface SuppliedRefinement {
+  readonly admitted: Set<import("ts-morph").ts.CallExpression>;
+  readonly directCalls: ReadonlySet<import("ts-morph").ts.CallExpression>;
+  readonly references: readonly MorphNode[];
+  readonly demandedOwners: Set<MorphNode>;
+  readonly enteredBodies: Set<import("ts-morph").ts.Node>;
+  readonly projection: CallReturnCaptureOptions;
+  readonly capture: (call: CallExpression) => void;
+  readonly snapshot: () => CallReturnObservations;
+  readonly onBodyNode: ((node: MorphNode) => void) | undefined;
+  readonly targetKey: (targets: ReferenceFact<readonly MorphNode[]> | undefined) => string;
+}
+
+function enterObservationBodies(observation: CallReturnObservation, group: CapturedCallGroup, inputs: SuppliedRefinement): readonly CallExpression[] {
+  const invocation = observation.invocationTargets ?? observation.targets;
+  const calls: CallExpression[] = [];
+  for (const body of invocation.kind === "resolved" ? invocation.value : []) {
+    const source = body.getSourceFile();
+    group.sources.set(source, source.compilerNode);
+    if (inputs.enteredBodies.has(body.compilerNode)) {
+      continue;
+    }
+    inputs.enteredBodies.add(body.compilerNode);
+    calls.push(...callBodyCalls(body, inputs.onBodyNode));
+  }
+  return calls;
+}
+
+function refineSuppliedRound(groups: ReadonlyMap<import("ts-morph").Project, CapturedCallGroup>, inputs: SuppliedRefinement): boolean {
+  const observed = inputs.snapshot();
+  const demandedBefore = inputs.demandedOwners.size;
+  const keys = callableHomeKeys(inputs.demandedOwners);
+  const newCalls: CallExpression[] = [];
+  let changed = false;
+  for (const group of groups.values()) {
+    const previousCalls = group.calls;
+    group.calls = previousCalls.map((previous) => {
+      if (inputs.directCalls.has(previous.call.compilerNode) || !incomingCallableCandidate(previous.call, keys)) {
+        return previous;
+      }
+      const refined = refinedObservation(previous, inputs.admitted, observed, inputs.projection);
+      newCalls.push(...enterObservationBodies(refined, group, inputs));
+      return refined;
+    });
+    changed ||= group.calls.some(
+      (observation, index) =>
+        inputs.targetKey(observation.targets) !== inputs.targetKey(previousCalls[index]?.targets) ||
+        inputs.targetKey(observation.invocationTargets) !== inputs.targetKey(previousCalls[index]?.invocationTargets),
+    );
+  }
+  for (const call of newCalls) {
+    if (inputs.admitted.has(call.compilerNode)) {
+      continue;
+    }
+    inputs.admitted.add(call.compilerNode);
+    inputs.capture(call);
+    changed = true;
+  }
+  return changed || inputs.demandedOwners.size !== demandedBefore;
+}
+
+function refuseCyclicRefinement(
+  groups: ReadonlyMap<import("ts-morph").Project, CapturedCallGroup>,
+  directCalls: ReadonlySet<import("ts-morph").ts.CallExpression>,
+): void {
+  for (const group of groups.values()) {
+    group.calls = group.calls.map((observation) => {
+      if (directCalls.has(observation.call.compilerNode)) {
+        return observation;
+      }
+      const refusal = unresolved("cycle", observation.call, { declarations: [] }, "supplied callable closure does not reach a stable native proof");
+      return { ...observation, target: refusal, targets: refusal, returns: refusal, alternatives: refusal, invocationTargets: refusal };
+    });
+  }
+}
+
+function refineSuppliedCapture(
+  groups: ReadonlyMap<import("ts-morph").Project, CapturedCallGroup>,
+  context: Omit<SuppliedRefinement, "targetKey" | "enteredBodies">,
+): CallReturnObservations {
+  const nodeIds = new Map<object, number>();
+  const identity = (node: MorphNode): number => {
+    const previous = nodeIds.get(node.compilerNode);
+    if (previous !== undefined) {
+      return previous;
+    }
+    const id = nodeIds.size;
+    nodeIds.set(node.compilerNode, id);
+    return id;
+  };
+  const calls = [...groups.values()].flatMap((group) => group.calls);
+  const inputs: SuppliedRefinement = {
+    ...context,
+    targetKey: (targets) => (targets?.kind === "resolved" ? targets.value.map(identity).join(",") : "?"),
+    enteredBodies: new Set(calls.flatMap((call) => (call.targets.kind === "resolved" ? call.targets.value.map((target) => target.compilerNode) : []))),
+  };
+  const states = new Set<string>();
+  for (;;) {
+    const state =
+      [...inputs.demandedOwners].map(identity).join(",") +
+      ":" +
+      [...groups.values()]
+        .flatMap((group) => group.calls.map((call) => `${identity(call.call)}:${inputs.targetKey(call.targets)}:${inputs.targetKey(call.invocationTargets)}`))
+        .join(";");
+    if (states.has(state)) {
+      refuseCyclicRefinement(groups, inputs.directCalls);
+      return inputs.snapshot();
+    }
+    states.add(state);
+    if (!refineSuppliedRound(groups, inputs)) {
+      return inputs.snapshot();
+    }
+  }
+}
+
+function settledCallableUse(call: CallExpression, program: CallReturnProgram): ReferenceFact<true> {
+  const targets = program.byCall.get(call.compilerNode)?.targets;
+  return targets?.kind === "resolved"
+    ? { ...targets, value: true }
+    : (targets ?? unresolved("missing", call, { declarations: [] }, "the supplied callable use has no settled actual target"));
+}
+
+function captureCallableValue(node: MorphNode, captured: CallReturnProgram, group: CapturedCallGroup): ReferenceFact<CallableDeclaration> {
+  const fact = resolveCallableValueDeclaration(node, { programs: [captured] });
+  if (fact.kind === "unresolved") {
+    return fact;
+  }
+  const sources = new Set([fact.value.sourceFile, ...fact.trace.declarations.map((declaration) => declaration.getSourceFile())]);
+  if (
+    node.getProject().getProgram().compilerObject !== captured.program ||
+    [...sources].some((source) => source.getProject() !== node.getProject() || captured.program.getSourceFile(source.getFilePath()) !== source.compilerNode)
+  ) {
+    return unresolved("unsupported", node, { declarations: [] }, "the supplied callable value has a stale or foreign native declaration source");
+  }
+  for (const source of sources) {
+    group.sources.set(source, source.compilerNode);
+  }
+  return fact;
+}
+
+function suppliedCallableUseReader(
+  captured: () => CallReturnProgram,
+  context: { readonly activeOwners: Set<import("ts-morph").ts.Node>; readonly demand: (owner: MorphNode) => void },
+): (owner: MorphNode) => ReferenceFact<true> {
+  const { activeOwners, demand } = context;
+  return (owner: MorphNode): ReferenceFact<true> => {
+    const program = captured();
+    const epoch = capturedProgram(owner, { programs: [program] });
+    if (epoch.kind === "unresolved") {
+      return epoch;
+    }
+    if (activeOwners.has(owner.compilerNode)) {
+      return unresolved("cycle", owner, { declarations: [] }, "the supplied callable owner revisits its containing uses");
+    }
+    activeOwners.add(owner.compilerNode);
+    try {
+      if (Node.isCallExpression(owner) && !program.byCall.has(owner.compilerNode)) {
+        return unresolved("missing", owner, { declarations: [] }, "the supplied callable use was not captured in this native invocation");
+      }
+      demand(owner);
+      if (Node.isCallExpression(owner)) {
+        return settledCallableUse(owner, program);
+      }
+      const sources = readAuthoredCallableSources(owner, (call) => program.byCall.has(call.compilerNode), { programs: [program] });
+      return sources.kind === "unresolved" ? sources : { ...sources, value: true };
+    } finally {
+      activeOwners.delete(owner.compilerNode);
+    }
+  };
+}
+
 /** Observe only supplied calls and their shared authored-call closure; never acquire another compiler world. */
 export function observeCallReturns(
   roots: readonly CallExpression[],
   references?: readonly MorphNode[],
-  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns"> = {},
+  projection: CallReturnCaptureOptions = {},
 ): CallReturnObservations {
-  const groups = new Map<
-    import("ts-morph").Project,
-    { calls: CallReturnObservation[]; sources: Map<import("ts-morph").SourceFile, import("ts-morph").ts.SourceFile> }
-  >();
+  const groups = new Map<import("ts-morph").Project, CapturedCallGroup>();
   const observedReferences = [...(references ?? [])];
-  const closure = readCallClosure(
-    roots,
+  const onBodyNode =
     references === undefined
       ? undefined
-      : (node): void => {
+      : (node: MorphNode): void => {
           if (Node.isIdentifier(node) || Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
             observedReferences.push(node);
           }
-        },
-  );
+        };
+  const closure = readCallClosure(roots, onBodyNode);
   const admitted = new Set(closure.map((call) => call.compilerNode));
-  for (const call of closure) {
-    const target = readCallTarget(call);
+  const directCalls = new Set<import("ts-morph").ts.CallExpression>();
+  const capture = (call: CallExpression): void => {
+    const target = projection.suppliedCallableTargets === true ? authoredCallTarget(call) : readCallTarget(call);
     const returns = target.kind === "resolved" ? readFunctionReturnPaths(target.value) : target;
     const project = call.getProject();
     let group = groups.get(project);
@@ -364,49 +658,88 @@ export function observeCallReturns(
       group = { calls: [], sources: new Map() };
       groups.set(project, group);
     }
-    const targets = readCallTargets(call, admitted);
+    const targets = projection.suppliedCallableTargets === true ? singleCallTargets(target) : readCallTargets(call, admitted);
     const alternatives = observeAlternatives(targets, projection);
-    group.calls.push({ call, target, targets, alternatives, returns });
-    const paths =
-      alternatives.kind === "resolved"
-        ? alternatives.value.flatMap((alternative) => {
-            const captured = alternative.explicitReturns ?? alternative.returns;
-            return captured.kind === "resolved" ? captured.value : [];
-          })
-        : [];
-    for (const node of [call, ...(targets.kind === "resolved" ? targets.value : []), ...paths]) {
-      const source = node.getSourceFile();
-      group.sources.set(source, source.compilerNode);
+    if (targets.kind === "resolved" && !optionalReceiverInvocation(call)) {
+      directCalls.add(call.compilerNode);
     }
+    group.calls.push({ call, target, targets, alternatives, returns });
+    captureObservationSources(group, { call, target, targets, alternatives, returns });
+  };
+  for (const call of closure) {
+    capture(call);
   }
-  return {
+  const demandedOwners = new Set<MorphNode>();
+  const activeOwners = new Set<import("ts-morph").ts.Node>();
+  const publishers: (() => void)[] = [];
+  let refining = false;
+  let settledDemandCount = 0;
+  const demand = (owner: MorphNode): void => {
+    demandedOwners.add(owner);
+    if (refining || demandedOwners.size === settledDemandCount) {
+      return;
+    }
+    refining = true;
+    try {
+      refineSuppliedCapture(groups, { admitted, directCalls, references: observedReferences, demandedOwners, projection, capture, snapshot, onBodyNode });
+      for (const publish of publishers) {
+        publish();
+      }
+      settledDemandCount = demandedOwners.size;
+    } finally {
+      refining = false;
+    }
+  };
+  const snapshot = (published = false): CallReturnObservations => ({
     programs: [...groups].map(([project, group]) => {
       const nativeReferences = observedReferences.filter((node) => node.getProject() === project);
       for (const reference of nativeReferences) {
         const source = reference.getSourceFile();
         group.sources.set(source, source.compilerNode);
       }
-      const byCall = new Map(group.calls.map((observation) => [observation.call.compilerNode, observation]));
-      const escapes = escapingReferences(nativeReferences, byCall);
-      const callers = new Map<import("ts-morph").ts.Node, CallReturnObservation[]>();
-      for (const observation of group.calls) {
-        for (const callable of observation.targets.kind === "resolved" ? observation.targets.value : []) {
-          const target = callable.compilerNode;
-          const previous = callers.get(target) ?? [];
-          previous.push(observation);
-          callers.set(target, previous);
+      const settled = (): Pick<CallReturnProgram, "calls" | "callers" | "byCall" | "escapingReferences"> => {
+        const byCall = new Map(group.calls.map((observation) => [observation.call.compilerNode, observation]));
+        const currentReferences = observedReferences.filter((node) => node.getProject() === project);
+        for (const reference of currentReferences) {
+          const source = reference.getSourceFile();
+          group.sources.set(source, source.compilerNode);
         }
+        return { calls: group.calls, callers: capturedCallers(group.calls), byCall, escapingReferences: escapingReferences(currentReferences, byCall) };
+      };
+      let indexes = settled();
+      if (published) {
+        publishers.push(() => {
+          indexes = settled();
+        });
       }
-      return {
+      const captured: CallReturnProgram = {
         ...group,
-        callers,
-        byCall,
-        escapingReferences: escapes,
+        ...(projection.suppliedCallableTargets === true
+          ? {
+              suppliedCallableTargets: true as const,
+              suppliedCallableUses: suppliedCallableUseReader(() => captured, { activeOwners, demand }),
+              suppliedCallableValue: (node: MorphNode) => captureCallableValue(node, captured, group),
+            }
+          : {}),
+        get calls(): CallReturnProgram["calls"] {
+          return indexes.calls;
+        },
+        get callers(): CallReturnProgram["callers"] {
+          return indexes.callers;
+        },
+        get byCall(): CallReturnProgram["byCall"] {
+          return indexes.byCall;
+        },
+        get escapingReferences(): CallReturnProgram["escapingReferences"] {
+          return indexes.escapingReferences;
+        },
         referencesObserved: references?.some((node) => node.getProject() === project) === true,
         program: project.getProgram().compilerObject,
       };
+      return captured;
     }),
-  };
+  });
+  return snapshot(projection.suppliedCallableTargets === true);
 }
 
 /** Exact native world and source epochs precede captured value interpretation. */

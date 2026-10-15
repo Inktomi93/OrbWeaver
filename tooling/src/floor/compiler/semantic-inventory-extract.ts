@@ -12,7 +12,7 @@ import { INVENTORY_FORMAT } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion } from "../code-facts/semantic-inventory-inputs.ts";
 import { readAuthoredRepositoryInventory } from "./authored-repository.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
-import { descendantsOfKind, nativeCompilerSourceFiles } from "./ts-workspace.ts";
+import { descendantsOfKind, nativeCompilerSourceFiles, nativeReferenceNode } from "./ts-workspace.ts";
 
 interface InventorySpans {
   readonly path: (path: string) => string;
@@ -390,21 +390,6 @@ function referenceQueryNode(declaration: MorphNode): MorphNode {
 }
 
 function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan, spans: InventorySpans): InventorySpan {
-  let best: ts.Node = source;
-  let found = false;
-  let node: ts.Node | undefined = source;
-  while (node !== undefined) {
-    if (!found) {
-      best = node;
-    }
-    // DocumentSpan compares node width with the span's end, not length; retain its physical-node selection.
-    if (node.getStart(source) === span.start && node.getWidth(source) === span.start + span.length) {
-      best = node;
-      found = true;
-    } else if (found) {
-      break;
-    }
-    node = node.getChildren(source).find((child) => child.pos <= span.start && span.start < child.end);
-  }
+  const best = nativeReferenceNode(source, span);
   return spans.span(source.fileName, best.getStart(source), best.end, best.kind);
 }

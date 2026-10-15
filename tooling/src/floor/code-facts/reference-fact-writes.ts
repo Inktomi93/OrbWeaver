@@ -2,7 +2,7 @@
 // invocation sets expand through is `reference-fact-alias.ts` (split 2026-09-18 at the size cap): the graph
 // is the leaf, this module consumes it.
 
-import { descendantsOfKind } from "@orb/tooling/floor/compiler/ts-workspace";
+import { descendantsOfKind, nativeReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { aliasEdges, lexicalReferenceSymbol, rootIdentifier, unwrapTarget } from "./reference-fact-alias.ts";
@@ -35,12 +35,16 @@ function aliasName(reference: MorphNode): MorphNode | undefined {
 }
 
 /** The first use not proven to preserve this value's identity/cardinality, in the loaded Project.
+ *  The predicate receives the current alias binding, not necessarily the input identifier.
  *  Caller endpoints are exact value nodes, never property names or permission paths. Const aliases and
  *  compiler-resolved import/re-export references are followed; a spread copies an array's elements but
  *  does not alias its length. Opaque arguments, member calls (including callbacks), storage and returns
  *  refuse. This does not model consumers outside the loaded Project or external host mutation.
  *  The older source-local write/member queries below intentionally retain their weaker contracts. */
-export function unprovenReferenceUse(identifier: Identifier, accepted: ReadonlySet<MorphNode> | ((use: MorphNode) => boolean)): MorphNode | undefined {
+export function unprovenReferenceUse(
+  identifier: Identifier,
+  accepted: ReadonlySet<MorphNode> | ((use: MorphNode, binding: Identifier) => boolean),
+): MorphNode | undefined {
   const accepts = typeof accepted === "function" ? accepted : (use: MorphNode): boolean => accepted.has(use);
   const pending: Identifier[] = [identifier];
   const seen = new Set<object>();
@@ -66,12 +70,12 @@ export function unprovenReferenceUse(identifier: Identifier, accepted: ReadonlyS
       refusal = name;
       continue;
     }
-    refusal = name.findReferencesAsNodes().find((reference) => {
+    refusal = nativeReferenceNodes(name).find((reference) => {
       if (reference === name || reference.getAncestors().some(Node.isTypeNode)) {
         return false;
       }
       const wrapped = transparentUse(reference);
-      if (accepts(wrapped)) {
+      if (accepts(wrapped, name)) {
         return false;
       }
       const parent = wrapped.getParent();

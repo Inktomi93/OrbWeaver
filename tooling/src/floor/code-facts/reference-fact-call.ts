@@ -323,17 +323,37 @@ export function resolveCallableValueOrigin(node: MorphNode, observations?: CallR
 }
 
 /** Finite literal callable carriers retain all actual bodies; the single-target reader still refuses ambiguity. */
-export function resolveCallableAlternatives(node: MorphNode, admitted?: ReadonlySet<ts.CallExpression>): ReferenceFact<readonly CallableDeclaration[]> {
-  const single = resolveCallableDeclaration(node);
-  if (single.kind === "resolved") {
-    return { ...single, value: [single.value] };
+export function resolveCallableAlternatives(
+  node: MorphNode,
+  admitted?: ReadonlySet<ts.CallExpression>,
+  observations?: CallReturnObservations,
+  optionalInvocation = false,
+): ReferenceFact<readonly CallableDeclaration[]> {
+  const captured = observations === undefined ? undefined : readCallReturnProgram(node, observations);
+  if (captured?.kind === "unresolved") {
+    return captured;
   }
   const callee = Node.isCallExpression(node) ? node.getExpression() : node;
-  const authored = readAuthoredCallableSources(callee, admitted === undefined ? undefined : (call): boolean => admitted.has(call.compilerNode));
+  const optional =
+    observations !== undefined && (Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee)) && callee.hasQuestionDotToken();
+  const single = resolveCallableDeclaration(node);
+  if (single.kind === "resolved" && !optional) {
+    return { ...single, value: [single.value] };
+  }
+  const authored = readAuthoredCallableSources(
+    callee,
+    admitted === undefined ? undefined : (call): boolean => admitted.has(call.compilerNode),
+    observations,
+    optionalInvocation,
+  );
   if (authored.kind === "unresolved") {
     return authored;
   }
-  const facts = authored.value.map((source) => resolveCallableDeclaration(source.value));
+  const facts = authored.value.map((source) =>
+    captured?.value.suppliedCallableTargets === true && Node.isFunctionDeclaration(source.value)
+      ? resolveCallableValueDeclaration(source.value.getNameNode() ?? source.value, observations)
+      : resolveCallableDeclaration(source.value),
+  );
   const failed = facts.find((fact) => fact.kind === "unresolved");
   return failed ?? { kind: "resolved", value: facts.flatMap((fact) => (fact.kind === "resolved" ? [fact.value] : [])), trace: authored.trace };
 }

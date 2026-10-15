@@ -14,7 +14,7 @@
 import { existsSync, globSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
-import type { FileSystemHost, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
+import type { FileSystemHost, Identifier, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
 import { createWrappedNode, Project, Node as TsNode, ts } from "ts-morph";
 import { createSemanticInventory } from "../code-facts/semantic-inventory.ts";
 import { semanticInventoryOf } from "../code-facts/semantic-inventory-reader.ts";
@@ -135,6 +135,137 @@ function lazySemanticProgram(
 
 const semanticWorkspaces = new WeakMap<object, SemanticWorkspace>();
 const semanticPrograms = new WeakMap<Project, SemanticProgram>();
+
+interface NativeReferencePass {
+  readonly program: ts.Program;
+  readonly languageProgram: ts.Program;
+  readonly pass: ts.ReadonlyReferencePass;
+}
+
+let nativeReferencePasses: Map<Project, NativeReferencePass> | undefined;
+
+/** Open native reference infrastructure for one immutable reader invocation. */
+export function beginNativeReferencePass(): void {
+  if (nativeReferencePasses !== undefined) {
+    throw new Error("a native reference pass is already open");
+  }
+  nativeReferencePasses = new Map();
+}
+
+/** Release every native handle without retaining its Project beyond the reader invocation. */
+export function endNativeReferencePass(): void {
+  const passes = nativeReferencePasses;
+  nativeReferencePasses = undefined;
+  for (const entry of passes?.values() ?? []) {
+    entry.pass.dispose();
+  }
+}
+
+function sharedNativeSyntax(left: ts.SourceFile | undefined, right: ts.SourceFile): boolean {
+  return (
+    left !== undefined &&
+    (left === right ||
+      (left.fileName === right.fileName && left.text === right.text && left.statements === right.statements && left.endOfFileToken === right.endOfFileToken))
+  );
+}
+
+function nativeReferencePass(project: Project, passes: Map<Project, NativeReferencePass>): NativeReferencePass {
+  const existing = passes.get(project);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const service = project.getLanguageService().compilerObject;
+  const pass = service.createReadonlyReferencePass();
+  let retained = false;
+  try {
+    const languageProgram = service.getProgram();
+    if (languageProgram === undefined) {
+      throw new Error("native reference transport has no language-service Program");
+    }
+    const entry = { program: project.getProgram().compilerObject, languageProgram, pass };
+    passes.set(project, entry);
+    retained = true;
+    return entry;
+  } finally {
+    if (!retained) {
+      pass.dispose();
+    }
+  }
+}
+
+function nativeReferenceTargets(project: Project, entry: NativeReferencePass, groups: readonly ts.ReferencedSymbol[]): readonly Node[] {
+  const references: Node[] = [];
+  for (const group of groups) {
+    const alias = group.definition.kind === ts.ScriptElementKind.alias;
+    for (const [index, reference] of group.references.entries()) {
+      if (!alias && reference.isDefinition === true && index === 0) {
+        continue;
+      }
+      const target = project.getSourceFile(reference.fileName);
+      if (
+        target === undefined ||
+        !sharedNativeSyntax(entry.program.getSourceFile(reference.fileName), target.compilerNode) ||
+        !sharedNativeSyntax(entry.languageProgram.getSourceFile(reference.fileName), target.compilerNode)
+      ) {
+        throw new Error(`native reference transport result does not share its admitted native source syntax: ${reference.fileName}`);
+      }
+      references.push(wrapDoor(target)(nativeReferenceNode(target.compilerNode, reference.textSpan)));
+    }
+  }
+  return references;
+}
+
+/** Same-Project native binding references; an open invocation reuses only readonly native search infrastructure. */
+export function nativeReferenceNodes(node: Identifier): readonly Node[] {
+  if (nativeReferencePasses === undefined) {
+    return node.findReferencesAsNodes();
+  }
+  if (node.wasForgotten()) {
+    throw new Error("native reference transport received a forgotten node");
+  }
+  const project = node.getProject();
+  const entry = nativeReferencePass(project, nativeReferencePasses);
+  const assertCurrent = (): void => {
+    if (project.getProgram().compilerObject !== entry.program || project.getLanguageService().compilerObject.getProgram() !== entry.languageProgram) {
+      throw new Error("native reference transport was invalidated by a Program change");
+    }
+  };
+  assertCurrent();
+  const source = node.getSourceFile();
+  if (
+    !(
+      sharedNativeSyntax(entry.program.getSourceFile(source.getFilePath()), source.compilerNode) &&
+      sharedNativeSyntax(entry.languageProgram.getSourceFile(source.getFilePath()), source.compilerNode)
+    )
+  ) {
+    throw new Error("native reference transport query does not share its admitted native source syntax");
+  }
+  const groups = entry.pass.findReferences(source.getFilePath(), node.getStart(), { includeDefinitionDisplay: false }) ?? [];
+  const references = nativeReferenceTargets(project, entry, groups);
+  assertCurrent();
+  return references;
+}
+
+/** Match ts-morph's physical DocumentSpan selection without constructing retained reference wrappers. */
+export function nativeReferenceNode(source: ts.SourceFile, span: ts.TextSpan): ts.Node {
+  let best: ts.Node = source;
+  let found = false;
+  let node: ts.Node | undefined = source;
+  while (node !== undefined) {
+    if (!found) {
+      best = node;
+    }
+    // DocumentSpan compares width with the span's end, not length; callers require the same physical node.
+    if (node.getStart(source) === span.start && node.getWidth(source) === span.start + span.length) {
+      best = node;
+      found = true;
+    } else if (found) {
+      break;
+    }
+    node = node.getChildren(source).find((child) => child.pos <= span.start && span.start < child.end);
+  }
+  return best;
+}
 
 /** The already registered native source owner; this lookup never materializes another program. */
 export function registeredSemanticSourceView(sourceFile: SourceFile): SemanticSourceView | undefined {

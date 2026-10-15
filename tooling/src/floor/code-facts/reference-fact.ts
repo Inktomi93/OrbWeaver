@@ -1,6 +1,8 @@
 // Final spelling-independent binding/reference facts for the shared gate runtime.
+
 import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { beginNativeReferencePass, endNativeReferencePass } from "../compiler/ts-workspace.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import type {
   GlobalMemberOrigin,
@@ -48,12 +50,17 @@ export function beginReferencePass(): void {
   if (openPass !== undefined) {
     throw new Error("beginReferencePass: a reference pass is already open — passes never overlap");
   }
+  beginNativeReferencePass();
   openPass = { writtenSymbolsBySource: new Map(), reassignedSymbolsBySource: new Map() };
 }
 
 /** Close the pass-scoped reader caches; every cached set is dropped with the pass. */
 export function endReferencePass(): void {
-  openPass = undefined;
+  try {
+    endNativeReferencePass();
+  } finally {
+    openPass = undefined;
+  }
 }
 
 function state(): ResolutionState {
