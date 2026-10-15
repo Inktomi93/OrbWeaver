@@ -1,5 +1,6 @@
 // Gate: no-tailwind-dark-variant (#954) — polarity is ThemeScope-derived color-scheme + light-dark(); a
-// named-theme dark: utility cannot see custom-theme polarity. Class carriers come from the neutral static
+// named-theme dark: utility cannot see custom-theme polarity. Native ESLint owns direct JSX strings starting with dark:.
+// Remaining class carriers come from the neutral static
 // provenance walker; Tailwind's scanner is used only to tokenize an already-proven exact class value.
 //
 // FAMILY: declared SINGLETON (`no-tailwind-dark-variant`), with the shared reader named. The subject reader
@@ -35,6 +36,7 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Scanner } from "@tailwindcss/oxide";
 import type { Node } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RuntimeClassPrefix, StaticClassCandidate, StaticClassSegment } from "../lib/static-class-expression.ts";
@@ -153,6 +155,16 @@ function exactTokens(scanner: Scanner, value: StaticClassCandidate): AnchoredTok
     if (darkPart(scanned.candidate) !== undefined) {
       const anchored = sourceToken(value.segments, scanned.position, scanned.candidate);
       if (anchored !== undefined) {
+        // Native ESLint owns only a direct JSX string starting with dark:; provenance and other variant chains remain here.
+        const literal = anchored.node.asKind(SyntaxKind.StringLiteral);
+        const attribute = literal?.getParentIfKind(SyntaxKind.JsxAttribute);
+        if (
+          attribute?.getNameNode().getText() === "className" &&
+          literal?.getLiteralText().startsWith("dark:") === true &&
+          anchored.token.startsWith("dark:")
+        ) {
+          continue;
+        }
         findings.push(anchored);
       }
     }
@@ -260,12 +272,6 @@ export const gate = defineGate({
     },
   }),
   mustFlag: [
-    {
-      mode: "source",
-      files: { "packages/ui/src/x.tsx": 'export const G = <div className="dark:bg-card" />;\n' },
-      expect: { count: 1, token: "dark:bg-card" },
-      why: "direct JSX className remains the founding RED",
-    },
     {
       mode: "source",
       files: { "packages/client/src/x.ts": 'import { clsx } from "clsx";\nexport const x = clsx?.(clsx("hover:dark:text-foreground"));\n' },
@@ -429,9 +435,9 @@ export const x = <div className={\`dark:\${tone}\`} />;
       files: {
         "packages/ui/src/x.tsx":
           "// @orb-waive no-tailwind-dark-variant(dark:bg-card): the proof's stand-in reason and its end condition.\n" +
-          'export const G = <div className="dark:bg-card" />;\n',
+          'export const CARD = "dark:bg-card";\nexport const G = <div className={CARD} />;\n',
       },
-      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the SUPPLIED position (the exact class candidate) suppresses the twin of mustFlag[0] — one finding, one marker, zero effective findings and zero authority alarms. A wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`",
+      why: "an exact ordinary marker binds the producer literal reached through a className constant; the semantic policy consumes only that finding",
     },
   ],
 });

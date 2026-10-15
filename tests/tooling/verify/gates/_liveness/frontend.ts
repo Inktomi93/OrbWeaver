@@ -163,7 +163,7 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noTailwindDarkVariant,
-    overlays: [add("packages/ui/src/liveness-dark.tsx", 'export const G = <div className="dark:bg-card" />;\n')],
+    overlays: [add("packages/ui/src/liveness-dark.tsx", 'const CARD = "dark:bg-card";\nexport const G = <div className={CARD} />;\n')],
     messageIncludes: "dark: utility",
   },
   {

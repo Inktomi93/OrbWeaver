@@ -581,7 +581,32 @@ const SETTINGS_TABLE_IMPORT = {
   message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
 };
 
+const DIRECT_CLASS_LITERAL_TEMPLATE =
+  "JSXAttribute[name.name=/^class(Name)?$/] > JSXExpressionContainer > TemplateLiteral[expressions.length=1][expressions.0.type='Literal'][expressions.0.value=type(string)]";
+
 const RESTRICTIONS = [
+  {
+    id: "class-token-splice",
+    scope: rootSources("@client", "@ui"),
+    homes: [],
+    selectors: [
+      {
+        selector: `${DIRECT_CLASS_LITERAL_TEMPLATE}:matches([quasis.0.value.cooked=/\\S$/][expressions.0.value=/^\\S/], [expressions.0.value=/\\S$/][quasis.1.value.cooked=/^\\S/])`,
+        message: "A literal interpolation splits a class token; spell the complete class as one source literal.",
+      },
+    ],
+  },
+  {
+    id: "no-tailwind-dark-variant",
+    scope: rootSources("@client", "@ui"),
+    homes: [],
+    selectors: [
+      {
+        selector: "JSXAttribute[name.name='className'] > Literal[value=/^dark:/]",
+        message: "Use a polarity-aware light-dark() token; dark: cannot follow ThemeScope-derived custom-theme polarity.",
+      },
+    ],
+  },
   {
     id: TYPE_HOME_NATIVE_POLICY_ID,
     scope: TYPE_HOME_NATIVE_SOURCE_GLOBS,
