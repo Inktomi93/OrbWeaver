@@ -2,13 +2,18 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { characterEmbeddings, characters, chatDigests, chatSegments, documentChunks, embeddingCalls, embedGenerations, messages } from "@orb/db";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
+import type { CorpusRead } from "../iso/corpus.ts";
+import type { CorpusSearchLibrary } from "../iso/corpus-search.ts";
+import { corpusSearchInput, corpusSearchRoomIds } from "../iso/corpus-search.ts";
 import type { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
 import type { SeededCorpusLibraries, SeededRecallCorpus, seedCorpusActors } from "./corpus-seed.ts";
 import { seedCorpusConnections, seedRecallRoom } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { captureChatMemoryRows, seedEmbeddingGeneration } from "./factories/embedding-generation.ts";
+import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const CORPUS_SEARCH_TERM = "quartzledger";
@@ -78,6 +83,7 @@ interface NativeSearchCanon {
   readonly messages: readonly (typeof messages.$inferSelect)[];
 }
 interface CorpusSearch {
+  readonly publicationIds: CorpusSearchLibrary["ids"];
   readonly lexical: LexicalLifecycle;
   readonly group: NativeSearchGroup;
   readonly spaces: SearchSpaceLifecycle;
@@ -309,5 +315,65 @@ export async function seedCorpusSearch(root: ServerTestHarness, sources: Sources
   };
   const foreignSeed = await other.search.similarArt({ characterId: imageSeed.id, topN: 20 });
   await root.settleBackground();
-  return { lexical, group, spaces, reads, canonical, scoped, foreign, foreignSeed, refusals, foreignDocument, foreignChunks };
+  return {
+    publicationIds: { chatId: group.room.chat.id, povId: pov.id, imageSeedId: imageSeed.id },
+    lexical,
+    group,
+    spaces,
+    reads,
+    canonical,
+    scoped,
+    foreign,
+    foreignSeed,
+    refusals,
+    foreignDocument,
+    foreignChunks,
+  };
+}
+
+async function capture<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke: (input: TrpcInput<P>) => Promise<TrpcWireOutput<P>>): Promise<CorpusRead<P>> {
+  return { input, output: await invoke(input) };
+}
+
+/** Refresh through the real owners after later producers; earlier lexical, scoped and moving captures stay separate. */
+export async function captureCorpusSearchPublication(root: ServerTestHarness, source: Pick<CorpusSearch, "publicationIds">): Promise<CorpusSearchLibrary> {
+  await root.settleBackground();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const inputs = corpusSearchInput(source.publicationIds);
+  const reads: CorpusSearchLibrary["reads"] = {
+    viewer: await capture<"sessions.me">(inputs.viewer, caller.sessions.me),
+    entities: await capture<"search.search">(inputs.entities, caller.search.search),
+    characters: await capture<"search.search">(inputs.characters, caller.search.search),
+    discover: await capture<"search.search">(inputs.discover, caller.search.search),
+    digests: await capture<"search.search">(inputs.digests, caller.search.search),
+    corpus: await capture<"search.search">(inputs.corpus, caller.search.search),
+    documents: await capture<"search.search">(inputs.documents, caller.search.search),
+    segments: await capture<"search.search">(inputs.segments, caller.search.search),
+    imagesRaw: await capture<"search.search">(inputs.imagesRaw, caller.search.search),
+    imagesCaptioned: await capture<"search.search">(inputs.imagesCaptioned, caller.search.search),
+    fields: await capture<"search.fields">(inputs.fields, caller.search.fields),
+    suggest: await capture<"search.suggest">(inputs.suggest, caller.search.suggest),
+    similarRaw: await capture<"search.similarArt">(inputs.similarRaw, caller.search.similarArt),
+    similarCaptioned: await capture<"search.similarArt">(inputs.similarCaptioned, caller.search.similarArt),
+    status: await capture<"search.spaceStatus">(inputs.status, caller.search.spaceStatus),
+  };
+  const chatIds = new Set([
+    source.publicationIds.chatId,
+    ...corpusSearchRoomIds([
+      reads.entities.output,
+      reads.characters.output,
+      reads.discover.output,
+      reads.digests.output,
+      reads.corpus.output,
+      reads.documents.output,
+      reads.segments.output,
+      reads.imagesRaw.output,
+      reads.imagesCaptioned.output,
+    ]),
+  ]);
+  const rooms: CorpusRead<"chat.getChat">[] = [];
+  for (const chatId of [...chatIds].sort()) {
+    rooms.push(await capture<"chat.getChat">({ chatId: typeIdSchema(ID_PREFIX.chat).parse(chatId) }, caller.chat.getChat));
+  }
+  return { viewerUserId: root.ownerId, ids: source.publicationIds, rooms, reads };
 }

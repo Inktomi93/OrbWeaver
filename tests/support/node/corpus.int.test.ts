@@ -43,6 +43,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
+import type { CorpusSearchLibrary } from "@orb/testkit/iso/corpus.ts";
 import { parseCorpusWire } from "@orb/testkit/iso/corpus.ts";
 import { createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import {
@@ -54,6 +55,7 @@ import {
 } from "@orb/testkit/node/corpus-provider.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { createFrozenClock } from "../iso/clock.ts";
@@ -67,6 +69,7 @@ import { CORPUS_NOTIFICATION_PLUGIN_ERROR, captureCorpusNotificationRows } from 
 import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
 import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
 import { CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
+import { replayCorpusSearchWire } from "./corpus-search-wire.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
 import { captureSdkSessionRows } from "./factories/connection.ts";
 import { seedUserCredential } from "./factories/credentials.ts";
@@ -82,6 +85,27 @@ const CLONE_MARKER = 123;
 const CLONE_READER_PASSWORD = "fresh-clone-notification-reader-password";
 const CLONE_MEMBER_PASSWORD = "fresh-clone-shared-member-password";
 const CLONE_ROTATED_READER_PASSWORD = "rotated-clone-notification-reader-password";
+
+async function assertNativeSearchReads(caller: Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>, section: CorpusSearchLibrary): Promise<void> {
+  for (const read of [
+    section.reads.entities,
+    section.reads.characters,
+    section.reads.discover,
+    section.reads.digests,
+    section.reads.corpus,
+    section.reads.documents,
+    section.reads.segments,
+    section.reads.imagesRaw,
+    section.reads.imagesCaptioned,
+  ]) {
+    expect(await caller.search.search(read.input)).toEqual(read.output);
+  }
+  expect(await caller.search.fields(section.reads.fields.input)).toEqual(section.reads.fields.output);
+  expect(await caller.search.suggest(section.reads.suggest.input)).toEqual(section.reads.suggest.output);
+  expect(await caller.search.similarArt(section.reads.similarRaw.input)).toEqual(section.reads.similarRaw.output);
+  expect(await caller.search.similarArt(section.reads.similarCaptioned.input)).toEqual(section.reads.similarCaptioned.output);
+  expect(await caller.search.spaceStatus(section.reads.status.input)).toEqual(section.reads.status.output);
+}
 
 test("a completed migrated capsule closes its real producers before cloning scrubbed independent DB and CAS bytes", async () => {
   const parent = await mkdtemp(join(tmpdir(), "orb-completed-corpus-"));
@@ -210,6 +234,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   expect(capsule.wire.regexLibrary).toEqual(libraryViews.publication.regex);
   expect(capsule.wire.libraryRelations).toBeDefined();
   expect(capsule.wire.libraryRelations).toEqual(libraryViews.publication.relations);
+  expect(capsule.wire.searchLibrary).toEqual(capsule.privateCaptures.searchPublication);
   expect(capsule.wire.memberIdentities).toBeDefined();
   expect(capsule.wire.memberIdentities).toEqual({
     notificationReader: notifications.admission.identity,
@@ -591,7 +616,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
     expect(await captureSdkSessionRows(clone, sdkSessions.room.chat.id, sdkSessions.connection.id)).toEqual(sdkSessions.restored.rows);
     expect(await captureSdkSessionRows(clone, sdkSessions.room.chat.id, sdkSessions.alternateConnection.id)).toEqual(sdkSessions.alternate.rows);
     expect(await clone.select().from(ownerStats).where(eq(ownerStats.ownerId, capsule.privateCaptures.baseline.ownerId)).get()).toEqual(
-      statsSettings.rows.owner,
+      capsule.privateCaptures.postSearchStats.owner,
     );
     expect(
       await clone
@@ -657,6 +682,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
     expect((await clone.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash))).length).toBe(0);
     expect((await clone.select({ id: users.id }).from(users).where(eq(users.id, capsule.privateCaptures.oidc.ownerId))).length).toBe(1);
     {
+      const searchReplay = replayCorpusSearchWire(capsule.privateCaptures.searchPhysical);
       await using cloneRoot = await createServerHarness({
         db: clone,
         ownerId: capsule.privateCaptures.baseline.ownerId,
@@ -668,10 +694,15 @@ test("a completed migrated capsule closes its real producers before cloning scru
         importStagingDir: fixture.layout.importStaging,
         temporaryParentDir: parent,
         pluginSpawn: spawn,
+        providerFetch: searchReplay.execute,
       });
       const relations = loaded.wire.libraryRelations;
       assert(relations !== undefined, "prepared clone lost its native library relation stages");
       const ownerCaller = await cloneRoot.internalCallerFor(relations.viewerUserId);
+      const searchLibrary = loaded.wire.searchLibrary;
+      assert(searchLibrary !== undefined, "prepared clone lost its settled native search cohort");
+      await assertNativeSearchReads(ownerCaller, searchLibrary);
+      expect(searchReplay.remaining()).toBe(0);
       const relationReads = relations.reads;
       expect(await ownerCaller.preset.get(relationReads.presetDetail.input)).toEqual(relationReads.presetDetail.output);
       expect(await ownerCaller.preset.list(relationReads.presetList.input)).toEqual(relationReads.presetList.output);

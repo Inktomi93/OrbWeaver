@@ -24,7 +24,8 @@ import type { seedCorpusRpgProvider as produceCorpusRpgProvider } from "./corpus
 import type { seedCorpusRpgRecursion as produceCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
 import type { seedCorpusRpgRounds as produceCorpusRpgRounds } from "./corpus-rpg-rounds.ts";
 import type { seedCorpusSdkSessions as produceCorpusSdkSessions } from "./corpus-sdk-sessions.ts";
-import type { seedCorpusSearch as produceCorpusSearch } from "./corpus-search.ts";
+import type { seedCorpusSearch as produceCorpusSearch, captureCorpusSearchPublication as produceSearchPublication } from "./corpus-search.ts";
+import type { replayCorpusSearchWire } from "./corpus-search-wire.ts";
 import type {
   captureCookieAuth as produceCookieAuth,
   seedCorpusAutomation as produceCorpusAutomation,
@@ -36,6 +37,7 @@ import type {
 } from "./corpus-seed.ts";
 import type { seedCorpusStatsSettings as produceCorpusStatsSettings } from "./corpus-stats-settings.ts";
 import type { seedUserCredential as produceCredential } from "./factories/credentials.ts";
+import type { seedStats as produceSearchStats } from "./factories/stats.ts";
 import type { ServerHarnessOptions } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
@@ -55,6 +57,9 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly searchPublication: Awaited<ReturnType<typeof produceSearchPublication>>;
+  readonly searchPhysical: Parameters<typeof replayCorpusSearchWire>[0];
+  readonly postSearchStats: Awaited<ReturnType<typeof produceSearchStats>>;
   readonly sharedMemberAuthentication: Awaited<ReturnType<typeof produceCookieAuth>>;
   readonly imageVariants: Awaited<ReturnType<typeof produceCorpusImageVariants>>;
   readonly notifications: Awaited<ReturnType<typeof produceCorpusNotifications>>;
@@ -170,7 +175,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { seedCorpusRpgRecursion } = await import("./corpus-rpg-recursion.ts");
   const { seedCorpusRpgMembers } = await import("./corpus-rpg-members.ts");
   const { seedCorpusRpgRounds } = await import("./corpus-rpg-rounds.ts");
-  const { seedCorpusSearch } = await import("./corpus-search.ts");
+  const { seedCorpusSearch, captureCorpusSearchPublication } = await import("./corpus-search.ts");
+  const { createCorpusSearchWire } = await import("./corpus-search-wire.ts");
+  const { seedStats } = await import("./factories/stats.ts");
   const { seedCorpusConnection } = await import("./corpus-connection.ts");
   const { seedCorpusStatsSettings } = await import("./corpus-stats-settings.ts");
   const { seedCorpusSdkSessions } = await import("./corpus-sdk-sessions.ts");
@@ -204,6 +211,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const connectionWire = createCorpusConnectionWire();
   const imageWire = await createCorpusImageWire();
   const sdkExecution = createCorpusSdkExecution();
+  const searchWire = createCorpusSearchWire(
+    imageWire.wrap(connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch)))),
+  );
   const ids = options.server.ids ?? createSeededIds();
   const issuer = await createNativeIssuer();
   let oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
@@ -242,9 +252,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       sdkSpawn: sdkExecution.spawn,
       providerFetch: imageWire.wrap(connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch)))),
       networkExecution: {
-        fetch: imageWire.wrap(
-          connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch))),
-        ),
+        fetch: searchWire.execute,
         resolver: (hostname) => {
           if (hostname === connectionWire.hostname) {
             return connectionWire.resolver(hostname);
@@ -300,6 +308,8 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const sdkSessions = await seedCorpusSdkSessions(root, sdkExecution);
   const notifications = await seedCorpusNotifications(root);
   await root.settleBackground();
+  const searchFinal = await searchWire.capture(() => captureCorpusSearchPublication(root, search));
+  const postSearchStats = await seedStats(db, root.services.stats.reconcile, root.ownerId);
   await assertReferentialIntegrity(db);
   const response = await root.http.request("/healthz");
   if (!response.ok) {
@@ -312,6 +322,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     oidc: oidc.wire,
     health,
     reads,
+    searchLibrary: searchFinal.value,
     notificationInbox: notifications.publication,
     chatLifecycleMember: chatLifecycle.publication,
     worldInfoLibrary: libraryViews.publication.worldInfo,
@@ -352,6 +363,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     wire,
     publishWire: () => serializeCorpusWire(wire, secrets),
     privateCaptures: {
+      searchPublication: searchFinal.value,
+      searchPhysical: searchFinal.exchanges,
+      postSearchStats,
       sharedMemberAuthentication,
       imageVariants,
       notifications,
