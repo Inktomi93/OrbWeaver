@@ -26,7 +26,7 @@ import { stripProbePolicyFindings } from "../lib/planted-fixtures.ts";
 import { FAIL_ON_WARNINGS_FLAG } from "../lib/policy-command.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
-import { projectCtx, repoRel } from "../lib/project-context.ts";
+import { nativeCastRelationOptions, projectCtx, repoRel } from "../lib/project-context.ts";
 import { renderPolicyPass } from "../lib/render.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { authoredPathsUnder, workingChangeClassification } from "../lib/selection.ts";
@@ -252,6 +252,7 @@ async function runScopedPolicyPass(
     policies,
     root: base.root,
     project: base.project,
+    ...nativeCastRelationOptions(base),
     requestedPaths: [...new Set([...files.map((sf) => repoRel(base.root, sf.getFilePath())), ...options.legacyPaths])],
     reviewedGrants: reviewedGrantsFor(policies),
     waiverBudget: WAIVER_BUDGET,

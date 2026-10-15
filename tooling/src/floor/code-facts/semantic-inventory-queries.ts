@@ -1,8 +1,24 @@
 // Indexed queries read one native fact family or origin; no adapter reconstructs a complete partition.
+
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { z } from "zod";
-import type { InventoryFactKind, InventoryInput, InventoryPartition, InventorySpan, StoredInventorySource } from "./semantic-inventory-contract.ts";
-import { INVENTORY_FACTS, inputSchema, partitionSchema, spanSchema, storedSourceSchema } from "./semantic-inventory-contract.ts";
+import type {
+  InventoryFactKind,
+  InventoryFamily,
+  InventoryInput,
+  InventoryPartition,
+  InventorySpan,
+  StoredInventorySource,
+} from "./semantic-inventory-contract.ts";
+import {
+  castRelationResultSchema,
+  INVENTORY_FACTS,
+  inputSchema,
+  partitionSchema,
+  SemanticInventoryError,
+  spanSchema,
+  storedSourceSchema,
+} from "./semantic-inventory-contract.ts";
 import { inventoryString, inventoryStringSchema, inventoryTextVersion } from "./semantic-inventory-records.ts";
 
 const integer = z.number().int();
@@ -92,7 +108,14 @@ function declarations(db: DatabaseSync, id: string, fact: Pick<z.infer<typeof fa
     .map((row) => spanRow.parse(row));
 }
 
+function requireInventoryFamily(db: DatabaseSync, id: string, family: InventoryFamily): void {
+  if (db.prepare("SELECT name FROM inventory_family WHERE partition=? AND name=?").get(id, family) === undefined) {
+    throw new SemanticInventoryError(`native semantic inventory family unavailable: ${family}`);
+  }
+}
+
 function* facts(db: DatabaseSync, id: string, kind: InventoryFactKind, query?: string | InventorySpan): Iterable<z.infer<typeof factRow>> {
+  requireInventoryFamily(db, id, kind);
   const values: SQLInputValue[] = [id, kind];
   let filter = "";
   if (typeof query === "string") {
@@ -155,6 +178,7 @@ export function* readInventoryWitnesses(db: DatabaseSync, id: string, node?: Inv
 
 /** Preserve native repeated rows and ordering; consumer-level union policy remains in inventoryReader. */
 export function* readInventoryReferences(db: DatabaseSync, id: string, origin?: InventorySpan): Iterable<InventoryPartition["references"][number]> {
+  requireInventoryFamily(db, id, "references");
   const values: SQLInputValue[] = [id];
   const filter =
     origin === undefined ? "" : " AND r.declaration=(SELECT ordinal FROM inventory_span WHERE partition=? AND file=? AND start=? AND end=? AND kind=?)";
@@ -178,5 +202,31 @@ export function* readInventoryReferences(db: DatabaseSync, id: string, origin?: 
       reference: spanRow.parse(row),
       consumerClass: row["consumerClass"],
     });
+  }
+}
+
+/** One scalar native cast result; missing rows remain unavailable to the contextual reader. */
+export function* readInventoryCasts(db: DatabaseSync, id: string, node?: InventorySpan): Iterable<InventoryPartition["casts"][number]> {
+  requireInventoryFamily(db, id, "cast-relations");
+  const filter = node === undefined ? "" : " AND s.file=? AND s.start=? AND s.end=? AND s.kind=?";
+  const values: SQLInputValue[] = node === undefined ? [id] : [id, inventoryString(node.file), node.start, node.end, node.kind];
+  for (const row of db
+    .prepare(
+      `SELECT s.file,s.start,s.end,s.kind,c.leftToRight,c.rightToLeft,c.leftIsAny,c.rightIsAny,c.reason FROM inventory_cast c JOIN inventory_span s ON s.partition=c.partition AND s.ordinal=c.node WHERE c.partition=?${filter} ORDER BY c.ordinal`,
+    )
+    .iterate(...values)) {
+    const result =
+      row["reason"] === null
+        ? {
+            kind: "resolved",
+            value: {
+              leftToRight: boolean.parse(row["leftToRight"]),
+              rightToLeft: boolean.parse(row["rightToLeft"]),
+              leftIsAny: boolean.parse(row["leftIsAny"]),
+              rightIsAny: boolean.parse(row["rightIsAny"]),
+            },
+          }
+        : { kind: "unavailable", reason: row["reason"] };
+    yield { node: spanRow.parse(row), result: castRelationResultSchema.parse(result) };
   }
 }

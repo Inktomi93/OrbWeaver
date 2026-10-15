@@ -4,6 +4,7 @@ import type { Node, SourceFile } from "ts-morph";
 import { Project, Node as TsNode } from "ts-morph";
 import { predictedProgram } from "../compiler/project-worlds.ts";
 import type {
+  InventoryFamily,
   InventoryReaderStorage,
   InventorySourceCorpus,
   InventorySpan,
@@ -16,6 +17,7 @@ import { INVENTORY_KEY_SEPARATOR, SemanticInventoryError } from "./semantic-inve
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 import {
   readInventoryBindings,
+  readInventoryCasts,
   readInventoryExports,
   readInventoryModules,
   readInventoryReferences,
@@ -23,6 +25,7 @@ import {
   readInventorySourceText,
   readInventoryWitnesses,
 } from "./semantic-inventory-queries.ts";
+import { inventoryTextParts, inventoryTextVersion } from "./semantic-inventory-records.ts";
 
 const inventories = new WeakMap<object, SemanticInventory>();
 
@@ -142,6 +145,11 @@ export function inventoryReader(
     const primary = owners.find((partition) => partition.program === predicted);
     return primary === undefined ? owners : [primary];
   };
+  const requireFamily = (selected: readonly StoredInventoryPartition[], family: InventoryFamily): void => {
+    if (selected.some((partition) => !partition.families.includes(family))) {
+      throw new SemanticInventoryError(`native semantic inventory family unavailable: ${family}`);
+    }
+  };
   // biome-ignore lint/nursery/useDisposables: the returned corpus delegates ownership to the same caller-owned inventory.
   const corpus: InventorySourceCorpus = {
     getSourceFiles: () =>
@@ -158,12 +166,39 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    castRelation: (node, program) => {
+      assertOpen();
+      const selected = indexes.filter((partition) => partition.program === program);
+      if (selected.length !== 1) {
+        throw new SemanticInventoryError("native cast compiler partition is unavailable");
+      }
+      requireFamily(selected, "cast-relations");
+      const source = node.getSourceFile();
+      const file = canonicalPath(source.getFilePath());
+      const recorded = texts.get(file);
+      if (
+        node.wasForgotten() ||
+        recorded === undefined ||
+        inventoryTextVersion(inventoryTextParts(source.getFullText())) !== recorded.source.textVersion ||
+        selected[0]?.roots.includes(file) !== true
+      ) {
+        throw new SemanticInventoryError("native cast source/epoch is not admitted by its captured native partition");
+      }
+      const captured = capturedSpan(node);
+      const matches = selected.flatMap((partition) => [...readInventoryCasts(db, partition.id, captured)]);
+      const match = matches[0];
+      if (matches.length !== 1 || match === undefined) {
+        throw new SemanticInventoryError("native cast relation span is unavailable in its native partition");
+      }
+      return match.result;
+    },
     programs: partitions.map((partition) => partition.program),
     canonicalPath,
     sourceCorpus: () => corpus,
     exports: (source, importer) => {
       const file = canonicalPath(source.getFilePath());
       const selected = worlds(importer ?? source);
+      requireFamily(selected, "exports");
       const sets = selected.map((partition) => [...readInventoryExports(db, partition.id, file)].map(({ name, declarations }) => ({ name, declarations })));
       const exports = agreed(sets, `exports of ${file}`) ?? [];
       const context = selected.map((partition) => partition.program);
@@ -172,6 +207,7 @@ export function inventoryReader(
     moduleTarget: (node) => {
       const key = spanKey(capturedSpan(node));
       const selected = worlds(node);
+      requireFamily(selected, "modules");
       const target = agreed(
         selected.map((partition) => [...readInventoryModules(db, partition.id, capturedSpan(node))].at(-1)?.target ?? null),
         `module target at ${key}`,
@@ -185,9 +221,11 @@ export function inventoryReader(
     },
     symbols: (node): InventorySymbols => {
       const key = spanKey(capturedSpan(node));
+      const selected = worlds(node);
+      requireFamily(selected, "bindings");
       return (
         agreed(
-          worlds(node).map((partition) => [...readInventoryBindings(db, partition.id, capturedSpan(node))].at(-1)?.symbols ?? { lexical: [], origins: [] }),
+          selected.map((partition) => [...readInventoryBindings(db, partition.id, capturedSpan(node))].at(-1)?.symbols ?? { lexical: [], origins: [] }),
           `binding at ${key}`,
         ) ?? { lexical: [], origins: [] }
       );
@@ -200,6 +238,7 @@ export function inventoryReader(
           `native semantic inventory references unsupported for non-authored origin: ${origin.file}:${String(origin.start)}-${String(origin.end)}; dependency-origin references are not indexed; use a native semantic view`,
         );
       }
+      requireFamily(indexes, "references");
       const found = new Map<string, InventorySpan>();
       for (const partition of indexes) {
         for (const { reference } of readInventoryReferences(db, partition.id, origin)) {
@@ -210,9 +249,11 @@ export function inventoryReader(
     },
     witnessOrigins: (node) => {
       const key = spanKey(capturedSpan(node));
+      const selected = worlds(node);
+      requireFamily(selected, "witnesses");
       const spans =
         agreed(
-          worlds(node).map((partition) => [...readInventoryWitnesses(db, partition.id, capturedSpan(node))].at(-1)?.declarations ?? []),
+          selected.map((partition) => [...readInventoryWitnesses(db, partition.id, capturedSpan(node))].at(-1)?.declarations ?? []),
           `witness at ${key}`,
         ) ?? [];
       return spans.map((span) => nodeOf(span));

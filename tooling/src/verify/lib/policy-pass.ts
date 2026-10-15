@@ -36,6 +36,8 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   assertInvocationPolicies(input.policies);
   assertSelectedPoliciesAreLoaded(input.knownPolicies, input.policies);
   assertOwnerPlans(input);
+  using nativeCasts = input.nativeCastRelations?.();
+  const castOptions = nativeCasts === undefined ? {} : { castRelations: nativeCasts.read };
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
   const factErrors: GateFactToolError[] = [];
@@ -52,12 +54,13 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   };
   // The ONE path resolution: every owner context looks its files up here instead of re-deriving them per visit.
   const paths: ReadonlyMap<object, string> = new Map([...sourceFiles].map(([path, sourceFile]) => [sourceFile.compilerNode, path]));
-  createFactRuns({ runs: factRuns, paths, resources, checker: sharedChecker, control: factControl });
+  createFactRuns({ runs: factRuns, paths, resources, checker: sharedChecker, ...castOptions, control: factControl });
   createRuns({
     runs,
     paths,
     resources,
     checker: sharedChecker,
+    ...castOptions,
     errors: toolErrors,
     factValues,
     ...(input.applicationPaths === undefined ? {} : { applicationPaths: input.applicationPaths }),

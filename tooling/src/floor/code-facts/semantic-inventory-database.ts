@@ -5,7 +5,7 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { waitSync } from "../process/sync-sleep.ts";
-import type { InventoryPartition, StoredInventoryPartition } from "./semantic-inventory-contract.ts";
+import type { InventoryFamily, InventoryPartition, StoredInventoryPartition } from "./semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT, INVENTORY_LISTS, INVENTORY_RECORD_TABLES, storedPartitionSchema } from "./semantic-inventory-contract.ts";
 import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInventoryRecords } from "./semantic-inventory-records.ts";
 
@@ -86,21 +86,33 @@ function readPartition(db: DatabaseSync, id: string): StoredInventoryPartition {
     ]),
   );
   const { workerPid, ...metadata } = row;
-  return storedPartitionSchema.parse({ ...metadata, ...lists, ...(workerPid === null ? {} : { workerPid }) });
+  const families = db
+    .prepare("SELECT name FROM inventory_family WHERE partition=? ORDER BY ordinal")
+    .all(id)
+    .map((family) => family["name"]);
+  return storedPartitionSchema.parse({ ...metadata, ...lists, families, ...(workerPid === null ? {} : { workerPid }) });
 }
 
 /** Return identities and native metadata only; facts stay indexed in SQLite. */
-export function latestInventoryPartitions(db: DatabaseSync): ReadonlyMap<string, StoredInventoryPartition> {
+export function latestInventoryPartitions(db: DatabaseSync, families?: readonly InventoryFamily[]): ReadonlyMap<string, StoredInventoryPartition> {
   const rows = db
-    .prepare(`SELECT p.program,p.id AS partition FROM inventory_partition p JOIN inventory_member m ON m.partition=p.id
-    WHERE p.format=? AND m.generation=(SELECT MAX(n.generation) FROM inventory_member n JOIN inventory_partition q ON q.id=n.partition WHERE n.program=m.program AND q.format=?)`)
-    .all(INVENTORY_FORMAT, INVENTORY_FORMAT);
-  return new Map(
-    rows.map((value) => {
-      const row = memberRow.parse(value);
-      return [row.program, readPartition(db, row.partition)];
-    }),
-  );
+    .prepare(
+      "SELECT p.program,p.id AS partition FROM inventory_partition p JOIN inventory_member m ON m.partition=p.id WHERE p.format=? ORDER BY m.generation DESC",
+    )
+    .all(INVENTORY_FORMAT);
+  const found = new Map<string, StoredInventoryPartition>();
+  for (const value of rows) {
+    const row = memberRow.parse(value);
+    if (found.has(row.program)) {
+      continue;
+    }
+    const partition = readPartition(db, row.partition);
+    if (families?.some((family) => !partition.families.includes(family)) === true) {
+      continue;
+    }
+    found.set(row.program, partition);
+  }
+  return found;
 }
 
 function storePartition(db: DatabaseSync, partition: InventoryPartition): string {

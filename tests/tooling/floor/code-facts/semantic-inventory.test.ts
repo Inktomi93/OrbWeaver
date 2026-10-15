@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inventoryConsumerClass } from "@orb/tooling/floor/code-facts/inventory-consumers";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest, InventoryPartition, StoredInventoryPartition } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { INVENTORY_FORMAT } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
+import { INVENTORY_FORMAT, inventoryFamilies } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import {
   inventoryGenerationPrograms,
   latestInventoryGeneration,
@@ -23,6 +23,7 @@ import { Project } from "ts-morph";
 import { vi } from "vitest";
 import {
   readInventoryBindings,
+  readInventoryCasts,
   readInventoryExports,
   readInventoryInputs,
   readInventoryModules,
@@ -67,6 +68,8 @@ function partition(request: InventoryBuildRequest): InventoryPartition {
   }));
   return {
     format: INVENTORY_FORMAT,
+    families: inventoryFamilies(request.families),
+    casts: [],
     program: request.descriptor.id,
     descriptorVersion: descriptorVersion(request.descriptor),
     compilerOptionsJson: JSON.stringify(request.descriptor.commandLine.options),
@@ -89,6 +92,7 @@ function completePartition(database: ReturnType<typeof openInventoryDatabase>, s
   return {
     ...metadata,
     inputs: [...readInventoryInputs(database, id)],
+    casts: stored.families.includes("cast-relations") ? [...readInventoryCasts(database, id)] : [],
     sources: [...readInventorySources(database, id)],
     exports: [...readInventoryExports(database, id)],
     modules: [...readInventoryModules(database, id)],
@@ -271,7 +275,7 @@ test("parent publication and pinned queries never eagerly decode the complete re
   }
 });
 
-for (const legacyFormat of [1, 2]) {
+for (const legacyFormat of [1, 2, 3]) {
   test(`format ${String(legacyFormat)} adoption preserves the last generation across failure and publishes only a complete replacement`, ({ scratch }) => {
     initialize(scratch);
     const path = join(scratch, ".cache/semantic-inventory.sqlite");
@@ -283,7 +287,7 @@ for (const legacyFormat of [1, 2]) {
     {
       using database = openInventoryDatabase(path);
       database.prepare("INSERT INTO inventory_partition(id,program,format,payload) VALUES('legacy','tsconfig.a.json',?,?)").run(legacyFormat, legacyPayload);
-      if (legacyFormat === 2) {
+      if (legacyFormat >= 2) {
         database
           .prepare(
             "INSERT INTO inventory_descriptor(partition,program,descriptorVersion,compilerOptionsJson,workerPid) VALUES('legacy','tsconfig.a.json',?,?,NULL)",
@@ -305,7 +309,7 @@ for (const legacyFormat of [1, 2]) {
     using observer = openInventoryDatabase(path);
     expect(observer.prepare("SELECT payload FROM inventory_partition WHERE id='legacy'").get()).toEqual({ payload: legacyPayload });
     expect(observer.prepare("SELECT program,descriptorVersion,compilerOptionsJson FROM inventory_descriptor WHERE partition='legacy'").get()).toEqual(
-      legacyFormat === 2
+      legacyFormat >= 2
         ? { program: "tsconfig.a.json", descriptorVersion: descriptorVersion(descriptor), compilerOptionsJson: JSON.stringify(descriptor.commandLine.options) }
         : undefined,
     );
@@ -315,7 +319,7 @@ for (const legacyFormat of [1, 2]) {
     expect(current.programs).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
     expect(observer.prepare("SELECT payload FROM inventory_partition WHERE id='legacy'").get()).toEqual({ payload: legacyPayload });
     expect(observer.prepare("SELECT program,descriptorVersion,compilerOptionsJson FROM inventory_descriptor WHERE partition='legacy'").get()).toEqual(
-      legacyFormat === 2
+      legacyFormat >= 2
         ? { program: "tsconfig.a.json", descriptorVersion: descriptorVersion(descriptor), compilerOptionsJson: JSON.stringify(descriptor.commandLine.options) }
         : undefined,
     );
@@ -412,6 +416,8 @@ test("all scalar metadata and indexed keys preserve UTF-16 without hash collisio
   const value = '\ud800\0"\\\udfff';
   const node = { file: value, start: 0, end: 1, kind: 80 };
   const native: InventoryPartition = {
+    families: inventoryFamilies(undefined),
+    casts: [],
     format: INVENTORY_FORMAT,
     program: value,
     descriptorVersion: value,

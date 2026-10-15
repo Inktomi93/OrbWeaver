@@ -12,11 +12,10 @@ import type {
   SemanticInventoryOptions,
   StoredInventoryPartition,
 } from "./semantic-inventory-contract.ts";
-import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
+import { inventoryFamilies, SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import {
   beginInventoryWrite,
   importInventoryPartition,
-  inventoryGenerationPrograms,
   latestInventoryGeneration,
   latestInventoryPartitions,
   openInventoryDatabase,
@@ -67,12 +66,16 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     if (descriptors.length === 0) {
       throw new Error(`native semantic inventory found no runnable TypeScript programs under ${root}`);
     }
-    const previous = latestInventoryPartitions(db);
+    const families = inventoryFamilies(options.families);
+    const previous = latestInventoryPartitions(db, families);
     const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
     assertSnapshotCurrent({ db, options: { ...options, root } }, initialAuthored, descriptors, partitions);
     const samePopulation =
-      JSON.stringify(inventoryGenerationPrograms(db, latestInventoryGeneration(db))) ===
-      JSON.stringify(partitions.map((partition) => partition.program).toSorted());
+      JSON.stringify(
+        readInventoryGeneration(db, latestInventoryGeneration(db))
+          .map((partition) => partition.id)
+          .toSorted(),
+      ) === JSON.stringify(partitions.map((partition) => partition.id).toSorted());
     const generation = rebuilt || !samePopulation ? publishInventoryGeneration(db, partitions) : latestInventoryGeneration(db);
     reader = inventoryReader(root, generation, partitions, {
       db,
@@ -131,7 +134,12 @@ function buildPartition(
     using staging = openInventoryDatabase(request.destination);
     const extracted = readInventoryGeneration(staging, latestInventoryGeneration(staging));
     const candidate = extracted[0];
-    if (extracted.length !== 1 || candidate?.program !== request.descriptor.id || candidate.descriptorVersion !== descriptorVersion(request.descriptor)) {
+    if (
+      extracted.length !== 1 ||
+      candidate?.program !== request.descriptor.id ||
+      candidate.descriptorVersion !== descriptorVersion(request.descriptor) ||
+      inventoryFamilies(request.families).some((family) => !candidate.families.includes(family))
+    ) {
       throw new Error(`native inventory worker supplied the wrong partition: ${request.descriptor.id}`);
     }
     partition = candidate;
@@ -164,7 +172,13 @@ function demandPartitions(
     partitions.push(
       buildPartition(
         db,
-        { root, descriptor, destination: join(scratch, `partition-${String(partitions.length)}.sqlite`), ...(overlay === undefined ? {} : { overlay }) },
+        {
+          root,
+          descriptor,
+          families: inventoryFamilies(options.families),
+          destination: join(scratch, `partition-${String(partitions.length)}.sqlite`),
+          ...(overlay === undefined ? {} : { overlay }),
+        },
         options,
       ),
     );

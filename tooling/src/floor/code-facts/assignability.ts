@@ -2,6 +2,9 @@
 // no comparison constructs a compiler program or substitutes display type text for assignability.
 import type { Node, Project, Symbol as TsSymbol, Type, TypeChecker } from "ts-morph";
 import { coLocatedSemanticNodes } from "../compiler/ts-workspace.ts";
+import type { TypeRelation } from "./assignability-contract.ts";
+
+export type { TypeRelation } from "./assignability-contract.ts";
 
 export interface AssignabilityChecker {
   isTypeAssignableTo: (source: unknown, target: unknown) => boolean;
@@ -153,12 +156,15 @@ export function mutuallyAssignableAcross(context: AgreementContext, left: Node, 
   return answer?.[0] === true;
 }
 
-/** Directional assignability, not declaration provenance: a structural fit does not prove that one copied another. */
-export interface TypeRelation {
-  readonly leftToRight: boolean;
-  readonly rightToLeft: boolean;
-  readonly leftIsAny: boolean;
-  readonly rightIsAny: boolean;
+/** Scalar relation computation, not declaration provenance: the supplying native or isolated-proof owner holds
+ * checker provenance, and a structural fit does not prove that one declaration copied another. */
+export function readNativeTypeRelation(checker: AssignabilityChecker, left: Type, right: Type): TypeRelation {
+  return {
+    leftToRight: checker.isTypeAssignableTo(left.compilerType, right.compilerType),
+    rightToLeft: checker.isTypeAssignableTo(right.compilerType, left.compilerType),
+    leftIsAny: left.isAny(),
+    rightIsAny: right.isAny(),
+  };
 }
 
 /** Both assignability directions, agreed by every native program owning the pair. Undefined means the reader
@@ -171,14 +177,11 @@ export function typeRelationAcross(
 ): TypeRelation | undefined {
   const answer = compareAcross(context, left, right, (checker, a, b): readonly [boolean, boolean, boolean, boolean] | undefined => {
     const pair = read(a, b);
-    return pair === undefined
-      ? undefined
-      : [
-          checker.isTypeAssignableTo(pair[0].compilerType, pair[1].compilerType),
-          checker.isTypeAssignableTo(pair[1].compilerType, pair[0].compilerType),
-          pair[0].isAny(),
-          pair[1].isAny(),
-        ];
+    if (pair === undefined) {
+      return;
+    }
+    const relation = readNativeTypeRelation(checker, pair[0], pair[1]);
+    return [relation.leftToRight, relation.rightToLeft, relation.leftIsAny, relation.rightIsAny];
   });
   return answer === undefined
     ? undefined

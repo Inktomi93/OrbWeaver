@@ -2,7 +2,16 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { InventoryFactKind, InventoryPartition, InventoryRecord, InventoryRecordTable, InventorySpan } from "./semantic-inventory-contract.ts";
-import { INVENTORY_LISTS, inputSchema, partitionMetadataSchema, partitionSchema, spanSchema } from "./semantic-inventory-contract.ts";
+import {
+  castRelationResultSchema,
+  INVENTORY_FAMILIES,
+  INVENTORY_FAMILY_FIELDS,
+  INVENTORY_LISTS,
+  inputSchema,
+  partitionMetadataSchema,
+  partitionSchema,
+  spanSchema,
+} from "./semantic-inventory-contract.ts";
 
 const exportRecordSchema = partitionSchema.shape.exports.element.omit({ declarations: true });
 const moduleRecordSchema = partitionSchema.shape.modules.element.omit({ declarations: true, node: true });
@@ -17,6 +26,16 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  family: {
+    name: "inventory_family",
+    columns: "ordinal,name",
+    definition: `${PARTITION},${ORDINAL},name TEXT NOT NULL CHECK(name IN (${INVENTORY_FAMILIES.map((family) => `'${family}'`).join(",")})),PRIMARY KEY(partition,ordinal),UNIQUE(partition,name)`,
+  },
+  cast: {
+    name: "inventory_cast",
+    columns: "ordinal,node,leftToRight,rightToLeft,leftIsAny,rightIsAny,reason",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,leftToRight INTEGER CHECK(leftToRight IN (0,1)),rightToLeft INTEGER CHECK(rightToLeft IN (0,1)),leftIsAny INTEGER CHECK(leftIsAny IN (0,1)),rightIsAny INTEGER CHECK(rightIsAny IN (0,1)),reason TEXT,PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE},CHECK((reason IS NULL AND leftToRight IS NOT NULL AND rightToLeft IS NOT NULL AND leftIsAny IS NOT NULL AND rightIsAny IS NOT NULL) OR (reason='primitive-absent' AND leftToRight IS NULL AND rightToLeft IS NULL AND leftIsAny IS NULL AND rightIsAny IS NULL))`,
+  },
   descriptor: {
     name: "inventory_descriptor",
     columns: "program,descriptorVersion,compilerOptionsJson,workerPid",
@@ -90,6 +109,11 @@ export function inventoryTextVersion(parts: Iterable<string>): string {
 /** Stream normalized rows to hashing or SQLite without constructing a serialized population. */
 export function visitInventoryRecords(partition: InventoryPartition, write: (record: InventoryRecord) => void): void {
   const metadata = partitionMetadataSchema.parse(partition);
+  for (const family of INVENTORY_FAMILIES) {
+    if (!metadata.families.includes(family) && partition[INVENTORY_FAMILY_FIELDS[family]].length > 0) {
+      throw new Error(`native inventory populated an undeclared family: ${family}`);
+    }
+  }
   const emit = (table: InventoryRecordTable, ...values: InventoryRecord["values"]): void => write({ table, values });
   emit(
     "descriptor",
@@ -98,6 +122,9 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     inventoryString(metadata.compilerOptionsJson),
     metadata.workerPid ?? null,
   );
+  metadata.families.forEach((family, ordinal) => {
+    emit("family", ordinal, family);
+  });
   for (const kind of INVENTORY_LISTS) {
     metadata[kind].forEach((value, ordinal) => {
       emit("list", kind, ordinal, inventoryString(value));
@@ -183,6 +210,14 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     const fact = witnessRecordSchema.parse(entry);
     emit("fact", "witnesses", ordinal, null, inventoryString(fact.name), spanId(entry.node), null, null, null);
     declarations("witnesses", ordinal, "declarations", entry.declarations);
+  });
+  partition.casts.forEach((entry, ordinal) => {
+    const result = castRelationResultSchema.parse(entry.result);
+    const values =
+      result.kind === "resolved"
+        ? [Number(result.value.leftToRight), Number(result.value.rightToLeft), Number(result.value.leftIsAny), Number(result.value.rightIsAny), null]
+        : [null, null, null, null, result.reason];
+    emit("cast", ordinal, spanId(entry.node), ...values);
   });
   partition.references.forEach((entry, ordinal) => {
     const fact = referenceRecordSchema.parse(entry);

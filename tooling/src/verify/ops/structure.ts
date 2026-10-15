@@ -69,7 +69,7 @@ import { parsePolicyCommand } from "../lib/policy-command.ts";
 import { planPolicyArgv, policyPassExitCode } from "../lib/policy-plan.ts";
 import { executePolicyPlan } from "../lib/policy-plan-execute.ts";
 import { resolvePolicyScope } from "../lib/policy-scope.ts";
-import { projectCtx, repoRel } from "../lib/project-context.ts";
+import { nativeCastRelationOptions, projectCtx, repoRel } from "../lib/project-context.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { structureConsole } from "../lib/structure-console.ts";
 import { finalSide, finalToolErrorCount, structureCountReconciliation } from "../lib/structure-report.ts";
@@ -329,6 +329,7 @@ async function runStructurePopulation(
   const executed = executePolicyPlan({
     root,
     project: ctx.project,
+    ...nativeCastRelationOptions(ctx),
     resourceOptions: tokenTypeGenerationOptions(tokenTypeGeneration),
     corpus,
     plan,
