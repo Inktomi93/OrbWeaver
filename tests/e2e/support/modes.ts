@@ -213,6 +213,8 @@ if (corpusDirectory !== undefined && (DEV_TARGET_ALLOWED || process.env["E2E_LIV
 }
 /** A caller-prepared clone selected before Playwright starts its webServers; ordinary modes do not load it. */
 export const SELECTED_CORPUS_FIXTURE = corpusDirectory === undefined ? undefined : loadCorpusFixture(corpusDirectory);
+/** Additive corpus qualification retains ordinary smoke reports and warm-up diagnostics in the same job. */
+export const E2E_REPORT_PREFIX = SELECTED_CORPUS_FIXTURE === undefined ? "reports/e2e" : "reports/e2e-corpus";
 const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
 const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {

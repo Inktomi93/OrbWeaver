@@ -73,6 +73,7 @@ await runTool(async () => {
   }
   const published = loadCorpusFixture(directory === "--" ? undefined : directory);
   const clone = await cloneCorpusFixture(published, join(parent, "consumer"));
+  process.stdout.write(`Corpus E2E clone: ${clone.layout.root}\n`);
   ownership.defer(async (): Promise<void> => {
     if (consumerCompleted) {
       await clone[Symbol.asyncDispose]();
