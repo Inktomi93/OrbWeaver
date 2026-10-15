@@ -1,4 +1,5 @@
 // Rule admission, scope-local order, budget defaults and global-key validation stay with automation.
+import { automationRuleToolsSchema, confirmSuggestionResultSchema, fireViewSchema, rulePresetViewSchema, ruleViewSchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationFires, automationOwnerBudgets, automationRuleState, automationRules, globalVariables } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
@@ -22,12 +23,73 @@ export async function seedAutomationRule(
   createRule: AutomationService["createRule"],
   params: Parameters<AutomationService["createRule"]>[0],
 ): Promise<AutomationRuleRow> {
-  const view = await createRule(params);
+  return (await seedCreatedAutomationRule(db, createRule, params)).row;
+}
+
+export interface SeededCreatedAutomationRule {
+  readonly view: Awaited<ReturnType<AutomationService["createRule"]>>;
+  readonly row: AutomationRuleRow;
+}
+
+/** Retain the native public birth beside its separate author/request-bearing row. */
+export async function seedCreatedAutomationRule(
+  db: Db,
+  createRule: AutomationService["createRule"],
+  params: Parameters<AutomationService["createRule"]>[0],
+): Promise<SeededCreatedAutomationRule> {
+  const view = ruleViewSchema.parse(await createRule(params));
   const row = await captureAutomationRule(db, view.id);
   if (row === undefined) {
     throw new Error("production rule creation left no canonical automation-rule row");
   }
-  return row;
+  return { view, row };
+}
+
+type AutomationViewReads = Pick<AutomationService, "listRules" | "listOwnerRules" | "listRulePresets" | "listRuleTools" | "listFires" | "listChatActivity">;
+type AutomationViewParams = Parameters<AutomationService["listRules"]>[0] & Pick<Parameters<AutomationService["listFires"]>[0], "ruleId">;
+
+export interface CapturedAutomationViews {
+  readonly rules: Awaited<ReturnType<AutomationService["listRules"]>>;
+  readonly ownerRules: Awaited<ReturnType<AutomationService["listOwnerRules"]>>;
+  readonly presets: ReturnType<AutomationService["listRulePresets"]>;
+  readonly tools: Awaited<ReturnType<AutomationService["listRuleTools"]>>;
+  readonly fires: Awaited<ReturnType<AutomationService["listFires"]>>;
+  readonly activity: Awaited<ReturnType<AutomationService["listChatActivity"]>>;
+}
+
+/** Read the actual management projections without deriving them from private rule or fire rows. */
+export async function captureAutomationViews(automation: AutomationViewReads, params: AutomationViewParams): Promise<CapturedAutomationViews> {
+  const presets = automation.listRulePresets();
+  const [rules, ownerRules, tools, fires, activity] = await Promise.all([
+    automation.listRules(params),
+    automation.listOwnerRules(params),
+    automation.listRuleTools(params),
+    automation.listFires(params),
+    automation.listChatActivity(params),
+  ]);
+  return {
+    rules: rules.map((view) => ruleViewSchema.parse(view)),
+    ownerRules: ownerRules.map((view) => ruleViewSchema.parse(view)),
+    presets: presets.map((view) => rulePresetViewSchema.parse(view)),
+    tools: automationRuleToolsSchema.parse(tools),
+    fires: fires.map((view) => fireViewSchema.parse(view)),
+    activity: activity.map((view) => fireViewSchema.parse(view)),
+  };
+}
+
+export interface SeededAutomationConfirmation extends Omit<SeededAutomationRun, "result"> {
+  readonly result: Awaited<ReturnType<AutomationService["confirmSuggestion"]>>;
+}
+
+/** Consume a genuinely raised rule ask and preserve its native outcome with the resulting provenance. */
+export async function seedAutomationConfirmation(
+  db: Db,
+  confirm: AutomationService["confirmSuggestion"],
+  params: Parameters<AutomationService["confirmSuggestion"]>[0],
+  ruleId: AutomationRuleRow["id"],
+): Promise<SeededAutomationConfirmation> {
+  const result = confirmSuggestionResultSchema.parse(await confirm(params));
+  return { result, ...(await captureAutomationExecution(db, ruleId)) };
 }
 
 export async function seedAutomationOwnerBudget(
