@@ -16,6 +16,8 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import type { ICruiseResult } from "dependency-cruiser";
 import { afterAll, beforeAll } from "vitest";
 import { selectImportEntries } from "../../tooling/src/floor/compiler/import-population.ts";
 import { TEST_KIND_SUFFIXES } from "../../tooling/src/floor/testing/test-kinds.ts";
@@ -61,6 +63,56 @@ if (TEST_FILES_PATTERN === undefined) {
 const ROOT = join(import.meta.dirname, "..", "..");
 const VAL = "export const t = 1;\n";
 const CACHE_TRIPWIRE_FIXTURE = "packages/kit/src/__dc_cache_fresh_node.ts";
+const CONTROL_DECLARATION = { control: "1.0.0" };
+const DUPLICATE_DEP_CASES = [
+  { name: "runtime-dev", manifest: { dependencies: CONTROL_DECLARATION, devDependencies: CONTROL_DECLARATION }, facets: ["npm", "npm-dev"], rejected: true },
+  {
+    name: "optional-dev",
+    manifest: { optionalDependencies: CONTROL_DECLARATION, devDependencies: CONTROL_DECLARATION },
+    facets: ["npm-optional", "npm-dev"],
+    rejected: true,
+  },
+  {
+    name: "runtime-optional",
+    manifest: { dependencies: CONTROL_DECLARATION, optionalDependencies: CONTROL_DECLARATION },
+    facets: ["npm", "npm-optional"],
+    rejected: true,
+  },
+  {
+    name: "peer-runtime-dev",
+    manifest: { peerDependencies: CONTROL_DECLARATION, dependencies: CONTROL_DECLARATION, devDependencies: CONTROL_DECLARATION },
+    facets: ["npm-peer", "npm", "npm-dev"],
+    rejected: true,
+  },
+  {
+    name: "peer-optional-dev",
+    manifest: { peerDependencies: CONTROL_DECLARATION, optionalDependencies: CONTROL_DECLARATION, devDependencies: CONTROL_DECLARATION },
+    facets: ["npm-peer", "npm-optional", "npm-dev"],
+    rejected: true,
+  },
+  {
+    name: "bundled-runtime",
+    manifest: { dependencies: CONTROL_DECLARATION, bundledDependencies: ["control"] },
+    facets: ["npm", "npm-bundled"],
+    rejected: true,
+  },
+  {
+    name: "peer-bundled-dev",
+    manifest: { peerDependencies: CONTROL_DECLARATION, devDependencies: CONTROL_DECLARATION, bundledDependencies: ["control"] },
+    facets: ["npm-peer", "npm-dev", "npm-bundled"],
+    rejected: true,
+  },
+  {
+    name: "peer-dev",
+    manifest: { peerDependencies: CONTROL_DECLARATION, devDependencies: CONTROL_DECLARATION },
+    facets: ["npm-peer", "npm-dev"],
+    rejected: false,
+  },
+  { name: "runtime", manifest: { dependencies: CONTROL_DECLARATION }, facets: ["npm"], rejected: false },
+  { name: "dev", manifest: { devDependencies: CONTROL_DECLARATION }, facets: ["npm-dev"], rejected: false },
+  { name: "peer", manifest: { peerDependencies: CONTROL_DECLARATION }, facets: ["npm-peer"], rejected: false },
+  { name: "optional", manifest: { optionalDependencies: CONTROL_DECLARATION }, facets: ["npm-optional"], rejected: false },
+] as const;
 let fixtureRoot = "";
 const fixturePaths = new Set<string>();
 
@@ -102,7 +154,7 @@ function writeNativeSubstrate(): void {
 
   linkPackageDependency("packages/db", "drizzle-kit");
   linkPackageDependency("packages/server", "minisearch");
-  for (const dependency of ["@tanstack/react-virtual", "diff", "minisearch", "tailwind-merge", "tailwind-variants"]) {
+  for (const dependency of ["@tanstack/react-virtual", "diff", "minisearch", "react", "react-dom", "tailwind-merge", "tailwind-variants"]) {
     linkPackageDependency("packages/ui", dependency);
   }
   linkPackageDependency("packages/client", "@orb/ui", join(fixtureRoot, "packages/ui"));
@@ -124,6 +176,15 @@ let firedRules = new Set<string>();
 
 function writeAllFixtures(): void {
   writeNativeSubstrate();
+  for (const { name, manifest } of DUPLICATE_DEP_CASES) {
+    const packageDir = `packages/__dc_dependencies/${name}`;
+    fx(`${packageDir}/package.json`, JSON.stringify({ name, ...manifest }));
+    fx(`${packageDir}/node_modules/control/package.json`, JSON.stringify({ name: "control", version: "1.0.0", main: "index.js" }));
+    fx(`${packageDir}/node_modules/control/index.js`, "export const value = 1; export const Ty = 1;\n");
+    fx(`${packageDir}/src/value.ts`, 'import { value } from "control"; export const result = value;\n');
+    fx(`${packageDir}/src/type.ts`, 'import type { Ty } from "control"; export type Result = typeof Ty;\n');
+  }
+  fx("packages/ui/src/__dc/peers.ts", 'export { useState } from "react"; export { createPortal } from "react-dom";\n');
   const S = "packages/server/src";
   // no-orphans: a module nothing imports and that imports nothing — the rule's own fixture. Without it the
   // case only passed when the REAL tree happened to carry an orphan (for months: leaked `__g_*` gate-test
@@ -442,6 +503,7 @@ interface Violation {
 }
 
 let allViolations: readonly Violation[] = [];
+let cruisedModules: ICruiseResult["modules"] = [];
 
 function runCruise(): Violation[] {
   let stdout: string;
@@ -467,7 +529,8 @@ function runCruise(): Violation[] {
     // depcruise exits non-zero when violations exist — the JSON is on stdout.
     stdout = (err as { stdout?: string }).stdout ?? "";
   }
-  const parsed = JSON.parse(stdout) as { summary: { violations: Violation[] } };
+  const parsed = JSON.parse(stdout) as ICruiseResult;
+  cruisedModules = parsed.modules;
   return parsed.summary.violations;
 }
 
@@ -493,6 +556,39 @@ afterAll(() => {
 
 test("derives a non-trivial set of active rules from the config (the list isn't silently empty)", () => {
   expect(ACTIVE_RULES.length).toBeGreaterThan(20);
+});
+
+test.each(DUPLICATE_DEP_CASES)("native duplicate declarations: $name", ({ name, facets, rejected }) => {
+  const prefix = `packages/__dc_dependencies/${name}`;
+  for (const file of ["value", "type"]) {
+    const source = `${prefix}/src/${file}.ts`;
+    const dependency = cruisedModules.find((module) => module.source === source)?.dependencies[0];
+    expect(dependency).toMatchObject({ couldNotResolve: false, resolved: `${prefix}/node_modules/control/index.js` });
+    expect(dependency?.dependencyTypes.toSorted()).toEqual([...facets, "import", ...(file === "type" ? ["type-only"] : [])].toSorted());
+    const violations = allViolations.filter((violation) => violation.from === source && violation.rule.name === "no-duplicate-dep-types");
+    expect(violations).toHaveLength(file === "value" && rejected ? 1 : 0);
+  }
+});
+
+test("the real UI peer declarations resolve without duplicate or dev-dependency violations", () => {
+  const source = "packages/ui/src/__dc/peers.ts";
+  const dependencies = cruisedModules.find((module) => module.source === source)?.dependencies;
+  expect(dependencies?.map((dependency) => dependency.module).toSorted()).toEqual(["react", "react-dom"]);
+  for (const dependency of dependencies ?? []) {
+    expect(dependency.couldNotResolve).toBe(false);
+    expect(dependency.dependencyTypes.toSorted()).toEqual(["export", "npm-dev", "npm-peer"]);
+  }
+  expect(allViolations.filter((violation) => violation.from === source)).toEqual([]);
+});
+
+test("native error reporting rejects duplicate declarations under the unchanged rule name", () => {
+  const result = runNicedSync(
+    join(ROOT, "node_modules/.bin/depcruise"),
+    ["packages/__dc_dependencies/runtime-dev/src/value.ts", "--config", join(ROOT, ".dependency-cruiser.cjs"), "--output-type", "err-long"],
+    { cwd: fixtureRoot },
+  );
+  expect(result.status, result.stderr).toBe(1);
+  expect(result.stdout).toContain("no-duplicate-dep-types");
 });
 
 test("tool boundaries reject sibling root, cli and type-only reaches while allowing own modules, public index and floor", () => {
