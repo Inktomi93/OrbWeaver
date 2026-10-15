@@ -12,8 +12,7 @@ import { nativeIdBrand } from "../code-facts/id-brand.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
-import { canonicalInventoryPath, descriptorVersion, inputVersion } from "../code-facts/semantic-inventory-inputs.ts";
-import { readAuthoredRepositoryInventory } from "./authored-repository.ts";
+import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
 import { collectByKinds, descendantsOfKind, nativeCompilerSourceFiles, nativeReferenceNode } from "./ts-workspace.ts";
 
@@ -160,6 +159,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
       : []),
     ts.sys.getExecutingFilePath(),
     fileURLToPath(new URL("./ts-workspace.ts", import.meta.url)),
+    fileURLToPath(new URL("./authored-repository.ts", import.meta.url)),
     fileURLToPath(new URL("./semantic-inventory-filesystem.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-contract.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-inputs.ts", import.meta.url)),
@@ -195,11 +195,15 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     sf.forgetDescendants();
   }
   const roots = request.descriptor.files.map((path) => spans.path(resolve(request.root, path)));
-  const authored = new Set(
-    [...readAuthoredRepositoryInventory(request.root).paths, ...(request.overlay?.files.map((file) => file.path) ?? [])].map((path) =>
-      spans.path(resolve(request.root, path)),
-    ),
-  );
+  const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
+  const authored = (path: string): boolean => {
+    const version = inputVersion(path, "authored", authoredFiles);
+    const key = `authored\0${path}`;
+    if (!inputs.has(key)) {
+      inputs.set(key, { path, kind: "authored", version });
+    }
+    return version === "true";
+  };
   const service = project.getLanguageService().compilerObject;
   const program = service.getProgram();
   if (program === undefined) {
@@ -218,14 +222,15 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     workerPid: process.pid,
     roots,
     nativeRoots: [...project.getProgram().compilerObject.getRootFileNames()],
-    inputs: [...inputs.values()].toSorted((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind)),
     sources: sources.files.map((sf) => ({
       file: spans.path(sf.getFilePath()),
       path: sf.getFilePath(),
       consumerClass: inventoryConsumerClass(sf.getFilePath()),
       text: sf.getFullText(),
-      authored: authored.has(spans.path(sf.getFilePath())),
+      authored: authored(spans.path(sf.getFilePath())),
     })),
+    // Metadata also observes membership; capture inputs only after every source decision has been recorded.
+    inputs: [...inputs.values()].toSorted((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind)),
     ...facts,
   };
 }
@@ -238,12 +243,12 @@ interface ReferenceDeclaration {
 
 function registerReferenceDeclarations(
   declarations: readonly MorphNode[],
-  authored: ReadonlySet<string>,
+  authored: (path: string) => boolean,
   target: Map<InventorySpan, ReferenceDeclaration>,
   spans: InventorySpans,
 ): void {
   for (const declaration of declarations) {
-    if (authored.has(spans.path(declaration.getSourceFile().getFilePath())) && Node.isReferenceFindable(declaration)) {
+    if (authored(spans.path(declaration.getSourceFile().getFilePath())) && Node.isReferenceFindable(declaration)) {
       const span = spans.node(declaration);
       const query = referenceQueryNode(declaration);
       const name = Node.hasName(declaration) ? declaration.getNameNode() : undefined;
@@ -288,7 +293,7 @@ type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindin
 interface SourceFactCollection {
   readonly families: ReadonlySet<InventoryFamily>;
   readonly spans: InventorySpans;
-  readonly authored: ReadonlySet<string>;
+  readonly authored: (path: string) => boolean;
   readonly values: SourceFactValues;
   readonly referenceDeclarations: Map<InventorySpan, ReferenceDeclaration>;
   readonly checker: AssignabilityChecker | undefined;
@@ -365,7 +370,7 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
 function extractSourceFacts(
   program: ts.Program,
   sources: InventorySources,
-  authored: ReadonlySet<string>,
+  authored: (path: string) => boolean,
   input: Pick<SourceFactCollection, "families" | "spans">,
 ): SourceFactValues & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
   const { spans } = input;
@@ -385,11 +390,11 @@ function extractSourceFacts(
         throw new Error(`native inventory source is not shared with its language-service Program: ${original.getFilePath()}`);
       }
       const file = spans.path(sf.getFilePath());
-      if (authored.has(file)) {
+      if (authored(file)) {
         assertAuthoredSyntax(original, sf, spans);
       }
       collectExportFacts(sf, context);
-      if (authored.has(file)) {
+      if (authored(file)) {
         collectAuthoredFacts(sf, context);
       }
       sf.forgetDescendants();

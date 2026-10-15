@@ -5,7 +5,7 @@ import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compile
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
 
-export const INVENTORY_FORMAT = 5;
+export const INVENTORY_FORMAT = 6;
 export const INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses", "cast-relations", "id-brands"] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
@@ -26,7 +26,7 @@ export type InventoryConsumerClass = (typeof INVENTORY_CONSUMER_CLASSES)[number]
 /** A failed extraction, changed snapshot or ambiguous native interpretation supplies no current verdict. */
 export class SemanticInventoryError extends Error {}
 export const spanSchema = z.object({ file: z.string(), start: z.number().int(), end: z.number().int(), kind: z.number().int() });
-export const INVENTORY_INPUT_KINDS = ["file", "directory", "exists"] as const;
+export const INVENTORY_INPUT_KINDS = ["file", "directory", "exists", "authored"] as const;
 export const inputSchema = z.object({ path: z.string(), kind: z.enum(INVENTORY_INPUT_KINDS), version: z.string() });
 export const symbolSchema = z.object({ lexical: z.array(spanSchema), origins: z.array(spanSchema) });
 export const castRelationResultSchema = z.discriminatedUnion("kind", [
@@ -111,6 +111,10 @@ export type StoredInventorySource = z.infer<typeof storedSourceSchema>;
 
 export type InventorySpan = z.infer<typeof spanSchema>;
 export type InventoryInput = z.infer<typeof inputSchema>;
+export interface InventoryInputContext {
+  readonly authored: ReadonlySet<string>;
+  readonly fileSystem?: FileSystemHost | undefined;
+}
 export type InventoryPartition = z.infer<typeof partitionSchema>;
 export type InventorySymbols = z.infer<typeof symbolSchema>;
 

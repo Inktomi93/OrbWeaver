@@ -6,7 +6,14 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest, InventorySpan } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { latestInventoryGeneration, openInventoryDatabase, publishInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
-import { canonicalInventoryPath, contentVersion, inputsCurrent, inputVersion } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
+import {
+  canonicalInventoryPath,
+  contentVersion,
+  descriptorVersion,
+  inputsCurrent,
+  inputVersion,
+  inventoryAuthoredFiles,
+} from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
@@ -70,6 +77,309 @@ function redirectFixture(root: string, variant: "identical" | "different" | "sym
 function nativeSpan(node: ts.Node): InventorySpan {
   return { file: canonicalInventoryPath(node.getSourceFile().fileName), start: node.getStart(), end: node.getEnd(), kind: node.kind };
 }
+
+test.for(["identical", "different", "symlink", "overlay", "js-depth"] as const)(
+  "native authored inputs cover every positive and negative membership decision including sources absent from bootstrap metadata: %s",
+  (variant, { scratch }) => {
+    let request = redirectFixture(scratch, variant === "overlay" || variant === "js-depth" ? "symlink" : variant);
+    const consumer = join(scratch, "consumer.ts");
+    const added = join(scratch, "virtual.ts");
+    if (variant === "js-depth") {
+      for (const name of ["depth-a", "depth-b"]) {
+        mkdirSync(join(scratch, "node_modules", name));
+        writeFileSync(join(scratch, "node_modules", name, "package.json"), JSON.stringify({ name, version: "1.0.0", main: "index.js" }));
+      }
+      writeFileSync(join(scratch, "node_modules/depth-a/index.js"), "export {value} from 'depth-b';\n");
+      writeFileSync(join(scratch, "node_modules/depth-b/index.js"), "export const value=7;\n");
+      writeFileSync(consumer, "import {value} from 'depth-a'; export const use=value;\n");
+      writeFileSync(
+        join(scratch, "tsconfig.json"),
+        JSON.stringify({
+          files: ["consumer.ts"],
+          compilerOptions: { noLib: true, types: [], allowJs: true, maxNodeModuleJsDepth: 1, module: "ESNext", moduleResolution: "Bundler" },
+        }),
+      );
+      request = { ...request, descriptor: fixtureValue(readCompilerPrograms(scratch)[0]) };
+    }
+    const projected: InventoryBuildRequest =
+      variant === "overlay"
+        ? {
+            ...request,
+            overlay: {
+              root: scratch,
+              files: [
+                { path: consumer, text: `${readFileSync(consumer, "utf8")}\nimport {virtual} from './virtual'; export const useVirtual=virtual;\n` },
+                { path: added, text: "export const virtual=7;\n" },
+              ],
+              deleted: [],
+            },
+          }
+        : request;
+    const membership = new Map<string, boolean>();
+    const has = Set.prototype.has;
+    // The authored set alone contains these physical configuration and source identities; native file sets exclude the Git policy file.
+    const observation = vi.spyOn(Set.prototype, "has").mockImplementation(function (this: Set<string>, value: string): boolean {
+      const result = has.call(this, value);
+      if (has.call(this, consumer) && has.call(this, join(scratch, "tsconfig.json")) && has.call(this, join(scratch, ".gitignore"))) {
+        membership.set(value, result);
+      }
+      return result;
+    });
+    let partition: ReturnType<typeof extractInventoryPartition>;
+    try {
+      partition = extractInventoryPartition(projected);
+    } finally {
+      observation.mockRestore();
+    }
+    expect(membership.get(consumer)).toBe(true);
+    expect(membership.get(join(scratch, variant === "js-depth" ? "node_modules/depth-b/index.js" : "node_modules/left/node_modules/shared/index.d.ts"))).toBe(
+      false,
+    );
+    expect(membership.get(added)).toBe(variant === "overlay" ? true : undefined);
+    expect(partition.inputs.filter((input) => input.kind === "authored")).toEqual(
+      [...membership]
+        .map(([path, authored]) => ({ path, kind: "authored", version: String(authored) }))
+        .toSorted((left, right) => left.path.localeCompare(right.path)),
+    );
+    expect(partition.sources.some((source) => source.file === join(scratch, "node_modules/depth-b/index.js"))).toBe(false);
+  },
+);
+
+test("Git admission of an ignored native import rebuilds authored facts without changing native inputs or the pinned reader", ({ scratch }) => {
+  writeFileSync(join(scratch, ".gitignore"), ".cache/\ndeps/\n");
+  mkdirSync(join(scratch, "deps"));
+  const dependency = join(scratch, "deps/value.ts");
+  writeFileSync(dependency, "export const value=1; export const local=value;\n");
+  writeFileSync(join(scratch, "consumer.ts"), "import {value} from './deps/value'; export const use=value;\n");
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+  );
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const partitions: ReturnType<typeof extractInventoryPartition>[] = [];
+  const stage = (request: InventoryBuildRequest): void => {
+    const partition = extractInventoryPartition(request);
+    partitions.push(partition);
+    using database = openInventoryDatabase(request.destination);
+    publishInventoryGeneration(database, [partition]);
+  };
+  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
+  const original = fixtureValue(partitions[0]);
+  expect(original.sources.find((source) => source.file === dependency)?.authored).toBe(false);
+  const previousSource = fixtureValue(previous.sourceCorpus().getSourceFile(dependency));
+  const previousValue = previousSource.getVariableDeclarationOrThrow("value");
+  expect(() => previous.references(previousValue)).toThrow("unsupported for non-authored origin");
+  execFixtureGit(scratch, ["add", "-f", "deps/value.ts"]);
+  expect(descriptorVersion(fixtureValue(readCompilerPrograms(scratch)[0]))).toBe(descriptorVersion(descriptor));
+  const context = { authored: inventoryAuthoredFiles(scratch) };
+  expect(
+    inputsCurrent(
+      original.inputs.filter((input) => input.kind !== "authored"),
+      context,
+    ),
+  ).toBe(true);
+  expect(inputsCurrent(original.inputs, context)).toBe(false);
+  using current = createSemanticInventory({ root: scratch, buildPartition: stage });
+  expect(partitions.length).toBe(2);
+  expect(fixtureValue(partitions[1]).sources.find((source) => source.file === dependency)?.authored).toBe(true);
+  const currentValue = fixtureValue(current.sourceCorpus().getSourceFile(dependency)).getVariableDeclarationOrThrow("value");
+  expect(current.references(currentValue).map((node) => node.getSourceFile().getFilePath())).toContain(join(scratch, "consumer.ts"));
+  expect(() => previous.references(previousValue)).toThrow("unsupported for non-authored origin");
+});
+
+test("Git admission of a language-service-only JS declaration invalidates its recorded negative membership", ({ scratch }) => {
+  writeFileSync(join(scratch, ".gitignore"), ".cache/\nnode_modules/\n");
+  for (const name of ["depth-a", "depth-b"]) {
+    mkdirSync(join(scratch, "node_modules", name), { recursive: true });
+    writeFileSync(join(scratch, "node_modules", name, "package.json"), JSON.stringify({ name, version: "1.0.0", main: "index.js" }));
+  }
+  writeFileSync(join(scratch, "node_modules/depth-a/index.js"), "export {value} from 'depth-b';\n");
+  const dependency = join(scratch, "node_modules/depth-b/index.js");
+  writeFileSync(dependency, "export const value=7;\n");
+  writeFileSync(join(scratch, "consumer.ts"), "import {value} from 'depth-a'; export const use=value;\n");
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({
+      files: ["consumer.ts"],
+      compilerOptions: { noLib: true, types: [], allowJs: true, maxNodeModuleJsDepth: 1, module: "ESNext", moduleResolution: "Bundler" },
+    }),
+  );
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const partitions: ReturnType<typeof extractInventoryPartition>[] = [];
+  const stage = (request: InventoryBuildRequest): void => {
+    const partition = extractInventoryPartition(request);
+    partitions.push(partition);
+    using database = openInventoryDatabase(request.destination);
+    publishInventoryGeneration(database, [partition]);
+  };
+  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
+  const original = fixtureValue(partitions[0]);
+  expect(original.sources.some((source) => source.file === dependency)).toBe(false);
+  expect(original.inputs.find((input) => input.path === dependency && input.kind === "authored")?.version).toBe("false");
+  execFixtureGit(scratch, ["add", "-f", "node_modules/depth-b/index.js"]);
+  const context = { authored: inventoryAuthoredFiles(scratch) };
+  expect(descriptorVersion(fixtureValue(readCompilerPrograms(scratch)[0]))).toBe(descriptorVersion(descriptor));
+  expect(
+    inputsCurrent(
+      original.inputs.filter((input) => input.kind !== "authored"),
+      context,
+    ),
+  ).toBe(true);
+  expect(inputsCurrent(original.inputs, context)).toBe(false);
+  using current = createSemanticInventory({ root: scratch, buildPartition: stage });
+  expect(partitions.length).toBe(2);
+  const updated = fixtureValue(partitions[1]);
+  expect(updated.sources.some((source) => source.file === dependency)).toBe(false);
+  expect(updated.inputs.find((input) => input.path === dependency && input.kind === "authored")?.version).toBe("true");
+  expect(updated.references.some((entry) => entry.declaration.file === dependency)).toBe(true);
+  expect(current.generation).toBeGreaterThan(previous.generation);
+});
+
+test.for(["toward", "away", "add", "remove"] as const)(
+  "authored aliases invalidate native membership without becoming unrelated filesystem dependencies: %s",
+  (change, { scratch }) => {
+    writeFileSync(join(scratch, ".gitignore"), ".cache/\ndeps/\n");
+    mkdirSync(join(scratch, "deps"));
+    mkdirSync(join(scratch, "notes"));
+    const dependency = join(scratch, "deps/value.ts");
+    const text = "export const value=1; export const local=value;\n";
+    writeFileSync(dependency, text);
+    writeFileSync(join(scratch, "deps/other.ts"), text);
+    writeFileSync(join(scratch, "consumer.ts"), "import {value} from './deps/value'; export const use=value;\n");
+    writeFileSync(
+      join(scratch, "tsconfig.json"),
+      JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+    );
+    const alias = join(scratch, "notes/authored.txt");
+    const before = change === "away" || change === "remove";
+    if (change !== "add") {
+      symlinkSync(before ? "../deps/value.ts" : "../deps/other.ts", alias);
+    }
+    execFixtureGit(scratch, ["init", "-q"]);
+    const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+    const partitions: ReturnType<typeof extractInventoryPartition>[] = [];
+    const stage = (request: InventoryBuildRequest): void => {
+      const partition = extractInventoryPartition(request);
+      partitions.push(partition);
+      using database = openInventoryDatabase(request.destination);
+      publishInventoryGeneration(database, [partition]);
+    };
+    using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
+    const original = fixtureValue(partitions[0]);
+    expect(original.sources.find((source) => source.file === dependency)?.authored).toBe(before);
+    expect(original.inputs.some((input) => input.path === alias)).toBe(false);
+    if (change !== "add") {
+      unlinkSync(alias);
+    }
+    if (change !== "remove") {
+      symlinkSync(before ? "../deps/other.ts" : "../deps/value.ts", alias);
+    }
+    expect(descriptorVersion(fixtureValue(readCompilerPrograms(scratch)[0]))).toBe(descriptorVersion(descriptor));
+    const context = { authored: inventoryAuthoredFiles(scratch) };
+    expect(
+      inputsCurrent(
+        original.inputs.filter((input) => input.kind !== "authored"),
+        context,
+      ),
+    ).toBe(true);
+    expect(inputsCurrent(original.inputs, context)).toBe(false);
+    using current = createSemanticInventory({ root: scratch, buildPartition: stage });
+    expect(partitions.length).toBe(2);
+    expect(fixtureValue(partitions[1]).sources.find((source) => source.file === dependency)?.authored).toBe(!before);
+    const previousValue = fixtureValue(previous.sourceCorpus().getSourceFile(dependency)).getVariableDeclarationOrThrow("value");
+    const currentValue = fixtureValue(current.sourceCorpus().getSourceFile(dependency)).getVariableDeclarationOrThrow("value");
+    const admitted = before ? previous : current;
+    const excluded = before ? current : previous;
+    expect(admitted.references(before ? previousValue : currentValue).length).toBeGreaterThan(0);
+    expect(() => excluded.references(before ? currentValue : previousValue)).toThrow("unsupported for non-authored origin");
+  },
+);
+
+test("removing an unrelated authored document reuses the same native partition without reading stored source text", async ({ scratch }) => {
+  writeFileSync(join(scratch, ".gitignore"), ".cache/\n");
+  mkdirSync(join(scratch, "notes"));
+  const document = join(scratch, "notes/unrelated.txt");
+  writeFileSync(document, "Unrelated authored text.\n");
+  writeFileSync(join(scratch, "consumer.ts"), "export const value=1; export const use=value;\n");
+  writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [] } }));
+  execFixtureGit(scratch, ["init", "-q"]);
+  const stage = (request: InventoryBuildRequest): void => {
+    const partition = extractInventoryPartition(request);
+    expect(partition.inputs.some((input) => input.path === document || input.path === dirname(document))).toBe(false);
+    using database = openInventoryDatabase(request.destination);
+    publishInventoryGeneration(database, [partition]);
+  };
+  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
+  unlinkSync(document);
+  const queries = await import("../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts");
+  const text = vi.spyOn(queries, "readInventorySourceText").mockImplementation(() => {
+    throw new Error("membership validation decoded source text");
+  });
+  const build = vi.fn(() => {
+    throw new Error("unrelated document deletion rebuilt a native partition");
+  });
+  try {
+    using current = createSemanticInventory({ root: scratch, buildPartition: build });
+    expect(current.generation).toBe(previous.generation);
+    expect(build).not.toHaveBeenCalled();
+    expect(text).not.toHaveBeenCalled();
+  } finally {
+    text.mockRestore();
+  }
+});
+
+test("authored alias mutation after publication rolls back before commit and preserves the pinned reader", async ({ scratch }) => {
+  writeFileSync(join(scratch, ".gitignore"), ".cache/\ndeps/\n");
+  mkdirSync(join(scratch, "deps"));
+  for (const name of ["value", "other"]) {
+    writeFileSync(join(scratch, `deps/${name}.ts`), "export const value=1; export const local=value;\n");
+  }
+  const alias = join(scratch, "authored.txt");
+  symlinkSync("deps/value.ts", alias);
+  const consumer = join(scratch, "consumer.ts");
+  const original = "import {value} from './deps/value'; export const use=value;\n";
+  writeFileSync(consumer, original);
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+  );
+  execFixtureGit(scratch, ["init", "-q"]);
+  const stage = (request: InventoryBuildRequest): void => {
+    const partition = extractInventoryPartition(request);
+    using database = openInventoryDatabase(request.destination);
+    publishInventoryGeneration(database, [partition]);
+  };
+  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
+  writeFileSync(consumer, `${original}// selects a fresh partition\n`);
+  const databaseApi = await import("@orb/tooling/floor/code-facts/semantic-inventory-database");
+  const publish = databaseApi.publishInventoryGeneration;
+  let publications = 0;
+  const mutation = vi.spyOn(databaseApi, "publishInventoryGeneration").mockImplementation((database, partitions) => {
+    const generation = publish(database, partitions);
+    publications++;
+    if (publications === 2) {
+      unlinkSync(alias);
+      symlinkSync("deps/other.ts", alias);
+    }
+    return generation;
+  });
+  try {
+    expect((): number => {
+      using current = createSemanticInventory({ root: scratch, buildPartition: stage });
+      return current.generation;
+    }).toThrow("inputs changed during extraction");
+    expect(publications).toBe(2);
+  } finally {
+    mutation.mockRestore();
+  }
+  using committed = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  expect(latestInventoryGeneration(committed)).toBe(previous.generation);
+  expect(previous.sourceCorpus().getSourceFile(consumer)?.getFullText()).toBe(original);
+  const value = fixtureValue(previous.sourceCorpus().getSourceFile(join(scratch, "deps/value.ts"))).getVariableDeclarationOrThrow("value");
+  expect(previous.references(value).length).toBeGreaterThan(0);
+});
 
 test.for(["identical", "different", "symlink"] as const)(
   "native package redirects preserve admitted origins and physical metadata: %s",
@@ -751,20 +1061,20 @@ test("physical span reuse observes symlink retargeting and changed bytes between
   const { partition: first } = extractWithoutReferenceWrappers(request);
   const original = JSON.stringify(first);
   expect(first.exports.find((entry) => entry.name === "first")?.file).toBe(join(scratch, "first.ts"));
-  expect(inputsCurrent(first.inputs)).toBe(true);
+  expect(inputsCurrent(first.inputs, { authored: inventoryAuthoredFiles(scratch) })).toBe(true);
   unlinkSync(join(scratch, "link.ts"));
   symlinkSync("second.ts", join(scratch, "link.ts"));
-  expect(inputsCurrent(first.inputs)).toBe(false);
+  expect(inputsCurrent(first.inputs, { authored: inventoryAuthoredFiles(scratch) })).toBe(false);
   const { partition: second } = extractWithoutReferenceWrappers(request);
   expect(second.exports.find((entry) => entry.name === "second")?.file).toBe(join(scratch, "second.ts"));
   expect(second.exports.some((entry) => entry.name === "first")).toBe(false);
-  expect(inputsCurrent(second.inputs)).toBe(true);
+  expect(inputsCurrent(second.inputs, { authored: inventoryAuthoredFiles(scratch) })).toBe(true);
   writeFileSync(join(scratch, "second.ts"), "export const changed=3; export const use=changed;\n");
-  expect(inputsCurrent(second.inputs)).toBe(false);
+  expect(inputsCurrent(second.inputs, { authored: inventoryAuthoredFiles(scratch) })).toBe(false);
   const { partition: changed } = extractWithoutReferenceWrappers(request);
   expect(changed.exports.find((entry) => entry.name === "changed")?.file).toBe(join(scratch, "second.ts"));
   expect(changed.exports.some((entry) => entry.name === "second")).toBe(false);
-  expect(inputsCurrent(changed.inputs)).toBe(true);
+  expect(inputsCurrent(changed.inputs, { authored: inventoryAuthoredFiles(scratch) })).toBe(true);
   expect(JSON.stringify(first)).toBe(original);
 });
 
@@ -786,11 +1096,18 @@ test("physical filename resolution is bounded by distinct paths rather than repe
     expect(partition.references.length).toBeGreaterThan(5);
     expect(canonical).toHaveBeenCalled();
     const paths = canonical.mock.calls.map(([path]) => path);
-    expect(paths.length).toBe(new Set(paths).size);
-    for (const path of paths) {
-      expect(partition.inputs.some((input) => input.path === path)).toBe(true);
+    for (const path of new Set(paths)) {
+      expect(paths.filter((candidate) => candidate === path).length, path).toBeLessThanOrEqual(2);
+      if (path === join(scratch, "unloaded.txt")) {
+        continue;
+      }
+      expect(
+        partition.inputs.some((input) => input.path === path),
+        path,
+      ).toBe(true);
     }
-    expect(inputsCurrent(partition.inputs)).toBe(true);
+    expect(partition.inputs.some((input) => input.path === join(scratch, "unloaded.txt"))).toBe(false);
+    expect(inputsCurrent(partition.inputs, { authored: inventoryAuthoredFiles(scratch) })).toBe(true);
   } finally {
     canonical.mockRestore();
   }
@@ -867,8 +1184,17 @@ test.for(["file-retarget", "directory-retarget", "dangling", "disappear", "appea
       return current.generation;
     }).toThrow(change === "dangling" ? "repository inventory symlink cannot be resolved: dep.ts" : "inputs changed during extraction");
     expect(changed).toBe(true);
-    expect(inputsCurrent(fixtureValue(captured).inputs)).toBe(false);
-    expect(fixtureValue(captured).inputs).toContainEqual({ path: dependency, kind: "exists", version: firstIdentity });
+    expect(() => {
+      if (!inputsCurrent(fixtureValue(captured).inputs, { authored: inventoryAuthoredFiles(scratch) })) {
+        throw new Error("recorded native dependency changed");
+      }
+    }).toThrow(change === "dangling" ? "repository inventory symlink cannot be resolved: dep.ts" : "recorded native dependency changed");
+    expect(fixtureValue(captured).inputs.find((input) => input.path === join(scratch, "first/dep.ts") && input.kind === "authored")?.version).toBe(
+      change === "appear" ? undefined : "true",
+    );
+    expect(fixtureValue(captured).inputs.find((input) => input.path === dependency && input.kind === "exists")).toEqual(
+      authoredAlias ? undefined : { path: dependency, kind: "exists", version: firstIdentity },
+    );
     using committed = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     expect(latestInventoryGeneration(committed)).toBe(previous.generation);
     expect(previous.sourceCorpus().getSourceFile("consumer.ts")?.getFullText()).toBe(text);
@@ -1299,8 +1625,10 @@ test("compiler and store implementation bytes are versioned and changed runtime 
         buildPartition: (request) => {
           const partition = extractInventoryPartition(request);
           expect(partition.inputs).toContainEqual({ path: runtime, kind: "file", version: inputVersion(runtime, "file") });
-          expect(inputsCurrent(partition.inputs, fileSystem)).toBe(true);
+          const context = { authored: inventoryAuthoredFiles(scratch, request.overlay), fileSystem };
+          expect(inputsCurrent(partition.inputs, context)).toBe(true);
           for (const name of [
+            "authored-repository.ts",
             "semantic-inventory-database.ts",
             "semantic-inventory-records.ts",
             "semantic-inventory-queries.ts",
@@ -1310,11 +1638,11 @@ test("compiler and store implementation bytes are versioned and changed runtime 
             const implementation = fixtureValue(partition.inputs.find((input) => input.kind === "file" && input.path.endsWith(`/${name}`)));
             expect(implementation.version).toBe(inputVersion(implementation.path, "file"));
             changed = implementation.path;
-            expect(inputsCurrent(partition.inputs, fileSystem)).toBe(false);
+            expect(inputsCurrent(partition.inputs, context)).toBe(false);
             changed = undefined;
           }
           changed = runtime;
-          expect(inputsCurrent(partition.inputs, fileSystem)).toBe(false);
+          expect(inputsCurrent(partition.inputs, context)).toBe(false);
           using staging = openInventoryDatabase(request.destination);
           publishInventoryGeneration(staging, [partition]);
         },

@@ -11,7 +11,7 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 1;
+const STORAGE_SCHEMA_VERSION = 2;
 
 const generationRow = z.object({ generation: z.number() });
 const memberRow = z.object({ program: inventoryStringSchema, partition: z.string() });
@@ -44,7 +44,7 @@ export function openInventoryDatabase(path: string): DatabaseSync {
 
 function storageSchemaVersion(db: DatabaseSync): number {
   const version = storageVersionRow.parse(db.prepare("PRAGMA user_version").get()).user_version;
-  if (version !== 0 && version !== STORAGE_SCHEMA_VERSION) {
+  if (version !== 0 && version !== 1 && version !== STORAGE_SCHEMA_VERSION) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
   }
   return version;
@@ -58,7 +58,9 @@ function initializeStorageSchema(db: DatabaseSync): void {
   beginInventoryWrite(db);
   try {
     // A competing opener may have completed the bootstrap while this connection waited.
-    if (storageSchemaVersion(db) === 0) {
+    const version = storageSchemaVersion(db);
+    const inputExists = db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='inventory_input'").get() !== undefined;
+    if (version === 0) {
       const familyExists = db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='inventory_family'").get() !== undefined;
       execWithBusyRetry(
         db,
@@ -78,6 +80,14 @@ function initializeStorageSchema(db: DatabaseSync): void {
         db.exec("DROP TABLE inventory_family;");
         db.exec("ALTER TABLE inventory_family_upgrade RENAME TO inventory_family;");
       }
+    }
+    if (version < STORAGE_SCHEMA_VERSION && inputExists) {
+      db.exec(`CREATE TABLE inventory_input_upgrade(${inventoryRecordTables.input.definition}) STRICT;`);
+      db.exec("INSERT INTO inventory_input_upgrade(partition,ordinal,path,kind,version) SELECT partition,ordinal,path,kind,version FROM inventory_input;");
+      db.exec("DROP TABLE inventory_input;");
+      db.exec("ALTER TABLE inventory_input_upgrade RENAME TO inventory_input;");
+    }
+    if (version < STORAGE_SCHEMA_VERSION) {
       db.exec(`PRAGMA user_version=${String(STORAGE_SCHEMA_VERSION)};`);
     }
     db.exec("COMMIT");

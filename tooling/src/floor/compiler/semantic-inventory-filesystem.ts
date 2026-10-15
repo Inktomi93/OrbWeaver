@@ -19,7 +19,7 @@ export function inventoryFileSystem(base: FileSystemHost, overlay?: InventoryOve
       directory = parent;
     }
   }
-  const observe = (path: string, kind: InventoryInput["kind"]): void => {
+  const observe = (path: string, kind: Exclude<InventoryInput["kind"], "authored">): void => {
     const key = `${kind}\0${path}`;
     if (inputs !== undefined && !inputs.has(key)) {
       inputs.set(key, { path, kind, version: inputVersion(path, kind, plain) });
