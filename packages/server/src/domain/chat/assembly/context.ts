@@ -961,14 +961,19 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
 
   const guided = resolveGuidedSteer(base, input, guidedSteerText ?? "");
 
-  const userCandidates: InjectionCandidate[] = input.userInjections.map((injection, idx) => ({
-    injection,
-    tokens: estimateTokens(injection.content),
-    ignoreBudget: true,
-    priority: OPERATOR_PRIORITY,
-    entryId: `user:${idx}`,
-    bucket: null,
-  }));
+  const userCandidates: InjectionCandidate[] = input.userInjections.map((injection, idx) => {
+    // Persisted host templates are raw; teaching contributions already own their preparation.
+    const prepared =
+      injection.origin === "user" ? { ...injection, content: renderMacros(injection.content, base, base.activePersona, { registry: reg }) } : injection;
+    return {
+      injection: prepared,
+      tokens: estimateTokens(prepared.content),
+      ignoreBudget: true,
+      priority: OPERATOR_PRIORITY,
+      entryId: `user:${idx}`,
+      bucket: null,
+    };
+  });
   const personaDescription = resolvePersonaDescriptionCandidates(base, input.personas, reg, prose);
   // Appended after persona so a same-depth tie orders persona-then-note deterministically.
   const authorsNote = authorsNoteCandidates(base, reg);
