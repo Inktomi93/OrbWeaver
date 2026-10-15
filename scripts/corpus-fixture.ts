@@ -1,4 +1,4 @@
-// Durable corpus publication and a disposable E2E consumer; the native producer and runner retain their own policies.
+// Durable corpus publication and native consumers; each runner retains its own isolation and cleanup policy.
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -10,15 +10,45 @@ import { exportProcessEnv, inheritedProcessEnv } from "@orb/tooling/floor/proces
 import { describeRunMarkerSweep, joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
 
 const CONSUMER_TIMEOUT_MS = 600_000;
-const USAGE = "corpus-fixture requires publish <new-directory> or e2e [published-directory] [--] [native E2E arguments]";
+const USAGE =
+  "corpus-fixture requires publish <new-directory>, e2e [published-directory] [--] [native E2E arguments], or snap [published-directory] [--] [native Snap arguments]";
+
+async function runCorpusSnap(directory: string | undefined, nativeArgs: readonly string[]): Promise<number> {
+  const { parseSnapArgs } = await import("@orb/tooling/snap");
+  const args = [...nativeArgs];
+  if (!parseSnapArgs(args).help) {
+    const { localPath } = await import("@orb/db");
+    const { loadCorpusFixture } = await import("@orb/testkit/node/corpus.ts");
+    const source = loadCorpusFixture(directory === "--" ? undefined : directory);
+    const database = localPath(source.layout.databaseUrl);
+    if (database === undefined) {
+      throw new Error("A corpus Snap stage requires a local database");
+    }
+    args.push("--stage-db", database);
+  }
+  // Snap's existing stage owner clones DB/CAS, retains the warm stage and handles --stage-down.
+  const result = await spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", "snap", ...args], {
+    cwd: process.cwd(),
+    env: inheritedProcessEnv(),
+    timeoutMs: budget(CONSUMER_TIMEOUT_MS),
+    onChunk: (chunk, stream) => {
+      process[stream].write(chunk);
+    },
+  });
+  return result.code ?? 2;
+}
 
 await runTool(async () => {
-  const [command, directory, ...nativeArgs] = process.argv.slice(2);
-  if (command !== "publish" && command !== "e2e") {
+  const [command, directory, ...trailing] = process.argv.slice(2);
+  if (command !== "publish" && command !== "e2e" && command !== "snap") {
     throw new UsageError(USAGE);
   }
+  const nativeArgs = command !== "publish" && directory !== "--" && trailing[0] === "--" ? trailing.slice(1) : trailing;
   exportProcessEnv("ORB_ENV_NO_FILE", "1");
   exportProcessEnv("CORPUS_AUTOINDEX", "false");
+  if (command === "snap") {
+    return await runCorpusSnap(directory, nativeArgs);
+  }
   const { createCorpusCapsule, publishCorpusFixture, loadCorpusFixture, cloneCorpusFixture } = await import("@orb/testkit/node/corpus.ts");
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-fixture-"));
   let consumerCompleted = true;

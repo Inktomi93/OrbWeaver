@@ -787,25 +787,25 @@
           "createdAt": 1750000000000
         },
         {
-          "id": "world_book_000000000000000000000000qd",
+          "id": "world_book_000000000000000000000000pn",
           "name": "Gullwrack Light",
           "description": "The book Elias has waited a century to finish.",
           "createdAt": 1750000000000
         },
         {
-          "id": "world_book_000000000000000000000000nq",
+          "id": "world_book_000000000000000000000000mz",
           "name": "The Ninth Epoch",
           "description": "The prophecy Calamity is sure is about the end of the world.",
           "createdAt": 1750000000000
         },
         {
-          "id": "world_book_000000000000000000000000kb",
+          "id": "world_book_000000000000000000000000m1",
           "name": "The luck ledger",
           "description": "How Kohaku accounts for the debt she is working off.",
           "createdAt": 1750000000000
         },
         {
-          "id": "world_book_000000000000000000000000jf",
+          "id": "world_book_000000000000000000000000hs",
           "name": "Holloway's Hobby & Repair",
           "description": "The model town in the back room.",
           "createdAt": 1750000000000
@@ -823,7 +823,7 @@
           "createdAt": 1750000000000
         },
         {
-          "id": "world_book_000000000000000000000000cv",
+          "id": "world_book_000000000000000000000000dh",
           "name": "Hana's keyring",
           "description": "The five transformation charms and what each one does.",
           "createdAt": 1750000000000
@@ -841,7 +841,7 @@
           "createdAt": 1750000000000
         },
         {
-          "id": "world_book_00000000000000000000000089",
+          "id": "world_book_0000000000000000000000008y",
           "name": "Charlotte's web",
           "description": "What the web in the corner of the app is made of.",
           "createdAt": 1750000000000
@@ -882,7 +882,7 @@
           "usage": { "characters": 0, "personas": 0, "chats": 1, "global": false, "total": 1 }
         },
         {
-          "id": "world_book_000000000000000000000000qd",
+          "id": "world_book_000000000000000000000000pn",
           "name": "Gullwrack Light",
           "description": "The book Elias has waited a century to finish.",
           "createdAt": 1750000000000,
@@ -890,7 +890,7 @@
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
         {
-          "id": "world_book_000000000000000000000000nq",
+          "id": "world_book_000000000000000000000000mz",
           "name": "The Ninth Epoch",
           "description": "The prophecy Calamity is sure is about the end of the world.",
           "createdAt": 1750000000000,
@@ -898,7 +898,7 @@
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
         {
-          "id": "world_book_000000000000000000000000kb",
+          "id": "world_book_000000000000000000000000m1",
           "name": "The luck ledger",
           "description": "How Kohaku accounts for the debt she is working off.",
           "createdAt": 1750000000000,
@@ -906,7 +906,7 @@
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
         {
-          "id": "world_book_000000000000000000000000jf",
+          "id": "world_book_000000000000000000000000hs",
           "name": "Holloway's Hobby & Repair",
           "description": "The model town in the back room.",
           "createdAt": 1750000000000,
@@ -930,7 +930,7 @@
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
         {
-          "id": "world_book_000000000000000000000000cv",
+          "id": "world_book_000000000000000000000000dh",
           "name": "Hana's keyring",
           "description": "The five transformation charms and what each one does.",
           "createdAt": 1750000000000,
@@ -954,7 +954,7 @@
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
         {
-          "id": "world_book_00000000000000000000000089",
+          "id": "world_book_0000000000000000000000008y",
           "name": "Charlotte's web",
           "description": "What the web in the corner of the app is made of.",
           "createdAt": 1750000000000,
@@ -1430,7 +1430,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000j9",
+          "id": "tag_000000000000000000000000hk",
           "name": "americana",
           "color": null,
           "color2": null,
@@ -1442,7 +1442,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_0000000000000000000000007z",
+          "id": "tag_0000000000000000000000008m",
           "name": "assistant",
           "color": null,
           "color2": null,
@@ -1502,7 +1502,7 @@
           "pendingSuggestions": 5
         },
         {
-          "id": "tag_000000000000000000000000j5",
+          "id": "tag_000000000000000000000000hf",
           "name": "cozy",
           "color": null,
           "color2": null,
@@ -1514,7 +1514,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_00000000000000000000000081",
+          "id": "tag_0000000000000000000000008p",
           "name": "default",
           "color": null,
           "color2": null,
@@ -1562,7 +1562,7 @@
           "pendingSuggestions": 3
         },
         {
-          "id": "tag_000000000000000000000000q7",
+          "id": "tag_000000000000000000000000pf",
           "name": "ghost",
           "color": null,
           "color2": null,
@@ -1586,7 +1586,7 @@
           "pendingSuggestions": 2
         },
         {
-          "id": "tag_000000000000000000000000k5",
+          "id": "tag_000000000000000000000000kv",
           "name": "gremlin",
           "color": null,
           "color2": null,
@@ -1598,7 +1598,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000q1",
+          "id": "tag_000000000000000000000000p9",
           "name": "literary",
           "color": null,
           "color2": null,
@@ -1622,7 +1622,7 @@
           "pendingSuggestions": 33
         },
         {
-          "id": "tag_000000000000000000000000q3",
+          "id": "tag_000000000000000000000000pb",
           "name": "melancholy",
           "color": null,
           "color2": null,
@@ -1658,7 +1658,7 @@
           "pendingSuggestions": 33
         },
         {
-          "id": "tag_000000000000000000000000cn",
+          "id": "tag_000000000000000000000000db",
           "name": "rpg-ready",
           "color": null,
           "color2": null,
@@ -1670,7 +1670,7 @@
           "pendingSuggestions": 4
         },
         {
-          "id": "tag_000000000000000000000000nf",
+          "id": "tag_000000000000000000000000mq",
           "name": "sentient-object",
           "color": null,
           "color2": null,
@@ -1694,7 +1694,7 @@
           "pendingSuggestions": 3
         },
         {
-          "id": "tag_000000000000000000000000ck",
+          "id": "tag_000000000000000000000000d9",
           "name": "superhero",
           "color": null,
           "color2": null,
@@ -1706,7 +1706,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000k1",
+          "id": "tag_000000000000000000000000kq",
           "name": "supernatural",
           "color": null,
           "color2": null,
@@ -1742,7 +1742,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000ch",
+          "id": "tag_000000000000000000000000d7",
           "name": "urban-fantasy",
           "color": null,
           "color2": null,
@@ -1754,7 +1754,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_00000000000000000000000083",
+          "id": "tag_0000000000000000000000008r",
           "name": "utility",
           "color": null,
           "color2": null,
@@ -1778,7 +1778,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000nb",
+          "id": "tag_000000000000000000000000mk",
           "name": "weird",
           "color": null,
           "color2": null,
@@ -1840,7 +1840,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000j9",
+          "id": "tag_000000000000000000000000hk",
           "name": "americana",
           "color": null,
           "color2": null,
@@ -1852,7 +1852,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_0000000000000000000000007z",
+          "id": "tag_0000000000000000000000008m",
           "name": "assistant",
           "color": null,
           "color2": null,
@@ -1912,7 +1912,7 @@
           "pendingSuggestions": 5
         },
         {
-          "id": "tag_000000000000000000000000j5",
+          "id": "tag_000000000000000000000000hf",
           "name": "cozy",
           "color": null,
           "color2": null,
@@ -1924,7 +1924,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_00000000000000000000000081",
+          "id": "tag_0000000000000000000000008p",
           "name": "default",
           "color": null,
           "color2": null,
@@ -1972,7 +1972,7 @@
           "pendingSuggestions": 3
         },
         {
-          "id": "tag_000000000000000000000000q7",
+          "id": "tag_000000000000000000000000pf",
           "name": "ghost",
           "color": null,
           "color2": null,
@@ -1996,7 +1996,7 @@
           "pendingSuggestions": 2
         },
         {
-          "id": "tag_000000000000000000000000k5",
+          "id": "tag_000000000000000000000000kv",
           "name": "gremlin",
           "color": null,
           "color2": null,
@@ -2008,7 +2008,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000q1",
+          "id": "tag_000000000000000000000000p9",
           "name": "literary",
           "color": null,
           "color2": null,
@@ -2032,7 +2032,7 @@
           "pendingSuggestions": 33
         },
         {
-          "id": "tag_000000000000000000000000q3",
+          "id": "tag_000000000000000000000000pb",
           "name": "melancholy",
           "color": null,
           "color2": null,
@@ -2068,7 +2068,7 @@
           "pendingSuggestions": 33
         },
         {
-          "id": "tag_000000000000000000000000cn",
+          "id": "tag_000000000000000000000000db",
           "name": "rpg-ready",
           "color": null,
           "color2": null,
@@ -2080,7 +2080,7 @@
           "pendingSuggestions": 4
         },
         {
-          "id": "tag_000000000000000000000000nf",
+          "id": "tag_000000000000000000000000mq",
           "name": "sentient-object",
           "color": null,
           "color2": null,
@@ -2104,7 +2104,7 @@
           "pendingSuggestions": 3
         },
         {
-          "id": "tag_000000000000000000000000ck",
+          "id": "tag_000000000000000000000000d9",
           "name": "superhero",
           "color": null,
           "color2": null,
@@ -2116,7 +2116,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000k1",
+          "id": "tag_000000000000000000000000kq",
           "name": "supernatural",
           "color": null,
           "color2": null,
@@ -2152,7 +2152,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000ch",
+          "id": "tag_000000000000000000000000d7",
           "name": "urban-fantasy",
           "color": null,
           "color2": null,
@@ -2164,7 +2164,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_00000000000000000000000083",
+          "id": "tag_0000000000000000000000008r",
           "name": "utility",
           "color": null,
           "color2": null,
@@ -2188,7 +2188,7 @@
           "pendingSuggestions": 1
         },
         {
-          "id": "tag_000000000000000000000000nb",
+          "id": "tag_000000000000000000000000mk",
           "name": "weird",
           "color": null,
           "color2": null,
@@ -2246,7 +2246,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000j9",
+          "id": "tag_000000000000000000000000hk",
           "name": "americana",
           "color": null,
           "color2": null,
@@ -2256,7 +2256,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_0000000000000000000000007z",
+          "id": "tag_0000000000000000000000008m",
           "name": "assistant",
           "color": null,
           "color2": null,
@@ -2306,7 +2306,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000j5",
+          "id": "tag_000000000000000000000000hf",
           "name": "cozy",
           "color": null,
           "color2": null,
@@ -2316,7 +2316,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_00000000000000000000000081",
+          "id": "tag_0000000000000000000000008p",
           "name": "default",
           "color": null,
           "color2": null,
@@ -2356,7 +2356,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000q7",
+          "id": "tag_000000000000000000000000pf",
           "name": "ghost",
           "color": null,
           "color2": null,
@@ -2376,7 +2376,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000k5",
+          "id": "tag_000000000000000000000000kv",
           "name": "gremlin",
           "color": null,
           "color2": null,
@@ -2386,7 +2386,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000q1",
+          "id": "tag_000000000000000000000000p9",
           "name": "literary",
           "color": null,
           "color2": null,
@@ -2406,7 +2406,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000q3",
+          "id": "tag_000000000000000000000000pb",
           "name": "melancholy",
           "color": null,
           "color2": null,
@@ -2436,7 +2436,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000cn",
+          "id": "tag_000000000000000000000000db",
           "name": "rpg-ready",
           "color": null,
           "color2": null,
@@ -2446,7 +2446,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000nf",
+          "id": "tag_000000000000000000000000mq",
           "name": "sentient-object",
           "color": null,
           "color2": null,
@@ -2466,7 +2466,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000ck",
+          "id": "tag_000000000000000000000000d9",
           "name": "superhero",
           "color": null,
           "color2": null,
@@ -2476,7 +2476,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000k1",
+          "id": "tag_000000000000000000000000kq",
           "name": "supernatural",
           "color": null,
           "color2": null,
@@ -2506,7 +2506,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000ch",
+          "id": "tag_000000000000000000000000d7",
           "name": "urban-fantasy",
           "color": null,
           "color2": null,
@@ -2516,7 +2516,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_00000000000000000000000083",
+          "id": "tag_0000000000000000000000008r",
           "name": "utility",
           "color": null,
           "color2": null,
@@ -2536,7 +2536,7 @@
           "isHiddenOnCard": false
         },
         {
-          "id": "tag_000000000000000000000000nb",
+          "id": "tag_000000000000000000000000mk",
           "name": "weird",
           "color": null,
           "color2": null,
@@ -2569,36 +2569,36 @@
       "tagVocabulary": [
         { "id": "tag_000000000000000000000000ys", "name": "demo", "isHiddenOnCard": false, "characters": 1 },
         { "id": "tag_000000000000000000000004pc", "name": "Native lifecycle label", "isHiddenOnCard": false, "characters": 1 },
-        { "id": "tag_000000000000000000000000j9", "name": "americana", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_0000000000000000000000007z", "name": "assistant", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000hk", "name": "americana", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_0000000000000000000000008m", "name": "assistant", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000gh", "name": "banter", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000b3", "name": "character-driven", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000a5", "name": "coding", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000a9", "name": "comedy", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000j5", "name": "cozy", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_00000000000000000000000081", "name": "default", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000hf", "name": "cozy", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_0000000000000000000000008p", "name": "default", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000gn", "name": "drama", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000e1", "name": "fantasy", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000q7", "name": "ghost", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000pf", "name": "ghost", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000e7", "name": "gothic", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000k5", "name": "gremlin", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000q1", "name": "literary", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000kv", "name": "gremlin", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000p9", "name": "literary", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000001j6", "name": "loom", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000q3", "name": "melancholy", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000pb", "name": "melancholy", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000a7", "name": "mentor", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000001ja", "name": "orbit", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_0000000000000000000000010q", "name": "Orbital ledger", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000cn", "name": "rpg-ready", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000nf", "name": "sentient-object", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000db", "name": "rpg-ready", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000mq", "name": "sentient-object", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000b1", "name": "slice-of-life", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000ck", "name": "superhero", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000k1", "name": "supernatural", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000d9", "name": "superhero", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000kq", "name": "supernatural", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000001j8", "name": "traveller", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000gk", "name": "tsundere", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000ch", "name": "urban-fantasy", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_00000000000000000000000083", "name": "utility", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000d7", "name": "urban-fantasy", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_0000000000000000000000008r", "name": "utility", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000e3", "name": "villain", "isHiddenOnCard": false, "characters": 0 },
-        { "id": "tag_000000000000000000000000nb", "name": "weird", "isHiddenOnCard": false, "characters": 0 },
+        { "id": "tag_000000000000000000000000mk", "name": "weird", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000b5", "name": "wholesome", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_000000000000000000000000ab", "name": "yagni", "isHiddenOnCard": false, "characters": 0 }
       ],
@@ -2684,7 +2684,7 @@
           "game": null,
           "members": [
             {
-              "characterId": "character_0000000000000000000000007t",
+              "characterId": "character_0000000000000000000000008f",
               "position": 0,
               "talkativeness": null,
               "disabled": false,
@@ -2727,7 +2727,7 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000000qx",
+          "id": "roster_preset_000000000000000000000000qm",
           "name": "Midnight Run",
           "description": "Two night owls, one convenience store, and a cursed apartment.",
           "anchorPersonaId": null,
@@ -2742,7 +2742,7 @@
               "avatarHash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d"
             },
             {
-              "characterId": "character_000000000000000000000000jt",
+              "characterId": "character_000000000000000000000000kg",
               "position": 1,
               "talkativeness": null,
               "disabled": false,
@@ -2800,7 +2800,7 @@
               "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
             },
             {
-              "characterId": "character_000000000000000000000000n4",
+              "characterId": "character_000000000000000000000000mc",
               "position": 1,
               "talkativeness": null,
               "disabled": false,
@@ -2822,14 +2822,14 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000000qz",
+          "id": "roster_preset_000000000000000000000000qp",
           "name": "Second Opinion",
           "description": "Charlotte drafts it, JFC tears it down.",
           "anchorPersonaId": null,
           "game": null,
           "members": [
             {
-              "characterId": "character_0000000000000000000000007t",
+              "characterId": "character_0000000000000000000000008f",
               "position": 0,
               "talkativeness": null,
               "disabled": false,
@@ -2851,7 +2851,7 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000000r1",
+          "id": "roster_preset_000000000000000000000000qr",
           "name": "Storm the Spire",
           "description": "An RPG campaign: you and a sellsword knight take the contract on the Ashen Spire, and its undying queen is expecting you.",
           "anchorPersonaId": null,
@@ -2880,7 +2880,7 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000000qv",
+          "id": "roster_preset_000000000000000000000000qj",
           "name": "The Ashen Spire",
           "description": "A dark lady, the knight she hired, and a sword with opinions.",
           "anchorPersonaId": null,
@@ -2903,7 +2903,7 @@
               "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
             },
             {
-              "characterId": "character_000000000000000000000000n4",
+              "characterId": "character_000000000000000000000000mc",
               "position": 2,
               "talkativeness": null,
               "disabled": false,
@@ -4365,7 +4365,7 @@
             "chatId": "chat_000000000000000000000003z9",
             "kind": "character",
             "userId": null,
-            "characterId": "character_0000000000000000000000007t",
+            "characterId": "character_0000000000000000000000008f",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -4376,7 +4376,7 @@
             "joinHistoryVisibility": "full",
             "displayName": "Charlotte",
             "handle": null,
-            "avatarAssetId": "asset_0000000000000000000000007p",
+            "avatarAssetId": "asset_0000000000000000000000007n",
             "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
             "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
             "themeOverride": {
@@ -4405,8 +4405,8 @@
         "viewerActivePersonaId": "persona_000000000000000000000000zb",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000002",
-        "viewerOwnedCharacterIds": ["character_0000000000000000000000007t"],
-        "viewerGalleryCharacterId": "character_0000000000000000000000007t",
+        "viewerOwnedCharacterIds": ["character_0000000000000000000000008f"],
+        "viewerGalleryCharacterId": "character_0000000000000000000000008f",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -4438,7 +4438,7 @@
         "identities": [
           {
             "kind": "character",
-            "id": "character_0000000000000000000000007t",
+            "id": "character_0000000000000000000000008f",
             "name": "Charlotte",
             "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa"
           },
@@ -4457,16 +4457,16 @@
       "entities": {
         "over": "entities",
         "hits": [
-          { "characterId": "character_0000000000000000000000007t", "score": 0, "relevance": 1 },
+          { "characterId": "character_0000000000000000000000008f", "score": 0, "relevance": 1 },
           { "characterId": "character_000000000000000000000000a0", "score": 0, "relevance": 1 },
           { "characterId": "character_000000000000000000000000aw", "score": 0, "relevance": 1 },
-          { "characterId": "character_000000000000000000000000ca", "score": 0, "relevance": 1 },
+          { "characterId": "character_000000000000000000000000d0", "score": 0, "relevance": 1 },
           { "characterId": "character_000000000000000000000000dw", "score": 0, "relevance": 1 },
           { "characterId": "character_000000000000000000000000ga", "score": 0, "relevance": 1 },
-          { "characterId": "character_000000000000000000000000hy", "score": 0, "relevance": 1 },
-          { "characterId": "character_000000000000000000000000jt", "score": 0, "relevance": 1 },
-          { "characterId": "character_000000000000000000000000n4", "score": 0, "relevance": 1 },
-          { "characterId": "character_000000000000000000000000pt", "score": 0, "relevance": 1 },
+          { "characterId": "character_000000000000000000000000h8", "score": 0, "relevance": 1 },
+          { "characterId": "character_000000000000000000000000kg", "score": 0, "relevance": 1 },
+          { "characterId": "character_000000000000000000000000mc", "score": 0, "relevance": 1 },
+          { "characterId": "character_000000000000000000000000p2", "score": 0, "relevance": 1 },
           { "characterId": "character_000000000000000000000000z6", "score": 0, "relevance": 1 },
           { "characterId": "character_0000000000000000000000011a", "score": 0, "relevance": 1 },
           { "characterId": "character_00000000000000000000000195", "score": 0, "relevance": 1 },
@@ -4484,7 +4484,7 @@
         "over": "characters",
         "hits": [
           {
-            "characterId": "character_0000000000000000000000007t",
+            "characterId": "character_0000000000000000000000008f",
             "score": 0,
             "relevance": 1,
             "name": "Charlotte",
@@ -4514,7 +4514,7 @@
             "elevatorPitch": "A traveller repairs the orbital loom."
           },
           {
-            "characterId": "character_000000000000000000000000ca",
+            "characterId": "character_000000000000000000000000d0",
             "score": 0,
             "relevance": 1,
             "name": "Hana Mizushima",
@@ -4544,7 +4544,7 @@
             "elevatorPitch": "A traveller repairs the orbital loom."
           },
           {
-            "characterId": "character_000000000000000000000000hy",
+            "characterId": "character_000000000000000000000000h8",
             "score": 0,
             "relevance": 1,
             "name": "Birdie Mae Holloway",
@@ -4554,7 +4554,7 @@
             "elevatorPitch": "A traveller repairs the orbital loom."
           },
           {
-            "characterId": "character_000000000000000000000000jt",
+            "characterId": "character_000000000000000000000000kg",
             "score": 0,
             "relevance": 1,
             "name": "Kohaku",
@@ -4564,7 +4564,7 @@
             "elevatorPitch": "A traveller repairs the orbital loom."
           },
           {
-            "characterId": "character_000000000000000000000000n4",
+            "characterId": "character_000000000000000000000000mc",
             "score": 0,
             "relevance": 1,
             "name": "Calamity, Doomblade of the Ninth Epoch",
@@ -4574,7 +4574,7 @@
             "elevatorPitch": "A traveller repairs the orbital loom."
           },
           {
-            "characterId": "character_000000000000000000000000pt",
+            "characterId": "character_000000000000000000000000p2",
             "score": 0,
             "relevance": 1,
             "name": "Elias Thorn",
@@ -4917,7 +4917,7 @@
             ]
           },
           {
-            "characterId": "character_0000000000000000000000007t",
+            "characterId": "character_0000000000000000000000008f",
             "score": 0,
             "relevance": 1,
             "name": "Charlotte",
@@ -5374,7 +5374,7 @@
             "scopedCharacterName": "Search co-star second"
           },
           {
-            "blockKey": { "chatId": "chat_000000000000000000000003z9", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000007t" },
+            "blockKey": { "chatId": "chat_000000000000000000000003z9", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000008f" },
             "score": 0,
             "relevance": 1,
             "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
@@ -5382,7 +5382,7 @@
               "chatId": "chat_000000000000000000000003z9",
               "generationId": "18a8fe13d0cd2000d4477c94d48493ea38e9ace3d4f29ac79b63323bbaed7d14",
               "fingerprint": "29add4814dff8419ffba349858d08afc7d83504fad7b05a5e68728e926e60a99",
-              "contentHash": "68cfb08ca2120349d00a86bce74c44e5e3bcd419e4e3c4e6cea8f43aaca777e6",
+              "contentHash": "158eec638eef0b2918f5bfc1fe2bdcc1048a57e7c0f4be5f5926a3faab494f19",
               "blockIdx": 0,
               "seqStart": 1,
               "seqEnd": 8,
@@ -5391,7 +5391,7 @@
               "kind": "digest",
               "rowId": "chat_digest_00000000000000000000000483",
               "tier": 0,
-              "scopedCharacterId": "character_0000000000000000000000007t"
+              "scopedCharacterId": "character_0000000000000000000000008f"
             },
             "chatTitle": "Uncredited search transcript",
             "scopedCharacterName": "Charlotte"
@@ -5791,7 +5791,7 @@
               "chatId": "chat_000000000000000000000003z9",
               "generationId": "18a8fe13d0cd2000d4477c94d48493ea38e9ace3d4f29ac79b63323bbaed7d14",
               "fingerprint": "29add4814dff8419ffba349858d08afc7d83504fad7b05a5e68728e926e60a99",
-              "contentHash": "68cfb08ca2120349d00a86bce74c44e5e3bcd419e4e3c4e6cea8f43aaca777e6",
+              "contentHash": "158eec638eef0b2918f5bfc1fe2bdcc1048a57e7c0f4be5f5926a3faab494f19",
               "blockIdx": 0,
               "seqStart": 1,
               "seqEnd": 8,
@@ -5800,10 +5800,10 @@
               "kind": "digest",
               "rowId": "chat_digest_00000000000000000000000483",
               "tier": 0,
-              "scopedCharacterId": "character_0000000000000000000000007t"
+              "scopedCharacterId": "character_0000000000000000000000008f"
             },
             "blockKeys": [
-              { "chatId": "chat_000000000000000000000003z9", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000007t" }
+              { "chatId": "chat_000000000000000000000003z9", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000008f" }
             ],
             "chatTitle": "Uncredited search transcript",
             "relevance": 1,
@@ -5861,9 +5861,9 @@
         "over": "images",
         "hits": [
           {
-            "assetId": "asset_0000000000000000000000007p",
+            "assetId": "asset_0000000000000000000000007n",
             "hash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
-            "characterId": "character_0000000000000000000000007t",
+            "characterId": "character_0000000000000000000000008f",
             "characterName": "Charlotte",
             "score": 0,
             "relevance": 1,
@@ -5871,7 +5871,7 @@
             "caption": null
           },
           {
-            "assetId": "asset_00000000000000000000000095",
+            "assetId": "asset_00000000000000000000000096",
             "hash": "a90d64fd073ac2a6b85238fcd54319c2ea31d640bfdd1b2cbde197508d16214a",
             "characterId": "character_000000000000000000000000a0",
             "characterName": "JFC",
@@ -5881,7 +5881,7 @@
             "caption": null
           },
           {
-            "assetId": "asset_000000000000000000000000aq",
+            "assetId": "asset_000000000000000000000000ar",
             "hash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d",
             "characterId": "character_000000000000000000000000aw",
             "characterName": "Niko",
@@ -5891,9 +5891,9 @@
             "caption": null
           },
           {
-            "assetId": "asset_000000000000000000000000c4",
+            "assetId": "asset_000000000000000000000000c5",
             "hash": "016ffe3a28c43408148cf11c829bb146a85d7a42e83888ee7f1234a6b4f92f49",
-            "characterId": "character_000000000000000000000000ca",
+            "characterId": "character_000000000000000000000000d0",
             "characterName": "Hana Mizushima",
             "score": 0,
             "relevance": 1,
@@ -5901,7 +5901,7 @@
             "caption": null
           },
           {
-            "assetId": "asset_000000000000000000000000dq",
+            "assetId": "asset_000000000000000000000000dr",
             "hash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6",
             "characterId": "character_000000000000000000000000dw",
             "characterName": "Morgatha, the Undying Dark",
@@ -5911,7 +5911,7 @@
             "caption": null
           },
           {
-            "assetId": "asset_000000000000000000000000fe",
+            "assetId": "asset_000000000000000000000000fd",
             "hash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6",
             "characterId": "character_000000000000000000000000ga",
             "characterName": "Sabine Veyra",
@@ -5923,7 +5923,7 @@
           {
             "assetId": "asset_000000000000000000000000h4",
             "hash": "d91d20234b6277fe0087c15343d1bac55b81f657e981dd996432c8ca6fa50aba",
-            "characterId": "character_000000000000000000000000hy",
+            "characterId": "character_000000000000000000000000h8",
             "characterName": "Birdie Mae Holloway",
             "score": 0,
             "relevance": 1,
@@ -5933,7 +5933,7 @@
           {
             "assetId": "asset_000000000000000000000000jn",
             "hash": "7981639888cf4d33840d90e5293a50d192c0146e8e404cbf88a615d2fa08e08a",
-            "characterId": "character_000000000000000000000000jt",
+            "characterId": "character_000000000000000000000000kg",
             "characterName": "Kohaku",
             "score": 0,
             "relevance": 1,
@@ -5941,9 +5941,9 @@
             "caption": null
           },
           {
-            "assetId": "asset_000000000000000000000000m7",
+            "assetId": "asset_000000000000000000000000m8",
             "hash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75",
-            "characterId": "character_000000000000000000000000n4",
+            "characterId": "character_000000000000000000000000mc",
             "characterName": "Calamity, Doomblade of the Ninth Epoch",
             "score": 0,
             "relevance": 1,
@@ -5953,7 +5953,7 @@
           {
             "assetId": "asset_000000000000000000000000nx",
             "hash": "9b67380721584258ea541edbbea2a9ac8f05d94133ecfd9275f4ac27c9c0d66b",
-            "characterId": "character_000000000000000000000000pt",
+            "characterId": "character_000000000000000000000000p2",
             "characterName": "Elias Thorn",
             "score": 0,
             "relevance": 1,
@@ -5987,9 +5987,9 @@
         "over": "images",
         "hits": [
           {
-            "assetId": "asset_0000000000000000000000007p",
+            "assetId": "asset_0000000000000000000000007n",
             "hash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
-            "characterId": "character_0000000000000000000000007t",
+            "characterId": "character_0000000000000000000000008f",
             "characterName": "Charlotte",
             "score": 0,
             "relevance": 1,
@@ -5997,7 +5997,7 @@
             "caption": "An illustrated traveller stands beside an orbital loom."
           },
           {
-            "assetId": "asset_00000000000000000000000095",
+            "assetId": "asset_00000000000000000000000096",
             "hash": "a90d64fd073ac2a6b85238fcd54319c2ea31d640bfdd1b2cbde197508d16214a",
             "characterId": "character_000000000000000000000000a0",
             "characterName": "JFC",
@@ -6007,7 +6007,7 @@
             "caption": "An illustrated traveller stands beside an orbital loom."
           },
           {
-            "assetId": "asset_000000000000000000000000aq",
+            "assetId": "asset_000000000000000000000000ar",
             "hash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d",
             "characterId": "character_000000000000000000000000aw",
             "characterName": "Niko",
@@ -6017,9 +6017,9 @@
             "caption": "An illustrated traveller stands beside an orbital loom."
           },
           {
-            "assetId": "asset_000000000000000000000000c4",
+            "assetId": "asset_000000000000000000000000c5",
             "hash": "016ffe3a28c43408148cf11c829bb146a85d7a42e83888ee7f1234a6b4f92f49",
-            "characterId": "character_000000000000000000000000ca",
+            "characterId": "character_000000000000000000000000d0",
             "characterName": "Hana Mizushima",
             "score": 0,
             "relevance": 1,
@@ -6027,7 +6027,7 @@
             "caption": "An illustrated traveller stands beside an orbital loom."
           },
           {
-            "assetId": "asset_000000000000000000000000dq",
+            "assetId": "asset_000000000000000000000000dr",
             "hash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6",
             "characterId": "character_000000000000000000000000dw",
             "characterName": "Morgatha, the Undying Dark",
@@ -6037,7 +6037,7 @@
             "caption": "An illustrated traveller stands beside an orbital loom."
           },
           {
-            "assetId": "asset_000000000000000000000000fe",
+            "assetId": "asset_000000000000000000000000fd",
             "hash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6",
             "characterId": "character_000000000000000000000000ga",
             "characterName": "Sabine Veyra",
@@ -6049,7 +6049,7 @@
           {
             "assetId": "asset_000000000000000000000000h4",
             "hash": "d91d20234b6277fe0087c15343d1bac55b81f657e981dd996432c8ca6fa50aba",
-            "characterId": "character_000000000000000000000000hy",
+            "characterId": "character_000000000000000000000000h8",
             "characterName": "Birdie Mae Holloway",
             "score": 0,
             "relevance": 1,
@@ -6059,7 +6059,7 @@
           {
             "assetId": "asset_000000000000000000000000jn",
             "hash": "7981639888cf4d33840d90e5293a50d192c0146e8e404cbf88a615d2fa08e08a",
-            "characterId": "character_000000000000000000000000jt",
+            "characterId": "character_000000000000000000000000kg",
             "characterName": "Kohaku",
             "score": 0,
             "relevance": 1,
@@ -6067,9 +6067,9 @@
             "caption": "An illustrated traveller stands beside an orbital loom."
           },
           {
-            "assetId": "asset_000000000000000000000000m7",
+            "assetId": "asset_000000000000000000000000m8",
             "hash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75",
-            "characterId": "character_000000000000000000000000n4",
+            "characterId": "character_000000000000000000000000mc",
             "characterName": "Calamity, Doomblade of the Ninth Epoch",
             "score": 0,
             "relevance": 1,
@@ -6079,7 +6079,7 @@
           {
             "assetId": "asset_000000000000000000000000nx",
             "hash": "9b67380721584258ea541edbbea2a9ac8f05d94133ecfd9275f4ac27c9c0d66b",
-            "characterId": "character_000000000000000000000000pt",
+            "characterId": "character_000000000000000000000000p2",
             "characterName": "Elias Thorn",
             "score": 0,
             "relevance": 1,
@@ -6149,7 +6149,7 @@
       "suggest": [{ "suggestion": "orbital", "score": 1.7289233672999393 }],
       "similarRaw": [
         {
-          "characterId": "character_0000000000000000000000007t",
+          "characterId": "character_0000000000000000000000008f",
           "score": 0,
           "relevance": 1,
           "name": "Charlotte",
@@ -6173,7 +6173,7 @@
           "lens": "image-raw"
         },
         {
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "score": 0,
           "relevance": 1,
           "name": "Hana Mizushima",
@@ -6197,7 +6197,7 @@
           "lens": "image-raw"
         },
         {
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "score": 0,
           "relevance": 1,
           "name": "Birdie Mae Holloway",
@@ -6205,7 +6205,7 @@
           "lens": "image-raw"
         },
         {
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "score": 0,
           "relevance": 1,
           "name": "Kohaku",
@@ -6213,7 +6213,7 @@
           "lens": "image-raw"
         },
         {
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "score": 0,
           "relevance": 1,
           "name": "Calamity, Doomblade of the Ninth Epoch",
@@ -6221,7 +6221,7 @@
           "lens": "image-raw"
         },
         {
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "score": 0,
           "relevance": 1,
           "name": "Elias Thorn",
@@ -6239,7 +6239,7 @@
       ],
       "similarCaptioned": [
         {
-          "characterId": "character_0000000000000000000000007t",
+          "characterId": "character_0000000000000000000000008f",
           "score": 0,
           "relevance": 1,
           "name": "Charlotte",
@@ -6263,7 +6263,7 @@
           "lens": "image-captioned"
         },
         {
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "score": 0,
           "relevance": 1,
           "name": "Hana Mizushima",
@@ -6287,7 +6287,7 @@
           "lens": "image-captioned"
         },
         {
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "score": 0,
           "relevance": 1,
           "name": "Birdie Mae Holloway",
@@ -6295,7 +6295,7 @@
           "lens": "image-captioned"
         },
         {
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "score": 0,
           "relevance": 1,
           "name": "Kohaku",
@@ -6303,7 +6303,7 @@
           "lens": "image-captioned"
         },
         {
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "score": 0,
           "relevance": 1,
           "name": "Calamity, Doomblade of the Ninth Epoch",
@@ -6311,7 +6311,7 @@
           "lens": "image-captioned"
         },
         {
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "score": 0,
           "relevance": 1,
           "name": "Elias Thorn",
@@ -6401,7 +6401,7 @@
           "seeds": {
             "defaultPersonaId": "persona_000000000000000000000000zb",
             "currentPersonaId": "persona_000000000000000000000000zb",
-            "welcomeAssistantCharacterId": "character_0000000000000000000000007t",
+            "welcomeAssistantCharacterId": "character_0000000000000000000000008f",
             "defaultPresetId": "preset_000000000000000000000004jq",
             "summarizePreset": null
           },
@@ -6498,71 +6498,71 @@
             "backgroundAssetMime": "",
             "backgroundLibrary": [
               {
-                "entryId": "00000000-0000-4000-8000-000000000063",
+                "entryId": "00000000-0000-4000-8000-000000000068",
                 "assetId": "asset_0000000000000000000000000g",
                 "assetHash": "664bc22f5de644e2beebe4e1a1ed4a133700438b6990280a9e986020209579ff",
                 "mime": "image/jpeg",
                 "name": "Charlotte's study"
               },
               {
-                "entryId": "00000000-0000-4000-8000-00000000009c",
+                "entryId": "00000000-0000-4000-8000-0000000000a0",
                 "assetId": "asset_0000000000000000000000003e",
                 "assetHash": "c664d92d99ce15bf9d8d2ae538a4ef626ef9121c85475191b295f394fa2f1b3b",
                 "mime": "image/jpeg",
                 "name": "The dark office"
               },
               {
-                "entryId": "00000000-0000-4000-8000-0000000000ab",
-                "assetId": "asset_00000000000000000000000051",
+                "entryId": "00000000-0000-4000-8000-0000000000a6",
+                "assetId": "asset_00000000000000000000000052",
                 "assetHash": "dd2d9a620d8edef070c21d0fa6bb65c0c4a4ecd3e9282c2b36ff97e5558cbe60",
                 "mime": "image/jpeg",
                 "name": "Konbini at 1 a.m."
               },
               {
-                "entryId": "00000000-0000-4000-8000-0000000000b5",
-                "assetId": "asset_0000000000000000000000005c",
+                "entryId": "00000000-0000-4000-8000-0000000000b0",
+                "assetId": "asset_00000000000000000000000057",
                 "assetHash": "b8b621fe027d0f0b2b3bf77f4694ca5cb13c20f5d15c9453daa0a98e3624b4a8",
                 "mime": "image/jpeg",
                 "name": "City park, midnight"
               },
               {
-                "entryId": "00000000-0000-4000-8000-0000000000bf",
-                "assetId": "asset_0000000000000000000000005p",
+                "entryId": "00000000-0000-4000-8000-0000000000ba",
+                "assetId": "asset_0000000000000000000000005h",
                 "assetHash": "e1c2de1874fec210541de9e4b6f0c7bd3a882a1c1c82a7c9113c861c75c8198b",
                 "mime": "image/jpeg",
                 "name": "The Ashen Spire"
               },
               {
-                "entryId": "00000000-0000-4000-8000-0000000000c9",
-                "assetId": "asset_00000000000000000000000060",
+                "entryId": "00000000-0000-4000-8000-0000000000c4",
+                "assetId": "asset_0000000000000000000000005v",
                 "assetHash": "60da470266cb859582c73364e937d354a8a6ebfcf643b631cb0614677ac81b7e",
                 "mime": "image/jpeg",
                 "name": "Road-town tavern"
               },
               {
-                "entryId": "00000000-0000-4000-8000-0000000000d3",
-                "assetId": "asset_0000000000000000000000006a",
+                "entryId": "00000000-0000-4000-8000-0000000000ce",
+                "assetId": "asset_00000000000000000000000065",
                 "assetHash": "ea26f236b800d2ab2a26a5efbb26aff28123e1971af2165a30d740a7ac07088b",
                 "mime": "image/jpeg",
                 "name": "Hobby & Repair"
               },
               {
-                "entryId": "00000000-0000-4000-8000-0000000000dd",
-                "assetId": "asset_0000000000000000000000006m",
+                "entryId": "00000000-0000-4000-8000-0000000000d8",
+                "assetId": "asset_0000000000000000000000006f",
                 "assetHash": "7706c2ad41d77edbf68149cc6f2214c7bd5852d063e1a81310874203feca3444",
                 "mime": "image/jpeg",
                 "name": "Lamplit apartment"
               },
               {
-                "entryId": "00000000-0000-4000-8000-0000000000e7",
-                "assetId": "asset_0000000000000000000000006y",
+                "entryId": "00000000-0000-4000-8000-0000000000e2",
+                "assetId": "asset_0000000000000000000000006s",
                 "assetHash": "5a7b1dfa064ce07e685e317adbc39f5b3429f1b4a0d29193bdd005e7cf02f1a5",
                 "mime": "image/jpeg",
                 "name": "The good windowsill"
               },
               {
-                "entryId": "00000000-0000-4000-8000-0000000000f2",
-                "assetId": "asset_00000000000000000000000078",
+                "entryId": "00000000-0000-4000-8000-0000000000ec",
+                "assetId": "asset_00000000000000000000000073",
                 "assetHash": "c64d3f76f84f04ff9532ed0239e31928b4b4f01553195d2ebc67a07447988bfc",
                 "mime": "image/jpeg",
                 "name": "Gullwrack lamp room"
@@ -6870,7 +6870,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_0000000000000000000000007t",
+            "id": "character_0000000000000000000000008f",
             "handle": "charlotte",
             "name": "Charlotte",
             "starred": false,
@@ -6898,7 +6898,7 @@
               "mime": "image/jpeg",
               "provenanceUrl": ""
             },
-            "avatarAssetId": "asset_0000000000000000000000007p",
+            "avatarAssetId": "asset_0000000000000000000000007n",
             "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
             "createdAt": 1750000000000,
             "tags": [
@@ -7208,7 +7208,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000000n4",
+            "id": "character_000000000000000000000000mc",
             "handle": "calamity",
             "name": "Calamity, Doomblade of the Ninth Epoch",
             "starred": false,
@@ -7231,12 +7231,12 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_0000000000000000000000006y",
+              "assetId": "asset_0000000000000000000000006s",
               "assetHash": "5a7b1dfa064ce07e685e317adbc39f5b3429f1b4a0d29193bdd005e7cf02f1a5",
               "mime": "image/jpeg",
               "provenanceUrl": ""
             },
-            "avatarAssetId": "asset_000000000000000000000000m7",
+            "avatarAssetId": "asset_000000000000000000000000m8",
             "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75",
             "createdAt": 1750000000000,
             "tags": [],
@@ -7272,12 +7272,12 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_00000000000000000000000060",
+              "assetId": "asset_0000000000000000000000005v",
               "assetHash": "60da470266cb859582c73364e937d354a8a6ebfcf643b631cb0614677ac81b7e",
               "mime": "image/jpeg",
               "provenanceUrl": ""
             },
-            "avatarAssetId": "asset_000000000000000000000000fe",
+            "avatarAssetId": "asset_000000000000000000000000fd",
             "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6",
             "createdAt": 1750000000000,
             "tags": [],
@@ -7313,12 +7313,12 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_0000000000000000000000005p",
+              "assetId": "asset_0000000000000000000000005h",
               "assetHash": "e1c2de1874fec210541de9e4b6f0c7bd3a882a1c1c82a7c9113c861c75c8198b",
               "mime": "image/jpeg",
               "provenanceUrl": ""
             },
-            "avatarAssetId": "asset_000000000000000000000000dq",
+            "avatarAssetId": "asset_000000000000000000000000dr",
             "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6",
             "createdAt": 1750000000000,
             "tags": [],
@@ -7529,7 +7529,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000000pt",
+            "id": "character_000000000000000000000000p2",
             "handle": "elias",
             "name": "Elias Thorn",
             "starred": false,
@@ -7552,7 +7552,7 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_00000000000000000000000078",
+              "assetId": "asset_00000000000000000000000073",
               "assetHash": "c64d3f76f84f04ff9532ed0239e31928b4b4f01553195d2ebc67a07447988bfc",
               "mime": "image/jpeg",
               "provenanceUrl": ""
@@ -7570,7 +7570,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000000jt",
+            "id": "character_000000000000000000000000kg",
             "handle": "kohaku",
             "name": "Kohaku",
             "starred": false,
@@ -7593,7 +7593,7 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_0000000000000000000000006m",
+              "assetId": "asset_0000000000000000000000006f",
               "assetHash": "7706c2ad41d77edbf68149cc6f2214c7bd5852d063e1a81310874203feca3444",
               "mime": "image/jpeg",
               "provenanceUrl": ""
@@ -7611,7 +7611,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000000hy",
+            "id": "character_000000000000000000000000h8",
             "handle": "birdie",
             "name": "Birdie Mae Holloway",
             "starred": false,
@@ -7634,7 +7634,7 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_0000000000000000000000006a",
+              "assetId": "asset_00000000000000000000000065",
               "assetHash": "ea26f236b800d2ab2a26a5efbb26aff28123e1971af2165a30d740a7ac07088b",
               "mime": "image/jpeg",
               "provenanceUrl": ""
@@ -7652,7 +7652,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000000ca",
+            "id": "character_000000000000000000000000d0",
             "handle": "hana",
             "name": "Hana Mizushima",
             "starred": false,
@@ -7675,12 +7675,12 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_0000000000000000000000005c",
+              "assetId": "asset_00000000000000000000000057",
               "assetHash": "b8b621fe027d0f0b2b3bf77f4694ca5cb13c20f5d15c9453daa0a98e3624b4a8",
               "mime": "image/jpeg",
               "provenanceUrl": ""
             },
-            "avatarAssetId": "asset_000000000000000000000000c4",
+            "avatarAssetId": "asset_000000000000000000000000c5",
             "avatarHash": "016ffe3a28c43408148cf11c829bb146a85d7a42e83888ee7f1234a6b4f92f49",
             "createdAt": 1750000000000,
             "tags": [],
@@ -7716,12 +7716,12 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_00000000000000000000000051",
+              "assetId": "asset_00000000000000000000000052",
               "assetHash": "dd2d9a620d8edef070c21d0fa6bb65c0c4a4ecd3e9282c2b36ff97e5558cbe60",
               "mime": "image/jpeg",
               "provenanceUrl": ""
             },
-            "avatarAssetId": "asset_000000000000000000000000aq",
+            "avatarAssetId": "asset_000000000000000000000000ar",
             "avatarHash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d",
             "createdAt": 1750000000000,
             "tags": [],
@@ -7762,7 +7762,7 @@
               "mime": "image/jpeg",
               "provenanceUrl": ""
             },
-            "avatarAssetId": "asset_00000000000000000000000095",
+            "avatarAssetId": "asset_00000000000000000000000096",
             "avatarHash": "a90d64fd073ac2a6b85238fcd54319c2ea31d640bfdd1b2cbde197508d16214a",
             "createdAt": 1750000000000,
             "tags": [],
@@ -7899,7 +7899,7 @@
             "participantNames": ["Charlotte"],
             "participantPortraits": [
               {
-                "characterId": "character_0000000000000000000000007t",
+                "characterId": "character_0000000000000000000000008f",
                 "name": "Charlotte",
                 "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa"
               }
@@ -8270,7 +8270,7 @@
                 "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
               },
               {
-                "characterId": "character_000000000000000000000000n4",
+                "characterId": "character_000000000000000000000000mc",
                 "name": "Calamity, Doomblade of the Ninth Epoch",
                 "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75"
               },
@@ -8298,7 +8298,7 @@
             "participantNames": ["Charlotte"],
             "participantPortraits": [
               {
-                "characterId": "character_0000000000000000000000007t",
+                "characterId": "character_0000000000000000000000008f",
                 "name": "Charlotte",
                 "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa"
               }
@@ -8370,7 +8370,7 @@
             "chatId": "chat_000000000000000000000000s6",
             "kind": "character",
             "userId": null,
-            "characterId": "character_0000000000000000000000007t",
+            "characterId": "character_0000000000000000000000008f",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -8381,7 +8381,7 @@
             "joinHistoryVisibility": "full",
             "displayName": "Charlotte",
             "handle": null,
-            "avatarAssetId": "asset_0000000000000000000000007p",
+            "avatarAssetId": "asset_0000000000000000000000007n",
             "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
             "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
             "themeOverride": {
@@ -8410,8 +8410,8 @@
         "viewerActivePersonaId": null,
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000002",
-        "viewerOwnedCharacterIds": ["character_0000000000000000000000007t"],
-        "viewerGalleryCharacterId": "character_0000000000000000000000007t",
+        "viewerOwnedCharacterIds": ["character_0000000000000000000000008f"],
+        "viewerGalleryCharacterId": "character_0000000000000000000000008f",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -8443,7 +8443,7 @@
         "identities": [
           {
             "kind": "character",
-            "id": "character_0000000000000000000000007t",
+            "id": "character_0000000000000000000000008f",
             "name": "Charlotte",
             "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa"
           }
@@ -8498,7 +8498,7 @@
             "joinHistoryVisibility": "full",
             "displayName": "Sabine Veyra",
             "handle": null,
-            "avatarAssetId": "asset_000000000000000000000000fe",
+            "avatarAssetId": "asset_000000000000000000000000fd",
             "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6",
             "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
             "themeOverride": {
@@ -8517,7 +8517,7 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_00000000000000000000000060",
+              "assetId": "asset_0000000000000000000000005v",
               "assetHash": "60da470266cb859582c73364e937d354a8a6ebfcf643b631cb0614677ac81b7e",
               "mime": "image/jpeg",
               "provenanceUrl": ""
@@ -8528,7 +8528,7 @@
             "chatId": "chat_000000000000000000000000tb",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000000n4",
+            "characterId": "character_000000000000000000000000mc",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -8539,7 +8539,7 @@
             "joinHistoryVisibility": "full",
             "displayName": "Calamity, Doomblade of the Ninth Epoch",
             "handle": null,
-            "avatarAssetId": "asset_000000000000000000000000m7",
+            "avatarAssetId": "asset_000000000000000000000000m8",
             "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75",
             "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
             "themeOverride": {
@@ -8558,7 +8558,7 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_0000000000000000000000006y",
+              "assetId": "asset_0000000000000000000000006s",
               "assetHash": "5a7b1dfa064ce07e685e317adbc39f5b3429f1b4a0d29193bdd005e7cf02f1a5",
               "mime": "image/jpeg",
               "provenanceUrl": ""
@@ -8580,7 +8580,7 @@
             "joinHistoryVisibility": "full",
             "displayName": "Morgatha, the Undying Dark",
             "handle": null,
-            "avatarAssetId": "asset_000000000000000000000000dq",
+            "avatarAssetId": "asset_000000000000000000000000dr",
             "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6",
             "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
             "themeOverride": {
@@ -8599,7 +8599,7 @@
             "backgroundOverride": {
               "kind": "asset",
               "externalUrl": "",
-              "assetId": "asset_0000000000000000000000005p",
+              "assetId": "asset_0000000000000000000000005h",
               "assetHash": "e1c2de1874fec210541de9e4b6f0c7bd3a882a1c1c82a7c9113c861c75c8198b",
               "mime": "image/jpeg",
               "provenanceUrl": ""
@@ -8631,7 +8631,7 @@
         "viewerActivePersonaId": null,
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000002",
-        "viewerOwnedCharacterIds": ["character_000000000000000000000000ga", "character_000000000000000000000000n4", "character_000000000000000000000000dw"],
+        "viewerOwnedCharacterIds": ["character_000000000000000000000000ga", "character_000000000000000000000000mc", "character_000000000000000000000000dw"],
         "viewerGalleryCharacterId": "character_000000000000000000000000ga",
         "pendingHostUserId": null,
         "group": {
@@ -8676,7 +8676,7 @@
           },
           {
             "kind": "character",
-            "id": "character_000000000000000000000000n4",
+            "id": "character_000000000000000000000000mc",
             "name": "Calamity, Doomblade of the Ninth Epoch",
             "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75"
           }
@@ -8811,7 +8811,7 @@
           "characterName": "The ledger archivist"
         },
         {
-          "id": "tag_000000000000000000000000j9",
+          "id": "tag_000000000000000000000000hk",
           "name": "americana",
           "color": null,
           "color2": null,
@@ -8819,11 +8819,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "characterName": "Birdie Mae Holloway"
         },
         {
-          "id": "tag_0000000000000000000000007z",
+          "id": "tag_0000000000000000000000008m",
           "name": "assistant",
           "color": null,
           "color2": null,
@@ -8831,7 +8831,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000007t",
+          "characterId": "character_0000000000000000000000008f",
           "characterName": "Charlotte"
         },
         {
@@ -8891,7 +8891,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "characterName": "Hana Mizushima"
         },
         {
@@ -8915,7 +8915,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "characterName": "Kohaku"
         },
         {
@@ -8927,11 +8927,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "characterName": "Calamity, Doomblade of the Ninth Epoch"
         },
         {
-          "id": "tag_000000000000000000000000j5",
+          "id": "tag_000000000000000000000000hf",
           "name": "cozy",
           "color": null,
           "color2": null,
@@ -8939,11 +8939,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "characterName": "Birdie Mae Holloway"
         },
         {
-          "id": "tag_00000000000000000000000081",
+          "id": "tag_0000000000000000000000008p",
           "name": "default",
           "color": null,
           "color2": null,
@@ -8951,7 +8951,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000007t",
+          "characterId": "character_0000000000000000000000008f",
           "characterName": "Charlotte"
         },
         {
@@ -8999,11 +8999,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "characterName": "Calamity, Doomblade of the Ninth Epoch"
         },
         {
-          "id": "tag_000000000000000000000000q7",
+          "id": "tag_000000000000000000000000pf",
           "name": "ghost",
           "color": null,
           "color2": null,
@@ -9011,7 +9011,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "characterName": "Elias Thorn"
         },
         {
@@ -9035,11 +9035,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "characterName": "Elias Thorn"
         },
         {
-          "id": "tag_000000000000000000000000k5",
+          "id": "tag_000000000000000000000000kv",
           "name": "gremlin",
           "color": null,
           "color2": null,
@@ -9047,11 +9047,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "characterName": "Kohaku"
         },
         {
-          "id": "tag_000000000000000000000000q1",
+          "id": "tag_000000000000000000000000p9",
           "name": "literary",
           "color": null,
           "color2": null,
@@ -9059,7 +9059,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "characterName": "Elias Thorn"
         },
         {
@@ -9071,7 +9071,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000007t",
+          "characterId": "character_0000000000000000000000008f",
           "characterName": "Charlotte"
         },
         {
@@ -9107,7 +9107,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "characterName": "Hana Mizushima"
         },
         {
@@ -9143,7 +9143,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "characterName": "Birdie Mae Holloway"
         },
         {
@@ -9155,7 +9155,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "characterName": "Kohaku"
         },
         {
@@ -9167,7 +9167,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "characterName": "Calamity, Doomblade of the Ninth Epoch"
         },
         {
@@ -9179,7 +9179,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "characterName": "Elias Thorn"
         },
         {
@@ -9459,7 +9459,7 @@
           "characterName": "Search co-star second"
         },
         {
-          "id": "tag_000000000000000000000000q3",
+          "id": "tag_000000000000000000000000pb",
           "name": "melancholy",
           "color": null,
           "color2": null,
@@ -9467,7 +9467,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "characterName": "Elias Thorn"
         },
         {
@@ -9491,7 +9491,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000007t",
+          "characterId": "character_0000000000000000000000008f",
           "characterName": "Charlotte"
         },
         {
@@ -9527,7 +9527,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "characterName": "Hana Mizushima"
         },
         {
@@ -9563,7 +9563,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "characterName": "Birdie Mae Holloway"
         },
         {
@@ -9575,7 +9575,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "characterName": "Kohaku"
         },
         {
@@ -9587,7 +9587,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "characterName": "Calamity, Doomblade of the Ninth Epoch"
         },
         {
@@ -9599,7 +9599,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "characterName": "Elias Thorn"
         },
         {
@@ -9879,7 +9879,7 @@
           "characterName": "Search co-star second"
         },
         {
-          "id": "tag_000000000000000000000000cn",
+          "id": "tag_000000000000000000000000db",
           "name": "rpg-ready",
           "color": null,
           "color2": null,
@@ -9887,11 +9887,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "characterName": "Hana Mizushima"
         },
         {
-          "id": "tag_000000000000000000000000cn",
+          "id": "tag_000000000000000000000000db",
           "name": "rpg-ready",
           "color": null,
           "color2": null,
@@ -9903,7 +9903,7 @@
           "characterName": "Morgatha, the Undying Dark"
         },
         {
-          "id": "tag_000000000000000000000000cn",
+          "id": "tag_000000000000000000000000db",
           "name": "rpg-ready",
           "color": null,
           "color2": null,
@@ -9915,7 +9915,7 @@
           "characterName": "Sabine Veyra"
         },
         {
-          "id": "tag_000000000000000000000000cn",
+          "id": "tag_000000000000000000000000db",
           "name": "rpg-ready",
           "color": null,
           "color2": null,
@@ -9923,11 +9923,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "characterName": "Calamity, Doomblade of the Ninth Epoch"
         },
         {
-          "id": "tag_000000000000000000000000nf",
+          "id": "tag_000000000000000000000000mq",
           "name": "sentient-object",
           "color": null,
           "color2": null,
@@ -9935,7 +9935,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "characterName": "Calamity, Doomblade of the Ninth Epoch"
         },
         {
@@ -9959,7 +9959,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "characterName": "Birdie Mae Holloway"
         },
         {
@@ -9971,11 +9971,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "characterName": "Kohaku"
         },
         {
-          "id": "tag_000000000000000000000000ck",
+          "id": "tag_000000000000000000000000d9",
           "name": "superhero",
           "color": null,
           "color2": null,
@@ -9983,11 +9983,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "characterName": "Hana Mizushima"
         },
         {
-          "id": "tag_000000000000000000000000k1",
+          "id": "tag_000000000000000000000000kq",
           "name": "supernatural",
           "color": null,
           "color2": null,
@@ -9995,7 +9995,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "characterName": "Kohaku"
         },
         {
@@ -10007,7 +10007,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000007t",
+          "characterId": "character_0000000000000000000000008f",
           "characterName": "Charlotte"
         },
         {
@@ -10043,7 +10043,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "characterName": "Hana Mizushima"
         },
         {
@@ -10079,7 +10079,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "characterName": "Birdie Mae Holloway"
         },
         {
@@ -10091,7 +10091,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000jt",
+          "characterId": "character_000000000000000000000000kg",
           "characterName": "Kohaku"
         },
         {
@@ -10103,7 +10103,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "characterName": "Calamity, Doomblade of the Ninth Epoch"
         },
         {
@@ -10115,7 +10115,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "characterName": "Elias Thorn"
         },
         {
@@ -10407,7 +10407,7 @@
           "characterName": "Sabine Veyra"
         },
         {
-          "id": "tag_000000000000000000000000ch",
+          "id": "tag_000000000000000000000000d7",
           "name": "urban-fantasy",
           "color": null,
           "color2": null,
@@ -10415,11 +10415,11 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000ca",
+          "characterId": "character_000000000000000000000000d0",
           "characterName": "Hana Mizushima"
         },
         {
-          "id": "tag_00000000000000000000000083",
+          "id": "tag_0000000000000000000000008r",
           "name": "utility",
           "color": null,
           "color2": null,
@@ -10427,7 +10427,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000007t",
+          "characterId": "character_0000000000000000000000008f",
           "characterName": "Charlotte"
         },
         {
@@ -10443,7 +10443,7 @@
           "characterName": "Morgatha, the Undying Dark"
         },
         {
-          "id": "tag_000000000000000000000000nb",
+          "id": "tag_000000000000000000000000mk",
           "name": "weird",
           "color": null,
           "color2": null,
@@ -10451,7 +10451,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000n4",
+          "characterId": "character_000000000000000000000000mc",
           "characterName": "Calamity, Doomblade of the Ninth Epoch"
         },
         {
@@ -10475,7 +10475,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000hy",
+          "characterId": "character_000000000000000000000000h8",
           "characterName": "Birdie Mae Holloway"
         },
         {
@@ -10487,7 +10487,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000000pt",
+          "characterId": "character_000000000000000000000000p2",
           "characterName": "Elias Thorn"
         },
         {
@@ -10824,7 +10824,7 @@
             "lastActivityAt": 1750000006000
           },
           {
-            "characterId": "character_0000000000000000000000007t",
+            "characterId": "character_0000000000000000000000008f",
             "name": "Charlotte",
             "chats": 2,
             "userTurns": 0,
@@ -10866,7 +10866,7 @@
             "lastActivityAt": 1750000000000
           },
           {
-            "characterId": "character_000000000000000000000000n4",
+            "characterId": "character_000000000000000000000000mc",
             "name": "Calamity, Doomblade of the Ninth Epoch",
             "chats": 1,
             "userTurns": 0,
@@ -11180,10 +11180,10 @@
     "stats.freshness": [{ "computedAt": 1750003803001, "stale": false, "hasData": true }],
     "stats.momentum": [
       [
-        { "characterId": "character_0000000000000000000000007t", "name": "Charlotte", "bucketStart": 1749999600000, "replies": 2 },
+        { "characterId": "character_0000000000000000000000008f", "name": "Charlotte", "bucketStart": 1749999600000, "replies": 2 },
         { "characterId": "character_000000000000000000000000dw", "name": "Morgatha, the Undying Dark", "bucketStart": 1749999600000, "replies": 2 },
         { "characterId": "character_000000000000000000000000ga", "name": "Sabine Veyra", "bucketStart": 1749999600000, "replies": 2 },
-        { "characterId": "character_000000000000000000000000n4", "name": "Calamity, Doomblade of the Ninth Epoch", "bucketStart": 1749999600000, "replies": 2 },
+        { "characterId": "character_000000000000000000000000mc", "name": "Calamity, Doomblade of the Ninth Epoch", "bucketStart": 1749999600000, "replies": 2 },
         { "characterId": "character_0000000000000000000000011a", "name": "Funding control", "bucketStart": 1749999600000, "replies": 6 },
         { "characterId": "character_000000000000000000000001wa", "name": "Group", "bucketStart": 1749999600000, "replies": 1 },
         { "characterId": "character_000000000000000000000001x5", "name": "Corpus provider traveller", "bucketStart": 1750003200000, "replies": 1 },
