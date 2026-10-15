@@ -608,14 +608,7 @@
                       "kind": "objectLiteralProperty"
                     },
                     "match": "[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty"
-                    },
-                    "match": "[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
+                    "formats": ["camelCase", "PascalCase"]
                   },
                   {
                     "selector": {
@@ -1758,14 +1751,14 @@
                       "kind": "objectLiteralProperty"
                     },
                     "match": "[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
+                    "formats": ["camelCase", "PascalCase"]
                   },
                   {
                     "selector": {
                       "kind": "typeProperty"
                     },
                     "match": "[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
+                    "formats": ["camelCase", "PascalCase"]
                   },
                   {
                     "selector": {
