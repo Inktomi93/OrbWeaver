@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -1391,6 +1391,105 @@ test("readonly native undefined results consume bounded entries and saturation r
   }
 });
 
+test("readonly native results retain repeated physical-path strings once without losing later small answers", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const file = join(process.cwd(), "packages/server/src/domain/chat/engine/engine.ts");
+  project.createSourceFile(
+    file,
+    Array.from({ length: 1800 }, (_, index) => `export const value${index}=1; export const use${index}=value${index};`).join("\n"),
+  );
+  const service = project.getLanguageService().compilerObject;
+  const source = fixtureValue(service.getProgram()?.getSourceFile(file));
+  const positions = source.statements.flatMap((statement) =>
+    ts.isVariableStatement(statement)
+      ? statement.declarationList.declarations
+          .filter((declaration) => ts.isIdentifier(declaration.name) && declaration.name.text.startsWith("value"))
+          .map((declaration) => declaration.name.getStart(source))
+      : [],
+  );
+  const options = { includeDefinitionDisplay: false };
+  const expected = positions.map((position) => service.findReferences(file, position, options));
+  const pass = service.createReadonlyReferencePass();
+  const traversal = vi.spyOn(source, "getChildren");
+  try {
+    for (const [index, position] of positions.entries()) {
+      expect(pass.findReferences(file, position, options)).toStrictEqual(expected[index]);
+    }
+    traversal.mockClear();
+    expect(pass.findReferences(file, fixtureValue(positions.at(-1)), options)).toStrictEqual(expected.at(-1));
+    expect(traversal.mock.calls.length).toBe(0);
+  } finally {
+    traversal.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test("readonly native string ownership detaches admissions and only copies mutable containers on hits", () => {
+  const { service } = nativeReferenceFixture();
+  const source = fixtureValue(service.getProgram()?.getSourceFile("/base.ts"));
+  const position = source.text.indexOf("first");
+  const pass = service.createReadonlyReferencePass();
+  const copy = vi.spyOn(globalThis, "structuredClone");
+  try {
+    const miss = pass.findReferences(source.fileName, position);
+    const detachments = copy.mock.calls.length;
+    expect(detachments).toBeGreaterThan(0);
+    expect(copy.mock.calls.every(([value]) => typeof value === "string")).toBe(true);
+    expect(new Set(copy.mock.calls.map(([value]) => value)).size).toBe(detachments);
+    const hit = pass.findReferences(source.fileName, position);
+    expect(hit).toStrictEqual(miss);
+    expect(hit).not.toBe(miss);
+    expect(copy.mock.calls.length).toBe(detachments);
+  } finally {
+    copy.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test("readonly native string admission is atomic and distinct strings still exhaust the unchanged allowance", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const files = ["a", "b"].map((letter) => `/${letter.repeat(600_000)}.ts`);
+  for (const file of files) {
+    project.createSourceFile(file, "export const value=1; export const use=value;");
+  }
+  const service = project.getLanguageService().compilerObject;
+  const first = fixtureValue(service.getProgram()?.getSourceFile(fixtureValue(files[0])));
+  const second = fixtureValue(service.getProgram()?.getSourceFile(fixtureValue(files[1])));
+  const position = first.text.indexOf("value");
+  const options = { includeDefinitionDisplay: false };
+  const expected = contentVersion(JSON.stringify(fixtureValue(service.findReferences(second.fileName, position, options))));
+  const pass = service.createReadonlyReferencePass();
+  const secondTraversal = vi.spyOn(second, "getChildren");
+  const firstTraversal = vi.spyOn(first, "getChildren");
+  const failure = new Error("private native clone failed");
+  const copy = vi.spyOn(globalThis, "structuredClone").mockImplementationOnce(() => {
+    throw failure;
+  });
+  try {
+    expect(() => pass.findReferences(first.fileName, position, options)).toThrow(failure);
+    expect(contentVersion(JSON.stringify(fixtureValue(pass.findReferences(second.fileName, position, options))))).toBe(expected);
+    const completedDetachments = copy.mock.calls.length;
+    expect(completedDetachments).toBeGreaterThan(1);
+    secondTraversal.mockClear();
+    expect(contentVersion(JSON.stringify(fixtureValue(pass.findReferences(second.fileName, position, options))))).toBe(expected);
+    expect(secondTraversal.mock.calls.length).toBe(0);
+    firstTraversal.mockClear();
+    expect(pass.findReferences(first.fileName, position, options)?.length).toBe(1);
+    firstTraversal.mockClear();
+    expect(pass.findReferences(first.fileName, position, options)?.length).toBe(1);
+    expect(firstTraversal.mock.calls.length).toBeGreaterThan(0);
+    expect(copy.mock.calls.length).toBe(completedDetachments);
+  } finally {
+    copy.mockRestore();
+    firstTraversal.mockRestore();
+    secondTraversal.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
 test("readonly native result admission bounds the aggregate of individually small answers", () => {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
   project.createSourceFile("/a.ts", `export interface T{${Array.from({ length: 4095 }, (_, index) => `p${index}:number;`).join("")}}`);
@@ -1425,7 +1524,7 @@ test.for(["objects", "strings"] as const)("readonly native result %s saturation 
   project.createSourceFile("/base.ts", "export const value=1;");
   const files = dimension === "objects" ? 180 : 1;
   for (let index = 0; index < files; index++) {
-    const name = dimension === "strings" ? "x".repeat(4096) : `consumer${index}`;
+    const name = dimension === "strings" ? "x".repeat(1_048_577) : `consumer${index}`;
     project.createSourceFile(
       `/${name}.ts`,
       `import {value} from './base'; export const uses=[${Array.from({ length: dimension === "objects" ? 100 : 300 }, () => "value").join(",")}];`,
@@ -2195,8 +2294,11 @@ test("native lexical lists use source object identity and never retain an unadmi
 
 test("full-cap native lexical lists preserve all fallback dimensions and release combined retention", { timeout: 125_000 }, async ({ scratch }) => {
   const child = fileURLToPath(new URL("../../../support/node/native-lexical-memo-child.mjs", import.meta.url));
-  const output = join(scratch, "native-lexical-memo.json");
+  const output = join(process.cwd(), "reports", "review", `native-lexical-memo-${basename(scratch)}.json`);
+  mkdirSync(dirname(output), { recursive: true });
   const result = await spawnNiced(process.execPath, ["--expose-gc", child, output], { timeoutMs: 120_000 });
+  writeFileSync(`${output}.stdout.log`, result.stdout);
+  writeFileSync(`${output}.stderr.log`, result.stderr);
   console.log(result.stdout);
   expect(result.code, result.stderr).toBe(0);
   expect(result.timedOut).toBe(false);
