@@ -174,7 +174,22 @@ export interface CallReturnAlternative {
   readonly explicitReturns?: ReferenceFact<readonly Node[]>;
 }
 
+/** Mutable capture owners expose their read-only proof inputs without hiding admission in a predicate. */
+export interface CallReturnProofContext {
+  readonly admitted: ReadonlySet<ts.CallExpression>;
+  readonly activeOwners: ReadonlySet<ts.Node>;
+  readonly referenceRevision: number;
+  readonly demandRevision: number;
+  readonly directRevision: number;
+  readonly settledDemandRevision: number;
+  readonly refining: boolean;
+}
+
+/** Opaque predicates retain ordinary invocation semantics; structured memberships are owned native inputs. */
+export type CallableAdmission = ((call: CallExpression) => boolean) | { readonly captured: CallReturnProgram } | { readonly admitted: CallReturnProofContext };
+
 export interface CallReturnProgram {
+  readonly callableContext?: CallReturnProofContext;
   readonly nativeStatementReachable?: (node: Node) => ReferenceFact<true>;
   readonly nativeSymbolServices?: {
     readonly callableOrigin: typeof import("./reference-fact-call.ts").resolveCallableValueOrigin;

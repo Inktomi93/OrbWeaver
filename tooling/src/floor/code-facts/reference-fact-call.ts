@@ -340,12 +340,12 @@ export function resolveCallableAlternatives(
   if (single.kind === "resolved" && !optional) {
     return { ...single, value: [single.value] };
   }
-  const authored = readAuthoredCallableSources(
-    callee,
-    admitted === undefined ? undefined : (call): boolean => admitted.has(call.compilerNode),
-    observations,
-    optionalInvocation,
-  );
+  const context = captured?.kind === "resolved" ? captured.value.callableContext : undefined;
+  let admission: import("./reference-fact-contract.ts").CallableAdmission | undefined;
+  if (admitted !== undefined) {
+    admission = context?.admitted === admitted ? { admitted: context } : (call): boolean => admitted.has(call.compilerNode);
+  }
+  const authored = readAuthoredCallableSources(callee, admission, observations, optionalInvocation);
   if (authored.kind === "unresolved") {
     return authored;
   }

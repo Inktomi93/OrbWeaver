@@ -1,14 +1,16 @@
 // Value carriers and lexical reference uses; consumers judge whether an observed use is permitted.
 import type { CallExpression, Identifier, Node, ObjectLiteralExpression, ts } from "ts-morph";
 import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { readonlyObjectProperties } from "../compiler/ts-workspace.ts";
+import { nativeReferenceNodes, readonlyObjectProperties } from "../compiler/ts-workspace.ts";
 import { readCallBindings, readCallReturnProgram, readObservedCallableConsumers, readSuppliedParameter, runtimeUndefinedValue } from "./call-supplied.ts";
 import { isDocumentationLinkReference, readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
 import type {
+  CallableAdmission,
   CallReturnAlternative,
   CallReturnObservations,
   CallReturnProgram,
+  CallReturnProofContext,
   NativeValueTransferServices,
   ReferenceFact,
   ReturnedValueContext,
@@ -694,9 +696,302 @@ interface CallableUseProof {
   readonly bindings: ReadonlyMap<Node, Node>;
   readonly path: readonly string[];
   readonly program: CallReturnProgram | undefined;
-  readonly admits: ((call: CallExpression) => boolean) | undefined;
+  readonly admits: CallableAdmission | undefined;
   readonly active: ReadonlySet<ts.Node>;
-  readonly refuse: (refusal: UnresolvedReferenceFact) => false;
+  readonly state: CallableUseState;
+}
+
+const MAX_CALLABLE_COMPLETIONS = 2048;
+const CALLABLE_COMPLETION_FIELDS = 16;
+// A binding retains its own pair and two wrapper/native identity pairs.
+const CALLABLE_BINDING_PARTS = 6;
+const MAX_CALLABLE_COMPLETION_PARTS = 65_536;
+const MAX_CALLABLE_COMPLETION_UNITS = 262_144;
+
+interface CallableUseState {
+  refusal: UnresolvedReferenceFact | undefined;
+  readonly sharing: CallableUseSharing | undefined;
+}
+
+interface CallableUseEpoch extends Pick<CallReturnProgram, "calls" | "byCall" | "callers" | "escapingReferences"> {
+  readonly callCount: number;
+  readonly sourceCount: number;
+  readonly admittedCount: number;
+  readonly referenceRevision: number;
+  readonly demandRevision: number;
+  readonly directRevision: number;
+  readonly settledDemandRevision: number;
+  readonly membership: CallReturnProgram["byCall"] | CallReturnProofContext["admitted"] | undefined;
+}
+
+interface CallableUseCompletion {
+  readonly bindings: ReadonlyMap<Node, Node>;
+  readonly nodes: ReadonlyMap<Node, ts.Node>;
+  readonly active: ReadonlySet<ts.Node>;
+  readonly captureActive: ReadonlySet<ts.Node>;
+  readonly path: readonly string[];
+  readonly selectedKey: string | undefined;
+  readonly selectedValue: boolean;
+  readonly completeInvocations: boolean;
+  readonly refining: boolean;
+  readonly parts: number;
+  readonly units: number;
+}
+
+interface CallableUseSharing {
+  readonly origins: readonly ReturnedValueSource[];
+  readonly program: CallReturnProgram;
+  readonly context: CallReturnProofContext;
+  readonly admission: Exclude<CallableAdmission, (call: CallExpression) => boolean> | undefined;
+  readonly nodes: Map<Node, ts.Node>;
+  readonly completed: Map<Identifier, CallableUseCompletion[]>;
+  epoch: CallableUseEpoch | undefined;
+  count: number;
+  parts: number;
+  units: number;
+}
+
+function callableAdmits(admission: CallableAdmission | undefined, call: CallExpression): boolean {
+  if (admission === undefined) {
+    return true;
+  }
+  if (typeof admission === "function") {
+    return admission(call);
+  }
+  return "captured" in admission ? admission.captured.byCall.has(call.compilerNode) : admission.admitted.admitted.has(call.compilerNode);
+}
+
+function refuseCallableUse(proof: CallableUseProof, refusal: UnresolvedReferenceFact): false {
+  proof.state.refusal ??= refusal;
+  return false;
+}
+
+function createCallableUseSharing(
+  origins: readonly ReturnedValueSource[],
+  program: CallReturnProgram | undefined,
+  admission: CallableAdmission | undefined,
+): CallableUseSharing | undefined {
+  const context = program?.callableContext;
+  if (program === undefined || context === undefined || typeof admission === "function") {
+    return;
+  }
+  if (
+    admission !== undefined &&
+    ("captured" in admission
+      ? admission.captured.program !== program.program || admission.captured.callableContext !== context
+      : admission.admitted !== context)
+  ) {
+    return;
+  }
+  const nodes = callableOriginNodes(origins);
+  return nodes === undefined
+    ? undefined
+    : { origins, program, context, admission, nodes, completed: new Map(), epoch: undefined, count: 0, parts: nodes.size * 2, units: 0 };
+}
+
+function callableOriginNodes(origins: readonly ReturnedValueSource[]): Map<Node, ts.Node> | undefined {
+  const nodes = new Map<Node, ts.Node>();
+  const remember = (node: Node): boolean => {
+    if (node.wasForgotten() || (nodes.size + 1) * 2 > MAX_CALLABLE_COMPLETION_PARTS) {
+      return false;
+    }
+    nodes.set(node, node.compilerNode);
+    return true;
+  };
+  const bindings = (values: ReadonlyMap<Node, Node>): boolean => {
+    for (const [parameter, value] of values) {
+      if (!(remember(parameter) && remember(value))) {
+        return false;
+      }
+    }
+    return true;
+  };
+  for (const origin of origins) {
+    if (![origin, ...(origin.selectedDescriptors ?? [])].every((value) => remember(value.value) && bindings(value.bindings))) {
+      return;
+    }
+    const iteration = origin.nativeIteration;
+    const lookup = origin.nativeLookup;
+    const continuations = [
+      ...(iteration === undefined ? [] : [iteration.call, iteration.collection, iteration.parameter]),
+      ...(lookup === undefined ? [] : [lookup.call, lookup.key]),
+    ];
+    if (!continuations.every(remember)) {
+      return;
+    }
+  }
+  return nodes;
+}
+
+function callableUseEpoch(sharing: CallableUseSharing): CallableUseEpoch {
+  const { program, context, admission } = sharing;
+  let membership: CallableUseEpoch["membership"];
+  if (admission !== undefined) {
+    membership = "captured" in admission ? admission.captured.byCall : admission.admitted.admitted;
+  }
+  return {
+    calls: program.calls,
+    callCount: program.calls.length,
+    byCall: program.byCall,
+    callers: program.callers,
+    escapingReferences: program.escapingReferences,
+    sourceCount: program.sources.size,
+    admittedCount: context.admitted.size,
+    referenceRevision: context.referenceRevision,
+    demandRevision: context.demandRevision,
+    directRevision: context.directRevision,
+    settledDemandRevision: context.settledDemandRevision,
+    membership,
+  };
+}
+
+function sameCallableUseEpoch(left: CallableUseEpoch, right: CallableUseEpoch): boolean {
+  return (
+    left.calls === right.calls &&
+    left.callCount === right.callCount &&
+    left.byCall === right.byCall &&
+    left.callers === right.callers &&
+    left.escapingReferences === right.escapingReferences &&
+    left.sourceCount === right.sourceCount &&
+    left.admittedCount === right.admittedCount &&
+    left.referenceRevision === right.referenceRevision &&
+    left.demandRevision === right.demandRevision &&
+    left.directRevision === right.directRevision &&
+    left.settledDemandRevision === right.settledDemandRevision &&
+    left.membership === right.membership
+  );
+}
+
+function callableNodesCurrent(nodes: ReadonlyMap<Node, ts.Node>): boolean {
+  for (const node of nodes.keys()) {
+    if (node.wasForgotten() || node.compilerNode !== nodes.get(node)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function sameCallableActive(left: ReadonlySet<ts.Node>, right: ReadonlySet<ts.Node>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const node of left) {
+    if (!right.has(node)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function sameCallableBindings(left: ReadonlyMap<Node, Node>, right: ReadonlyMap<Node, Node>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const parameter of left.keys()) {
+    if (left.get(parameter) !== right.get(parameter)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function matchesCallableUse(completed: CallableUseCompletion, proof: CallableUseProof, sharing: CallableUseSharing): boolean {
+  return (
+    completed.selectedKey === proof.selectedKey &&
+    completed.selectedValue === (proof.selectedValue === true) &&
+    completed.completeInvocations === (proof.completeInvocations === true) &&
+    completed.refining === sharing.context.refining &&
+    completed.path.length === proof.path.length &&
+    completed.path.every((part, index) => part === proof.path[index]) &&
+    sameCallableBindings(completed.bindings, proof.bindings) &&
+    sameCallableActive(completed.active, proof.active) &&
+    sameCallableActive(completed.captureActive, sharing.context.activeOwners) &&
+    callableNodesCurrent(completed.nodes) &&
+    callableNodesCurrent(sharing.nodes)
+  );
+}
+
+function captureCallableUse(name: Identifier, proof: CallableUseProof, sharing: CallableUseSharing): CallableUseCompletion | undefined {
+  const parts =
+    CALLABLE_COMPLETION_FIELDS + proof.bindings.size * CALLABLE_BINDING_PARTS + proof.active.size + sharing.context.activeOwners.size + proof.path.length;
+  const units = proof.path.reduce((sum, part) => sum + part.length, proof.selectedKey?.length ?? 0);
+  if (
+    sharing.count >= MAX_CALLABLE_COMPLETIONS ||
+    sharing.parts + parts > MAX_CALLABLE_COMPLETION_PARTS ||
+    sharing.units + units > MAX_CALLABLE_COMPLETION_UNITS
+  ) {
+    return;
+  }
+  const nodes = new Map<Node, ts.Node>();
+  for (const node of [name, ...proof.bindings.keys(), ...proof.bindings.values()]) {
+    if (node.wasForgotten()) {
+      return;
+    }
+    nodes.set(node, node.compilerNode);
+  }
+  return {
+    bindings: new Map(proof.bindings),
+    nodes,
+    active: new Set(proof.active),
+    captureActive: new Set(sharing.context.activeOwners),
+    path: [...proof.path],
+    selectedKey: proof.selectedKey,
+    selectedValue: proof.selectedValue === true,
+    completeInvocations: proof.completeInvocations === true,
+    refining: sharing.context.refining,
+    parts,
+    units,
+  };
+}
+
+function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean {
+  const sharing =
+    proof.state.refusal === undefined &&
+    proof.state.sharing?.origins === proof.origins &&
+    proof.state.sharing.program === proof.program &&
+    proof.state.sharing.admission === proof.admits
+      ? proof.state.sharing
+      : undefined;
+  if (sharing === undefined) {
+    return computeCallableClosedUses(name, proof);
+  }
+  const epoch = callableUseEpoch(sharing);
+  if (sharing.epoch !== undefined && !sameCallableUseEpoch(sharing.epoch, epoch)) {
+    sharing.completed.clear();
+    sharing.count = 0;
+    sharing.parts = sharing.nodes.size * 2;
+    sharing.units = 0;
+  }
+  sharing.epoch = epoch;
+  const previous = sharing.completed.get(name)?.find((stored) => matchesCallableUse(stored, proof, sharing));
+  if (previous !== undefined && readCallReturnProgram(name, { programs: [sharing.program] }).kind === "resolved") {
+    // The original root query keeps native pass freshness and cancellation ahead of completed descendant reuse.
+    nativeReferenceNodes(name);
+    if (proof.state.refusal === undefined && sameCallableUseEpoch(epoch, callableUseEpoch(sharing)) && matchesCallableUse(previous, proof, sharing)) {
+      return true;
+    }
+  }
+  const candidate = captureCallableUse(name, proof, sharing);
+  const complete = computeCallableClosedUses(name, proof);
+  if (
+    complete &&
+    proof.state.refusal === undefined &&
+    candidate !== undefined &&
+    sharing.count < MAX_CALLABLE_COMPLETIONS &&
+    sharing.parts + candidate.parts <= MAX_CALLABLE_COMPLETION_PARTS &&
+    sharing.units + candidate.units <= MAX_CALLABLE_COMPLETION_UNITS &&
+    sameCallableUseEpoch(epoch, callableUseEpoch(sharing)) &&
+    matchesCallableUse(candidate, proof, sharing) &&
+    readCallReturnProgram(name, { programs: [sharing.program] }).kind === "resolved"
+  ) {
+    const bucket = sharing.completed.get(name) ?? [];
+    bucket.push(candidate);
+    sharing.completed.set(name, bucket);
+    sharing.count++;
+    sharing.parts += candidate.parts;
+    sharing.units += candidate.units;
+  }
+  return complete;
 }
 
 function matchingAllocationBindings(literal: ObjectLiteralExpression, left: ReturnedValueSource, right: ReturnedValueSource): boolean {
@@ -810,7 +1105,7 @@ function unrelatedCallableOriginReference(use: Node, binding: Identifier, proof:
   const expected = callableCarrierSymbol(binding);
   const actual = callableCarrierSymbol(use);
   if (expected === undefined || actual === undefined) {
-    return proof.refuse(valueRefusal(use, "ambiguous", "the selected callable reference has no exact lexical binding"));
+    return refuseCallableUse(proof, valueRefusal(use, "ambiguous", "the selected callable reference has no exact lexical binding"));
   }
   return expected !== actual ? true : undefined;
 }
@@ -828,7 +1123,7 @@ function selectedCallableOriginUses(origin: ReturnedValueSource, receiver: Retur
   const missing = unprovenReferenceUse(name, (use, binding) => {
     const admitted = readCallReturnProgram(use, { programs: [program] });
     if (admitted.kind === "unresolved") {
-      return proof.refuse(admitted);
+      return refuseCallableUse(proof, admitted);
     }
     const unrelated = unrelatedCallableOriginReference(use, binding, proof);
     if (unrelated !== undefined) {
@@ -855,7 +1150,7 @@ function selectedCallableOriginUses(origin: ReturnedValueSource, receiver: Retur
       callableProjectedUse(use, { kind: "resolved", value: [origin], trace: { declarations: [], origin: use } }, { ...proof, completeInvocations: true })
     );
   });
-  return missing === undefined || proof.refuse(valueRefusal(missing, "unsupported", "the selected callable has an unproven containing value use"));
+  return missing === undefined || refuseCallableUse(proof, valueRefusal(missing, "unsupported", "the selected callable has an unproven containing value use"));
 }
 
 function selectedCallableStorageUse(use: Node, origin: ReturnedValueSource, proof: CallableUseProof): boolean {
@@ -993,14 +1288,14 @@ function callableRecordCopy(use: Node, proof: CallableUseProof): boolean | undef
     return;
   }
   if (proof.active.has(literal.compilerNode) || !ordinaryCallableRecord(literal, spread)) {
-    return proof.refuse(valueRefusal(literal, "unsupported", "the supplied record copy is cyclic or has an opaque own descriptor"));
+    return refuseCallableUse(proof, valueRefusal(literal, "unsupported", "the supplied record copy is cyclic or has an opaque own descriptor"));
   }
   const sources = callableSuppliedLeaves(use, [], proof.program, { bindings: proof.bindings, active: new Set() });
   if (sources.kind === "unresolved") {
-    return proof.refuse(sources);
+    return refuseCallableUse(proof, sources);
   }
   if (sources.value.length === 0 || sources.value.some((source) => !source.present || source.path.length > 0 || !ordinaryCallableRecord(source.value))) {
-    return proof.refuse(valueRefusal(use, "unsupported", "the supplied record copy has no finite ordinary own data sources"));
+    return refuseCallableUse(proof, valueRefusal(use, "unsupported", "the supplied record copy has no finite ordinary own data sources"));
   }
   return callableProjectionUse(literal, { ...proof, active: new Set(proof.active).add(literal.compilerNode) });
 }
@@ -1018,32 +1313,32 @@ function callableArgumentHandoff(use: Node, proof: CallableUseProof): boolean | 
   }
   const path = [...literals].reverse().flatMap(({ key }) => (key === undefined ? [] : [key]));
   const argumentCall = site.getParent();
-  if (!(N.isCallExpression(argumentCall) && argumentCall.getArguments().includes(site) && proof.admits?.(argumentCall) !== false)) {
+  if (!(N.isCallExpression(argumentCall) && argumentCall.getArguments().includes(site) && callableAdmits(proof.admits, argumentCall))) {
     return;
   }
   let targets = proof.program?.byCall.get(argumentCall.compilerNode)?.targets;
   if (targets?.kind !== "resolved") {
     const demanded = proof.program?.suppliedCallableUses?.(argumentCall);
     if (demanded?.kind === "unresolved") {
-      return proof.refuse(demanded);
+      return refuseCallableUse(proof, demanded);
     }
     targets = proof.program?.byCall.get(argumentCall.compilerNode)?.targets;
   }
   if (targets?.kind !== "resolved") {
-    return proof.refuse(targets ?? valueRefusal(argumentCall, "missing", "the containing argument has no captured actual target"));
+    return refuseCallableUse(proof, targets ?? valueRefusal(argumentCall, "missing", "the containing argument has no captured actual target"));
   }
   const index = argumentCall.getArguments().indexOf(site);
   return targets.value.every((target) => {
     if (!(N.isFunctionDeclaration(target) || N.isArrowFunction(target) || N.isFunctionExpression(target) || N.isMethodDeclaration(target))) {
-      return proof.refuse(valueRefusal(target, "unsupported", "the containing argument has no authored formal body"));
+      return refuseCallableUse(proof, valueRefusal(target, "unsupported", "the containing argument has no authored formal body"));
     }
     if (target.getBody() === undefined) {
-      return proof.refuse(valueRefusal(target, "missing", "the containing argument target has no authored use body"));
+      return refuseCallableUse(proof, valueRefusal(target, "missing", "the containing argument target has no authored use body"));
     }
     const formal = target.getParameters()[index];
     const name = formal?.getNameNode();
     if (formal === undefined || formal.isRestParameter() || !N.isIdentifier(name) || proof.active.has(formal.compilerNode)) {
-      return proof.refuse(valueRefusal(use, "unsupported", "the containing argument formal is opaque or cyclic"));
+      return refuseCallableUse(proof, valueRefusal(use, "unsupported", "the containing argument formal is opaque or cyclic"));
     }
     const next = {
       ...proof,
@@ -1084,7 +1379,7 @@ function callableBindingUse(use: Node, proof: CallableUseProof): boolean | undef
     declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() !== VariableDeclarationKind.Const ||
     proof.active.has(declaration.compilerNode)
   ) {
-    return proof.refuse(valueRefusal(declaration, "write", "the callable carrier alias is mutable or cyclic"));
+    return refuseCallableUse(proof, valueRefusal(declaration, "write", "the callable carrier alias is mutable or cyclic"));
   }
   const active = new Set(proof.active).add(declaration.compilerNode);
   if (N.isIdentifier(pattern)) {
@@ -1102,7 +1397,7 @@ function callableBindingUse(use: Node, proof: CallableUseProof): boolean | undef
       !N.isIdentifier(name) ||
       (property !== undefined && !N.isIdentifier(property))
     ) {
-      return proof.refuse(valueRefusal(element, "unsupported", "the callable carrier binding is not a closed ordinary member"));
+      return refuseCallableUse(proof, valueRefusal(element, "unsupported", "the callable carrier binding is not a closed ordinary member"));
     }
     const key = returnedBindingKey(element, pattern);
     const selected = proof.path[0];
@@ -1112,11 +1407,11 @@ function callableBindingUse(use: Node, proof: CallableUseProof): boolean | undef
     if (selected === undefined) {
       return (
         ordinaryCallableDataRead(use, key, proof) ||
-        proof.refuse(valueRefusal(element, "unsupported", "a callable record binding does not retain a selected containing path"))
+        refuseCallableUse(proof, valueRefusal(element, "unsupported", "a callable record binding does not retain a selected containing path"))
       );
     }
     if (!ordinaryCallableDataRead(use, key, proof)) {
-      return proof.refuse(valueRefusal(element, "unsupported", "the selected callable carrier binding has no ordinary own data descriptor"));
+      return refuseCallableUse(proof, valueRefusal(element, "unsupported", "the selected callable carrier binding has no ordinary own data descriptor"));
     }
     return callableClosedUses(name, { ...proof, path: proof.path.slice(1), active });
   });
@@ -1127,18 +1422,18 @@ function callableCarrierSymbol(identifier: Identifier): ts.Symbol | undefined {
   return (lexical?.getAliasedSymbol() ?? lexical)?.compilerSymbol;
 }
 
-function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean {
+function computeCallableClosedUses(name: Identifier, proof: CallableUseProof): boolean {
   let copied: Node | undefined;
   const missing = unprovenReferenceUse(name, (reference, binding) => {
     if (proof.program !== undefined && N.isIdentifier(reference)) {
       const expected = callableCarrierSymbol(binding);
       const actual = callableCarrierSymbol(reference);
       if (expected === undefined || actual === undefined) {
-        return proof.refuse(valueRefusal(reference, "ambiguous", "the callable carrier reference has no exact lexical binding"));
+        return refuseCallableUse(proof, valueRefusal(reference, "ambiguous", "the callable carrier reference has no exact lexical binding"));
       }
       if (expected !== actual) {
         const admitted = readCallReturnProgram(reference, { programs: [proof.program] });
-        return admitted.kind === "resolved" || proof.refuse(admitted);
+        return admitted.kind === "resolved" || refuseCallableUse(proof, admitted);
       }
     }
     const allowed = callableProjectionUse(reference, proof);
@@ -1148,7 +1443,9 @@ function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean 
     return allowed;
   });
   const escaped = missing ?? copied;
-  return escaped === undefined || proof.refuse(valueRefusal(escaped, "unsupported", "the supplied callable container has an unproven or copied use"));
+  return (
+    escaped === undefined || refuseCallableUse(proof, valueRefusal(escaped, "unsupported", "the supplied callable container has an unproven or copied use"))
+  );
 }
 
 function callableProjectionUse(use: Node, proof: CallableUseProof): boolean {
@@ -1156,7 +1453,7 @@ function callableProjectionUse(use: Node, proof: CallableUseProof): boolean {
     return true;
   }
   if (isReferenceWriteTarget(use)) {
-    return proof.refuse(valueRefusal(use, "write", "the supplied callable containing value is written"));
+    return refuseCallableUse(proof, valueRefusal(use, "write", "the supplied callable containing value is written"));
   }
   const parent = use.getParent();
   if (proof.program !== undefined) {
@@ -1225,36 +1522,36 @@ function unprovenCallableReceiverBody(node: Node): boolean {
 
 function callableProjectedUse(parent: Node, projected: ReferenceFact<readonly ReturnedValueSource[]>, proof: CallableUseProof): boolean {
   if (projected.kind === "unresolved") {
-    return proof.refuse(projected);
+    return refuseCallableUse(proof, projected);
   }
   if (projected.value.some((source) => !source.present || source.path.length > 0)) {
-    return proof.refuse(valueRefusal(parent, "missing", "a containing member has an unresolved actual origin"));
+    return refuseCallableUse(proof, valueRefusal(parent, "missing", "a containing member has an unresolved actual origin"));
   }
   if (projected.value.every((source) => !callableValue(source.value))) {
     const invocation = parent.getParent();
     if (proof.program !== undefined && N.isCallExpression(invocation) && invocation.getExpression() === parent) {
-      return proof.refuse(valueRefusal(parent, "unsupported", "an invoked containing member has no proven authored receiver body"));
+      return refuseCallableUse(proof, valueRefusal(parent, "unsupported", "an invoked containing member has no proven authored receiver body"));
     }
     return true;
   }
   if (proof.program !== undefined && projected.value.some((source) => unprovenCallableReceiverBody(source.value))) {
-    return proof.refuse(valueRefusal(parent, "unsupported", "an invoked authored member has no complete authored receiver body"));
+    return refuseCallableUse(proof, valueRefusal(parent, "unsupported", "an invoked authored member has no complete authored receiver body"));
   }
   const call = parent.getParent();
   const permitted =
     N.isCallExpression(call) &&
     call.getExpression() === parent &&
-    proof.admits?.(call) !== false &&
+    callableAdmits(proof.admits, call) &&
     projected.value.every((source) => callableValue(source.value));
   if (!permitted) {
-    return proof.refuse(valueRefusal(parent, "unsupported", "a projected callable leaves its captured invocation"));
+    return refuseCallableUse(proof, valueRefusal(parent, "unsupported", "a projected callable leaves its captured invocation"));
   }
   if (proof.completeInvocations === true) {
     const observation = proof.program?.byCall.get(call.compilerNode);
     const witness = observation?.invocationTargets ?? observation?.targets;
     return (
       (witness?.kind === "resolved" && projected.value.every((source) => witness.value.some((target) => target.compilerNode === source.value.compilerNode))) ||
-      proof.refuse(valueRefusal(call, "missing", "an actual callable owner invocation has no complete settled native target witness"))
+      refuseCallableUse(proof, valueRefusal(call, "missing", "an actual callable owner invocation has no complete settled native target witness"))
     );
   }
   return true;
@@ -1266,7 +1563,7 @@ function callableUseName(declaration: Node, supplied: boolean): Node | undefined
 
 function callableContainingUseRefusal(
   sources: import("./reference-fact-contract.ts").ResolvedReferenceFact<readonly ReturnedValueSource[]>,
-  admits?: (call: CallExpression) => boolean,
+  admits?: CallableAdmission,
   program?: CallReturnProgram,
   inputs: {
     readonly continuation?: { readonly site: Node; readonly path: readonly string[]; readonly bindings: ReadonlyMap<Node, Node> };
@@ -1277,7 +1574,7 @@ function callableContainingUseRefusal(
   } = {},
 ): UnresolvedReferenceFact | undefined {
   const { continuation, suppliedUses } = inputs;
-  let refusal: UnresolvedReferenceFact | undefined;
+  const state: CallableUseState = { refusal: undefined, sharing: createCallableUseSharing(sources.value, program, admits) };
   const proof: CallableUseProof = {
     origins: sources.value,
     ...(inputs.selectedValue === true ? { selectedValue: true as const } : {}),
@@ -1288,36 +1585,38 @@ function callableContainingUseRefusal(
     program,
     admits,
     active: new Set(),
-    refuse: (fact): false => {
-      refusal ??= fact;
-      return false;
-    },
+    state,
   };
-  for (const declaration of sources.trace.declarations) {
-    const name = callableUseName(declaration, program !== undefined);
-    if (N.isIdentifier(name)) {
-      const contexts = suppliedUses?.get(declaration) ?? [proof];
-      if (
-        !contexts.every((context) =>
-          callableClosedUses(name, { ...proof, path: context.path, bindings: context.bindings, selectedKey: context.selectedKey ?? proof.selectedKey }),
-        )
-      ) {
-        return refusal;
+  try {
+    for (const declaration of sources.trace.declarations) {
+      const name = callableUseName(declaration, program !== undefined);
+      if (N.isIdentifier(name)) {
+        const contexts = suppliedUses?.get(declaration) ?? [proof];
+        if (
+          !contexts.every((context) =>
+            callableClosedUses(name, { ...proof, path: context.path, bindings: context.bindings, selectedKey: context.selectedKey ?? proof.selectedKey }),
+          )
+        ) {
+          return state.refusal;
+        }
       }
+      state.refusal = undefined;
     }
-    refusal = undefined;
+    if (continuation !== undefined && !callableProjectionUse(continuation.site, proof)) {
+      return state.refusal ?? valueRefusal(continuation.site, "unsupported", "the supplied callable owner has an unproven containing continuation");
+    }
+    return state.refusal;
+  } finally {
+    state.sharing?.completed.clear();
+    state.sharing?.nodes.clear();
   }
-  if (continuation !== undefined && !callableProjectionUse(continuation.site, proof)) {
-    return refusal ?? valueRefusal(continuation.site, "unsupported", "the supplied callable owner has an unproven containing continuation");
-  }
-  return refusal;
 }
 
 function callableOwnerUses(
   owner: Node,
   sources: import("./reference-fact-contract.ts").ResolvedReferenceFact<readonly ReturnedValueSource[]>,
   program: CallReturnProgram,
-  admits?: (call: CallExpression) => boolean,
+  admits?: CallableAdmission,
 ): UnresolvedReferenceFact | undefined {
   const argument = valueSite(owner);
   const argumentCall = argument.getParent();
@@ -1375,7 +1674,7 @@ function returnedCallableOwnerUses(
     readonly owner: Node;
     readonly sources: import("./reference-fact-contract.ts").ResolvedReferenceFact<readonly ReturnedValueSource[]>;
     readonly program: CallReturnProgram;
-    readonly admits: ((call: CallExpression) => boolean) | undefined;
+    readonly admits: CallableAdmission | undefined;
     readonly path: readonly string[];
     readonly selected: string;
     readonly selectedPath?: true;
@@ -1446,7 +1745,7 @@ function returnedCallableContinuationUses(
 /** Finite authored callees retain every literal alternative and refuse escaping containing objects. */
 export function readAuthoredCallableSources(
   node: Node,
-  admits?: (call: CallExpression) => boolean,
+  admits?: CallableAdmission,
   observations?: CallReturnObservations,
   optionalInvocation = false,
 ): ReferenceFact<readonly ReturnedValueSource[]> {
