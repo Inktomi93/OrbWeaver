@@ -29,8 +29,6 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { createInterface } from "node:readline";
-// @ts-expect-error tool-guard.mjs is an untyped JS hook (no .d.ts, and .claude/hooks is out of this lane's
-// scope); the real `classify` signature is declared and pinned via the cast below.
 import { classify as classifyRaw } from "../../.claude/hooks/tool-guard.mjs";
 
 // The PreToolUse guard hook is an untyped JS module; declare the one symbol this replay imports.

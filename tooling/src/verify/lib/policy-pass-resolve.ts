@@ -2,6 +2,9 @@
 // PolicyRun/FactRun state with an effective population and an owner disposition — no visit/create dispatch.
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { SourceFile } from "ts-morph";
+import type { CompilerProgram } from "../../floor/compiler/compiler-programs-contract.ts";
+import { isNodeTestJavaScriptSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
+import { canonicalSemanticPrograms, registeredSemanticSourceView, semanticProgramMatchesDescriptor } from "../../floor/compiler/ts-workspace.ts";
 import type { GateFact } from "../contract/fact.ts";
 import type { RawGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy } from "../contract/policy.ts";
@@ -12,7 +15,7 @@ import { POLICY_OWNER_PLAN_MODES, POLICY_PASS_REFUSALS } from "../contract/polic
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { resolveEffectivePopulation } from "./policy-effective-population.ts";
 import type { FactControl, FactRun, PolicyRun } from "./policy-pass-types.ts";
-import { charge, chargeFact, EMPTY_POPULATION, factPhaseRecord, markFactIncomplete, markIncomplete, phaseRecord } from "./policy-pass-types.ts";
+import { charge, chargeFact, EMPTY_POPULATION, factPhaseRecord, guard, markFactIncomplete, markIncomplete, phaseRecord } from "./policy-pass-types.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertGateFactDescriptor, assertGatePolicyDescriptor, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
 import { explicitNonePopulation, resolvePopulation } from "./population-resolver.ts";
@@ -26,6 +29,36 @@ function sourcePath(root: string, sourceFile: SourceFile): string {
   }
   assertRepoPathIdentity(normalized, "source file path");
   return normalized;
+}
+
+function nativeExecutableSource(
+  input: PolicyPassInput,
+  path: string,
+  source: SourceFile,
+  canonicalPrograms: () => ReadonlyMap<string, CompilerProgram>,
+): SourceFile {
+  const view = input.nativeSourceView?.(path) ?? registeredSemanticSourceView(source);
+  if (view === undefined) {
+    throw new Error(`${POLICY_PASS_REFUSALS.nativeSourceViewAbsent}: ${path}`);
+  }
+  const registered = registeredSemanticSourceView(view.sourceFile);
+  if (
+    registered?.program !== view.program ||
+    registered.canonicalPath !== view.canonicalPath ||
+    sourcePath(input.root, view.sourceFile) !== path ||
+    view.program.descriptor.config !== predictedProgram(path) ||
+    !view.program.descriptor.files.includes(path)
+  ) {
+    throw new Error(`${POLICY_PASS_REFUSALS.nativeSourceViewForeign}: ${path}`);
+  }
+  if (view.sourceFile.getFullText() !== source.getFullText()) {
+    throw new Error(`${POLICY_PASS_REFUSALS.nativeSourceViewStale}: ${path}`);
+  }
+  const canonical = canonicalPrograms().get(view.program.descriptor.id);
+  if (canonical === undefined || !semanticProgramMatchesDescriptor(view.sourceFile, canonical)) {
+    throw new Error(`${POLICY_PASS_REFUSALS.nativeSourceViewMeaning}: ${path}`);
+  }
+  return view.sourceFile;
 }
 
 export function canonicalFindings(findings: readonly RawGateFinding[]): readonly RawGateFinding[] {
@@ -258,6 +291,11 @@ export function resolveRuns(
   resources: ResourceHost,
   errors: PolicyToolError[],
 ): { readonly runs: PolicyRun[]; readonly sourceFiles: ReadonlyMap<string, SourceFile> } {
+  let canonicalPrograms: ReadonlyMap<string, CompilerProgram> | undefined;
+  const nativePrograms = (): ReadonlyMap<string, CompilerProgram> => {
+    canonicalPrograms ??= new Map(canonicalSemanticPrograms(input.root, input.project).map((program) => [program.id, program]));
+    return canonicalPrograms;
+  };
   const sourceFiles = new Map<string, SourceFile>();
   for (const sourceFile of input.project.getSourceFiles()) {
     const path = sourcePath(input.root, sourceFile);
@@ -310,6 +348,21 @@ export function resolveRuns(
       markIncomplete(run, "population", error, errors);
       run.population = { ...EMPTY_POPULATION, requestedPaths };
     }
+  }
+  for (const run of runs.filter(({ owner }) => owner.status === "success")) {
+    const dependencyPaths = run.policy.facts.flatMap(({ id }) => dependencies.get(id) ?? []);
+    guard(run, "visitFile", errors, () => {
+      for (const path of [...run.population.effectiveSourcePaths, ...dependencyPaths]) {
+        const source = sourceFiles.get(path);
+        if (source !== undefined && isNodeTestJavaScriptSource(path)) {
+          sourceFiles.set(path, nativeExecutableSource(input, path, source, nativePrograms));
+        }
+      }
+      run.files = run.files.map((source) => {
+        const path = sourcePath(input.root, source);
+        return isNodeTestJavaScriptSource(path) ? nativeExecutableSource(input, path, source, nativePrograms) : source;
+      });
+    });
   }
   return { runs, sourceFiles };
 }

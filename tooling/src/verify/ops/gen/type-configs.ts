@@ -11,6 +11,7 @@ import {
   BROWSER_LIB_ADDITIONS,
   browserSurfaceRootPatterns,
   browserTestRootPatterns,
+  NODE_TEST_COMPILER_OPTIONS,
   nodeTestExclusionPatterns,
   packageConfigPath,
   TEST_HELPER_ROOTS,
@@ -156,7 +157,7 @@ function toolingConfig(): JsonObject {
 function graphConfig(intent: TypeConfigIntentInput): JsonObject {
   return {
     extends: `./${TYPE_WORLD_TEMPLATE_PATHS.node}`,
-    compilerOptions: { jsx: "react-jsx" },
+    compilerOptions: { jsx: "react-jsx", ...NODE_TEST_COMPILER_OPTIONS },
     include: [
       ...(ambientRootsForProgram("tsconfig.json") ?? []),
       "*.config.ts",

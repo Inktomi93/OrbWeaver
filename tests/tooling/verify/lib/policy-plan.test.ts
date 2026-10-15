@@ -54,8 +54,20 @@ function runRequest(overrides: Partial<RunRequest> = {}): RunRequest {
 }
 
 test.describe("final policy planner", () => {
-  test("the shared source-candidate contract admits only .ts and .tsx", () => {
-    expect(policySourceCandidates(["a.mts", "b.cts", "c.mjs", "d.cjs", "e.json", "f.tsx", "g.ts"])).toEqual(["f.tsx", "g.ts"]);
+  test("the shared source-candidate contract admits TypeScript and native Node helper modules", () => {
+    expect(
+      policySourceCandidates([
+        "a.mts",
+        "b.cts",
+        "c.mjs",
+        "d.cjs",
+        "e.json",
+        "f.tsx",
+        "g.ts",
+        "tests/support/node/child.mjs",
+        "tests/support/node-extra/child.mjs",
+      ]),
+    ).toEqual(["f.tsx", "g.ts", "tests/support/node/child.mjs"]);
   });
 
   test("selects checks deterministically and emits exact requested/effective compiler populations", () => {

@@ -208,7 +208,8 @@ export const POPULATION_SETS = {
 } as const satisfies Readonly<Record<`@${string}`, readonly PopulationRoot[]>>;
 
 export type PopulationRef = PopulationRoot | keyof typeof POPULATION_SETS;
-export type LoadableExt = "ts" | "tsx";
+export const LOADABLE_EXTENSIONS = ["ts", "tsx", "mjs"] as const;
+export type LoadableExt = (typeof LOADABLE_EXTENSIONS)[number];
 type NonEmptyTuple<T> = readonly [T, ...T[]];
 
 export type PopulationExpr =

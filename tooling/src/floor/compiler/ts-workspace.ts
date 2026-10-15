@@ -17,11 +17,12 @@ import { isWithinRoot } from "@orb/kit/path-containment";
 import type { FileSystemHost, Identifier, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
 import { createWrappedNode, Project, Node as TsNode, ts } from "ts-morph";
 import { createSemanticInventory } from "../code-facts/semantic-inventory.ts";
+import { descriptorVersion } from "../code-facts/semantic-inventory-inputs.ts";
 import { semanticInventoryOf } from "../code-facts/semantic-inventory-reader.ts";
 
 import { readCompilerPrograms } from "./compiler-programs.ts";
-import type { CompilerProgram } from "./compiler-programs-contract.ts";
-import { predictedProgram } from "./project-worlds.ts";
+import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
+import { HELPER_WORLD_DIRS, predictedProgram } from "./project-worlds.ts";
 import type {
   CoLocatedSemanticNodes,
   SemanticProgram,
@@ -135,6 +136,45 @@ function lazySemanticProgram(
 
 const semanticWorkspaces = new WeakMap<object, SemanticWorkspace>();
 const semanticPrograms = new WeakMap<Project, SemanticProgram>();
+const semanticWorkspaceOverlays = new WeakMap<SemanticWorkspace, CompilerSourceOverlay>();
+
+interface SemanticProgramWitness {
+  readonly descriptor: string;
+  readonly meaning: string;
+}
+
+const semanticProgramWitnesses = new WeakMap<Project, SemanticProgramWitness>();
+
+function nativeMeaningVersion(project: Project, descriptor: CompilerProgram): string {
+  const native = project.getProgram().compilerObject;
+  return descriptorVersion({
+    ...descriptor,
+    files: native.getRootFileNames().toSorted(),
+    commandLine: { ...descriptor.commandLine, options: native.getCompilerOptions() },
+  });
+}
+
+/** Read the invocation's canonical config meaning, retaining only its registered filename overlay. */
+export function canonicalSemanticPrograms(root: string, project: Project): readonly CompilerProgram[] {
+  const workspace = semanticWorkspaces.get(project);
+  return readCompilerPrograms(root, workspace === undefined ? undefined : semanticWorkspaceOverlays.get(workspace));
+}
+
+/** Registration retains construction meaning; neither a descriptor label nor mutable Project options grant it. */
+export function semanticProgramMatchesDescriptor(source: SourceFile, descriptor: CompilerProgram): boolean {
+  const view = registeredSemanticSourceView(source);
+  if (view === undefined) {
+    return false;
+  }
+  const project = source.getProject();
+  const witness = semanticProgramWitnesses.get(project);
+  return (
+    witness !== undefined &&
+    witness.descriptor === descriptorVersion(descriptor) &&
+    witness.descriptor === descriptorVersion(view.program.descriptor) &&
+    witness.meaning === nativeMeaningVersion(project, view.program.descriptor)
+  );
+}
 
 interface NativeReferencePass {
   readonly program: ts.Program;
@@ -362,6 +402,7 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
   const registerProject = (project: Project, program: SemanticProgram): void => {
     semanticWorkspaces.set(project, workspace);
     semanticPrograms.set(project, program);
+    semanticProgramWitnesses.set(project, { descriptor: descriptorVersion(program.descriptor), meaning: nativeMeaningVersion(project, program.descriptor) });
   };
   for (const descriptor of descriptors) {
     const view = lazySemanticProgram(root, descriptor, options.fileSystem, registerProject);
@@ -486,10 +527,16 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
     findReferences,
     visitReferences,
   };
+  if (options.overlay !== undefined) {
+    semanticWorkspaceOverlays.set(workspace, {
+      addedPaths: [...options.overlay.addedPaths],
+      deletedPaths: [...options.overlay.deletedPaths],
+    });
+  }
   return workspace;
 }
 
-/** The gate harness's governed TS/TSX corpus: EVERY authored TypeScript file the repository tracks. Individual
+/** The gate harness's governed corpus: authored TS/TSX and native Node test executables. Individual
  *  descriptors still fence their own population; the foreign SillyTavern runtime capture is excluded before
  *  parsing because Orbweaver does not own it. The repo-root files, the package files outside `src/` and
  *  `playwright/` joined on 2026-09-23 (work item 0036): the suppressions policy judges everything this corpus
@@ -506,6 +553,7 @@ export function harnessGlobs(root: string): readonly string[] {
     `${root}/playwright/**/*.tsx`,
     `${root}/tests/**/*.ts`,
     `${root}/tests/**/*.tsx`,
+    `${root}/${HELPER_WORLD_DIRS.node}/**/*.mjs`,
     `${root}/tooling/src/**/*.ts`,
     `${root}/tooling/src/**/*.tsx`,
     `${root}/scripts/**/*.ts`,

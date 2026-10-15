@@ -3,14 +3,14 @@
 
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { LoadableExt, PopulationExpr, PopulationRef, PopulationRoot, ResolvedPopulation } from "../contract/population.ts";
-import { POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
+import { LOADABLE_EXTENSIONS, POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
 
 const ROOT_REFS = new Set<string>(Object.keys(POPULATION_ROOTS));
 const SET_REFS = new Set<string>(Object.keys(POPULATION_SETS));
 const EXPRESSION_KEYS = new Set(["in", "not", "under", "notUnder", "named", "notNamed", "ext", "notExt", "depth"]);
 const SENTINEL_KEYS = new Set(["of", "why"]);
 const ALL_SENTINEL_KEYS = new Set(["of", "why", "notUnder"]);
-const LOADABLE_EXTENSIONS = new Set<string>(["ts", "tsx"] satisfies readonly LoadableExt[]);
+const LOADABLE_EXTENSION_SET: ReadonlySet<string> = new Set(LOADABLE_EXTENSIONS);
 const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
 
@@ -80,7 +80,7 @@ function assertPattern(value: unknown, label: "under" | "notUnder" | "named" | "
 }
 
 function assertExtension(value: unknown): void {
-  if (typeof value !== "string" || !LOADABLE_EXTENSIONS.has(value)) {
+  if (typeof value !== "string" || !LOADABLE_EXTENSION_SET.has(value)) {
     invalid(`extension ${JSON.stringify(value)} is not loadable`);
   }
 }

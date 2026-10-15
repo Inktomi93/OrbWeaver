@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-15
 ---
 
 # Gate-runtime standardization law
@@ -186,8 +186,8 @@ accepts several ids; `cssInventory` rides an authored/product CSS declaration ra
 Read resource-specific identity versus corpus refusal semantics in their contract headers before extending a kind.
 
 Population named roots are only independently selectable packages or top-level trees. A nested `under`/`notUnder`
-constraint refines a declared root and does not mint an alias. Authored source populations admit `.ts` and `.tsx`;
-other module extensions remain cleanup rather than silent expansion. A resource policy declares why ordinary source
+constraint refines a declared root and does not mint an alias. Authored source populations admit `.ts` and `.tsx`.
+Native-owned Node test helpers also admit `.mjs` through the compiler intent and shared source predicate. Other module extensions remain outside this admission. A resource policy declares why ordinary source
 dispatch is `of: none`. Generic policies include tooling and test-tooling unless an explicit, proven population rule
 excludes them.
 
