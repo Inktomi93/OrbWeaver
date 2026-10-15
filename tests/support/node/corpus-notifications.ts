@@ -16,6 +16,7 @@ import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { readSessionCookie } from "@orb/server/entry/auth";
 import { inArray } from "drizzle-orm";
 import { vi } from "vitest";
+import type { CorpusNotificationInbox } from "../iso/corpus.ts";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { seedAutomationRule, seedAutomationRun } from "./factories/automation.ts";
 import { captureChatReplayRows } from "./factories/chat.ts";
@@ -109,6 +110,7 @@ interface DroppedCapture {
   readonly notice: InboxView;
 }
 interface CorpusNotifications extends Omit<NotificationActors, "caller" | "foreignCaller"> {
+  readonly publication: CorpusNotificationInbox;
   readonly admission: ReaderAdmission;
   readonly inbox: InboxCapture;
   readonly settled: Page;
@@ -613,6 +615,7 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
   const dismissedAgain = await actors.caller.notifications.dismiss({ notificationId: original.id });
   await root.settleBackground();
   const recipientIds = [actors.host.userId, actors.reader.userId, actors.foreign.userId];
+  const final = await actors.caller.notifications.list();
   return {
     host: actors.host,
     reader: actors.reader,
@@ -628,7 +631,16 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
     dropped,
     dismissed,
     dismissedAgain,
-    final: await actors.caller.notifications.list(),
+    final,
+    publication: {
+      readerRaised: { viewerUserId: actors.reader.userId, read: { input: undefined, output: inbox.raised } },
+      readerRead: { viewerUserId: actors.reader.userId, read: { input: undefined, output: inbox.read } },
+      readerSettled: { viewerUserId: actors.reader.userId, read: { input: undefined, output: settled } },
+      readerFinal: { viewerUserId: actors.reader.userId, read: { input: undefined, output: final } },
+      foreignBefore: { viewerUserId: actors.foreign.userId, read: { input: undefined, output: inbox.foreignBefore } },
+      foreignAfter: { viewerUserId: actors.foreign.userId, read: { input: undefined, output: inbox.foreignAfter } },
+      hostAccepted: { viewerUserId: actors.host.userId, read: { input: undefined, output: accepted } },
+    },
     finalReplay: await root.services.notifications.replaySince({ principal: actors.reader, afterSeq: 0 }),
     replay,
     resumed,

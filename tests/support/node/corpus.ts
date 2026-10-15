@@ -295,7 +295,14 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   }
   const health = healthResponseSchema.parse(await response.json());
   const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
-  const wire = hydrateCorpusWire({ auth: baseline.auth, oidc: oidc.wire, health, reads });
+  const wire = hydrateCorpusWire({
+    auth: baseline.auth,
+    oidc: oidc.wire,
+    health,
+    reads,
+    notificationInbox: notifications.publication,
+    chatLifecycleMember: chatLifecycle.publication,
+  });
   const secrets = [
     options.privateCredential.key,
     options.seed.ownerPassword,

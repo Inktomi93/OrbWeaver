@@ -1,10 +1,23 @@
+import type { UserId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
-import type { CorpusRead } from "../iso/corpus.ts";
+import type { CorpusRead, CorpusViewerRead } from "../iso/corpus.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "../node/route-trpc.ts";
 
 function captureKey<T>(value: T): string | undefined {
   // The canonical JSON stringifier collapses undefined into null; request input presence must survive.
   return value === undefined ? undefined : stableStringify(value);
+}
+
+/** Bind one explicitly selected snapshot to its captured viewer; this selects fixture data, not authentication. */
+export function createCorpusViewerReadResponder<P extends TrpcProcedurePath>(
+  path: P,
+  viewerUserId: UserId,
+  snapshot: CorpusViewerRead<NoInfer<P>>,
+): (input: TrpcInput<P>) => TrpcWireOutput<P> {
+  if (snapshot.viewerUserId !== viewerUserId) {
+    throw new Error(`Corpus snapshot viewer does not match ${path}`);
+  }
+  return createCorpusReadResponder(path, [snapshot.read]);
 }
 
 /** Selects captured reads by exact input; conflicting or missing captures refuse instead of inventing data. */

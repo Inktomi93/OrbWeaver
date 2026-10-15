@@ -7,6 +7,8 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { ChatOperationError } from "@orb/server/domain/chat";
 import { eq } from "drizzle-orm";
+import type { CorpusChatLifecycleMember, CorpusMemberMessagesRead } from "../iso/corpus.ts";
+import { corpusReadInput } from "../iso/corpus.ts";
 import type { createCorpusChatWire } from "./corpus-chat-wire.ts";
 import {
   CORPUS_CHAT_ABORT_CUE,
@@ -68,6 +70,8 @@ interface CompactRefusalCapture {
   readonly canon: Awaited<ReturnType<ChatService["listMessages"]>>;
 }
 interface HeldTurnCapture extends NativeRoom {
+  readonly memberDuring: CorpusMemberMessagesRead;
+  readonly memberCompleted: CorpusMemberMessagesRead;
   readonly invite: Awaited<ReturnType<typeof seedChatInvite>>;
   readonly during: NativeReplay | undefined;
   readonly foreignRefusal: string | undefined;
@@ -95,12 +99,28 @@ interface DeferredHandoffCapture extends NativeRoom {
   readonly copiedCharacter: Awaited<ReturnType<ServerTestHarness["services"]["character"]["get"]>>;
 }
 interface CorpusChatLifecycle {
+  readonly publication: CorpusChatLifecycleMember;
   readonly connection: Awaited<ReturnType<ServerTestHarness["services"]["connection"]["create"]>>;
   readonly imported: ImportReactionCapture;
   readonly compacted: CompactRefusalCapture;
   readonly held: HeldTurnCapture;
   readonly aborted: HeldTurnCapture;
   readonly handoff: DeferredHandoffCapture;
+}
+
+/** Capture only the actual viewer-scoped routed page; identity metadata is not an authentication grant. */
+export async function captureCorpusMemberMessages(
+  root: ServerTestHarness,
+  viewerUserId: ServerTestHarness["ownerId"],
+  chatId: CorpusMemberMessagesRead["chatId"],
+): Promise<CorpusMemberMessagesRead> {
+  const caller = await root.internalCallerFor(viewerUserId);
+  const input = corpusReadInput.chat({ id: chatId });
+  const viewer = await caller.chat.getChat(input);
+  if (viewer.viewerIsHost || viewer.viewerUserId !== viewerUserId) {
+    throw new Error("Corpus member snapshots require the actual non-host viewer");
+  }
+  return { viewerUserId: viewer.viewerUserId, chatId, read: { input, output: await caller.chat.listMessages(input) } };
 }
 
 async function lifecycleRoom(root: ServerTestHarness, handle: string): Promise<NativeRoom> {
@@ -212,6 +232,7 @@ async function heldTurn(root: ServerTestHarness, wire: ChatWire, memberUserId: S
   const hold = wire.hold(cue);
   const sending = root.services.chat.send({ principal, chatId, content: cue, timeZone: UTC_TIME_ZONE });
   let during: NativeReplay | undefined;
+  let memberDuring: CorpusMemberMessagesRead;
   let foreignRefusal: string | undefined;
   try {
     await Promise.race([
@@ -221,6 +242,7 @@ async function heldTurn(root: ServerTestHarness, wire: ChatWire, memberUserId: S
       }),
     ]);
     during = await captureChatReplayRows(root.db, chatId);
+    memberDuring = await captureCorpusMemberMessages(root, memberUserId, chatId);
     try {
       await root.services.chat.abort({ principal: member, chatId });
     } catch (error) {
@@ -237,12 +259,13 @@ async function heldTurn(root: ServerTestHarness, wire: ChatWire, memberUserId: S
     hold.release();
   }
   const turn = await sending;
+  const memberCompleted = await captureCorpusMemberMessages(root, memberUserId, chatId);
   const completed = await captureChatReplayRows(root.db, chatId);
   const stream = await root.services.chat.replayStreamEvents({ principal, chatId, afterSeq: 0 });
   const events = await root.services.chat.replayChatEvents({ principal, chatId, afterSeq: 0 });
   const canon = await root.services.chat.listMessages({ principal, chatId });
   await root.services.chat.abort({ principal, chatId });
-  return { ...source, invite, during, foreignRefusal, turn, completed, stream, events, canon };
+  return { ...source, invite, during, memberDuring, memberCompleted, foreignRefusal, turn, completed, stream, events, canon };
 }
 
 async function deferAndHandoff(
@@ -358,5 +381,18 @@ export async function seedCorpusChatLifecycle(
   const aborted = await heldTurn(root, wire, memberUserId, true);
   const handoff = await deferAndHandoff(root, memberUserId, dbHold);
   await root.settleBackground();
-  return { connection, imported, compacted, held, aborted, handoff };
+  return {
+    connection,
+    imported,
+    compacted,
+    held,
+    aborted,
+    handoff,
+    publication: {
+      heldDuring: held.memberDuring,
+      heldCompleted: held.memberCompleted,
+      abortedDuring: aborted.memberDuring,
+      abortedCompleted: aborted.memberCompleted,
+    },
+  };
 }
