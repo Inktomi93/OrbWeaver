@@ -1,4 +1,4 @@
-// Raw relay executable and request producers; all sharing, session and certificate policy stays in production.
+// Native share observations and raw relay/request producers; sharing, session and certificate policy stays in production.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,6 +11,18 @@ import type { ServerTestHarness } from "./server.ts";
 
 const relayStartSchema = z.strictObject({ pid: z.number(), args: z.array(z.string()) });
 export const SHARE_OWNER_PASSWORD = "native-share-root-owner-password";
+
+type ShareCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>["share"];
+
+export interface CapturedShareViews {
+  readonly status: Awaited<ReturnType<ShareCaller["status"]>>;
+  readonly signInMode: Awaited<ReturnType<ShareCaller["signInMode"]>>;
+}
+
+/** Capture owner sharing state beside the independently admin-readable guidance; authority stays in the native calls. */
+export async function captureShareViews(caller: ShareCaller): Promise<CapturedShareViews> {
+  return { status: await caller.status(), signInMode: await caller.signInMode() };
+}
 
 /** A harmless native process speaks cloudflared's output protocol and records actual spawn arguments. */
 export function relayProgram(url: string, ignoreStop = false): { readonly pin: CloudflaredPin; readonly bytes: Uint8Array } {

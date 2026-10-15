@@ -96,8 +96,8 @@ export type { ImageryGenerationRow, ImageryImportCallRow, SeededImageryGeneratio
 export { seedImageryGenerations, seedNativeImageryImportClaim } from "./imagery.ts";
 export type { CapturedTurnRows, MessageRow, MessageVariantRow, SeededMessage, SeedMessageOptions } from "./message.ts";
 export { captureTurnRows, makeMessage, seedMessage } from "./message.ts";
-export type { NotificationRow } from "./notification.ts";
-export { seedNotification } from "./notification.ts";
+export type { CapturedNotificationViews, NotificationRow } from "./notification.ts";
+export { captureNotificationViews, seedNotification } from "./notification.ts";
 export type { PersonaRow, SeededCreatedPersona } from "./persona.ts";
 export { makePersona, seedCreatedPersona, seedPersona, seedPersonaFromCharacter } from "./persona.ts";
 export type {
