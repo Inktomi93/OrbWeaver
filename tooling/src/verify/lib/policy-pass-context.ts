@@ -239,6 +239,8 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     relativePath,
     sourceFile,
     nativeTypes: {
+      callMemberOrigins: (nodes: Parameters<NativeTypeContext["callMemberOrigins"]>[0]): ReturnType<NativeTypeContext["callMemberOrigins"]> =>
+        nativeFacts(nodes).callMemberOrigins(input.ownerId, nodes),
       declarationOutputs: (nodes: Parameters<NativeTypeContext["declarationOutputs"]>[0]): ReturnType<NativeTypeContext["declarationOutputs"]> =>
         nativeFacts(nodes).declarationOutputs(input.ownerId, nodes),
       prepareShapes: (sources: Parameters<NativeTypeContext["prepareShapes"]>[0]): void => nativeFacts(sources).prepareShapes(input.ownerId, sources),

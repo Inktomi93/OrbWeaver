@@ -22,10 +22,8 @@
 // deleting its row leaves that row consumed zero times, which is the central STALE alarm. That is the legacy
 // two-sided arm, owned centrally and no longer anchored on a hand-picked real-tree file.
 //
-// FAMILY: SINGLETON (`single-stream-transport`). It is the only policy whose subject is a MEMBER declared
-// by a third-party TYPE module: `lib/type-member-origin.ts#resolveTypeMemberOrigin` + `declaredByPackage`
-// is a corpus-wide primitive, and no sibling policy judges a builder chain's declaring package. The
-// `_proof/server-vendors.ts` plants it shares are a fixture home, not a family computation.
+// Singleton judgment: this policy allocates tRPC sockets. Shared native member origins are a primitive,
+// not shared socket authority; other consumers retain their own package and reporting judgments.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `ROUTERS_DIR.test('/' + p)` where
 // `ROUTERS_DIR = /\/packages\/server\/src\/transport\/trpc\/routers\//` (`b5acbf2594^:39,88`); the final
 // population is `{ in: ["@server"], under: ["packages/server/src/transport/trpc/routers/**"] }`. The legacy
@@ -39,12 +37,12 @@
 // admits 27 and final `population` admits 27. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/transport/trpc/routers/__cbbhr_in_admin.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
+import { classifyOriginRefusalDeclarations } from "../lib/origin-verdict.ts";
+import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { rpcLookalikeProof, trpcServerProof } from "./_proof/server-vendors.ts";
 
 const SUBSCRIPTION_MEMBER = "subscription";
@@ -86,12 +84,12 @@ function procName(node: MorphNode): string | undefined {
  *  THE VERDICT IS THREE-VALUED, not boolean (#944, #2041): the unreadable arm and the tRPC arm produce the
  *  SAME finding on the same node, so collapsing them to `true` left the fail-closed answer indistinguishable
  *  from the ordinary one in every direction a proof row can look. */
-function opensSocket(callee: MorphNode): "trpc" | "other" | "unreadable" {
-  const origin = resolveTypeMemberOrigin(callee);
+function opensSocket(fact: NativeCallMemberOrigin): "trpc" | "other" | "unreadable" {
+  const origin = fact.origin;
   if (origin.kind === "unresolved") {
-    return classifyOriginRefusal(origin.reason, callee);
+    return classifyOriginRefusalDeclarations(origin.reason, fact.leafDeclarations);
   }
-  return declaredByPackage(origin.value.declarations, TRPC_SERVER) ? "trpc" : "other";
+  return declaredByPackage(origin.value, TRPC_SERVER) ? "trpc" : "other";
 }
 
 export const gate = defineGate({
@@ -107,12 +105,26 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    const candidates: CallExpression[] = [];
     const opened = new Map<string, { readonly node: MorphNode; readonly subject: string; readonly operation: string; readonly unreadable: boolean }>();
+    const observe = (node: CallExpression, origin: NativeCallMemberOrigin): void => {
+      const verdict = origin.name === SUBSCRIPTION_MEMBER ? opensSocket(origin) : "other";
+      if (verdict === "other") {
+        return;
+      }
+      const subject = ctx.relativePath(node.getSourceFile());
+      const proc = procName(node);
+      const operation = proc === undefined ? OPERATION_PREFIX : `${OPERATION_PREFIX}:${proc}`;
+      const key = `${subject} :: ${operation}`;
+      if (!opened.has(key)) {
+        opened.set(key, { node, subject, operation, unreadable: verdict === "unreadable" });
+      }
+    };
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
-          visit: (node, sourceFile: SourceFile) => {
+          visit: (node) => {
             if (!Node.isCallExpression(node)) {
               return;
             }
@@ -120,25 +132,29 @@ export const gate = defineGate({
             if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
               return;
             }
-            const member = readMemberReference(callee);
-            const isSubscription = member.kind === "resolved" && member.value.name === SUBSCRIPTION_MEMBER;
-            const verdict = isSubscription ? opensSocket(callee) : "other";
-            if (verdict === "other") {
+            if (Node.isPropertyAccessExpression(callee) && callee.getName() !== SUBSCRIPTION_MEMBER) {
               return;
             }
-            const subject = ctx.relativePath(sourceFile);
-            const proc = procName(node);
-            const operation = proc === undefined ? OPERATION_PREFIX : `${OPERATION_PREFIX}:${proc}`;
-            // One finding per `(subject, operation)`: the ledger's grain is the PROC, so two subscriptions
-            // in one router are two rows while a re-declared proc cannot make its own row OVER-BROAD.
-            const key = `${subject} :: ${operation}`;
-            if (!opened.has(key)) {
-              opened.set(key, { node, subject, operation, unreadable: verdict === "unreadable" });
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native call member origin context is unavailable");
             }
+            candidates.push(node);
+            ctx.nativeTypes.request({ kind: "type-member-origins", nodes: [node] });
           },
         },
       ],
       evaluate: () => {
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native call member origin context is unavailable");
+        }
+        const origins = ctx.nativeTypes.callMemberOrigins(candidates);
+        for (const node of candidates) {
+          const origin = origins.get(node);
+          if (origin === undefined) {
+            throw new Error("native call member origin is unavailable");
+          }
+          observe(node, origin);
+        }
         for (const [, found] of [...opened].toSorted(([left], [right]) => left.localeCompare(right))) {
           ctx.report.node(found.node, {
             subject: found.subject,

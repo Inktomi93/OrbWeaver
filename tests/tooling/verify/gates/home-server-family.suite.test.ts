@@ -34,7 +34,7 @@ import { gate as singleStreamTransport } from "../../../../tooling/src/verify/ga
 import { gate as soleEnvReader } from "../../../../tooling/src/verify/gates/sole-env-reader.ts";
 import { gate as twoClassRoleAuthority } from "../../../../tooling/src/verify/gates/two-class-role-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY_TIMEOUT_MS = scaledBudget(300_000);
@@ -66,7 +66,15 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>, gra
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: grants, failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: grants,
+    failOnWarnings: false,
+  });
 }
 
 const CONTENT_PART = "export type ChatContentPart = { readonly type: string };\n";

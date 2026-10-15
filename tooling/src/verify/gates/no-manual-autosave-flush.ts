@@ -27,12 +27,13 @@
 // FAMILY: a declared SINGLETON under its own id. `lib/type-member-origin.ts`, `floor/code-facts/reference-fact.ts` and
 // `lib/origin-verdict.ts` are corpus-wide identity primitives; no sibling judges a structural array op beside
 // `handleSubmit`.
-import type { Node as MorphNode } from "ts-morph";
+import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
+import { classifyOriginRefusalDeclarations } from "../lib/origin-verdict.ts";
+import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, tanstackFormProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 
 const ARRAY_OPS: ReadonlySet<string> = new Set(["pushFieldValue", "removeFieldValue", "insertFieldValue", "moveFieldValues"]);
@@ -66,24 +67,16 @@ interface FormMember {
 /** The invoked member of a call whose callee is a property/element read, with its receiver identity. The
  *  receiver CHAIN is irrelevant — only the leaf member names the op, so wrapped/awaited/chained receivers
  *  are all seen, exactly as the legacy comment recorded. */
-function formMember(call: MorphNode): FormMember | undefined {
-  if (!Node.isCallExpression(call)) {
+function formMember(call: CallExpression, fact: NativeCallMemberOrigin): FormMember | undefined {
+  const name = fact.name;
+  if (name === null || !(ARRAY_OPS.has(name) || name === SUBMIT)) {
     return;
   }
-  const callee = call.getExpression();
-  const read = readMemberReference(callee);
-  if (read.kind === "unresolved") {
-    return;
-  }
-  const name = read.value.name;
-  if (!(ARRAY_OPS.has(name) || name === SUBMIT)) {
-    return;
-  }
-  const origin = resolveTypeMemberOrigin(callee);
+  const origin = fact.origin;
   if (origin.kind === "unresolved") {
-    return classifyOriginRefusal(origin.reason, callee) === "unreadable" ? { name, node: call, proven: false } : undefined;
+    return classifyOriginRefusalDeclarations(origin.reason, fact.leafDeclarations) === "unreadable" ? { name, node: call, proven: false } : undefined;
   }
-  return declaredByPackage(origin.value.declarations, FORM_CORE) ? { name, node: call, proven: true } : undefined;
+  return declaredByPackage(origin.value, FORM_CORE) ? { name, node: call, proven: true } : undefined;
 }
 
 /** The innermost enclosing function-like node — the body this call belongs to. A nested function opens a
@@ -114,48 +107,81 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    const candidates: CallExpression[] = [];
     const bodies = new Map<object, BodyState>();
     const order: object[] = [];
+    const observe = (node: CallExpression, origin: NativeCallMemberOrigin): void => {
+      const member = formMember(node, origin);
+      if (member === undefined) {
+        return;
+      }
+      const key: object = enclosingBody(node).compilerNode;
+      let state = bodies.get(key);
+      if (state === undefined) {
+        state = {};
+        bodies.set(key, state);
+        order.push(key);
+      }
+      if (member.name === SUBMIT) {
+        state.submit ??= member;
+      } else {
+        state.arrayOp ??= member;
+      }
+    };
+    const reportBodies = (): void => {
+      for (const key of order) {
+        const state = bodies.get(key);
+        const arrayOp = state?.arrayOp;
+        const submit = state?.submit;
+        if (arrayOp === undefined || submit === undefined) {
+          continue;
+        }
+        const unreadable = !(arrayOp.proven && submit.proven);
+        ctx.report.node(arrayOp.node, {
+          ...(unreadable ? { message: UNREADABLE } : {}),
+          token: arrayOp.name,
+          offset: Math.max(arrayOp.node.getText().lastIndexOf(arrayOp.name), 0),
+        });
+      }
+    };
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node): void => {
-            const member = formMember(node);
-            if (member === undefined) {
+            if (!Node.isCallExpression(node)) {
               return;
             }
-            const key: object = enclosingBody(node).compilerNode;
-            let state = bodies.get(key);
-            if (state === undefined) {
-              state = {};
-              bodies.set(key, state);
-              order.push(key);
+            const callee = unwrapExpression(node.getExpression());
+            if (
+              !(
+                Node.isElementAccessExpression(callee) ||
+                (Node.isPropertyAccessExpression(callee) && (ARRAY_OPS.has(callee.getName()) || callee.getName() === SUBMIT))
+              )
+            ) {
+              return;
             }
-            if (member.name === SUBMIT) {
-              state.submit ??= member;
-            } else {
-              state.arrayOp ??= member;
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native call member origin context is unavailable");
             }
+            candidates.push(node);
+            ctx.nativeTypes.request({ kind: "type-member-origins", nodes: [node] });
           },
         },
       ],
       evaluate: (): void => {
-        for (const key of order) {
-          const state = bodies.get(key);
-          const arrayOp = state?.arrayOp;
-          const submit = state?.submit;
-          if (arrayOp === undefined || submit === undefined) {
-            continue;
-          }
-          // Report on the array-op call site — the line the author reconciles against the driver.
-          const unreadable = !(arrayOp.proven && submit.proven);
-          ctx.report.node(arrayOp.node, {
-            ...(unreadable ? { message: UNREADABLE } : {}),
-            token: arrayOp.name,
-            offset: Math.max(arrayOp.node.getText().lastIndexOf(arrayOp.name), 0),
-          });
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native call member origin context is unavailable");
         }
+        const origins = ctx.nativeTypes.callMemberOrigins(candidates);
+        for (const node of candidates) {
+          const origin = origins.get(node);
+          if (origin === undefined) {
+            throw new Error("native call member origin is unavailable");
+          }
+          observe(node, origin);
+        }
+        reportBodies();
       },
     };
   },
