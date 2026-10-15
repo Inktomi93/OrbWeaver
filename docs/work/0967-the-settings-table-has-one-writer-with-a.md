@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-15
 priority: P1
+lane: codex/native-config-999
 plan: inference-flow
 ---
 

@@ -56,7 +56,7 @@ Use a structural gate only for a judgment the compiler and maintained tools cann
 Shared code-facts readers own remaining typed analysis; gates and code commands consume the same facts.
 The test-foundation plan owns reader migration and native replacement qualification.
 
-(338 registered gates)
+(337 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -70,7 +70,6 @@ The test-foundation plan owns reader migration and native replacement qualificat
 | `baseui-derives-not-respells` | baseui-read | ordinary/error | @ui | a @orb/ui seal hand-writes a data… |
 | `baseui-derives-not-respells-health` | baseui-read | hard/error | @ui | a @orb/ui seal hand-writes an EVENT… |
 | `baseui-portal-container-seam` | baseui-read | ordinary/error | @ui | a sealed Base UI portal does not… |
-| `baseui-render-prop-composition` | — | ordinary/error | @client,@ui | asChild is Radix's composition idiom… |
 | `baseui-state-data-attributes` | baseui-read | ordinary/error | @ui | a @orb/ui seal computes a Base UI… |
 | `baseui-surface-manifest` | baseui-read | hard/error | none | the committed Base UI surface… |
 | `bound-field-via-hook` | — | reviewed-grant/error | @client\* | a bound field reaches the raw… |
