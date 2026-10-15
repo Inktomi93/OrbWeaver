@@ -46,7 +46,6 @@ function AttachedKind({ tagId, targetType }: { readonly tagId: TagId; readonly t
 }
 
 function openTarget(entity: TagAttachedEntity): void {
-  // biome-ignore-start lint/suspicious/noUnnecessaryConditions: Biome loses imported branded target unions; the compiler checks this exhaustive dispatch.
   switch (entity.targetType) {
     case "character":
       selectCharacter(entity.targetId);
@@ -70,5 +69,4 @@ function openTarget(entity: TagAttachedEntity): void {
     default:
       throw new Error("Unreachable label target", { cause: entity satisfies never });
   }
-  // biome-ignore-end lint/suspicious/noUnnecessaryConditions: Imported target-union dispatch ends here.
 }

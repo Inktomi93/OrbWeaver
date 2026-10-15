@@ -38,7 +38,6 @@ export function RuleActionFields({
   readonly action: RuleEditorValues["actions"][number];
   readonly chatId: ChatId | null;
 }): ReactElement {
-  // biome-ignore-start lint/suspicious/noUnnecessaryConditions: Biome loses the imported Zod draft union; the compiler and all-action tests check this exhaustive dispatch.
   switch (action.type) {
     case "set_variable":
       return (
@@ -186,5 +185,4 @@ export function RuleActionFields({
     case "run_tool":
       return <RuleToolFields form={form} index={index} action={action} chatId={chatId} />;
   }
-  // biome-ignore-end lint/suspicious/noUnnecessaryConditions: Imported draft-union dispatch ends here.
 }

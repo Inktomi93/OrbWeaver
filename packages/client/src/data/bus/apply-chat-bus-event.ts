@@ -123,17 +123,10 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     // state to reconcile here (the `roomEntityChanged` posture, one read narrower).
     case "reactionsChanged":
     case "worldInfoActivated":
-    // The five WiBusEvent members are real (tsc proves them); biome's resolver can't follow the
-    // #world-info subpath ChatBusEvent embeds them through, so it calls them unreachable.
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
     case "wiBookAttached":
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
     case "wiBookDetached":
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
     case "wiEntryAttached":
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
     case "wiEntryDetached":
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
     case "wiEntryScopeChanged":
       deps.invalidate(event);
       return;

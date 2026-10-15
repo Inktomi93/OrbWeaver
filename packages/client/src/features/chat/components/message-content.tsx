@@ -31,13 +31,9 @@ function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
 }
 
-// biome can't infer `z.infer` of the contracts discriminatedUnion (it reads `block` as `never` →
-// "unreachable case" on every arm); tsc resolves the union + the assertNever exhaustiveness correctly.
-// Same resolver gap as data/bus/apply-chat-bus-event.ts (which suppresses the identical rule).
 function renderBlock(block: MessageContentBlock, key: string, render: RowRenderPolicy, cardOrigin: CardOrigin | undefined): ReactElement {
   const { trust, allowExternal } = render;
   switch (block.kind) {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "markdown":
       return (
         // Quote tinting rides the PROSE arm only — a card block owns its own styles.
@@ -45,7 +41,6 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
           {block.md}
         </Markdown>
       );
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "media":
       return <MessageMediaBlock key={key} block={block} allowExternal={allowExternal} />;
     // docs/law/UI-Theming-and-Content.md §12.2, the TWO card tiers — see the `cardTrust` mapping in MessageSegment for which row gets which:
@@ -60,13 +55,11 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // indistinguishable from the model writing plain text, which is how this read as "cards vanish". The
     // frame says a card is here, the badge says it is plain, and the hint says what turns it on — the same
     // refuse-VISIBLY posture MessageMedia's click-to-load gate has always had.
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
       return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
     // The CYOA choice set — clickable send-affordances: a click sends the option as the
     // user's next turn through the room's choice-send capability (provider-less mounts render the
     // same buttons disabled). The block contract is untouched.
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "choices":
       return <MessageChoicesBlock key={key} options={block.options} />;
     default:
