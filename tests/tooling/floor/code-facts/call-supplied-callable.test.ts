@@ -1788,3 +1788,312 @@ test("optional invocation keeps a definite callable identity without granting es
     endReferencePass();
   }
 });
+
+test("native async resource registration retains the actual callable return and containing lifetime", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts"] } });
+  const source = project.createSourceFile(
+    "/resource.ts",
+    "const resources=new AsyncDisposableStack();function create(){return {read:()=>1,async [Symbol.asyncDispose](){}};}const held=resources.use(create());held.read();",
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const registration = calls.find((call) => call.getExpression().getText() === "resources.use");
+  const selected = calls.find((call) => call.getExpression().getText() === "held.read");
+  const expected = source.getFunctionOrThrow("create").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+  if (registration === undefined || selected === undefined) {
+    throw new Error("the real native registration is missing");
+  }
+  const signature = project.getTypeChecker().getResolvedSignature(registration)?.getDeclaration();
+  expect(signature !== undefined && project.getProgram().compilerObject.isSourceFileDefaultLibrary(signature.getSourceFile().compilerNode)).toBe(true);
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    const fact = readAuthoredCallableSources(selected.getExpression(), undefined, observed);
+    expect(fact.kind, fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail}` : "resolved").toBe("resolved");
+    expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(true);
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("native async resource registration retains the production background-work callable", async ({ repoRoot }) => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts", "lib.dom.d.ts"] } });
+  const base = "packages/server/src/infra/tasks";
+  const producer = project.createSourceFile(`/repo/${base}/background.ts`, await readFile(join(repoRoot, base, "background.ts"), "utf8"));
+  project.createSourceFile(`/repo/${base}/contract/background.ts`, await readFile(join(repoRoot, base, "contract/background.ts"), "utf8"));
+  const source = project.createSourceFile(
+    "/repo/background-use.ts",
+    `import {createBackgroundWork} from "./${base}/background.ts";const construction=new AsyncDisposableStack();const backgroundResources=new AsyncDisposableStack();construction.defer(()=>backgroundResources.disposeAsync());const background=backgroundResources.use(createBackgroundWork());background.cancel();`,
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const selected = calls.find((call) => call.getExpression().getText() === "background.cancel");
+  const expected = producer
+    .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
+    .find((property) => property.getName() === "cancel")
+    ?.getInitializer();
+  if (selected === undefined || expected === undefined) {
+    throw new Error("the actual background-work callable is missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, [...source.getDescendants(), ...producer.getDescendants()], { suppliedCallableTargets: true });
+    const fact = readAuthoredCallableSources(selected.getExpression(), undefined, observed);
+    expect(fact.kind, fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail}` : "resolved").toBe("resolved");
+    expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(true);
+  } finally {
+    endReferencePass();
+  }
+});
+
+const RESOURCE_REGISTRATION_CASES = [
+  {
+    name: "constructor alias",
+    setup: "const Stack=AsyncDisposableStack;const resources=new Stack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "",
+    resolved: true,
+  },
+  {
+    name: "receiver alias",
+    setup: "const original=new AsyncDisposableStack();const resources=original;",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "",
+    resolved: true,
+  },
+  {
+    name: "upstream receiver alias escape",
+    setup: "const original=new AsyncDisposableStack();const resources=original;",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "leak(original);",
+    resolved: false,
+  },
+  {
+    name: "receiver escape",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "leak(resources);",
+    resolved: false,
+  },
+  {
+    name: "method overwrite",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "resources.use=(value)=>value;",
+    resolved: false,
+  },
+  {
+    name: "prototype overwrite",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "AsyncDisposableStack.prototype.use=(value)=>value;",
+    resolved: false,
+  },
+  {
+    name: "shadowed constructor with an escaping use",
+    setup: "class AsyncDisposableStack{use(value:{read:()=>number}){leak(value);return value;}}const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "annotation-only native receiver",
+    setup: "const resources={use(value:{read:()=>number}){leak(value);return value;}} as AsyncDisposableStack;",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "disposal getter",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "get [Symbol.asyncDispose](){leak(this);return async()=>{};}",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "disposal receiver write",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){this.read=()=>2;}",
+    effect: "",
+    resolved: false,
+  },
+  { name: "closed synchronous fallback", setup: "const resources=new AsyncDisposableStack();", disposal: "[Symbol.dispose](){}", effect: "", resolved: true },
+  { name: "closed synchronous stack", setup: "const resources=new DisposableStack();", disposal: "[Symbol.dispose](){}", effect: "", resolved: true },
+  {
+    name: "async disposer wins over unused sync getter",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){},get [Symbol.dispose](){leak(this);return ()=>{};}",
+    effect: "",
+    resolved: true,
+  },
+  {
+    name: "last disposal descriptor wins",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "get [Symbol.asyncDispose](){leak(this);return async()=>{};},async [Symbol.asyncDispose](){}",
+    effect: "",
+    resolved: true,
+  },
+  {
+    name: "last unsafe disposal descriptor refuses",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){},get [Symbol.asyncDispose](){leak(this);return async()=>{};}",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "nullish async method uses sync fallback",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "[Symbol.asyncDispose]:undefined,[Symbol.dispose](){}",
+    effect: "",
+    resolved: true,
+  },
+  {
+    name: "shadowed disposal symbol",
+    setup: "const Symbol={asyncDispose:'not-native'};const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "string disposal spelling is not a symbol",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async asyncDispose(){}",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "registered callable write",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "held.read=()=>2;",
+    resolved: false,
+  },
+  {
+    name: "disposal method write",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "held[Symbol.asyncDispose]=async()=>{leak(held);};",
+    resolved: false,
+  },
+  {
+    name: "lexical disposal write",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){held.read=()=>2;}",
+    effect: "",
+    resolved: false,
+  },
+  {
+    name: "resource escape after registration",
+    setup: "const resources=new AsyncDisposableStack();",
+    disposal: "async [Symbol.asyncDispose](){}",
+    effect: "leak(held);",
+    resolved: false,
+  },
+] as const;
+for (const scenario of RESOURCE_REGISTRATION_CASES) {
+  test(`native resource registration retains ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts"] } });
+    const source = project.createSourceFile(
+      "/resource-case.ts",
+      `export {};declare function leak(value:object):void;${scenario.setup}function create(){return {read:()=>1,${scenario.disposal}};}const held=resources.use(create());${scenario.effect}held.read();`,
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const selected = calls.find((call) => call.getExpression().getText() === "held.read");
+    const expected = source.getFunctionOrThrow("create").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+    if (selected === undefined) {
+      throw new Error("the native resource consumer is missing");
+    }
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const fact = readAuthoredCallableSources(selected.getExpression(), undefined, observed);
+      expect(fact.kind, fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail}` : "resolved").toBe(scenario.resolved ? "resolved" : "unresolved");
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(scenario.resolved);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("native resource disposal retains the selected implicit consumer", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts"] } });
+  const source = project.createSourceFile(
+    "/resource-implicit.ts",
+    `
+    const read=(value:number)=>value;const resources=new AsyncDisposableStack();
+    const held=resources.use({read,[Symbol.asyncDispose]:read});held.read(1);
+  `,
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const selected = calls.find((call) => call.getExpression().getText() === "held.read");
+  if (selected === undefined) {
+    throw new Error("the implicit disposal consumer is missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    expect(readAuthoredCallableSources(selected.getExpression(), undefined, observed).kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("native resource return retains same-body allocation bindings", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts"] } });
+  const source = project.createSourceFile(
+    "/resource-allocation.ts",
+    `
+    function make(seed:number){ return {read:() => seed,async [Symbol.asyncDispose](){}}; }
+    const resources=new AsyncDisposableStack();
+    const first=resources.use(make(1));const second=resources.use(make(2));first.read();second.read();
+  `,
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const factory = source.getFunctionOrThrow("make");
+  const expected = factory.getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+  const parameter = factory.getParameters()[0];
+  if (parameter === undefined) {
+    throw new Error("the allocation parameter is missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    for (const name of ["first", "second"]) {
+      const selected = calls.find((call) => call.getExpression().getText() === `${name}.read`);
+      const registration = source.getVariableDeclarationOrThrow(name).getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+      const allocation = registration.getArguments()[0]?.asKindOrThrow(SyntaxKind.CallExpression);
+      if (selected === undefined || allocation === undefined) {
+        throw new Error("the native resource allocation is missing");
+      }
+      const fact = readAuthoredCallableSources(selected.getExpression(), undefined, observed);
+      expect(fact.kind, fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail}` : "resolved").toBe("resolved");
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(true);
+      expect(fact.kind === "resolved" && fact.value[0]?.bindings.get(parameter) === allocation.getArguments()[0]).toBe(true);
+    }
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("native resource projection retains foreign and stale capture refusal", () => {
+  const options = { useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts"] } };
+  const text =
+    "const resources=new AsyncDisposableStack();function make(){return {read:()=>1,async [Symbol.asyncDispose](){}};}const held=resources.use(make());held.read();";
+  const project = new Project(options);
+  const source = project.createSourceFile("/resource-epoch.ts", text);
+  const foreign = new Project(options).createSourceFile("/resource-epoch.ts", text);
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const selected = calls.find((call) => call.getExpression().getText() === "held.read");
+  const other = foreign.getDescendantsOfKind(SyntaxKind.CallExpression).find((call) => call.getExpression().getText() === "held.read");
+  if (selected === undefined || other === undefined) {
+    throw new Error("the native resource epoch fixture is missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    expect(readAuthoredCallableSources(selected.getExpression(), undefined, observed).kind).toBe("resolved");
+    expect(readAuthoredCallableSources(other.getExpression(), undefined, observed).kind).toBe("unresolved");
+    source.getFunctionOrThrow("make").setBodyText("return {read:()=>2,async [Symbol.asyncDispose](){}};");
+    expect(readAuthoredCallableSources(selected.getExpression(), undefined, observed).kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});

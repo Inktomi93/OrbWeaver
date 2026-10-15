@@ -120,7 +120,7 @@ function returnedExpressions(fn: MorphNode, explicitAbsentReturns = false): read
   }
   return body
     .getDescendantsOfKind(SyntaxKind.ReturnStatement)
-    .filter((statement) => statement.getFirstAncestor(isFunctionish) === fn)
+    .filter((statement) => statement.getFirstAncestor(Node.isFunctionLikeDeclaration) === fn)
     .map((statement) => statement.getExpression() ?? (explicitAbsentReturns ? statement : undefined))
     .filter((expression) => expression !== undefined);
 }
@@ -208,7 +208,9 @@ function nativeStatementReturns(
     Node.isForInStatement(statement) ||
     Node.isWhileStatement(statement) ||
     Node.isDoStatement(statement) ||
-    statement.getDescendants().some((node) => (Node.isReturnStatement(node) || Node.isThrowStatement(node)) && node.getFirstAncestor(isFunctionish) === owner)
+    statement
+      .getDescendants()
+      .some((node) => (Node.isReturnStatement(node) || Node.isThrowStatement(node)) && node.getFirstAncestor(Node.isFunctionLikeDeclaration) === owner)
   ) {
     return unresolved("unsupported", statement, trace, "native returned paths have an unsupported control exit");
   }
@@ -269,7 +271,7 @@ function nativeStatementReachable(node: MorphNode, program: CallReturnProgram): 
   if (captured.kind === "unresolved") {
     return captured;
   }
-  const fn = node.getFirstAncestor(isFunctionish);
+  const fn = node.getFirstAncestor(Node.isFunctionLikeDeclaration);
   const body =
     Node.isFunctionDeclaration(fn) || Node.isFunctionExpression(fn) || Node.isArrowFunction(fn) || Node.isMethodDeclaration(fn) ? fn.getBody() : undefined;
   const trace = { declarations: fn === undefined ? [] : [fn] };
@@ -850,6 +852,10 @@ export function observeCallReturns(
   references?: readonly MorphNode[],
   projection: CallReturnCaptureOptions = {},
 ): CallReturnObservations {
+  const nativeSymbols =
+    projection.nativeValueTransfers === true || projection.suppliedCallableTargets === true
+      ? { nativeSymbolServices: { callableOrigin: resolveCallableValueOrigin, memberOrigin: resolveTypeMemberOrigin, declaredByPackage } }
+      : {};
   const groups = new Map<import("ts-morph").Project, CapturedCallGroup>();
   const observedReferences = [...(references ?? [])];
   const onBodyNode =
@@ -973,11 +979,11 @@ export function observeCallReturns(
       }
       const captured: CallReturnProgram = {
         sources: group.sources,
+        ...nativeSymbols,
         ...(projection.nativeValueTransfers === true
           ? {
               nativeValueTransfers: true as const,
               nativeStatementReachable: (node: MorphNode) => nativeStatementReachable(node, captured),
-              nativeSymbolServices: { callableOrigin: resolveCallableValueOrigin, memberOrigin: resolveTypeMemberOrigin, declaredByPackage },
               nativeReturnPaths: (node: MorphNode, explicitAbsentReturns: boolean) =>
                 readFunctionReturnPaths(node, {
                   nativeValueTransfers: true,
