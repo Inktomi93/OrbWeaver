@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-15
 priority: P2
 area: tooling
-lane: codex/wire-chat-rpg-959
+lane: codex/corpus-stats-qualification-959
 plan: test-foundation
 ---
 

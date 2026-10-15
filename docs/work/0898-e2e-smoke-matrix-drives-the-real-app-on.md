@@ -23,4 +23,4 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Selected committed-corpus smoke intake passes; the complete flow, viewport, style and authentication matrix remains open. The corpus wrapper delegates to `e2e:smoke`, whose native project selection is `single-user`. Additional `--project` arguments accumulate selections rather than replace that default. Explicit publication selection does not establish alternate-project coverage.

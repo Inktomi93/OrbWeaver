@@ -29,7 +29,7 @@ Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, paren
 
 Reviewed `0b45eda681` retains descriptor provenance and closes callable storage per actual allocation. Reviewed `4eb70893f5` excludes only the exact defining name after native context and binding checks. Native controls and independent review pass. Evidence: `reports/review/1016-inert-definition-result.md`.
 
-Reviewed contextual sharing completes the actual unchanged target driver on `ea648ee8ba`. The result remains unresolved at optional `ctx.recordRecall`, not a resolved ownership verdict. Adjudicate its actual injected origin and absent branch before repeating the target. Evidence: `reports/review/contextual-sharing-integrated.md`. Complete retained-policy qualification remains open.
+Reviewed sharing and optional invocation complete the unchanged target driver on `94a5e5c51f`. Native `AsyncDisposableStack.use` remains unresolved. Preserve registration and disposal provenance before repeating the target. Evidence: `reports/review/contextual-sharing-integrated.md`. Complete retained-policy qualification remains open.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 
