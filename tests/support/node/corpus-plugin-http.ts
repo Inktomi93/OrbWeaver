@@ -38,7 +38,9 @@ export interface CorpusPluginHttp {
 }
 
 export const CORPUS_PLUGIN_UI_SOURCE = 'orb.ui(1).log.info("Native inert source");';
+export const CORPUS_PLUGIN_FRAME_TEXT = "Native frame ledger";
 const FRAME_ASSET = "ui/assets/ledger.png";
+const FRAME_GUEST_SOURCE = `const h = orb.host(1); h.ui.registerFrame({ id: "frame", anchor: "page", title: "Ledger frame", html: ${JSON.stringify(`<p>${CORPUS_PLUGIN_FRAME_TEXT}</p>`)} });`;
 
 /** Authenticate both viewers through native login; ownership, consent, CSRF and handle liveness remain production decisions. */
 export async function seedCorpusPluginHttp(root: ServerTestHarness): Promise<CorpusPluginHttp> {
@@ -57,12 +59,10 @@ export async function seedCorpusPluginHttp(root: ServerTestHarness): Promise<Cor
   const expectedImage = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
   const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
     caller,
-    bundle: makePluginBundle(
-      manifest,
-      'const h = orb.host(1); h.ui.registerFrame({ id: "frame", anchor: "page", title: "Ledger frame", html: "<p>Native frame ledger</p>" });',
-      root.clock.now(),
-      { [PLUGIN_UI_ENTRY]: strToU8(CORPUS_PLUGIN_UI_SOURCE), [FRAME_ASSET]: expectedImage },
-    ),
+    bundle: makePluginBundle(manifest, FRAME_GUEST_SOURCE, root.clock.now(), {
+      [PLUGIN_UI_ENTRY]: strToU8(CORPUS_PLUGIN_UI_SOURCE),
+      [FRAME_ASSET]: expectedImage,
+    }),
     grant: [],
   });
   const granted = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
@@ -126,5 +126,156 @@ export async function seedCorpusPluginHttp(root: ServerTestHarness): Promise<Cor
     foreignMint,
     foreignDocument,
     revoked,
+  };
+}
+
+interface MintedFrame {
+  readonly frame: PluginFrameMintResponse;
+  readonly assetUrl: string;
+}
+
+interface FrameDocumentCapture {
+  readonly response: Response;
+  readonly text: string;
+}
+
+interface FrameAssetCapture {
+  readonly response: Response;
+  readonly bytes: Uint8Array;
+}
+
+export interface CorpusPluginFrameLifetime {
+  readonly baseline: CorpusPluginHttp;
+  readonly first: MintedFrame;
+  readonly anonymousAsset: FrameAssetCapture;
+  readonly beforeBoundary: FrameDocumentCapture;
+  readonly pastInitialExpiry: FrameDocumentCapture;
+  readonly expired: FrameDocumentCapture;
+  readonly expiredAsset: FrameAssetCapture;
+  readonly noCsrf: Response;
+  readonly foreignDelete: Response;
+  readonly afterForeignDelete: FrameDocumentCapture;
+  readonly deleted: Response;
+  readonly deletedDocument: FrameDocumentCapture;
+  readonly deletedAsset: FrameAssetCapture;
+  readonly narrowed: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly revokedDocument: FrameDocumentCapture;
+  readonly revokedAsset: FrameAssetCapture;
+  readonly upgrade: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["upgrade"]>>;
+  readonly survivingAssets: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["listBundleAssets"]>>;
+  readonly removedSurfaceDocument: FrameDocumentCapture;
+  readonly removedSurfaceAsset: FrameAssetCapture;
+  readonly beforeUninstall: FrameDocumentCapture;
+  readonly uninstalledDocument: FrameDocumentCapture;
+  readonly uninstalledAsset: FrameAssetCapture;
+}
+
+/** Observe sliding business-clock expiry and live revocation on natively minted frame credentials. */
+export async function seedCorpusPluginFrameLifetime(root: ServerTestHarness): Promise<CorpusPluginFrameLifetime> {
+  const baseline = await seedCorpusPluginHttp(root);
+  const caller = await root.principalFor(root.ownerId);
+  const pluginId = baseline.installed.plugin.id;
+  const ownerHeaders = { cookie: baseline.ownerAuth.cookie, forwarded: "" };
+  const foreignHeaders = { cookie: baseline.foreignAuth.cookie, forwarded: "" };
+  await root.services.plugin.setEnabled({ caller, pluginId, enabled: true });
+  const mint = async (): Promise<MintedFrame> => {
+    const response = await root.http.request(PLUGIN_FRAME_ROUTE, {
+      method: "POST",
+      headers: { ...ownerHeaders, "content-type": "application/json", [CSRF_HEADER]: "1" },
+      body: JSON.stringify({ pluginId, surfaceId: "frame" }),
+    });
+    if (!response.ok) {
+      throw new Error(`Native plugin frame mint refused (${response.status})`);
+    }
+    const frame = pluginFrameMintResponseSchema.parse(await response.json());
+    const handle = frame.url.split("/").at(-1);
+    if (handle === undefined) {
+      throw new Error("Native plugin frame omitted its opaque handle");
+    }
+    return { frame, assetUrl: pluginFrameAssetUrl(handle, FRAME_ASSET) };
+  };
+  const readDocument = async (url: string, headers = ownerHeaders): Promise<FrameDocumentCapture> => {
+    const response = await root.http.request(url, { headers });
+    return { response, text: await response.text() };
+  };
+  const readAsset = async (url: string): Promise<FrameAssetCapture> => {
+    const response = await root.http.request(url, { headers: { forwarded: "" } });
+    return { response, bytes: new Uint8Array(await response.arrayBuffer()) };
+  };
+  const first = await mint();
+  const anonymousAsset = await readAsset(first.assetUrl);
+  root.clock.advance(first.frame.expiresInMs - 1);
+  const beforeBoundary = await readDocument(first.frame.url);
+  root.clock.advance(1);
+  const pastInitialExpiry = await readDocument(first.frame.url);
+  root.clock.advance(first.frame.expiresInMs);
+  const expired = await readDocument(first.frame.url);
+  const expiredAsset = await readAsset(first.assetUrl);
+
+  const disposable = await mint();
+  const noCsrf = await root.http.request(disposable.frame.url, { method: "DELETE", headers: ownerHeaders });
+  await noCsrf.arrayBuffer();
+  const foreignDelete = await root.http.request(disposable.frame.url, { method: "DELETE", headers: { ...foreignHeaders, [CSRF_HEADER]: "1" } });
+  await foreignDelete.arrayBuffer();
+  const afterForeignDelete = await readDocument(disposable.frame.url);
+  const deleted = await root.http.request(disposable.frame.url, { method: "DELETE", headers: { ...ownerHeaders, [CSRF_HEADER]: "1" } });
+  await deleted.arrayBuffer();
+  const deletedDocument = await readDocument(disposable.frame.url);
+  const deletedAsset = await readAsset(disposable.assetUrl);
+
+  const consent = await mint();
+  const narrowed = await seedPluginGrant(root.db, root.services.plugin.setGrant, { caller, pluginId, grant: ["ui.surface"], acknowledgedNetHosts: [] });
+  const revokedDocument = await readDocument(consent.frame.url);
+  const revokedAsset = await readAsset(consent.assetUrl);
+  await root.services.plugin.setGrant({ caller, pluginId, grant: ["ui.surface", "ui.frame"], acknowledgedNetHosts: [], enable: true });
+  const removed = await mint();
+  const upgrade = await root.services.plugin.upgrade({
+    caller,
+    pluginId,
+    bundle: makePluginBundle(pluginManifestSchema.parse({ ...baseline.installed.plugin.manifest, version: "2.0.0" }), "orb.host(1);", root.clock.now(), {
+      [PLUGIN_UI_ENTRY]: strToU8(CORPUS_PLUGIN_UI_SOURCE),
+      [FRAME_ASSET]: baseline.expectedImage,
+    }),
+  });
+  const survivingAssets = await root.services.plugin.listBundleAssets({ caller, pluginId });
+  const removedSurfaceDocument = await readDocument(removed.frame.url);
+  const removedSurfaceAsset = await readAsset(removed.assetUrl);
+  await root.services.plugin.upgrade({
+    caller,
+    pluginId,
+    bundle: makePluginBundle(pluginManifestSchema.parse({ ...baseline.installed.plugin.manifest, version: "3.0.0" }), FRAME_GUEST_SOURCE, root.clock.now(), {
+      [PLUGIN_UI_ENTRY]: strToU8(CORPUS_PLUGIN_UI_SOURCE),
+      [FRAME_ASSET]: baseline.expectedImage,
+    }),
+  });
+  const final = await mint();
+  const beforeUninstall = await readDocument(final.frame.url);
+  await root.services.plugin.uninstall({ caller, pluginId });
+  const uninstalledDocument = await readDocument(final.frame.url);
+  const uninstalledAsset = await readAsset(final.assetUrl);
+  return {
+    baseline,
+    first,
+    anonymousAsset,
+    beforeBoundary,
+    pastInitialExpiry,
+    expired,
+    expiredAsset,
+    noCsrf,
+    foreignDelete,
+    afterForeignDelete,
+    deleted,
+    deletedDocument,
+    deletedAsset,
+    narrowed,
+    revokedDocument,
+    revokedAsset,
+    upgrade,
+    survivingAssets,
+    removedSurfaceDocument,
+    removedSurfaceAsset,
+    beforeUninstall,
+    uninstalledDocument,
+    uninstalledAsset,
   };
 }

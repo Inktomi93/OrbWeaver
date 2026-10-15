@@ -8,7 +8,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../iso/clock.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { makePluginBundle, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { capturePluginRows, makePluginBundle, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
 import { seedAdminProvider, seedPluginProviders } from "./factories/provider.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -132,4 +132,54 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
   });
   const publication = await root.services.plugin.listDistributedPlugins({ caller });
   return { installed, providers, distribution, recipient, repeated, tombstones, admin, refused, publication };
+}
+
+type PluginService = ServerTestHarness["services"]["plugin"];
+
+export interface CorpusPluginWithdrawal {
+  readonly published: Awaited<ReturnType<typeof seedDistributedPlugin>>;
+  readonly upgraded: Awaited<ReturnType<PluginService["upgrade"]>>;
+  readonly before: Awaited<ReturnType<typeof capturePluginRows>>;
+  readonly refused: readonly PromiseSettledResult<Awaited<ReturnType<PluginService["uninstallForAllUsers"]>>>[];
+  readonly stillPublished: Awaited<ReturnType<PluginService["listDistributedPlugins"]>>;
+  readonly withdrawn: Awaited<ReturnType<PluginService["uninstallForAllUsers"]>>;
+  readonly after: Awaited<ReturnType<typeof capturePluginRows>>;
+  readonly ownerInstalls: Awaited<ReturnType<PluginService["list"]>>;
+  readonly remainingPublications: Awaited<ReturnType<PluginService["listDistributedPlugins"]>>;
+  readonly lateApplication: Awaited<ReturnType<PluginService["applyDistributedPlugins"]>>;
+}
+
+/** Withdraw only the published version; a recipient's native upgrade and private state remain their own. */
+export async function seedCorpusPluginWithdrawal(root: ServerTestHarness, recipientId: UserId): Promise<CorpusPluginWithdrawal> {
+  const owner = await root.principalFor(root.ownerId);
+  const recipient = await root.principalFor(recipientId);
+  const bytes = corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), CORPUS_PLUGIN_MANIFEST, GUEST_SOURCE, root.clock.now());
+  const published = await seedDistributedPlugin(root.db, root.services.plugin.installForAllUsers, { caller: owner, bundle: bytes });
+  const selected = published.installs.find(({ plugin }) => plugin.ownerId === recipient.userId);
+  if (selected === undefined) {
+    throw new Error("Native distribution omitted the withdrawal recipient");
+  }
+  await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+    caller: recipient,
+    pluginId: selected.plugin.id,
+    grant: CORPUS_PLUGIN_MANIFEST.capabilities,
+    acknowledgedNetHosts: [],
+    enable: true,
+  });
+  const next = pluginManifestSchema.parse({ ...CORPUS_PLUGIN_MANIFEST, version: "2.0.0" });
+  const upgraded = await root.services.plugin.upgrade({
+    caller: recipient,
+    pluginId: selected.plugin.id,
+    bundle: corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), next, GUEST_SOURCE, root.clock.now()),
+  });
+  const before = await capturePluginRows(root.db, recipient.userId, selected.plugin.id);
+  const refused = await Promise.allSettled([root.services.plugin.uninstallForAllUsers({ caller: recipient, slug: published.outcome.slug })]);
+  const stillPublished = await root.services.plugin.listDistributedPlugins({ caller: owner });
+  const withdrawn = await root.services.plugin.uninstallForAllUsers({ caller: owner, slug: published.outcome.slug });
+  const after = await capturePluginRows(root.db, recipient.userId, selected.plugin.id);
+  const ownerInstalls = await root.services.plugin.list({ caller: owner });
+  const remainingPublications = await root.services.plugin.listDistributedPlugins({ caller: owner });
+  const lateUser = await root.principalFor((await root.actor()).id);
+  const lateApplication = await root.services.plugin.applyDistributedPlugins({ caller: lateUser });
+  return { published, upgraded, before, refused, stillPublished, withdrawn, after, ownerInstalls, remainingPublications, lateApplication };
 }
