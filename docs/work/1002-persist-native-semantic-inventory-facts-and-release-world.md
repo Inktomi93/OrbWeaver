@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-15
 priority: P1
 area: tooling
-lane: codex/native-token-memo-1002
+lane: codex/native-lexical-memo-1002
 plan: test-foundation
 ---
 
@@ -24,20 +24,14 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Extraction uses ts-morph's bundled checker. Each world retains its descriptor, roots and closure. Reviewed SQLite persistence preserves scalars, ordering, multiplicity, input versions, atomic generations, last-good data and overlay isolation.
+The existing worker/store retains native descriptors, roots, closure, input versions, atomic generations, last-good data and overlay isolation. Reviewed reader corrections preserve scalar identity, alias/native source meaning, ordered reference results and lazy consumption. Unported typed readers require explicit native evidence.
 
-Reviewed `0450353ca5` avoids unused definition formatting only for opted-in queries. Reviewed `49d607fd3c` shares extraction-local physical identities and completed import maps through a typed readonly reference pass. Native parity, cancellation, invalidation and refusal controls pass.
+Frozen `7394d01aaf` qualifies complete tests-DOM extraction, worker release, publication and disposal. Frozen `32ca7561e6` qualifies the complete root-world path through staging, streamed import, closed-input validation and publication. Neither is current-main or complete-demand qualification. Preserve their source, dependency snapshots, databases and reports.
 
-Source `53a485a41c` corrects unredirected wrappers through checker-admitted source identity. Complete tests-DOM extraction, release, publication, lazy reading and disposal pass at frozen `7394d01aaf`, not complete demand. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`.
+The root qualification and independent warm readers are recorded in `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md` and `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-warm-reuse-qualification.md`. Warm readers agree during overlapping pinned lifetimes without rebuilding. Acquisition includes input validation and serialized admission; indexed-read time is not total latency.
 
-Reviewed `e70114404e` repairs syntax-carrier library collisions. Fingerprints remain intact; historical partitions need a new current-source generation. Old stages, profiles and databases remain preserved, not silently revalidated.
+The completed post-memo diagnostic isolates remaining lexical and token-lookup cost after real memo reuse. It intentionally stops native extraction after capture; no partition or publication qualifies. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-postmemo-native-cost-diagnosis.md`. The bounded lexical-list correction owns native parity, fallback, cancellation and combined retention; no token-cap increase or complete replay follows automatically.
 
-The frozen `13e9674c64` diagnostic identifies native token-location lookup as the dominant reference cost. Its stopped worker supplies no extraction verdict. Source, profiles and release artifacts remain preserved.
+Item 1027 owns demand-specific native cast relations through this same store and worker. Preserve explicit family presence, native interpretation and atomic generation identity; syntax carriers cannot supply Type or assignability queries. Cast-only requests must not perform unrequested reference extraction.
 
-Reviewed `2498d44650` adds bounded exact-source token lookup reuse within the existing readonly native pass. Fallback, fresh interpretation, cancellation, disposal, mutation and overflow controls pass. Protected frozen dependencies remain unchanged; bounded memory does not qualify complete demand.
-
-Frozen `32ca7561e6` completes root-world extraction, staging, worker release, streamed import, publication, lazy reading and disposal. Closed-database verification validates the complete descriptor and recorded inputs. Measured memory and lifecycle evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`. This is not current-main, complete-demand, collector or hosted qualification.
-
-Independent warm readers reuse that frozen generation without partition builds. Indexed results agree across overlapping pinned lifetimes; disposal and unchanged inputs pass. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-warm-reuse-qualification.md`. Acquisition still includes input validation and serialized writer admission; indexed query time is not total caller latency.
-
-Current complete-demand publication, collector equivalence, cross-world concurrent reuse and hosted memory remain open. Preserve qualified partitions for the complete-demand plan; diagnostic stages do not establish reusable production data.
+Complete demanded-world publication, collector equivalence, cross-world reuse and hosted memory remain open. The complete-demand plan retains the full roster and missing collector phases. Qualified root data remains frozen; diagnostic stages and old partitions cannot become current by relabeling.

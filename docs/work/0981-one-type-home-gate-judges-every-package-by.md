@@ -1,9 +1,8 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-15
 priority: P1
-lane: codex/type-homes-981
 plan: test-foundation
 ---
 
@@ -23,12 +22,12 @@ One canonical home table and placement judgment cover every workspace package an
 
 ## Evidence
 
-The component-home ruling preserves co-located UI and client prop APIs with canonical native and data derivation. Reviewed source `91ad8df309` integrates canonical factory aliases and exported origins. Reviewed source `8cc8687587` centralizes default-content and plugin-toolchain contracts and activates bounded native placement. Public APIs and generated support bytes remain unchanged. Native controls, affected behavior and compiler checks pass; root retains unrelated diagnostics.
+Canonical placement and factory-origin readers preserve component-owned APIs beside components while deriving lower-owned data. Reviewed package-home moves and native syntax restrictions retain distinct hard service-presence and ledger-field claims. `SandboxLimits` remains a real unwaived finding; complete package coverage and lower-data derivation remain open.
 
-Reviewed source `f8dadcb165` consolidates ordinary declaration ownership without changing findings or authority. Source `409ce2229e` proves native component and supporting origins; unrelated utility members remain unqualified. Source `582da2c7d1` relocates inference contracts without changing runtime statements or public names. Effective native syntax replaces only covered direct declarations; local exports, schemas and generated omissions retain custom ownership. Source `185e81b083` preserves complete finding assertions with typed sorting. Complete-owner evidence supports the attributable package-interface budget shrink; SandboxLimits remains a real unwaived finding. Generated admission, complete package coverage, lower-data derivation and production repairs remain open. Preserve hard non-placement claims.
+Reviewed component contributions support native rendering, substituted members, schema output and supporting type imports. Metadata-only StatusChip ownership and reachable fuzzy-search options have discriminating controls. Dead contributions refuse; opaque generics, unknown spreads, smooth-text lifetimes and complete UI activation remain unqualified. Evidence for the cached API is `5909ff0d60`.
 
-Reviewed `cc8afb0622` delivers native component context, stable render origins and same-owner supporting imports. Reviewed `86feee842e` adds substituted members, schema output and installed Base UI returned rendering. Captured contributions preserve lower-data uncertainty; projected methods and nonexecuting collectors refuse. Native controls and targeted review corrections pass. Ordinary findings remain and UI activation stays off. Other non-render APIs, opaque generics, generated/Node homes and lower-owned overlap remain unqualified.
+Reviewed `f6d8656ea2` sanctions the existing UI token-authoring Node contract and preserves its supported public type exports. The actual producer supplies generated vocabulary evidence through lazy native Node/browser owners, complete output-family freshness and local value identity. Foreign, borrowed, missing and stale evidence refuses. Existing population unions, explicit-none behavior and resource lifecycle retain their controls.
 
-Reviewed `0652f1d80a` proves the metadata-only returned API through StatusChip's actual final native spread and canonical placement consumer. Empty-member and unused-key twins refuse. Avatar's later unknown spread and dynamic recipe execution remain unqualified. Same-review corrections and affected controls pass. This does not establish application liveness, lower-data trust or complete UI activation.
+The actual generated-family verifier entrypoint and producer freshness pass. Independent review corrected accidental preparation by a skipped alias owner; mixed-policy demand controls then pass. Tooling types and exact lint pass; root and support-package classification limits remain recorded. Evidence: `.claude/worktrees/codex-type-homes-981/reports/review/981-generated-node-homes.md` and its independent review.
 
-Reviewed `5909ff0d60` proves native fuzzy-search options ownership through reachable callback, cache and returned lookup contributions. Dead writers and dead search returns refuse. Strict defaults remain unchanged. Smooth-text lifetime, lower-data trust, current-key correlation and complete UI activation remain unqualified. Affected controls and tooling checks pass; root retains off-owned errors.
+The bounded token family does not establish generic verifier delivery, other generated/Node homes, lower-data trust or complete UI placement. Item 1027 owns native delivery before broad activation; remaining component lifetime and ownership judgments stay open.

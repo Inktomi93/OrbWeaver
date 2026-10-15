@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-15
 priority: P1
 area: tooling
+lane: codex/type-homes-981
 plan: test-foundation
 ---
 
@@ -23,4 +24,6 @@ Actual structure and scoped entrypoints preserve native options, roots, closure 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed `f6d8656ea2` adds run-owned lazy native source acquisition and qualifies actual generated-token delivery through structure and scoped preparation. Its skipped-owner demand defect is corrected. This bounded family preserves separate Node/browser contexts and does not replace the ordinary syntax checker.
+
+The generic dispatcher still supplies its input Project checker and syntax nodes to non-syntax owners. The inventory exposes stored identity/reference facts, not native Type, signature or assignability queries. Replacing every typed reader with syntax carriers would lose meaning; retaining every native world in the parent would lose the memory boundary. The active lane owns the first concrete semantic-family delivery proposal through the existing floor and compiler-worker owners.

@@ -1,22 +1,18 @@
 ---
 kind: law
 status: active
-updated: 2026-10-07
+updated: 2026-10-15
 ---
 
 <!-- This is the @orb/ui law under D66. §-numbers are cited by code as spec provenance. Never renumber. -->
 
 # `@orb/ui` — the package design (structure · factories · seals · tokens)
 
-> **AS-BUILT LAW.** `@orb/ui` is fully built (`packages/ui/src` is the inventory;
-> `packages/ui/package.json#exports` is the public surface); the §6.2 client factories are built too
-> (`packages/client/src/{forms,data,state}`). The frontend cake leaf (`kit ← contracts ← ui ← client`,
-> D42). **The law this doc executes is `docs/law/UI-*.md` + ledger D42/D43/D44/D52/D54/D58/D62/D66; those
-> win on any conflict.** This doc owns the concrete package decisions the law leaves open + the factory
-> inventory with homes/signatures/obligations. **For anything built, the code is the doc**
-> (`packages/ui/src` + the CT suite) — this doc carries only the cross-cutting WHY. Code file headers
-> cite these §-numbers as spec provenance: never renumber, never move this file. The structural
-> contract graduated to `docs/law/UI-Primitives-and-Reuse.md` §13.7–§13.9.
+> **AS-BUILT LAW.** Code (`packages/ui/src`) and CTs document what is built; `package.json#exports`
+> declares public doors. Client factories (§6.2) live in `packages/client/src/{forms,data,state}`.
+> `docs/law/UI-*.md` + D42/D43/D44/D52/D54/D58/D62/D66 win conflicts. This document owns package
+> decisions, factory homes/signatures/obligations and cross-cutting reasons. Structural law lives in
+> `UI-Primitives-and-Reuse.md` §13.7–§13.9. Code cites these section numbers: never renumber or move this file.
 
 ## 1. Position in the cake + the physics
 
@@ -143,7 +139,7 @@ enforces the seal column: a lib may only be imported from its sealed dir.
 
 ## 4. Tokens — the DTCG pipeline (concrete)
 
-`token-contract.ts` owns the Node token-authoring shapes and validation API. Build helpers derive those shapes and preserve their supported type exports through type-only reexports. The package exports declare the author-time doors separately from browser token output. Type homes follow [Spine-TypeScript section 7.4](Spine-TypeScript-and-Patterns.md#types--schemas--one-home-one-direction-no-inline-spine-74).
+Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.4](Spine-TypeScript-and-Patterns.md#types--schemas--one-home-one-direction-no-inline-spine-74). The token-contract and tokens-build entries remain supported Node doors.
 
 - **Source:** `src/tokens/tokens.json` — W3C DTCG (`$value`/`$type`). Seeded from the design seed
   (the DESIGN.md OKLCH Hearth ramp + Ember accent + Geist + the radius/spacing/motion scales —

@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-14
+updated: 2026-10-15
 priority: P2
 ---
 
@@ -11,11 +11,13 @@ priority: P2
 
 Adjudicate release-please's cmdk ignore, corpus liveness, type budgets, session-daemon T5 load behavior, gate-spelling-twins verdict and use-databank-list-header CT. Dependency pollution and Knip findings are leads; production export work owns current inventory.
 
-UI exposes node-only token build modules through token-contract and tokens-build doors. Their runtime dependencies and stale token-contract header need review against D318; do not delete supported APIs merely because tooling is their consumer.
+Item 981 owns UI token-authoring contract homes. Retain their supported D318 public doors.
 
 ## Population and migration checks
 
 Audit policies declaring `@packages` in `tooling/src/verify/contract/population.ts`: that fixed set omits `@inference`, while `@product` includes it. Each policy must use the population its claim covers; do not widen the fixed set silently. Review remaining Biome nursery rules against maintained ESLint equivalents. Keep release-please and corpus findings visible until completed checks establish a verdict.
+
+The population workspace reconciliation does not classify the `tests/support` package. Its source still belongs to `@tests`; this failure does not prove those files escape policy admission. Adjudicate package-root identity separately from source coverage; add no exclusion merely to silence the test.
 
 The typed-lint migration reports legacy-only condition, coercion, sort, and nullish findings. Preserve their regression cases for the rebuild rather than starting another legacy retrofit. The maintained lint population also reports `shell-modal-header` as an unknown class in `packages/client/src/components/content-dialog.tsx` and `packages/client/src/features/app-shell/components/modal-host.tsx`; adjudicate the class against its actual style home.
 
@@ -43,7 +45,7 @@ The staged-selection release-promotion cases fail on current qualification gener
 
 JSON and wire parsing allowances are zero; whole-application qualification remains open.
 
-The package-interface shrink is integrated. `SandboxLimits` remains unwaived for type-home repairs. Native coverage does not establish complete placement qualification.
+`SandboxLimits` remains an unwaived type-home finding.
 
 Native ESLint partition and real CLI controls pass. The [hosted artifact](https://github.com/Inktomi93/OrbWeaver/actions/runs/38544900781) leaves shared-declaration and `contract-verb-presence` native-library qualification open. Arbitrary owner selection and legacy fixture repairs are not remedies.
 

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)

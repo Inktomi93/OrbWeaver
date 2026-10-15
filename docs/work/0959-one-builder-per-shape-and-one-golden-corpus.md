@@ -23,24 +23,20 @@ A builder exists per contract output and table; the corpus is committed and load
 
 ## Evidence
 
-Builders derive request-specific outputs from production types, schema defaults or actual writers. Schema-drift and zero-token controls reject fabricated inputs. Browser responders preserve exact input/output, absent versus null, and conflicting or unmatched capture refusal. Legacy-only Resolved helpers do not qualify native data.
+Builders derive outputs from production types, defaults or actual writers. Responders retain exact requests, absent/null distinctions and conflicting-capture refusal. Direct database fixtures remain lawful for database subjects; they do not qualify composed production behavior.
 
-`tests/support/node/corpus.ts` owns the private producer composition. Its typed captures name the actual auth, library, recall, automation, plugin, knowledge, chat, imagery, RPG, search, connection, stats/settings, SDK and notification owners. These execute the production graph with physical external edges, injected clocks and IDs; no test-side domain assembly qualifies them.
+`tests/support/node/corpus.ts` owns the genuine producer graph. Native cases cover identity/session transitions, automation, plugin consent and containment, funded execution, retained RPG lineage, SDK sessions, search and library operations. Private rows, credentials and physical observations remain outside portable DTOs.
 
-Native controls preserve OIDC/session transitions, automation provenance, plugin consent/containment, funded execution, RPG lineage and canonical search/library outputs. Scoped cases and defect controls remain. `58e889386b` integrates enabled empty-owner memory completion.
+Reviewed `fa2aac0491`, `717c8adff2` and `98b54e0ce0` preserve finite viewer/request/stage projections and reject known raw or JSON-escaped private values before diagnostics. Fixture identity is not authentication. Unknown secrets and arbitrary encodings are not covered by this refusal guarantee.
 
-Reviewed `afdd075a66` qualifies routed stats/settings/theme capture through actual writers, reconciliation and parsers. CSS-copy controls discriminate the defect. Foreign timing, differential cost populations and ownerless seed rows remain open.
+Source `d4226546af` qualifies notification, member-chat, world-info and regex projections together through the complete integrated capsule and independent scrubbed DB/CAS clone. Explicit equality uses actual producer outputs. Existing privacy, closure, pending-state, SDK/stats, row and teardown assertions remain. Matching omission controls and affected checks pass. Evidence: `.claude/worktrees/share-acme-harness-958/reports/review/959-owner-stage-publication.md`.
 
-The aggregate retains closure, sole-WAL, pending/handoff state, secret exclusion and independent DB/CAS clones. Guards remain; descriptor observations are Linux-specific.
+SDK rewind/re-adoption and native child disposal retain their scoped controls; the deliberate SDK intervention remains unverified under its recorded platform limitation. Stats foreign timing, differential cost populations and ownerless seed rows remain open. Native root checks retain off-owned diagnostics; complete application qualification is not established.
 
-Reviewed `0a3e773354` adds native SDK lineage to captures and scrubbed clones. Physical imports prove rewind and re-adoption; production owns admission, cancellation and direct-child disposal. Aggregate and targeted controls pass. Deliberate intervention remains unverified under the platform limitation. Canonical shape coverage and replacement suites remain open.
+The native schema denominator is `reports/review/959-native-table-inventory.json`. Reference leads in `reports/review/959-table-builder-map.json` do not prove builders or writers. Semantic qualification in `reports/review/959-table-builder-semantics.json` distinguishes production-backed captures, database fixtures and unresolved paths. Contract-output coverage is a separate unmeasured denominator.
 
-Reviewed `83380c0db2` and `1a10e499df` preserve native notification, automation and plugin producers. Recipient, reset, replay and peer-cancellation controls discriminate real faults. Canonical rows match scrubbed clones; complete payload coverage remains open.
+Reviewed `7c087293c8` captures actual member cookie identities and excludes ambient owner fallback as cookie proof. Public identity DTOs preserve native consistency and secret refusal; they do not authenticate scrubbed clones. Reviewed `b29020315d` adds production-created library row captures and corrects character creation to use injected business time for both stamps. Lawful database fixtures remain unchanged.
 
-Reviewed `5270c95e4d` adds native image skips, generation/edit/provenance variants, host-funded previews, refusal-before-effects and honest unknown cost. Source and scrubbed clone rows/CAS agree. Semantic and schema-drift controls fail as intended, then pass after exact restoration. Native multipart parsing remains confined to controlled outbound SDK bytes. Existing cases and guards remain intact.
+The combined main capsule and clone pass with these integrations. Evidence: `reports/runs/test/main-3075446-2026-10-15T04-54-00-790Z/test-report.json`. Root types retain off-owned errors in `reports/review/root-corpus-integration-types.log`; complete application qualification is not established.
 
-Reviewed `fa2aac0491` rejects producer-known raw and JSON-escaped private values before schema diagnostics or fixture effects. Native malformed-key controls preserve safe diagnostics; exact request recipes and clean clone controls pass. Native cookie parsing remains production-owned. Arbitrary encodings and complete witness coverage are not established.
-
-Reviewed `717c8adff2` publishes finite notification and ordinary-member lifecycle snapshots from actual routed reads. Viewer, request and stage remain separate; native inclusive-floor, hidden-byte and known-secret refusal controls pass. Independent security review confirms fixture selection is not authentication. Complete capsule/clone qualification with these sections remains open.
-
-Complete projections, builders, shared adoption and suite replacement remain open. Private captures do not widen the portable recipe.
+Complete projections/builders, contract-output coverage, clone login setup and shared adoption remain open. Replacement suites follow complete foundations; no general legacy port is authorized by these captures.
