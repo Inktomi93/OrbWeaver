@@ -27,6 +27,11 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  runtimeExport: {
+    name: "inventory_runtime_export",
+    columns: "ordinal,file,name,node,callable,initializerKind,initializerCallable",
+    definition: `${PARTITION},${ORDINAL},file TEXT NOT NULL,name TEXT NOT NULL,node INTEGER NOT NULL,callable INTEGER NOT NULL CHECK(callable IN (0,1)),initializerKind INTEGER,initializerCallable INTEGER CHECK(initializerCallable IN (0,1)),PRIMARY KEY(partition,ordinal),${SPAN_REFERENCE},CHECK((initializerKind IS NULL AND initializerCallable IS NULL) OR (initializerKind IS NOT NULL AND initializerCallable IS NOT NULL))`,
+  },
   brand: {
     name: "inventory_brand",
     columns: "ordinal,node,brand",
@@ -220,6 +225,19 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
   partition.brands.forEach((entry, ordinal) => {
     const fact = partitionSchema.shape.brands.element.parse(entry);
     emit("brand", ordinal, spanId(fact.node), fact.brand === null ? null : inventoryString(fact.brand));
+  });
+  partition.runtimeExports.forEach((entry, ordinal) => {
+    const fact = partitionSchema.shape.runtimeExports.element.parse(entry);
+    emit(
+      "runtimeExport",
+      ordinal,
+      inventoryString(fact.file),
+      inventoryString(fact.name),
+      spanId(fact.declaration),
+      Number(fact.callable),
+      fact.initializer?.kind ?? null,
+      fact.initializer === null ? null : Number(fact.initializer.callable),
+    );
   });
   partition.casts.forEach((entry, ordinal) => {
     const result = castRelationResultSchema.parse(entry.result);

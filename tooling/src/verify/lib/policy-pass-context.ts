@@ -247,6 +247,8 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
         nativeFacts(nodes).castRelations(input.ownerId, nodes),
       idBrands: (nodes: Parameters<NativeTypeContext["idBrands"]>[0]): ReturnType<NativeTypeContext["idBrands"]> =>
         nativeFacts(nodes).idBrands(input.ownerId, nodes),
+      runtimeExports: (nodes: Parameters<NativeTypeContext["runtimeExports"]>[0]): ReturnType<NativeTypeContext["runtimeExports"]> =>
+        nativeFacts(nodes).runtimeExports(input.ownerId, nodes),
     },
     checker: () => {
       if (input.analysis === "syntax") {

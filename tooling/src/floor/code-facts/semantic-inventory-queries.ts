@@ -244,3 +244,22 @@ export function* readInventoryBrands(db: DatabaseSync, id: string, node?: Invent
     yield { node: spanRow.parse(row), brand: row["brand"] === null ? null : inventoryStringSchema.parse(row["brand"]) };
   }
 }
+
+/** Read one exporting file; declaration spans retain their importing-world identity. */
+export function* readInventoryRuntimeExports(db: DatabaseSync, id: string, file: string): Iterable<InventoryPartition["runtimeExports"][number]> {
+  requireInventoryFamily(db, id, "runtime-exports");
+  for (const row of db
+    .prepare(`SELECT r.file AS exportingFile,r.name,r.callable,r.initializerKind,r.initializerCallable,s.file,s.start,s.end,s.kind
+    FROM inventory_runtime_export r JOIN inventory_span s ON s.partition=r.partition AND s.ordinal=r.node
+    WHERE r.partition=? AND r.file=? ORDER BY r.ordinal`)
+    .iterate(id, inventoryString(file))) {
+    yield partitionSchema.shape.runtimeExports.element.parse({
+      file: inventoryStringSchema.parse(row["exportingFile"]),
+      name: inventoryStringSchema.parse(row["name"]),
+      declaration: spanRow.parse(row),
+      callable: boolean.parse(row["callable"]),
+      initializer:
+        row["initializerKind"] === null ? null : { kind: integer.parse(row["initializerKind"]), callable: boolean.parse(row["initializerCallable"]) },
+    });
+  }
+}

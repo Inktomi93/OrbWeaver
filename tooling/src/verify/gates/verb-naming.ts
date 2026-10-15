@@ -21,32 +21,14 @@
 // `packages/server/src/domain/admin/verbs/__cbbhr_in_create-user.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { SourceFile } from "ts-morph";
-import { Node } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { unwrapExpression } from "../lib/ast-read.ts";
 
 function pascal(kebab: string): string {
   return kebab
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("");
-}
-
-function isCallableRuntimeExport(sourceFile: SourceFile, name: string): boolean {
-  return (sourceFile.getExportedDeclarations().get(name) ?? []).some((declaration) => {
-    if (Node.isFunctionDeclaration(declaration)) {
-      return true;
-    }
-    if (!Node.isVariableDeclaration(declaration)) {
-      return false;
-    }
-    const initializer = declaration.getInitializer();
-    if (initializer === undefined) {
-      return false;
-    }
-    const value = unwrapExpression(initializer);
-    return Node.isArrowFunction(value) || Node.isFunctionExpression(value) || value.getType().getCallSignatures().length > 0;
-  });
 }
 
 const MESSAGE =
@@ -64,15 +46,44 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: "rename the exported factory to `create<Pascal(filename)>` (create.ts → createCreate, bulk-archive.ts → createBulkArchive).",
-  create: (ctx) => ({
-    visitFile: (sourceFile) => {
-      ctx.checker();
-      const expected = `create${pascal(sourceFile.getBaseNameWithoutExtension())}`;
-      if (!isCallableRuntimeExport(sourceFile, expected)) {
-        ctx.report.file(ctx.relativePath(sourceFile), { line: 1, column: 1, token: `expected ${expected}` });
-      }
-    },
-  }),
+  create: (ctx) => {
+    const sources: SourceFile[] = [];
+    return {
+      visitFile: (sourceFile) => {
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native runtime export context is unavailable");
+        }
+        sources.push(sourceFile);
+        ctx.nativeTypes.request({ kind: "runtime-exports", nodes: [sourceFile] });
+      },
+      evaluate: () => {
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native runtime export context is unavailable");
+        }
+        const exports = ctx.nativeTypes.runtimeExports(sources);
+        for (const source of sources) {
+          const expected = `create${pascal(source.getBaseNameWithoutExtension())}`;
+          const declarations = exports.get(source);
+          if (declarations === undefined) {
+            throw new Error("native runtime export source is unavailable");
+          }
+          const callable = declarations.some(
+            (entry) =>
+              entry.name === expected &&
+              (entry.declaration.kind === SyntaxKind.FunctionDeclaration ||
+                (entry.declaration.kind === SyntaxKind.VariableDeclaration &&
+                  entry.initializer !== null &&
+                  (entry.initializer.kind === SyntaxKind.ArrowFunction ||
+                    entry.initializer.kind === SyntaxKind.FunctionExpression ||
+                    entry.initializer.callable))),
+          );
+          if (!callable) {
+            ctx.report.file(ctx.relativePath(source), { line: 1, column: 1, token: `expected ${expected}` });
+          }
+        }
+      },
+    };
+  },
   mustFlag: [
     {
       mode: "types",

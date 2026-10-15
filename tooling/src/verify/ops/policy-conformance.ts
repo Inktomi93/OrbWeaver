@@ -10,6 +10,7 @@ import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { Project, ts } from "ts-morph";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/code-facts/assignability.ts";
 import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
+import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation, GatePolicyProofGrant } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
@@ -542,6 +543,20 @@ function isolatedTypeFacts(project: Project): NativeTypeFacts {
       idBrands: (nodes): ReturnType<NativeTypeFactReader["idBrands"]> => {
         const checker = checkerFor(nodes);
         return new Map(nodes.map((node) => [node, canonicalIdBrand(checker.getTypeAtLocation(node), node, checker)]));
+      },
+      runtimeExports: (nodes): ReturnType<NativeTypeFactReader["runtimeExports"]> => {
+        checkerFor(nodes);
+        return new Map(
+          nodes.map((node) => [
+            node,
+            readRuntimeExports(node, (value) => ({
+              file: value.getSourceFile().getFilePath(),
+              start: value.getStart(),
+              end: value.getEnd(),
+              kind: value.getKind(),
+            })),
+          ]),
+        );
       },
       [Symbol.dispose]: (): void => {
         sources.clear();
