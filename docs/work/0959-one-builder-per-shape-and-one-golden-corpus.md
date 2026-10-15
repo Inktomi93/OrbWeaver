@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-15
 priority: P1
+lane: codex/identity-notification-suppliers-1036
 plan: test-foundation
 ---
 
@@ -22,7 +23,7 @@ A builder exists per contract output and table; the corpus is committed and load
 
 ## Evidence
 
-The world-split kit calls the real server root. Builders derive values from canonical types, defaults or actual producers. Database-subject fixtures remain distinct from composed production evidence.
+Production-derived builders call the real root. Database-subject fixtures do not establish composed behavior.
 
 Native producers cover identity, funded execution, automation, plugins, RPG, SDK sessions, search and libraries. Private rows, credentials and physical observations remain Node-only. Portable projections preserve exact requests, viewer identity and stage. Known private literals refuse before diagnostics; unknown secrets and arbitrary encodings remain outside the claim. Clone authentication uses fresh credentials and joins disposal before database close.
 

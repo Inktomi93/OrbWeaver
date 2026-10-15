@@ -36,4 +36,6 @@ Reviewed `9ae51b135c` supplies sealed-reference policies through existing native
 
 Strict export-home policies use sealed source/name demand, explicit absence and ordered native declarations. Missing evidence refuses reuse and publication. Native world, authority and storage controls pass independent review: `.claude/worktrees/codex-corpus-row-clocks/reports/stickler/2026-10-15-native-export-home-independent-review.md`.
 
-Drizzle/schema axes, virtual-overlay liveness, remaining typed families and complete native cost qualification stay open. Complete root compiler output retains off-owned errors; no green root verdict is claimed.
+Reviewed `dc6700ee7f` delivers complete context-utility identity through sealed global/module and lexical facts. Actual entrypoints preserve native world meaning under ordinary checker poison. Evidence: `.claude/worktrees/codex-native-token-scales/reports/review/1027-no-context-returntype-independent-review.md`.
+
+Drizzle/schema axes, virtual-overlay liveness, parameter/property/index/type-origin projections and complete native cost qualification stay open. Complete root compiler output retains off-owned errors; no green root verdict is claimed.
