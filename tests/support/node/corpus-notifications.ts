@@ -15,8 +15,8 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { readSessionCookie } from "@orb/server/entry/auth";
 import { inArray } from "drizzle-orm";
-import { vi } from "vitest";
 import type { CorpusNotificationInbox } from "../iso/corpus.ts";
+import { corpusReadInput } from "../iso/corpus.ts";
 import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { seedAutomationRule, seedAutomationRun } from "./factories/automation.ts";
@@ -173,13 +173,17 @@ async function openStream(
   const stopped = Promise.withResolvers<void>();
   let generatorStopped = false;
   const goDark = root.app.sockets.goDark;
-  const observation = vi.spyOn(root.app.sockets, "goDark").mockImplementation((cell, listener): void => {
+  const observeGoDark: typeof goDark = (cell, listener) => {
     goDark.call(root.app.sockets, cell, listener);
     if (cell.socketId === socketId) {
       generatorStopped = true;
       stopped.resolve();
     }
-  });
+  };
+  Object.assign(root.app.sockets, { goDark: observeGoDark });
+  const releaseObservation = (): void => {
+    Object.assign(root.app.sockets, { goDark });
+  };
   const received = Promise.withResolvers<IncomingMessage>();
   const requestClosed = Promise.withResolvers<void>();
   const request = nodeRequest(address, { headers: { cookie: auth.cookie, accept: "text/event-stream" } }, received.resolve);
@@ -192,7 +196,7 @@ async function openStream(
   } catch (error) {
     request.destroy();
     await requestClosed.promise;
-    observation.mockRestore();
+    releaseObservation();
     throw error;
   }
   const responseClosed = Promise.withResolvers<void>();
@@ -201,7 +205,7 @@ async function openStream(
     response.destroy();
     request.destroy();
     await Promise.all([responseClosed.promise, requestClosed.promise]);
-    observation.mockRestore();
+    releaseObservation();
     throw new Error("native notification subscription did not open its actual body");
   }
   let bytes = "";
@@ -247,7 +251,7 @@ async function openStream(
     try {
       await close();
     } finally {
-      observation.mockRestore();
+      releaseObservation();
     }
     throw error;
   }
@@ -265,7 +269,7 @@ async function openStream(
         try {
           await close();
         } finally {
-          observation.mockRestore();
+          releaseObservation();
         }
       }
     },
@@ -277,30 +281,30 @@ async function inboxFor(root: ServerTestHarness, actors: NotificationActors): Pr
   const invite = (principal: Principal): Promise<Invite> =>
     root.services.chat.createInvite({ principal: actors.host, chatId: room.chat.id, input: { invitedHandle: principal.handle } });
   const invites = [await invite(actors.reader), await invite(actors.reader), await invite(actors.foreign)];
-  const raised = await actors.caller.notifications.list();
-  const foreignBefore = await actors.foreignCaller.notifications.list();
+  const raised = await actors.caller.notifications.list(corpusReadInput.notificationInbox());
+  const foreignBefore = await actors.foreignCaller.notifications.list(corpusReadInput.notificationInbox());
   const first = await actors.caller.notifications.list({ limit: 1 });
   if (first.nextCursor === null || raised.items[0] === undefined) {
     throw new Error("native notification producers omitted their required cursor population");
   }
   const pages = [first, await actors.caller.notifications.list({ limit: 1, cursor: first.nextCursor })];
-  const beforeRefusal = await actors.caller.notifications.list();
+  const beforeRefusal = await actors.caller.notifications.list(corpusReadInput.notificationInbox());
   const foreignDismiss = await actors.foreignCaller.notifications.dismiss({ notificationId: raised.items[0].id }).then(
     () => {
       throw new Error("foreign notification dismissal unexpectedly succeeded");
     },
     (error: Error) => error,
   );
-  const afterRefusal = await actors.caller.notifications.list();
+  const afterRefusal = await actors.caller.notifications.list(corpusReadInput.notificationInbox());
   const marked = await actors.caller.notifications.markAllRead();
-  const read = await actors.caller.notifications.list();
+  const read = await actors.caller.notifications.list(corpusReadInput.notificationInbox());
   const markedAgain = await actors.caller.notifications.markAllRead();
   return {
     room,
     invites,
     raised,
     foreignBefore,
-    foreignAfter: await actors.foreignCaller.notifications.list(),
+    foreignAfter: await actors.foreignCaller.notifications.list(corpusReadInput.notificationInbox()),
     pages,
     foreignDismiss,
     beforeRefusal,
@@ -312,7 +316,7 @@ async function inboxFor(root: ServerTestHarness, actors: NotificationActors): Pr
 }
 
 async function requiredView(caller: Caller, type: InboxView["type"]): Promise<InboxView> {
-  const view = (await caller.notifications.list()).items.find((item) => item.type === type);
+  const view = (await caller.notifications.list(corpusReadInput.notificationInbox())).items.find((item) => item.type === type);
   if (view === undefined) {
     throw new Error(`actual notification producer omitted ${type}`);
   }
@@ -361,7 +365,7 @@ async function consentFor(root: ServerTestHarness, actors: NotificationActors, s
   const retractOffset = stream.bytes().length;
   await root.services.plugin.uninstall({ caller: actors.reader, pluginId: secondPlugin.plugin.id });
   const retractedBytes = await stream.readThrough(`"dismissedAt":${String(root.clock.now())}`, retractOffset);
-  return { first, grown, quiet, retracted: await actors.caller.notifications.list(), quietBytes, retractedBytes };
+  return { first, grown, quiet, retracted: await actors.caller.notifications.list(corpusReadInput.notificationInbox()), quietBytes, retractedBytes };
 }
 
 async function admitReader(root: ServerTestHarness, actors: NotificationActors, origin: string): Promise<ReaderAdmission> {
@@ -417,7 +421,7 @@ async function producersFor(
   });
   await automation.setRuleEnabled({ principal, ruleId: rule.id, enabled: true });
   await root.services.chat.startChat({ principal: actors.foreign, characterIds: [], opening: "none" });
-  const foreignBefore = await actors.foreignCaller.notifications.list();
+  const foreignBefore = await actors.foreignCaller.notifications.list(corpusReadInput.notificationInbox());
   const foreignRun = await automation.runRuleNow({ principal: actors.foreign, ruleId: rule.id }).then(
     () => {
       throw new Error("foreign rule execution unexpectedly succeeded");
@@ -490,7 +494,7 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     crashes.push({
       run: outcome,
       view: await view(),
-      disabled: (await actors.caller.notifications.list()).items.filter((item) => item.type === "plugin-disabled"),
+      disabled: (await actors.caller.notifications.list(corpusReadInput.notificationInbox())).items.filter((item) => item.type === "plugin-disabled"),
     });
   }
   const disabled = await requiredView(actors.caller, "plugin-disabled");
@@ -511,7 +515,7 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     paused,
     foreignRun,
     foreignBefore,
-    foreignAfter: await actors.foreignCaller.notifications.list(),
+    foreignAfter: await actors.foreignCaller.notifications.list(corpusReadInput.notificationInbox()),
   };
 }
 
@@ -594,12 +598,12 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
     resumed = await stream.readThrough(lateView.id);
     await root.services.chat.acceptInvite({ principal: actors.reader, inviteId: inbox.invites[0].invite.id });
     await root.services.chat.declineInvite({ principal: actors.reader, inviteId: inbox.invites[1].invite.id });
-    settled = await actors.caller.notifications.list();
+    settled = await actors.caller.notifications.list(corpusReadInput.notificationInbox());
     await root.services.chat.nominateHostHandoff({ principal: actors.host, chatId: inbox.room.chat.id, userId: actors.reader.userId });
     nomination = await requiredView(actors.caller, "handoff-nominated");
     await stream.readThrough(nomination.id);
     await root.services.chat.acceptHostHandoff({ principal: actors.reader, chatId: inbox.room.chat.id });
-    accepted = await (await root.internalCallerFor(actors.host.userId)).notifications.list();
+    accepted = await (await root.internalCallerFor(actors.host.userId)).notifications.list(corpusReadInput.notificationInbox());
     await root.services.chat.acceptInvite({ principal: actors.reader, inviteId: late.invite.id });
     await root.services.chat.kick({ principal: actors.host, chatId: kickRoom.chat.id, userId: actors.reader.userId });
     kicked = await requiredView(actors.caller, "kicked");
@@ -617,7 +621,7 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
   const dismissedAgain = await actors.caller.notifications.dismiss({ notificationId: original.id });
   await root.settleBackground();
   const recipientIds = [actors.host.userId, actors.reader.userId, actors.foreign.userId];
-  const final = await actors.caller.notifications.list();
+  const final = await actors.caller.notifications.list(corpusReadInput.notificationInbox());
   return {
     host: actors.host,
     reader: actors.reader,
@@ -635,13 +639,13 @@ export async function seedCorpusNotifications(root: ServerTestHarness): Promise<
     dismissedAgain,
     final,
     publication: {
-      readerRaised: { viewerUserId: actors.reader.userId, read: { input: undefined, output: inbox.raised } },
-      readerRead: { viewerUserId: actors.reader.userId, read: { input: undefined, output: inbox.read } },
-      readerSettled: { viewerUserId: actors.reader.userId, read: { input: undefined, output: settled } },
-      readerFinal: { viewerUserId: actors.reader.userId, read: { input: undefined, output: final } },
-      foreignBefore: { viewerUserId: actors.foreign.userId, read: { input: undefined, output: inbox.foreignBefore } },
-      foreignAfter: { viewerUserId: actors.foreign.userId, read: { input: undefined, output: inbox.foreignAfter } },
-      hostAccepted: { viewerUserId: actors.host.userId, read: { input: undefined, output: accepted } },
+      readerRaised: { viewerUserId: actors.reader.userId, read: { input: corpusReadInput.notificationInbox(), output: inbox.raised } },
+      readerRead: { viewerUserId: actors.reader.userId, read: { input: corpusReadInput.notificationInbox(), output: inbox.read } },
+      readerSettled: { viewerUserId: actors.reader.userId, read: { input: corpusReadInput.notificationInbox(), output: settled } },
+      readerFinal: { viewerUserId: actors.reader.userId, read: { input: corpusReadInput.notificationInbox(), output: final } },
+      foreignBefore: { viewerUserId: actors.foreign.userId, read: { input: corpusReadInput.notificationInbox(), output: inbox.foreignBefore } },
+      foreignAfter: { viewerUserId: actors.foreign.userId, read: { input: corpusReadInput.notificationInbox(), output: inbox.foreignAfter } },
+      hostAccepted: { viewerUserId: actors.host.userId, read: { input: corpusReadInput.notificationInbox(), output: accepted } },
     },
     finalReplay: await root.services.notifications.replaySince({ principal: actors.reader, afterSeq: 0 }),
     replay,

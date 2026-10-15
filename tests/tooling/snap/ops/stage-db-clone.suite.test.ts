@@ -205,3 +205,89 @@ test("--stage-db and --stage-auth local parse together", () => {
   expect(args.stageAuth).toBe("local");
   expect(args.stageDb).toBe("/scratch/orbweaver.db");
 });
+
+function publicationSource(): ReturnType<typeof containerRoot> & { readonly literals: readonly [string, string, string, string] } {
+  const source = containerRoot();
+  const writer = new DatabaseSync(source.db);
+  writer.exec(`
+    CREATE TABLE session_entries (sdk_session_id TEXT NOT NULL);
+    CREATE TABLE oidc_transactions (state TEXT NOT NULL);
+    CREATE TABLE oidc_pending_signups (secret_hash TEXT NOT NULL);
+    ALTER TABLE chat_invites ADD token_hash TEXT;
+  `);
+  const literals = ["private-sdk-resume-corpus", "private-oidc-state-corpus", "private-pending-join-corpus", "private-accepted-invite-corpus"] as const;
+  const [sdk, oidc, pending, invite] = literals;
+  writer.prepare("INSERT INTO session_entries VALUES (?)").run(sdk);
+  writer.prepare("INSERT INTO oidc_transactions VALUES (?)").run(oidc);
+  writer.prepare("INSERT INTO oidc_pending_signups VALUES (?)").run(pending);
+  writer.prepare("UPDATE chat_invites SET token_hash = ? WHERE status = 'accepted'").run(invite);
+  writer.close();
+  return { ...source, literals };
+}
+
+test("publication removes private runtime identities and physical free-page bytes without changing default stage lineage or source canon", () => {
+  const source = publicationSource();
+  try {
+    const baseline = sha256(source.db);
+    const normal = stagePaths(join(source.root, "normal"), SHA);
+    cloneStageDb(source.db, normal);
+    const preserved = new DatabaseSync(localPath(normal.databaseUrl) ?? "");
+    try {
+      expect(preserved.prepare("SELECT sdk_session_id AS sessionId FROM session_entries").get()).toEqual({ sessionId: source.literals[0] });
+      expect(preserved.prepare("SELECT id FROM chat_invites").all()).toEqual([{ id: "inv_2" }]);
+    } finally {
+      preserved.close();
+    }
+    const output = stagePaths(join(source.root, "publication"), SHA);
+    cloneStageDb(source.db, output, { publication: { privateLiterals: source.literals } });
+    const path = localPath(output.databaseUrl) ?? "";
+    const published = new DatabaseSync(path);
+    try {
+      for (const table of ["session_entries", "oidc_transactions", "oidc_pending_signups", "chat_invites"]) {
+        expect(published.prepare(`SELECT count(*) AS n FROM ${table}`).get()).toEqual({ n: 0 });
+      }
+      expect(published.prepare("SELECT name FROM characters ORDER BY name").all()).toEqual([{ name: "Ayla" }, { name: "Brom" }]);
+    } finally {
+      published.close();
+    }
+    expect(source.literals.some((literal) => readFileSync(path).includes(literal))).toBe(false);
+    expect(sha256(source.db)).toBe(baseline);
+  } finally {
+    source.writer.close();
+  }
+});
+
+test("publication refuses a raw or JSON-escaped known value in business text rather than rewriting canonical content", () => {
+  const source = publicationSource();
+  const secret = 'private-business-"literal"\\corpus';
+  try {
+    for (const [index, spelling] of [secret, JSON.stringify({ echo: secret })].entries()) {
+      const writer = new DatabaseSync(source.db);
+      writer.prepare("UPDATE characters SET name = ? WHERE id = 'char_1'").run(spelling);
+      writer.close();
+      const before = sha256(source.db);
+      const output = stagePaths(join(source.root, `refused-${String(index)}`), SHA);
+      expect(() => cloneStageDb(source.db, output, { publication: { privateLiterals: [...source.literals, secret] } })).toThrow(
+        "Corpus publication contains private material",
+      );
+      expect(sha256(source.db)).toBe(before);
+    }
+  } finally {
+    source.writer.close();
+  }
+});
+
+test("publication reads copied CAS bytes and refuses known echoes while retaining the source file", () => {
+  const source = publicationSource();
+  const secret = "private-cas-corpus-literal";
+  try {
+    writeFileSync(source.asset, secret);
+    const output = stagePaths(join(source.root, "refused-cas"), SHA);
+    expect(() => cloneStageDb(source.db, output, { publication: { privateLiterals: [...source.literals, secret] } })).toThrow(
+      "Corpus publication contains private material",
+    );
+    expect(readFileSync(source.asset, "utf8")).toBe(secret);
+  } finally {
+    source.writer.close();
+  }
+});

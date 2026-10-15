@@ -27,7 +27,9 @@ Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, p
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
 
-Reviewed `0b45eda681` retains winning descriptor provenance and closes callable storage per actual allocation. Reviewed `4eb70893f5` excludes only the exact defining name from value-use judgment after native context and binding checks. Native import diagnostics establish that false refusal; focused controls and independent review pass. The corrected actual target exceeds its bounded run without a verdict. The external CPU trace identifies native reference and refinement cost. Bounded controls establish repeated native requests; guarded kernel reuse remains unimplemented. Evidence: `reports/review/1016-inert-definition-result.md`.
+Reviewed `0b45eda681` retains descriptor provenance and closes callable storage per actual allocation. Reviewed `4eb70893f5` excludes only the exact defining name after native context and binding checks. Native controls and independent review pass. Evidence: `reports/review/1016-inert-definition-result.md`.
+
+Reviewed contextual sharing completes the actual unchanged target driver on `ea648ee8ba`. The result remains unresolved at optional `ctx.recordRecall`, not a resolved ownership verdict. Adjudicate its actual injected origin and absent branch before repeating the target. Evidence: `reports/review/contextual-sharing-integrated.md`. Complete retained-policy qualification remains open.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 

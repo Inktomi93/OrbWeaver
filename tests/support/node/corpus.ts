@@ -61,6 +61,7 @@ export interface CorpusCapsuleOptions {
 }
 
 interface CorpusPrivateCaptures {
+  readonly publicationSecrets: readonly string[];
   readonly searchPublication: Awaited<ReturnType<typeof produceSearchPublication>>;
   readonly searchPhysical: Parameters<typeof replayCorpusSearchWire>[0];
   readonly searchImageJobs: Awaited<ReturnType<typeof settleCorpusSearchImages>>;
@@ -123,20 +124,48 @@ export function loadCorpusFixture(directory: string): CorpusFixture {
   return { layout, wire };
 }
 
-/** Clone only a completed capsule; the caller retains this ownership until every stage process stops. */
-export async function prepareCorpusFixture(capsule: CorpusCapsule, directory: string): Promise<PreparedCorpusFixture> {
-  const published = capsule.publishWire();
+type CloneOptions = Parameters<typeof import("@orb/tooling/snap")["cloneStageDb"]>[2];
+
+async function copyCorpusFixture(source: DataLayout, published: string, directory: string, options: CloneOptions = {}): Promise<CorpusFixture> {
   const root = resolve(directory);
   await mkdir(root);
-  await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => rm(root, { recursive: true, force: true }));
-  const layout = resolveDataLayout({ ["DATA_DIR"]: root });
-  const { cloneStageDb } = await import("@orb/tooling/snap");
-  cloneStageDb(corpusDatabaseFile(capsule.layout), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets });
-  await writeFile(join(root, CORPUS_WIRE_FILE), published, { encoding: "utf8", flag: "wx" });
-  const fixture = loadCorpusFixture(root);
-  const lifetime = ownership.move();
-  return { ...fixture, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+  let completed = false;
+  try {
+    const layout = resolveDataLayout({ ["DATA_DIR"]: root });
+    const { cloneStageDb } = await import("@orb/tooling/snap");
+    cloneStageDb(corpusDatabaseFile(source), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets }, options);
+    await writeFile(join(root, CORPUS_WIRE_FILE), published, { encoding: "utf8", flag: "wx" });
+    const fixture = loadCorpusFixture(root);
+    completed = true;
+    return fixture;
+  } finally {
+    if (!completed) {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+}
+
+function ownedCorpusFixture(fixture: CorpusFixture): PreparedCorpusFixture {
+  return { ...fixture, [Symbol.asyncDispose]: () => rm(fixture.layout.root, { recursive: true, force: true }) };
+}
+
+/** A private stage clone retains backend lineage; its caller owns deletion after every stage process stops. */
+export async function prepareCorpusFixture(capsule: CorpusCapsule, directory: string): Promise<PreparedCorpusFixture> {
+  return ownedCorpusFixture(await copyCorpusFixture(capsule.layout, capsule.publishWire(), directory));
+}
+
+/** Publish a durable, completed DB/CAS and portable envelope; source runtime identities and known echoes cannot leave. */
+export async function publishCorpusFixture(capsule: CorpusCapsule, directory: string): Promise<CorpusFixture> {
+  return await copyCorpusFixture(capsule.layout, capsule.publishWire(), directory, {
+    publication: { privateLiterals: capsule.privateCaptures.publicationSecrets },
+  });
+}
+
+/** Each consumer owns an independent writable copy; disposing it never deletes or modifies the durable publication. */
+export async function cloneCorpusFixture(fixture: CorpusFixture, directory: string): Promise<PreparedCorpusFixture> {
+  return ownedCorpusFixture(
+    await copyCorpusFixture(fixture.layout, serializeCorpusWire(fixture.wire, []), directory, { publication: { privateLiterals: [] } }),
+  );
 }
 
 interface CapturedCapsule {
@@ -369,6 +398,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     wire,
     publishWire: () => serializeCorpusWire(wire, secrets),
     privateCaptures: {
+      publicationSecrets: secrets,
       searchPublication: searchFinal.value,
       searchPhysical: searchFinal.exchanges,
       searchImageJobs,

@@ -27,6 +27,32 @@ export interface ProcessEntry {
   readonly cpuMs: number | null;
 }
 
+/** How to run the operator's own pnpm from a child process with `shell: false`, on every platform.
+ *    `node`    — `<node> <pnpm.cjs> <args>`: pnpm's own JS entry, run by the node we are already in. On win32
+ *                pnpm on PATH is `pnpm.cmd`, and node refuses to spawn a `.cmd`/`.bat` without `shell: true`.
+ *    `binary`  — `<pnpm executable> <args>`: the standalone pnpm the README installs is a native executable
+ *                (`pnpm.exe` on win32), which spawns directly on every platform.
+ *    `path`    — bare `pnpm` resolved by the OS execvp (POSIX only; no `.cmd` indirection there).
+ *    `refused` — no usable pnpm could be named, and guessing would be a lie. `reason` is the fix. */
+export type PnpmInvocation =
+  | { readonly kind: "node"; readonly command: string; readonly args: readonly string[] }
+  | { readonly kind: "binary"; readonly command: string; readonly args: readonly string[] }
+  | { readonly kind: "path"; readonly command: string; readonly args: readonly string[] }
+  | { readonly kind: "refused"; readonly reason: string };
+
+/** Completion is stronger than visibility: unreadable metadata cannot authorize fixture deletion. */
+export type ProcessCompletion =
+  | { readonly kind: "gone" }
+  | { readonly kind: "zombie"; readonly identity: string }
+  | { readonly kind: "live"; readonly identity: string }
+  | { readonly kind: "unknown" };
+
+/** Captured identity of the current marker owner, not an arbitrary PID's past incarnation. */
+export interface ProcessCompletionOwner {
+  readonly pid: number;
+  readonly identity: string;
+}
+
 const WHITESPACE_RE = /\s+/u;
 const DECIMAL_RE = /^\d+$/u;
 const SS_PID_RE = /pid=(\d+)/u;

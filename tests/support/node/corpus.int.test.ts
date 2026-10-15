@@ -4,7 +4,6 @@ import "@orb/testkit/node/composed-real.ts";
 import "@orb/tooling/snap";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { access, mkdtemp, readdir, readFile, readlink, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -46,28 +45,17 @@ import { createCas } from "@orb/server/infra/storage/cas";
 import type { CorpusSearchLibrary } from "@orb/testkit/iso/corpus.ts";
 import { parseCorpusWire } from "@orb/testkit/iso/corpus.ts";
 import { createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture } from "@orb/testkit/node/corpus.ts";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
+import { createCorpusRecipe, CORPUS_OWNER_PASSWORD as OWNER_PASSWORD, CORPUS_PROVIDER_KEY as PROVIDER_KEY } from "@orb/testkit/node/corpus-recipe.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, inArray, isNotNull, sql } from "drizzle-orm";
-import { createFrozenClock } from "../iso/clock.ts";
-import { createSeededIds } from "../iso/ids.ts";
 import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
-import { CORPUS_CHAT_MODEL, corpusImageryPhysicalBytes, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_CONNECTION_FOREIGN_KEY, CORPUS_CONNECTION_HOSTED_KEY, CORPUS_CONNECTION_KEY, CORPUS_CONNECTION_MODEL } from "./corpus-connection-wire.ts";
-import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
-import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
+import { CORPUS_KNOWLEDGE_SWIPE_TAKES } from "./corpus-knowledge-wire.ts";
 import { CORPUS_NOTIFICATION_PLUGIN_ERROR, captureCorpusNotificationRows } from "./corpus-notifications.ts";
-import { createRpgFlightWire, RPG_JOURNAL_TITLES, RPG_RECURSION_MODEL, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
-import { createCorpusRpgWire } from "./corpus-rpg-wire.ts";
+import { RPG_JOURNAL_TITLES } from "./corpus-rpg-flight-wire.ts";
 import { CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
 import { replayCorpusSearchWire } from "./corpus-search-wire.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
@@ -79,8 +67,6 @@ import { captureRosterRows } from "./factories/roster-preset.ts";
 import { captureRpgSnapshot } from "./factories/rpg.ts";
 import { captureWorldBookRows } from "./factories/world-info.ts";
 
-const OWNER_PASSWORD = "synthetic-capsule-owner-password";
-const PROVIDER_KEY = "synthetic-capsule-provider-key";
 const CLONE_MARKER = 123;
 const CLONE_READER_PASSWORD = "fresh-clone-notification-reader-password";
 const CLONE_MEMBER_PASSWORD = "fresh-clone-shared-member-password";
@@ -111,36 +97,11 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const parent = await mkdtemp(join(tmpdir(), "orb-completed-corpus-"));
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
-  const rpgWire = createCorpusRpgWire();
-  const swipes = createKnowledgeSwipeWire();
-  const lifecycleWire = createCorpusChatWire();
-  const rpgFlightWire = createRpgFlightWire();
-  const execution = createCorpusProviderExecution({
-    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, CORPUS_CHAT_MODEL, CORPUS_IMAGE_MODEL, RPG_RECURSION_MODEL, RPG_ROUND_MODEL],
-    embedding: CORPUS_EMBEDDING_VECTOR,
-    chatText: corpusKnowledgeVariantsText,
-    structuredReplies: CORPUS_STRUCTURED_REPLIES,
-    images: await corpusImageryPhysicalBytes(),
-    usage: { promptTokens: 40, completionTokens: 15 },
-    completion: (body) => rpgFlightWire.completion(body) ?? rpgWire.completion(body) ?? swipes.completion(body) ?? lifecycleWire.completion(body),
-  });
-  const key = randomBytes(32);
-  const clock = createFrozenClock();
-  const ids = createSeededIds();
+  const { options, key, clock, ids, swipes, lifecycleWire, rpgFlightWire } = await createCorpusRecipe(parent);
   const capsule = ownership.use(
     await createCorpusCapsule({
       directory: join(parent, "capsule root"),
-      server: {
-        clock,
-        ids,
-        authConfig: { ...authConfigFromEnv(), mode: "local" },
-        providerFetch: execution.execute,
-        secretBoxKey: key,
-        temporaryParentDir: parent,
-        pluginSpawn: spawn,
-      },
-      seed: { ownerPassword: OWNER_PASSWORD, log: () => undefined },
-      privateCredential: { provider: "custom-openai", key: PROVIDER_KEY, metadata: { auth: "endpoint" } },
+      ...options,
     }),
   );
   expect(await readdir(parent)).toEqual(["capsule root"]);

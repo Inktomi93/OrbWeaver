@@ -144,5 +144,7 @@ test("the selected corpus clone serves the captured room identity, content and v
     throw new Error("Selected corpus room has no visible title");
   }
   await page.goto("/chats");
+  // The corpus room can be outside the virtualized viewport; search through the real server-backed control.
+  await page.getByRole("textbox", { name: "Search chats", exact: true }).fill(title);
   await expect(page.getByRole("list", { name: "Chats list", exact: true }).getByText(title, { exact: true })).toBeVisible();
 });

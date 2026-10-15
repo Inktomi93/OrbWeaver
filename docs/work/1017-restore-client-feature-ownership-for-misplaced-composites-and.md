@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-14
+status: doing
+updated: 2026-10-15
 priority: P3
 area: client
+lane: codex/corpus-stats-qualification-959
 plan: test-foundation
 ---
 

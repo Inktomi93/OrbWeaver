@@ -12,15 +12,15 @@
 // grace, then KILL), and which foreign runs are fair game (only those whose OWNER PID is gone).
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import process from "node:process";
-import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
+import { processCompletion } from "@orb/tooling/floor/host/platform";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { RunMarkerDeps } from "@orb/tooling/floor/process/run-marker";
 import {
   describeRunMarkerSweep,
+  joinRunMarkerSweep,
   markedPids,
   mintRunMarker,
   processRunIdentities,
@@ -41,7 +41,118 @@ import {
 const PLANTED_TIMEOUT_BASE_MS = 4000;
 /** The whole probe: spawn + the short ceiling + the sweep's own TERM→KILL grace + reaping slack. */
 const PROBE_BUDGET_BASE_MS = 60_000;
-const SETTLE_BASE_MS = 250;
+
+test("strong sweep waits for observed exit after signalling", async () => {
+  const marker = mintRunMarker(800, 1_700_000_000_000);
+  const base = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  const release = Promise.withResolvers<void>();
+  const reached = Promise.withResolvers<void>();
+  let exited = false;
+  let joined = false;
+  let sleeps = 0;
+  const completion = joinRunMarkerSweep(marker, {
+    ...base,
+    completionOf: () => (exited ? { kind: "gone" } : { kind: "live", identity: "original" }),
+    sleep: async () => {
+      if (++sleeps > 1) {
+        reached.resolve();
+        await release.promise;
+      }
+    },
+  }).then(() => {
+    joined = true;
+  });
+  await reached.promise;
+  expect(base.signalled).toEqual([
+    [810, "SIGTERM"],
+    [810, "SIGKILL"],
+  ]);
+  expect(joined).toBe(false);
+  exited = true;
+  release.resolve();
+  await completion;
+  expect(joined).toBe(true);
+});
+
+test("strong sweep never signals a PID replacement during grace or a stale first target", async () => {
+  const marker = mintRunMarker(800, 1_700_000_000_000);
+  const rows = new Map([[810, { marker, parent: 1 }]]);
+  const base = fakeTree(rows, 1);
+  let replaced = false;
+  await joinRunMarkerSweep(marker, {
+    ...base,
+    completionOf: () => ({ kind: "live", identity: replaced ? "replacement" : "original" }),
+    sleep: (): Promise<void> => {
+      replaced = true;
+      rows.set(810, { marker: mintRunMarker(900, 1_700_000_000_001), parent: 1 });
+      return Promise.resolve();
+    },
+  });
+  expect(base.signalled).toEqual([[810, "SIGTERM"]]);
+  let scans = 0;
+  const stale = fakeTree(new Map([[811, { marker, parent: 1 }]]), 1);
+  await expect(
+    joinRunMarkerSweep(marker, {
+      ...stale,
+      identitiesOf: () => (++scans === 1 ? [marker] : []),
+      completionOf: () => ({ kind: "live", identity: "foreign" }),
+    }),
+  ).rejects.toThrow("ownership unavailable");
+  expect(stale.signalled).toEqual([]);
+});
+
+test("strong sweep refuses unknown identity without signalling and bounded unknown or live completion", async () => {
+  const marker = mintRunMarker(800, 1_700_000_000_000);
+  const base = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  await expect(joinRunMarkerSweep(marker, { ...base, completionOf: () => ({ kind: "unknown" }) })).rejects.toThrow("identity unavailable");
+  expect(base.signalled).toEqual([]);
+  await expect(joinRunMarkerSweep(marker, { ...base, completionOf: () => ({ kind: "live", identity: "original" }) })).rejects.toThrow(
+    "completion not established",
+  );
+  let unknown = false;
+  await expect(
+    joinRunMarkerSweep(marker, {
+      ...base,
+      completionOf: () => (unknown ? { kind: "unknown" } : { kind: "live", identity: "original" }),
+      signal: (_pid, kind) => {
+        if (kind === "SIGKILL") {
+          unknown = true;
+        }
+      },
+    }),
+  ).rejects.toThrow("completion not established");
+});
+
+test("strong sweep accepts a zombie but refuses a newly owned survivor and an unreadable final table", async () => {
+  const marker = mintRunMarker(800, 1_700_000_000_000);
+  const base = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  await joinRunMarkerSweep(marker, { ...base, completionOf: () => ({ kind: "zombie", identity: "original" }) });
+  const rows = new Map([[810, { marker, parent: 1 }]]);
+  let exited = false;
+  await expect(
+    joinRunMarkerSweep(marker, {
+      ...fakeTree(rows, 1),
+      completionOf: (pid) => (exited && pid === 810 ? { kind: "gone" } : { kind: "live", identity: String(pid) }),
+      alive: () => !exited,
+      sleep: (): Promise<void> => {
+        exited = true;
+        rows.set(811, { marker, parent: 1 });
+        return Promise.resolve();
+      },
+    }),
+  ).rejects.toThrow("owned process completion not established");
+  let scans = 0;
+  await expect(
+    joinRunMarkerSweep(marker, {
+      processTable: () => {
+        if (++scans === 1) {
+          return [];
+        }
+        throw new Error("unreadable final table");
+      },
+    }),
+  ).rejects.toThrow("unreadable final table");
+});
 
 function fakeTree(
   rows: ReadonlyMap<number, { readonly marker: string | null; readonly lease?: string; readonly parent: number }>,
@@ -257,16 +368,14 @@ test("a TIMED-OUT stage child leaves NO detached grandchild alive", { timeout: b
   try {
     expect(result.transcript).toContain("[proc] TIMED OUT");
     expect(planted, "the probe's detached grandchild never recorded its pid — the fixture, not the sweep, is broken").not.toBeNull();
-    await sleep(budget(SETTLE_BASE_MS));
+    await joinRunMarkerSweep(marker);
     // THE DEFECT ASSERTION, first: a process that left the group must be gone anyway. Against the
     // pre-#1848 proc.ts this is the line that fails, naming the surviving pid.
     expect(pidIsAlive(planted), `pid ${String(planted)} survived a timed-out stage — an orphaned browser is exactly this`).toBe(false);
     // …and the teardown SAYS what it reaped, so an operator reading only the transcript learns it happened.
     expect(result.transcript).toContain("[run-marker] swept");
   } finally {
-    if (planted !== null && pidIsAlive(planted)) {
-      process.kill(planted, "SIGKILL");
-    }
+    await joinRunMarkerSweep(marker);
   }
 });
 
@@ -274,10 +383,6 @@ function pidIsAlive(pid: number | null): boolean {
   if (pid === null) {
     return false;
   }
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
+  const state = processCompletion(pid);
+  return state.kind === "live" || state.kind === "unknown";
 }

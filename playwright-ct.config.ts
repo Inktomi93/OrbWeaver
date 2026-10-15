@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import type { CtCorpusOptions } from "@orb/testkit/node/ct-corpus.ts";
 import {
   SELECT_BUILD_DIAGNOSTIC_ENV,
   SELECT_BUILD_DIAGNOSTIC_FILE,
@@ -221,9 +222,9 @@ const ctSlot =
         racing: (process.env[CT_RUN_RACING_ENV] ?? "").split("\n").filter((label) => label.length > 0),
       };
 
-export function ctConfig(applicationOnly = false): PlaywrightTestConfig {
+export function ctConfig(applicationOnly = false): PlaywrightTestConfig<CtCorpusOptions> {
   const exclusions = applicationTestExclusions(applicationOnly);
-  return defineConfig({
+  return defineConfig<CtCorpusOptions>({
     testDir: "tests",
     // docs/work/0062 — the working-tree guard: captures `git status` + a content hash of every dirty path
     // before the first component mounts, and its returned teardown reds the run (naming the path) if a CT
@@ -278,6 +279,7 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig {
       ],
     ],
     use: {
+      corpusDirectory: process.env["CT_CORPUS_FIXTURE"],
       // trace stays on-first-retry for CTs (NOT retain-on-failure): always-on trace RECORDING (retention is
       // the only conditional part) instruments network enough to change component behavior — repro:
       // message-content.ct "external image LOADS" renders its media slot only while a dead-domain request

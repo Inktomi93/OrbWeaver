@@ -16,7 +16,9 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { execGit, runGit } from "../../floor/git/git.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import type { StageAuthMode, StageDbProvenance, StagePaths, StageRow } from "../contract/stage.ts";
+import type { StageCloneOptions } from "../contract/stage-clone.ts";
 import { DIRTY_STAGE_KEY, ISOLATION_TRIPWIRE, shortSha } from "../lib/stage-plan.ts";
+import { scrubStageClone, verifyStagePublicationBytes } from "./stage-clone-privacy.ts";
 import { addWorktree, removeWorktree, worktreeExists } from "./stage-git.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -126,23 +128,12 @@ export function seedStageData(root: string, paths: StagePaths, stageDb?: string,
   return provenance;
 }
 
-/** Rows sealed or peppered under the SOURCE box's boot secrets. The stage boots under the stack cli's fixed dev
- *  keys, so a foreign `user_credentials` row fails the boot decrypt check and `/healthz` answers 503
- *  `credentials_key_mismatch`; that delete is the required one. The sessions, password hashes and pending
- *  invites could never be used under the dev pepper, so dropping them is cleanup. */
-const SECRET_BOUND_ROWS = [
-  "DELETE FROM user_credentials",
-  "DELETE FROM sessions",
-  "UPDATE users SET password_hash = NULL WHERE password_hash IS NOT NULL",
-  "DELETE FROM chat_invites WHERE status = 'pending'",
-] as const;
-
 /** `--stage-db`: give the stage a CLONE of another box's db (the container's, say) instead of the dev db.
  *  The source and its `-wal`/`-shm` are only read. The owner row keeps its id, so every owned row still
  *  resolves; the stage's own boot renames that row onto the stage's `OWNER_HANDLES` key
  *  (`entry/boot/seed-owner.ts`), which is how the stage signs in as the owner of the copied rows.
  *  The caller has removed any older stage dir, so an existing stage db is a bug, not a cache. */
-export function cloneStageDb(sourceDb: string, paths: Pick<StagePaths, "databaseUrl" | "assetsDir">): StageDbProvenance {
+export function cloneStageDb(sourceDb: string, paths: Pick<StagePaths, "databaseUrl" | "assetsDir">, options: StageCloneOptions = {}): StageDbProvenance {
   const source = resolve(sourceDb);
   const stageDb = localPath(paths.databaseUrl) ?? "";
   if (!(existsSync(source) && statSync(source).isFile())) {
@@ -159,15 +150,16 @@ export function cloneStageDb(sourceDb: string, paths: Pick<StagePaths, "database
   }
   const clone = new DatabaseSync(stageDb);
   try {
-    for (const statement of SECRET_BOUND_ROWS) {
-      clone.exec(statement);
-    }
+    scrubStageClone(clone, options);
     // Fold the copied WAL into the main file so the stage opens one self-contained db.
     clone.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   } finally {
     clone.close();
   }
   cloneStageAssets(source, paths.assetsDir);
+  if (options.publication !== undefined) {
+    verifyStagePublicationBytes(stageDb, paths.assetsDir, options.publication.privateLiterals);
+  }
   return { copiedFrom: source, cloned: true, copiedAt: new Date().toISOString(), devDbMtimeAtCopy: statSync(source).mtime.toISOString() };
 }
 

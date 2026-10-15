@@ -8,7 +8,7 @@
 import process from "node:process";
 import type { FullPriorityChild, RunNicedSyncResult } from "../process/proc.ts";
 import { runNicedSync, spawnFullPriorityChild } from "../process/proc.ts";
-import type { ProcessEntry, SocketRow } from "./platform-parse.ts";
+import type { PnpmInvocation, ProcessEntry, SocketRow } from "./platform-parse.ts";
 import { parseCimProcesses, parseLsofSockets, parseNetstatSockets, parsePsClock, parsePsProcesses, parseSsSockets } from "./platform-parse.ts";
 import type { ProcReads } from "./platform-probes.ts";
 import {
@@ -20,9 +20,13 @@ import {
   linuxProcessStartTicks,
   linuxProcSockets,
   PROC_NET_TCP_TABLES,
+  completionProcesses as readCompletionProcesses,
+  processCompletion as readProcessCompletion,
 } from "./platform-probes.ts";
 
-export type { ProcessEntry, SocketRow } from "./platform-parse.ts";
+export type { PnpmInvocation, ProcessCompletion, ProcessCompletionOwner, ProcessEntry, SocketRow } from "./platform-parse.ts";
+export const completionProcesses = readCompletionProcesses;
+export const processCompletion = readProcessCompletion;
 
 /** The platforms with a backend here. Any other platform reads nothing and never guesses. */
 export const SUPPORTED_PLATFORMS = ["linux", "darwin", "win32"] as const;
@@ -56,19 +60,6 @@ export interface ProcessInfo {
   readonly cmdline: string;
   readonly cwd: string | null;
 }
-
-/** How to run the operator's own pnpm from a child process with `shell: false`, on every platform.
- *    `node`    — `<node> <pnpm.cjs> <args>`: pnpm's own JS entry, run by the node we are already in. On win32
- *                pnpm on PATH is `pnpm.cmd`, and node refuses to spawn a `.cmd`/`.bat` without `shell: true`.
- *    `binary`  — `<pnpm executable> <args>`: the standalone pnpm the README installs is a native executable
- *                (`pnpm.exe` on win32), which spawns directly on every platform.
- *    `path`    — bare `pnpm` resolved by the OS execvp (POSIX only; no `.cmd` indirection there).
- *    `refused` — no usable pnpm could be named, and guessing would be a lie. `reason` is the fix. */
-export type PnpmInvocation =
-  | { readonly kind: "node"; readonly command: string; readonly args: readonly string[] }
-  | { readonly kind: "binary"; readonly command: string; readonly args: readonly string[] }
-  | { readonly kind: "path"; readonly command: string; readonly args: readonly string[] }
-  | { readonly kind: "refused"; readonly reason: string };
 
 /** The env key pnpm (and npm/yarn) sets to the absolute path of its own entry when it runs a script: a JS file, or the
  *  executable itself for a standalone pnpm. */
