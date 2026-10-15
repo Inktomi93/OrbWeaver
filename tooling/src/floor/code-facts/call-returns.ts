@@ -8,7 +8,7 @@ import {
   readCallBindings as suppliedBindings,
   readSuppliedParameter as suppliedParameter,
 } from "./call-supplied.ts";
-import { resolveStableExpression } from "./reference-fact.ts";
+import { isDocumentationLinkReference, resolveStableExpression } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
 import { resolveCallableAlternatives, resolveCallableDeclaration, resolveCallableOrigin } from "./reference-fact-call.ts";
 import type {
@@ -17,6 +17,7 @@ import type {
   CallReturnProgram,
   ReferenceFact,
   ReferenceUnresolvedReason,
+  ReturnedValueInputs,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
 
@@ -95,7 +96,7 @@ function calleeFunction(call: CallExpression, trace: Trace): ReferenceFact<Morph
 
 /** Every expression a function-like node RETURNS — its OWN returns only, so a nested closure's `return` is
  *  not this function's. A concise arrow's body IS its single return. */
-function returnedExpressions(fn: MorphNode): readonly MorphNode[] {
+function returnedExpressions(fn: MorphNode, explicitAbsentReturns = false): readonly MorphNode[] {
   if (Node.isArrowFunction(fn) && !Node.isBlock(fn.getBody())) {
     return [fn.getBody()];
   }
@@ -107,26 +108,28 @@ function returnedExpressions(fn: MorphNode): readonly MorphNode[] {
   return body
     .getDescendantsOfKind(SyntaxKind.ReturnStatement)
     .filter((statement) => statement.getFirstAncestor(isFunctionish) === fn)
-    .map((statement) => statement.getExpression())
+    .map((statement) => statement.getExpression() ?? (explicitAbsentReturns ? statement : undefined))
     .filter((expression) => expression !== undefined);
 }
 
-/** Return expressions only when every syntactically visible exit supplies one; an implicit return is unresolved. */
-export function readFunctionReturnPaths(fn: MorphNode): ReferenceFact<readonly MorphNode[]> {
+/** Every visible exit must be authored; only an explicitly requested projection retains bare-return absence. */
+export function readFunctionReturnPaths(
+  fn: MorphNode,
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns"> = {},
+): ReferenceFact<readonly MorphNode[]> {
   const trace: Trace = { declarations: [fn] };
   const body =
     Node.isFunctionDeclaration(fn) || Node.isArrowFunction(fn) || Node.isFunctionExpression(fn) || Node.isMethodDeclaration(fn) ? fn.getBody() : undefined;
   if (body === undefined) {
     return unresolved("missing", fn, trace, "the callable has no authored body");
   }
+  const values = returnedExpressions(fn, true);
   if (Node.isBlock(body)) {
     const last = body.getStatements().at(-1);
-    const ownReturns = body.getDescendantsOfKind(SyntaxKind.ReturnStatement).filter((statement) => statement.getFirstAncestor(isFunctionish) === fn);
-    if (!(Node.isReturnStatement(last) || Node.isThrowStatement(last)) || ownReturns.some((statement) => statement.getExpression() === undefined)) {
+    if (!(Node.isReturnStatement(last) || Node.isThrowStatement(last)) || (projection.explicitAbsentReturns !== true && values.some(Node.isReturnStatement))) {
       return unresolved("unsupported", fn, trace, "the callable has an implicit or expressionless return path");
     }
   }
-  const values = returnedExpressions(fn);
   return values.length === 0
     ? unresolved("missing", fn, trace, "the callable returns no expression")
     : { kind: "resolved", value: values, trace: { declarations: [fn], origin: fn } };
@@ -292,7 +295,7 @@ function escapingReferences(
   const escaped = new Map<import("ts-morph").ts.Node, UnresolvedReferenceFact[]>();
   const seen = new Set<object>();
   for (const node of references) {
-    if (seen.has(node.compilerNode) || !referenceCandidate(node)) {
+    if (seen.has(node.compilerNode) || isDocumentationLinkReference(node) || !referenceCandidate(node)) {
       continue;
     }
     seen.add(node.compilerNode);
@@ -316,12 +319,26 @@ function escapingReferences(
 
 function observeAlternatives(
   targets: ReferenceFact<readonly MorphNode[]>,
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns">,
 ): ReferenceFact<readonly import("./reference-fact-contract.ts").CallReturnAlternative[]> {
-  return targets.kind === "unresolved" ? targets : { ...targets, value: targets.value.map((target) => ({ target, returns: readFunctionReturnPaths(target) })) };
+  return targets.kind === "unresolved"
+    ? targets
+    : {
+        ...targets,
+        value: targets.value.map((target) => ({
+          target,
+          returns: readFunctionReturnPaths(target),
+          ...(projection.explicitAbsentReturns === true ? { explicitReturns: readFunctionReturnPaths(target, projection) } : {}),
+        })),
+      };
 }
 
 /** Observe only supplied calls and their shared authored-call closure; never acquire another compiler world. */
-export function observeCallReturns(roots: readonly CallExpression[], references?: readonly MorphNode[]): CallReturnObservations {
+export function observeCallReturns(
+  roots: readonly CallExpression[],
+  references?: readonly MorphNode[],
+  projection: Pick<ReturnedValueInputs, "explicitAbsentReturns"> = {},
+): CallReturnObservations {
   const groups = new Map<
     import("ts-morph").Project,
     { calls: CallReturnObservation[]; sources: Map<import("ts-morph").SourceFile, import("ts-morph").ts.SourceFile> }
@@ -348,11 +365,14 @@ export function observeCallReturns(roots: readonly CallExpression[], references?
       groups.set(project, group);
     }
     const targets = readCallTargets(call, admitted);
-    const alternatives = observeAlternatives(targets);
+    const alternatives = observeAlternatives(targets, projection);
     group.calls.push({ call, target, targets, alternatives, returns });
     const paths =
       alternatives.kind === "resolved"
-        ? alternatives.value.flatMap((alternative) => (alternative.returns.kind === "resolved" ? alternative.returns.value : []))
+        ? alternatives.value.flatMap((alternative) => {
+            const captured = alternative.explicitReturns ?? alternative.returns;
+            return captured.kind === "resolved" ? captured.value : [];
+          })
         : [];
     for (const node of [call, ...(targets.kind === "resolved" ? targets.value : []), ...paths]) {
       const source = node.getSourceFile();

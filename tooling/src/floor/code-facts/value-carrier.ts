@@ -5,6 +5,7 @@ import { readCallBindings, readCallReturnProgram, readSuppliedParameter } from "
 import { readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
 import type {
+  CallReturnAlternative,
   CallReturnObservations,
   CallReturnProgram,
   ReferenceFact,
@@ -86,6 +87,7 @@ export function carryingLiterals(node: Node): readonly { readonly literal: Objec
 }
 
 interface ReturnedValueContext {
+  readonly explicitAbsentReturns: boolean;
   readonly program: CallReturnProgram | undefined;
   readonly terminals: ReturnedValueTerminals;
   readonly bindings: ReadonlyMap<Node, Node>;
@@ -96,8 +98,8 @@ function valueRefusal(node: Node, reason: import("./reference-fact-contract.ts")
   return { kind: "unresolved", reason, detail, node, trace: { declarations: [], origin: node } };
 }
 
-function valueLeaf(value: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
-  return { kind: "resolved", value: [{ value, path, bindings: context.bindings, present: true }], trace: { declarations: [], origin: value } };
+function valueLeaf(value: Node, path: readonly string[], context: ReturnedValueContext, present = true): ReferenceFact<readonly ReturnedValueSource[]> {
+  return { kind: "resolved", value: [{ value, path, bindings: context.bindings, present }], trace: { declarations: [], origin: value } };
 }
 
 function valueAlternatives(node: Node, facts: readonly ReferenceFact<readonly ReturnedValueSource[]>[]): ReferenceFact<readonly ReturnedValueSource[]> {
@@ -181,6 +183,12 @@ function returnedObjectValue(
   return result;
 }
 
+function projectedReturnPaths(alternative: CallReturnAlternative, context: ReturnedValueContext): ReferenceFact<readonly Node[]> {
+  return context.explicitAbsentReturns
+    ? (alternative.explicitReturns ?? valueRefusal(alternative.target, "missing", "explicit return projection was not requested in captured observations"))
+    : alternative.returns;
+}
+
 function returnedCallValue(call: CallExpression, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
   if (typeof context.terminals === "function" ? context.terminals(call) : context.terminals.has(call.compilerNode)) {
     return valueLeaf(call, path, context);
@@ -194,16 +202,21 @@ function returnedCallValue(call: CallExpression, path: readonly string[], contex
   }
   return valueAlternatives(
     call,
-    observed.alternatives.value.map((alternative) =>
-      alternative.returns.kind === "unresolved"
-        ? alternative.returns
-        : valueAlternatives(
-            call,
-            alternative.returns.value.map((value) =>
-              returnedValue(value, path, { ...context, bindings: readCallBindings(call, alternative.target, context.bindings) }),
-            ),
-          ),
-    ),
+    observed.alternatives.value.map((alternative) => {
+      const paths = projectedReturnPaths(alternative, context);
+      if (paths.kind === "unresolved") {
+        return paths;
+      }
+      const next = { ...context, bindings: readCallBindings(call, alternative.target, context.bindings) };
+      return valueAlternatives(
+        call,
+        paths.value.map((value) =>
+          context.explicitAbsentReturns && N.isReturnStatement(value) && value.getExpression() === undefined
+            ? valueLeaf(value, path, next, false)
+            : returnedValue(value, path, next),
+        ),
+      );
+    }),
   );
 }
 
@@ -383,7 +396,13 @@ export function readReturnedValue(
   if ([...bindings].some((pair) => pair.some((bound) => readCallReturnProgram(bound, observations).kind === "unresolved"))) {
     return valueRefusal(node, "unsupported", "supplied value bindings are outside the captured native world or source epoch");
   }
-  return returnedValue(node, path, { program: program.value, terminals, bindings, active: new Set() });
+  return returnedValue(node, path, {
+    program: program.value,
+    terminals,
+    bindings,
+    active: new Set(),
+    explicitAbsentReturns: "terminals" in inputs && inputs.explicitAbsentReturns === true,
+  });
 }
 
 /** Authored value projection uses the same traversal; calls need separately supplied native observations. */
@@ -393,7 +412,7 @@ export function readAuthoredValueSources(
   bindings: ReadonlyMap<Node, Node> = new Map(),
   terminals: ReturnedValueTerminals = new Set(),
 ): ReferenceFact<readonly ReturnedValueSource[]> {
-  return returnedValue(node, path, { program: undefined, terminals, bindings, active: new Set() });
+  return returnedValue(node, path, { program: undefined, terminals, bindings, active: new Set(), explicitAbsentReturns: false });
 }
 
 function callableValue(node: Node): boolean {

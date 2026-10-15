@@ -2,7 +2,11 @@
 import type { BindingElement, Identifier, Node as MorphNode, Symbol as MorphSymbol } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type {
+  CallReturnObservations,
+  CallReturnProgram,
   GlobalMemberOrigin,
+  NativeAmbientCallServices,
+  NativeStringCall,
   ReferenceFact,
   ReferenceResolutionServices,
   ReferenceUnresolvedReason,
@@ -270,4 +274,211 @@ function resolveInternal(node: MorphNode, target: GlobalState, services: Referen
 
 export function resolveGlobalMemberOriginWith(node: MorphNode, services: ReferenceResolutionServices): ReferenceFact<GlobalMemberOrigin> {
   return resolveInternal(node, state(), services);
+}
+
+function primitiveStringInput(type: import("ts-morph").Type): boolean {
+  const alternatives = type.isUnion() ? type.getUnionTypes() : [type];
+  return (
+    alternatives.length > 0 &&
+    alternatives.every(
+      (value) => value.isString() || value.isStringLiteral() || value.isNumber() || value.isNumberLiteral() || value.isBoolean() || value.isBooleanLiteral(),
+    )
+  );
+}
+
+function nativeSource(node: MorphNode, program: CallReturnProgram): boolean {
+  const source = node.getSourceFile();
+  return program.program.getSourceFile(source.getFilePath()) === source.compilerNode && program.program.isSourceFileDefaultLibrary(source.compilerNode);
+}
+
+function ambientValue(origin: GlobalMemberOrigin, call: MorphNode, program: CallReturnProgram, target: GlobalState): ReferenceFact<MorphNode> {
+  const checker = program.program.getTypeChecker();
+  const values = origin.declarations.map((declaration) => {
+    const symbol = declaration.getSymbol();
+    return symbol === undefined ? undefined : checker.getMergedSymbol(symbol.compilerSymbol).valueDeclaration;
+  });
+  const selected = values[0];
+  const value = origin.declarations.find((declaration) => declaration.compilerNode === selected);
+  if (value === undefined || values.some((candidate) => candidate !== selected)) {
+    return unresolved("ambiguous", call, target, "the ambient symbol has no unique checker-selected VALUE declaration");
+  }
+  if (!(Node.isVariableDeclaration(value) && origin.declarations.every((declaration) => nativeSource(declaration, program)) && nativeSource(value, program))) {
+    return unresolved("unsupported", call, target, "the ambient VALUE or merged declaration is not supplied by the selected native libraries");
+  }
+  appendDeclaration(target, value);
+  return resolved(value, target, value);
+}
+
+function stableAmbientValue(
+  value: ReferenceFact<MorphNode>,
+  call: MorphNode,
+  target: GlobalState,
+  services: NativeAmbientCallServices,
+): ReferenceFact<MorphNode> {
+  if (value.kind === "unresolved") {
+    return value;
+  }
+  const symbol = value.value.getSymbol();
+  if (symbol === undefined) {
+    return unresolved("missing", call, target, "the native VALUE has no write-inspection symbol");
+  }
+  const stable = services.inspectSymbolWrites(symbol, call);
+  return stable.kind === "unresolved" ? mergeUnresolved(stable, target) : value;
+}
+
+// Only rejection leaves about this exact binding can prove a surviving primitive; authored predicates cannot.
+function rejectsNonprimitive(condition: MorphNode, home: MorphNode, services: NativeAmbientCallServices): boolean {
+  const value = services.unwrapExpression(condition);
+  if (!Node.isBinaryExpression(value)) {
+    return false;
+  }
+  const operator = value.getOperatorToken().getKind();
+  if (operator === SyntaxKind.AmpersandAmpersandToken) {
+    return rejectsNonprimitive(value.getLeft(), home, services) && rejectsNonprimitive(value.getRight(), home, services);
+  }
+  const left = services.unwrapExpression(value.getLeft());
+  const right = value.getRight();
+  if (operator !== SyntaxKind.ExclamationEqualsEqualsToken || !Node.isTypeOfExpression(left) || !Node.isStringLiteral(right)) {
+    return false;
+  }
+  const input = services.unwrapExpression(left.getExpression());
+  const declaration = Node.isIdentifier(input) ? services.declarationOf(input) : undefined;
+  return (
+    ["string", "number", "boolean"].includes(right.getLiteralText()) && declaration?.kind === "resolved" && declaration.value.compilerNode === home.compilerNode
+  );
+}
+
+function guardedUnknownInput(value: MorphNode, target: GlobalState, services: NativeAmbientCallServices): ReferenceFact<boolean> {
+  if (!Node.isIdentifier(value)) {
+    return resolved(false, target, value);
+  }
+  const declaration = declarationOf(value, target, services);
+  if (declaration.kind === "unresolved") {
+    return declaration;
+  }
+  const home = declaration.value;
+  const name = Node.isVariableDeclaration(home) || Node.isParameterDeclaration(home) ? home.getNameNode() : undefined;
+  if (name?.getType().isUnknown() !== true || (Node.isVariableDeclaration(home) && home.getInitializer() === undefined)) {
+    return resolved(false, target, home);
+  }
+  const stable = services.inspectReferenceWrites(value);
+  if (stable.kind === "unresolved") {
+    return mergeUnresolved(stable, target);
+  }
+  const body = value.getFirstAncestor((ancestor) => Node.isBlock(ancestor) || Node.isFunctionLikeDeclaration(ancestor));
+  const ancestors = value.getAncestors();
+  const statements = body !== undefined && Node.isBlock(body) ? body.getStatements() : [];
+  const at = statements.findIndex((statement) => ancestors.includes(statement));
+  const guard = statements.slice(0, Math.max(at, 0)).find((statement) => {
+    if (!Node.isIfStatement(statement) || statement.getElseStatement() !== undefined) {
+      return false;
+    }
+    const branch = statement.getThenStatement();
+    const exit = Node.isBlock(branch) && branch.getStatements().length === 1 ? branch.getStatements()[0] : branch;
+    return Node.isReturnStatement(exit) && rejectsNonprimitive(statement.getExpression(), home, services);
+  });
+  return resolved(guard !== undefined, target, guard ?? value);
+}
+
+function narrowedInput(argument: MorphNode, target: GlobalState, services: NativeAmbientCallServices): ReferenceFact<import("ts-morph").Type> {
+  const value = services.unwrapExpression(argument);
+  const type = value.getType();
+  if (!primitiveStringInput(type)) {
+    return unresolved("unsupported", argument, target, "String input is not narrowed to primitive string, number or boolean");
+  }
+  const source = services.resolveStableExpression(value);
+  appendTrace(target, source.trace.declarations);
+  if (source.kind === "unresolved" && !["dynamic", "missing"].includes(source.reason)) {
+    return mergeUnresolved(source, target);
+  }
+  const origin = source.kind === "resolved" ? source.value : source.node;
+  if (source.kind === "resolved" && primitiveStringInput(origin.getType())) {
+    return resolved(type, target, value);
+  }
+  if (origin.getType().isUnknown()) {
+    const declaration = guardedUnknownInput(value, target, services);
+    if (declaration.kind === "unresolved") {
+      return declaration;
+    }
+    if (declaration.value) {
+      return resolved(type, target, value);
+    }
+  }
+  return unresolved("unsupported", argument, target, "String input lacks an authored primitive source or dominating same-binding native typeof rejection");
+}
+
+function ambientSignature(
+  call: import("ts-morph").CallExpression,
+  value: MorphNode,
+  program: CallReturnProgram,
+  target: GlobalState,
+): ReferenceFact<import("ts-morph").Signature> {
+  const signature = call.getProject().getTypeChecker().getResolvedSignature(call);
+  const nativeType = value.getType();
+  const declarations = nativeType.getSymbol()?.getDeclarations() ?? [];
+  if (
+    signature === undefined ||
+    !nativeSource(signature.getDeclaration(), program) ||
+    declarations.length === 0 ||
+    !declarations.every((declaration) => nativeSource(declaration, program)) ||
+    !nativeType.getCallSignatures().some((candidate) => candidate.compilerSignature === signature.compilerSignature) ||
+    !signature.getReturnType().isString()
+  ) {
+    return unresolved("unsupported", call, target, "the selected signature is not the native ambient VALUE call signature");
+  }
+  return resolved(signature, target, signature.getDeclaration());
+}
+
+/** Classify one captured native String call without changing declaration/module multiplicity or trusting a return annotation. */
+export function readNativeStringCallWith(
+  node: MorphNode,
+  observations: CallReturnObservations,
+  services: NativeAmbientCallServices,
+): ReferenceFact<NativeStringCall> {
+  const target = state();
+  const captured = services.readCallReturnProgram(node, observations);
+  if (captured.kind === "unresolved") {
+    return mergeUnresolved(captured, target);
+  }
+  if (!(Node.isCallExpression(node) && captured.value.byCall.has(node.compilerNode))) {
+    return unresolved("unsupported", node, target, "the captured source does not supply this actual call");
+  }
+  const origin = resolveGlobalMemberOriginWith(node.getExpression(), services);
+  if (origin.kind === "unresolved") {
+    return mergeUnresolved(origin, target);
+  }
+  appendTrace(target, origin.trace.declarations);
+  if (origin.value.globalName !== "String" || origin.value.memberPath.length > 0) {
+    return unresolved("unsupported", node, target, "the actual ambient origin is not the direct String intrinsic");
+  }
+  const value = stableAmbientValue(ambientValue(origin.value, node, captured.value, target), node, target, services);
+  if (value.kind === "unresolved") {
+    return value;
+  }
+  const signature = ambientSignature(node, value.value, captured.value, target);
+  if (signature.kind === "unresolved") {
+    return signature;
+  }
+  const argument = node.getArguments()[0];
+  if (argument === undefined || node.getArguments().length !== 1 || Node.isSpreadElement(argument)) {
+    return unresolved("unsupported", node, target, "String conversion requires one actual primitive argument");
+  }
+  const input = narrowedInput(argument, target, services);
+  if (input.kind === "unresolved") {
+    return input;
+  }
+  appendDeclaration(target, signature.value.getDeclaration());
+  return resolved(
+    {
+      call: node,
+      origin: origin.value,
+      valueDeclaration: value.value,
+      signature: signature.value,
+      argument,
+      argumentType: input.value,
+      program: captured.value,
+    },
+    target,
+    node,
+  );
 }
