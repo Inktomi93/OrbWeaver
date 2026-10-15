@@ -74,6 +74,7 @@ export interface SeededCorpusPlugins {
   readonly tombstones: readonly (typeof pluginProviderClaims.$inferSelect)[];
   readonly admin: Awaited<ReturnType<typeof seedAdminProvider>>;
   readonly refused: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly publication: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["listDistributedPlugins"]>>;
 }
 
 /** Use an existing real recipient; only that recipient's explicit grant may start their guest. */
@@ -129,5 +130,6 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
     acknowledgedNetHosts: [],
     enable: true,
   });
-  return { installed, providers, distribution, recipient, repeated, tombstones, admin, refused };
+  const publication = await root.services.plugin.listDistributedPlugins({ caller });
+  return { installed, providers, distribution, recipient, repeated, tombstones, admin, refused, publication };
 }

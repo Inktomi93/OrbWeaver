@@ -32,6 +32,29 @@ export interface SeededDistributedPlugin {
   readonly installs: readonly CapturedPluginRows[];
 }
 
+export interface CapturedPluginOutputs {
+  readonly plugins: Awaited<ReturnType<PluginService["list"]>>;
+  readonly surfaces: Awaited<ReturnType<PluginService["listSurfaces"]>>;
+  readonly commands: Awaited<ReturnType<PluginService["listCommands"]>>;
+  readonly displayTransforms: Awaited<ReturnType<PluginService["listDisplayTransforms"]>>;
+  readonly assets: Awaited<ReturnType<PluginService["listBundleAssets"]>>;
+  readonly log: Awaited<ReturnType<PluginService["getLog"]>>;
+  readonly state: Awaited<ReturnType<PluginService["getSurfaceState"]>>;
+}
+
+/** Capture the current owner-facing publications, never a projection of the private database capture. */
+export async function capturePluginOutputs(service: PluginService, params: Parameters<PluginService["getSurfaceState"]>[0]): Promise<CapturedPluginOutputs> {
+  return {
+    plugins: await service.list(params),
+    surfaces: await service.listSurfaces(params),
+    commands: await service.listCommands(params),
+    displayTransforms: await service.listDisplayTransforms(params),
+    assets: await service.listBundleAssets(params),
+    log: await service.getLog(params),
+    state: await service.getSurfaceState(params),
+  };
+}
+
 const ZIP_DOS_FALLBACK = "1980-07-01T12:00:00";
 const ZIP_UTC_MTIME_FIELD = 0x54_55;
 const ZIP_UTC_MTIME_PRESENT = 1;

@@ -1,0 +1,123 @@
+{
+  "sourceCensus": "reports/review/959-mounted-output-uses.json",
+  "sourceCensusRevision": "0f010719c1e6b1266ce1f553094f58dc563a87ba",
+  "purpose": "allocation delta only; no census or denominator replacement",
+  "completion": "1031 remains open; no 959 completion claim",
+  "unchangedOpenPopulations": [
+    "PluginHostV1 valued-result population beyond existing accepted cases is not newly qualified by these proxy/UI cases",
+    "events.on, pubsub.on, tools.register, transforms.register and macros.register complete callback allocation remains",
+    "browser guest value serialization root is not completely allocated",
+    "shared portable corpus publication/adoption remains root-owned and unwired for these new Node captures"
+  ],
+  "evidenceCaveat": "The batch artifact has passing owned cases and one HTTP import-collection failure. The corrected HTTP case has its separate passing artifact; no aggregate green is claimed.",
+  "defaultStatus": "selected-native-case-qualified",
+  "evidence": {
+    "outputs": {
+      "case": "tests/support/node/corpus-plugin-outputs.int.test.ts",
+      "artifact": "reports/runs/test/codex-wire-plugin-959-2522875-2026-10-15T13-42-48-592Z/test-report.json"
+    },
+    "sources": {
+      "case": "tests/support/node/corpus-plugin-source.int.test.ts",
+      "artifact": "reports/runs/test/codex-wire-plugin-959-2522875-2026-10-15T13-42-48-592Z/test-report.json"
+    },
+    "distribution": {
+      "case": "tests/support/node/corpus-plugin.int.test.ts",
+      "artifact": "reports/runs/test/codex-wire-plugin-959-2522875-2026-10-15T13-42-48-592Z/test-report.json"
+    },
+    "http": {
+      "case": "tests/support/node/corpus-plugin-http.int.test.ts",
+      "artifact": "reports/runs/test/codex-wire-plugin-959-2530393-2026-10-15T13-44-12-852Z/test-report.json"
+    },
+    "browser": {
+      "case": "tests/client/features/plugin/native-guest-protocol.ct.tsx",
+      "artifact": "reports/runs/ct/codex-wire-plugin-959-2522301-2026-10-15T13-42-49-258Z/ct-flaky.json"
+    },
+    "browserLog": {
+      "case": "tests/client/features/plugin/native-guest-protocol.ct.tsx --grep=exchanges",
+      "artifact": "reports/runs/ct/codex-wire-plugin-959-2586381-2026-10-15T13-57-08-625Z/ct-flaky.json"
+    }
+  },
+  "remainingNativeHostAliases": [
+    "clock.nowEpochMs",
+    "random.next",
+    "ids.mint",
+    "tokens.count",
+    "chat.current",
+    "chat.listMessages",
+    "chat.getVariables",
+    "chat.listCharacters",
+    "chat.applyVariableOps",
+    "worldInfo.listBooks",
+    "worldInfo.listEntries",
+    "assets.read",
+    "search.documents",
+    "variables.get",
+    "storage.get",
+    "storage.list",
+    "storage.compareAndSet",
+    "imagery.generatePicture",
+    "llm.quiet",
+    "databank.ingest",
+    "character.ingest",
+    "character.ingestAsset",
+    "character.getCardData",
+    "net.fetch",
+    "net.fetchAsset"
+  ],
+  "remainingCallbackAliases": [
+    {
+      "hostFunction": "events.on",
+      "field": null
+    },
+    {
+      "hostFunction": "pubsub.on",
+      "field": null
+    },
+    {
+      "hostFunction": "tools.register",
+      "field": "handler"
+    },
+    {
+      "hostFunction": "transforms.register",
+      "field": "apply"
+    },
+    {
+      "hostFunction": "macros.register",
+      "field": "resolve"
+    }
+  ],
+  "allocations": [
+    {"canonicalId": "packages/contracts/src/plugin/view.ts:671", "name": "pluginViewSchema", "supplier": "seedInstalledPlugin/seedPluginGrant; makePluginRow", "remaining": "selected install/enable/disable views; complete lifecycle/provenance/default variants remain", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:1153", "name": "pluginUrlPreviewSchema", "supplier": "seedCorpusPluginSource.preview/changedPreview", "evidenceRef": "sources"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:794", "name": "pluginGitPreviewSchema", "supplier": "native previewFromGit return in smart-HTTP case", "remaining": "reusable corpus capture and remaining Git refusal variants are not supplied by this case", "evidenceRef": "sources"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:10892", "name": "pluginUpdateCheckSchema", "supplier": "seedCorpusPluginSource plus native Git/showcase cases", "remaining": "selected cases exercise each declared update union branch; complete lifecycle/default cases remain", "evidenceRef": "sources"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:7492", "name": "pluginFanoutResultSchema", "supplier": "seedDistributedPlugin.outcome", "remaining": "version-diverged withdrawal remains", "evidenceRef": "distribution"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:5571", "name": "distributedPluginViewSchema", "supplier": "seedCorpusPlugins.publication", "evidenceRef": "distribution"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:8728", "name": "pluginLogViewSchema", "supplier": "capturePluginOutputs.log", "remaining": "warn/error/ring bounds remain", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/contracts/src/plugin/snippet.ts:106", "name": "snippetResultSchema", "supplier": "seedCorpusPluginOutputs.snippet/parseFailure/runtimeFailure", "remaining": "additional error-location/admission variants remain", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:2294", "name": "pluginSurfaceViewSchema", "supplier": "capturePluginOutputs.surfaces; makePluginScriptedPage", "remaining": "static page/dialog native captures; scripted default is metadata-derived; other anchors and tool-card linkage remain", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:3803", "name": "pluginBundleAssetViewSchema", "supplier": "capturePluginOutputs.assets", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:2871", "name": "pluginSurfaceStateSchema", "supplier": "capturePluginOutputs.state; native room/command/draft state returns", "remaining": "other state key/refusal variants remain", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/contracts/src/plugin/ui.ts:107084", "name": "pluginUiOutcomeSchema", "supplier": "native invokeUiAction/invokeUiCommand returns", "remaining": "selected toast/dialog/ordinary/draft cases; other refusal/outbox variants remain", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:9076", "name": "pluginUiHostCallResultSchema", "supplier": "native uiHostCall return", "remaining": "storage scalar relay only; other proxy results remain", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/contracts/src/plugin/command-view.ts:275", "name": "pluginCommandViewSchema", "supplier": "capturePluginOutputs.commands", "remaining": "ordinary typed-string and composer-draft commands; other arg/placement variants remain", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:4845", "name": "pluginDisplayTransformViewSchema", "supplier": "capturePluginOutputs.displayTransforms", "evidenceRef": "outputs"},
+    {"canonicalId": "packages/server/src/domain/plugin/contract/results.ts:9388", "name": "pluginDisplayTransformResultSchema", "supplier": "native transformForDisplay success/failed-step returns", "remaining": "deadline/order variants remain", "evidenceRef": "outputs"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/contracts/src/plugin/frame.ts\u00007656", "name": "pluginFrameMintResponseSchema", "supplier": "seedCorpusPluginHttp.frame", "remaining": "expiry and other frame variants remain; frame URL remains Node-only credential material", "evidenceRef": "http"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/contracts/src/plugin/host-v1.ts\u000040194", "field": "apply", "name": "transforms.registerDisplay", "supplier": "seedCorpusPluginOutputs native resident callback", "status": "selected-native-callback-case-qualified", "remaining": "callback inputs are observed through produced state/draft/display bytes; full callback lifecycle/refusal qualification remains", "evidenceRef": "outputs"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/contracts/src/plugin/host-v1.ts\u000046286", "field": "onAction", "name": "ui.register", "supplier": "seedCorpusPluginOutputs native resident callback", "status": "selected-native-callback-case-qualified", "remaining": "callback inputs are observed through produced state/draft/display bytes; full callback lifecycle/refusal qualification remains", "evidenceRef": "outputs"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/contracts/src/plugin/host-v1.ts\u000050223", "field": "onRun", "name": "ui.registerCommand", "supplier": "seedCorpusPluginOutputs native resident callback", "status": "selected-native-callback-case-qualified", "remaining": "callback inputs are observed through produced state/draft/display bytes; full callback lifecycle/refusal qualification remains", "evidenceRef": "outputs"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/contracts/src/plugin/host-v1.ts\u000050223", "field": "onRun", "name": "ui.registerCommand", "supplier": "seedCorpusPluginOutputs native resident callback", "status": "selected-native-callback-case-qualified", "remaining": "callback inputs are observed through produced state/draft/display bytes; full callback lifecycle/refusal qualification remains", "evidenceRef": "outputs"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u00006112", "name": "UiGuestBootMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "selected native runtime cases only; not application authentication or every field/value/refusal", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u00007497", "name": "UiGuestEventMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "selected native runtime cases only; not application authentication or every field/value/refusal", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u00008079", "name": "UiGuestHostResultMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "selected native runtime cases only; not application authentication or every field/value/refusal", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u00008336", "name": "UiGuestInbound", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "native memory-unavailable outcome not forced or qualified", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u00008766", "name": "UiGuestRenderMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "selected native runtime cases only; not application authentication or every field/value/refusal", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u00009082", "name": "UiGuestHostCallMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "selected native runtime cases only; not application authentication or every field/value/refusal", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u00009294", "name": "UiGuestLogMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "exact native info kind/level/message asserted; warn/error and log-ring variants remain", "evidenceRef": "browserLog"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u00009936", "name": "UiGuestReadyMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "selected native runtime cases only; not application authentication or every field/value/refusal", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u000010275", "name": "UiGuestSettledMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "selected native runtime cases only; not application authentication or every field/value/refusal", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u000010635", "name": "UiGuestUnavailableMessage", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "pending", "remaining": "native memory-unavailable outcome not forced or qualified", "evidenceRef": "browser"},
+    {"canonicalId": "/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/codex-canonical-table-builders-959/packages/client/src/lib/plugin-ui-guest-protocol.ts\u000010743", "name": "UiGuestOutbound", "supplier": "native main-thread/Worker messages observed through production Extensions contribution", "status": "selected-native-browser-case-qualified", "remaining": "native memory-unavailable outcome not forced or qualified", "evidenceRef": "browser"}
+  ]
+}

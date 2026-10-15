@@ -2,7 +2,7 @@
 import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { assertReferentialIntegrity, pluginKv, pluginProviderClaims } from "@orb/db";
-import { PluginNotFoundError } from "@orb/server/domain/plugin";
+import { distributedPluginViewSchema, PluginNotFoundError, pluginFanoutResultSchema } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import {
@@ -34,6 +34,20 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
   expect(captured.providers).toHaveLength(1);
   expect(captured.distribution.outcome).toMatchObject({ applied: 1, skipped: [{ userId: root.ownerId, reason: "already-installed" }] });
   expect(captured.distribution.distribution.distributedBy).toBe(root.ownerId);
+  expect(captured.publication).toEqual([
+    {
+      slug: captured.distribution.outcome.slug,
+      name: captured.distribution.outcome.name,
+      version: captured.distribution.outcome.version,
+      distributedAt: captured.distribution.distribution.distributedAt,
+      updatedAt: captured.distribution.distribution.updatedAt,
+    },
+  ]);
+  for (const value of captured.publication) {
+    expect(distributedPluginViewSchema.parse(JSON.parse(JSON.stringify(value)))).toEqual(value);
+  }
+  expect(pluginFanoutResultSchema.parse(JSON.parse(JSON.stringify(captured.distribution.outcome)))).toEqual(captured.distribution.outcome);
+  expect(pluginFanoutResultSchema.parse(JSON.parse(JSON.stringify(captured.repeated.outcome)))).toEqual(captured.repeated.outcome);
   const owned = captured.distribution.installs.find(({ plugin }) => plugin.ownerId === root.ownerId);
   const pending = captured.distribution.installs.find(({ plugin }) => plugin.ownerId === other.id);
   expect(owned?.plugin.status).toBe("enabled");

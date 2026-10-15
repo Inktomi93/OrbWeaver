@@ -102,6 +102,7 @@ export type { PersonaRow, SeededCreatedPersona } from "./persona.ts";
 export { makePersona, seedCreatedPersona, seedPersona, seedPersonaFromCharacter } from "./persona.ts";
 export type {
   AdminDistributedPluginRow,
+  CapturedPluginOutputs,
   CapturedPluginRows,
   PluginAssetRow,
   PluginKvRow,
@@ -109,7 +110,7 @@ export type {
   SeededDistributedPlugin,
   SeededInstalledPlugin,
 } from "./plugin.ts";
-export { seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./plugin.ts";
+export { capturePluginOutputs, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./plugin.ts";
 export type { PresetRow, SeededCreatedPreset, SeededImportedPreset } from "./preset.ts";
 export { makePreset, seedCreatedPreset, seedImportedPreset, seedPreset, seedUpdatedPreset } from "./preset.ts";
 export { principal } from "./principal.ts";

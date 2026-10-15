@@ -1274,6 +1274,9 @@ importers:
       '@orb/server':
         specifier: workspace:*
         version: link:../../packages/server
+      '@orb/showcase-plugins':
+        specifier: workspace:*
+        version: link:../../packages/showcase-plugins
       '@orb/tooling':
         specifier: workspace:*
         version: link:../../tooling
