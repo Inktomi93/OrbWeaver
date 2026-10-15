@@ -4,6 +4,8 @@ import { assemblyPreviewSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
+import { parsePresetFile } from "@orb/contracts/preset";
+import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { ChatId, DocumentId, Handle, PersonaId, UserConnectionId } from "@orb/kit/ids";
@@ -38,14 +40,14 @@ import { seedCharacterDocument, seedChatDocument, seedDocument, seedGlobalDocume
 import { captureChatMemoryRows, captureDocumentChunks } from "./factories/embedding-generation.ts";
 import { seedGalleryItem } from "./factories/gallery.ts";
 import { captureTurnRows } from "./factories/message.ts";
-import { seedCreatedPersona } from "./factories/persona.ts";
-import { seedCreatedPreset } from "./factories/preset.ts";
+import { seedCreatedPersona, seedPersonaFromCharacter } from "./factories/persona.ts";
+import { seedCreatedPreset, seedImportedPreset, seedUpdatedPreset } from "./factories/preset.ts";
 import { captureRegexRows } from "./factories/regex.ts";
-import { captureRosterRows } from "./factories/roster-preset.ts";
+import { captureRosterRows, seedRosterPreset } from "./factories/roster-preset.ts";
 import { seedLoginBuckets } from "./factories/sessions.ts";
 import { seedUserContentLedger } from "./factories/settings.ts";
 import { seedStats } from "./factories/stats.ts";
-import { seedCharacterTag, seedChatTag, seedPersonaTag, seedPresetTag, seedTag, seedWorldBookTag } from "./factories/tag.ts";
+import { seedCharacterTag, seedChatTag, seedCreatedTag, seedPersonaTag, seedPresetTag, seedWorldBookTag } from "./factories/tag.ts";
 import {
   captureWorldBookRows,
   seedCharacterBook,
@@ -66,6 +68,11 @@ type CorpusTurn = Awaited<ReturnType<ServerHarness["services"]["chat"]["send"]>>
 type RecallRecord = ReturnType<ServerHarness["app"]["recallRecorder"]["recent"]>[number];
 
 export interface SeededCorpusLibraries {
+  readonly derivedPersona: Awaited<ReturnType<typeof seedPersonaFromCharacter>>;
+  readonly branchedPreset: Awaited<ReturnType<typeof seedUpdatedPreset>>;
+  readonly importedPreset: Awaited<ReturnType<typeof seedImportedPreset>>;
+  readonly roster: Awaited<ReturnType<typeof seedRosterPreset>>;
+  readonly createdTag: Awaited<ReturnType<typeof seedCreatedTag>>;
   readonly rows: {
     readonly asset: Awaited<ReturnType<typeof seedStoredAsset>>["row"];
     readonly character: Awaited<ReturnType<typeof seedCreatedCharacter>>["row"];
@@ -88,7 +95,7 @@ export interface SeededCorpusLibraries {
     readonly chat: Awaited<ReturnType<typeof seedChatDocument>>;
     readonly global: Awaited<ReturnType<typeof seedGlobalDocument>>;
   };
-  readonly tag: Awaited<ReturnType<typeof seedTag>>;
+  readonly tag: Awaited<ReturnType<typeof seedCreatedTag>>["row"];
   readonly tags: {
     readonly character: Awaited<ReturnType<typeof seedCharacterTag>>;
     readonly chat: Awaited<ReturnType<typeof seedChatTag>>;
@@ -159,7 +166,11 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     chat: await seedChatDocument(root.db, root.services.databank.attachToChat, { principal, chatId: room.chat.id, documentId: document.id }),
     global: await seedGlobalDocument(root.db, root.services.databank.attachGlobal, { principal, documentId: document.id }),
   };
-  const tag = await seedTag(root.db, root.services.tag.createTag, { principal, input: createTagSchema.parse({ name: "Orbital ledger", source: "auto" }) });
+  const createdTag = await seedCreatedTag(root.db, root.services.tag.createTag, {
+    principal,
+    input: createTagSchema.parse({ name: "Orbital ledger", source: "auto" }),
+  });
+  const tag = createdTag.row;
   const tags = {
     character: await seedCharacterTag(root.db, root.services.tag.attachTag, { principal, characterId: character.id, tagId: tag.id, status: "pending" }),
     chat: await seedChatTag(root.db, root.services.tag.attachTag, { principal, chatId: room.chat.id, tagId: tag.id }),
@@ -167,9 +178,57 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     preset: await seedPresetTag(root.db, root.services.tag.attachTag, { principal, presetId: preset.id, tagId: tag.id }),
     world: await seedWorldBookTag(root.db, root.services.tag.attachTag, { principal, worldBookId: book.id, tagId: tag.id }),
   };
+  const derivedPersona = await seedPersonaFromCharacter(root.db, root.services.persona.createFromCharacter, {
+    principal,
+    characterId: character.id,
+    swapMacros: true,
+  });
+  let source = (await caller.preset.list()).find((row) => row.isSystemDefault);
+  if (source === undefined) {
+    await seedDefaultPreset({ db: root.db, now: root.clock.now });
+    source = (await caller.preset.list()).find((row) => row.isSystemDefault);
+  }
+  if (source === undefined) {
+    throw new Error("native library corpus has no production-seeded system preset");
+  }
+  // Explicit new authorship leaves any earlier converged fork and active configuration untouched.
+  const branchedPreset = await seedUpdatedPreset(root.db, caller.preset.update, {
+    id: source.id,
+    fork: { mode: "new", name: "Corpus library branch" },
+  });
+  const descriptor = root.app.portability.find((entity) => entity.kind === "preset");
+  if (descriptor === undefined) {
+    throw new Error("native library corpus has no preset export descriptor");
+  }
+  let fileText: string | undefined;
+  for await (const file of descriptor.exportAll(root.ownerId)) {
+    const text = new TextDecoder().decode(file.bytes);
+    const parsed = parsePresetFile(JSON.parse(text));
+    if (parsed.ok && parsed.name === branchedPreset.view.name) {
+      fileText = text;
+      break;
+    }
+  }
+  if (fileText === undefined) {
+    throw new Error("native preset export omitted the produced library branch");
+  }
+  const importedPreset = await seedImportedPreset(root.db, caller.preset.importFile, { fileText });
+  const roster = await seedRosterPreset(root.db, root.services.rosterPreset.create, {
+    principal,
+    input: createRosterPresetSchema.parse({
+      name: "Corpus library roster",
+      anchorPersonaId: derivedPersona.view.id,
+      members: [{ kind: "character", characterId: character.id, position: 9 }],
+    }),
+  });
   return {
     rows: { asset: storedAsset.row, character: createdCharacter.row, persona: createdPersona.row, preset: createdPreset.row },
     history,
+    derivedPersona,
+    branchedPreset,
+    importedPreset,
+    roster,
+    createdTag,
     character,
     persona,
     preset,

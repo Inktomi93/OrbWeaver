@@ -99,7 +99,7 @@ export { captureTurnRows, makeMessage, seedMessage } from "./message.ts";
 export type { NotificationRow } from "./notification.ts";
 export { seedNotification } from "./notification.ts";
 export type { PersonaRow, SeededCreatedPersona } from "./persona.ts";
-export { makePersona, seedCreatedPersona, seedPersona } from "./persona.ts";
+export { makePersona, seedCreatedPersona, seedPersona, seedPersonaFromCharacter } from "./persona.ts";
 export type {
   AdminDistributedPluginRow,
   CapturedPluginRows,
@@ -110,8 +110,8 @@ export type {
   SeededInstalledPlugin,
 } from "./plugin.ts";
 export { seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./plugin.ts";
-export type { PresetRow, SeededCreatedPreset } from "./preset.ts";
-export { makePreset, seedCreatedPreset, seedPreset } from "./preset.ts";
+export type { PresetRow, SeededCreatedPreset, SeededImportedPreset } from "./preset.ts";
+export { makePreset, seedCreatedPreset, seedImportedPreset, seedPreset, seedUpdatedPreset } from "./preset.ts";
 export { principal } from "./principal.ts";
 export type { PluginProviderClaimRow, ProviderRow, SeededPluginProvider } from "./provider.ts";
 export { seedAdminProvider, seedPluginProviders } from "./provider.ts";
@@ -139,8 +139,8 @@ export type { GlobalSettingRow, ThemeRow, UserSeedLedgerRow, UserSettingsRow } f
 export { seedGlobalSetting, seedTheme, seedUserContentLedger, seedUserSettings } from "./settings.ts";
 export type { CharacterStatsRow, DailyStatsRow, ModelStatsRow, OwnerStatsRow, SeededStats, StatsCanonVersionRow } from "./stats.ts";
 export { seedStats } from "./stats.ts";
-export type { CharacterTagRow, ChatTagRow, PersonaTagRow, PresetTagRow, TagRow, WorldBookTagRow } from "./tag.ts";
-export { seedCharacterTag, seedChatTag, seedPersonaTag, seedPresetTag, seedTag, seedWorldBookTag } from "./tag.ts";
+export type { CharacterTagRow, ChatTagRow, PersonaTagRow, PresetTagRow, SeededCreatedTag, SeededTagPrune, TagRow, WorldBookTagRow } from "./tag.ts";
+export { seedCharacterTag, seedChatTag, seedCreatedTag, seedPersonaTag, seedPresetTag, seedTag, seedTagPrune, seedWorldBookTag } from "./tag.ts";
 export type { UserRow } from "./user.ts";
 export { makeUser, seedUser } from "./user.ts";
 export type { WorkloadDbRow } from "./workload.ts";

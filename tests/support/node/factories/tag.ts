@@ -18,12 +18,40 @@ type TargetlessAttachParams = Omit<AttachParams, "targetType" | "targetId">;
 
 /** Produces a tag through the real owner operation before reading its complete persisted row. */
 export async function seedTag(db: Db, createTag: TagService["createTag"], params: Parameters<TagService["createTag"]>[0]): Promise<TagRow> {
+  return (await seedCreatedTag(db, createTag, params)).row;
+}
+
+export interface SeededCreatedTag {
+  readonly view: Awaited<ReturnType<TagService["createTag"]>>;
+  readonly row: TagRow;
+}
+
+/** Retain the native presentation defaults without projecting another tag view from its row. */
+export async function seedCreatedTag(db: Db, createTag: TagService["createTag"], params: Parameters<TagService["createTag"]>[0]): Promise<SeededCreatedTag> {
   const view = await createTag(params);
   const row = await db.select().from(tags).where(eq(tags.id, view.id)).get();
   if (row === undefined) {
     throw new Error("production tag creation left no canonical tag row");
   }
-  return row;
+  return { view, row };
+}
+
+export interface SeededTagPrune {
+  readonly result: Awaited<ReturnType<TagService["pruneUnusedTags"]>>;
+  readonly before: readonly TagRow[];
+  readonly after: readonly TagRow[];
+}
+
+/** The owner-wide maintenance operation decides what survives, including pending suggestions. */
+export async function seedTagPrune(
+  db: Db,
+  prune: TagService["pruneUnusedTags"],
+  params: Parameters<TagService["pruneUnusedTags"]>[0],
+): Promise<SeededTagPrune> {
+  const before = await db.select().from(tags).where(eq(tags.ownerId, params.principal.userId)).orderBy(tags.id);
+  const result = await prune(params);
+  const after = await db.select().from(tags).where(eq(tags.ownerId, params.principal.userId)).orderBy(tags.id);
+  return { result, before, after };
 }
 
 /** The producer decides pending versus accepted; no fixture status or timestamp is substituted. */
