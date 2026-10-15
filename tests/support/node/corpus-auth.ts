@@ -1,4 +1,4 @@
-// Cookie bytes stay Node-owned; only native HTTP responses describe the admitted source identity.
+// Cookie bytes stay Node-owned; HTTP proves admission, while internal account reads retain their resolved caller.
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { Principal } from "@orb/contracts/identity";
 import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
@@ -6,6 +6,18 @@ import { z } from "zod";
 import type { CorpusCookieIdentity } from "../iso/corpus.ts";
 import { corpusCookieIdentitySchema } from "../iso/corpus.ts";
 import type { ServerTestHarness } from "./server.ts";
+
+type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
+
+export interface CapturedAccountViews {
+  readonly viewer: Awaited<ReturnType<Caller["sessions"]["me"]>>;
+  readonly diagnostics: Awaited<ReturnType<Caller["bugReportDiagnostics"]>>;
+}
+
+/** Keep the caller-bound viewer and privileged diagnostics together without retaining request credentials. */
+export async function captureAccountViews(caller: Caller): Promise<CapturedAccountViews> {
+  return { viewer: await caller.sessions.me(), diagnostics: await caller.bugReportDiagnostics() };
+}
 
 /** Observe the same native cookie over HTTP; expected identity is a fixture check, not a Principal mint. */
 export async function captureCorpusCookieIdentity(root: ServerTestHarness, expected: Principal, cookie: string): Promise<CorpusCookieIdentity> {
