@@ -49,6 +49,7 @@ export interface ServerHarnessOptions
   readonly random?: () => number;
   readonly authConfig?: Parameters<typeof createHttpApp>[0]["authConfig"];
   readonly physicalPeer?: Parameters<typeof createHttpApp>[0]["physicalPeer"];
+  readonly clientDistDir?: Parameters<typeof createHttpApp>[0]["clientDistDir"];
   readonly ownerId?: UserId;
   readonly oidc?: NonNullable<Parameters<typeof createConfiguredOidc>[0]["settings"]>;
   readonly providerFetch?: typeof fetch;
@@ -144,6 +145,15 @@ function observerSettingsOf(
     ...(options.rpgTrace === undefined ? {} : { rpgTrace: options.rpgTrace }),
     ...(options.wireCapture === undefined ? {} : { wireCapture: options.wireCapture }),
     ...(options.wireCaptureReply === undefined ? {} : { wireCaptureReply: options.wireCaptureReply }),
+  };
+}
+
+function httpOverridesOf(
+  options: Pick<ServerHarnessOptions, "physicalPeer" | "clientDistDir">,
+): Pick<Parameters<typeof createHttpApp>[0], "physicalPeer" | "clientDistDir"> {
+  return {
+    ...(options.physicalPeer === undefined ? {} : { physicalPeer: options.physicalPeer }),
+    ...(options.clientDistDir === undefined ? {} : { clientDistDir: options.clientDistDir }),
   };
 }
 
@@ -346,7 +356,7 @@ export async function createServerHarness(
   let closing = false;
   const httpApp = assembleHttp({
     built: app,
-    ...(options.physicalPeer === undefined ? {} : { physicalPeer: options.physicalPeer }),
+    ...httpOverridesOf(options),
     authConfig,
     db,
     importStagingDir,

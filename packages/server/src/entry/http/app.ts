@@ -27,6 +27,7 @@ type HttpAppDeps = Pick<
   | "oidcProviderName"
   | "oidc"
   | "importStagingDir"
+  | "clientDistDir"
   | "physicalPeer"
 > & {
   readonly built: Pick<
@@ -105,6 +106,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     db,
     ...(deps.physicalPeer === undefined ? {} : { physicalPeer: deps.physicalPeer }),
     ...(deps.importStagingDir === undefined ? {} : { importStagingDir: deps.importStagingDir }),
+    ...(deps.clientDistDir === undefined ? {} : { clientDistDir: deps.clientDistDir }),
     seam: createAuthSeam({
       emitUserEvent: built.liveBuses.user.publishUserEvent,
       sessions: built.sessions,

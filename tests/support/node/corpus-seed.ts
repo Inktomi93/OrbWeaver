@@ -1,8 +1,6 @@
-import { authConfigSchema } from "@orb/contracts/auth-config";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { assemblyPreviewSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { parsePresetFile } from "@orb/contracts/preset";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
@@ -12,13 +10,13 @@ import type { ChatId, DocumentId, Handle, PersonaId, UserConnectionId } from "@o
 import { brandedId, ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
-import { readSessionCookie } from "@orb/server/entry/auth";
 import { seedDefaultPreset, seedThemes, seedUserContent } from "@orb/server/entry/boot";
 import type { SeedDemoResult } from "@orb/tooling/seed";
 import { loadDemoSeed, SECOND_HUMAN_HANDLE } from "@orb/tooling/seed";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
-import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
+import type { CapturedCookieAuth } from "./corpus-auth.ts";
+import { captureCookieAuth } from "./corpus-auth.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { makeAssetBytes, seedStoredAsset } from "./factories/asset.ts";
@@ -44,7 +42,6 @@ import { seedCreatedPersona, seedPersonaFromCharacter } from "./factories/person
 import { seedCreatedPreset, seedImportedPreset, seedUpdatedPreset } from "./factories/preset.ts";
 import { captureRegexRows } from "./factories/regex.ts";
 import { captureRosterRows, seedRosterPreset } from "./factories/roster-preset.ts";
-import { seedLoginBuckets } from "./factories/sessions.ts";
 import { seedUserContentLedger } from "./factories/settings.ts";
 import { seedStats } from "./factories/stats.ts";
 import { seedCharacterTag, seedChatTag, seedCreatedTag, seedPersonaTag, seedPresetTag, seedWorldBookTag } from "./factories/tag.ts";
@@ -58,6 +55,8 @@ import {
   seedWorldEntry,
 } from "./factories/world-info.ts";
 import type { createServerHarness } from "./server.ts";
+
+export { captureCookieAuth } from "./corpus-auth.ts";
 
 export type { SeededOidcCorpus } from "./corpus-oidc.ts";
 export { seedOidcCorpus } from "./corpus-oidc.ts";
@@ -517,14 +516,6 @@ interface CorpusConnections {
   readonly text: UserConnectionRow;
 }
 
-interface CapturedCookieAuth {
-  readonly auth: CorpusWire["auth"];
-  readonly identity: Awaited<ReturnType<typeof captureCorpusCookieIdentity>>;
-  readonly cookie: string;
-  readonly loginBuckets: Awaited<ReturnType<typeof seedLoginBuckets>>["buckets"];
-  readonly secrets: readonly string[];
-}
-
 interface SyntheticCorpus {
   readonly ownerId: ServerHarness["ownerId"];
   readonly secrets: readonly string[];
@@ -667,66 +658,5 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
     auth,
     // These captures prove real routed outputs, not request authentication or complete lifecycle coverage.
     reads: await captureCorpusReads(root, identities),
-  };
-}
-
-/** Capture the actual HTTP cookie path for Node corpus readers. */
-export async function captureCookieAuth(root: ServerHarness, viewer: Principal, password: string): Promise<CapturedCookieAuth> {
-  const caller = await root.internalCallerFor(root.ownerId);
-  await caller.admin.resetPassword({ userId: viewer.userId, password });
-  const anonymousConfigResponse = await root.http.request("/api/auth/config");
-  if (!anonymousConfigResponse.ok) {
-    throw new Error(`synthetic corpus auth-config request failed (${anonymousConfigResponse.status})`);
-  }
-  const anonymousConfig = authConfigSchema.parse(await anonymousConfigResponse.json());
-  if (anonymousConfig.mode !== "local") {
-    throw new Error("synthetic corpus cookie capture requires the actual local-auth server configuration");
-  }
-  const anonymousMeResponse = await root.http.request("/api/auth/me");
-  if (!anonymousMeResponse.ok) {
-    throw new Error(`synthetic corpus anonymous identity request failed (${anonymousMeResponse.status})`);
-  }
-  const anonymousMe = authMeSchema.parse(await anonymousMeResponse.json());
-  if (anonymousMe.authenticated) {
-    throw new Error("synthetic corpus anonymous identity request unexpectedly admitted a principal");
-  }
-  const { response: login, buckets: loginBuckets } = await seedLoginBuckets(root.db, root.http.request, [
-    "/api/auth/login",
-    {
-      method: "POST",
-      headers: { [CSRF_HEADER]: "1", "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ handle: viewer.handle, password }),
-    },
-  ]);
-  if (!login.ok) {
-    throw new Error(`synthetic corpus viewer login failed (${login.status})`);
-  }
-  await login.arrayBuffer();
-  const cookie = login.headers
-    .getSetCookie()
-    .map((line) => line.split(";", 1).join(""))
-    .join("; ");
-  if (cookie === "") {
-    throw new Error("synthetic corpus viewer login returned no session cookie");
-  }
-  const signedInMeResponse = await root.http.request("/api/auth/me", { headers: { cookie } });
-  if (!signedInMeResponse.ok) {
-    throw new Error(`synthetic corpus signed-in identity request failed (${signedInMeResponse.status})`);
-  }
-  const signedInMe = authMeSchema.parse(await signedInMeResponse.json());
-  if (!signedInMe.authenticated || signedInMe.handle !== viewer.handle || signedInMe.role !== viewer.role) {
-    throw new Error("synthetic corpus login cookie did not admit the actual seeded viewer");
-  }
-  const signedInConfigResponse = await root.http.request("/api/auth/config", { headers: { cookie } });
-  if (!signedInConfigResponse.ok) {
-    throw new Error(`synthetic corpus signed-in auth-config request failed (${signedInConfigResponse.status})`);
-  }
-  const signedInConfig = authConfigSchema.parse(await signedInConfigResponse.json());
-  return {
-    auth: { anonymousConfig, anonymousMe, signedInConfig, signedInMe },
-    identity: await captureCorpusCookieIdentity(root, viewer, cookie),
-    cookie,
-    loginBuckets,
-    secrets: [password, cookie, readSessionCookie(new Headers({ cookie }), "http")].filter((value) => value !== null),
   };
 }

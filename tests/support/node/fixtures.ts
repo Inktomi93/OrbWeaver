@@ -8,7 +8,7 @@ import { join } from "node:path";
 import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
-import { brandedId, castId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import type { createCaller, Services } from "@orb/server/transport/trpc";
 import { test as base } from "vitest";
@@ -16,7 +16,7 @@ import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
 import { createSeededIds } from "../iso/ids.ts";
-import type { PreparedCorpusFixture } from "./corpus.ts";
+import type { CorpusHarnessOptions, CorpusServerHarness } from "./corpus.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 // Side-effect: register the custom matchers (toThrowTRPCError / toThrowProviderError) + their types.
 import "./matchers.ts";
@@ -46,52 +46,12 @@ export interface Fixtures {
   anonCaller: AppCaller;
 }
 
-export interface CorpusServerHarness extends ServerTestHarness {
-  readonly corpus: PreparedCorpusFixture;
-}
+export type { CorpusHarnessOptions, CorpusServerHarness } from "./corpus.ts";
 
-export type CorpusHarnessOptions = Omit<
-  ServerHarnessOptions,
-  "db" | "clock" | "ids" | "timers" | "ownerId" | "casDir" | "variantDir" | "importStagingDir" | "temporaryParentDir" | "relayDir" | "secretsDir" | "random"
->;
-
-/** Resume a publication through the existing graph, joining it before closing and deleting its independent clone. */
-export async function createCorpusHarness(directory?: string, options: CorpusHarnessOptions = {}): Promise<CorpusServerHarness> {
-  const { cloneCorpusFixture, loadCorpusFixture, corpusServerOptions } = await import("./corpus.ts");
-  const source = loadCorpusFixture(directory);
-  if (source.replay === undefined) {
-    throw new Error("Corpus server continuation requires replay state; publish this fixture with the canonical producer");
-  }
-  const owner = source.wire.reads["sessions.me"][0]?.output;
-  if (owner === undefined) {
-    throw new Error("Corpus server continuation requires its captured owner");
-  }
-  await using ownership = new AsyncDisposableStack();
-  const parent = await mkdtemp(join(tmpdir(), "orb-corpus-server-"));
-  ownership.defer(() => rm(parent, { recursive: true, force: true }));
-  const corpus = ownership.use(await cloneCorpusFixture(source, join(parent, "consumer")));
-  const { createDb, preCloseHousekeeping } = await import("@orb/db");
-  const db = await createDb(corpus.layout.databaseUrl);
-  ownership.defer(() => preCloseHousekeeping(db));
-  const { authConfigFromEnv } = await import("@orb/server/entry/auth");
-  const { createServerHarness } = await import("./server.ts");
-  const { timers: _timers, relayDir: _relayDir, secretsDir: _secretsDir, ...execution } = corpusServerOptions(options);
-  const root = ownership.use(
-    await createServerHarness({
-      ...execution,
-      db,
-      ownerId: brandedId<UserId>().parse(owner.userId),
-      clock: createFrozenClock(source.replay.nowMs),
-      ids: createSeededIds(source.replay.idCursor),
-      authConfig: options.authConfig ?? { ...authConfigFromEnv(), mode: "local", fallback: "deny", defaultHandle: owner.handle },
-      casDir: corpus.layout.assets,
-      variantDir: corpus.layout.variants,
-      importStagingDir: corpus.layout.importStaging,
-      temporaryParentDir: parent,
-    }),
-  );
-  const lifetime = ownership.move();
-  return { ...root, corpus, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+/** Lazily delegate the runner fixture to the plain Node corpus owner. */
+export async function createCorpusHarness(directory?: string, options?: CorpusHarnessOptions): Promise<CorpusServerHarness> {
+  const { createCorpusHarness: open } = await import("./corpus.ts");
+  return await open(directory, options);
 }
 
 // The caller identities — FIXED ids (never the factory counters, so they can't collide with seeded
