@@ -1,16 +1,12 @@
-// The runtime's FOUR persistence ports over this domain's tables (inference program §11): the package owns no
-// `@orb/db`, so the composition root hands it these — read/lookup/list over `user_connections`, `connection_bindings`,
-// `provider_rows` with `plugin_provider_claims`, and the catalog-snapshot KV. WRITES stay in this domain
-// (`own-tables-only`); the ports are the runtime's READ side plus the registry's row persistence.
+// Runtime row adapters retain connection ownership; snapshot bytes use the injected settings tenant port.
 
-import type { Db } from "@orb/db";
-import type { ConnectionPorts } from "../contract/service.ts";
+import type { ConnectionPorts, ConnectionPortsDeps } from "../contract/service.ts";
 import { lookupBinding } from "./bindings.ts";
 import { createSnapshotStore } from "./catalog-snapshot.ts";
 import { fetchConnectionById, listOwnedConnections } from "./connections.ts";
 import { deleteAdminProviderRow, listProviderRows, putAdminProviderRow, releasePluginProviderClaims, replacePluginProviderRows } from "./provider-rows.ts";
 
-export function createConnectionPorts(deps: { readonly db: Db; readonly now: () => number }): ConnectionPorts {
+export function createConnectionPorts(deps: ConnectionPortsDeps): ConnectionPorts {
   const { db, now } = deps;
   return {
     connections: {
@@ -27,6 +23,6 @@ export function createConnectionPorts(deps: { readonly db: Db; readonly now: () 
       replacePlugin: (rows, pluginId) => replacePluginProviderRows(db, rows, pluginId, now()),
       removePlugin: (pluginId) => releasePluginProviderClaims(db, pluginId),
     },
-    snapshotStore: createSnapshotStore(db, now),
+    snapshotStore: createSnapshotStore(deps.catalogSettings),
   };
 }

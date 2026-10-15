@@ -11,4 +11,4 @@ export {
   resolveTypeMemberOrigin,
 } from "../../floor/code-facts/type-member-origin.ts";
 export { resolveTypePropertyOrigin } from "../../floor/code-facts/type-member-origin-core.ts";
-export { resolveTypeValueOrigins } from "./type-member-origin-graph.ts";
+export { resolveScalarTypeOrigins, resolveTypeValueOrigins } from "./type-member-origin-graph.ts";

@@ -29,6 +29,14 @@ export type { GeneratedImage } from "./generation.ts";
 /** The base deadline of one remote embed request when its row states none. */
 const DEFAULT_EMBED_REQUEST_TIMEOUT_MS = 120_000;
 
+/** Cold in-process loading gets its own bound rather than a remote request deadline. */
+export const LOCAL_ENCODER_PROBE_TIMEOUT_MS = 600_000;
+
+export interface EmbeddingExecution {
+  readonly widthProbeTimeoutMs: number;
+  readonly seedVectors: boolean;
+}
+
 /** The deadline one remote embed request gets: the row's `requestTimeoutMs`, else the wire default. The openai-compat
  *  wire widens it for a large batch; a single short input gets exactly this. */
 export function embedRequestTimeoutMs(features: Pick<EndpointFeatures, "requestTimeoutMs">): number {

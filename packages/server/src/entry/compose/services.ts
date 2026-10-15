@@ -44,6 +44,7 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
@@ -117,6 +118,7 @@ import {
   createReadSeededKeys,
   createSettingsComposedOps,
   createSettingsContext,
+  createSettingsKvPort,
   createSettingsService,
   recordSeededItemKeys,
 } from "#domain/settings";
@@ -580,10 +582,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const passwordHasher = createPasswordHasher(deps.sessionSecret);
   const userRuntimeDirs = createUserRuntimeDirs(userRuntimeDir);
 
-  // The four persistence ports the runtime reads THROUGH (never `@orb/db` itself): connections, bindings,
-  // provider rows and the catalog-snapshot KV — all wired by `domain/connection`'s persistence, which stays
-  // the ONE writer of its three tables (§5.3b producer ownership).
-  const ports = createConnectionPorts({ db, now });
+  const ports = createConnectionPorts({ db, now, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, now) });
 
   // The credentials domain composes BEFORE the runtime: the runtime resolves a connection's sealed secret
   // through it (`resolveCredential` by credentialId — `loadActiveCredential` is gone, §5.3), and reports a

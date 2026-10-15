@@ -1,22 +1,17 @@
-import type { Principal } from "@orb/contracts/identity";
-import type { AgentSdkModel, ModelCatalogEntry, ModelInfoApi, ProviderDef, Task, UserConnection } from "@orb/contracts/inference";
+import type { AgentSdkModel, ModelCatalogEntry, ModelInfoApi, ProviderDef, ResolveTaskParams, UserConnection } from "@orb/contracts/inference";
 import type { Mirror } from "./catalog.ts";
 import type { ProviderRegistry } from "./registry.ts";
 import type { ResolvedWarning } from "./resolve.ts";
 import type { Resolved } from "./resolved.ts";
-import type { BindingActor, DetectedServer, EndpointModel, InferenceDeps, SpawnIdentity } from "./runtime.ts";
+import type { DetectedServer, EndpointModel, InferenceDeps, SpawnIdentity } from "./runtime.ts";
 
 /** The slice of the resolver context detection reads: the per-URL detect cache. */
 export interface DetectCache {
   readonly detectedServer: (baseUrl: string) => Mirror<DetectedServer>;
 }
 
-export interface ResolveArgs {
-  readonly task: Task;
-  readonly principal: Principal;
-  readonly actor?: BindingActor | undefined;
-  /** An explicit row instead of the fold — the turn's own already-resolved connection re-read, a pane preview. */
-  readonly connectionId?: UserConnection["id"] | undefined;
+export interface ResolveArgs extends ResolveTaskParams {
+  readonly signal?: AbortSignal | undefined;
   /** Read only the server facts already held, in memory or in the persisted snapshot, and dial nothing. For a read-only
    *  question asked before the user commits (the change preview): a host that does not answer must not hold it. A fact
    *  never persisted degrades to the stated and curated facts. */

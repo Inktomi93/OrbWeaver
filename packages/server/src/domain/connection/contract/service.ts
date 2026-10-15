@@ -21,6 +21,7 @@ import type {
   TokenizeResult,
 } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
+import type { SettingsKvPort } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
@@ -115,11 +116,12 @@ export interface ConnectionContext {
   readonly emitUserEvent: EmitUserEvent;
 }
 
-/** The connection surface — selection's FRONT DOOR, never execution. Nothing here carries a secret. */
+/** Connection rows and the runtime door. Only explicit wire projections omit executor credentials. */
 export interface ConnectionService {
   /** Run a target-changing read only after this owner's binding/row probe has landed or been undone. */
   readonly withStableEmbeddingBinding: <T>(ownerId: UserId, read: () => Promise<T>) => Promise<T>;
   // ── delegations to the runtime (the turn path, the composer's pre-send gate, the pane's readouts)
+  /** Trusted server resolution retains its credential; client reads use the credential-free projection. */
   readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
   readonly availability: (params: ResolveTaskParams) => Promise<SendAvailability>;
   /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
@@ -167,13 +169,18 @@ export interface ConnectionService {
   readonly registry: ProviderRegistry;
 }
 
-/** The runtime's FOUR persistence ports over this domain's tables (inference program §11) — `@orb/inference`
- *  owns no `@orb/db`, so the composition root hands it these. READ side only; the writes stay in the verbs. */
+/** Runtime persistence ports; the snapshot adapter delegates storage to the settings owner. */
 export interface ConnectionPorts {
   readonly connections: ConnectionStore;
   readonly bindings: BindingStore;
   readonly providerStore: ProviderStore;
   readonly snapshotStore: SnapshotStore;
+}
+
+export interface ConnectionPortsDeps {
+  readonly db: Db;
+  readonly now: () => number;
+  readonly catalogSettings: SettingsKvPort;
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (`refresh-model-catalog`). */

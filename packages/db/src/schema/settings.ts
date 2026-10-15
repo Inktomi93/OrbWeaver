@@ -3,9 +3,9 @@
 //
 // `settings` (natural-key PK `key`): the reserved `APP_SETTINGS_KEY` (`"app"`) row holds the AppSettings
 // OVERRIDE blob (its `schemaVersion` lives INSIDE the blob — this table has no version column, so the
-// in-blob probe is authoritative for AppSettings). The OR model-catalog snapshot row
-// (`'openrouter-model-catalog'`) is a TENANT here — owned by connection's persistence; settings owns
-// the table mechanism, not that blob's meaning. The generic setter refuses the reserved `"app"` key.
+// in-blob probe is authoritative for AppSettings). Settings owns every write; catalog snapshots use
+// its registered prefix-scoped KV port. Connection owns their meaning, not the table mechanism.
+// The generic setter refuses the app key and registered tenant namespaces.
 //
 // `user_settings` (natural-key PK `user_id`, also the FK): the `schema_version` COLUMN is LOAD-BEARING
 // — it is threaded into `parseUserSettings(raw, storedVersion)` and BEATS the
@@ -39,7 +39,7 @@ import {
 import { users } from "./users.ts";
 
 export const settings = sqliteTable("settings", {
-  // The natural KV key (e.g. "app", "openrouter-model-catalog"). No brand — a free-form string key.
+  // The natural KV key (e.g. "app", "catalog:openrouter"). No brand — a free-form string key.
   key: text("key").primaryKey(),
   // The stored JSON value. Generic `JsonValue` (the AppSettings override blob, the OR catalog snapshot,
   // …); parsed into its specific shape at the read seam by whichever tenant owns the row.

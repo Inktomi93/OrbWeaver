@@ -19,6 +19,7 @@ import type { Capability, EndpointFeatures, ModelInfoApi, ModelKind, ProviderDef
 import { canFund, connectionTasks, effectivePromptCache, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { googleModelId } from "../backends/google/model.ts";
+import { abortableWait, RESOLUTION_ABORTED_MESSAGE, requireActiveSignal } from "../backends/http/abort-wait.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
 import { applyEndpointPosture, applyServerToolChoice, clampToServedWindow, clampToTrainedWindow, markSettableWindow } from "../capability/floor.ts";
@@ -576,14 +577,16 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   return baseline === undefined ? { resolved, warnings } : { resolved, warnings, baseline };
 }
 
-export function resolveTask(ctx: ResolverContext, args: ResolveArgs): Promise<ResolveOutcome> {
-  return resolveTaskFold(ctx, args, false);
+export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Promise<ResolveOutcome> {
+  requireActiveSignal(args.signal);
+  return await abortableWait(resolveTaskFold(ctx, args, false), args.signal, RESOLUTION_ABORTED_MESSAGE);
 }
 
 /** The capability pane's read: normal resolution plus the same loaded evidence folded without the row's
  * declaration. Kept separate so turn-time resolution does not synthesize an unused baseline. */
-export function resolveTaskWithBaseline(ctx: ResolverContext, args: ResolveArgs): Promise<CapabilityResolveOutcome> {
-  return resolveTaskFold(ctx, args, true);
+export async function resolveTaskWithBaseline(ctx: ResolverContext, args: ResolveArgs): Promise<CapabilityResolveOutcome> {
+  requireActiveSignal(args.signal);
+  return await abortableWait(resolveTaskFold(ctx, args, true), args.signal, RESOLUTION_ABORTED_MESSAGE);
 }
 
 export type { ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";

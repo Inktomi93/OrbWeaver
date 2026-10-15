@@ -44,7 +44,7 @@ import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatToolExecution, ChatToolOffer, GenerationObservationCallback, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
-import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, withPresetWindow } from "@orb/inference";
+import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, supportsManagedCompaction, withPresetWindow } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -845,7 +845,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     fitUsedTokens,
-    systemTokens: args.connection.api === "agent-sdk" ? systemTokens : null,
+    systemTokens: supportsManagedCompaction(args.connection) ? systemTokens : null,
     fitCeilingTokens: fitCeiling(budget),
     imageDropped,
     videoDropped,

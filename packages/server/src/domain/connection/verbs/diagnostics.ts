@@ -6,7 +6,7 @@
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import type { ModelKind, Task } from "@orb/contracts/inference";
+import { DIAGNOSTIC_TASK_BY_KIND } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { Resolved } from "@orb/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
@@ -23,13 +23,9 @@ async function resolveRow(ctx: ConnectionContext, principal: Principal, connecti
   if (row === null) {
     throw new ConnectionNotFoundError(connectionId);
   }
-  const task: Task = TASK_BY_KIND[await ctx.runtime.modelKind(row)];
+  const task = DIAGNOSTIC_TASK_BY_KIND[await ctx.runtime.modelKind(row)];
   return (await ctx.runtime.resolve({ task, principal, connectionId })).resolved;
 }
-
-/** The task a diagnostic resolves a row UNDER, by its model kind — exhaustive over `ModelKind` (a fourth kind is a
- *  `tsc` error here, never a silent "chat"). */
-const TASK_BY_KIND: Record<ModelKind, Task> = { generation: "chat", embedding: "embed", rerank: "rerank" };
 
 /** True when the dialled host is loopback or LAN — an offline box there strikes NOTHING (owner ruling). */
 function isLocalEndpoint(baseUrl: string | null): boolean {

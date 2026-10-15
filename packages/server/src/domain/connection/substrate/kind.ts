@@ -3,7 +3,7 @@
 // else the kind its server or catalog states, else the curated row, else `generation`.
 
 import type { RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { isRoutableTask, taskDef } from "@orb/contracts/inference";
+import { canFund, isRoutableTask } from "@orb/contracts/inference";
 import type { ConnectionContext } from "../contract/service.ts";
 
 // How fresh a kind read must be. A write that may move the index warms the catalog first; a read that lists rows,
@@ -19,5 +19,5 @@ export async function servableTasks(ctx: Pick<ConnectionContext, "runtime">, row
 /** The tasks "use for everything" binds: every task the row can serve AND fund. A background task on a row with
  *  the flag off is skipped, not refused — the user asked for everything it can serve, and it cannot serve that. */
 export async function everywhereTasks(ctx: Pick<ConnectionContext, "runtime">, row: UserConnection, read: KindRead = {}): Promise<readonly RoutableTask[]> {
-  return (await servableTasks(ctx, row, read)).filter((task) => taskDef(task).spend === "foreground" || row.allowBackground);
+  return (await servableTasks(ctx, row, read)).filter((task) => canFund(row, task));
 }

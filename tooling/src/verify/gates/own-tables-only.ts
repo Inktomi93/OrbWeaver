@@ -1,66 +1,14 @@
-// Gate: own-tables-only — the enforceable half of Tier-1-DB.md §"Cross-tier composition": a domain touches
-// its OWN tables directly, and reaches another domain's DATA through an injected op, never through the
-// `@orb/db` barrel. `persistence/` is the ONE sanctioned home for a cross-domain read (the curated reusable
-// READ helpers + the ownership checks a verb chains before it writes — `persona/persistence/queries.ts`'s
-// `ensureCharacterOwned` is the archetype), so `persistence/` is scoped OUT and everything else under
-// `domain/` is scoped IN: verbs, substrate, the named subsystems (assembly/ memory/ themes/ duplicates/ …)
-// and the feature-root slots.
-//
-// WHY THIS SHAPE, AND NOT THE OLDER ABSOLUTE SENTENCE. Tier-1-DB.md used to read "A verb never imports
-// @orb/db; only persistence/ does." That sentence was false from birth (verbs imported tables six days
-// before it was written) and self-contradicted by the sanctioned direct-consumer patterns five lines below
-// it; 69 verb files write their own domain's tables directly and always have. The line that IS real, and
-// that this gate mints, is OWNERSHIP: writing `chats` from `domain/chat/verbs/` is the architecture working;
-// reading `characters` from `domain/persona/verbs/` is a cross-domain reach that belongs in persona's
-// `persistence/` (or in an injected op). The doc was amended to the real convention in the same commit.
-//
-// TWO ARMS, and the WRITE arm is the strict one:
-//   • READ — a foreign table imported into scanned code is RED unless the domain carries a BULK_READERS row
-//     (the doc-sanctioned bulk-serializer / analytics posture) or the file carries a FILE_ALLOWLIST row.
-//   • WRITE — a foreign table in a drizzle `insert(T)`/`update(T)`/`delete(T)` position is RED
-//     UNCONDITIONALLY. No class exemption and no file row buys a foreign write: the ONLY way to write a
-//     table is to own it.
-//
-// THE OWNERSHIP MAP IS DERIVED, NOT HAND-WRITTEN, from the shared `drizzleSchemaFact` (the same schema
-// reader `ownerid-registry` consumes — FAMILY "drizzle-schema": two DISTINCT policies, one governing
-// cross-domain table ACCESS and one governing ownerId STAMPING, reusing one computation). Every
-// `export const X = sqliteTable(…)` a schema source declares is owned by the same-named domain unless a
-// SCHEMA_OWNERS/TABLE_OWNERS row overrides it. Only schema files whose producer is NOT a same-named domain
-// need a hand row, and the map is TOTAL — a schema file with tables, no same-named domain, and no row is RED
-// at the map itself.
-//
-// SPLIT FROM THE LEGACY MODULE (authority is HARD, not the central ordinary/reviewed-grant vocabulary):
-// SCHEMA_OWNERS/TABLE_OWNERS/BULK_READERS/FILE_ALLOWLIST are RULING DATA — like `ownerid-registry`'s
-// OWNERID_CLASSIFICATIONS, they decide whether a touch IS a violation at all, never suppress one that
-// already fired. There is no comment-marker escape; the only way to change the verdict is a reviewed edit
-// to this file's tables.
-//
-// INTENTIONAL CORRECTION AT CONVERSION: the legacy module reported the READ/WRITE token as `"read <table>"`
-// / `"write <table>"`, which is not a literal substring of the reported node's own text — the new contract's
-// node-anchored report requires the token to be an EXACT SLICE of `node.getText()` at `offset`
-// (`policy-pass-context.ts`). The token is now the bare table identifier (still an exact anchor either way:
-// a plain or aliased ImportSpecifier's text always starts with the original name), and read/write are now
-// distinguished by the per-finding `message` text instead of a token prefix.
-//
-// DECLARED LIMITS (measured, each with a mustPass row):
-//   • A table reached through a namespace import (`import * as schema from "@orb/db"; schema.characters`) is
-//     invisible here — the gate keys on the named ImportSpecifier, the same literal-shape limit as
-//     `no-direct-users-read` and `discovery-no-stats-rollups`.
-//   • A write through an ALIASED binding (`const t = characters; db.insert(t)`) is seen as a READ, not a
-//     write — the write arm matches the imported identifier at the call site.
-//   • `persistence/` (including `chat/memory/persistence/`) is scoped out of every finding, by design: it is
-//     the sanctioned cross-domain read home. Its population is STILL WALKED (unlike the legacy `scanRoot`
-//     exclusion) so a domain whose only files sit under `persistence/` is still detected as existing.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `own-tables-only` descriptor at 70fbc2ea6dab4d991d96759b6cc26dbf4404b3bc, the parent of the conversion `b51daeba41`
-// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,358 harness
-// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,044
-// and final `population` admits 1,148. legacy − final = ∅. final − legacy = 104 `domain/**/persistence/**` sources —
-// now WALKED (still scoped out of every finding), exactly the change the DECLARED LIMITS paragraph records. Controls:
-// inside `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
-// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+// Foreign reads belong in persistence or a sanctioned bulk view; foreign writes never do.
+// Ownership derives from the canonical Drizzle schema fact. Shared invocation facts retain bound calls.
+// Singleton ownership judgment shares the drizzle-schema family fact with producer-stamp policies.
+// Native writes use canonical table declarations through aliases; namespace foreign reads remain a declared limit.
+
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveDrizzleTableRefs } from "../../floor/code-facts/drizzle-table-ref.ts";
+import { resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import type { InstanceMethodInvocation } from "../../floor/code-facts/reference-fact-contract.ts";
+import { readCallableInvocation, readInstanceMethodInvocation } from "../../floor/code-facts/reference-fact-invocation.ts";
+import { declaredByPackage } from "../../floor/code-facts/type-member-origin.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
@@ -283,17 +231,39 @@ function deriveOwnership(ctx: GatePolicyContext, model: SchemaModel, anchor: str
   return { tableOwners, schemaFiles, declaredTables };
 }
 
+function nativeWrittenTable(invocation: InstanceMethodInvocation): Node | undefined {
+  if (invocation.invocation !== "call") {
+    return;
+  }
+  const args = invocation.arguments;
+  if (args.kind === "unresolved") {
+    throw new Error(`own-tables-only cannot establish native write arguments: ${args.detail}`);
+  }
+  return args.value[0];
+}
+
 /** The `X` in `db.insert(X)` / `tx.update(X)` / `db.delete(X)`, or undefined. */
-function writtenTableIdentifier(node: Node): Node | undefined {
+function writtenTableIdentifier(node: Node): { readonly table: Node; readonly native: boolean } | undefined {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
-  const callee = node.getExpression();
-  if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && WRITE_METHODS.has(callee.getName()))) {
+  const instance = readInstanceMethodInvocation(node);
+  if (
+    instance.kind === "resolved" &&
+    WRITE_METHODS.has(instance.value.target.member.name) &&
+    declaredByPackage(instance.value.target.member.declarations, "drizzle-orm")
+  ) {
+    const table = nativeWrittenTable(instance.value);
+    return table === undefined ? undefined : { table, native: true };
+  }
+  const invoked = readCallableInvocation(node);
+  const callee = invoked.kind === "resolved" ? invoked.value.callee : node.getExpression();
+  const member = staticMemberAccess(callee);
+  if (member === undefined || !WRITE_METHODS.has(member.name) || (invoked.kind === "resolved" && invoked.value.invocation !== "call")) {
     return;
   }
-  const arg = node.getArguments()[0];
-  return arg?.isKind(SyntaxKind.Identifier) === true ? arg : undefined;
+  const arg = invoked.kind === "resolved" && invoked.value.arguments.kind === "resolved" ? invoked.value.arguments.value[0] : node.getArguments()[0];
+  return arg?.isKind(SyntaxKind.Identifier) === true ? { table: arg, native: false } : undefined;
 }
 
 /** A candidate the WALK records without judging — the schema fact (and therefore `ownership`) is not
@@ -303,12 +273,13 @@ interface ImportCandidate {
   readonly rel: string;
   readonly domain: string;
   readonly table: string;
+  readonly binding: string;
 }
 
 interface WriteCandidate {
-  readonly node: Node; // the written table's Identifier argument
+  readonly node: Node; // the original effective table argument
   readonly rel: string;
-  readonly table: string;
+  readonly native: boolean;
 }
 
 /** A foreign-`@orb/db`-shaped value ImportSpecifier candidate, or undefined (type-only, not a `@orb/db`
@@ -323,19 +294,19 @@ function importCandidate(node: Node, ctx: GatePolicyContext): ImportCandidate | 
   }
   const rel = ctx.relativePath(node.getSourceFile());
   const domain = domainOf(rel);
-  if (rel.includes(PERSISTENCE_SEG) || domain === undefined) {
+  if (domain === undefined) {
     return;
   }
-  return { node, rel, domain, table: node.getName() };
+  return { node, rel, domain, table: node.getName(), binding: node.getAliasNode()?.getText() ?? node.getName() };
 }
 
 function writeCandidate(node: Node, ctx: GatePolicyContext): WriteCandidate | undefined {
   const rel = ctx.relativePath(node.getSourceFile());
-  if (rel.includes(PERSISTENCE_SEG) || domainOf(rel) === undefined) {
+  if (domainOf(rel) === undefined) {
     return;
   }
   const written = writtenTableIdentifier(node);
-  return written === undefined ? undefined : { node: written, rel, table: written.getText() };
+  return written === undefined ? undefined : { node: written.table, rel, native: written.native };
 }
 
 interface JudgeState {
@@ -343,6 +314,7 @@ interface JudgeState {
   readonly foreignByFile: Map<string, Set<string>>;
   readonly seenBulkDomain: Set<string>;
   readonly seenAllowlistFile: Set<string>;
+  readonly tables: ReadonlyMap<object, SchemaTable>;
 }
 
 function recordForeignImport(state: JudgeState, rel: string, table: string): void {
@@ -357,7 +329,10 @@ function judgeImport(ctx: GatePolicyContext, state: JudgeState, candidate: Impor
   if (owners === undefined || owners.includes(candidate.domain)) {
     return; // not a table, or this domain's own
   }
-  recordForeignImport(state, candidate.rel, candidate.table);
+  recordForeignImport(state, candidate.rel, candidate.binding);
+  if (candidate.rel.includes(PERSISTENCE_SEG)) {
+    return;
+  }
   if (candidate.rel in FILE_ALLOWLIST) {
     state.seenAllowlistFile.add(candidate.rel);
     return;
@@ -369,12 +344,45 @@ function judgeImport(ctx: GatePolicyContext, state: JudgeState, candidate: Impor
   ctx.report.node(candidate.node, { token: candidate.table, offset: 0, message: readMessage(candidate.table) });
 }
 
-/** The WRITE arm: unconditionally red once the same file recorded that table as a foreign READ. */
+function requireStableTable(node: Node): void {
+  const stable = resolveStableExpression(node);
+  if (stable.kind === "unresolved" && (["write", "cycle", "ambiguous"].includes(stable.reason) || Node.isBindingElement(stable.node))) {
+    throw new Error(`own-tables-only cannot establish stable native write table: ${stable.detail}`);
+  }
+}
+
+function judgeNativeWrite(ctx: GatePolicyContext, state: JudgeState, candidate: WriteCandidate): void {
+  requireStableTable(candidate.node);
+  const refs = resolveDrizzleTableRefs(candidate.node, (declaration) => {
+    requireStableTable(declaration.getNameNode());
+    return state.tables.has(declaration.compilerNode);
+  });
+  for (const ref of refs) {
+    if (ref.kind !== "table") {
+      throw new Error("own-tables-only cannot establish native write table declaration");
+    }
+    const table = state.tables.get(ref.declaration.compilerNode);
+    const owners = table === undefined ? undefined : state.ownership.tableOwners.get(table.identity.declarationName);
+    const domain = domainOf(candidate.rel);
+    if (table === undefined || owners === undefined || domain === undefined) {
+      throw new Error("own-tables-only cannot establish native table ownership");
+    }
+    if (!owners.includes(domain)) {
+      ctx.report.node(candidate.node, { message: writeMessage(table.identity.declarationName) });
+    }
+  }
+}
+
 function judgeWrite(ctx: GatePolicyContext, state: JudgeState, candidate: WriteCandidate): void {
-  if (!(state.foreignByFile.get(candidate.rel)?.has(candidate.table) ?? false)) {
+  if (candidate.native) {
+    judgeNativeWrite(ctx, state, candidate);
     return;
   }
-  ctx.report.node(candidate.node, { token: candidate.table, offset: 0, message: writeMessage(candidate.table) });
+  const table = candidate.node.getText();
+  if (!(state.foreignByFile.get(candidate.rel)?.has(table) ?? false)) {
+    return;
+  }
+  ctx.report.node(candidate.node, { token: table, offset: 0, message: writeMessage(table) });
 }
 
 /** `anchor` is a real member of this policy's own effective population — see `deriveOwnership`'s header. */
@@ -554,6 +562,7 @@ export const gate = defineGate({
           foreignByFile: new Map(),
           seenBulkDomain: new Set(),
           seenAllowlistFile: new Set(),
+          tables: new Map(schemaFact.value.tables.map((table) => [table.declaration.compilerNode, table])),
         };
         for (const candidate of imports) {
           judgeImport(ctx, state, candidate);
@@ -572,6 +581,18 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { key: text("key").primaryKey() });',
+        "packages/server/src/domain/settings/persistence/owner.ts": "export const owner = true;",
+        "packages/server/src/domain/connection/persistence/probe.ts":
+          'import { settings as catalog } from "@orb/db"; export function write(db: { insert: (table: unknown) => void }) { db.insert(catalog); }',
+      },
+      expect: { count: 1, token: "catalog", messageIncludes: "write" },
+      why: "a persistence read permission never grants a foreign write, including an imported table alias",
+    },
     {
       mode: "types",
       files: {
@@ -627,6 +648,17 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { key: text("key").primaryKey() });',
+        "packages/server/src/domain/settings/persistence/owner.ts": "export const owner = true;",
+        "packages/server/src/domain/connection/persistence/probe.ts":
+          'import { settings } from "@orb/db"; export function local(db: { insert: (table: object) => void }) { const insert = db.insert.bind(db); insert(settings); }',
+      },
+      why: "an unrelated local bound insert has no native Drizzle method identity",
+    },
     {
       mode: "types",
       files: {

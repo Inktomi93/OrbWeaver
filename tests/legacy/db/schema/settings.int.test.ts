@@ -28,11 +28,11 @@ test("the global settings KV round-trips a JSON value on its natural key", async
 
 test("the global settings key PK rejects a duplicate key", async () => {
   const db = await freshDb();
-  await db.insert(settings).values({ key: "openrouter-model-catalog", value: { models: [] } });
+  await db.insert(settings).values({ key: "catalog:openrouter", value: { models: [] } });
 
   let caught: unknown;
   try {
-    await db.insert(settings).values({ key: "openrouter-model-catalog", value: { models: [1] } });
+    await db.insert(settings).values({ key: "catalog:openrouter", value: { models: [1] } });
   } catch (err) {
     caught = err;
   }

@@ -3,35 +3,23 @@
 // thing decided here is the PROJECTION: `resolveChatCapability` hands back the credential-free
 // `ResolvedConnectionView`, never the `Resolved` a backend consumes.
 
-import type { CapabilityTarget, ResolvedConnectionView, SendAvailability, TokenizeResult } from "@orb/contracts/inference";
+import type { CapabilityTarget, ResolvedConnectionView, TokenizeResult } from "@orb/contracts/inference";
 import type { ResolveOutcome } from "@orb/inference";
 import { cachePolicyContextOf, resolveCachePolicy, responseReplaySupportedFor } from "@orb/inference";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
-import type { ResolveChatCapabilityParams, ResolveTaskParams, TokenizeWordsParams } from "../contract/params.ts";
+import type { ResolveChatCapabilityParams, TokenizeWordsParams } from "../contract/params.ts";
 import type { ConnectionCapabilityView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 import { toResolvedView } from "../substrate/resolved-view.ts";
 
-/** The credential-free half of a `Resolved` — what crosses to a client or a bus payload. */
+/** Resolve through the runtime without projecting away the executor's credential. */
 export function createResolve(ctx: ConnectionContext): ConnectionService["resolve"] {
-  return (params: ResolveTaskParams): Promise<ResolveOutcome> =>
-    ctx.runtime.resolve({
-      task: params.task,
-      principal: params.principal,
-      ...(params.actor !== undefined ? { actor: params.actor } : {}),
-      ...(params.connectionId !== undefined ? { connectionId: params.connectionId } : {}),
-    });
+  return ctx.runtime.resolve;
 }
 
 export function createAvailability(ctx: ConnectionContext): ConnectionService["availability"] {
-  return (params: ResolveTaskParams): Promise<SendAvailability> =>
-    ctx.runtime.availability({
-      task: params.task,
-      principal: params.principal,
-      ...(params.actor !== undefined ? { actor: params.actor } : {}),
-      ...(params.connectionId !== undefined ? { connectionId: params.connectionId } : {}),
-    });
+  return ctx.runtime.availability;
 }
 
 const CHAT_ROLE: CapabilityTarget = { kind: "role", task: "chat" };

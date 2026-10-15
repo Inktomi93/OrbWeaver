@@ -1,14 +1,14 @@
 import type { AssetEmbeddingReads, LoadAssetBytes } from "@orb/contracts/assets";
 import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent, DomainEvent } from "@orb/contracts/events";
-import type { Capability, EndpointFeatures, ProviderId } from "@orb/contracts/inference";
+import type { Capability, EncoderIdentityApi, EndpointFeatures, ProviderId, Wire } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { EveryOwnerRun } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import type { SideGenSampling } from "@orb/inference";
+import type { EmbeddingExecution, SideGenSampling } from "@orb/inference";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -63,8 +63,9 @@ export interface EmbeddingConnectionSnapshot {
   readonly providerId: ProviderId;
   readonly model: string;
   readonly capability: Capability;
-  readonly api: string;
-  readonly wire: string;
+  readonly api: EncoderIdentityApi;
+  readonly wire: Wire;
+  readonly execution: EmbeddingExecution;
   readonly baseUrl: string | null;
   readonly features: EndpointFeatures;
   readonly extras: unknown;

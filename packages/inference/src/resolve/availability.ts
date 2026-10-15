@@ -10,6 +10,7 @@
 import type { SendAvailability } from "@orb/contracts/inference";
 import { canFund } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
+import { abortableWait, RESOLUTION_ABORTED_MESSAGE, requireActiveSignal } from "../backends/http/abort-wait.ts";
 import type { BackendRegistry } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { Resolved } from "../contract/resolved.ts";
@@ -84,7 +85,7 @@ function endpointVerdict(probe: ReachabilityProbe | undefined, resolved: Resolve
   });
 }
 
-export async function checkAvailability(ctx: ResolverContext, registry: BackendRegistry, serving: ServingChecks, args: ResolveArgs): Promise<SendAvailability> {
+async function availabilityFold(ctx: ResolverContext, registry: BackendRegistry, serving: ServingChecks, args: ResolveArgs): Promise<SendAvailability> {
   const outcome = await resolveOrCause(ctx, args);
   if ("available" in outcome) {
     return outcome;
@@ -95,4 +96,9 @@ export async function checkAvailability(ctx: ResolverContext, registry: BackendR
   }
   const loaded = loadVerdict(serving.loadFailed, outcome);
   return loaded.available ? await endpointVerdict(serving.probe, outcome) : loaded;
+}
+
+export async function checkAvailability(ctx: ResolverContext, registry: BackendRegistry, serving: ServingChecks, args: ResolveArgs): Promise<SendAvailability> {
+  requireActiveSignal(args.signal);
+  return await abortableWait(availabilityFold(ctx, registry, serving, args), args.signal, RESOLUTION_ABORTED_MESSAGE);
 }

@@ -9,8 +9,9 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll } from "vitest";
+import { abortableWait } from "#inference/backends/http/abort-wait.ts";
 import type { LocalLightModelCache } from "#inference/backends/local-light/model-cache.ts";
-import { abortableWait, createModelCache, rerankBatches } from "#inference/backends/local-light/model-cache.ts";
+import { createModelCache, rerankBatches } from "#inference/backends/local-light/model-cache.ts";
 
 const CACHE_DIR = mkdtempSync(join(tmpdir(), "orb-model-cache-"));
 const ABSENT_MODEL = modelIdSchema.parse("orb-test/absent-model");

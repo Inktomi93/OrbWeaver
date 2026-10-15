@@ -95,6 +95,7 @@ export { WARNING_CODES } from "./resolve.ts";
 export type { ConnectionTransport, Resolved, ResponseMap } from "./resolved.ts";
 export { generationOf, withPresetWindow } from "./resolved.ts";
 export type {
+  EmbeddingExecution,
   EmbedRequest,
   GeneratedImage,
   ImageEmbedRequest,
@@ -110,7 +111,7 @@ export type {
   TaskSampling,
   WireEmbedding,
 } from "./roles.ts";
-export { embedRequestTimeoutMs } from "./roles.ts";
+export { embedRequestTimeoutMs, LOCAL_ENCODER_PROBE_TIMEOUT_MS } from "./roles.ts";
 export type {
   AddSpanEvent,
   AnthImageBlock,

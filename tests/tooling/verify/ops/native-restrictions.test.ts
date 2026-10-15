@@ -10,7 +10,7 @@ const ROOT = join(import.meta.dirname, "../../../..");
 const eslint = new ESLint({ cwd: ROOT });
 
 // Only the effective native restriction options are exercised; typed rules keep their own compiler tests.
-async function findings(path: string, source: string): Promise<readonly string[]> {
+async function findings(path: string, source: string, ruleIds: readonly string[] = ["no-restricted-syntax"]): Promise<readonly string[]> {
   const config = await eslint.calculateConfigForFile(join(ROOT, path));
   expect(config, path).toBeDefined();
   const messages = new Linter().verify(
@@ -18,7 +18,7 @@ async function findings(path: string, source: string): Promise<readonly string[]
     {
       files: ["**/*.{ts,tsx}"],
       languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true } } },
-      rules: { "no-restricted-syntax": config.rules["no-restricted-syntax"] ?? "off" },
+      rules: Object.fromEntries(ruleIds.map((id) => [id, config.rules[id] ?? "off"])),
     },
     { filename: path },
   );
@@ -28,6 +28,26 @@ async function findings(path: string, source: string): Promise<readonly string[]
   ).toEqual([]);
   return messages.map(({ message }) => message);
 }
+
+test("settings table admission rejects named, aliased, namespace and reexport reaches outside its owner", async () => {
+  const path = "packages/server/src/domain/connection/persistence/probe.ts";
+  for (const source of [
+    'import { settings } from "@orb/db";',
+    'import { settings as catalog } from "@orb/db";',
+    'import * as schema from "@orb/db";',
+    'export { settings as catalog } from "@orb/db";',
+    'export * from "@orb/db";',
+    'import { settings } from "@orb/db/schema";',
+  ]) {
+    expect(await findings(path, source, ["no-restricted-imports"]), source).toHaveLength(1);
+  }
+  expect(await findings(path, 'import { userConnections, userSettings } from "@orb/db";', ["no-restricted-imports"])).toEqual([]);
+  expect(await findings("packages/server/src/domain/settings/persistence/probe.ts", 'import { settings } from "@orb/db";', ["no-restricted-imports"])).toEqual(
+    [],
+  );
+  expect(await findings("packages/server/src/entry/compose/probe.ts", 'import { settings } from "@orb/db";', ["no-restricted-imports"])).toHaveLength(1);
+  expect(await findings("packages/server/src/domain/import/verbs/probe.ts", 'import { settings } from "@orb/db";', ["no-restricted-imports"])).toHaveLength(1);
+});
 
 test("layout and HTML attributes cover intrinsic, custom and member tags without judging spreads or object keys", async () => {
   for (const path of ["packages/client/src/features/probe.tsx", "packages/ui/src/probe.tsx"]) {

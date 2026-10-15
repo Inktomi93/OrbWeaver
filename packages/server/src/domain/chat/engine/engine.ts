@@ -47,7 +47,7 @@ import { isConstraintViolation } from "@orb/db/query";
 // `providerTerminalReason`). Legal in the tier order (domain sits ABOVE infra); the reverse edge is what
 // `infra-below-domain` bans.
 import type { Resolved, ResolvedWarning } from "@orb/inference";
-import { GenerationObservationPersistenceError, generationOf, ProviderError } from "@orb/inference";
+import { GenerationObservationPersistenceError, generationOf, ProviderError, supportsManagedCompaction } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
@@ -1103,7 +1103,7 @@ async function preTurnCompactionPlan(
   const chat = await loadChatRow(ctx.db, prep.chatId);
   const currentCoverage = chat?.compactedAtSeq ?? 0;
   const coveragePoint =
-    compaction.mode === "managed" && prep.connection.api === "agent-sdk"
+    compaction.mode === "managed" && supportsManagedCompaction(prep.connection)
       ? preTurnCoveragePoint({
           compaction,
           connection: prep.connection,
@@ -1217,7 +1217,7 @@ function fireManagedCompaction(
   // The EFFECTIVE compaction config (preset params folded with the per-send intent) — NOT `prep.intent` alone.
   const { compaction } = resolveEffectiveCompaction(prep);
   // WRITE is agent-sdk-API-only (the runner axis) — a stateless api never generates a marker.
-  if (compaction.mode !== "managed" || prep.connection.api !== "agent-sdk" || !compactionTriggered(compaction, turn.result)) {
+  if (compaction.mode !== "managed" || !supportsManagedCompaction(prep.connection) || !compactionTriggered(compaction, turn.result)) {
     return;
   }
   const coveragePoint = resolveCoveragePoint(turn.result, turn.canonAll, compaction);

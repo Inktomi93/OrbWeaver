@@ -23,6 +23,7 @@ import type { EmbedOptions } from "./funnel.ts";
 import type { LocalLightBackend } from "./local-light.ts";
 import type { ProviderRegistry } from "./registry.ts";
 import type { ResolvedChatKnobs, ResolvedEmbedKnobs } from "./resolve.ts";
+import type { EmbeddingExecution } from "./roles.ts";
 import type { CatalogDraft, ProviderOrigin, RoleClientsFor } from "./runtime.ts";
 import type { ResolveArgs, ResolveOutcome } from "./task-resolution.ts";
 
@@ -56,6 +57,7 @@ export interface InferenceRuntime {
   /** Tasks whose actual capability requirements this model meets; cached reads never open credentials or dial. */
   readonly modelTasks: (connection: UserConnection, options?: Parameters<InferenceRuntime["modelKind"]>[1]) => Promise<readonly Task[]>;
   readonly executor: ProviderExecutor;
+  readonly embeddingExecution: (connection: Pick<ResolveOutcome["resolved"], "wire" | "features">) => EmbeddingExecution;
   readonly capabilities: {
     /** provider row + declared overrides + catalog row → one descriptor, for a connection the principal owns
      *  (the credential is resolved so an endpoint's own `/v1/models` window can be read). */

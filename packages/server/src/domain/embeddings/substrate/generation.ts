@@ -4,7 +4,8 @@ import type { VectorScope } from "@orb/contracts/embeddings";
 import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
-import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
+import { ProviderError } from "@orb/inference";
+
 import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
@@ -68,16 +69,7 @@ export async function landProvenTarget(
  *  @public Test-anchored module surface; the write-path tests answer this probe apart from real embeds. */
 export const WIDTH_PROBE_TEXT = "width check";
 
-/** The in-process encoder's bound: it cannot be unreachable, but its first load from cold may download its weights
- *  first. 10 minutes covers the shipped encoder's 874 MB q8 weights on a ~12 Mbit/s link plus a measured 21.8 s cold
- *  load, and still frees the owner's write queue from a worker that hung.
- *  @public Test-anchored module surface; the bounded-probe tests advance a fake clock past it. */
-export const LOCAL_ENCODER_PROBE_TIMEOUT_MS = 600_000;
-
-/** One embed through the new connection: the vector must be as wide as the space it would be written into. One
- *  attempt. A remote embedder gets the row's embed request deadline ({@link embedRequestTimeoutMs}): a host that is
- *  down already failed its connect, and one that answered may be loading its model, which a first embed waits for.
- *  The in-process encoder gets {@link LOCAL_ENCODER_PROBE_TIMEOUT_MS}, since its cold load is not a sign it is gone. */
+/** Prove the new space's width within the runtime's route-specific bound before publishing or purging a generation. */
 export async function probeWidth(
   connection: EmbeddingConnectionSnapshot,
   via: GenerationTask,
@@ -85,10 +77,7 @@ export async function probeWidth(
   scheduleTimeout: ScheduleOp = systemTimers.timeout,
 ): Promise<void> {
   const bound = new AbortController();
-  const cancelTimer = scheduleTimeout(
-    () => bound.abort(),
-    connection.wire === "local-light" ? LOCAL_ENCODER_PROBE_TIMEOUT_MS : embedRequestTimeoutMs(connection.features),
-  );
+  const cancelTimer = scheduleTimeout(() => bound.abort(), connection.execution.widthProbeTimeoutMs);
   const opts = { signal: bound.signal };
   const result = await (via === "embed"
     ? connection.embed(WIDTH_PROBE_TEXT, opts)

@@ -3,6 +3,7 @@
 // exact resolve instead of copies.
 
 import type { Principal } from "@orb/contracts/identity";
+import { ENCODER_IDENTITY_NO_API } from "@orb/contracts/inference";
 import type { EmbedResult } from "@orb/contracts/providers";
 import type { Resolved } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
@@ -42,12 +43,13 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
     providerId: generationConnection.providerId,
     model: generationConnection.model,
     capability: generationConnection.capability,
-    api: generationConnection.api ?? "none",
+    api: generationConnection.api ?? ENCODER_IDENTITY_NO_API,
     wire: generationConnection.wire,
     baseUrl: generationConnection.baseUrl,
     features: generationConnection.features,
     extras: generationConnection.extras,
     transport: generationConnection.transport,
+    execution: runtime.embeddingExecution(generationConnection),
     embed: (input, opts): ReturnType<EmbeddingConnectionSnapshot["embed"]> => {
       if (!isResolvedTask(generationConnection, "embed") || generationConnection.capability.kind !== "embedding") {
         throw new Error("generation is not a text embed connection");

@@ -40,6 +40,7 @@ import { buildBackends } from "./registry/backends.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import { behaveAs, detectionUrl } from "./resolve/behave-as.ts";
+import { embeddingExecution } from "./resolve/operation-capabilities.ts";
 import {
   cachedKind,
   connectionNotFoundMessage,
@@ -106,6 +107,7 @@ export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
 export { resolveEmbed } from "./funnel/resolve-embed.ts";
 export { resolveSideGenSampling } from "./funnel/resolve-side-gen.ts";
 export type { ProviderRegistry } from "./registry/providers.ts";
+export { embeddingExecution, requiresHubModelId, supportsManagedCompaction } from "./resolve/operation-capabilities.ts";
 export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
 export { NoConnectionError } from "./resolve/resolve-task.ts";
 // The chat turn's ONE neutral-to-backend projection: a caller hands over a history array and its tools as
@@ -389,6 +391,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return (held ? undefined : options.coldAs) ?? kind ?? DEFAULT_MODEL_KIND;
     },
     executor,
+    embeddingExecution,
     modelTasks: (connection, options) => modelTasks(ctx, connection, options),
     capabilities: {
       for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
