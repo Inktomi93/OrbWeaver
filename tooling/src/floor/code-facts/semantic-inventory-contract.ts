@@ -6,7 +6,7 @@ import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
 import type { SourceBindingUsage } from "./binding-usage-contract.ts";
 
-export const INVENTORY_FORMAT = 8;
+export const INVENTORY_FORMAT = 9;
 export const INVENTORY_FAMILIES = [
   "exports",
   "modules",
@@ -18,6 +18,7 @@ export const INVENTORY_FAMILIES = [
   "runtime-exports",
   "shape-catalog",
   "shape-pairs",
+  "declaration-outputs",
 ] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
@@ -103,6 +104,7 @@ export const partitionSchema = z.object({
   shapes: z.array(shapeCatalogSchema),
   pairs: z.array(shapePairSchema),
   runtimeExports: z.array(runtimeExportSchema),
+  declarationOutputs: z.array(z.object({ node: spanSchema, unknown: z.boolean().nullable() })),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
   format: z.literal(INVENTORY_FORMAT),
@@ -128,6 +130,7 @@ export const partitionSchema = z.object({
 });
 
 export const partitionMetadataSchema = partitionSchema.omit({
+  declarationOutputs: true,
   shapes: true,
   pairs: true,
   runtimeExports: true,
@@ -155,6 +158,7 @@ export const INVENTORY_FAMILY_FIELDS = {
   "runtime-exports": "runtimeExports",
   "shape-catalog": "shapes",
   "shape-pairs": "pairs",
+  "declaration-outputs": "declarationOutputs",
 } as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
@@ -176,6 +180,7 @@ export const INVENTORY_RECORD_TABLES = [
   "shapeField",
   "shapeOrigin",
   "pair",
+  "declarationOutput",
 ] as const;
 export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
 export interface InventoryRecord {
@@ -232,6 +237,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly declarationOutput: (node: Node, program: string) => boolean | null;
   readonly assertShapeSource: (source: SourceFile) => void;
   readonly shape: (node: Node) => InventoryShape;
   readonly shapePair: (query: InventoryShapeQuery) => readonly { readonly program: string; readonly result: InventoryShapePairResult }[];

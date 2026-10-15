@@ -30,6 +30,11 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  declarationOutput: {
+    name: "inventory_declaration_output",
+    columns: "ordinal,node,unknownOutput",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,unknownOutput INTEGER CHECK(unknownOutput IN (0,1)),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE}`,
+  },
   shape: {
     name: "inventory_shape",
     columns: "ordinal,node,copyObject,respellObject",
@@ -252,6 +257,10 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
   partition.brands.forEach((entry, ordinal) => {
     const fact = partitionSchema.shape.brands.element.parse(entry);
     emit("brand", ordinal, spanId(fact.node), fact.brand === null ? null : inventoryString(fact.brand));
+  });
+  partition.declarationOutputs.forEach((entry, ordinal) => {
+    const fact = partitionSchema.shape.declarationOutputs.element.parse(entry);
+    emit("declarationOutput", ordinal, spanId(fact.node), fact.unknown === null ? null : Number(fact.unknown));
   });
   partition.shapes.forEach((shape, ordinal) => {
     emit("shape", ordinal, spanId(shape.node), Number(shape.copy !== null), Number(shape.respell !== null));

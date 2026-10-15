@@ -18,7 +18,7 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { gate } from "../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
 import { gate as noTestFabrication } from "../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/no-opaque-test-fixture";
 const FIXTURE = "tests/client/features/rpg/fixtures.ts";
@@ -34,7 +34,16 @@ function run(policies: readonly GatePolicy[], files: Readonly<Record<string, str
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  const result = runPolicyPass({ knownPolicies: policies, policies, root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: policies,
+    policies,
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  expect(result.toolErrors).toEqual([]);
   return {
     hits: result.authority.effectiveFindings.map((finding) => `${finding.policyId}@${finding.line}`),
     waived: result.authority.waivedFindings.length,

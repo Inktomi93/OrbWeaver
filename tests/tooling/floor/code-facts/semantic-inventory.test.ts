@@ -74,6 +74,7 @@ function partition(request: InventoryBuildRequest): InventoryPartition {
     families: inventoryFamilies(request.families),
     casts: [],
     brands: [],
+    declarationOutputs: [],
     runtimeExports: [],
     shapes: [],
     pairs: [],
@@ -101,6 +102,7 @@ function completePartition(database: ReturnType<typeof openInventoryDatabase>, s
     inputs: [...readInventoryInputs(database, id)],
     casts: stored.families.includes("cast-relations") ? [...readInventoryCasts(database, id)] : [],
     brands: stored.families.includes("id-brands") ? [...readInventoryBrands(database, id)] : [],
+    declarationOutputs: [],
     runtimeExports: [],
     shapes: [],
     pairs: [],
@@ -286,7 +288,7 @@ test("parent publication and pinned queries never eagerly decode the complete re
   }
 });
 
-for (const legacyFormat of [1, 2, 3, 4, 5, 6, 7]) {
+for (const legacyFormat of [1, 2, 3, 4, 5, 6, 7, 8]) {
   test(`format ${String(legacyFormat)} adoption preserves the last generation across failure and publishes only a complete replacement`, ({ scratch }) => {
     initialize(scratch);
     const path = join(scratch, ".cache/semantic-inventory.sqlite");
@@ -430,6 +432,7 @@ test("all scalar metadata and indexed keys preserve UTF-16 without hash collisio
     families: inventoryFamilies(undefined),
     casts: [],
     brands: [],
+    declarationOutputs: [],
     runtimeExports: [],
     shapes: [],
     pairs: [],

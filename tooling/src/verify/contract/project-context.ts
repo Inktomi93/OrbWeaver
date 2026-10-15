@@ -8,7 +8,7 @@
 // `requestedPaths` and acquires the checker through the policy context, so re-exposing either here would
 // be a second spelling of a decision `lib/policy-pass.ts` already owns.
 
-import type { AsExpression, Project, SourceFile, TypeNode } from "ts-morph";
+import type { AsExpression, Node, Project, SourceFile, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { InventoryRuntimeExport, InventoryShapeQuery } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import type { SemanticSourceView } from "../../floor/compiler/ts-workspace-contract.ts";
@@ -17,10 +17,12 @@ export type NativeTypeRequest =
   | { readonly kind: "cast-relations"; readonly nodes: readonly AsExpression[] }
   | { readonly kind: "id-brands"; readonly nodes: readonly TypeNode[] }
   | { readonly kind: "runtime-exports"; readonly nodes: readonly SourceFile[] }
+  | { readonly kind: "declaration-outputs"; readonly nodes: readonly Node[] }
   | { readonly kind: "shape-relations"; readonly nodes: readonly SourceFile[]; readonly prepare: () => readonly InventoryShapeQuery[] };
 
 /** A producer owns native or isolated-proof provenance; neither exposes a checker through this capability. */
 export interface NativeTypeFactReader extends Disposable {
+  readonly declarationOutputs: (nodes: readonly Node[]) => ReadonlyMap<Node, boolean | null>;
   readonly prepareShapes: (sources: readonly SourceFile[]) => void;
   readonly runtimeExports: (nodes: readonly SourceFile[]) => ReadonlyMap<SourceFile, readonly InventoryRuntimeExport[]>;
   readonly castRelations: (nodes: readonly AsExpression[]) => ReadonlyMap<AsExpression, TypeRelation>;
@@ -28,6 +30,7 @@ export interface NativeTypeFactReader extends Disposable {
 }
 
 export interface NativeTypeContext {
+  readonly declarationOutputs: NativeTypeFactReader["declarationOutputs"];
   readonly prepareShapes: NativeTypeFactReader["prepareShapes"];
   readonly runtimeExports: NativeTypeFactReader["runtimeExports"];
   readonly request: (query: NativeTypeRequest) => void;
@@ -37,6 +40,7 @@ export interface NativeTypeContext {
 
 /** Registration is owner-scoped during the existing walk; a sealed run reads one closed native generation. */
 export interface NativeTypeFacts extends Disposable {
+  readonly declarationOutputs: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["declarationOutputs"]>;
   readonly prepareShapes: (owner: string, sources: readonly SourceFile[]) => void;
   readonly runtimeExports: (owner: string, nodes: readonly SourceFile[]) => ReturnType<NativeTypeFactReader["runtimeExports"]>;
   readonly request: (owner: string, query: NativeTypeRequest) => void;

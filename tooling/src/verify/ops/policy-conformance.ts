@@ -9,6 +9,7 @@ import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFi
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { Project, ts } from "ts-morph";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/code-facts/assignability.ts";
+import { readDeclarationOutput } from "../../floor/code-facts/declaration-output.ts";
 import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
@@ -504,7 +505,8 @@ export function verifyPolicyProofs(policies: readonly GatePolicy[]): readonly Po
   return failures;
 }
 
-function isolatedTypeFacts(project: Project): NativeTypeFacts {
+/** Isolated proof capabilities preserve their captured fixture epoch, not production-world ownership. */
+export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   let program: ReturnType<Project["getProgram"]>["compilerObject"] | undefined;
   const sources = new Map(project.getSourceFiles().map((source) => [source, { node: source.compilerNode, text: source.getFullText() }]));
   const checkerFor = (nodes: readonly Node[]): TypeChecker => {
@@ -533,6 +535,10 @@ function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (): NativeTypeFactReader => ({
+      declarationOutputs: (nodes): ReturnType<NativeTypeFactReader["declarationOutputs"]> => {
+        checkerFor(nodes);
+        return new Map(nodes.map((node) => [node, readDeclarationOutput(node)]));
+      },
       prepareShapes: (requested): void => {
         checkerFor(requested);
       },

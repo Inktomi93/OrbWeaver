@@ -90,6 +90,9 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
           case "runtime-exports":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
+          case "declaration-outputs":
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
           case "shape-relations":
             rows.push({ kind: query.kind, nodes: [...query.nodes], prepare: query.prepare });
             break;
@@ -117,6 +120,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "cast-relations", nodes).castRelations(nodes);
+    },
+    declarationOutputs: (owner, nodes): ReturnType<NativeTypeContext["declarationOutputs"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "declaration-outputs", nodes).declarationOutputs(nodes);
     },
     idBrands: (owner, nodes): ReturnType<NativeTypeContext["idBrands"]> => {
       if (nodes.length === 0) {
@@ -202,6 +212,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    declarationOutputs: (declarations): ReturnType<NativeTypeFactReader["declarationOutputs"]> =>
+      new Map(declarations.map((node) => [node, inventory.declarationOutput(node, owner(node))])),
     prepareShapes: (requested): void => {
       for (const source of requested) {
         inventory.assertShapeSource(source);

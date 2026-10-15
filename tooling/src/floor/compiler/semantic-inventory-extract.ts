@@ -8,6 +8,7 @@ import type { FileSystemHost, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, ts } from "ts-morph";
 import type { AssignabilityChecker } from "../code-facts/assignability.ts";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../code-facts/assignability.ts";
+import { readDeclarationOutput } from "../code-facts/declaration-output.ts";
 import { nativeIdBrand } from "../code-facts/id-brand.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
@@ -165,6 +166,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
         ]
       : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
+    ...(families.includes("declaration-outputs") ? [fileURLToPath(new URL("../code-facts/declaration-output.ts", import.meta.url))] : []),
     ...(families.some((family) => family === "cast-relations" || family === "shape-pairs")
       ? [
           fileURLToPath(new URL("../code-facts/assignability.ts", import.meta.url)),
@@ -228,7 +230,19 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   ];
   const facts =
     request.intent === "membership"
-      ? { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [], runtimeExports: [], shapes: [], pairs: [], references: [] }
+      ? {
+          exports: [],
+          modules: [],
+          bindings: [],
+          witnesses: [],
+          casts: [],
+          brands: [],
+          runtimeExports: [],
+          declarationOutputs: [],
+          shapes: [],
+          pairs: [],
+          references: [],
+        }
       : extractTypedFacts(project, { sources, authored, spans, families, queries: request.shapeQueries ?? [] });
   return {
     intent: request.intent ?? "facts",
@@ -334,7 +348,10 @@ function assertAuthoredSyntax(original: SourceFile, admitted: SourceFile, spans:
   }
 }
 
-type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands" | "runtimeExports" | "shapes">;
+type SourceFactValues = Pick<
+  InventoryPartition,
+  "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands" | "runtimeExports" | "declarationOutputs" | "shapes"
+>;
 interface SourceFactCollection {
   readonly families: ReadonlySet<InventoryFamily>;
   readonly spans: InventorySpans;
@@ -451,6 +468,13 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
     visitors.set(SyntaxKind.TypeAliasDeclaration, [...(visitors.get(SyntaxKind.TypeAliasDeclaration) ?? []), (node): void => collectBrandFact(node, context)]);
     visitors.set(SyntaxKind.AsExpression, [...(visitors.get(SyntaxKind.AsExpression) ?? []), (node): void => collectBrandFact(node, context)]);
   }
+  if (families.has("declaration-outputs")) {
+    const collect = (node: MorphNode): void => {
+      values.declarationOutputs.push({ node: spans.node(node), unknown: readDeclarationOutput(node) });
+    };
+    visitors.set(SyntaxKind.FunctionDeclaration, [...(visitors.get(SyntaxKind.FunctionDeclaration) ?? []), collect]);
+    visitors.set(SyntaxKind.VariableDeclaration, [...(visitors.get(SyntaxKind.VariableDeclaration) ?? []), collect]);
+  }
   collectByKinds([sf], visitors);
 }
 
@@ -464,7 +488,7 @@ function extractSourceFacts(
   const context: SourceFactCollection = {
     ...input,
     authored,
-    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [], runtimeExports: [], shapes: [] },
+    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [], runtimeExports: [], declarationOutputs: [], shapes: [] },
     referenceDeclarations: new Map(),
     shapeNodes: new WeakSet(),
     checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),

@@ -11,7 +11,8 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 4;
+const STORAGE_SCHEMA_VERSION = 5;
+const SHAPE_SCHEMA_VERSION = 4;
 const RUNTIME_EXPORT_SCHEMA_VERSION = 3;
 
 const generationRow = z.object({ generation: z.number() });
@@ -46,7 +47,14 @@ export function openInventoryDatabase(path: string): DatabaseSync {
 
 function storageSchemaVersion(db: DatabaseSync): number {
   const version = storageVersionRow.parse(db.prepare("PRAGMA user_version").get()).user_version;
-  if (version !== 0 && version !== 1 && version !== 2 && version !== RUNTIME_EXPORT_SCHEMA_VERSION && version !== STORAGE_SCHEMA_VERSION) {
+  if (
+    version !== 0 &&
+    version !== 1 &&
+    version !== 2 &&
+    version !== RUNTIME_EXPORT_SCHEMA_VERSION &&
+    version !== SHAPE_SCHEMA_VERSION &&
+    version !== STORAGE_SCHEMA_VERSION
+  ) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
   }
   return version;
@@ -90,13 +98,14 @@ function initializeStorageSchema(db: DatabaseSync): void {
       db.exec("ALTER TABLE inventory_input_upgrade RENAME TO inventory_input;");
     }
     if (version > 0 && version < STORAGE_SCHEMA_VERSION) {
+      db.exec(`CREATE TABLE IF NOT EXISTS inventory_declaration_output(${inventoryRecordTables.declarationOutput.definition}) STRICT;`);
       db.exec(`CREATE TABLE IF NOT EXISTS inventory_runtime_export(${inventoryRecordTables.runtimeExport.definition}) STRICT;`);
       db.exec(`CREATE TABLE inventory_family_upgrade(${inventoryRecordTables.family.definition}) STRICT;`);
       db.exec("INSERT INTO inventory_family_upgrade(partition,ordinal,name) SELECT partition,ordinal,name FROM inventory_family;");
       db.exec("DROP TABLE inventory_family;");
       db.exec("ALTER TABLE inventory_family_upgrade RENAME TO inventory_family;");
     }
-    if (version < STORAGE_SCHEMA_VERSION) {
+    if (version < SHAPE_SCHEMA_VERSION) {
       upgradeShapeStorage(db);
     }
     if (version < STORAGE_SCHEMA_VERSION) {
