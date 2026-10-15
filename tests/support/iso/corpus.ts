@@ -2,7 +2,7 @@
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { ownerBudgetViewSchema } from "@orb/contracts/automation";
 import { listCharactersResultSchema } from "@orb/contracts/character";
-import { chatDetailSchema, chatListPageSchema, pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
+import { chatDetailSchema, chatListPageSchema, messagesPageSchema, pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
 import { bankHealthViewSchema, documentDetailViewSchema, listDocumentsResultSchema } from "@orb/contracts/databank";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
@@ -10,6 +10,8 @@ import { listInboxResultSchema } from "@orb/contracts/notifications";
 import { personaDetailSchema } from "@orb/contracts/persona";
 import { themeViewSchema, userSettingsViewSchema } from "@orb/contracts/settings";
 import { tagSuggestionViewSchema } from "@orb/contracts/tag";
+import type { ChatId, UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { stableStringify } from "@orb/kit/stable-stringify";
@@ -23,6 +25,48 @@ export interface CorpusRead<P extends TrpcProcedurePath> {
   readonly input: TrpcInput<P>;
   readonly output: TrpcWireOutput<P>;
 }
+
+/** A captured viewer is fixture-selection evidence, never a browser authentication credential. */
+export interface CorpusViewerRead<P extends TrpcProcedurePath> {
+  readonly viewerUserId: UserId;
+  readonly read: CorpusRead<P>;
+}
+
+export interface CorpusMemberMessagesRead extends CorpusViewerRead<"chat.listMessages"> {
+  readonly chatId: ChatId;
+}
+
+const inboxSnapshotSchema = z
+  .strictObject({ viewerUserId: brandedId<UserId>(), output: listInboxResultSchema })
+  .refine(
+    ({ viewerUserId, output }) => output.items.every((item) => item.payload.recipientUserId === viewerUserId),
+    "Corpus inbox snapshot recipient mismatch",
+  );
+const notificationInboxSchema = z.strictObject({
+  readerRaised: inboxSnapshotSchema,
+  readerRead: inboxSnapshotSchema,
+  readerSettled: inboxSnapshotSchema,
+  readerFinal: inboxSnapshotSchema,
+  foreignBefore: inboxSnapshotSchema,
+  foreignAfter: inboxSnapshotSchema,
+  hostAccepted: inboxSnapshotSchema,
+});
+const memberMessagesSnapshotSchema = z
+  .strictObject({ viewerUserId: brandedId<UserId>(), chatId: typeIdSchema(ID_PREFIX.chat), output: messagesPageSchema })
+  .refine(({ chatId, output }) => output.messages.every((message) => message.chatId === chatId), "Corpus member snapshot chat mismatch");
+const chatLifecycleMemberSchema = z.strictObject({
+  heldDuring: memberMessagesSnapshotSchema,
+  heldCompleted: memberMessagesSnapshotSchema,
+  abortedDuring: memberMessagesSnapshotSchema,
+  abortedCompleted: memberMessagesSnapshotSchema,
+});
+
+export type CorpusNotificationInbox = {
+  readonly [Snapshot in keyof z.output<typeof notificationInboxSchema>]: CorpusViewerRead<"notifications.list">;
+};
+export type CorpusChatLifecycleMember = {
+  readonly [Snapshot in keyof z.output<typeof chatLifecycleMemberSchema>]: CorpusMemberMessagesRead;
+};
 
 const corpusAuthSchema = z.strictObject({
   anonymousConfig: authConfigSchema,
@@ -52,6 +96,8 @@ const publishedCorpusSchema = z.strictObject({
   auth: corpusAuthSchema,
   oidc: corpusOidcSchema.optional(),
   health: healthResponseSchema,
+  notificationInbox: notificationInboxSchema.optional(),
+  chatLifecycleMember: chatLifecycleMemberSchema.optional(),
   reads: z.strictObject({
     "sessions.me": viewerViewSchema.array(),
     "settings.getUserSettings": userSettingsViewSchema.array(),
@@ -103,6 +149,8 @@ export interface CorpusWireInput {
   readonly oidc?: z.input<typeof corpusOidcSchema>;
   readonly health: z.input<typeof healthResponseSchema>;
   readonly reads: CorpusReads;
+  readonly notificationInbox?: CorpusNotificationInbox;
+  readonly chatLifecycleMember?: CorpusChatLifecycleMember;
 }
 
 export interface CorpusWire {
@@ -110,6 +158,8 @@ export interface CorpusWire {
   readonly oidc?: z.output<typeof corpusOidcSchema>;
   readonly health: z.output<typeof healthResponseSchema>;
   readonly reads: CorpusReads;
+  readonly notificationInbox?: CorpusNotificationInbox;
+  readonly chatLifecycleMember?: CorpusChatLifecycleMember;
 }
 
 function hydrateReads<P extends TrpcProcedurePath>(
@@ -121,10 +171,19 @@ function hydrateReads<P extends TrpcProcedurePath>(
 
 /** Validate published captures through their real owners while preserving each exact captured input. */
 export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
+  // Validate outputs without rebuilding inputs; publication must still see changed or malformed requests.
+  if (input.notificationInbox !== undefined) {
+    publishInbox(input.notificationInbox);
+  }
+  if (input.chatLifecycleMember !== undefined) {
+    publishMemberMessages(input.chatLifecycleMember);
+  }
   return {
     auth: corpusAuthSchema.parse(input.auth),
     ...(input.oidc === undefined ? {} : { oidc: corpusOidcSchema.parse(input.oidc) }),
     health: healthResponseSchema.parse(input.health),
+    ...(input.notificationInbox === undefined ? {} : { notificationInbox: input.notificationInbox }),
+    ...(input.chatLifecycleMember === undefined ? {} : { chatLifecycleMember: input.chatLifecycleMember }),
     reads: {
       "sessions.me": hydrateReads(input.reads["sessions.me"], viewerViewSchema),
       "settings.getUserSettings": hydrateReads(input.reads["settings.getUserSettings"], userSettingsViewSchema),
@@ -153,12 +212,61 @@ function inputless<T>(output: T): { readonly input: undefined; readonly output: 
   return { input: corpusReadInput.absent(), output };
 }
 
+function publishInbox(section: CorpusNotificationInbox): z.output<typeof notificationInboxSchema> {
+  return notificationInboxSchema.parse(
+    Object.fromEntries(Object.entries(section).map(([name, snapshot]) => [name, { viewerUserId: snapshot.viewerUserId, output: snapshot.read.output }])),
+  );
+}
+
+function publishMemberMessages(section: CorpusChatLifecycleMember): z.output<typeof chatLifecycleMemberSchema> {
+  return chatLifecycleMemberSchema.parse(
+    Object.fromEntries(
+      Object.entries(section).map(([name, snapshot]) => [name, { viewerUserId: snapshot.viewerUserId, chatId: snapshot.chatId, output: snapshot.read.output }]),
+    ),
+  );
+}
+
+function hydrateInboxSnapshot(snapshot: z.output<typeof inboxSnapshotSchema>): CorpusViewerRead<"notifications.list"> {
+  return { viewerUserId: snapshot.viewerUserId, read: inputless(snapshot.output) };
+}
+
+function hydrateInbox(section: z.output<typeof notificationInboxSchema>): CorpusNotificationInbox {
+  return {
+    readerRaised: hydrateInboxSnapshot(section.readerRaised),
+    readerRead: hydrateInboxSnapshot(section.readerRead),
+    readerSettled: hydrateInboxSnapshot(section.readerSettled),
+    readerFinal: hydrateInboxSnapshot(section.readerFinal),
+    foreignBefore: hydrateInboxSnapshot(section.foreignBefore),
+    foreignAfter: hydrateInboxSnapshot(section.foreignAfter),
+    hostAccepted: hydrateInboxSnapshot(section.hostAccepted),
+  };
+}
+
+function hydrateMemberSnapshot(snapshot: z.output<typeof memberMessagesSnapshotSchema>): CorpusMemberMessagesRead {
+  return {
+    viewerUserId: snapshot.viewerUserId,
+    chatId: snapshot.chatId,
+    read: { input: corpusReadInput.chat({ id: snapshot.chatId }), output: snapshot.output },
+  };
+}
+
+function hydrateMemberMessages(section: z.output<typeof chatLifecycleMemberSchema>): CorpusChatLifecycleMember {
+  return {
+    heldDuring: hydrateMemberSnapshot(section.heldDuring),
+    heldCompleted: hydrateMemberSnapshot(section.heldCompleted),
+    abortedDuring: hydrateMemberSnapshot(section.abortedDuring),
+    abortedCompleted: hydrateMemberSnapshot(section.abortedCompleted),
+  };
+}
+
 function hydratePublication(published: z.output<typeof publishedCorpusSchema>): CorpusWire {
   const { reads } = published;
   return {
     auth: published.auth,
     ...(published.oidc === undefined ? {} : { oidc: published.oidc }),
     health: published.health,
+    ...(published.notificationInbox === undefined ? {} : { notificationInbox: hydrateInbox(published.notificationInbox) }),
+    ...(published.chatLifecycleMember === undefined ? {} : { chatLifecycleMember: hydrateMemberMessages(published.chatLifecycleMember) }),
     reads: {
       "sessions.me": reads["sessions.me"].map(inputless),
       "settings.getUserSettings": reads["settings.getUserSettings"].map(inputless),
@@ -194,6 +302,15 @@ function capturedInputs(reads: CorpusReads): string {
   );
 }
 
+function capturedSnapshotInputs(wire: CorpusWire): string {
+  const request = <T>(input: T): { readonly present: boolean; readonly value?: T } =>
+    input === undefined ? { present: false } : { present: true, value: input };
+  return stableStringify({
+    notificationInbox: Object.fromEntries(Object.entries(wire.notificationInbox ?? {}).map(([name, snapshot]) => [name, request(snapshot.read.input)])),
+    chatLifecycleMember: Object.fromEntries(Object.entries(wire.chatLifecycleMember ?? {}).map(([name, snapshot]) => [name, request(snapshot.read.input)])),
+  });
+}
+
 /** Refuse changed requests and producer-known private values; publication never repairs captured data. */
 export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]): string {
   const literals = secretRedactionLiterals(secrets);
@@ -212,11 +329,14 @@ export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]
     auth: wire.auth,
     ...(wire.oidc === undefined ? {} : { oidc: wire.oidc }),
     health: wire.health,
+    ...(wire.notificationInbox === undefined ? {} : { notificationInbox: publishInbox(wire.notificationInbox) }),
+    ...(wire.chatLifecycleMember === undefined ? {} : { chatLifecycleMember: publishMemberMessages(wire.chatLifecycleMember) }),
     reads: Object.fromEntries(
       Object.entries<readonly CorpusRead<keyof CorpusReads>[]>({ ...wire.reads }).map(([path, records]) => [path, records.map(({ output }) => output)]),
     ),
   });
-  if (capturedInputs(wire.reads) !== capturedInputs(hydratePublication(published).reads)) {
+  const restored = hydratePublication(published);
+  if (capturedInputs(wire.reads) !== capturedInputs(restored.reads) || capturedSnapshotInputs(wire) !== capturedSnapshotInputs(restored)) {
     throw new Error("Corpus request does not match its publication recipe");
   }
   const serialized = JSON.stringify(published);
