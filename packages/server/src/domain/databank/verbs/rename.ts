@@ -8,7 +8,7 @@ import { DocumentNotFoundError } from "../contract/errors.ts";
 import type { RenameDocumentParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import type { DocumentView } from "../contract/views.ts";
-import { toDocumentView } from "../persistence/queries.ts";
+import { requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createRename(ctx: DatabankContext): DatabankService["rename"] {
@@ -19,7 +19,7 @@ export function createRename(ctx: DatabankContext): DatabankService["rename"] {
       .update(documents)
       .set({ name, updatedAt: at })
       .where(and(eq(documents.id, id), eq(documents.ownerId, ownerId)))
-      .returning();
+      .returning({ id: documents.id });
     const row = updated[0];
     if (row === undefined) {
       throw new DocumentNotFoundError(id);
@@ -33,19 +33,6 @@ export function createRename(ctx: DatabankContext): DatabankService["rename"] {
     await ctx.fanDatabankRoomsForDocument(id);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
     const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, ownerId) });
-    return toDocumentView(
-      {
-        id: row.id,
-        name: row.name,
-        mime: row.mime,
-        origin: row.origin,
-        sourceUrl: row.sourceUrl,
-        byteSize: row.byteSize,
-        charCount: row.extractedText.length,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      },
-      counts.get(id) ?? 0,
-    );
+    return toDocumentView(await requireOwnedMeta(ctx.db, ownerId, id), counts.get(id) ?? 0);
   };
 }

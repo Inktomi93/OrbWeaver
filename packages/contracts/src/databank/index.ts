@@ -175,7 +175,7 @@ export const documentViewSchema = z.object({
   origin: docOriginSchema,
   sourceUrl: z.url().nullable(),
   byteSize: z.int().nonnegative(),
-  charCount: z.int().nonnegative(), // extractedText.length — derived at read
+  charCount: z.int().nonnegative(), // SQLite length(extracted_text), not JavaScript UTF-16 units or graphemes.
   chunkCount: z.int().nonnegative(), // derived (LEFT JOIN count; active model only)
   embeddedCount: z.int().nonnegative(), // = chunkCount when ingest is complete
   createdAt: z.int(),

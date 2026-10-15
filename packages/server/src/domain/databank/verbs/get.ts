@@ -7,30 +7,21 @@ import { DocumentNotFoundError } from "../contract/errors.ts";
 import type { GetDocumentParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import type { DocumentDetailView } from "../contract/views.ts";
-import { loadOwnedDocument, toDocumentView } from "../persistence/queries.ts";
+import { loadOwnedDocument, requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createGet(ctx: DatabankContext): DatabankService["get"] {
   return async ({ principal, id, includeText }: GetDocumentParams): Promise<DocumentDetailView> => {
+    const meta = await requireOwnedMeta(ctx.db, principal.userId, id);
+    const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, principal.userId) });
+    const base = toDocumentView(meta, counts.get(id) ?? 0);
+    if (includeText !== true) {
+      return base;
+    }
     const row = await loadOwnedDocument(ctx.db, principal.userId, id);
     if (row === undefined) {
       throw new DocumentNotFoundError(id);
     }
-    const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, principal.userId) });
-    const base = toDocumentView(
-      {
-        id: row.id,
-        name: row.name,
-        mime: row.mime,
-        origin: row.origin,
-        sourceUrl: row.sourceUrl,
-        byteSize: row.byteSize,
-        charCount: row.extractedText.length,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      },
-      counts.get(id) ?? 0,
-    );
-    return { ...base, ...(includeText === true ? { extractedText: row.extractedText } : {}) };
+    return { ...base, extractedText: row.extractedText };
   };
 }

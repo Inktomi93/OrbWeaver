@@ -59,8 +59,8 @@ export type { ConnectionBindingRow, SdkSessionEntryRow, UserConnectionRow } from
 export { captureSdkSessionRows, seedConnectionBinding, seedUserConnection } from "./connection.ts";
 export type { AuditLogRow, SeededUserCredential, UserCredentialRow } from "./credentials.ts";
 export { seedUserCredential } from "./credentials.ts";
-export type { CharacterDocumentRow, ChatDocumentRow, DocumentRow, GlobalDocumentRow } from "./databank.ts";
-export { seedCharacterDocument, seedChatDocument, seedDocument, seedGlobalDocument } from "./databank.ts";
+export type { CapturedDatabankViews, CharacterDocumentRow, ChatDocumentRow, DocumentRow, GlobalDocumentRow, SeededCreatedDocument } from "./databank.ts";
+export { captureDatabankViews, seedCharacterDocument, seedChatDocument, seedCreatedDocument, seedDocument, seedGlobalDocument } from "./databank.ts";
 export type {
   CharacterKeywordProfileRow,
   CharacterSummaryRow,
