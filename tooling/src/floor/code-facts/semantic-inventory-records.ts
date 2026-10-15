@@ -7,6 +7,7 @@ import {
   callableDeclarationSchema,
   castRelationResultSchema,
   computedNameSchema,
+  globalOriginSchema,
   INVENTORY_FAMILIES,
   INVENTORY_FAMILY_FIELDS,
   INVENTORY_INPUT_KINDS,
@@ -33,6 +34,26 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  globalOrigin: {
+    name: "inventory_global_origin",
+    columns: "ordinal,node,origin,state,name,reason,detail,refusalNode,valueCount,traceCount,memberCount",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,origin INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('resolved','unresolved')),name TEXT,reason TEXT,detail TEXT,refusalNode INTEGER,valueCount INTEGER NOT NULL CHECK(valueCount>=0),traceCount INTEGER NOT NULL CHECK(traceCount>=0),memberCount INTEGER NOT NULL CHECK(memberCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE},FOREIGN KEY(partition,origin) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,refusalNode) REFERENCES inventory_span(partition,ordinal),CHECK((state='resolved' AND name IS NOT NULL AND reason IS NULL AND detail IS NULL AND refusalNode IS NULL) OR (state='unresolved' AND name IS NULL AND reason IS NOT NULL AND detail IS NOT NULL AND refusalNode IS NOT NULL AND valueCount=0 AND memberCount=0))`,
+  },
+  globalDeclaration: {
+    name: "inventory_global_declaration",
+    columns: "owner,role,ordinal,node",
+    definition: `${PARTITION},owner INTEGER NOT NULL,role TEXT NOT NULL CHECK(role IN ('value','trace')),${ORDINAL},node INTEGER NOT NULL,PRIMARY KEY(partition,owner,role,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_global_origin(partition,ordinal),${SPAN_REFERENCE}`,
+  },
+  globalMember: {
+    name: "inventory_global_member",
+    columns: "owner,ordinal,name",
+    definition: `${PARTITION},owner INTEGER NOT NULL,${ORDINAL},name TEXT NOT NULL,PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_global_origin(partition,ordinal)`,
+  },
+  globalBinding: {
+    name: "inventory_global_binding",
+    columns: "ordinal,node,lexicalCount,originCount",
+    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,lexicalCount INTEGER NOT NULL CHECK(lexicalCount>=0),originCount INTEGER NOT NULL CHECK(originCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE}`,
+  },
   computedName: {
     name: "inventory_computed_name",
     columns: "ordinal,node,origin,state,value,reason,detail,refusalNode,traceCount",
@@ -185,8 +206,20 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     throw new Error("native membership and typed fact intent disagree");
   }
   for (const family of INVENTORY_FAMILIES) {
+    if (family === "bindings" && metadata.families.includes("global-origins")) {
+      continue;
+    }
     if (!metadata.families.includes(family) && partition[INVENTORY_FAMILY_FIELDS[family]].length > 0) {
       throw new Error(`native inventory populated an undeclared family: ${family}`);
+    }
+  }
+  if (partition.globalBindings.length > 0 && !metadata.families.includes("global-origins")) {
+    throw new Error("native global binding demand has no global-origin owner");
+  }
+  if (!metadata.families.includes("bindings")) {
+    const demanded = new Set(partition.globalBindings.map((node) => JSON.stringify(spanSchema.parse(node))));
+    if (partition.bindings.some(({ node }) => !demanded.has(JSON.stringify(spanSchema.parse(node))))) {
+      throw new Error("native closed bindings exceed their global-origin demand");
     }
   }
   const emit = (table: InventoryRecordTable, ...values: InventoryRecord["values"]): void => write({ table, values });
@@ -278,12 +311,51 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     declarations("modules", ordinal, "declarations", entry.declarations);
   });
   const bindingCounts = new Map<number, number | null>();
+  const bindingRows = new Map<number, InventoryPartition["bindings"][number]["symbols"] | null>();
   partition.bindings.forEach((entry, ordinal) => {
     const node = spanId(entry.node);
     bindingCounts.set(node, bindingCounts.has(node) ? null : entry.symbols.lexical.length);
+    bindingRows.set(node, bindingRows.has(node) ? null : entry.symbols);
     emit("fact", "bindings", ordinal, null, null, node, null, null, null);
     declarations("bindings", ordinal, "lexical", entry.symbols.lexical);
     declarations("bindings", ordinal, "origins", entry.symbols.origins);
+  });
+  partition.globalBindings.forEach((entry, ordinal) => {
+    const node = spanId(entry);
+    const row = bindingRows.get(node);
+    if (row === null || row === undefined) {
+      throw new Error("native global binding demand has no single recorded binding");
+    }
+    emit("globalBinding", ordinal, node, row.lexical.length, row.origins.length);
+  });
+  partition.globalOrigins.forEach((entry, ordinal) => {
+    const fact = globalOriginSchema.parse(entry);
+    const result = fact.result;
+    emit(
+      "globalOrigin",
+      ordinal,
+      spanId(fact.node),
+      spanId(fact.trace.origin),
+      result.kind,
+      result.kind === "resolved" ? inventoryString(result.globalName) : null,
+      result.kind === "unresolved" ? result.reason : null,
+      result.kind === "unresolved" ? inventoryString(result.detail) : null,
+      result.kind === "unresolved" ? spanId(result.node) : null,
+      result.kind === "resolved" ? result.declarations.length : 0,
+      fact.trace.declarations.length,
+      result.kind === "resolved" ? result.memberPath.length : 0,
+    );
+    fact.trace.declarations.forEach((node, index) => {
+      emit("globalDeclaration", ordinal, "trace", index, spanId(node));
+    });
+    if (result.kind === "resolved") {
+      result.declarations.forEach((node, index) => {
+        emit("globalDeclaration", ordinal, "value", index, spanId(node));
+      });
+      result.memberPath.forEach((name, index) => {
+        emit("globalMember", ordinal, index, inventoryString(name));
+      });
+    }
   });
   partition.witnesses.forEach((entry, ordinal) => {
     const fact = witnessRecordSchema.parse(entry);

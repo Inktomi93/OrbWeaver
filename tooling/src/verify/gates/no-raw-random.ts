@@ -58,10 +58,10 @@
 // showcase and default-content are now judged with the rest of the shipped source tree.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
-import type { AmbientSource } from "../contract/ambient-determinism.ts";
+import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";
+import type { AmbientReferenceServices, AmbientSource } from "../contract/ambient-determinism.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readAmbientInvocation } from "../lib/ambient-determinism.ts";
+import { ambientReferencePass, possibleAmbientCall, readAmbientInvocation } from "../lib/ambient-determinism.ts";
 
 const OPERATION = "ambient-entropy-draw";
 const RANDOM_MEMBER = "random";
@@ -83,7 +83,7 @@ const UNREADABLE =
  *  `random()` call (the destructured `const { random } = Math` and the method alias
  *  `const random = Math.random`). The bare arm is one symbol hop per candidate; the whole 4,377-file
  *  population holds a handful of them. */
-function randomCandidate(node: MorphNode): boolean {
+function randomCandidate(node: MorphNode, services: AmbientReferenceServices): boolean {
   if (!Node.isCallExpression(node)) {
     return false;
   }
@@ -94,7 +94,7 @@ function randomCandidate(node: MorphNode): boolean {
   if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
     return false;
   }
-  const member = readMemberReference(callee);
+  const member = readMemberReferenceWithName(callee, services.readComputedName);
   return member.kind === "resolved" && member.value.name === RANDOM_MEMBER;
 }
 
@@ -112,27 +112,43 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const draws = new Map<string, { readonly node: MorphNode; readonly unreadable: boolean }>();
+    const candidates: MorphNode[] = [];
+    const references = ambientReferencePass(ctx);
+    const inspect = (node: MorphNode, services: AmbientReferenceServices): void => {
+      const sourceFile: SourceFile = node.getSourceFile();
+      if (!randomCandidate(node, services)) {
+        return;
+      }
+      const verdict = readAmbientInvocation(node, AMBIENT_RANDOM, services);
+      if (verdict.kind === "other") {
+        return;
+      }
+      const subject = ctx.relativePath(sourceFile);
+      if (!draws.has(subject)) {
+        draws.set(subject, { node, unreadable: verdict.kind === "unreadable" });
+      }
+    };
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
-          visit: (node, sourceFile: SourceFile) => {
-            if (!randomCandidate(node)) {
-              return;
-            }
-            // FAIL-CLOSED on an unreadable callee; a callee that PROVABLY binds an injected PRNG passes.
-            const verdict = readAmbientInvocation(node, AMBIENT_RANDOM);
-            if (verdict.kind === "other") {
-              return;
-            }
-            const subject = ctx.relativePath(sourceFile);
-            if (!draws.has(subject)) {
-              draws.set(subject, { node, unreadable: verdict.kind === "unreadable" });
+          visit: (node) => {
+            const callee = Node.isCallExpression(node) ? node.getExpression() : undefined;
+            if (callee !== undefined && possibleAmbientCall(node, RANDOM_MEMBER)) {
+              candidates.push(node);
+              references.register(callee);
             }
           },
         },
       ],
       evaluate: () => {
+        if (candidates.length === 0) {
+          return;
+        }
+        const services = references.read();
+        for (const node of candidates) {
+          inspect(node, services);
+        }
         for (const [subject, found] of [...draws].toSorted(([left], [right]) => left.localeCompare(right))) {
           const message = found.unreadable ? `${UNREADABLE} Drawer: ${subject}.` : `${MESSAGE} Drawer: ${subject}.`;
           ctx.report.node(found.node, { subject, operation: OPERATION, message, fix: FIX });

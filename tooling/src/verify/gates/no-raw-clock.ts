@@ -43,10 +43,10 @@
 // at all.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
-import type { AmbientSource } from "../contract/ambient-determinism.ts";
+import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";
+import type { AmbientReferenceServices, AmbientSource } from "../contract/ambient-determinism.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readAmbientInvocation } from "../lib/ambient-determinism.ts";
+import { ambientReferencePass, possibleAmbientCall, readAmbientInvocation } from "../lib/ambient-determinism.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
 
 const OPERATION = "ambient-clock-read";
@@ -76,13 +76,13 @@ const UNREADABLE =
  *  `const { now } = Date` and the method alias `const now = Date.now`, 43 candidate sites on the live tree,
  *  each resolving in one symbol hop), and a zero-argument `new` whose callee NAMES `Date` through the shared
  *  prefilter, which follows an import alias and immutable const-alias hops. */
-function clockCandidate(node: MorphNode): { readonly sources: readonly AmbientSource[] } | undefined {
+function clockCandidate(node: MorphNode, services: AmbientReferenceServices): { readonly sources: readonly AmbientSource[] } | undefined {
   if (Node.isNewExpression(node)) {
     // The constructor arm is prefiltered on the NAME as well as on the argument count — fail-closure's
     // mandatory companion. Without it every zero-argument `new X()` whose class the reader cannot name
     // (`new AsyncLocalStorage()`, `new Hono()`, `new EventEmitter()`, a domain error) is accused of being
     // the ambient clock: fourteen such sites on the live tree, measured.
-    const named = node.getArguments().length === 0 && referenceNamesExport(node.getExpression(), DATE_GLOBAL);
+    const named = node.getArguments().length === 0 && referenceNamesExport(node.getExpression(), DATE_GLOBAL, services);
     return named ? { sources: AMBIENT_DATE } : undefined;
   }
   if (!Node.isCallExpression(node)) {
@@ -95,7 +95,7 @@ function clockCandidate(node: MorphNode): { readonly sources: readonly AmbientSo
   if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
     return;
   }
-  const member = readMemberReference(callee);
+  const member = readMemberReferenceWithName(callee, services.readComputedName);
   return member.kind === "resolved" && member.value.name === NOW_MEMBER ? { sources: AMBIENT_NOW } : undefined;
 }
 
@@ -113,28 +113,45 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const readers = new Map<string, { readonly node: MorphNode; readonly unreadable: boolean }>();
+    const candidates: MorphNode[] = [];
+    const references = ambientReferencePass(ctx);
+    const inspect = (node: MorphNode, services: AmbientReferenceServices): void => {
+      const sourceFile: SourceFile = node.getSourceFile();
+      const candidate = clockCandidate(node, services);
+      if (candidate === undefined) {
+        return;
+      }
+      const verdict = readAmbientInvocation(node, candidate.sources, services);
+      if (verdict.kind === "other") {
+        return;
+      }
+      const subject = ctx.relativePath(sourceFile);
+      if (!readers.has(subject)) {
+        readers.set(subject, { node, unreadable: verdict.kind === "unreadable" });
+      }
+    };
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression, SyntaxKind.NewExpression],
-          visit: (node, sourceFile: SourceFile) => {
-            const candidate = clockCandidate(node);
-            if (candidate === undefined) {
-              return;
-            }
-            // FAIL-CLOSED on an unreadable callee; a callee that PROVABLY binds an injected clock passes.
-            const verdict = readAmbientInvocation(node, candidate.sources);
-            if (verdict.kind === "other") {
-              return;
-            }
-            const subject = ctx.relativePath(sourceFile);
-            if (!readers.has(subject)) {
-              readers.set(subject, { node, unreadable: verdict.kind === "unreadable" });
+          visit: (node) => {
+            const callee = Node.isCallExpression(node) || Node.isNewExpression(node) ? node.getExpression() : undefined;
+            const possible = Node.isNewExpression(node) ? node.getArguments().length === 0 : possibleAmbientCall(node, NOW_MEMBER);
+            if (possible && callee !== undefined) {
+              candidates.push(node);
+              references.register(callee);
             }
           },
         },
       ],
       evaluate: () => {
+        if (candidates.length === 0) {
+          return;
+        }
+        const services = references.read();
+        for (const node of candidates) {
+          inspect(node, services);
+        }
         for (const [subject, found] of [...readers].toSorted(([left], [right]) => left.localeCompare(right))) {
           const message = found.unreadable ? `${UNREADABLE} Reader: ${subject}.` : `${MESSAGE} Reader: ${subject}.`;
           ctx.report.node(found.node, { subject, operation: OPERATION, message, fix: FIX });

@@ -7,11 +7,12 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
-import { Project, ts } from "ts-morph";
+import { Project, Node as TsNode, ts } from "ts-morph";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/code-facts/assignability.ts";
 import { readDeclarationOutput } from "../../floor/code-facts/declaration-output.ts";
 import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
-import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
+import { referenceResolutionServices, resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import { lexicalReferenceSymbol } from "../../floor/code-facts/reference-fact-alias.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
@@ -539,6 +540,21 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (): NativeTypeFactReader => ({
+      globalOrigins: (nodes): ReturnType<NativeTypeFactReader["globalOrigins"]> => {
+        checkerFor(nodes);
+        return new Map(nodes.map((node) => [node, resolveGlobalMemberOrigin(node)]));
+      },
+      globalBindings: (nodes): ReturnType<NativeTypeFactReader["globalBindings"]> => {
+        checkerFor(nodes);
+        return new Map(
+          nodes.map((node) => {
+            if (!TsNode.isIdentifier(node)) {
+              throw new Error("native global binding span is not an identifier");
+            }
+            return [node, lexicalReferenceSymbol(node)?.getDeclarations() ?? []];
+          }),
+        );
+      },
       computedNames: (nodes): ReturnType<NativeTypeFactReader["computedNames"]> => {
         checkerFor(nodes);
         return new Map(nodes.map((node) => [node, referenceResolutionServices.readComputedName(node)]));

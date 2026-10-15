@@ -12,12 +12,12 @@
 // `fetch` / `forwardRef` lookalike) or a silent green (every unreadable door). One home so the twelve
 // canonical-origin policies cannot drift apart on the answer.
 
-import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fact";
+import { readMemberReference, readMemberReferenceWithName } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
 import { originRefusalLeaf } from "../../floor/code-facts/type-member-origin.ts";
-import type { OriginRefusalVerdict } from "../contract/origin-verdict.ts";
+import type { OriginReferenceServices, OriginRefusalVerdict } from "../contract/origin-verdict.ts";
 
 /** Refusals that mean "no ONE authored source exists", whatever the leaf symbol says. A written binding, a
  *  resolution cycle and a multiply-declared symbol are unknowable by construction: `let fetch = globalThis.fetch`
@@ -29,9 +29,12 @@ function isModuleAliasDeclaration(declaration: MorphNode): boolean {
 }
 
 /** Native bindings for the classifier keep dotted member names distinct from computed accesses. */
-export function originRefusalDeclarations(node: MorphNode): readonly MorphNode[] {
+export function originRefusalDeclarations(node: MorphNode, declarations?: OriginReferenceServices["declarations"]): readonly MorphNode[] {
   const leaf = originRefusalLeaf(node);
-  return Node.isIdentifier(leaf) ? (leaf.getSymbol()?.getDeclarations() ?? []) : [];
+  if (!Node.isIdentifier(leaf)) {
+    return [];
+  }
+  return declarations === undefined ? (leaf.getSymbol()?.getDeclarations() ?? []) : declarations(leaf);
 }
 
 /** Does this reference PROVABLY bind a declaration that is not a module import at all — a local function,
@@ -48,11 +51,15 @@ export function classifyOriginRefusalDeclarations(reason: ReferenceUnresolvedRea
 
 /** Classify one refusal into the policy's two answers. Fail-closed by default: only a PROVEN foreign
  *  binding earns silence, and never for an ambiguous reason. */
-export function classifyOriginRefusal(reason: ReferenceUnresolvedReason, node: MorphNode): OriginRefusalVerdict {
+export function classifyOriginRefusal(
+  reason: ReferenceUnresolvedReason,
+  node: MorphNode,
+  declarations?: OriginReferenceServices["declarations"],
+): OriginRefusalVerdict {
   if (AMBIGUOUS_REASONS.has(reason)) {
     return "unreadable";
   }
-  return classifyOriginRefusalDeclarations(reason, originRefusalDeclarations(node));
+  return classifyOriginRefusalDeclarations(reason, originRefusalDeclarations(node, declarations));
 }
 
 /** Does this reference NAME `exportedName` — as a bare identifier, through an import specifier whose
@@ -69,25 +76,25 @@ export function classifyOriginRefusal(reason: ReferenceUnresolvedReason, node: M
  *
  *  The name is followed through an import ALIAS and through immutable CONST-ALIAS hops, because both are
  *  spellings of the same export and neither is visible in the written text of the use site. */
-export function referenceNamesExport(node: MorphNode, exportedName: string): boolean {
-  return namesExport(node, exportedName, new Set<object>());
+export function referenceNamesExport(node: MorphNode, exportedName: string, services?: OriginReferenceServices): boolean {
+  return namesExport(node, exportedName, new Set<object>(), services);
 }
 
 /** One CONST-ALIAS hop, bounded by a visited set. `const D = Date; new D()` and
  *  `import { EventEmitter } from "node:events"; const EE = EventEmitter; new EE()` name their export through
  *  an immutable local binding, and a prefilter that stops at the written text hands the identity reader
  *  nothing to judge. The walk follows only a `const` initializer, so a reassignable binding stops it. */
-function aliasInitializer(identifier: MorphNode): MorphNode | undefined {
-  const declarations = identifier.getSymbol()?.getDeclarations() ?? [];
+function aliasInitializer(identifier: MorphNode, services?: OriginReferenceServices): MorphNode | undefined {
+  const declarations = services === undefined ? (identifier.getSymbol()?.getDeclarations() ?? []) : services.declarations(identifier);
   const constant = declarations.find(
     (declaration) => Node.isVariableDeclaration(declaration) && declaration.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const,
   );
   return constant === undefined || !Node.isVariableDeclaration(constant) ? undefined : constant.getInitializer();
 }
 
-function namesExport(node: MorphNode, exportedName: string, visited: Set<object>): boolean {
+function namesExport(node: MorphNode, exportedName: string, visited: Set<object>, services?: OriginReferenceServices): boolean {
   if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
-    const member = readMemberReference(node);
+    const member = services === undefined ? readMemberReference(node) : readMemberReferenceWithName(node, services.readComputedName);
     return member.kind === "resolved" && member.value.name === exportedName;
   }
   if (!Node.isIdentifier(node) || visited.has(node.compilerNode)) {
@@ -97,10 +104,10 @@ function namesExport(node: MorphNode, exportedName: string, visited: Set<object>
   if (node.getText() === exportedName) {
     return true;
   }
-  const declarations = node.getSymbol()?.getDeclarations() ?? [];
+  const declarations = services === undefined ? (node.getSymbol()?.getDeclarations() ?? []) : services.declarations(node);
   if (declarations.some((declaration) => Node.isImportSpecifier(declaration) && declaration.getName() === exportedName)) {
     return true;
   }
-  const initializer = aliasInitializer(node);
-  return initializer !== undefined && namesExport(initializer, exportedName, visited);
+  const initializer = aliasInitializer(node, services);
+  return initializer !== undefined && namesExport(initializer, exportedName, visited, services);
 }

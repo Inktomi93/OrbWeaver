@@ -18,6 +18,15 @@
 // one deliberate NON-member: its refusal arm is spelled `foreign`, and re-spelling it is a design decision
 // nobody has taken, not a re-home.
 
+import type { Node } from "ts-morph";
+import type { ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
+
+/** Existing origin/name algorithms may consume captured native binding and key facts after seal. */
+export interface OriginReferenceServices {
+  readonly declarations: (node: Node) => readonly Node[];
+  readonly readComputedName: ReferenceResolutionServices["readComputedName"];
+}
+
 /** The two answers a refusal resolves to: a PROVEN different identity, or a read that could not be made.
  *  Fail-closed is `unreadable` — only a proven foreign binding earns silence. */
 export type OriginRefusalVerdict = "other" | "unreadable";

@@ -5,11 +5,11 @@ import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compile
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
 import type { SourceBindingUsage } from "./binding-usage-contract.ts";
-import type { CallableDeclaration, ReferenceFact } from "./reference-fact-contract.ts";
+import type { CallableDeclaration, GlobalMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
 import { REFERENCE_UNRESOLVED_REASONS } from "./reference-fact-contract.ts";
 import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
 
-export const INVENTORY_FORMAT = 12;
+export const INVENTORY_FORMAT = 13;
 export const INVENTORY_FAMILIES = [
   "exports",
   "modules",
@@ -25,6 +25,7 @@ export const INVENTORY_FAMILIES = [
   "type-member-origins",
   "callable-declarations",
   "computed-names",
+  "global-origins",
 ] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
@@ -75,6 +76,14 @@ export const computedNameSchema = z.object({
   trace: z.object({ origin: spanSchema, declarations: z.array(spanSchema) }),
   result: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("resolved"), value: z.string() }),
+    z.object({ kind: z.literal("unresolved"), reason: z.enum(REFERENCE_UNRESOLVED_REASONS), detail: z.string(), node: spanSchema }),
+  ]),
+});
+export const globalOriginSchema = z.object({
+  node: spanSchema,
+  trace: z.object({ origin: spanSchema, declarations: z.array(spanSchema) }),
+  result: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("resolved"), globalName: z.string(), memberPath: z.array(z.string()), declarations: z.array(spanSchema) }),
     z.object({ kind: z.literal("unresolved"), reason: z.enum(REFERENCE_UNRESOLVED_REASONS), detail: z.string(), node: spanSchema }),
   ]),
 });
@@ -150,6 +159,8 @@ export const partitionSchema = z.object({
   memberOrigins: z.array(memberOriginSchema),
   callableDeclarations: z.array(callableDeclarationSchema),
   computedNames: z.array(computedNameSchema),
+  globalOrigins: z.array(globalOriginSchema),
+  globalBindings: z.array(spanSchema),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
   format: z.literal(INVENTORY_FORMAT),
@@ -175,6 +186,8 @@ export const partitionSchema = z.object({
 });
 
 export const partitionMetadataSchema = partitionSchema.omit({
+  globalOrigins: true,
+  globalBindings: true,
   computedNames: true,
   callableDeclarations: true,
   memberOrigins: true,
@@ -210,6 +223,7 @@ export const INVENTORY_FAMILY_FIELDS = {
   "type-member-origins": "memberOrigins",
   "callable-declarations": "callableDeclarations",
   "computed-names": "computedNames",
+  "global-origins": "globalOrigins",
 } as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
@@ -238,6 +252,10 @@ export const INVENTORY_RECORD_TABLES = [
   "callableTrace",
   "computedName",
   "computedTrace",
+  "globalOrigin",
+  "globalDeclaration",
+  "globalMember",
+  "globalBinding",
 ] as const;
 export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
 export interface InventoryRecord {
@@ -265,6 +283,8 @@ export interface InventoryOverlay {
 }
 
 export interface InventoryBuildRequest {
+  readonly globalOriginQueries?: readonly InventorySpan[];
+  readonly globalBindingQueries?: readonly InventorySpan[];
   readonly computedNameQueries?: readonly InventorySpan[];
   readonly callableQueries?: readonly InventorySpan[];
   readonly intent?: "facts" | "membership";
@@ -277,6 +297,8 @@ export interface InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
+  readonly globalOriginQueries?: readonly InventoryNativeQuery[];
+  readonly globalBindingQueries?: readonly InventoryNativeQuery[];
   readonly callableQueries?: readonly InventoryNativeQuery[];
   readonly computedNameQueries?: readonly InventoryNativeQuery[];
   readonly shapePlan?: {
@@ -298,6 +320,8 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly globalOrigin: (node: Node, program: string) => ReferenceFact<GlobalMemberOrigin>;
+  readonly globalBinding: (node: Node, program: string) => readonly Node[];
   readonly computedName: (node: Node, program: string) => ReferenceFact<string>;
   readonly callableDeclaration: (node: Node, program: string) => ReferenceFact<CallableDeclaration>;
   readonly callMemberOrigin: (node: Node, program: string) => NativeCallMemberOrigin;

@@ -99,6 +99,8 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
           case "computed-names":
+          case "global-origins":
+          case "global-bindings":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
           case "shape-relations":
@@ -149,6 +151,20 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "callable-declarations", nodes).callableDeclarations(nodes);
+    },
+    globalOrigins: (owner, nodes): ReturnType<NativeTypeContext["globalOrigins"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "global-origins", nodes).globalOrigins(nodes);
+    },
+    globalBindings: (owner, nodes): ReturnType<NativeTypeContext["globalBindings"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "global-bindings", nodes).globalBindings(nodes);
     },
     computedNames: (owner, nodes): ReturnType<NativeTypeContext["computedNames"]> => {
       if (nodes.length === 0) {
@@ -224,6 +240,9 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
         if (query.kind === "shape-relations") {
           return [];
         }
+        if (query.kind === "global-bindings") {
+          return ["global-origins"] as const;
+        }
         return query.kind === "type-member-origins" ? ([query.kind, "bindings"] as const) : [query.kind];
       }),
     ),
@@ -234,6 +253,26 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   const inventory = createSemanticInventory({
     root,
     programs: descriptors,
+    ...(families.includes("global-origins")
+      ? {
+          globalOriginQueries: queries
+            .filter((query) => query.kind === "global-origins")
+            .flatMap((query) =>
+              query.nodes.map((node) => ({
+                program: owner(node),
+                node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+              })),
+            ),
+          globalBindingQueries: queries
+            .filter((query) => query.kind === "global-bindings")
+            .flatMap((query) =>
+              query.nodes.map((node) => ({
+                program: owner(node),
+                node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+              })),
+            ),
+        }
+      : {}),
     ...(families.includes("computed-names")
       ? {
           computedNameQueries: queries
@@ -274,6 +313,10 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    globalOrigins: (subjects): ReturnType<NativeTypeFactReader["globalOrigins"]> =>
+      new Map(subjects.map((node) => [node, inventory.globalOrigin(node, owner(node))])),
+    globalBindings: (subjects): ReturnType<NativeTypeFactReader["globalBindings"]> =>
+      new Map(subjects.map((node) => [node, inventory.globalBinding(node, owner(node))])),
     computedNames: (subjects): ReturnType<NativeTypeFactReader["computedNames"]> =>
       new Map(subjects.map((node) => [node, inventory.computedName(node, owner(node))])),
     callableDeclarations: (calls): ReturnType<NativeTypeFactReader["callableDeclarations"]> =>

@@ -26,7 +26,14 @@ import {
   readInventoryGeneration,
 } from "./semantic-inventory-database.ts";
 import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurrent, inventoryAuthoredFiles } from "./semantic-inventory-inputs.ts";
-import { readInventoryCallableDeclarations, readInventoryComputedNames, readInventoryInputs, readInventoryPairs } from "./semantic-inventory-queries.ts";
+import {
+  readInventoryCallableDeclarations,
+  readInventoryComputedNames,
+  readInventoryGlobalBindings,
+  readInventoryGlobalOrigins,
+  readInventoryInputs,
+  readInventoryPairs,
+} from "./semantic-inventory-queries.ts";
 import { inventoryReader } from "./semantic-inventory-reader.ts";
 
 function authoredVersion(root: string): string {
@@ -73,6 +80,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     const families = inventoryFamilies(options.families);
     assertCallableDemand(options, descriptors, families);
     assertComputedDemand(options, descriptors, families);
+    assertGlobalDemand(options, descriptors, families);
     const previous = latestInventoryPartitions(db, families);
     const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
     assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
@@ -163,6 +171,9 @@ function buildPartition(
     if (!coversComputedDemand(staging, candidate, request.computedNameQueries ?? [])) {
       throw new Error(`native inventory worker supplied incomplete computed-name coverage: ${request.descriptor.id}`);
     }
+    if (!coversGlobalDemand(staging, candidate, request)) {
+      throw new Error(`native inventory worker supplied incomplete global-origin/binding coverage: ${request.descriptor.id}`);
+    }
     partition = candidate;
   }
   importInventoryPartition(db, request.destination, partition.id);
@@ -184,14 +195,13 @@ function demandPartitions(
   const partitions: StoredInventoryPartition[] = [];
   let rebuilt = false;
   for (const descriptor of descriptors) {
-    const callableQueries = callableDemand(options, descriptor.id);
-    const computedNameQueries = computedDemand(options, descriptor.id);
+    const nativeDemand = nativeDemandRequest(options, descriptor.id, inventoryFamilies(options.families));
     const existing = previous.get(descriptor.id);
     if (
       existing !== undefined &&
       existing.descriptorVersion === descriptorVersion(descriptor) &&
       inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
-      coversNativeDemand(db, existing, { callableQueries, computedNameQueries })
+      coversNativeDemand(db, existing, nativeDemand)
     ) {
       partitions.push(existing);
       continue;
@@ -204,8 +214,7 @@ function demandPartitions(
           root,
           descriptor,
           families: inventoryFamilies(options.families),
-          ...(options.callableQueries === undefined ? {} : { callableQueries }),
-          ...(options.computedNameQueries === undefined ? {} : { computedNameQueries }),
+          ...nativeDemand,
           destination: join(scratch, `partition-${String(partitions.length)}.sqlite`),
           ...(overlay === undefined ? {} : { overlay }),
         },
@@ -453,16 +462,56 @@ function nativeDemandRequest(
   options: SemanticInventoryOptions,
   program: string,
   families: readonly InventoryFamily[],
-): Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries"> {
+): Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries"> {
   return {
     ...(families.includes("callable-declarations") ? { callableQueries: callableDemand(options, program) } : {}),
     ...(families.includes("computed-names") ? { computedNameQueries: computedDemand(options, program) } : {}),
+    ...(families.includes("global-origins")
+      ? {
+          globalOriginQueries: globalDemand(options, program, "globalOriginQueries"),
+          globalBindingQueries: globalDemand(options, program, "globalBindingQueries"),
+        }
+      : {}),
   };
 }
 function coversNativeDemand(
   db: ReturnType<typeof openInventoryDatabase>,
   partition: StoredInventoryPartition,
-  demand: Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries">,
+  demand: Pick<InventoryBuildRequest, "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries">,
 ): boolean {
-  return coversCallableDemand(db, partition, demand.callableQueries ?? []) && coversComputedDemand(db, partition, demand.computedNameQueries ?? []);
+  return (
+    coversCallableDemand(db, partition, demand.callableQueries ?? []) &&
+    coversComputedDemand(db, partition, demand.computedNameQueries ?? []) &&
+    coversGlobalDemand(db, partition, demand)
+  );
+}
+
+function globalDemand(options: SemanticInventoryOptions, program: string, kind: "globalOriginQueries" | "globalBindingQueries"): readonly InventorySpan[] {
+  return [...new Map((options[kind] ?? []).filter((query) => query.program === program).map(({ node }) => [inventoryNodeQueryKey(node), node])).values()];
+}
+function coversGlobalDemand(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  queries: Pick<InventoryBuildRequest, "globalOriginQueries" | "globalBindingQueries">,
+): boolean {
+  return (
+    (queries.globalOriginQueries ?? []).every((query) => [...readInventoryGlobalOrigins(db, partition.id, query)].length === 1) &&
+    (queries.globalBindingQueries ?? []).every((query) => [...readInventoryGlobalBindings(db, partition.id, query)].length === 1)
+  );
+}
+function assertGlobalDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  for (const kind of ["globalOriginQueries", "globalBindingQueries"] as const) {
+    const queries = options[kind];
+    if (
+      (queries ?? []).some((query) => !descriptors.some((descriptor) => descriptor.id === query.program)) ||
+      (queries !== undefined && !families.includes("global-origins")) ||
+      (families.includes("global-origins") && queries === undefined)
+    ) {
+      throw new Error("native global origins and bindings require closed demand in admitted native programs");
+    }
+  }
 }
