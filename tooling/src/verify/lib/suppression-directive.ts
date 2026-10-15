@@ -55,12 +55,10 @@ export interface SuppressionSite {
  *  and the CSS/JSON comment lexer alike. */
 export function readDirectiveComment(text: string): Pick<SuppressionSite, "token" | "rule"> | null {
   const match = SUPPRESSION_RE.exec(text);
-  // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec can return null; Biome narrows this constructed grammar incorrectly.
   if (match === null) {
     return null;
   }
   const ruleMatch = RULE_RE.exec(text);
-  // biome-ignore lint/suspicious/noUnnecessaryConditions: RULE_RE is stricter than detection, so a matched directive can still have no parsed rule.
   return { token: match[1] ?? match[0], rule: ruleMatch?.[1] ?? ruleMatch?.[2] ?? ruleMatch?.[3] ?? null };
 }
 

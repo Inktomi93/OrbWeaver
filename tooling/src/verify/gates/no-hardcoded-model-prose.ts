@@ -291,9 +291,7 @@ export const gate = defineGate({
               // A qualifying finding's `unitText` already proved a ≥12-word static run, so `text` (its raw
               // superset, interpolations included) always contains a static word; the fallback exists only
               // so the return type stays honest about `firstStaticWord`'s general (unreachable-here) shape.
-              // biome-ignore lint/suspicious/noUnnecessaryConditions: unreachable in practice, not in type.
               const token = anchor?.token ?? text.slice(0, 1);
-              // biome-ignore lint/suspicious/noUnnecessaryConditions: unreachable in practice, not in type.
               const offset = anchor?.offset ?? 0;
               ctx.report.node(site.top, { token, offset, message: MESSAGE, fix: FIX });
             }
