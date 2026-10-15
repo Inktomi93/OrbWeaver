@@ -18,7 +18,7 @@ import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne } from "drizzle-orm";
 import type { ScriptRecord } from "../contract/rows.ts";
 
 const LIMIT_ONE = 1;
@@ -78,7 +78,7 @@ export async function setScriptsEnabledBulk(
   const updated = await db
     .update(regexScripts)
     .set({ enabled: patch.enabled, updatedAt: patch.at })
-    .where(and(eq(regexScripts.ownerId, ownerId), inArray(regexScripts.id, [...scriptIds])))
+    .where(and(eq(regexScripts.ownerId, ownerId), inArray(regexScripts.id, [...scriptIds]), ne(regexScripts.enabled, patch.enabled)))
     .returning({ id: regexScripts.id });
   return updated.map((r) => r.id);
 }
