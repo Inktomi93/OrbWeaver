@@ -16,6 +16,7 @@ const TOKEN = "/token";
 const JWKS = "/jwks";
 const END_SESSION = "/end-session";
 const TOKEN_LIFETIME_SECONDS = 300;
+const TOKEN_LIFETIME = `${String(TOKEN_LIFETIME_SECONDS)}s`;
 
 interface NativeIssuer {
   readonly fetch: typeof fetch;
@@ -35,7 +36,7 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
   let authorizationCount = 0;
   let logoutCount = 0;
   const sign = (claims: JWTPayload): Promise<string> =>
-    new SignJWT(claims).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY }).setIssuedAt().setExpirationTime("5m").sign(keys.privateKey);
+    new SignJWT(claims).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY }).setIssuedAt().setExpirationTime(TOKEN_LIFETIME).sign(keys.privateKey);
   async function tokenResponse(request: Request): Promise<Response> {
     const form = new URLSearchParams(await request.text());
     const code = form.get("code") ?? "";
@@ -62,7 +63,7 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
     const token = await sign({ iss: ISSUER, aud: CLIENT_ID, nonce: authorization.get("nonce"), ...grant.claims });
     idTokens.push(token);
     // biome-ignore lint/style/useNamingConvention: OIDC token endpoint JSON uses the native protocol's fixed wire field names.
-    return Response.json({ access_token: "scripted-issuer-access-token", token_type: "Bearer", expires_in: 300, id_token: token });
+    return Response.json({ access_token: "scripted-issuer-access-token", token_type: "Bearer", expires_in: TOKEN_LIFETIME_SECONDS, id_token: token });
   }
   return {
     calls,
@@ -78,19 +79,24 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
       return callback;
     },
     logoutToken: (claims, omittedClaims = []): Promise<string> => {
-      const issuedAt = Math.floor(Date.now() / 1000);
       const payload: Record<string, unknown> = {
         iss: ISSUER,
         aud: CLIENT_ID,
-        iat: issuedAt,
-        exp: issuedAt + TOKEN_LIFETIME_SECONDS,
         jti: `scripted-logout-${String(++logoutCount)}`,
         ...claims,
       };
       for (const claim of omittedClaims) {
         delete payload[claim];
       }
-      return new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY }).sign(keys.privateKey);
+      const token = new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY });
+      // Native defaults must not repair raw negative cases or deliberately omitted required claims.
+      if (!(Object.hasOwn(claims, "iat") || omittedClaims.includes("iat"))) {
+        token.setIssuedAt();
+      }
+      if (!(Object.hasOwn(claims, "exp") || omittedClaims.includes("exp"))) {
+        token.setExpirationTime(TOKEN_LIFETIME);
+      }
+      return token.sign(keys.privateKey);
     },
     fetch: async (input, init): Promise<Response> => {
       const request = new Request(input, init);
