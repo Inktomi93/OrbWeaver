@@ -195,7 +195,9 @@
     "./node/factories/sessions.ts": "./node/factories/sessions.ts",
     "./node/oidc-issuer.ts": "./node/oidc-issuer.ts",
     "./node/corpus-chat-outputs.ts": "./node/corpus-chat-outputs.ts",
-    "./node/corpus-rpg-outputs.ts": "./node/corpus-rpg-outputs.ts"
+    "./node/corpus-rpg-outputs.ts": "./node/corpus-rpg-outputs.ts",
+    "./node/corpus-surface-outputs.ts": "./node/corpus-surface-outputs.ts",
+    "./node/corpus-surface-wire.ts": "./node/corpus-surface-wire.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "catalog:",
