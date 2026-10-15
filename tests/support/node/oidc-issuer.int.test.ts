@@ -75,3 +75,34 @@ test("scripted logout JTIs repeat by ordinal without repeating issuer keys or by
     code: "ERR_JWT_EXPIRED",
   });
 });
+
+test("native logout timestamp defaults preserve explicit raw overrides and deliberate omissions", async ({ clock }) => {
+  const issuer = await createNativeIssuer();
+  const claims = { sub: "raw-timestamp-subject", events: { [LOGOUT_EVENT]: {} } };
+  const keyset = createRemoteJWKSet(new URL("jwks", ISSUER), { [customFetch]: issuer.fetch });
+  const options = { algorithms: ["RS256"], issuer: ISSUER, audience: CLIENT_ID, requiredClaims: ["iat", "exp", "jti"] };
+  const current = await issuer.logoutToken(claims);
+  expect((await jwtVerify(current, keyset, options)).payload.sub).toBe(claims.sub);
+
+  for (const claim of ["iat", "exp"] as const) {
+    for (const value of [null, undefined, "1m"]) {
+      const token = await issuer.logoutToken({ ...claims, [claim]: value });
+      const payload = decodeJwt(token);
+      expect(Object.hasOwn(payload, claim)).toBe(value !== undefined);
+      expect(payload[claim]).toBe(value);
+      await expect(jwtVerify(token, keyset, options)).rejects.toMatchObject({ code: "ERR_JWT_CLAIM_VALIDATION_FAILED", claim });
+    }
+    for (const input of [claims, { ...claims, [claim]: null }]) {
+      const token = await issuer.logoutToken(input, [claim]);
+      expect(Object.hasOwn(decodeJwt(token), claim)).toBe(false);
+      await expect(jwtVerify(token, keyset, options)).rejects.toMatchObject({ code: "ERR_JWT_CLAIM_VALIDATION_FAILED", claim, reason: "missing" });
+    }
+  }
+
+  const frozenAt = Math.floor(clock.now() / MS_PER_SECOND);
+  const frozenIssue = await issuer.logoutToken({ ...claims, iat: frozenAt });
+  expect((await jwtVerify(frozenIssue, keyset, options)).payload.iat).toBe(frozenAt);
+  const expired = await issuer.logoutToken({ ...claims, exp: frozenAt });
+  expect(decodeJwt(expired).exp).toBe(frozenAt);
+  await expect(jwtVerify(expired, keyset, options)).rejects.toMatchObject({ code: "ERR_JWT_EXPIRED", claim: "exp" });
+});
