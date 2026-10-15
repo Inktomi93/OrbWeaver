@@ -17,7 +17,7 @@ import {
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
-import { readInventoryBrands, readInventoryInputs } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { readInventoryBrands, readInventoryInputs, readInventoryRuntimeExports } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryString, inventoryTextParts, inventoryTextVersion } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 
 const FORMAT4_DDL = `CREATE TABLE inventory_partition(id TEXT PRIMARY KEY, program TEXT NOT NULL, format INTEGER NOT NULL, payload TEXT NOT NULL);
@@ -39,6 +39,8 @@ const STORAGE_VERSION = "PRAGMA user_version";
 const FORMAT5_DDL = `${FORMAT4_DDL.replace("'witnesses','cast-relations'", "'witnesses','cast-relations','id-brands'")}
 CREATE TABLE inventory_brand(partition TEXT NOT NULL REFERENCES inventory_partition(id),ordinal INTEGER NOT NULL,node INTEGER NOT NULL,brand TEXT,PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)) STRICT;`;
 
+const FORMAT6_DDL = FORMAT5_DDL.replace("('file','directory','exists')", "('file','directory','exists','authored')");
+
 function legacyRows(db: DatabaseSync): ReturnType<StatementSync["all"]>[] {
   return [
     db.prepare("SELECT * FROM inventory_partition WHERE id=?").all(LEGACY_PARTITION),
@@ -52,11 +54,11 @@ function legacyRows(db: DatabaseSync): ReturnType<StatementSync["all"]>[] {
   ];
 }
 
-function createPriorStorage(path: string, version: 0 | 1): ReturnType<typeof legacyRows> {
+function createPriorStorage(path: string, version: 0 | 1 | 2): ReturnType<typeof legacyRows> {
   mkdirSync(dirname(path), { recursive: true });
   using db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;");
-  db.exec(version === 0 ? FORMAT4_DDL : FORMAT5_DDL);
+  db.exec(([FORMAT4_DDL, FORMAT5_DDL, FORMAT6_DDL] as const)[version]);
   db.exec(`PRAGMA user_version=${String(version)}`);
   const program = inventoryString("tsconfig.legacy.json");
   const file = inventoryString("/fixture/legacy.ts");
@@ -91,7 +93,7 @@ function brandPartition(program: string): InventoryPartition {
   const text = 'declare const brand:unique symbol; export type Current=string & {readonly [brand]:"chat"};';
   return {
     format: INVENTORY_FORMAT,
-    families: ["id-brands"],
+    families: ["id-brands", "runtime-exports"],
     program,
     descriptorVersion: "current-version",
     compilerOptionsJson: "{}",
@@ -105,6 +107,15 @@ function brandPartition(program: string): InventoryPartition {
     ],
     sources: [{ file, path: file, text, consumerClass: "product", authored: true }],
     brands: [{ node: { file, start: text.indexOf("string &"), end: text.length - 1, kind: SyntaxKind.IntersectionType }, brand: '"chat"' }],
+    runtimeExports: [
+      {
+        file,
+        name: "Current",
+        declaration: { file, start: text.indexOf("export type"), end: text.length, kind: SyntaxKind.TypeAliasDeclaration },
+        callable: false,
+        initializer: null,
+      },
+    ],
     exports: [],
     modules: [],
     bindings: [],
@@ -122,7 +133,7 @@ function inputDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {
   return db.prepare("SELECT sql FROM sqlite_schema WHERE name='inventory_input'").get();
 }
 
-test.for([0, 1] as const)(
+test.for([0, 1, 2] as const)(
   "physical schema %s accepts current authored inputs and brands while old reader snapshots and identities survive",
   (version, { scratch }) => {
     const path = join(scratch, "old.sqlite");
@@ -146,7 +157,7 @@ test.for([0, 1] as const)(
       current.exec("COMMIT");
       const direct = readInventoryGeneration(current, generation)[0];
       expect(direct?.id).toBe(freshId);
-      expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 2 });
+      expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 3 });
       expect(legacyRows(current)).toEqual(before);
       expect(legacyRows(pinned)).toEqual(before);
       expect(familyDdl(pinned)).toEqual(oldDdl);
@@ -173,7 +184,7 @@ test.for([0, 1] as const)(
       try {
         using reader = openInventoryDatabase(path);
         expect(legacyRows(reader)).toEqual(before);
-        expect(reader.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 2 });
+        expect(reader.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 3 });
       } finally {
         readerLock.mockRestore();
       }
@@ -183,6 +194,7 @@ test.for([0, 1] as const)(
       expect(readInventoryGeneration(current, importedGeneration)[0]?.id).toBe(imported.id);
       expect([...readInventoryBrands(current, imported.id)].map(({ brand }) => brand)).toEqual(['"chat"']);
       expect([...readInventoryInputs(current, imported.id)]).toEqual(facts.inputs);
+      expect([...readInventoryRuntimeExports(current, imported.id, facts.roots[0] ?? "")]).toEqual(facts.runtimeExports);
       expect(current.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
       expect(legacyRows(current)).toEqual(before);
       expect(pinned.prepare("SELECT id,format FROM inventory_generation ORDER BY id").all()).toEqual([{ id: 1, format: 4 + version }]);
@@ -212,6 +224,7 @@ test.for([
   { version: 0, table: "family" },
   { version: 0, table: "input" },
   { version: 1, table: "input" },
+  { version: 2, table: "family" },
 ] as const)("post-drop failure rolls back physical schema and rows: %j", ({ version, table }, { scratch }) => {
   const path = join(scratch, "rollback.sqlite");
   const before = createPriorStorage(path, version);
@@ -241,11 +254,11 @@ test.for([
   expect(observer.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").all()).toEqual(oldTables);
   expect(observer.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   using retried = openInventoryDatabase(path);
-  expect(retried.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 2 });
+  expect(retried.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 3 });
   expect(legacyRows(retried)).toEqual(before);
 });
 
-test.for([0, 1] as const)("competing physical upgrades preserve schema %s rows and converge", async (version, { scratch }) => {
+test.for([0, 1, 2] as const)("competing physical upgrades preserve schema %s rows and converge", async (version, { scratch }) => {
   const path = join(scratch, "racing.sqlite");
   const before = createPriorStorage(path, version);
   const module = import.meta.resolve("@orb/tooling/floor/code-facts/semantic-inventory-database");
@@ -258,7 +271,7 @@ test.for([0, 1] as const)("competing physical upgrades preserve schema %s rows a
     results.map(({ code }) => code),
     JSON.stringify(results),
   ).toEqual([0, 0]);
-  expect(results.map(({ stdout }) => JSON.parse(stdout))).toEqual([{ ["user_version"]: 2 }, { ["user_version"]: 2 }]);
+  expect(results.map(({ stdout }) => JSON.parse(stdout))).toEqual([{ ["user_version"]: 3 }, { ["user_version"]: 3 }]);
   using db = openInventoryDatabase(path);
   expect(legacyRows(db)).toEqual(before);
   expect(db.prepare("SELECT name FROM sqlite_schema WHERE name IN ('inventory_family_upgrade','inventory_input_upgrade')").all()).toEqual([]);
@@ -268,10 +281,10 @@ test("an unsupported future physical schema is refused rather than downgraded", 
   const path = join(scratch, "future.sqlite");
   const before = createPriorStorage(path, 0);
   using db = new DatabaseSync(path);
-  db.exec("PRAGMA user_version=3");
+  db.exec("PRAGMA user_version=4");
   const oldDdl = familyDdl(db);
-  expect(() => openInventoryDatabase(path)).toThrow("unsupported native inventory storage schema: 3");
-  expect(db.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 3 });
+  expect(() => openInventoryDatabase(path)).toThrow("unsupported native inventory storage schema: 4");
+  expect(db.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 4 });
   expect(familyDdl(db)).toEqual(oldDdl);
   expect(legacyRows(db)).toEqual(before);
 });

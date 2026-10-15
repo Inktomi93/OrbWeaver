@@ -10,6 +10,7 @@ import type { AssignabilityChecker } from "../code-facts/assignability.ts";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../code-facts/assignability.ts";
 import { nativeIdBrand } from "../code-facts/id-brand.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
+import { readRuntimeExports } from "../code-facts/runtime-export.ts";
 import type { InventoryBuildRequest, InventoryFamily, InventoryInput, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT, inventoryFamilies } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
@@ -150,6 +151,12 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
+    ...(families.includes("runtime-exports")
+      ? [
+          fileURLToPath(new URL("../code-facts/runtime-export.ts", import.meta.url)),
+          fileURLToPath(new URL("../code-facts/expression-value.ts", import.meta.url)),
+        ]
+      : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
     ...(families.includes("cast-relations")
       ? [
@@ -289,7 +296,7 @@ function assertAuthoredSyntax(original: SourceFile, admitted: SourceFile, spans:
   }
 }
 
-type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands">;
+type SourceFactValues = Pick<InventoryPartition, "exports" | "modules" | "bindings" | "witnesses" | "casts" | "brands" | "runtimeExports">;
 interface SourceFactCollection {
   readonly families: ReadonlySet<InventoryFamily>;
   readonly spans: InventorySpans;
@@ -347,6 +354,9 @@ function collectBrandFact(node: MorphNode, context: SourceFactCollection): void 
 
 function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): void {
   const { families, spans, values } = context;
+  if (families.has("runtime-exports")) {
+    values.runtimeExports.push(...readRuntimeExports(sf, spans.node));
+  }
   if (families.has("modules")) {
     values.modules.push(...moduleFacts(sf, spans));
   }
@@ -377,7 +387,7 @@ function extractSourceFacts(
   const context: SourceFactCollection = {
     ...input,
     authored,
-    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [] },
+    values: { exports: [], modules: [], bindings: [], witnesses: [], casts: [], brands: [], runtimeExports: [] },
     referenceDeclarations: new Map(),
     checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),
   };

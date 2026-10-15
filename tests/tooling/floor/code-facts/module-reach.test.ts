@@ -131,6 +131,7 @@ test("unqualified syntax carriers refuse native importer, test and runtime reach
     families: DEFAULT_INVENTORY_FAMILIES,
     casts: [],
     brands: [],
+    runtimeExports: [],
     program: "tooling/tsconfig.json",
     descriptorVersion: "syntax-only-control",
     compilerOptionsJson: "{}",

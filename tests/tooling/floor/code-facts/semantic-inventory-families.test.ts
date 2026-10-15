@@ -34,7 +34,7 @@ function initialize(root: string): void {
   execFixtureGit(root, ["init", "-q"]);
 }
 
-test("cast-only extraction requests no reference pass while default inventory keeps its existing families", ({ scratch }) => {
+test("scalar-only extraction requests no reference pass while default inventory keeps its existing families", ({ scratch }) => {
   initialize(scratch);
   const descriptor = readCompilerPrograms(scratch)[0];
   if (descriptor === undefined) {
@@ -70,10 +70,22 @@ test("cast-only extraction requests no reference pass while default inventory ke
     expect(passes).toBe(0);
     expect(brands.brands.map(({ brand }) => brand)).toEqual([null]);
     expect([brands.casts, brands.exports, brands.modules, brands.bindings, brands.witnesses, brands.references]).toEqual([[], [], [], [], [], []]);
+    const runtime = extractInventoryPartition({ ...request, families: ["runtime-exports"] });
+    expect(passes).toBe(0);
+    expect(runtime.runtimeExports).toMatchObject([{ name: "value", callable: false, initializer: { callable: false } }]);
+    expect([runtime.casts, runtime.brands, runtime.exports, runtime.modules, runtime.bindings, runtime.witnesses, runtime.references]).toEqual([
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+    ]);
     const legacy = extractInventoryPartition(request);
     expect(passes).toBe(1);
     expect(legacy.families).toEqual([...DEFAULT_INVENTORY_FAMILIES].toSorted());
-    expect([legacy.casts, legacy.brands]).toEqual([[], []]);
+    expect([legacy.casts, legacy.brands, legacy.runtimeExports]).toEqual([[], [], []]);
     expect(legacy.exports.length).toBeGreaterThan(0);
     expect(legacy.references.length).toBeGreaterThan(0);
   } finally {

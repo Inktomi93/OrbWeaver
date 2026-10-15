@@ -11,7 +11,7 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 2;
+const STORAGE_SCHEMA_VERSION = 3;
 
 const generationRow = z.object({ generation: z.number() });
 const memberRow = z.object({ program: inventoryStringSchema, partition: z.string() });
@@ -44,7 +44,7 @@ export function openInventoryDatabase(path: string): DatabaseSync {
 
 function storageSchemaVersion(db: DatabaseSync): number {
   const version = storageVersionRow.parse(db.prepare("PRAGMA user_version").get()).user_version;
-  if (version !== 0 && version !== 1 && version !== STORAGE_SCHEMA_VERSION) {
+  if (version !== 0 && version !== 1 && version !== 2 && version !== STORAGE_SCHEMA_VERSION) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
   }
   return version;
@@ -81,11 +81,21 @@ function initializeStorageSchema(db: DatabaseSync): void {
         db.exec("ALTER TABLE inventory_family_upgrade RENAME TO inventory_family;");
       }
     }
-    if (version < STORAGE_SCHEMA_VERSION && inputExists) {
+    if (version < 2 && inputExists) {
       db.exec(`CREATE TABLE inventory_input_upgrade(${inventoryRecordTables.input.definition}) STRICT;`);
       db.exec("INSERT INTO inventory_input_upgrade(partition,ordinal,path,kind,version) SELECT partition,ordinal,path,kind,version FROM inventory_input;");
       db.exec("DROP TABLE inventory_input;");
       db.exec("ALTER TABLE inventory_input_upgrade RENAME TO inventory_input;");
+    }
+    if (version > 0 && version < STORAGE_SCHEMA_VERSION) {
+      db.exec(`CREATE TABLE IF NOT EXISTS inventory_runtime_export(${inventoryRecordTables.runtimeExport.definition}) STRICT;`);
+      db.exec(`CREATE TABLE inventory_family_upgrade(${inventoryRecordTables.family.definition}) STRICT;`);
+      db.exec("INSERT INTO inventory_family_upgrade(partition,ordinal,name) SELECT partition,ordinal,name FROM inventory_family;");
+      db.exec("DROP TABLE inventory_family;");
+      db.exec("ALTER TABLE inventory_family_upgrade RENAME TO inventory_family;");
+    }
+    if (version < STORAGE_SCHEMA_VERSION) {
+      db.exec("CREATE INDEX IF NOT EXISTS inventory_runtime_export_file ON inventory_runtime_export(partition,file,ordinal);");
     }
     if (version < STORAGE_SCHEMA_VERSION) {
       db.exec(`PRAGMA user_version=${String(STORAGE_SCHEMA_VERSION)};`);

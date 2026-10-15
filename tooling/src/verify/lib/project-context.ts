@@ -79,7 +79,19 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       }
       if (query.nodes.length > 0) {
         const rows = requests.get(owner) ?? [];
-        rows.push(query.kind === "cast-relations" ? { kind: query.kind, nodes: [...query.nodes] } : { kind: query.kind, nodes: [...query.nodes] });
+        switch (query.kind) {
+          case "cast-relations":
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
+          case "id-brands":
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
+          case "runtime-exports":
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
+          default:
+            assertNeverRequest(query);
+        }
         requests.set(owner, rows);
       }
     },
@@ -109,6 +121,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       }
       return selected(owner, "id-brands", nodes).idBrands(nodes);
     },
+    runtimeExports: (owner, nodes): ReturnType<NativeTypeContext["runtimeExports"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "runtime-exports", nodes).runtimeExports(nodes);
+    },
     [Symbol.dispose]: (): void => {
       if (open) {
         open = false;
@@ -117,6 +136,10 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       }
     },
   };
+}
+
+function assertNeverRequest(value: never): never {
+  throw new Error(`unhandled native type request: ${String(value)}`);
 }
 
 function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: readonly NativeTypeRequest[]): NativeTypeFactReader {
@@ -146,6 +169,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: this reader transfers the store handle to its run-owned session.
   const inventory = createSemanticInventory({ root, programs: descriptors, families });
   return {
+    runtimeExports: (sources): ReturnType<NativeTypeFactReader["runtimeExports"]> =>
+      new Map(sources.map((source) => [source, inventory.runtimeExports(source, owner(source))])),
     castRelations: (casts): ReadonlyMap<AsExpression, TypeRelation> =>
       new Map(
         casts.map((node) => {

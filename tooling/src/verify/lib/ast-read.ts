@@ -8,17 +8,11 @@
 // any of those honest-authoring shapes is still seen. Hardening only ever WIDENS what a gate detects.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { unwrapExpression as unwrapValueExpression } from "../../floor/code-facts/expression-value.ts";
 import { literalString } from "../../floor/code-facts/reference-fact-static.ts";
 
-/** Strip `as X` / `satisfies X` / parentheses wrappers so the underlying literal/object/call is reachable.
- *  Mirrors the local `unwrap` in diagnostic-legibility.ts. */
-export function unwrapExpression(node: Node): Node {
-  let n = node;
-  while (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n)) {
-    n = n.getExpression();
-  }
-  return n;
-}
+/** Preserve the verifier entry while the floor owns expression unwrapping. */
+export const unwrapExpression = unwrapValueExpression;
 
 /** The literal string value of a `StringLiteral` or `NoSubstitutionTemplateLiteral`, seen THROUGH any
  *  `as`/`satisfies`/paren wrapper; undefined for a genuinely non-literal (an identifier, a call, a

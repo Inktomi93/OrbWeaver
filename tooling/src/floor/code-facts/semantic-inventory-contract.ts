@@ -5,8 +5,8 @@ import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compile
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
 
-export const INVENTORY_FORMAT = 6;
-export const INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses", "cast-relations", "id-brands"] as const;
+export const INVENTORY_FORMAT = 7;
+export const INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses", "cast-relations", "id-brands", "runtime-exports"] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
 const familySchema = z
@@ -34,8 +34,17 @@ export const castRelationResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable"), reason: z.literal("primitive-absent") }),
 ]);
 export type InventoryCastRelationResult = z.infer<typeof castRelationResultSchema>;
+export const runtimeExportSchema = z.object({
+  file: z.string(),
+  name: z.string(),
+  declaration: spanSchema,
+  callable: z.boolean(),
+  initializer: z.object({ kind: z.number().int(), callable: z.boolean() }).nullable(),
+});
+export type InventoryRuntimeExport = z.infer<typeof runtimeExportSchema>;
 export const partitionSchema = z.object({
   families: familySchema,
+  runtimeExports: z.array(runtimeExportSchema),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
   format: z.literal(INVENTORY_FORMAT),
@@ -61,6 +70,7 @@ export const partitionSchema = z.object({
 });
 
 export const partitionMetadataSchema = partitionSchema.omit({
+  runtimeExports: true,
   casts: true,
   brands: true,
   inputs: true,
@@ -82,6 +92,7 @@ export const INVENTORY_FAMILY_FIELDS = {
   witnesses: "witnesses",
   "cast-relations": "casts",
   "id-brands": "brands",
+  "runtime-exports": "runtimeExports",
 } as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
@@ -98,6 +109,7 @@ export const INVENTORY_RECORD_TABLES = [
   "reference",
   "cast",
   "brand",
+  "runtimeExport",
 ] as const;
 export type InventoryRecordTable = (typeof INVENTORY_RECORD_TABLES)[number];
 export interface InventoryRecord {
@@ -146,6 +158,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
+  readonly runtimeExports: (node: SourceFile, program: string) => readonly InventoryRuntimeExport[];
   readonly castRelation: (node: Node, program: string) => InventoryCastRelationResult;
   readonly idBrand: (node: Node, program: string) => string | null;
   readonly generation: number;

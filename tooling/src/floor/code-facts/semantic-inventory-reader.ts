@@ -22,6 +22,7 @@ import {
   readInventoryExports,
   readInventoryModules,
   readInventoryReferences,
+  readInventoryRuntimeExports,
   readInventorySourceMetadata,
   readInventorySourceText,
   readInventoryWitnesses,
@@ -188,6 +189,13 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    runtimeExports: (node, program) => {
+      const { partition, span } = nativeSpan(node, program, "runtime-exports");
+      if (!TsNode.isSourceFile(node)) {
+        throw new SemanticInventoryError("native runtime exports require an exporting source file");
+      }
+      return [...readInventoryRuntimeExports(db, partition.id, span.file)];
+    },
     idBrand: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "id-brands");
       const matches = [...readInventoryBrands(db, partition.id, span)];
