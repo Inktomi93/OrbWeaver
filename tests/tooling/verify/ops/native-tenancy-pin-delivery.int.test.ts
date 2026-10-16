@@ -6,6 +6,7 @@ import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { readPredicateArgument } from "../../../../tooling/src/floor/code-facts/drizzle-predicate-argument.ts";
+import type { DrizzlePredicate } from "../../../../tooling/src/floor/code-facts/drizzle-predicate-contract.ts";
 import { readAnchorOf } from "../../../../tooling/src/floor/code-facts/drizzle-query.ts";
 import type { InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { assertInvocationEvidence, invocationQueryKey } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
@@ -61,7 +62,17 @@ function fixture(root: string, repoRoot: string, entry?: string): void {
     entry ??
       'import type{BaseSQLiteDatabase}from"drizzle-orm/sqlite-core";import{and,eq}from"drizzle-orm";import{personas}from"../../../../../db/src/schema/persona.ts";import{owned}from"./predicate.ts";declare const db:BaseSQLiteDatabase<"async",void>;export async function load(id:string,principal:{userId:string}){return db.select().from(personas).where(and(eq(personas.id,id),owned(principal.userId)));}',
   );
-  const compilerOptions = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, types: [] };
+  const compilerOptions = {
+    target: "ES2022",
+    module: "NodeNext",
+    moduleResolution: "NodeNext",
+    strict: true,
+    skipLibCheck: true,
+    noEmit: true,
+    allowImportingTsExtensions: true,
+    types: [],
+  };
+  put("package.json", '{"type":"module"}');
   put("tsconfig.json", JSON.stringify({ compilerOptions, files: [SCHEMA, ENTRY, HELPER] }));
   put("packages/db/tsconfig.json", JSON.stringify({ compilerOptions, files: ["src/schema/persona.ts"] }));
   put(
@@ -69,6 +80,55 @@ function fixture(root: string, repoRoot: string, entry?: string): void {
     JSON.stringify({ compilerOptions, files: ["src/domain/persona/persistence/read.ts", "src/domain/persona/persistence/predicate.ts"] }),
   );
   execFixtureGit(root, ["init", "-q"]);
+}
+
+function capturedOwnerRead(root: string): {
+  readonly result: ReturnType<typeof runPolicyPass>;
+  readonly predicates: ReadonlyMap<number, DrizzlePredicate>;
+} {
+  const context = projectCtx(root);
+  const predicates = new Map<number, DrizzlePredicate>();
+  let restore: (() => void) | undefined;
+  try {
+    const result = runPolicyPass({
+      root,
+      project: context.project,
+      policies: [gate],
+      knownPolicies: [gate],
+      reviewedGrants: [],
+      failOnWarnings: false,
+      nativeTypeFacts: () => {
+        const session = context.nativeTypeFacts?.();
+        if (session === undefined) {
+          throw new Error("native relational control has no importing context");
+        }
+        const read = session.invocationEvidence;
+        const spy = vi.spyOn(session, "invocationEvidence").mockImplementation((owner, nodes, plan) => {
+          const delivered = read(owner, nodes, plan);
+          for (const fact of new Set(delivered.values())) {
+            for (const [node, predicate] of fact.drizzleSql?.predicates ?? []) {
+              if (node.getSourceFile().getFilePath() === join(root, ENTRY)) {
+                predicates.set(node.getStartLineNumber(), predicate);
+              }
+            }
+          }
+          return delivered;
+        });
+        restore = () => spy.mockRestore();
+        return session;
+      },
+    });
+    return { result, predicates };
+  } finally {
+    restore?.();
+  }
+}
+
+function predicateBindings(predicate: DrizzlePredicate): readonly (readonly [string, string])[] {
+  if (predicate.kind === "and" || predicate.kind === "or" || predicate.kind === "choice") {
+    return predicate.terms.flatMap(predicateBindings);
+  }
+  return predicate.kind === "leaf" ? [...predicate.bindings].map(([parameter, value]) => [parameter.getText(), value.getText()] as const) : [];
 }
 
 test("native canonical predicate bindings retain the imported helper's actual caller operand", ({ scratch, repoRoot }) => {
@@ -96,6 +156,143 @@ test("native canonical predicate bindings retain the imported helper's actual ca
     { text: "principal.userId", file: join(scratch, ENTRY) },
   ]);
   expect(values.map((node) => isPlainValue(node, { idents: new Set(["personas"]), identBySqlName: new Map([["personas", "personas"]]) }))).toEqual([true]);
+});
+
+test(
+  "native owner delivery keeps async arrow and actual relational scope while rejecting raw OR and row-id-only callbacks",
+  ({ scratch, repoRoot }) => {
+    fixture(
+      scratch,
+      repoRoot,
+      `import type{LibSQLDatabase}from"drizzle-orm/libsql";
+import{and,eq,sql}from"drizzle-orm";
+import*as schema from"../../../../../db/src/schema/persona.ts";
+const{personas}=schema;declare const db:LibSQLDatabase<typeof schema>;
+export const safe=async(id:string,owner:string)=>{const owned=eq(personas.ownerId,owner);return db.select().from(personas).where(and(eq(personas.id,id),owned));};
+export const unsafe=async(id:string,owner:string)=>db.select().from(personas).where(and(eq(personas.ownerId,owner),sql\`1 OR \${personas.id}=\${id}\`));
+export async function scoped(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
+export async function idOnly(id:string){return db.query.personas.findFirst({where:(p,{eq})=>eq(p.id,id)});}
+`,
+    );
+    const { result, predicates } = capturedOwnerRead(scratch);
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    expect(result.authority.effectiveFindings.map(({ token, line }) => ({ token, line }))).toEqual([
+      { token: "personas", line: 6 },
+      { token: "personas", line: 8 },
+    ]);
+    const scoped = predicates.get(7);
+    const idOnly = predicates.get(8);
+    if (scoped === undefined || idOnly === undefined) {
+      throw new Error("native relational controls were not captured");
+    }
+    expect(scoped.contained).toBe(true);
+    expect(predicateBindings(scoped)).toEqual([
+      ["p", "personas"],
+      ["p", "personas"],
+    ]);
+    expect(idOnly.contained).toBe(true);
+    expect(predicateBindings(idOnly)).toEqual([["p", "personas"]]);
+  },
+  scaledBudget(60_000),
+);
+
+test(
+  "native relational bindings refuse row and renamed operator mutation, alias escape and borrowed foreign signatures",
+  ({ scratch, repoRoot }) => {
+    fixture(
+      scratch,
+      repoRoot,
+      `import type{LibSQLDatabase}from"drizzle-orm/libsql";import{eq as nativeEq,type SQL}from"drizzle-orm";import*as schema from"../../../../../db/src/schema/persona.ts";
+declare const db:LibSQLDatabase<typeof schema>;
+declare function leak(operator:typeof nativeEq):SQL;
+export async function renamed(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and:both,eq:same})=>both(same(p.id,id),same(p.ownerId,owner))});}
+export async function rowWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>(Object.assign(p.ownerId,{name:"id"}),and(eq(p.id,id),eq(p.ownerId,owner)))});}
+export async function operatorWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>(eq=nativeEq,and(eq(p.id,id),eq(p.ownerId,owner)))});}
+export async function renamedWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq:op})=>(op=nativeEq,and(op(p.id,id),op(p.ownerId,owner)))});}
+export async function escaped(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq:op})=>and(op(p.id,id),op(p.ownerId,owner),leak(op))});}
+declare const foreign:{query:{personas:{findFirst:typeof db.query.personas.findFirst}}};
+export async function borrowed(id:string,owner:string){return foreign.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
+`,
+    );
+    const { result, predicates } = capturedOwnerRead(scratch);
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    expect(result.authority.effectiveFindings.map(({ token, line }) => ({ token, line }))).toEqual([
+      { token: "personas", line: 5 },
+      { token: "personas", line: 6 },
+      { token: "personas", line: 7 },
+      { token: "personas", line: 8 },
+    ]);
+    const renamed = predicates.get(4);
+    if (renamed === undefined) {
+      throw new Error("native renamed-operator context was not captured");
+    }
+    expect(renamed.contained).toBe(true);
+    expect(predicateBindings(renamed)).toEqual([
+      ["p", "personas"],
+      ["p", "personas"],
+    ]);
+    for (const line of [5, 6, 7, 8, 10]) {
+      const predicate = predicates.get(line);
+      if (predicate === undefined) {
+        throw new Error(`native relational refusal at line ${String(line)} was not captured`);
+      }
+      expect(predicate.contained, String(line)).toBe(false);
+      expect(predicateBindings(predicate), String(line)).toEqual([]);
+    }
+  },
+  scaledBudget(60_000),
+);
+
+test(
+  "an ambiguous relational catalog withholds authority before publishing predicate bindings",
+  ({ scratch, repoRoot }) => {
+    fixture(
+      scratch,
+      repoRoot,
+      `import type{LibSQLDatabase}from"drizzle-orm/libsql";import*as schema from"../../../../../db/src/schema/persona.ts";import{personas as otherPersonas}from"../../../../../db/src/schema/other.ts";void otherPersonas;
+declare const db:LibSQLDatabase<typeof schema>;
+export async function read(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
+`,
+    );
+    writeFileSync(
+      join(scratch, "packages/db/src/schema/other.ts"),
+      'import{sqliteTable,text}from"drizzle-orm/sqlite-core";export const personas=sqliteTable("other_personas",{id:text("id").primaryKey(),ownerId:text("owner_id").notNull()});',
+    );
+    writeFileSync(
+      join(scratch, "packages/db/tsconfig.json"),
+      JSON.stringify({ extends: "../../tsconfig.json", files: ["src/schema/persona.ts", "src/schema/other.ts"] }),
+    );
+    const { result, predicates } = capturedOwnerRead(scratch);
+    expect(result.toolErrors).toEqual([{ policyId: gate.id, phase: "evaluate", message: "native tenancy pin schema and consumer table index disagree" }]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
+    expect(result.authority.effectiveFindings).toEqual([]);
+    expect(predicates.size).toBe(0);
+  },
+  scaledBudget(60_000),
+);
+
+test("a relational owner predicate without a native importing context withholds the policy", ({ scratch, repoRoot }) => {
+  fixture(
+    scratch,
+    repoRoot,
+    `import type{LibSQLDatabase}from"drizzle-orm/libsql";import*as schema from"../../../../../db/src/schema/persona.ts";
+declare const db:LibSQLDatabase<typeof schema>;
+export async function read(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
+`,
+  );
+  const context = projectCtx(scratch);
+  const result = runPolicyPass({ root: scratch, project: context.project, policies: [gate], knownPolicies: [gate], reviewedGrants: [], failOnWarnings: false });
+  expect(result.factErrors).toEqual([{ factId: "drizzle-schema-identities", phase: "create", message: "native type fact context is unavailable" }]);
+  expect(result.toolErrors).toEqual([
+    { policyId: gate.id, phase: "evaluate", message: "declared fact failed: drizzle-schema-identities: create: native type fact context is unavailable" },
+  ]);
+  expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
+  expect(result.authority.effectiveFindings).toEqual([]);
 });
 
 test(

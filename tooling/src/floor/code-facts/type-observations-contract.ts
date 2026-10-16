@@ -220,7 +220,11 @@ export interface TypeObservationCaptureOwner {
 
 export interface TypeObservationCaptureRequest {
   readonly drizzleSources?:
-    | { readonly declarations: ReadonlySet<string>; readonly basis: import("./drizzle-inventory-contract.ts").InventorySchemaBasis | null }
+    | {
+        readonly declarations: ReadonlySet<string>;
+        readonly basis: import("./drizzle-inventory-contract.ts").InventorySchemaBasis | null;
+        readonly tables?: readonly import("./schema-identity-contract.ts").SchemaIdentityTable[] | undefined;
+      }
     | undefined;
   readonly demand: TypeObservationDemand;
   readonly references?: TypeObservationCaptureOwner["references"];

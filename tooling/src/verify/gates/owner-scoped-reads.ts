@@ -575,7 +575,7 @@ function relationalFinding(anchor: Extract<ReadAnchor, { kind: "relational" }>, 
     on: undefined,
     statement: { wheres: where.predicate === undefined ? [] : [where.predicate], innerOns: [], escapes: false, refusals: [] },
   };
-  if (ownerScoped(where.receiver, judged, scope)) {
+  if (ownerScoped(table, judged, scope)) {
     return;
   }
   const leaves = conjunctLeaves(judged.statement.wheres, scope.observations);
@@ -1483,9 +1483,9 @@ ${body}`,
       mode: "types",
       files: {
         "packages/db/src/schema/character.ts":
-          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+          'import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id"), synthetic: integer("synthetic", { mode: "boolean" }).notNull().default(false) });\n',
         "packages/server/src/domain/character/persistence/queries.ts":
-          'import { characters } from "@orb/db";\nexport async function listAll(db: Db, ownerId: string) {\n  return db.select().from(characters).where(eq(characters.synthetic, false));\n}\n',
+          'import { eq } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport async function listAll(db: Db, ownerId: string) {\n  return db.select().from(characters).where(eq(characters.synthetic, false));\n}\n',
       },
       why: "DECLARED LIMIT: a read with no `T.id` predicate is a LIST read, not the by-id shape — list scoping is a different (unenforced-here) question",
     },

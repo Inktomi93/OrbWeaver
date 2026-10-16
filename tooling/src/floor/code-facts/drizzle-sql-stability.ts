@@ -2,7 +2,8 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { readObservedCallableConsumers } from "./call-returns.ts";
-import { callsDrizzleOperator } from "./drizzle-operators.ts";
+import { callsDrizzleOperator, relationalWhereCallback } from "./drizzle-operators.ts";
+import { readAnchorOf } from "./drizzle-query.ts";
 import { readDrizzleSelection, readFollowingSelectChain } from "./drizzle-select.ts";
 import { AGGREGATE_OPERATORS, runtimeDrizzleOrigin } from "./drizzle-sql-native.ts";
 import { columnType, nativeArrayInvocation, readSqlValueSources, sqlMethod, sqlValue } from "./drizzle-sql-origin.ts";
@@ -75,18 +76,31 @@ function awaitedSelection(value: MorphNode, program?: CallReturnProgram): boolea
     sources.kind === "resolved" &&
     sources.value.length > 0 &&
     sources.value.every((source) => {
+      if (!source.present || source.path.length > 0) {
+        return false;
+      }
+      if (nativeRelationalCall(source.value) !== undefined) {
+        return nativeQueryThenable(source.value);
+      }
       const selection = readDrizzleSelection(source.value);
-      if (
-        !source.present ||
-        source.path.length > 0 ||
-        selection === undefined ||
-        !selection.calls.every((call) => runtimeDrizzleOrigin(call.getExpression()))
-      ) {
+      if (selection === undefined || !selection.calls.every((call) => runtimeDrizzleOrigin(call.getExpression()))) {
         return false;
       }
       return selection.calls.some(executedSelectionCall) || nativeQueryThenable(source.value);
     })
   );
+}
+function nativeRelationalCall(node: MorphNode | undefined): import("ts-morph").CallExpression | undefined {
+  if (!Node.isCallExpression(node) || readAnchorOf(node)?.kind !== "relational") {
+    return;
+  }
+  const member = readCalledMember(node);
+  return member.kind === "resolved" &&
+    member.value.declarations.length > 0 &&
+    declaredInDrizzle(member.value.declarations) &&
+    runtimeDrizzleOrigin(node.getExpression())
+    ? node
+    : undefined;
 }
 function nativeSelectionUse(call: import("ts-morph").CallExpression, active: ReadonlySet<object>, program?: CallReturnProgram): boolean {
   // Standalone origin reads do not supply callable consumers; whole-statement lifetime needs the captured graph.
@@ -195,9 +209,20 @@ function nativeSqlTemplateUse(span: import("ts-morph").TemplateSpan, active: Rea
     sqlAliasUseStable(template, active, program)
   );
 }
-function returnedSqlUse(owner: MorphNode, active: ReadonlySet<object>, program?: CallReturnProgram): boolean {
+function returnedSqlUse(owner: MorphNode, value: MorphNode, active: ReadonlySet<object>, program?: CallReturnProgram): boolean {
   if (program === undefined) {
     return false;
+  }
+  const asyncOwner =
+    (Node.isFunctionDeclaration(owner) || Node.isMethodDeclaration(owner) || Node.isArrowFunction(owner) || Node.isFunctionExpression(owner)) &&
+    owner.isAsync();
+  // Async return adopts the native thenable just like await; callers receive rows, not the editable builder.
+  if (asyncOwner && awaitedSelection(value, program)) {
+    return true;
+  }
+  const relational = relationalWhereCallback(owner) ? nativeRelationalCall(owner.getParent()?.getParent()?.getParent()) : undefined;
+  if (relational !== undefined) {
+    return sqlAliasUseStable(relational, active, program);
   }
   const call = owner.getParent();
   const selected = Node.isCallExpression(call) ? readSqlSelectionCallback(call, { bindings: new Map(), program }) : undefined;
@@ -247,7 +272,7 @@ function sqlContainingUse(value: MorphNode, active: ReadonlySet<object>, program
   }
   const returnedOwner = returnedSqlOwner(value);
   if (returnedOwner !== undefined) {
-    return returnedSqlUse(returnedOwner, active, program);
+    return returnedSqlUse(returnedOwner, value, active, program);
   }
   if (isIdentityObservation(parent)) {
     return true;

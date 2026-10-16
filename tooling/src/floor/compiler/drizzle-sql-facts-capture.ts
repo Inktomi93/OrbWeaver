@@ -1,20 +1,27 @@
 // Predicate inputs and SQL facts share one complete native call/reference context.
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { observeCallReturns } from "../code-facts/call-returns.ts";
+import { observeCallReturns, readCallReturnProgram } from "../code-facts/call-returns.ts";
 import { callsDrizzleOperator } from "../code-facts/drizzle-operators.ts";
 import { readDrizzlePredicate } from "../code-facts/drizzle-predicate.ts";
 import { readPredicateArgument } from "../code-facts/drizzle-predicate-argument.ts";
 import type { DrizzlePredicate } from "../code-facts/drizzle-predicate-contract.ts";
 import { readAnchorOf, readRelationalConfigProperty, readRelationalWhere } from "../code-facts/drizzle-query.ts";
 import type { ReadAnchor } from "../code-facts/drizzle-query-contract.ts";
+import { readRelationalPredicateBindings } from "../code-facts/drizzle-relational.ts";
 import type { CapturedDrizzleSqlFacts } from "../code-facts/drizzle-sql-facts-contract.ts";
 import { readPredicateConsumers, readStatementOf } from "../code-facts/drizzle-statement.ts";
 import { unwrapExpression } from "../code-facts/expression-value.ts";
+import type { CallReturnObservations } from "../code-facts/reference-fact-contract.ts";
+import type { SchemaIdentityTable } from "../code-facts/schema-identity-contract.ts";
 import type { TypeObservationCaptureOwner, TypeObservationDemand } from "../code-facts/type-observations-contract.ts";
 
 /** Each nominated root retains the observations of its own supplied importing context. */
-export function captureDrizzleSqlInputs(demand: TypeObservationDemand, facts: CapturedDrizzleSqlFacts): TypeObservationCaptureOwner["predicateInputs"] {
+export function captureDrizzleSqlInputs(
+  demand: TypeObservationDemand,
+  facts: CapturedDrizzleSqlFacts,
+  tables?: readonly SchemaIdentityTable[],
+): TypeObservationCaptureOwner["predicateInputs"] {
   const questions = demand.questions?.filter((value) => value.kind === "drizzle-predicate-inputs") ?? [];
   if (questions.length === 0) {
     return;
@@ -47,6 +54,7 @@ export function captureDrizzleSqlInputs(demand: TypeObservationDemand, facts: Ca
     facts.statements.set(node, statement);
     facts.consumers.set(node, readPredicateConsumers(node, context.observations));
     const predicates = predicateRoots(anchor, statement);
+    const bindings = relationalBindings(anchor, tables, context.observations);
     for (const predicate of predicates) {
       const prior = predicateContexts.get(predicate);
       if (prior !== undefined && prior !== context) {
@@ -54,7 +62,7 @@ export function captureDrizzleSqlInputs(demand: TypeObservationDemand, facts: Ca
       }
       predicateContexts.set(predicate, context);
       if (!facts.predicates.has(predicate)) {
-        facts.predicates.set(predicate, readDrizzlePredicate(predicate, context.observations));
+        facts.predicates.set(predicate, readDrizzlePredicate(predicate, context.observations, bindings));
       }
     }
     return {
@@ -72,6 +80,18 @@ export function captureDrizzleSqlInputs(demand: TypeObservationDemand, facts: Ca
       ],
     };
   };
+}
+
+function relationalBindings(
+  anchor: ReadAnchor,
+  tables: readonly SchemaIdentityTable[] | undefined,
+  observations: CallReturnObservations,
+): ReadonlyMap<MorphNode, MorphNode> | undefined {
+  if (anchor.kind !== "relational" || tables === undefined) {
+    return;
+  }
+  const program = readCallReturnProgram(anchor.call, observations);
+  return program.kind === "resolved" ? readRelationalPredicateBindings(anchor, tables, program.value) : undefined;
 }
 
 function predicateRoots(anchor: ReadAnchor, statement: ReturnType<typeof readStatementOf>): readonly MorphNode[] {

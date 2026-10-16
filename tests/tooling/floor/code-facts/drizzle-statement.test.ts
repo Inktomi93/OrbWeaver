@@ -18,6 +18,7 @@ import { SyntaxKind } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { ownerTermValue, predicateHolds } from "../../../../tooling/src/verify/lib/tenancy-join.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const BUILDER = `import { eq } from "drizzle-orm";
 import { personas, type Db } from "@orb/db";
@@ -662,7 +663,15 @@ for (const scenario of CASES) {
     const statement = readStatementOf(anchor, observations);
     expect([...new Set(statement.refusals.map(({ reason }) => reason))]).toEqual("refusal" in scenario ? [scenario.refusal] : []);
     expect(statement.escapes).toBe("refusal" in scenario);
-    const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+    const result = runPolicyPass({
+      knownPolicies: [gate],
+      policies: [gate],
+      root,
+      project,
+      nativeTypeFacts: () => isolatedTypeFacts(project),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
     expect(result.toolErrors).toEqual([]);
     expect(result.policies[0]?.owner.status).toBe("success");
     expect(result.authority.authorityAlarms).toEqual([]);
@@ -705,6 +714,7 @@ for (const scenario of SCOPE_CASES) {
       policies: [gate],
       root: fixture.root,
       project: fixture.project,
+      nativeTypeFacts: () => isolatedTypeFacts(fixture.project),
       reviewedGrants: [],
       failOnWarnings: false,
     });

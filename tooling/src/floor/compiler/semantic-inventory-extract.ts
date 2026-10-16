@@ -14,6 +14,7 @@ import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import { beginReferencePass, endReferencePass, referenceResolutionServices, resolveGlobalMemberOrigin } from "../code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
+import type { SchemaIdentityTable } from "../code-facts/schema-identity-contract.ts";
 import type { SchemaQuery } from "../code-facts/schema-model-contract.ts";
 import { schemaDataProjectionSchema } from "../code-facts/schema-projection-contract.ts";
 import type {
@@ -544,6 +545,7 @@ function extractTypedFacts(
       },
     );
     let valueSourceDeclarations: ReadonlySet<string> | undefined;
+    let valueSourceTables: readonly SchemaIdentityTable[] | undefined;
     let ordinarySchema: SchemaQuery | undefined;
     let ordinaryBasis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null = null;
     const drizzle =
@@ -555,8 +557,9 @@ function extractTypedFacts(
               }
               assertInvocationSource(source, invocationProgram, "drizzle-capture");
             },
-            valueSourceDeclarations: (declarations) => {
+            valueSourceDeclarations: (declarations, tables) => {
               valueSourceDeclarations = declarations;
+              valueSourceTables = tables;
             },
             ordinarySchema: (query) => {
               ordinarySchema = query;
@@ -580,6 +583,7 @@ function extractTypedFacts(
       invocationProgram,
       ordinarySchema,
       valueSourceDeclarations,
+      valueSourceTables,
       ordinaryBasis,
       referenceQueries,
     });
@@ -1063,6 +1067,7 @@ function extractSourceFacts(
     readonly invocationProgram: ts.Program | undefined;
     readonly ordinarySchema: SchemaQuery | undefined;
     readonly valueSourceDeclarations: ReadonlySet<string> | undefined;
+    readonly valueSourceTables: readonly SchemaIdentityTable[] | undefined;
     readonly ordinaryBasis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
     readonly referenceQueries: NonNullable<InventoryPartition["referenceQueries"]>;
   },
@@ -1112,6 +1117,7 @@ function extractSourceFacts(
       program: input.invocationProgram,
       schema: input.ordinarySchema,
       valueSourceDeclarations: input.valueSourceDeclarations,
+      valueSourceTables: input.valueSourceTables,
       basis: input.ordinaryBasis,
       referenceQueries: input.referenceQueries,
     });
@@ -1370,6 +1376,7 @@ interface InvocationCollection {
   readonly byFile: ReadonlyMap<string, SourceFile>;
   readonly schema: SchemaQuery | undefined;
   readonly valueSourceDeclarations: ReadonlySet<string> | undefined;
+  readonly valueSourceTables: readonly SchemaIdentityTable[] | undefined;
   readonly basis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
   readonly related: Map<string, InventoryPartition["invocationEvidence"][number]["sources"][number]>;
   readonly bindingKeys: Set<string>;
@@ -1387,6 +1394,7 @@ function collectInvocationFacts(
     readonly program: ts.Program | undefined;
     readonly schema: SchemaQuery | undefined;
     readonly valueSourceDeclarations: ReadonlySet<string> | undefined;
+    readonly valueSourceTables: readonly SchemaIdentityTable[] | undefined;
     readonly basis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
     readonly referenceQueries: NonNullable<InventoryPartition["referenceQueries"]>;
   },
@@ -1403,6 +1411,7 @@ function collectInvocationFacts(
     program,
     schema,
     valueSourceDeclarations: owner.valueSourceDeclarations,
+    valueSourceTables: owner.valueSourceTables,
     basis,
     byFile: new Map(sources.map((source) => [context.spans.path(source.getFilePath()), source])),
     related: new Map(),
@@ -1513,7 +1522,7 @@ function typeCaptureForQuery(query: InventoryInvocationQuery, state: InvocationC
         node: (span) => inventoryQueryNode(state.byFile.get(span.file), span),
         ...(!invocationNeedsValueSourceCatalog(query) || state.valueSourceDeclarations === undefined
           ? {}
-          : { drizzleSources: { declarations: state.valueSourceDeclarations, basis: state.basis } }),
+          : { drizzleSources: { declarations: state.valueSourceDeclarations, basis: state.basis, tables: state.valueSourceTables } }),
       };
 }
 
@@ -1657,6 +1666,7 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
         "../code-facts/drizzle-sql-projection.ts",
         "../code-facts/drizzle-sql-native.ts",
         "../code-facts/drizzle-sql-stability.ts",
+        "../code-facts/drizzle-relational.ts",
         "../code-facts/drizzle-sql-constructors.ts",
         "../code-facts/drizzle-sql-observations.ts",
         "../code-facts/sqlite-lexical.ts",

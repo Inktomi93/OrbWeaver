@@ -6,7 +6,7 @@ import { readDrizzleCallEvidence } from "../code-facts/drizzle-evidence.ts";
 import type { InventorySchemaDependency, InventorySchemaIdentityCatalog, InventorySchemaIdentityTable } from "../code-facts/drizzle-inventory-contract.ts";
 import { assertSchemaColumnRoster } from "../code-facts/drizzle-inventory-contract.ts";
 import { projectSchemaIdentities, schemaIdentityQuery } from "../code-facts/schema-identity.ts";
-import type { SchemaIdentityQuery } from "../code-facts/schema-identity-contract.ts";
+import type { SchemaIdentityQuery, SchemaIdentityTable } from "../code-facts/schema-identity-contract.ts";
 import type { SchemaFact, SchemaModel, SchemaQuery } from "../code-facts/schema-model-contract.ts";
 import { projectSchemaData } from "../code-facts/schema-projection.ts";
 import { createSchemaQuery } from "../code-facts/schema-query.ts";
@@ -36,7 +36,7 @@ export function extractDrizzleIdentities(
   owner: {
     readonly assertSource: (source: SourceFile) => void;
     readonly ordinarySchema?: (query: SchemaQuery | undefined) => void;
-    readonly valueSourceDeclarations?: (declarations: ReadonlySet<string>) => void;
+    readonly valueSourceDeclarations?: (declarations: ReadonlySet<string>, tables: readonly SchemaIdentityTable[]) => void;
   },
 ): Pick<InventoryPartition, "schemaIdentity" | "schemaData" | "drizzleCalls"> {
   const byFile = new Map(sources.map((source) => [span(source).file, source]));
@@ -64,9 +64,10 @@ export function extractDrizzleIdentities(
   if (catalog?.fact.status === "ready") {
     owner.valueSourceDeclarations?.(
       new Set(catalog.fact.value.tables.map((table) => `${table.declaration.file}:${table.declaration.start}:${table.declaration.end}`)),
+      nativeIdentityTables(declarations, byFile),
     );
   } else if (schema?.status === "ready") {
-    owner.valueSourceDeclarations?.(new Set(schema.value.tables.map((table) => schemaDeclarationKey(table.declaration))));
+    owner.valueSourceDeclarations?.(new Set(schema.value.tables.map((table) => schemaDeclarationKey(table.declaration))), schema.value.tables);
   }
 
   const drizzleCalls = (request.drizzleQueries ?? []).map((query) => {
@@ -200,6 +201,20 @@ function catalogDeclarations(
     declarations.set(schemaDeclarationKey(declaration), table);
   }
   return declarations;
+}
+
+function nativeIdentityTables(
+  tables: ReadonlyMap<string, InventorySchemaIdentityTable>,
+  sources: ReadonlyMap<string, SourceFile>,
+): readonly SchemaIdentityTable[] {
+  return [...tables.values()].map((table) => {
+    const declaration = inventoryQueryNode(sources.get(table.declaration.file), table.declaration);
+    const call = inventoryQueryNode(sources.get(table.call.file), table.call);
+    if (!(Node.isVariableDeclaration(declaration) && Node.isCallExpression(call))) {
+      throw new Error("native relational catalog table source is unavailable");
+    }
+    return { ...table, declaration, call };
+  });
 }
 
 function assertCatalogRosters(request: InventoryBuildRequest): void {
