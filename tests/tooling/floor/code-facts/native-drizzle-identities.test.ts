@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import { SCHEMA_DATA_CATALOG_KEY } from "../../../../tooling/src/floor/code-facts/drizzle-inventory-contract.ts";
 import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryBuildRequest, InventorySpan, SemanticInventoryOptions } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { drizzleQueryKey } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
@@ -462,3 +463,199 @@ test(
   },
   scaledBudget(60_000),
 );
+
+test(
+  "full schema data shares the atomic identity/consumer cohort without widening defaults",
+  ({ scratch, repoRoot }) => {
+    const fixture = setup(scratch, repoRoot);
+    using identity = createSemanticInventory(fixture.options);
+    expect(() => identity.schemaData(fixture.sources, DB)).toThrow("schema-data");
+    const options = {
+      ...fixture.options,
+      families: ["drizzle-identities", "schema-data"] as const,
+      schemaDataQuery: { program: DB, sources: fixture.sources.map(span) },
+    };
+    const requests: InventoryBuildRequest[] = [];
+    using full = createSemanticInventory({
+      ...options,
+      buildPartition: (request) => {
+        requests.push(request);
+        runInventoryPartitionWorker(request);
+      },
+    });
+    expect(requests.map(({ descriptor }) => descriptor.id)).toEqual([DB, SERVER]);
+    expect(requests[0]?.schemaDataSources).toEqual(fixture.sources.map(span));
+    expect(requests[1]?.schemaDataSources).toBeUndefined();
+    const data = full.schemaData(fixture.sources, DB);
+    expect(data).toMatchObject({ status: "ready", receipt: { tables: 2, columns: 4, foreignKeys: 1, indexes: 1, jsonColumns: 1 } });
+    if (data.status !== "ready") {
+      throw new Error("complete native full schema is unavailable");
+    }
+    expect(data.value.tables[0]?.columns[1]).toMatchObject({
+      identity: { propertyName: "meta" },
+      notNull: true,
+      json: { shape: { kind: "closed", keys: ["label"] } },
+    });
+    expect(data.value.tables[0]?.columns[1]?.typeOverride).not.toHaveProperty("type");
+    expect(full.schemaIdentity(fixture.sources, DB)).toEqual(identity.schemaIdentity(fixture.sources, DB));
+    expect(full.drizzleEvidence(fixture.bound, SERVER, "instance")).toMatchObject({ mode: "instance", table: { references: [{ kind: "table" }] } });
+    expect(() => full.schemaData(fixture.sources.slice(0, 1), DB)).toThrow("source demand is incomplete");
+    expect(() => full.schemaData(fixture.sources, SERVER)).toThrow("native typed source/epoch");
+    using reuse = createSemanticInventory({
+      ...options,
+      buildPartition: () => {
+        throw new Error("complete full schema demand rebuilt");
+      },
+    });
+    expect(reuse.generation).toBe(full.generation);
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    expect(() =>
+      createSemanticInventory({
+        ...options,
+        schemaDataQuery: { program: DB, sources: fixture.sources.slice(0, 1).map(span) },
+        buildPartition: () => {
+          throw new Error("changed full schema demand worker");
+        },
+      }),
+    ).toThrow("changed full schema demand worker");
+    expect(latestInventoryGeneration(db)).toBe(full.generation);
+    expect(identity.schemaIdentity(fixture.sources, DB)).toMatchObject({ status: "ready" });
+    full[Symbol.dispose]();
+    expect(() => full.schemaData(fixture.sources, DB)).toThrow("disposed");
+  },
+  scaledBudget(90_000),
+);
+
+test(
+  "full schema data corruption refuses exact graph and captured source evidence",
+  ({ scratch, repoRoot }) => {
+    const fixture = setup(scratch, repoRoot);
+    const options = dataOptions(fixture);
+    using inventory = createSemanticInventory(options);
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const partitions = readInventoryGeneration(db, inventory.generation);
+    const catalog = partitions[0];
+    if (catalog === undefined) {
+      throw new Error("full schema partition missing");
+    }
+    using reader = inventoryReader(scratch, inventory.generation, partitions, {
+      db,
+      dispose: () => {
+        /* The enclosing test owns this connection. */
+      },
+    });
+    const cuts: readonly { readonly mutate: () => void; readonly message: string }[] = [
+      {
+        message: "no captured fact graph",
+        mutate: () => {
+          db.prepare("DELETE FROM inventory_drizzle_atom WHERE partition=?").run(catalog.id);
+          db.prepare("DELETE FROM inventory_drizzle_evidence WHERE partition=? AND key=?").run(catalog.id, inventoryString(SCHEMA_DATA_CATALOG_KEY));
+        },
+      },
+      {
+        message: "fact graph is incomplete",
+        mutate: () => {
+          db.prepare(
+            "DELETE FROM inventory_drizzle_atom WHERE partition=? AND ordinal=(SELECT MAX(ordinal) FROM inventory_drizzle_atom WHERE partition=?)",
+          ).run(catalog.id, catalog.id);
+        },
+      },
+      {
+        message: "source ownership is unavailable",
+        mutate: () => {
+          db.prepare("DELETE FROM inventory_text WHERE partition=? AND source IN (SELECT ordinal FROM inventory_source WHERE partition=? AND file=?)").run(
+            catalog.id,
+            catalog.id,
+            inventoryString(join(scratch, UNRELATED)),
+          );
+          db.prepare("DELETE FROM inventory_source WHERE partition=? AND file=?").run(catalog.id, inventoryString(join(scratch, UNRELATED)));
+        },
+      },
+    ];
+    for (const cut of cuts) {
+      db.exec("BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;");
+      try {
+        cut.mutate();
+        expect(() => reader.schemaData(fixture.sources, DB)).toThrow(cut.message);
+      } finally {
+        db.exec("ROLLBACK");
+      }
+    }
+    expect(reader.schemaData(fixture.sources, DB)).toMatchObject({ status: "ready" });
+    const inputs = [...readInventoryInputs(db, catalog.id)];
+    const helpers = [
+      "schema-projection.ts",
+      "schema-projection-contract.ts",
+      "schema-projection-inventory-contract.ts",
+      "schema-projection-replay.ts",
+      "static-authored-value.ts",
+      "id-brand.ts",
+      "type-member-origin.ts",
+    ].map((name) => fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url)));
+    helpers.push(fileURLToPath(new URL("../../../../tooling/src/floor/compiler/schema-projection-encode.ts", import.meta.url)));
+    const authored = inventoryAuthoredFiles(scratch);
+    for (const path of helpers) {
+      expect(
+        inputs.some((input) => input.kind === "file" && input.path === path),
+        path,
+      ).toBe(true);
+      const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
+        root: scratch,
+        files: [{ path, text: readFileSync(path, "utf8") + "\n" }],
+        deleted: [],
+      });
+      expect(inputsCurrent(inputs, { authored, fileSystem }), path).toBe(false);
+    }
+  },
+  scaledBudget(60_000),
+);
+
+test(
+  "full schema data preserves explicit empty/missing and current overlays with pinned previous data",
+  ({ scratch, repoRoot }) => {
+    const fixture = setup(scratch, repoRoot);
+    const options = dataOptions(fixture);
+    using missing = createSemanticInventory({ ...options, schemaDataQuery: { program: DB, sources: [] } });
+    expect(missing.schemaData([], DB)).toMatchObject({ status: "missing", receipt: { members: 0 } });
+    const index = fixture.direct.getProject().getSourceFileOrThrow(join(scratch, "packages/db/src/index.ts"));
+    using empty = createSemanticInventory({ ...options, schemaDataQuery: { program: DB, sources: [span(index)] } });
+    expect(empty.schemaData([index], DB)).toMatchObject({ status: "empty", receipt: { members: 0 } });
+    using old = createSemanticInventory({ ...options, schemaDataQuery: { program: DB, sources: fixture.sources.map(span) } });
+    const before = old.schemaData(fixture.sources, DB);
+    const text = UNRELATED_TEXT.replace(".on(table.assetId)", "");
+    const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
+      root: scratch,
+      files: [{ path: join(scratch, UNRELATED), text }],
+      deleted: [],
+    });
+    const project = new Project({ useInMemoryFileSystem: true, skipLoadingLibFiles: true });
+    const sources = [ASSETS, UNRELATED].map((path) => project.createSourceFile(join(scratch, path), fileSystem.readFileSync(join(scratch, path))));
+    using overlay = createSemanticInventory({
+      ...options,
+      schemaDataQuery: { program: DB, sources: sources.map(span) },
+      overlay: { addedPaths: [], deletedPaths: [] },
+      fileSystem,
+    });
+    expect(overlay.schemaData(sources, DB)).toMatchObject({ status: "unresolved" });
+    expect(() => overlay.schemaData(fixture.sources, DB)).toThrow("native typed source/epoch");
+    expect(old.schemaData(fixture.sources, DB)).toEqual(before);
+    expect(readFileSync(join(scratch, UNRELATED), "utf8")).toBe(UNRELATED_TEXT);
+    const changed = fixture.sources[0];
+    if (changed === undefined) {
+      throw new Error("stale source missing");
+    }
+    changed.replaceWithText(ASSET_TEXT + "\n");
+    expect(() => old.schemaData(fixture.sources, DB)).toThrow("source/epoch");
+  },
+  scaledBudget(90_000),
+);
+
+function dataOptions(fixture: ReturnType<typeof setup>): SemanticInventoryOptions {
+  const { schemaQuery: _identity, drizzleQueries: _calls, ...options } = fixture.options;
+  return {
+    ...options,
+    programs: (options.programs ?? []).filter(({ id }) => id === DB),
+    families: ["schema-data"],
+    schemaDataQuery: { program: DB, sources: fixture.sources.map(span) },
+  };
+}

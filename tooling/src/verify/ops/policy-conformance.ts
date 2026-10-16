@@ -17,6 +17,7 @@ import { lexicalReferenceSymbol } from "../../floor/code-facts/reference-fact-al
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
 import { readSchemaIdentities, schemaIdentityQuery } from "../../floor/code-facts/schema-identity.ts";
+import { readSchemaData } from "../../floor/code-facts/schema-projection.ts";
 import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
 import { captureInvocationEvidence } from "../../floor/compiler/invocation-evidence-extract.ts";
@@ -544,6 +545,14 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (queries): NativeTypeFactReader => ({
+      schemaData: (requested): ReturnType<NativeTypeFactReader["schemaData"]> => {
+        const checker = checkerFor(requested);
+        return readSchemaData({
+          files: requested,
+          relativePath: (source) => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
+          checker: () => checker,
+        });
+      },
       schemaIdentity: (requested): ReturnType<NativeTypeFactReader["schemaIdentity"]> => {
         const checker = checkerFor(requested);
         return readSchemaIdentities({

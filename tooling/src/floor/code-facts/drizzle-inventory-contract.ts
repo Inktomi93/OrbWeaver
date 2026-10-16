@@ -13,6 +13,9 @@ import type { InventoryInput, InventoryInvocationReference, InventorySpan } from
 
 type SpanFields<Value> = { readonly [Key in keyof Value]: Value[Key] extends Node ? InventorySpan : Value[Key] };
 
+export const SCHEMA_IDENTITY_CATALOG_KEY = "catalog";
+export const SCHEMA_DATA_CATALOG_KEY = "full-catalog";
+
 export type InventorySchemaIdentityTable = SpanFields<SchemaIdentityTable>;
 
 export interface InventorySchemaIdentityCatalog {

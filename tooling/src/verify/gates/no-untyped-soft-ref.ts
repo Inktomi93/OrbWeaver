@@ -15,7 +15,7 @@
 // loaded so a synthetic fileset could not report all six rows as stale. Central reconciliation owns both
 // halves now — a row consumed zero times after a complete owner run is STALE and a row matching more than
 // one finding is OVER-BROAD — and the guard is structural rather than hand-rolled: the shared
-// `drizzleSchemaFact` refuses unless the whole declared schema population resolved, so an incomplete
+// `drizzleSchemaDataFact` refuses unless the whole declared schema population resolved, so an incomplete
 // denominator withholds the policy instead of mis-judging its rows.
 //
 // IDENTITY, NOT SPELLING, on every axis, through the shared fact: the column BUILDER is the resolved
@@ -32,15 +32,16 @@
 // `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`,
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaDataFact`,
 // `DRIZZLE_SCHEMA_POPULATION`, with `contract/schema-fact.ts#recordReadySchemaFact`), the provider every member of
 // the family reads for column identity.
+
+import type { SchemaProjectedColumn, SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaColumn, SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const OPERATION = "soft-reference";
 /** The two scalar builders an orbweaver id column is ever declared with. */
@@ -54,7 +55,7 @@ const UNREADABLE = MESSAGE;
 const FIX = "add the `.references(() => target.id)` FK; a genuinely non-relational id column takes an exact reviewed grant with its D-cite.";
 
 /** Is this an id-shaped column with no FK — the D24 subject? */
-function isSoftReference(column: SchemaColumn, tableForeignKeyChildren: ReadonlySet<string>): boolean {
+function isSoftReference(column: SchemaProjectedColumn, tableForeignKeyChildren: ReadonlySet<string>): boolean {
   return (
     column.identity.propertyName.endsWith("Id") &&
     ID_COLUMN_BUILDERS.has(column.builder.exportedName) &&
@@ -65,7 +66,7 @@ function isSoftReference(column: SchemaColumn, tableForeignKeyChildren: Readonly
 }
 
 /** Every soft reference in the ready schema, as a grant candidate keyed on the SQL `table.column` pair. */
-function softReferences(schema: SchemaModel): readonly ReviewedGrantCandidate[] {
+function softReferences(schema: SchemaProjectedModel): readonly ReviewedGrantCandidate[] {
   return schema.tables.flatMap((table) => {
     const tableForeignKeyChildren = new Set(table.foreignKeys.flatMap((foreignKey) => foreignKey.children.map((child) => child.key)));
     return table.columns
@@ -91,13 +92,13 @@ export const gate = defineGate({
   population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: (): void => {
-      const fact = ctx.fact(drizzleSchemaFact).schema();
+      const fact = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, fact);
       reportReviewedGrantCandidates(ctx.report, softReferences(fact.value), { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
     },

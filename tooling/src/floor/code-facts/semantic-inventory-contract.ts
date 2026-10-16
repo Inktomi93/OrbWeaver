@@ -21,9 +21,11 @@ import type {
 import { REFERENCE_UNRESOLVED_REASONS } from "./reference-fact-contract.ts";
 import type { SchemaIdentityModel } from "./schema-identity-contract.ts";
 import type { SchemaFact } from "./schema-model-contract.ts";
+import type { SchemaProjectedModel } from "./schema-projection-contract.ts";
+import { schemaProjectionInventorySchema } from "./schema-projection-inventory-contract.ts";
 import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
 
-export const INVENTORY_FORMAT = 15;
+export const INVENTORY_FORMAT = 16;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -43,6 +45,7 @@ export const INVENTORY_FAMILIES = [
   "global-origins",
   "invocation-evidence",
   "drizzle-identities",
+  "schema-data",
 ] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 export const DEFAULT_INVENTORY_FAMILIES = ["exports", "modules", "bindings", "references", "witnesses"] as const;
@@ -151,6 +154,7 @@ export function inventoryReferenceSchema<Value>(value: z.ZodType<Value>): z.ZodT
 }
 const invocationKindSchema = z.enum(["call", "construct", "bind"]);
 export const drizzleSchemas = drizzleInventorySchemas(spanSchema, inventoryReferenceSchema, invocationKindSchema);
+export const schemaDataCatalogSchema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog);
 
 export function drizzleQueryKey(query: InventoryDrizzleQuery): string {
   return JSON.stringify({ node: spanSchema.parse(query.node), mode: z.enum(DRIZZLE_EVIDENCE_MODES).parse(query.mode) });
@@ -407,6 +411,7 @@ export const partitionSchema = z.object({
   globalBindings: z.array(spanSchema),
   invocationEvidence: z.array(invocationEvidenceSchema),
   schemaIdentity: drizzleSchemas.catalog.optional(),
+  schemaData: schemaDataCatalogSchema.optional(),
   drizzleCalls: z.array(drizzleSchemas.call).optional(),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
@@ -437,6 +442,7 @@ export const partitionMetadataSchema = partitionSchema.omit({
   globalBindings: true,
   invocationEvidence: true,
   schemaIdentity: true,
+  schemaData: true,
   drizzleCalls: true,
   computedNames: true,
   callableDeclarations: true,
@@ -478,6 +484,7 @@ export const INVENTORY_FAMILY_FIELDS = {
   "global-origins": "globalOrigins",
   "invocation-evidence": "invocationEvidence",
   "drizzle-identities": "drizzleCalls",
+  "schema-data": "schemaData",
 } as const satisfies Readonly<Record<InventoryFamily, keyof InventoryPartition>>;
 export const INVENTORY_FACTS = ["exports", "modules", "bindings", "witnesses"] as const;
 export type InventoryFactKind = (typeof INVENTORY_FACTS)[number];
@@ -545,6 +552,7 @@ export interface InventoryOverlay {
 
 export interface InventoryBuildRequest {
   readonly schemaSources?: readonly InventorySpan[];
+  readonly schemaDataSources?: readonly InventorySpan[];
   readonly schemaDependency?: InventorySchemaDependency;
   readonly drizzleQueries?: readonly InventoryDrizzleQuery[];
   readonly exportQueries?: readonly InventoryExportDeclarationQuery[];
@@ -564,6 +572,7 @@ export interface InventoryBuildRequest {
 
 export interface SemanticInventoryOptions {
   readonly schemaQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };
+  readonly schemaDataQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };
   readonly drizzleQueries?: readonly { readonly program: string; readonly query: InventoryDrizzleQuery }[];
   readonly exportQueries?: readonly InventoryNativeExportDeclarationQuery[];
   readonly invocationQueries?: readonly InventoryNativeInvocationQuery[];
@@ -591,6 +600,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
   readonly schemaIdentity: (sources: readonly SourceFile[], program: string) => SchemaFact<SchemaIdentityModel>;
+  readonly schemaData: (sources: readonly SourceFile[], program: string) => SchemaFact<SchemaProjectedModel>;
   readonly drizzleEvidence: (node: Node, program: string, mode: DrizzleEvidenceMode) => DrizzleCallEvidence;
   readonly exportDeclarations: (source: SourceFile, program: string, name: string) => readonly Node[] | null;
   readonly invocationEvidence: (node: Node, program: string, plan: InventoryInvocationPlan) => NativeInvocationEvidence;

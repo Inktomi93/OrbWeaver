@@ -5,7 +5,7 @@
 // ban is biome's native `noRestrictedImports`. Rows + the message: ../lib/ledger-banned-shapes.ts.
 // HARD by design: a ledger verdict's only escape is contesting the D-cite, never a site comment.
 //
-// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaDataFact`), which owns
 // Drizzle builder identity and the table/column model. `../lib/ledger-banned-shapes.ts` is the shared
 // VOCABULARY (the rows and their D-cite text), not the family key: it is consumed by two policies that
 // read DIFFERENT SUBJECTS, which is exactly why `contract-banned-shapes` is a singleton under its own id.
@@ -32,12 +32,12 @@
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 
+import type { SchemaProjectedColumn, SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { SchemaBannedShape } from "../contract/ledger-banned-shapes.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaColumn, SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { bannedMessage, SCHEMA_BANNED_SHAPES } from "../lib/ledger-banned-shapes.ts";
-import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const MESSAGE =
   "a ledger-REJECTED schema shape has been reintroduced — the ledger killed this table/column by name; drop it or contest the D-cite in its docs/adr/ decision (every row and its cite: tooling/src/verify/lib/ledger-banned-shapes.ts).";
@@ -46,7 +46,7 @@ const FIX = "remove the banned column (or the whole table) — the ledger row na
 /** Does this column match a column / column-pattern row? The subject is the PROPERTY name, which is the
  *  identity a reintroduction re-spells; the fact already resolved it through shorthand, spread, alias and
  *  imported-columns-object shapes. */
-function columnHit(shape: Exclude<SchemaBannedShape, { readonly kind: "table" }>, column: SchemaColumn): boolean {
+function columnHit(shape: Exclude<SchemaBannedShape, { readonly kind: "table" }>, column: SchemaProjectedColumn): boolean {
   return shape.kind === "column" ? column.identity.propertyName === shape.column : shape.pattern.test(column.identity.propertyName);
 }
 
@@ -55,14 +55,14 @@ function columnLabel(shape: Exclude<SchemaBannedShape, { readonly kind: "table" 
 }
 
 interface BannedShapeFinding {
-  readonly node: SchemaTable["declaration"] | SchemaColumn["declaration"];
+  readonly node: SchemaProjectedTable["declaration"] | SchemaProjectedColumn["declaration"];
   readonly token: string;
   readonly message: string;
 }
 
 /** Every rejected shape this table reintroduces, one finding per OCCURRENCE (two banned columns on one
  *  table are two findings, never one summary row). */
-function tableFindings(table: SchemaTable): readonly BannedShapeFinding[] {
+function tableFindings(table: SchemaProjectedTable): readonly BannedShapeFinding[] {
   return SCHEMA_BANNED_SHAPES.filter((shape) => shape.table === table.sqlName).flatMap((shape) => {
     if (shape.kind === "table") {
       return [{ node: table.declaration, token: table.identity.declarationName, message: bannedMessage(`the \`${shape.table}\` table`, shape.cite) }];
@@ -81,13 +81,13 @@ export const gate = defineGate({
   population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const fact = ctx.fact(drizzleSchemaFact).schema();
+      const fact = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, fact);
       for (const table of fact.value.tables) {
         for (const finding of tableFindings(table)) {

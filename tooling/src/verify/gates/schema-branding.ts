@@ -1,7 +1,7 @@
 // Entity ids in the Drizzle schema carry the canonical @orb/kit/ids phantom, and FK children carry the
 // exact same brand as their parent column. The provider owns type/symbol identity; this policy owns intent.
 //
-// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaDataFact`), which owns
 // Drizzle builder identity, the table/column model and the `$type<XId>()` override this policy judges.
 // POPULATION PORT: an INTENTIONAL NARROWING OF THE WALKED SET over an IDENTICAL subject set. The legacy
 // descriptor (dd1a0458822222d84f1d0157bde55a3346288375, the parent of the `7d66188923` conversion) declared
@@ -19,10 +19,11 @@
 // `population` admits 30 (the bare harness dispatch was 7,130). legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
+
+import type { SchemaProjectedColumn, SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaColumn, SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const MESSAGE =
   "a schema entity id is unbranded or an FK brand differs from its parent — Drizzle row types must preserve the canonical @orb/kit/ids identity across database reads and relationships.";
@@ -32,7 +33,7 @@ const ID_TYPES_PATH = "packages/kit/src/ids/index.ts";
 const ID_TYPES =
   'declare const brand: unique symbol;\nexport type Branded<B extends string> = string & { readonly [brand]: B };\nexport type TypeIdOf<P extends string> = Branded<P>;\nexport type ChatId = TypeIdOf<"chat">;\nexport type UserId = Branded<"UserId">;\n';
 
-function primaryBrandProblem(table: SchemaTable, column: SchemaColumn): string | null {
+function primaryBrandProblem(table: SchemaProjectedTable, column: SchemaProjectedColumn): string | null {
   return column.identity.propertyName === "id" && column.primaryKey && (column.typeOverride?.idBrand ?? null) === null
     ? `${table.sqlName}.${column.sqlName} is a primary-key entity id without a canonical @orb/kit/ids brand.`
     : null;
@@ -43,11 +44,11 @@ function primaryBrandProblem(table: SchemaTable, column: SchemaColumn): string |
  *  control-flow accident: deleting that clause makes this call a type error instead of silently shipping
  *  the sentence "carries null" to an author (wave 3 D8). `mustPass[5]` holds the same fence at the
  *  behavioural tier, so the narrowing is enforced on both rungs. */
-function brandMismatch(column: SchemaColumn, parent: SchemaColumn, brand: string, parentBrand: string): string {
+function brandMismatch(column: SchemaProjectedColumn, parent: SchemaProjectedColumn, brand: string, parentBrand: string): string {
   return `${column.identity.table.declarationName}.${column.identity.propertyName} carries id brand ${brand}, but its parent ${parent.identity.table.declarationName}.${parent.identity.propertyName} carries ${parentBrand}.`;
 }
 
-function foreignKeyBrandProblem(column: SchemaColumn, columns: ReadonlyMap<string, SchemaColumn>): string | null {
+function foreignKeyBrandProblem(column: SchemaProjectedColumn, columns: ReadonlyMap<string, SchemaProjectedColumn>): string | null {
   const parentIdentity = column.foreignKey?.parent;
   if (parentIdentity?.kind !== "population-column") {
     return null;
@@ -74,13 +75,13 @@ export const gate = defineGate({
   population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const fact = ctx.fact(drizzleSchemaFact).schema();
+      const fact = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, fact);
       const columns = new Map(fact.value.tables.flatMap((table) => table.columns.map((column) => [column.identity.key, column] as const)));
       for (const table of fact.value.tables) {

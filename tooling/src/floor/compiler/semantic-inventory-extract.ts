@@ -177,10 +177,15 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
-    ...(families.includes("drizzle-identities")
+    ...(usesDrizzleFacts(families)
       ? [
           "./drizzle-inventory-extract.ts",
           "./drizzle-evidence-encode.ts",
+          "./schema-projection-encode.ts",
+          "../code-facts/schema-projection.ts",
+          "../code-facts/schema-projection-contract.ts",
+          "../code-facts/schema-projection-inventory-contract.ts",
+          "../code-facts/schema-projection-replay.ts",
           "./invocation-evidence-extract.ts",
           "../code-facts/drizzle-evidence.ts",
           "../code-facts/drizzle-evidence-contract.ts",
@@ -402,7 +407,9 @@ function assertDrizzleRequest(
     families.includes("drizzle-identities") !== (request.drizzleQueries !== undefined) ||
     request.drizzleQueries?.some((query) => !roots.includes(query.node.file)) === true ||
     request.schemaSources?.some((query) => !roots.includes(query.file) || query.kind !== SyntaxKind.SourceFile) === true ||
-    (request.schemaSources !== undefined && !families.includes("drizzle-identities"))
+    (request.schemaSources !== undefined && !families.includes("drizzle-identities")) ||
+    request.schemaDataSources?.some((query) => !roots.includes(query.file) || query.kind !== SyntaxKind.SourceFile) === true ||
+    (request.schemaDataSources !== undefined && !families.includes("schema-data"))
   ) {
     throw new Error("native Drizzle identities require closed source/call demand in admitted roots");
   }
@@ -430,7 +437,7 @@ function extractTypedFacts(
     readonly invocationQueries: readonly InventoryInvocationQuery[];
     readonly drizzle: InventoryBuildRequest;
   },
-): SourceFactValues & Pick<InventoryPartition, "pairs" | "references" | "schemaIdentity" | "drizzleCalls"> {
+): SourceFactValues & Pick<InventoryPartition, "pairs" | "references" | "schemaIdentity" | "schemaData" | "drizzleCalls"> {
   const {
     sources,
     authored,
@@ -444,7 +451,11 @@ function extractTypedFacts(
     globalBindingQueries,
     invocationQueries,
   } = input;
-  const needsProject = invocationQueries.length > 0 || input.drizzle.schemaSources !== undefined || (input.drizzle.drizzleQueries?.length ?? 0) > 0;
+  const needsProject =
+    invocationQueries.length > 0 ||
+    input.drizzle.schemaSources !== undefined ||
+    input.drizzle.schemaDataSources !== undefined ||
+    (input.drizzle.drizzleQueries?.length ?? 0) > 0;
   const invocationProgram = needsProject ? project.getProgram().compilerObject : undefined;
   // Physical input metadata retains host parses; semantic reads require the exact Program-admitted AST,
   // including compiler-owned package redirects whose descendants belong to their canonical target.
@@ -459,14 +470,15 @@ function extractTypedFacts(
     beginReferencePass();
   }
   try {
-    const drizzle = families.includes("drizzle-identities")
-      ? extractDrizzleIdentities(input.drizzle, invocationSources, spans.node, (source) => {
-          if (invocationProgram === undefined) {
-            throw new Error("native Drizzle Project owner is unavailable");
-          }
-          assertInvocationSource(source, invocationProgram, "drizzle-capture");
-        })
-      : {};
+    const drizzle =
+      families.includes("drizzle-identities") || families.includes("schema-data")
+        ? extractDrizzleIdentities(input.drizzle, invocationSources, spans.node, (source) => {
+            if (invocationProgram === undefined) {
+              throw new Error("native Drizzle Project owner is unavailable");
+            }
+            assertInvocationSource(source, invocationProgram, "drizzle-capture");
+          })
+        : {};
     const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, {
       spans,
       families: new Set(families),
@@ -1232,12 +1244,13 @@ function usesReferencePass(families: readonly InventoryFamily[]): boolean {
     families.includes("callable-declarations") ||
     families.includes("computed-names") ||
     families.includes("global-origins") ||
-    families.includes("drizzle-identities")
+    families.includes("drizzle-identities") ||
+    families.includes("schema-data")
   );
 }
 
 function invocationImplementationInputs(families: readonly InventoryFamily[]): readonly string[] {
-  return families.includes("invocation-evidence") || families.includes("drizzle-identities")
+  return families.includes("invocation-evidence") || families.includes("drizzle-identities") || families.includes("schema-data")
     ? [
         "./invocation-evidence-extract.ts",
         "../code-facts/invocation-evidence-replay.ts",
@@ -1248,4 +1261,8 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
         "../code-facts/type-member-origin-core.ts",
       ].map((name) => fileURLToPath(new URL(name, import.meta.url)))
     : [];
+}
+
+function usesDrizzleFacts(families: readonly InventoryFamily[]): boolean {
+  return families.includes("drizzle-identities") || families.includes("schema-data");
 }

@@ -60,6 +60,7 @@
 //   with it. That member therefore declares the DRIZZLE-SCHEMA family's shared population while belonging
 //   to THIS family: the classification data is tenancy's, the files it reads are the schema's, and the two
 //   are deliberately not merged.
+import type { SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { SchemaForeignKey, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import type { ForeignKeyColumns, SchemaTableIndex } from "../contract/tenancy.ts";
 import type { ScopingRow, TableShape } from "../contract/tenancy-scope.ts";
@@ -85,7 +86,7 @@ const CHAT_COL = "chatId";
 export const EDGE_ARROW = "->";
 
 /** The shape facts `table-scoping-class`'s own coherence check judges a row's declared class against. */
-export function tableShapeOf(table: SchemaTable): TableShape {
+export function tableShapeOf(table: Pick<SchemaProjectedTable, "columns">): TableShape {
   let hasOwnerId = false;
   let hasChatId = false;
   let fkCount = 0;

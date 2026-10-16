@@ -9,6 +9,7 @@ import type { DeclarationBindingKeys, SourceBindingUsage } from "./binding-usage
 import { replayDrizzleCallEvidence, replaySchemaIdentityCatalog } from "./drizzle-evidence-replay.ts";
 import { replayInvocationEvidence } from "./invocation-evidence-replay.ts";
 import type { GlobalMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
+import { replaySchemaDataCatalog } from "./schema-projection-replay.ts";
 import type {
   InventoryFamily,
   InventoryInvocationEvidence,
@@ -41,6 +42,7 @@ import {
   readInventoryPairs,
   readInventoryReferences,
   readInventoryRuntimeExports,
+  readInventorySchemaData,
   readInventorySchemaIdentity,
   readInventoryShape,
   readInventorySourceMetadata,
@@ -273,6 +275,31 @@ export function inventoryReader(
         return catalog.fact;
       }
       return replaySchemaIdentityCatalog(catalog, replayFor(first, program, partition, "schema identity"));
+    },
+    schemaData: (sources, program) => {
+      assertOpen();
+      const selected = indexes.filter((candidate) => candidate.program === program);
+      const partition = selected[0];
+      if (selected.length !== 1 || partition === undefined) {
+        throw new SemanticInventoryError("native schema catalog owner is unavailable");
+      }
+      requireFamily(selected, "schema-data");
+      for (const source of sources) {
+        nativeSpan(source, program, "schema-data");
+      }
+      const catalog = readInventorySchemaData(db, partition.id);
+      const expected = sources.map((source) => JSON.stringify(capturedSpan(source))).toSorted();
+      if (JSON.stringify(catalog.sources.map(({ node }) => JSON.stringify(node)).toSorted()) !== JSON.stringify(expected)) {
+        throw new SemanticInventoryError("native full schema data source demand is incomplete or foreign");
+      }
+      const first = sources[0];
+      if (first === undefined) {
+        if (catalog.fact.status !== "missing") {
+          throw new SemanticInventoryError("native empty schema demand has nonmissing evidence");
+        }
+        return catalog.fact;
+      }
+      return replaySchemaDataCatalog(catalog, replayFor(first, program, partition, "full schema data"));
     },
     drizzleEvidence: (node, program, mode) => {
       const { partition, span } = nativeSpan(node, program, "drizzle-identities");

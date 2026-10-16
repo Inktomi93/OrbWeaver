@@ -1,7 +1,7 @@
 // Every child-side foreign-key column leads a real Drizzle B-tree index. The shared schema fact owns
 // canonical builder identity and imported/aliased column and extras resolution.
 //
-// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaDataFact`), which owns
 // Drizzle builder identity and the table/column model for every member. The member-kind resolution this
 // policy's DECLARED LIMIT rests on (imported/local object-literal bindings, object spreads, shorthand
 // members, static computed keys, and a loud refusal for every other member kind) is the fact's own
@@ -24,7 +24,7 @@
 
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const MESSAGE =
   "a foreign-key column does not LEAD any B-tree index — SQLite indexes only the parent side, and a column second in a composite cannot serve child lookup or parent-delete probes. Tier-1-DB.md §Invariants.";
@@ -39,13 +39,13 @@ export const gate = defineGate({
   population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const fact = ctx.fact(drizzleSchemaFact).schema();
+      const fact = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, fact);
       for (const table of fact.value.tables) {
         const leading = new Set(
