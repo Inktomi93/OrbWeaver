@@ -30,12 +30,13 @@
 
 import {
   readMemberReference,
+  readMemberReferenceWithName,
   referenceResolutionServices,
   resolveGlobalMemberOrigin,
   resolveModuleMemberOrigin,
 } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
-import type { ProcessMemberVerdict } from "../contract/origin-verdict.ts";
+import type { GlobalOriginServices, ProcessMemberVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { originModuleSpecifier } from "./sealed-origin.ts";
 
@@ -49,17 +50,17 @@ const PROCESS_DOORS: readonly string[] = ["node:process", "process"];
 /** Judge one member-access node (dotted, optional or computed-literal): is it `process.<member>` off the real
  *  `process`? A node that is not a member read of that NAME answers `other` before any identity work — the
  *  name is the prefilter that keeps fail-closure honest. */
-export function classifyProcessMemberRead(node: MorphNode, member: string): ProcessMemberVerdict {
-  const read = readMemberReference(node);
+export function classifyProcessMemberRead(node: MorphNode, member: string, services?: GlobalOriginServices): ProcessMemberVerdict {
+  const read = services === undefined ? readMemberReference(node) : readMemberReferenceWithName(node, services.readComputedName);
   if (read.kind === "unresolved" || read.value.name !== member) {
     return "other";
   }
-  const global = resolveGlobalMemberOrigin(node);
+  const global = services === undefined ? resolveGlobalMemberOrigin(node) : services.globalOrigin(node);
   if (global.kind === "resolved") {
     const path = global.value.memberPath;
     return global.value.globalName === PROCESS_GLOBAL && path.length === 1 && path[0] === member ? "reads" : "other";
   }
-  const module = resolveModuleMemberOrigin(node);
+  const module = services === undefined ? resolveModuleMemberOrigin(node) : services.moduleOrigin(node);
   if (module.kind === "resolved") {
     const path = module.value.memberPath;
     return PROCESS_DOORS.includes(originModuleSpecifier(module.value)) && path.length === 1 && path[0] === member ? "reads" : "other";
@@ -75,5 +76,5 @@ export function classifyProcessMemberRead(node: MorphNode, member: string): Proc
   // ambiguous reasons (write/cycle/ambiguous) still short-circuit ahead of the binding test, which is what
   // keeps a re-bound `let process` on the UNREADABLE arm (`mustFlag[4]`), and an undeclared global still
   // binds no declaration at all (`mustFlag[3]`).
-  return classifyOriginRefusal(module.reason, referenceResolutionServices.unwrapExpression(read.value.receiver));
+  return classifyOriginRefusal(module.reason, referenceResolutionServices.unwrapExpression(read.value.receiver), services?.declarations);
 }

@@ -42,7 +42,7 @@ Native schema and value consumers include assets, table ownership, vectors, enum
 
 JSON read, write and health policies consume native cohorts with parser membership and atomic catalogs. Evidence: `reports/review/1027-json-three-ordinary.md`.
 
-Native Zod, body-cap, selected origin, ID, reference, bus and failure consumers pass ordinary qualification and independent review. Missing native evidence refuses. Remaining families and cost stay open. Evidence: `reports/review/1027-native-bus-ordinary.md` and `reports/review/1027-native-failure-ordinary.md`.
+Zod, body-cap, origin, ID, reference, bus and failure consumers pass ordinary controls and review. Remaining families and cost stay open. Evidence: `reports/review/1027-native-bus-ordinary.md` and `reports/review/1027-native-failure-ordinary.md`.
 
 CSS providers preserve population and authority. Review and ordinary controls pass; census and cost remain open. Evidence: `reports/review/1027-native-css-ordinary.md`.
 
@@ -51,3 +51,5 @@ Retained direct and uncast origins pass ordinary controls and security review. E
 Mounted tRPC outputs pass review and ordinary controls. Real-router census and cost remain open. Evidence: `reports/review/1027-native-trpc-ordinary.md`.
 
 Inherited service, config and policy members preserve native order and complete populations. Review and ordinary controls pass; grant census remains open. Evidence: `reports/review/1027-native-inherited-members-ordinary.md`.
+
+Fixture provenance preserves native helper and alias judgments. Review and ordinary controls pass; other governance routes stay open. Evidence: `reports/review/1027-native-fixture-ordinary.md`.

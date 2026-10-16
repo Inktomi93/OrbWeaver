@@ -336,7 +336,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
     },
     functionExport: (node) => {
       admit(node);
-      if (!(rawSlots && Node.isFunctionDeclaration(node))) {
+      if (!(rawSlots && (Node.isFunctionDeclaration(node) || Node.isVariableStatement(node)))) {
         throw new Error("native function export question is not an admitted function");
       }
       const value = functionExports.get(node) ?? node.isExported();

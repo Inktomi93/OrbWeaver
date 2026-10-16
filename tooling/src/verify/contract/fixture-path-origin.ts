@@ -1,4 +1,23 @@
 import type { CallExpression, Identifier, Node } from "ts-morph";
+import type { NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeContext } from "./project-context.ts";
+
+export interface FixturePathNativeContext {
+  readonly files: readonly import("ts-morph").SourceFile[];
+  readonly nativeTypes?: Pick<NativeTypeContext, "request" | "invocationEvidence">;
+}
+
+/** Existing raw observations retained under the original importing source. */
+export interface FixturePathNativeRead {
+  readonly evidence: NativeInvocationEvidence;
+  readonly types: TypeObservationReader;
+}
+
+export interface FixturePathNativePass {
+  readonly prepare: () => void;
+  readonly at: (source: import("ts-morph").SourceFile) => FixturePathNativeRead;
+}
 
 /** The one unreadable verdict every fixture-path reader produces, and the finite authored-string fact the
  *  record reader answers with. They live HERE rather than beside the reader that mints them because they

@@ -3,6 +3,8 @@
 import type { ArrowFunction, CallExpression, FunctionDeclaration, FunctionExpression, Identifier, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
+import type { FixturePathNativeRead } from "../contract/fixture-path-origin.ts";
+import { fixtureSymbol } from "./fixture-path-semantic.ts";
 
 type FunctionNode = FunctionDeclaration | ArrowFunction | FunctionExpression | import("ts-morph").MethodDeclaration;
 
@@ -17,8 +19,8 @@ function unwrap(node: MorphNode): MorphNode {
   return referenceResolutionServices.unwrapExpression(node);
 }
 
-function symbolIdentity(identifier: Identifier): object | undefined {
-  return identifier.getSymbol()?.compilerSymbol;
+function symbolIdentity(identifier: Identifier, read?: FixturePathNativeRead): object | undefined {
+  return fixtureSymbol(identifier, read);
 }
 
 function functionOfDeclaration(declaration: MorphNode): FunctionNode | undefined {
@@ -53,7 +55,7 @@ function functionOfParameter(parameter: ParameterDeclaration): FunctionNode | un
   return Node.isFunctionLikeDeclaration(parent) ? (parent as FunctionNode) : undefined;
 }
 
-export function createFixturePathCallGraph(): FixturePathCallGraph {
+export function createFixturePathCallGraph(read?: FixturePathNativeRead): FixturePathCallGraph {
   const calls: CallExpression[] = [];
   const identifiersBySymbol = new Map<object, Identifier[]>();
   const callsByFunction = new Map<object, CallExpression[]>();
@@ -63,7 +65,7 @@ export function createFixturePathCallGraph(): FixturePathCallGraph {
     if (!Node.isIdentifier(expression)) {
       return;
     }
-    const declarations = expression.getSymbol()?.getDeclarations() ?? [];
+    const declarations = read === undefined ? (expression.getSymbol()?.getDeclarations() ?? []) : read.evidence.declarations(expression);
     const functions = declarations.flatMap((declaration) => {
       const fn = functionOfDeclaration(declaration);
       return fn === undefined ? [] : [fn];
@@ -77,7 +79,7 @@ export function createFixturePathCallGraph(): FixturePathCallGraph {
   }
 
   function visitIdentifier(identifier: Identifier): void {
-    const identity = symbolIdentity(identifier);
+    const identity = symbolIdentity(identifier, read);
     if (identity !== undefined) {
       const sites = identifiersBySymbol.get(identity) ?? [];
       sites.push(identifier);
@@ -99,16 +101,21 @@ export function createFixturePathCallGraph(): FixturePathCallGraph {
     }
   }
 
+  function exported(node: FunctionDeclaration | import("ts-morph").VariableStatement): boolean {
+    return read === undefined ? node.isExported() : read.types.functionExport(node);
+  }
+
   function callableIsClosed(fn: FunctionNode): boolean {
     const name = declarationName(fn);
-    if (name === undefined || (Node.isFunctionDeclaration(fn) && fn.isExported())) {
+    if (name === undefined || (Node.isFunctionDeclaration(fn) && exported(fn))) {
       return false;
     }
     const variable = fn.getParentIfKind(SyntaxKind.VariableDeclaration);
-    if (variable?.getVariableStatement()?.isExported() === true) {
+    const statement = variable?.getVariableStatement();
+    if (statement !== undefined && exported(statement)) {
       return false;
     }
-    const identity = symbolIdentity(name);
+    const identity = symbolIdentity(name, read);
     if (identity === undefined) {
       return false;
     }

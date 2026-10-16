@@ -73,13 +73,14 @@
 //
 // `hard`/`error`: this is the fence that keeps a gate's own test from blinding the gate. A module that could
 // waive out of it would re-open the door the 2026-08-24 incident closed.
-import type { CallExpression } from "ts-morph";
+import type { CallExpression, Identifier } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
-import type { FixturePathOriginReader } from "../contract/fixture-path-origin.ts";
+import type { FixturePathNativeRead, FixturePathOriginReader } from "../contract/fixture-path-origin.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { nativeFixturePathPass } from "../lib/fixture-path-native.ts";
 import { createFixturePathOriginReader } from "../lib/fixture-path-origin.ts";
+import { fixtureModule } from "../lib/fixture-path-semantic.ts";
 
 /** The filesystem doors, by SPECIFIER. A bare node builtin has no import origin to resolve past — the spelling
  *  IS the identity — which is the same reasoning `policy-soundness#FORBIDDEN_IO_SPECIFIERS` records. */
@@ -146,8 +147,8 @@ const MISSING_MESSAGE =
 const FIX =
   'Root the write at the canonical `scratch` or `plantedTree` fixture (`tests/support/node/tool-fixtures.ts`), or create a unique directory with `mkdtemp[Disposable][Sync](join(tmpdir(), prefix))`, and keep every composed path below that root — `fixturePath(root, …)` carries a proven root across a runtime-computed segment. If the test genuinely needs the REAL tree it READS it: `readFileSync`/`existsSync`/a read-only `openSync(path, "r")` are untouched by this policy. Copy/cp/symlink/link judge their destination; rename judges both paths. A test that must PLANT at real-tree paths is the `__g_` conformance-suite shape and lives outside this population under an explicit dated grant (#2176), never behind a carve here.';
 
-function writeDoor(call: CallExpression): { readonly verb: WriteVerb; readonly positions: readonly number[] } | undefined {
-  const origin = resolveModuleMemberOrigin(call.getExpression());
+function writeDoor(call: CallExpression, read: FixturePathNativeRead): { readonly verb: WriteVerb; readonly positions: readonly number[] } | undefined {
+  const origin = fixtureModule(call.getExpression(), read);
   if (origin.kind === "unresolved" || !FS_SPECIFIERS.has(origin.value.moduleSpecifier)) {
     return;
   }
@@ -210,8 +211,9 @@ export const gate = defineGate({
   message: UNREADABLE_MESSAGE,
   fix: FIX,
   create: (ctx: GatePolicyContext) => {
-    const paths = createFixturePathOriginReader();
-    const candidates: WriteCandidate[] = [];
+    const calls: CallExpression[] = [];
+    const identifiers: Identifier[] = [];
+    const native = nativeFixturePathPass(ctx, calls, identifiers);
     return {
       visitors: [
         {
@@ -222,11 +224,7 @@ export const gate = defineGate({
             }
             // EVERY call is handed to the reader, not only the fs doors: the call graph's job is to know a
             // helper's COMPLETE caller set, and a helper's callers are ordinary calls.
-            paths.visitCall(node);
-            const door = writeDoor(node);
-            if (door !== undefined) {
-              candidates.push({ call: node, verb: door.verb, positions: door.positions });
-            }
+            calls.push(node);
           },
         },
         {
@@ -235,14 +233,29 @@ export const gate = defineGate({
             if (Node.isIdentifier(node)) {
               // Identifier references are what prove a helper does not ESCAPE (every reference is either its
               // declaration name or a callee position); without them a passed-around helper would read "closed".
-              paths.visitIdentifier(node);
+              identifiers.push(node);
             }
           },
         },
       ],
+      prepare: native.prepare,
       evaluate: (): void => {
-        for (const candidate of candidates) {
-          judge(ctx, paths, candidate);
+        for (const source of ctx.files) {
+          const read = native.at(source);
+          const paths = createFixturePathOriginReader(read);
+          const sourceCalls = calls.filter((call) => call.getSourceFile() === source);
+          for (const call of sourceCalls) {
+            paths.visitCall(call);
+          }
+          for (const identifier of identifiers.filter((node) => node.getSourceFile() === source)) {
+            paths.visitIdentifier(identifier);
+          }
+          for (const call of sourceCalls) {
+            const door = writeDoor(call, read);
+            if (door !== undefined) {
+              judge(ctx, paths, { call, ...door });
+            }
+          }
         }
       },
     };

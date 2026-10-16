@@ -3,10 +3,17 @@
 import { isAbsolute, posix, win32 } from "node:path";
 import type { CallExpression, Identifier, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
-import type { FixtureAuthoredStringFact, FixtureAuthoredValueUnreadable, FixturePathOrigin, FixturePathOriginReader } from "../contract/fixture-path-origin.ts";
+import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
+import type {
+  FixtureAuthoredStringFact,
+  FixtureAuthoredValueUnreadable,
+  FixturePathNativeRead,
+  FixturePathOrigin,
+  FixturePathOriginReader,
+} from "../contract/fixture-path-origin.ts";
 import { createFixtureAuthoredRecordReader } from "./fixture-path-authored-record.ts";
 import { createFixturePathCallGraph } from "./fixture-path-call-graph.ts";
+import { fixtureDeclaration, fixtureMember, fixtureModule, fixtureOriginServices, fixtureStable } from "./fixture-path-semantic.ts";
 import { classifyProcessMemberRead } from "./process-member-origin.ts";
 
 const ROOT_KINDS = ["scratch", "checkout", "temp-base"] as const;
@@ -46,8 +53,8 @@ function unwrap(node: MorphNode): MorphNode {
   return referenceResolutionServices.unwrapExpression(node);
 }
 
-function canonicalVerb(call: CallExpression, specifiers: ReadonlySet<string>, verbs: ReadonlySet<string>): string | undefined {
-  const fact = resolveModuleMemberOrigin(call.getExpression());
+function canonicalVerb(call: CallExpression, specifiers: ReadonlySet<string>, verbs: ReadonlySet<string>, read?: FixturePathNativeRead): string | undefined {
+  const fact = fixtureModule(call.getExpression(), read);
   if (fact.kind === "unresolved" || !specifiers.has(fact.value.moduleSpecifier)) {
     return;
   }
@@ -57,8 +64,8 @@ function canonicalVerb(call: CallExpression, specifiers: ReadonlySet<string>, ve
 
 /** The conformance mini-project has no ambient node declarations. An unbound `process` receiver is still
  *  the ambient global; a local declaration of that spelling is deliberately not. */
-function isAmbientProcessCwd(call: CallExpression): boolean {
-  const member = readMemberReference(call.getExpression());
+function isAmbientProcessCwd(call: CallExpression, read?: FixturePathNativeRead): boolean {
+  const member = fixtureMember(call.getExpression(), read);
   if (member.kind === "unresolved" || member.value.name !== "cwd") {
     return false;
   }
@@ -66,12 +73,12 @@ function isAmbientProcessCwd(call: CallExpression): boolean {
   if (!Node.isIdentifier(receiver) || receiver.getText() !== "process") {
     return false;
   }
-  const declaration = referenceResolutionServices.declarationOf(receiver);
+  const declaration = fixtureDeclaration(receiver, read);
   return declaration.kind === "unresolved" && declaration.reason === "missing";
 }
 
-function fixtureBinding(identifier: Identifier): { readonly name: string; readonly carrier: MorphNode } | undefined {
-  const declaration = referenceResolutionServices.declarationOf(identifier);
+function fixtureBinding(identifier: Identifier, read?: FixturePathNativeRead): { readonly name: string; readonly carrier: MorphNode } | undefined {
+  const declaration = fixtureDeclaration(identifier, read);
   if (declaration.kind === "unresolved" || !Node.isBindingElement(declaration.value)) {
     return;
   }
@@ -85,7 +92,7 @@ function fixtureBinding(identifier: Identifier): { readonly name: string; readon
   if (ownerCall === undefined || !ownerCall.getArguments().some((argument) => unwrap(argument).compilerNode === fn.compilerNode)) {
     return;
   }
-  const origin = resolveModuleMemberOrigin(ownerCall.getExpression());
+  const origin = fixtureModule(ownerCall.getExpression(), read);
   if (
     origin.kind === "unresolved" ||
     origin.value.canonical.kind !== "project" ||
@@ -127,9 +134,13 @@ function distinct(values: readonly string[]): readonly string[] | undefined {
 }
 
 /** Build one invocation-local reader. */
-export function createFixturePathOriginReader(): FixturePathOriginReader {
-  const graph = createFixturePathCallGraph();
-  const records = createFixtureAuthoredRecordReader({ parameterArguments: graph.parameterArguments, stringValues });
+export function createFixturePathOriginReader(read?: FixturePathNativeRead): FixturePathOriginReader {
+  const graph = createFixturePathCallGraph(read);
+  const records = createFixtureAuthoredRecordReader({
+    parameterArguments: graph.parameterArguments,
+    stringValues,
+    ...(read === undefined ? {} : { native: read }),
+  });
   function stringParameter(identifier: Identifier, parameter: ParameterDeclaration, seen: Set<object>): FixtureAuthoredStringFact {
     const args = graph.parameterArguments(parameter);
     if (args === undefined) {
@@ -170,7 +181,7 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       return { kind: "values", values };
     }
     if (Node.isIdentifier(current)) {
-      const declaration = referenceResolutionServices.declarationOf(current);
+      const declaration = fixtureDeclaration(current, read);
       if (declaration.kind === "resolved" && Node.isBindingElement(declaration.value)) {
         return records.bindingElementValues(declaration.value, seen);
       }
@@ -190,14 +201,14 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
           return values === undefined ? unreadable(current, "iterable string set exceeds the reader bound") : { kind: "values", values };
         }
       }
-      const stable = resolveStableExpression(current);
+      const stable = fixtureStable(current, read);
       if (stable.kind === "resolved") {
         return stringValues(stable.value, seen);
       }
       return stable.reason === "dynamic" ? stringValues(stable.node, seen) : unreadable(current, stable.detail);
     }
     if (Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current)) {
-      const member = readMemberReference(current);
+      const member = fixtureMember(current, read);
       return member.kind === "unresolved" ? unreadable(current, member.detail) : records.propertyValue(member.value.receiver, member.value.name, seen);
     }
     if (Node.isConditionalExpression(current)) {
@@ -218,7 +229,7 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       const values = distinct(left.values.flatMap((a) => right.values.map((b) => `${a}${b}`)));
       return values === undefined ? unreadable(current, "concatenated string set exceeds the reader bound") : { kind: "values", values };
     }
-    if (Node.isCallExpression(current) && canonicalVerb(current, PATH_SPECIFIERS, new Set(["basename", "dirname"])) !== undefined) {
+    if (Node.isCallExpression(current) && canonicalVerb(current, PATH_SPECIFIERS, new Set(["basename", "dirname"]), read) !== undefined) {
       const argument = current.getArguments()[0];
       if (argument === undefined) {
         return unreadable(current, "basename has no path argument");
@@ -227,7 +238,7 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       if (fact.kind === "unreadable") {
         return fact;
       }
-      const verb = canonicalVerb(current, PATH_SPECIFIERS, new Set(["basename", "dirname"]));
+      const verb = canonicalVerb(current, PATH_SPECIFIERS, new Set(["basename", "dirname"]), read);
       return { kind: "values", values: fact.values.map((value) => (verb === "dirname" ? posix.dirname(value) : posix.basename(value))) };
     }
     return unreadable(current, `${current.getKindName()} is not a finite authored string`);
@@ -274,7 +285,7 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: finite canonical path-call grammar.
   function pathCall(call: CallExpression, seen: Set<object>): InternalFact | undefined {
-    const fixturePathOrigin = resolveModuleMemberOrigin(call.getExpression());
+    const fixturePathOrigin = fixtureModule(call.getExpression(), read);
     if (
       fixturePathOrigin.kind === "resolved" &&
       fixturePathOrigin.value.canonical.kind === "project" &&
@@ -284,7 +295,7 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       const root = call.getArguments()[0];
       return root === undefined ? unreadable(call, "fixturePath has no owned root argument") : pathFact(root, new Set(seen));
     }
-    const pathVerb = canonicalVerb(call, PATH_SPECIFIERS, new Set(["join", "resolve", "dirname"]));
+    const pathVerb = canonicalVerb(call, PATH_SPECIFIERS, new Set(["join", "resolve", "dirname"]), read);
     if (pathVerb !== undefined) {
       const args = call.getArguments();
       const first = args[0];
@@ -318,10 +329,10 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       }
       return root;
     }
-    if (canonicalVerb(call, OS_SPECIFIERS, new Set(["tmpdir"])) !== undefined) {
+    if (canonicalVerb(call, OS_SPECIFIERS, new Set(["tmpdir"]), read) !== undefined) {
       return { kind: "temp-base", depth: 0, carrier: call };
     }
-    if (canonicalVerb(call, FS_SPECIFIERS, MKDTEMP_VERBS) !== undefined) {
+    if (canonicalVerb(call, FS_SPECIFIERS, MKDTEMP_VERBS, read) !== undefined) {
       const prefix = call.getArguments()[0];
       const base = prefix === undefined ? unreadable(call, "mkdtemp has no prefix") : pathFact(prefix, new Set(seen));
       // `depth > 0` is the whole point: `mkdtempSync(tmpdir())` creates a sibling of the SHARED temp base,
@@ -332,7 +343,7 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
     }
     const expression = unwrap(call.getExpression());
     if (Node.isIdentifier(expression)) {
-      const fixture = fixtureBinding(expression);
+      const fixture = fixtureBinding(expression, read);
       if (fixture?.name === PLANTED_TREE_FIXTURE) {
         return { kind: "scratch", depth: 0, carrier: expression };
       }
@@ -352,14 +363,14 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       return pathFact(current.getExpression(), seen);
     }
     if (Node.isIdentifier(current)) {
-      const fixture = fixtureBinding(current);
+      const fixture = fixtureBinding(current, read);
       if (fixture?.name === SCRATCH_FIXTURE) {
         return { kind: "scratch", depth: 0, carrier: current };
       }
       if (fixture?.name === REPO_FIXTURE) {
         return { kind: "checkout", depth: 0, carrier: current };
       }
-      const declaration = referenceResolutionServices.declarationOf(current);
+      const declaration = fixtureDeclaration(current, read);
       if (declaration.kind === "unresolved") {
         return current.getText() === "__dirname" || current.getText() === "__filename"
           ? { kind: "checkout", depth: 0, carrier: current }
@@ -368,15 +379,15 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       if (Node.isParameterDeclaration(declaration.value)) {
         return parameterRoot(current, declaration.value, seen);
       }
-      const stable = resolveStableExpression(current);
+      const stable = fixtureStable(current, read);
       if (stable.kind === "resolved") {
         return pathFact(stable.value, seen);
       }
       return stable.reason === "dynamic" ? pathFact(stable.node, seen) : unreadable(current, stable.detail);
     }
     if (Node.isCallExpression(current)) {
-      const process = classifyProcessMemberRead(current.getExpression(), "cwd");
-      if (process === "reads" || isAmbientProcessCwd(current)) {
+      const process = classifyProcessMemberRead(current.getExpression(), "cwd", read === undefined ? undefined : fixtureOriginServices(read));
+      if (process === "reads" || isAmbientProcessCwd(current, read)) {
         return { kind: "checkout", depth: 0, carrier: current.getExpression() };
       }
       if (process === "unreadable") {
@@ -385,7 +396,7 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       return pathCall(current, seen) ?? unreadable(current, "call result has no proven fixture-path origin");
     }
     if (Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current)) {
-      const member = readMemberReference(current);
+      const member = fixtureMember(current, read);
       if (
         member.kind === "resolved" &&
         member.value.receiver.getKind() === SyntaxKind.MetaProperty &&
@@ -400,7 +411,7 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
     return unreadable(current, `${current.getKindName()} has no proven fixture-path origin`);
   }
 
-  function read(node: MorphNode): FixturePathOrigin {
+  function readPath(node: MorphNode): FixturePathOrigin {
     graph.finish();
     const fact = pathFact(node, new Set());
     if (fact.kind === "scratch") {
@@ -441,10 +452,10 @@ export function createFixturePathOriginReader(): FixturePathOriginReader {
       return authored.values.length > 0 && authored.values.every((value) => READ_ONLY_OPEN_FLAGS.has(value));
     }
     // `O_RDONLY` is numeric zero; nothing else in the numeric flag space is read-only on its own.
-    const stable = Node.isIdentifier(unwrap(flags)) ? resolveStableExpression(unwrap(flags)) : undefined;
+    const stable = Node.isIdentifier(unwrap(flags)) ? fixtureStable(unwrap(flags), read) : undefined;
     const numeric = stable?.kind === "resolved" ? unwrap(stable.value) : unwrap(flags);
     return Node.isNumericLiteral(numeric) && Number(numeric.getText()) === 0;
   }
 
-  return { visitCall: graph.visitCall, visitIdentifier: graph.visitIdentifier, isReadOnlyOpen, read, readMkdtempPrefix };
+  return { visitCall: graph.visitCall, visitIdentifier: graph.visitIdentifier, isReadOnlyOpen, read: readPath, readMkdtempPrefix };
 }

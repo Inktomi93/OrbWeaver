@@ -270,7 +270,12 @@ function sourceWriteIdentifiers(source: import("ts-morph").SourceFile): readonly
   writes.push(...source.getDescendantsOfKind(SyntaxKind.ForInStatement).map((node) => node.getInitializer()));
   return writes.flatMap((write) => [write, ...write.getDescendants()].filter(Node.isIdentifier));
 }
-function observeClosureNode(node: MorphNode, question: TypeObservationQuestion, readers: TypeObservationReader): readonly MorphNode[] {
+function observeClosureNode(
+  node: MorphNode,
+  question: TypeObservationQuestion,
+  readers: TypeObservationReader,
+  profile?: TypeObservationCaptureOwner["profile"],
+): readonly MorphNode[] {
   if (Node.isIdentifier(node)) {
     readers.definitions(node);
   }
@@ -278,6 +283,7 @@ function observeClosureNode(node: MorphNode, question: TypeObservationQuestion, 
     return [];
   }
   const bodies = symbolBodies(node, readers);
+  valueProfile(question, node, profile);
   questions["type-details"]({ ...question, kind: "type-details", nodes: [node] }, readers);
   return bodies;
 }
@@ -300,8 +306,8 @@ function walkSymbolClosure(roots: readonly MorphNode[], observe: (node: MorphNod
     }
   }
 }
-function symbolClosure(question: TypeObservationQuestion, readers: TypeObservationReader): void {
-  walkSymbolClosure(question.nodes, (node) => observeClosureNode(node, question, readers));
+function symbolClosure(question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+  walkSymbolClosure(question.nodes, (node) => observeClosureNode(node, question, readers, profile));
 }
 function graphPath(selector: NativeTypeSelector, path: readonly string[], at: MorphNode): NativeTypeSelector {
   return { ...selector, steps: [...selector.steps, ...path.map((name) => ({ kind: "property" as const, name, at }))] };

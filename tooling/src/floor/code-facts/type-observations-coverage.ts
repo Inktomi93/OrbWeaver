@@ -81,7 +81,7 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
   if (
     functions.length > 0 !== (facts.functionExports !== undefined && facts.functionExports.length > 0) ||
     JSON.stringify(functions) !== JSON.stringify((facts.functionExports ?? []).map((row) => key(row.node))) ||
-    facts.functionExports?.some((row) => kind(row.node) !== SyntaxKind.FunctionDeclaration) === true
+    facts.functionExports?.some((row) => kind(row.node) !== SyntaxKind.FunctionDeclaration && kind(row.node) !== SyntaxKind.VariableStatement) === true
   ) {
     throw new Error("native function export coverage is missing or foreign");
   }
@@ -205,6 +205,7 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
           q.kind !== "const-initializers" &&
           q.kind !== "selected-property-graph" &&
           q.kind !== "callable-body-values" &&
+          q.kind !== "symbol-closure" &&
           q.valueFacets !== undefined,
     )
   ) {

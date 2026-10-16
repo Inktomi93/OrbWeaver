@@ -2,8 +2,9 @@
 // recursive string reader and complete helper arguments; this module owns the record grammar only.
 import type { BindingElement, CallExpression, Identifier, Node as MorphNode, ObjectLiteralExpression, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
-import type { FixtureAuthoredStringFact, FixtureAuthoredValueUnreadable } from "../contract/fixture-path-origin.ts";
+import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
+import type { FixtureAuthoredStringFact, FixtureAuthoredValueUnreadable, FixturePathNativeRead } from "../contract/fixture-path-origin.ts";
+import { fixtureDeclaration, fixtureGlobal, fixtureMember, fixtureStable } from "./fixture-path-semantic.ts";
 
 export interface FixtureAuthoredRecordReader {
   readonly arrayLiteralOf: (node: MorphNode) => import("ts-morph").ArrayLiteralExpression | undefined;
@@ -12,6 +13,7 @@ export interface FixtureAuthoredRecordReader {
 }
 
 interface FixtureAuthoredRecordServices {
+  readonly native?: FixturePathNativeRead;
   readonly parameterArguments: (parameter: ParameterDeclaration) => readonly MorphNode[] | undefined;
   readonly stringValues: (node: MorphNode, seen: Set<object>) => FixtureAuthoredStringFact;
 }
@@ -35,17 +37,17 @@ function propertyName(binding: BindingElement): string | undefined {
   return undefined;
 }
 
-function globalMember(call: CallExpression, globalName: string, member: string): boolean {
-  const fact = resolveGlobalMemberOrigin(call.getExpression());
+function globalMember(call: CallExpression, globalName: string, member: string, native?: FixturePathNativeRead): boolean {
+  const fact = fixtureGlobal(call.getExpression(), native);
   if (fact.kind === "resolved") {
     return fact.value.globalName === globalName && fact.value.memberPath.length === 1 && fact.value.memberPath[0] === member;
   }
-  const read = readMemberReference(call.getExpression());
+  const read = fixtureMember(call.getExpression(), native);
   if (read.kind === "unresolved" || read.value.name !== member) {
     return false;
   }
   const receiver = unwrap(read.value.receiver);
-  const declaration = Node.isIdentifier(receiver) ? referenceResolutionServices.declarationOf(receiver) : undefined;
+  const declaration = Node.isIdentifier(receiver) ? fixtureDeclaration(receiver, native) : undefined;
   return Node.isIdentifier(receiver) && receiver.getText() === globalName && declaration?.kind === "unresolved" && declaration.reason === "missing";
 }
 
@@ -74,7 +76,7 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
       // biome-ignore lint/complexity/noUselessUndefined: tsconfig enables noImplicitReturns.
       return undefined;
     }
-    const stable = resolveStableExpression(current);
+    const stable = fixtureStable(current, services.native);
     if (stable.kind === "resolved") {
       return arrayLiteralOf(stable.value);
     }
@@ -147,14 +149,14 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
 
   function entriesSource(node: MorphNode): MorphNode | undefined {
     const expression = unwrap(node);
-    if (!(Node.isCallExpression(expression) && globalMember(expression, "Object", "entries"))) {
+    if (!(Node.isCallExpression(expression) && globalMember(expression, "Object", "entries", services.native))) {
       return;
     }
     return expression.getArguments()[0];
   }
 
   function mapSource(call: CallExpression): MorphNode | undefined {
-    const member = readMemberReference(call.getExpression());
+    const member = fixtureMember(call.getExpression(), services.native);
     if (member.kind === "unresolved" || member.value.name !== "map") {
       return;
     }
@@ -165,7 +167,7 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
   function propertyValue(object: MorphNode, name: string, seen: Set<object>): FixtureAuthoredStringFact {
     const current = unwrap(object);
     if (Node.isIdentifier(current)) {
-      const declaration = referenceResolutionServices.declarationOf(current);
+      const declaration = fixtureDeclaration(current, services.native);
       if (declaration.kind === "resolved" && Node.isParameterDeclaration(declaration.value)) {
         const args = services.parameterArguments(declaration.value);
         if (args === undefined) {
@@ -192,7 +194,7 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
           return values === undefined ? unreadable(current, "iterable property set exceeds the reader bound") : { kind: "values", values };
         }
       }
-      const stable = resolveStableExpression(current);
+      const stable = fixtureStable(current, services.native);
       if (stable.kind === "unresolved") {
         return unreadable(current, stable.detail);
       }
@@ -263,7 +265,7 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
   }
 
   function objectRestSource(identifier: Identifier): { readonly source: MorphNode; readonly excluded: readonly string[] } | undefined {
-    const declaration = referenceResolutionServices.declarationOf(identifier);
+    const declaration = fixtureDeclaration(identifier, services.native);
     if (declaration.kind === "unresolved" || !Node.isBindingElement(declaration.value) || declaration.value.getDotDotDotToken() === undefined) {
       return;
     }
@@ -320,7 +322,7 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
         const source = recordKeys(rest.source, new Set(seen));
         return source.kind === "unreadable" ? source : { kind: "values", values: source.values.filter((value) => !rest.excluded.includes(value)) };
       }
-      const declaration = referenceResolutionServices.declarationOf(current);
+      const declaration = fixtureDeclaration(current, services.native);
       if (declaration.kind === "resolved" && Node.isParameterDeclaration(declaration.value)) {
         const args = services.parameterArguments(declaration.value);
         if (args === undefined) {
@@ -334,13 +336,13 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
         const values = distinct(facts.flatMap((fact) => (fact as { readonly kind: "values"; readonly values: readonly string[] }).values));
         return values === undefined ? unreadable(current, "record-key set exceeds the reader bound") : { kind: "values", values };
       }
-      const stable = resolveStableExpression(current);
+      const stable = fixtureStable(current, services.native);
       if (stable.kind === "resolved") {
         return recordKeys(stable.value, seen);
       }
       return stable.reason === "dynamic" ? recordKeys(stable.node, seen) : unreadable(current, stable.detail);
     }
-    if (Node.isCallExpression(current) && globalMember(current, "Object", "fromEntries")) {
+    if (Node.isCallExpression(current) && globalMember(current, "Object", "fromEntries", services.native)) {
       return fromEntriesKeys(current, seen);
     }
     return unreadable(current, "record keys are not statically enumerable");
@@ -357,7 +359,7 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
       return propertyNames(current, "values", seen);
     }
     if (Node.isIdentifier(current)) {
-      const declaration = referenceResolutionServices.declarationOf(current);
+      const declaration = fixtureDeclaration(current, services.native);
       if (declaration.kind === "resolved" && Node.isParameterDeclaration(declaration.value)) {
         const args = services.parameterArguments(declaration.value);
         if (args === undefined) {
@@ -371,7 +373,7 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
         const values = distinct(facts.flatMap((fact) => (fact as { readonly kind: "values"; readonly values: readonly string[] }).values));
         return values === undefined ? unreadable(current, "record-value set exceeds the reader bound") : { kind: "values", values };
       }
-      const stable = resolveStableExpression(current);
+      const stable = fixtureStable(current, services.native);
       if (stable.kind === "resolved") {
         return recordValues(stable.value, seen);
       }
