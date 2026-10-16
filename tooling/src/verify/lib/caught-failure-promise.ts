@@ -4,43 +4,60 @@
 // verdict lives here — this reader only names WHICH invocation is a rejection handler and what it touches.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { ambientIdentifier, hasInterveningWrite, importedName, literalMember, REJECTION_HANDLER_INDEX } from "./caught-failure-core.ts";
+import { rawFailureDeclarations } from "./caught-failure-read.ts";
 
-function isZodSchemaExpression(node: Node, seen: ReadonlySet<Node> = new Set()): boolean {
+function isZodSchemaExpression(node: Node, seen: ReadonlySet<Node> = new Set(), reads?: CaughtFailureReadServices): boolean {
   const value = unwrapExpression(node);
   if (seen.has(value)) {
     return false;
   }
   const nextSeen = new Set(seen).add(value);
   if (value.isKind(SyntaxKind.Identifier)) {
-    if (importedName(value, new Set(["zod"])) !== undefined) {
+    if (importedName(value, new Set(["zod"]), reads) !== undefined) {
       return true;
     }
-    const declaration = value.getSymbol()?.getDeclarations()[0];
+    const declaration = rawFailureDeclarations(value, reads)[0];
     const initializer = declaration?.isKind(SyntaxKind.VariableDeclaration) === true ? declaration.getInitializer() : undefined;
-    return initializer !== undefined && isZodSchemaExpression(initializer, nextSeen);
+    return initializer !== undefined && isZodSchemaExpression(initializer, nextSeen, reads);
   }
   if (value.isKind(SyntaxKind.CallExpression)) {
     const callee = unwrapExpression(value.getExpression());
-    if (callee.isKind(SyntaxKind.Identifier) && importedName(callee, new Set(["zod"])) !== undefined) {
+    if (callee.isKind(SyntaxKind.Identifier) && importedName(callee, new Set(["zod"]), reads) !== undefined) {
       return true;
     }
-    const member = literalMember(callee);
-    return member !== undefined && isZodSchemaExpression(member.receiver, nextSeen);
+    const member = literalMember(callee, reads);
+    return member !== undefined && isZodSchemaExpression(member.receiver, nextSeen, reads);
   }
-  const member = literalMember(value);
-  return member !== undefined && isZodSchemaExpression(member.receiver, nextSeen);
+  const member = literalMember(value, reads);
+  return member !== undefined && isZodSchemaExpression(member.receiver, nextSeen, reads);
 }
 
-export function promiseLikeValue(receiver: Node): boolean {
-  if (isZodSchemaExpression(receiver)) {
+export function promiseLikeValue(receiver: Node, reads?: CaughtFailureReadServices): boolean {
+  if (isZodSchemaExpression(receiver, undefined, reads)) {
     return false;
   }
-  const type = receiver.getType();
-  const constituents = type.isUnion() ? type.getUnionTypes() : [type];
-  const nonNullish = constituents.filter((part) => !["null", "undefined"].includes(part.getText()));
-  return nonNullish.length > 0 && nonNullish.every((part) => ["any", "unknown"].includes(part.getText()) || part.getProperty("then") !== undefined);
+  if (reads === undefined) {
+    const type = receiver.getType();
+    const constituents = type.isUnion() ? type.getUnionTypes() : [type];
+    const nonNullish = constituents.filter((part) => !["null", "undefined"].includes(part.getText()));
+    return nonNullish.length > 0 && nonNullish.every((part) => ["any", "unknown"].includes(part.getText()) || part.getProperty("then") !== undefined);
+  }
+  const selector = nodeTypeSelector(receiver);
+  const unions = reads.types.unions(selector);
+  const constituents = unions.length === 0 ? [selector] : unions;
+  const nonNullish = constituents.filter((part) => !["null", "undefined"].includes(reads.types.defaultDisplay(part)));
+  return (
+    nonNullish.length > 0 &&
+    nonNullish.every(
+      (part) =>
+        ["any", "unknown"].includes(reads.types.defaultDisplay(part)) ||
+        reads.types.select({ ...part, steps: [...part.steps, { kind: "property", name: "then", at: receiver }] }) !== null,
+    )
+  );
 }
 
 export interface PromiseRejectionInvocation {
@@ -67,8 +84,12 @@ function directRejection(call: CallExpression, member: { readonly name: string; 
 }
 
 /** `p.catch.call(p, h)` / `Promise.prototype.catch.call(p, h)` — the same absorb, one argument to the right. */
-function calledRejection(call: CallExpression, member: { readonly name: string; readonly receiver: Node }): PromiseRejectionInvocation | undefined {
-  const link = member.name === "call" ? rejectionLink(literalMember(member.receiver)?.name) : undefined;
+function calledRejection(
+  call: CallExpression,
+  member: { readonly name: string; readonly receiver: Node },
+  reads?: CaughtFailureReadServices,
+): PromiseRejectionInvocation | undefined {
+  const link = member.name === "call" ? rejectionLink(literalMember(member.receiver, reads)?.name) : undefined;
   if (link === undefined) {
     return;
   }
@@ -78,15 +99,19 @@ function calledRejection(call: CallExpression, member: { readonly name: string; 
 }
 
 /** `p.catch.apply(p, [h])` and `Reflect.apply(p.catch, p, [h])` — the handler moves into the array literal. */
-function appliedRejection(call: CallExpression, member: { readonly name: string; readonly receiver: Node }): PromiseRejectionInvocation | undefined {
+function appliedRejection(
+  call: CallExpression,
+  member: { readonly name: string; readonly receiver: Node },
+  reads?: CaughtFailureReadServices,
+): PromiseRejectionInvocation | undefined {
   if (member.name !== "apply") {
     return;
   }
-  const reflect = ambientIdentifier(member.receiver, "Reflect", new Set());
+  const reflect = ambientIdentifier(member.receiver, "Reflect", new Set(), reads);
   const rejectionNode = reflect ? call.getArguments()[0] : member.receiver;
   const receiver = call.getArguments()[reflect ? 1 : 0];
   const args = call.getArguments()[reflect ? 2 : 1];
-  const link = rejectionNode === undefined ? undefined : rejectionLink(literalMember(rejectionNode)?.name);
+  const link = rejectionNode === undefined ? undefined : rejectionLink(literalMember(rejectionNode, reads)?.name);
   if (link === undefined || receiver === undefined || args?.isKind(SyntaxKind.ArrayLiteralExpression) !== true) {
     return;
   }
@@ -95,20 +120,20 @@ function appliedRejection(call: CallExpression, member: { readonly name: string;
 }
 
 /** `const recover = p.catch.bind(p); recover(h)` — the absorb one hop behind a const. */
-function boundRejection(call: CallExpression, callee: Node): PromiseRejectionInvocation | undefined {
+function boundRejection(call: CallExpression, callee: Node, reads?: CaughtFailureReadServices): PromiseRejectionInvocation | undefined {
   if (!callee.isKind(SyntaxKind.Identifier)) {
     return;
   }
-  const declaration = callee.getSymbol()?.getDeclarations()[0];
-  if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || hasInterveningWrite(callee, declaration)) {
+  const declaration = rawFailureDeclarations(callee, reads)[0];
+  if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || hasInterveningWrite(callee, declaration, reads)) {
     return;
   }
   const initializer = declaration.getInitializerIfKind(SyntaxKind.CallExpression);
-  const bind = initializer === undefined ? undefined : literalMember(initializer.getExpression());
+  const bind = initializer === undefined ? undefined : literalMember(initializer.getExpression(), reads);
   if (initializer === undefined || bind?.name !== "bind") {
     return;
   }
-  const link = rejectionLink(literalMember(bind.receiver)?.name);
+  const link = rejectionLink(literalMember(bind.receiver, reads)?.name);
   if (link === undefined) {
     return;
   }
@@ -119,13 +144,13 @@ function boundRejection(call: CallExpression, callee: Node): PromiseRejectionInv
 
 /** Every way to hand a promise a REJECTION HANDLER. Method syntax is only the most common one — a reader that
  *  stops there leaves `call`/`apply`/`Reflect.apply`/`bind` as silent laundering routes for the same absorb. */
-export function promiseRejectionInvocation(call: CallExpression): PromiseRejectionInvocation | undefined {
+export function promiseRejectionInvocation(call: CallExpression, reads?: CaughtFailureReadServices): PromiseRejectionInvocation | undefined {
   const callee = unwrapExpression(call.getExpression());
-  const member = literalMember(callee);
+  const member = literalMember(callee, reads);
   if (member === undefined) {
-    return boundRejection(call, callee);
+    return boundRejection(call, callee, reads);
   }
-  return directRejection(call, member) ?? calledRejection(call, member) ?? appliedRejection(call, member) ?? boundRejection(call, callee);
+  return directRejection(call, member) ?? calledRejection(call, member, reads) ?? appliedRejection(call, member, reads) ?? boundRejection(call, callee, reads);
 }
 
 /** Kinds that WRAP a value without giving anyone a handle on it — the whole wrapper is discarded exactly when
@@ -148,7 +173,7 @@ const TRANSPARENT_WRAPPER_KINDS: ReadonlySet<SyntaxKind> = new Set([
 const TRANSPARENT_BINARY_OPERATORS: ReadonlySet<string> = new Set([",", "&&", "||", "??"]);
 
 /** The next node up that the recovered value flows into, or undefined when the chain leaves this reader. */
-function transparentParent(current: Node): Node | undefined {
+function transparentParent(current: Node, reads?: CaughtFailureReadServices): Node | undefined {
   const parent = current.getParent();
   if (parent === undefined) {
     return;
@@ -162,7 +187,7 @@ function transparentParent(current: Node): Node | undefined {
   if (parent.isKind(SyntaxKind.BinaryExpression) && TRANSPARENT_BINARY_OPERATORS.has(parent.getOperatorToken().getText())) {
     return parent;
   }
-  if (parent.isKind(SyntaxKind.CallExpression) && parent.getArguments().some((argument) => argument === current) && isNativePromiseAggregate(parent)) {
+  if (parent.isKind(SyntaxKind.CallExpression) && parent.getArguments().some((argument) => argument === current) && isNativePromiseAggregate(parent, reads)) {
     return parent;
   }
   const memberRead = parent.isKind(SyntaxKind.PropertyAccessExpression) || parent.isKind(SyntaxKind.ElementAccessExpression);
@@ -174,13 +199,13 @@ function transparentParent(current: Node): Node | undefined {
 
 /** Does this recovered promise reach a STATEMENT with nobody holding it? Wrapping it in an object, an array,
  *  a template, an aggregate, or a derived property does not create a consumer for its failure value. */
-export function isDiscardedExpression(call: CallExpression): boolean {
+export function isDiscardedExpression(call: CallExpression, reads?: CaughtFailureReadServices): boolean {
   let current: Node = call;
   for (;;) {
     if (current.getParent()?.isKind(SyntaxKind.ExpressionStatement) === true) {
       return true;
     }
-    const next = transparentParent(current);
+    const next = transparentParent(current, reads);
     if (next === undefined) {
       return false;
     }
@@ -188,8 +213,8 @@ export function isDiscardedExpression(call: CallExpression): boolean {
   }
 }
 
-function isNativePromiseAggregate(call: CallExpression): boolean {
-  const member = literalMember(call.getExpression());
+function isNativePromiseAggregate(call: CallExpression, reads?: CaughtFailureReadServices): boolean {
+  const member = literalMember(call.getExpression(), reads);
   if (
     member === undefined ||
     !new Set(["all", "allSettled", "any", "race"]).has(member.name) ||
@@ -198,7 +223,7 @@ function isNativePromiseAggregate(call: CallExpression): boolean {
   ) {
     return false;
   }
-  return (member.receiver.getSymbol()?.getDeclarations() ?? []).every(
+  return rawFailureDeclarations(member.receiver, reads).every(
     (declaration) => declaration.getSourceFile() !== call.getSourceFile() || declaration.getSourceFile().isDeclarationFile(),
   );
 }

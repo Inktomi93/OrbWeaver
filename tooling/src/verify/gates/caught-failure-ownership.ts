@@ -99,12 +99,15 @@
 // packages into `@product`, making those explicit refs redundant while keeping the intended corpus. The
 // expression now lives in `lib/caught-failure.ts#CAUGHT_FAILURE_POPULATION` (work item 0009), because the
 // census and its health sibling must walk this exact corpus too.
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { CaughtFailureArm } from "../contract/caught-failure.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { CaughtFailureSite } from "../lib/caught-failure.ts";
-import { CAUGHT_FAILURE_POPULATION, catchClauseSite, promiseAbsorberSite } from "../lib/caught-failure.ts";
+import { CAUGHT_FAILURE_POPULATION, caughtFailureSite } from "../lib/caught-failure.ts";
+
+import { nativeFailureRead } from "../lib/caught-failure-native.ts";
 
 const MESSAGE =
   "UNPROVEN OWNERSHIP for a caught failure. A syntactically handled rejection can still erase a user or operator failure: an empty catch, a discarded promise rejection, or an undocumented default says nothing about who owns the failure or how it is surfaced. (tooling/src/verify/gates/GATE-AUTHORING.md)";
@@ -144,22 +147,27 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.CatchClause],
-        visit: (node) => {
-          reportSite(ctx, catchClauseSite(node.asKindOrThrow(SyntaxKind.CatchClause)));
+  create: (ctx) => {
+    const nominees: Node[] = [];
+    const native = nativeFailureRead(ctx, () => nominees);
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CatchClause, SyntaxKind.CallExpression],
+          visit: (node): void => {
+            nominees.push(node);
+          },
         },
+      ],
+      prepare: native.prepare,
+      evaluate: (): void => {
+        for (const node of nominees) {
+          const reads = native.at(node.getSourceFile());
+          reportSite(ctx, caughtFailureSite(node, reads));
+        }
       },
-      {
-        kinds: [SyntaxKind.CallExpression],
-        visit: (node) => {
-          reportSite(ctx, promiseAbsorberSite(node.asKindOrThrow(SyntaxKind.CallExpression)));
-        },
-      },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

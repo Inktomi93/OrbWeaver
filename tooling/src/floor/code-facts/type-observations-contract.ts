@@ -14,6 +14,10 @@ export const TYPE_OBSERVATION_QUESTION_KINDS = [
   "signature-parameters",
   "symbol-values",
   "value-profiles",
+  "type-details",
+  "function-exports",
+  "symbol-closure",
+  "reference-closure",
 ] as const;
 export interface TypeObservationQuestion<Anchor = Node> {
   readonly kind: (typeof TYPE_OBSERVATION_QUESTION_KINDS)[number];
@@ -52,7 +56,13 @@ export interface NativeObservedType {
   readonly unionCount: number;
   readonly tupleCount: number;
   readonly stringLiteral?: string | null | undefined;
+  readonly defaultDisplay?: string | undefined;
+  readonly literalValue?: NativeTypeObservation<ObservedLiteralValue> | undefined;
+  readonly typeArguments?: readonly number[] | undefined;
+  readonly typeArgumentCount?: number | undefined;
 }
+
+export type ObservedLiteralValue = string | number | boolean | { readonly negative: boolean; readonly base10Value: string };
 
 export interface NativeObservedNode<Anchor = Node> {
   readonly node: Anchor;
@@ -92,6 +102,7 @@ export interface TypeObservationValues<Anchor = Node> {
   }[];
   readonly signatures: readonly NativeObservedSignature<Anchor>[];
   readonly definitions?: readonly { readonly node: Anchor; readonly values: readonly Anchor[] }[] | undefined;
+  readonly functionExports?: readonly { readonly node: Anchor; readonly value: boolean }[] | undefined;
   readonly callParameters?: readonly { readonly call: Anchor; readonly parameterCount: number | null; readonly values: readonly number[] | null }[] | undefined;
   readonly signatureParameters?:
     | readonly {
@@ -121,6 +132,12 @@ export interface TypeObservationCaptureOwner {
   readonly anchor: SourceFile;
   readonly admit: (node: Node) => void;
   readonly profile?: ((node: Node, facets: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][]) => void) | undefined;
+  readonly references?: ((node: Node) => readonly Node[]) | undefined;
+}
+
+export interface TypeObservationCaptureRequest {
+  readonly demand: TypeObservationDemand;
+  readonly references?: TypeObservationCaptureOwner["references"];
 }
 
 /** Handles are scalar references into an explicit capture, not compiler Type/Symbol facades. */
@@ -179,6 +196,10 @@ export interface TypeObservationReader {
   readonly signatureParameters: (selector: NativeTypeSelector, at: Node) => readonly (readonly NativeTypeSelector[])[];
   readonly literal: (selector: NativeTypeSelector) => string | null;
   readonly valueDeclaration: (symbol: ObservedReference<"symbol">) => Node | null;
+  readonly defaultDisplay: (selector: NativeTypeSelector) => string;
+  readonly literalValue: (selector: NativeTypeSelector) => ObservedLiteralValue | undefined;
+  readonly typeArguments: (selector: NativeTypeSelector) => readonly NativeTypeSelector[];
+  readonly functionExport: (node: Node) => boolean;
 }
 
 export interface TypeObservationCapture {

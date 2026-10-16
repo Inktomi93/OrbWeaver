@@ -527,7 +527,16 @@ function extractTypedFacts(
   if (callablePass) {
     beginReferencePass();
   }
+  let referencePass: ts.ReadonlyReferencePass | undefined;
   try {
+    referencePass = createNativeReferencePass(service, families);
+    const referenceQueries = captureStrictReferenceQueries(
+      { pass: referencePass, service, program },
+      {
+        spans,
+        queries: workerReferenceQueries(input.drizzle),
+      },
+    );
     let ordinarySchema: SchemaQuery | undefined;
     let ordinaryBasis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null = null;
     const drizzle =
@@ -561,13 +570,14 @@ function extractTypedFacts(
       invocationProgram,
       ordinarySchema,
       ordinaryBasis,
+      referenceQueries,
     });
     const facts = {
       ...sourceFacts,
       ...drizzle,
       pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
       ...(families.includes("references")
-        ? extractReferenceFacts(service, program, referenceDeclarations, { spans, queries: workerReferenceQueries(input.drizzle) })
+        ? { references: extractReferenceFacts(referencePass, program, referenceDeclarations, spans), referenceQueries }
         : { references: [], referenceQueries: [] }),
     };
     // A later LS-owned family must not silently replace the Project owner whose invocation bytes were captured.
@@ -579,6 +589,7 @@ function extractTypedFacts(
     }
     return facts;
   } finally {
+    referencePass?.dispose();
     if (callablePass) {
       endReferencePass();
     }
@@ -1037,6 +1048,7 @@ function extractSourceFacts(
     readonly invocationProgram: ts.Program | undefined;
     readonly ordinarySchema: SchemaQuery | undefined;
     readonly ordinaryBasis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
+    readonly referenceQueries: NonNullable<InventoryPartition["referenceQueries"]>;
   },
 ): SourceFactValues & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
   const { spans } = input;
@@ -1083,6 +1095,7 @@ function extractSourceFacts(
       program: input.invocationProgram,
       schema: input.ordinarySchema,
       basis: input.ordinaryBasis,
+      referenceQueries: input.referenceQueries,
     });
     for (const original of sources.files) {
       const sf = sharedSourceFile(program, sources.nativeSources.get(original.getFilePath()), byCompilerSource);
@@ -1120,46 +1133,51 @@ function extractSourceFacts(
 }
 
 function extractReferenceFacts(
-  service: ts.LanguageService,
+  pass: ts.ReadonlyReferencePass | undefined,
   program: ts.Program,
   referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration>,
-  options: { readonly spans: InventorySpans; readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryReferencePair[] },
-): Pick<InventoryPartition, "references" | "referenceQueries"> {
-  const { spans, queries } = options;
+  spans: InventorySpans,
+): InventoryPartition["references"] {
+  if (pass === undefined) {
+    throw new Error("native inventory reference pass is unavailable");
+  }
   const references: InventoryPartition["references"] = [];
-  const referenceQueries: NonNullable<InventoryPartition["referenceQueries"]> = [];
-  const sources = queries.length === 0 ? [] : nativeCompilerSourceFiles(program);
-  const pass = service.createReadonlyReferencePass();
-  try {
-    if (service.getProgram() !== program) {
-      throw new Error("native inventory Program changed before its reference pass");
+  for (const declaration of referenceDeclarations.values()) {
+    const nativeReferences = nativeReferenceFacts(pass, program, declaration.query, spans);
+    for (const reference of nativeReferences) {
+      references.push({ declaration: declaration.declaration, ...reference });
     }
-    // The native pass shares only its immutable import map, never query meaning or reference groups.
-    for (const declaration of referenceDeclarations.values()) {
-      const nativeReferences = nativeReferenceFacts(pass, program, declaration.query, spans);
+    if (declaration.name !== undefined) {
       for (const reference of nativeReferences) {
-        references.push({
-          declaration: declaration.declaration,
-          ...reference,
-        });
-      }
-      if (declaration.name !== undefined) {
-        for (const reference of nativeReferences) {
-          references.push({
-            declaration: declaration.name,
-            ...reference,
-          });
-        }
+        references.push({ declaration: declaration.name, ...reference });
       }
     }
-    referenceQueries.push(...captureReferenceQueries({ pass, service, program }, sources, options));
+  }
+  return references;
+}
+
+function captureStrictReferenceQueries(
+  owner: { readonly pass: ts.ReadonlyReferencePass | undefined; readonly service: ts.LanguageService; readonly program: ts.Program },
+  options: { readonly spans: InventorySpans; readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryReferencePair[] },
+): NonNullable<InventoryPartition["referenceQueries"]> {
+  if (owner.pass === undefined) {
+    return [];
+  }
+  if (owner.service.getProgram() !== owner.program) {
+    throw new Error("native inventory Program changed before its reference pass");
+  }
+  const sources = options.queries.length === 0 ? [] : nativeCompilerSourceFiles(owner.program);
+  try {
+    return captureReferenceQueries({ ...owner, pass: owner.pass }, sources, options);
   } finally {
-    pass.dispose();
     for (const source of sources) {
       source.forget();
     }
   }
-  return { references, referenceQueries };
+}
+
+function createNativeReferencePass(service: ts.LanguageService, families: readonly InventoryFamily[]): ts.ReadonlyReferencePass | undefined {
+  return families.includes("references") ? service.createReadonlyReferencePass() : undefined;
 }
 
 function captureReferenceQueries(
@@ -1338,6 +1356,7 @@ interface InvocationCollection {
   readonly bindingKeys: Set<string>;
   readonly computedKeys: Set<string>;
   readonly globalKeys: Set<string>;
+  readonly referenceQueries: NonNullable<InventoryPartition["referenceQueries"]>;
 }
 
 /** Requested roots close related binding/name sources before the ordinary authored walk forgets wrappers. */
@@ -1349,6 +1368,7 @@ function collectInvocationFacts(
     readonly program: ts.Program | undefined;
     readonly schema: SchemaQuery | undefined;
     readonly basis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
+    readonly referenceQueries: NonNullable<InventoryPartition["referenceQueries"]>;
   },
 ): void {
   const { program, schema, basis } = owner;
@@ -1368,6 +1388,7 @@ function collectInvocationFacts(
     bindingKeys: new Set(),
     computedKeys: new Set(context.values.computedNames.map((fact) => inventoryNodeQueryKey(fact.node))),
     globalKeys: new Set(context.values.globalOrigins.map((fact) => inventoryNodeQueryKey(fact.node))),
+    referenceQueries: owner.referenceQueries,
   };
   for (const source of sources) {
     assertInvocationSource(source, program, "before-queries");
@@ -1420,7 +1441,12 @@ function collectInvocationQuery(query: InventoryInvocationQuery, state: Invocati
           },
         };
   const typeDemand = typeObservationDemand(query, byFile);
-  const evidence = captureInvocationEvidence(node, query, ordinary, typeDemand);
+  const evidence = captureInvocationEvidence(
+    node,
+    query,
+    ordinary,
+    typeDemand === undefined ? undefined : { demand: typeDemand, references: (subject) => invocationReferences(state, subject) },
+  );
   assertInvocationSource(node.getSourceFile(), program, "after-query");
   const wire = encodeInvocationEvidence(node, query, evidence, context.spans.node);
   for (const keyNode of evidence.observations?.keys ?? []) {
@@ -1461,6 +1487,21 @@ function collectInvocationQuery(query: InventoryInvocationQuery, state: Invocati
     });
   }
   context.values.invocationEvidence.push({ ...wire, sources: [...closed.values()] });
+}
+function invocationReferences(state: InvocationCollection, subject: MorphNode): readonly MorphNode[] {
+  const importer = subject.getSourceFile();
+  assertInvocationSource(importer, state.program, "raw-reference-importer");
+  const pair = { root: state.context.spans.node(importer), node: state.context.spans.node(subject) };
+  const key = referenceQueryKey(pair);
+  const answer = state.referenceQueries.find((row) => referenceQueryKey({ root: row.root, node: row.query }) === key);
+  if (answer === undefined) {
+    throw new Error("native raw reference closure has no exact strict importer/query answer");
+  }
+  return answer.references.map(({ reference }) => {
+    const result = inventoryQueryNode(state.byFile.get(reference.file), reference);
+    assertInvocationSource(result.getSourceFile(), state.program, "raw-reference-result");
+    return result;
+  });
 }
 function invocationRelatedSources(
   query: InventoryInvocationQuery,

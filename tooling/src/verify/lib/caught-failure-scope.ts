@@ -4,6 +4,7 @@
 // the discriminated-rethrow and cause-chaining credits — for an explicit owner or an escaping throw.
 import type { Block, CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import {
   calleeName,
@@ -17,18 +18,19 @@ import {
   propertyValueNode,
 } from "./caught-failure-core.ts";
 import { isExplicitOwnerCall, isFailureOutcome } from "./caught-failure-outcome.ts";
+import { rawFailureDeclarations } from "./caught-failure-read.ts";
 
 // ── framework provenance ────────────────────────────────────────────────────────────────────────────────
 const QUERY_FACTORIES: ReadonlySet<string> = new Set(["useInfiniteQuery", "useQuery", "useQueryClient", "useSuspenseInfiniteQuery", "useSuspenseQuery"]);
 const FORM_FACTORIES: ReadonlySet<string> = new Set(["useForm"]);
 
-function entityMutationFactoryOwns(call: CallExpression): boolean {
+function entityMutationFactoryOwns(call: CallExpression, reads?: CaughtFailureReadServices): boolean {
   const callee = unwrapExpression(call.getExpression());
-  return declarationsOf(callee).some((declaration) => {
+  return declarationsOf(callee, reads).some((declaration) => {
     if (!declaration.isKind(SyntaxKind.VariableDeclaration)) {
       return false;
     }
-    if (callee.isKind(SyntaxKind.Identifier) && hasInterveningWrite(callee, declaration)) {
+    if (callee.isKind(SyntaxKind.Identifier) && hasInterveningWrite(callee, declaration, reads)) {
       return false;
     }
     const initializer = declaration.getInitializerIfKind(SyntaxKind.CallExpression);
@@ -36,9 +38,9 @@ function entityMutationFactoryOwns(call: CallExpression): boolean {
     if (initializer === undefined || config?.isKind(SyntaxKind.ObjectLiteralExpression) !== true) {
       return false;
     }
-    const factoryDeclarations = declarationsOf(initializer.getExpression());
+    const factoryDeclarations = declarationsOf(initializer.getExpression(), reads);
     const governedFactory =
-      importedName(initializer.getExpression(), new Set(["#data", "./create-entity-mutation.ts"])) === "createEntityMutation" ||
+      importedName(initializer.getExpression(), new Set(["#data", "./create-entity-mutation.ts"]), reads) === "createEntityMutation" ||
       factoryDeclarations.some(
         (factory) =>
           factory.isKind(SyntaxKind.FunctionDeclaration) &&
@@ -46,61 +48,64 @@ function entityMutationFactoryOwns(call: CallExpression): boolean {
           factory.getSourceFile().getFilePath().endsWith("/packages/client/src/data/create-entity-mutation.ts"),
       );
     const toastValue = propertyValueNode(config.getProperty("errorToast"));
-    return governedFactory && toastValue !== undefined && isFailureOutcome(toastValue, undefined);
+    return governedFactory && toastValue !== undefined && isFailureOutcome(toastValue, undefined, reads);
   });
 }
 
-function originatesFromOwnedEntityMutation(node: Node, seen: ReadonlySet<Node> = new Set()): boolean {
+function originatesFromOwnedEntityMutation(node: Node, seen: ReadonlySet<Node> = new Set(), reads?: CaughtFailureReadServices): boolean {
   const value = unwrapExpression(node);
   if (seen.has(value)) {
     return false;
   }
   const nextSeen = new Set(seen).add(value);
   if (value.isKind(SyntaxKind.CallExpression)) {
-    return entityMutationFactoryOwns(value);
+    return entityMutationFactoryOwns(value, reads);
   }
   if (!value.isKind(SyntaxKind.Identifier)) {
     return false;
   }
-  const declaration = value.getSymbol()?.getDeclarations()[0];
-  if (declaration !== undefined && hasInterveningWrite(value, declaration)) {
+  const declaration = rawFailureDeclarations(value, reads)[0];
+  if (declaration !== undefined && hasInterveningWrite(value, declaration, reads)) {
     return false;
   }
   if (declaration?.isKind(SyntaxKind.BindingElement) === true) {
     const initializer = declaration.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-    return initializer !== undefined && originatesFromOwnedEntityMutation(initializer, nextSeen);
+    return initializer !== undefined && originatesFromOwnedEntityMutation(initializer, nextSeen, reads);
   }
   const initializer = declaration?.isKind(SyntaxKind.VariableDeclaration) === true ? declaration.getInitializer() : undefined;
-  return initializer !== undefined && originatesFromOwnedEntityMutation(initializer, nextSeen);
+  return initializer !== undefined && originatesFromOwnedEntityMutation(initializer, nextSeen, reads);
 }
 
-export function frameworkOwns(call: CallExpression): boolean {
-  const name = calleeName(call);
+export function frameworkOwns(call: CallExpression, reads?: CaughtFailureReadServices): boolean {
+  const name = calleeName(call, reads);
   const callee = unwrapExpression(call.getExpression());
-  if (name === "withRequestSpan" && importedName(callee, new Set(["#foundation/observability", "#foundation/observability/tracing"])) === "withRequestSpan") {
+  if (
+    name === "withRequestSpan" &&
+    importedName(callee, new Set(["#foundation/observability", "#foundation/observability/tracing"]), reads) === "withRequestSpan"
+  ) {
     return true;
   }
-  const member = literalMember(call.getExpression());
+  const member = literalMember(call.getExpression(), reads);
   const work = member === undefined ? callee : member.receiver;
   if (name === "fetchNextPage" || name === "fetchQuery" || name === "refetch" || name === "invalidateQueries" || name === "ensureQueryData") {
-    return originatesFromFactory(work, new Set(["@tanstack/react-query"]), QUERY_FACTORIES);
+    return originatesFromFactory(work, new Set(["@tanstack/react-query"]), QUERY_FACTORIES, reads);
   }
   if (name === "handleSubmit") {
-    return originatesFromFactory(work, new Set(["@tanstack/react-form"]), FORM_FACTORIES);
+    return originatesFromFactory(work, new Set(["@tanstack/react-form"]), FORM_FACTORIES, reads);
   }
   if (name === "mutateAsync") {
-    return originatesFromOwnedEntityMutation(work);
+    return originatesFromOwnedEntityMutation(work, undefined, reads);
   }
   return false;
 }
 
-export function hasFrameworkOwner(block: Block): boolean {
+export function hasFrameworkOwner(block: Block, reads?: CaughtFailureReadServices): boolean {
   if (block.getStatements().length !== 1) {
     return false;
   }
   const calls = block.getDescendantsOfKind(SyntaxKind.CallExpression).filter((call) => !insideNestedFunction(call, block));
   const [onlyCall] = calls;
-  return calls.length === 1 && onlyCall !== undefined && frameworkOwns(onlyCall);
+  return calls.length === 1 && onlyCall !== undefined && frameworkOwns(onlyCall, reads);
 }
 
 // ── the statement-level ownership walk ──────────────────────────────────────────────────────────────────
@@ -128,29 +133,29 @@ function hasNestedEscape(statement: Node): boolean {
   );
 }
 
-function assignmentOwns(expression: Node, errorBinding: Node | undefined): boolean {
+function assignmentOwns(expression: Node, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
   if (errorBinding === undefined || !expression.isKind(SyntaxKind.BinaryExpression)) {
     return false;
   }
   const left = expression.getLeft();
-  const member = literalMember(left);
+  const member = literalMember(left, reads);
   if (member === undefined) {
     return false;
   }
   if (!(member.receiver.isKind(SyntaxKind.Identifier) || member.receiver.isKind(SyntaxKind.ThisKeyword))) {
     return false;
   }
-  const receiverDeclaration = member.receiver.isKind(SyntaxKind.Identifier) ? member.receiver.getSymbol()?.getDeclarations()[0] : undefined;
+  const receiverDeclaration = member.receiver.isKind(SyntaxKind.Identifier) ? rawFailureDeclarations(member.receiver, reads)[0] : undefined;
   const discardedLocal = receiverDeclaration?.isKind(SyntaxKind.VariableDeclaration) === true;
   return (
     !discardedLocal &&
     /(?:^|\.)(?:error|failure)$/iu.test(expression.getLeft().getText()) &&
     expression.getOperatorToken().getText() === "=" &&
-    directlyCarriesBinding(expression.getRight(), errorBinding)
+    directlyCarriesBinding(expression.getRight(), errorBinding, reads)
   );
 }
 
-function statementOwner(statement: Node, errorBinding: Node | undefined, returnedOutcomeOwns: boolean): OwnerVerdict {
+function statementOwner(statement: Node, errorBinding: Node | undefined, returnedOutcomeOwns: boolean, reads?: CaughtFailureReadServices): OwnerVerdict {
   if (hasNestedEscape(statement)) {
     return "escape";
   }
@@ -161,7 +166,7 @@ function statementOwner(statement: Node, errorBinding: Node | undefined, returne
     return "escape";
   }
   const returned = statement.isKind(SyntaxKind.ReturnStatement) ? statement.getExpression() : undefined;
-  if (returnedOutcomeOwns && returned !== undefined && isFailureOutcome(returned, errorBinding)) {
+  if (returnedOutcomeOwns && returned !== undefined && isFailureOutcome(returned, errorBinding, reads)) {
     return "owner";
   }
   const rawExpression = statement.isKind(SyntaxKind.ExpressionStatement) ? statement.getExpression() : returned;
@@ -169,10 +174,10 @@ function statementOwner(statement: Node, errorBinding: Node | undefined, returne
     return statement.isKind(SyntaxKind.ReturnStatement) ? "escape" : "none";
   }
   const expression = unwrapExpression(rawExpression);
-  if (assignmentOwns(expression, errorBinding)) {
+  if (assignmentOwns(expression, errorBinding, reads)) {
     return "owner";
   }
-  if (expression.isKind(SyntaxKind.CallExpression) && isExplicitOwnerCall(expression, errorBinding)) {
+  if (expression.isKind(SyntaxKind.CallExpression) && isExplicitOwnerCall(expression, errorBinding, reads)) {
     return "owner";
   }
   return statement.isKind(SyntaxKind.ReturnStatement) ? "escape" : "none";
@@ -216,14 +221,14 @@ function throwEscapes(thrown: Node, block: Block): boolean {
  *  caller rather than destroyed. Deliberately NARROW: only an explicit `cause` carrying the binding counts.
  *  `throw new Error(String(err))` keeps the message and drops the identity, stack and chain — that is lossy,
  *  so it stays red and its site owes a reason. */
-function throwChainsCause(thrown: Node, errorBinding: Node): boolean {
+function throwChainsCause(thrown: Node, errorBinding: Node, reads?: CaughtFailureReadServices): boolean {
   return thrown.getDescendantsOfKind(SyntaxKind.PropertyAssignment).some((property) => {
     const initializer = property.getInitializer();
-    return property.getName() === "cause" && initializer !== undefined && directlyCarriesBinding(initializer, errorBinding);
+    return property.getName() === "cause" && initializer !== undefined && directlyCarriesBinding(initializer, errorBinding, reads);
   });
 }
 
-function rethrowsCaughtBinding(block: Block, errorBinding: Node | undefined): boolean {
+function rethrowsCaughtBinding(block: Block, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
   if (errorBinding === undefined) {
     return false;
   }
@@ -232,20 +237,20 @@ function rethrowsCaughtBinding(block: Block, errorBinding: Node | undefined): bo
       return false;
     }
     const expression = thrown.getExpression();
-    return directlyCarriesBinding(expression, errorBinding) || throwChainsCause(expression, errorBinding);
+    return directlyCarriesBinding(expression, errorBinding, reads) || throwChainsCause(expression, errorBinding, reads);
   });
 }
 
-export function hasExplicitOwner(block: Block, errorBinding: Node | undefined, returnedOutcomeOwns = true): boolean {
+export function hasExplicitOwner(block: Block, errorBinding: Node | undefined, returnedOutcomeOwns = true, reads?: CaughtFailureReadServices): boolean {
   for (const statement of block.getStatements()) {
-    const verdict = statementOwner(statement, errorBinding, returnedOutcomeOwns);
+    const verdict = statementOwner(statement, errorBinding, returnedOutcomeOwns, reads);
     if (verdict === "owner") {
       return true;
     }
     if (verdict === "escape") {
       // A guarded early exit only leaves a swallow path if the REST of the block absorbs. When the block
       // still rethrows the caught binding, the non-discriminated path propagates and every exit is owned.
-      return rethrowsCaughtBinding(block, errorBinding);
+      return rethrowsCaughtBinding(block, errorBinding, reads);
     }
   }
   return false;

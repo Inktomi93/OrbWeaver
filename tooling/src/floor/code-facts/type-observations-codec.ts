@@ -21,6 +21,7 @@ export function mapTypeObservationDemand<From, To>(demand: TypeObservationDemand
 export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<From>, node: (value: From) => To): TypeObservationValues<To> {
   const {
     definitions: _definitions,
+    functionExports: _functionExports,
     callParameters: _callParameters,
     signatureParameters: _signatureParameters,
     valueProfiles: _valueProfiles,
@@ -36,6 +37,7 @@ export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<
       ...(valueDeclaration === undefined ? {} : { valueDeclaration: valueDeclaration === null ? null : node(valueDeclaration) }),
     })),
     ...(facts.definitions === undefined ? {} : { definitions: facts.definitions.map((entry) => ({ node: node(entry.node), values: entry.values.map(node) })) }),
+    ...(facts.functionExports === undefined ? {} : { functionExports: facts.functionExports.map((entry) => ({ ...entry, node: node(entry.node) })) }),
     ...(facts.callParameters === undefined ? {} : { callParameters: facts.callParameters.map((entry) => ({ ...entry, call: node(entry.call) })) }),
     ...(facts.signatureParameters === undefined ? {} : { signatureParameters: facts.signatureParameters.map((entry) => ({ ...entry, at: node(entry.at) })) }),
     ...(facts.valueProfiles === undefined ? {} : { valueProfiles: facts.valueProfiles.map((entry) => ({ ...entry, node: node(entry.node) })) }),

@@ -43,6 +43,10 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
     unionCount: index,
     tupleCount: index,
     stringLiteral: z.string().nullable().optional(),
+    defaultDisplay: z.string().optional(),
+    literalValue: observation(z.union([z.string(), z.number(), z.boolean(), z.strictObject({ negative: z.boolean(), base10Value: z.string() })])).optional(),
+    typeArguments: z.array(index).optional(),
+    typeArgumentCount: index.optional(),
   });
   return z
     .strictObject({
@@ -57,6 +61,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
       computedNames: z.array(z.strictObject({ selector: index, values: z.array(z.strictObject({ declaration: span, names: z.array(span) })) })),
       signatures: z.array(z.strictObject({ call: span, fact: observation(z.strictObject({ declaration: span, parameters: z.array(index) })) })),
       definitions: z.array(z.strictObject({ node: span, values: z.array(span) })).optional(),
+      functionExports: z.array(z.strictObject({ node: span, value: z.boolean() })).optional(),
       callParameters: z.array(z.strictObject({ call: span, parameterCount: index.nullable(), values: z.array(index).nullable() })).optional(),
       signatureParameters: z.array(z.strictObject({ selector: index, at: span, parameterCounts: z.array(index), values: z.array(z.array(index)) })).optional(),
       valueProfiles: z.array(z.strictObject({ node: span, facets: z.array(z.enum(TYPE_OBSERVATION_VALUE_FACETS)) })).optional(),

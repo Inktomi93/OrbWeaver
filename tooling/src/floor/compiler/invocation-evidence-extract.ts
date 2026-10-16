@@ -36,7 +36,7 @@ import type {
 import { invocationEvidenceSchema, invocationPlanSchema } from "../code-facts/semantic-inventory-contract.ts";
 import { captureTypeObservations } from "../code-facts/type-observations.ts";
 import { encodeTypeObservations } from "../code-facts/type-observations-codec.ts";
-import type { TypeObservationDemand } from "../code-facts/type-observations-contract.ts";
+import type { TypeObservationCaptureRequest, TypeObservationDemand } from "../code-facts/type-observations-contract.ts";
 import { captureTypeProjection } from "../code-facts/type-projection.ts";
 import { encodeTypeProjection } from "../code-facts/type-projection-codec.ts";
 import type { NativeTypeProjection } from "../code-facts/type-projection-contract.ts";
@@ -54,8 +54,9 @@ export function captureInvocationEvidence(
     readonly schema: SchemaQuery | undefined;
     readonly basis?: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
   },
-  typeDemand?: TypeObservationDemand,
+  typeDemand?: TypeObservationDemand | TypeObservationCaptureRequest,
 ): CapturedInvocationEvidence {
+  const typeCapture = typeCaptureRequest(typeDemand);
   const plan = invocationPlanSchema.parse(rawPlan);
   const modules = new Map<MorphNode, ReferenceFact<ModuleMemberOrigin>>();
   const globals = new Map<MorphNode, ReferenceFact<GlobalMemberOrigin>>();
@@ -136,18 +137,19 @@ export function captureInvocationEvidence(
             capture(subject, ["module", "global", "string", "stable", "authored-value", ...(Node.isCallExpression(subject) ? ["drizzle-write" as const] : [])]),
           anchor: node,
         });
-  if ((plan.mode === "types") !== (typeDemand !== undefined)) {
+  if ((plan.mode === "types") !== (typeCapture !== undefined)) {
     throw new Error("native type observation demand has no captured owner");
   }
   const typeObservations =
-    typeDemand === undefined
+    typeCapture === undefined
       ? undefined
-      : captureTypeObservations(typeDemand, {
+      : captureTypeObservations(typeCapture.demand, {
           anchor: Node.isSourceFile(node) ? node : node.getSourceFile(),
           admit: (subject): void => {
             related(subject);
           },
           profile: (subject, facets) => capture(subject, [...facets]),
+          references: typeCapture.references,
         });
   const invocation = plan.mode === "observations" || plan.mode === "types" ? undefined : captureRequestedInvocation(node, plan, capture);
   if (plan.mode !== "observations" && plan.mode !== "types") {
@@ -194,6 +196,13 @@ export function captureInvocationEvidence(
       return referenceResolutionServices.readComputedName(subject);
     },
   };
+}
+
+function typeCaptureRequest(demand: TypeObservationDemand | TypeObservationCaptureRequest | undefined): TypeObservationCaptureRequest | undefined {
+  if (demand === undefined) {
+    return undefined;
+  }
+  return "demand" in demand ? demand : { demand };
 }
 
 /** Binding callbacks and serialized delivery share the same finite upstream source demand. */

@@ -37,6 +37,7 @@ import {
   projectCtx,
   runPolicyPass,
 } from "../../../../tooling/src/verify/index.ts";
+import { nativeTypeFactOptions } from "../../../../tooling/src/verify/lib/project-context.ts";
 
 const GATE = "caught-failure-ownership";
 /** The census is worthless if the detector stopped reading the tree — a real run admits thousands of files,
@@ -109,6 +110,7 @@ describe("caught-failure-ownership — census bijection and exemption hygiene", 
       policies: [caughtFailureOwnership],
       root: repoRoot,
       project: context.project,
+      ...nativeTypeFactOptions(context),
       reviewedGrants: [],
       failOnWarnings: false,
     });

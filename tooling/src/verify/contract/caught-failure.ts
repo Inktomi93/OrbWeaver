@@ -11,6 +11,30 @@
 // `siteId` ({@link CaughtFailureJudgment}); the coordinates ({@link CaughtFailureRow}) are derived at read
 // time from the shared classifier and never written.
 
+import type { Identifier, Node, SourceFile } from "ts-morph";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeContext } from "./project-context.ts";
+
+export interface CaughtFailureReadServices {
+  readonly types: TypeObservationReader;
+  readonly references: (identifier: Identifier) => readonly Node[];
+}
+
+export interface CaughtFailureTraversal {
+  readonly seen: ReadonlySet<Node>;
+  readonly reads?: CaughtFailureReadServices | undefined;
+}
+
+export interface NativeFailureRead {
+  readonly prepare: () => void;
+  readonly at: (source: SourceFile) => CaughtFailureReadServices;
+}
+
+export interface NativeFailureContext {
+  readonly files: readonly SourceFile[];
+  readonly nativeTypes?: Pick<NativeTypeContext, "request" | "invocationEvidence" | "references"> | undefined;
+}
+
 /** How a site's failure is owned TODAY. ONE tuple, so a third verdict is a row here and `tsc` finds every
  *  reader — never an inline re-spelling of the members (Spine-TypeScript-and-Patterns.md §7.5).
  *

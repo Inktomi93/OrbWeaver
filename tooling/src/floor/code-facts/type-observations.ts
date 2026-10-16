@@ -71,6 +71,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
   const typeKeys = new Map<object, object>();
   const types: (NativeObservedType | null)[] = [];
   const nodes = new Map<MorphNode, NativeObservedNode>();
+  const functionExports = new Map<MorphNode, boolean>();
   const properties = new Map<string, NativeTypeObservations["properties"][number]>();
   const unions = new Map<number, NativeTypeObservations["unions"][number]>();
   const unionTypes = new Map<object, readonly number[]>();
@@ -220,6 +221,49 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
     return result;
   };
   const reader: TypeObservationCapture["reader"] = {
+    defaultDisplay: (selector) => {
+      const index = read(selector);
+      const metadata = types[index];
+      if (!rawSlots || metadata === null || metadata === undefined) {
+        throw new Error("native default Type display is unavailable");
+      }
+      const value = metadata.defaultDisplay ?? valueAt(index).getText();
+      types[index] = { ...metadata, defaultDisplay: value };
+      return value;
+    },
+    literalValue: (selector) => {
+      const index = read(selector);
+      const metadata = types[index];
+      if (!rawSlots || metadata === null || metadata === undefined) {
+        throw new Error("native literal value is unavailable");
+      }
+      const value = valueAt(index).getLiteralValue();
+      types[index] = { ...metadata, literalValue: value === undefined ? { kind: "absent" } : { kind: "value", value } };
+      return value;
+    },
+    typeArguments: (selector) => {
+      const index = read(selector);
+      const metadata = types[index];
+      if (!rawSlots || metadata === null || metadata === undefined) {
+        throw new Error("native Type arguments are unavailable");
+      }
+      const values =
+        metadata.typeArguments ??
+        valueAt(index)
+          .getTypeArguments()
+          .map((_argument, at) => read({ ...selector, steps: [...selector.steps, { kind: "type-argument", index: at }] }));
+      types[index] = { ...metadata, typeArguments: values, typeArgumentCount: valueAt(index).getTypeArguments().length };
+      return values.map(selectorAt);
+    },
+    functionExport: (node) => {
+      admit(node);
+      if (!(rawSlots && Node.isFunctionDeclaration(node))) {
+        throw new Error("native function export question is not an admitted function");
+      }
+      const value = functionExports.get(node) ?? node.isExported();
+      functionExports.set(node, value);
+      return value;
+    },
     select: (selector) => {
       const index = read(selector);
       if (selector.base.kind === "contextual") {
@@ -517,6 +561,10 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       admit(value.node);
     }
   };
+  const capturedFunctionExports = (demand: TypeObservationDemand): Pick<NativeTypeObservations, "functionExports"> =>
+    demand.questions?.some((question) => question.kind === "function-exports") === true
+      ? { functionExports: [...functionExports].map(([node, value]) => ({ node, value })) }
+      : {};
   return {
     reader,
     finish: (demand: TypeObservationDemand, valueProfiles): NativeTypeObservations => {
@@ -562,6 +610,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
               definitions: [...definitions].map(([node, values]) => ({ node, values })),
               callParameters: [...callParameters.values()],
               signatureParameters,
+              ...capturedFunctionExports(demand),
             }
           : {}),
         localTargets: [...locals].map(([node, symbol]) => ({ node, symbol })),
@@ -587,18 +636,23 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
 export function captureTypeObservations(demand: TypeObservationDemand, owner: TypeObservationCaptureOwner): NativeTypeObservations {
   const capture = createTypeObservationCapture(owner, demand.questions !== undefined);
   const values = new Map<MorphNode, Set<NonNullable<NonNullable<TypeObservationDemand["questions"]>[number]["valueFacets"]>[number]>>();
-  observeAuthoredTypeSlots(demand, capture.reader, (node, facets) => {
-    if (owner.profile === undefined) {
-      throw new Error("native value-profile demand has no captured owner");
-    }
-    owner.admit(node);
-    owner.profile(node, facets);
-    const requested = values.get(node) ?? new Set();
-    for (const facet of facets) {
-      requested.add(facet);
-    }
-    values.set(node, requested);
-  });
+  observeAuthoredTypeSlots(
+    demand,
+    capture.reader,
+    (node, facets) => {
+      if (owner.profile === undefined) {
+        throw new Error("native value-profile demand has no captured owner");
+      }
+      owner.admit(node);
+      owner.profile(node, facets);
+      const requested = values.get(node) ?? new Set();
+      for (const facet of facets) {
+        requested.add(facet);
+      }
+      values.set(node, requested);
+    },
+    owner.references,
+  );
   const facts = capture.finish(
     demand,
     demand.questions?.some((q) => q.valueFacets !== undefined) === true ? [...values].map(([node, facets]) => ({ node, facets: [...facets] })) : undefined,
@@ -608,6 +662,6 @@ export function captureTypeObservations(demand: TypeObservationDemand, owner: Ty
     (node) => JSON.stringify([node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()]),
     (node) => node.getKind(),
   );
-  readTypeObservations(facts);
+  readTypeObservations(facts, owner.references);
   return facts;
 }

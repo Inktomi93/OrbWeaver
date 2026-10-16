@@ -82,7 +82,7 @@
 // unwrapping ... are shared primitives"). No Project, no workspace cache, no filesystem, no marker parser.
 import type { CallExpression, CatchClause, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { CaughtFailureArm } from "../contract/caught-failure.ts";
+import type { CaughtFailureArm, CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { FUNCTION_KINDS, hasInterveningWrite, importedName, literalMember, OBSERVABILITY_MODULES, PROMISE_CHAIN_LINKS } from "./caught-failure-core.ts";
 import {
@@ -144,7 +144,7 @@ export function calleeAnchorCandidates(call: CallExpression): readonly Node[] {
 
 /** The WORK an absorber guards — never the plumbing link. Walks inward past `then`/`catch`/`finally` so
  *  `save().then(x).catch(h)` anchors on `save`, and `a.save().catch(h)` on the whole `a.save` chain. */
-function workAnchorCandidates(call: CallExpression, invocation: PromiseRejectionInvocation): readonly Node[] {
+function workAnchorCandidates(call: CallExpression, invocation: PromiseRejectionInvocation, reads?: CaughtFailureReadServices): readonly Node[] {
   if (!invocation.direct) {
     const receiver = invocation.receiver;
     return receiver.isKind(SyntaxKind.CallExpression) ? calleeAnchorCandidates(receiver) : [receiver];
@@ -154,7 +154,7 @@ function workAnchorCandidates(call: CallExpression, invocation: PromiseRejection
     if (!cursor.isKind(SyntaxKind.CallExpression)) {
       return [cursor];
     }
-    const member = literalMember(cursor.getExpression());
+    const member = literalMember(cursor.getExpression(), reads);
     if (member === undefined || !PROMISE_CHAIN_LINKS.has(member.name)) {
       return calleeAnchorCandidates(cursor);
     }
@@ -176,23 +176,23 @@ export function firstAnchor(reported: Node, candidates: readonly Node[]): Caught
 
 /** One PROMISE-shaped site: the absorber call, or undefined when the rejection is propagated, ignored,
  *  consumed as error-as-data, or owned by a governed framework surface. */
-export function promiseAbsorberSite(call: CallExpression): CaughtFailureSite | undefined {
-  const invocation = promiseRejectionInvocation(call);
+export function promiseAbsorberSite(call: CallExpression, reads?: CaughtFailureReadServices): CaughtFailureSite | undefined {
+  const invocation = promiseRejectionInvocation(call, reads);
   if (invocation === undefined) {
     return;
   }
   const { handler, receiver } = invocation;
   if (
     isIgnoredPromiseHandler(handler) ||
-    !promiseLikeValue(receiver) ||
-    handlerPropagatesRejection(handler) ||
-    !isDiscardingHandler(handler) ||
-    (!isDiscardedExpression(call) && handlerReturnsOwnedFailure(handler) && recoveredFailureIsConsumed(call))
+    !promiseLikeValue(receiver, reads) ||
+    handlerPropagatesRejection(handler, reads) ||
+    !isDiscardingHandler(handler, reads) ||
+    (!isDiscardedExpression(call, reads) && handlerReturnsOwnedFailure(handler, reads) && recoveredFailureIsConsumed(call, reads))
   ) {
     return;
   }
-  const workCall = underlyingWorkCall(call, invocation);
-  if (workCall !== undefined && frameworkOwns(workCall)) {
+  const workCall = underlyingWorkCall(call, invocation, reads);
+  if (workCall !== undefined && frameworkOwns(workCall, reads)) {
     return;
   }
   // The WORK is the position a reader would name, widest identity first. The later candidates are the
@@ -204,13 +204,13 @@ export function promiseAbsorberSite(call: CallExpression): CaughtFailureSite | u
   return {
     arm: "promise",
     node: call,
-    anchor: firstAnchor(call, [...workAnchorCandidates(call, invocation), ...calleeAnchorCandidates(call)]),
+    anchor: firstAnchor(call, [...workAnchorCandidates(call, invocation, reads), ...calleeAnchorCandidates(call)]),
   };
 }
 
 /** The call that produced the promise, walking inward past `then`/`catch`/`finally` — the node a framework
  *  owner (a TanStack query/mutation/form) has to be proven ON. */
-function underlyingWorkCall(call: CallExpression, invocation: PromiseRejectionInvocation): CallExpression | undefined {
+function underlyingWorkCall(call: CallExpression, invocation: PromiseRejectionInvocation, reads?: CaughtFailureReadServices): CallExpression | undefined {
   if (!invocation.direct) {
     return invocation.receiver.isKind(SyntaxKind.CallExpression) ? invocation.receiver : undefined;
   }
@@ -218,7 +218,7 @@ function underlyingWorkCall(call: CallExpression, invocation: PromiseRejectionIn
   let cursor: Node = call;
   let walking = true;
   while (walking && cursor.isKind(SyntaxKind.CallExpression)) {
-    const cursorMember = literalMember(cursor.getExpression());
+    const cursorMember = literalMember(cursor.getExpression(), reads);
     if (cursorMember === undefined || !PROMISE_CHAIN_LINKS.has(cursorMember.name)) {
       workCall = cursor;
       walking = false;
@@ -229,27 +229,27 @@ function underlyingWorkCall(call: CallExpression, invocation: PromiseRejectionIn
   return workCall;
 }
 
-function recoveredFailureIsConsumed(call: CallExpression): boolean {
+function recoveredFailureIsConsumed(call: CallExpression, reads?: CaughtFailureReadServices): boolean {
   const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
   const initializer = declaration?.getInitializer();
   // The absorber must be INSIDE this declaration's initializer to be the value the binding holds; otherwise
   // the enclosing declaration is incidental and the chain is judged where it actually sits.
   const heldByBinding = initializer !== undefined && initializer.getStart() <= call.getStart() && initializer.getEnd() >= call.getEnd();
   if (declaration === undefined || !heldByBinding) {
-    return valueHasMeaningfulConsumer(call);
+    return valueHasMeaningfulConsumer(call, reads);
   }
   return declaration
     .getNameNode()
     .getDescendantsOfKind(SyntaxKind.Identifier)
     .concat(declaration.getNameNode().isKind(SyntaxKind.Identifier) ? [declaration.getNameNode().asKindOrThrow(SyntaxKind.Identifier)] : [])
     .some((identifier) =>
-      identifier.findReferencesAsNodes().some((reference) => {
-        if (reference.getStart() <= declaration.getEnd() || hasInterveningWrite(reference, declaration)) {
+      (reads === undefined ? identifier.findReferencesAsNodes() : reads.references(identifier)).some((reference) => {
+        if (reference.getStart() <= declaration.getEnd() || hasInterveningWrite(reference, declaration, reads)) {
           return false;
         }
         const declarationBoundary = declaration.getFirstAncestor((ancestor) => FUNCTION_KINDS.has(ancestor.getKind()));
         const referenceBoundary = reference.getFirstAncestor((ancestor) => FUNCTION_KINDS.has(ancestor.getKind()));
-        return declarationBoundary === referenceBoundary && valueHasMeaningfulConsumer(reference);
+        return declarationBoundary === referenceBoundary && valueHasMeaningfulConsumer(reference, reads);
       }),
     );
 }
@@ -269,7 +269,7 @@ function encloses(argument: Node, current: Node): boolean {
 /** Does an error-as-data recovery value reach a REAL consumer? Only two shapes count: it is RETURNED to a
  *  caller, or it is handed to the governed observability sink. Being passed to a local no-op, voided, or
  *  dropped in statement position is not consumption — the recovered failure dies there. */
-function valueHasMeaningfulConsumer(node: Node): boolean {
+function valueHasMeaningfulConsumer(node: Node, reads?: CaughtFailureReadServices): boolean {
   let current = node;
   for (;;) {
     const here = current;
@@ -281,7 +281,7 @@ function valueHasMeaningfulConsumer(node: Node): boolean {
       return true;
     }
     if (parent.isKind(SyntaxKind.CallExpression) && parent.getArguments().some((argument) => encloses(argument, here))) {
-      return importedName(parent.getExpression(), OBSERVABILITY_MODULES) === "recordTurnOutcome";
+      return importedName(parent.getExpression(), OBSERVABILITY_MODULES, reads) === "recordTurnOutcome";
     }
     const implicitReturn = parent.isKind(SyntaxKind.ArrowFunction) && parent.getBody() === here;
     if (!(implicitReturn || CONSUMER_PASSTHROUGH_KINDS.has(parent.getKind()))) {
@@ -309,34 +309,38 @@ export function catchAnchor(clause: CatchClause): CaughtFailureAnchor | undefine
 /** One CATCH-shaped site. `default` wins over `empty`: a catch that returns a fallback is a behaviour CHANGE
  *  nobody was told about, which is the sharper finding. A try block whose single statement is a governed
  *  TanStack/tracing owner is not a site at all — the same way a framework-owned promise absorber is not one. */
-export function catchClauseSite(clause: CatchClause): CaughtFailureSite | undefined {
-  if (silentDefault(clause)) {
+export function catchClauseSite(clause: CatchClause, reads?: CaughtFailureReadServices): CaughtFailureSite | undefined {
+  if (silentDefault(clause, reads)) {
     return { arm: "default", node: clause, anchor: catchAnchor(clause) };
   }
-  if (!unownedCatch(clause)) {
+  if (!unownedCatch(clause, reads)) {
     return;
   }
   const tryBlock = clause.getParentIfKind(SyntaxKind.TryStatement)?.getTryBlock();
-  if (tryBlock !== undefined && hasFrameworkOwner(tryBlock)) {
+  if (tryBlock !== undefined && hasFrameworkOwner(tryBlock, reads)) {
     return;
   }
   return { arm: "empty", node: clause, anchor: catchAnchor(clause) };
+}
+
+export function caughtFailureSite(node: Node, reads: CaughtFailureReadServices): CaughtFailureSite | undefined {
+  return node.isKind(SyntaxKind.CatchClause) ? catchClauseSite(node, reads) : promiseAbsorberSite(node.asKindOrThrow(SyntaxKind.CallExpression), reads);
 }
 
 /** Every caught-failure site in ONE file, in source order — the file-level door the durable census
  *  (`ops/gen/caught-failure-population.ts`) walks. The POLICY does not call this: its dispatcher delivers
  *  `CatchClause` and `CallExpression` nodes to `catchClauseSite`/`promiseAbsorberSite` directly, so the two
  *  consumers share the per-site verdict without sharing a walk. */
-export function caughtFailureReviewSites(sf: SourceFile): readonly CaughtFailureSite[] {
+export function caughtFailureReviewSites(sf: SourceFile, reads?: CaughtFailureReadServices): readonly CaughtFailureSite[] {
   const sites: CaughtFailureSite[] = [];
   for (const clause of sf.getDescendantsOfKind(SyntaxKind.CatchClause)) {
-    const site = catchClauseSite(clause);
+    const site = catchClauseSite(clause, reads);
     if (site !== undefined) {
       sites.push(site);
     }
   }
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const site = promiseAbsorberSite(call);
+    const site = promiseAbsorberSite(call, reads);
     if (site !== undefined) {
       sites.push(site);
     }
