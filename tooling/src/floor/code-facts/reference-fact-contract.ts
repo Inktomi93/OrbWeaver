@@ -119,6 +119,13 @@ export interface CallableOrigin {
   readonly callee: Node;
 }
 
+/** Direct-call origin judgments may consume exact captured native module, global and computed-name facts. */
+export interface CallableOriginServices {
+  readonly moduleOrigin: (node: Node) => ReferenceFact<ModuleMemberOrigin>;
+  readonly globalOrigin: (node: Node) => ReferenceFact<GlobalMemberOrigin>;
+  readonly readComputedName: ReferenceResolutionServices["readComputedName"];
+}
+
 /** A native target and arguments captured by immutable bind construction, without claiming execution. */
 export interface CallableBinding {
   readonly target: ReferenceOrigin;

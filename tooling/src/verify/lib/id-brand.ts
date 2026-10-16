@@ -5,7 +5,11 @@ import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-f
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
-import type { KitIdCallVerdict } from "../contract/origin-verdict.ts";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { KitIdCallServices, KitIdCallVerdict } from "../contract/origin-verdict.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
+import { unwrapExpression } from "./ast-read.ts";
+import { requiredInvocationFact } from "./native-invocation.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 
 function importedNames(sourceFile: SourceFile, exportedName: string): ReadonlySet<string> {
@@ -31,6 +35,35 @@ function couldNameExport(call: CallExpression, exportedName: string, names: Read
   return literalMemberAccess(callee, true)?.name === exportedName;
 }
 
+/** Preserve the authored identifier/import-alias/literal-member candidate grammar before requesting native meaning. */
+export function possibleKitIdCall(call: CallExpression, exportedName: string): boolean {
+  return couldNameExport(call, exportedName, importedNames(call.getSourceFile(), exportedName));
+}
+
+const ORIGIN_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["module", "global"], arguments: [] };
+/** Register only the existing direct callee question, not normalized Function invocation semantics. */
+export function prepareKitIdCall(ctx: Pick<GatePolicyContext, "nativeTypes">, call: CallExpression): void {
+  if (ctx.nativeTypes === undefined) {
+    throw new Error("native kit-id origin context is unavailable");
+  }
+  ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: [unwrapExpression(call.getExpression())], plan: ORIGIN_PLAN });
+}
+
+/** Exact raw origins feed the canonical direct-call resolver, retaining wrapper and lexical refusal rules. */
+export function kitIdCallServices(ctx: Pick<GatePolicyContext, "nativeTypes">, call: CallExpression): KitIdCallServices {
+  if (ctx.nativeTypes === undefined) {
+    throw new Error("native kit-id origin context is unavailable");
+  }
+  const callee = unwrapExpression(call.getExpression());
+  const evidence = requiredInvocationFact(ctx.nativeTypes.invocationEvidence([callee], ORIGIN_PLAN), callee);
+  return {
+    declarations: evidence.declarations,
+    readComputedName: evidence.computedName,
+    moduleOrigin: (node) => requiredInvocationFact(evidence.modules, node),
+    globalOrigin: (node) => requiredInvocationFact(evidence.globals, node),
+  };
+}
+
 /** Invocation-local exact kit-call matcher; each source's import aliases are indexed once.
  *
  *  THE VERDICT IS THREE-VALUED (#944, #2041). It answered a boolean, and an unresolved origin collapsed
@@ -43,7 +76,10 @@ function couldNameExport(call: CallExpression, exportedName: string, names: Read
  *  above is fail-closure's mandatory companion — nothing outside the candidate spelling is ever asked.
  *  Measured on the live tree before the flip: 221 `castId`-spelled calls across the 107 `@packages` files
  *  that mention it, ALL resolved, 0 unreadable — the flip admits no new live subject. */
-export function createKitIdCallMatcher(exportedName: string): (call: CallExpression) => KitIdCallVerdict {
+export function createKitIdCallMatcher(
+  exportedName: string,
+  services?: (call: CallExpression) => KitIdCallServices,
+): (call: CallExpression) => KitIdCallVerdict {
   const namesBySource = new WeakMap<object, ReadonlySet<string>>();
   return (call) => {
     const sourceFile = call.getSourceFile();
@@ -55,9 +91,10 @@ export function createKitIdCallMatcher(exportedName: string): (call: CallExpress
     if (!couldNameExport(call, exportedName, names)) {
       return "other";
     }
-    const origin = resolveCallableOrigin(call);
+    const captured = services?.(call);
+    const origin = resolveCallableOrigin(call, captured);
     if (origin.kind === "unresolved") {
-      return classifyOriginRefusal(origin.reason, call.getExpression());
+      return classifyOriginRefusal(origin.reason, call.getExpression(), captured?.declarations);
     }
     const target = origin.value.target;
     if (target.kind !== "module" || target.exportedName !== exportedName || target.memberPath.length > 0) {

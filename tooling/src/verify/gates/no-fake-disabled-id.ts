@@ -2,19 +2,20 @@
 //
 // FAMILY (`id-brand-flow`): shared readers, no private door. The cast SEAM is `lib/id-brand.ts`
 // (`createKitIdCallMatcher`, the same matcher `no-mint-via-cast` uses — one identity for "is this the kit
-// castId", so the two policies cannot disagree about what a seam is); the argument's static value is
-// `lib/static-authored-value.ts` (`readStaticAuthoredScalar`). This module holds no table, walk or cache.
+// castId", so the two policies cannot disagree about what a seam is); the argument's static value comes
+// from sealed native authored-value facts. This module holds no table, walk or cache.
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
 // `(p) => p.includes("packages/client/src/")` (`52b33fc581^:tooling/src/verify/gates/no-fake-disabled-id.ts`);
 // the final population is `@client`, whose single root is `packages/client/src/`. The client-only fence is
 // the law itself and not a convenience: the fake-disabled sentinel is a QUERY-KEY defect — the shape exists
 // to make `enabled:` unnecessary — so the server has no version of it.
+import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
-import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
-import { createKitIdCallMatcher } from "../lib/id-brand.ts";
+import { createKitIdCallMatcher, kitIdCallServices, possibleKitIdCall, prepareKitIdCall } from "../lib/id-brand.ts";
+import { nativeAuthoredValue, prepareNativeAuthoredValue } from "../lib/native-value-projection.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE =
@@ -49,31 +50,45 @@ export const gate = defineGate({
     "line above, where <position> is the derived position — the first identifier, literal or keyword of the " +
     "reported expression.",
   create: (ctx) => {
-    const isCastId = createKitIdCallMatcher("castId");
+    const isCastId = createKitIdCallMatcher("castId", (call) => kitIdCallServices(ctx, call));
+    const calls: CallExpression[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node) => {
-            const seam = Node.isCallExpression(node) ? isCastId(node) : "other";
-            if (seam === "other" || !Node.isCallExpression(node)) {
+            if (!(Node.isCallExpression(node) && possibleKitIdCall(node, "castId"))) {
               return;
             }
-            if (seam === "unreadable") {
-              ctx.report.node(node.getExpression(), { message: UNREADABLE });
-              return;
-            }
+            calls.push(node);
+            prepareKitIdCall(ctx, node);
             const argument = node.getArguments()[0];
-            if (argument === undefined) {
-              return;
-            }
-            const value = readStaticAuthoredScalar(argument);
-            if (value.kind === "resolved" && value.value === "") {
-              ctx.report.node(node.getExpression());
+            if (argument !== undefined) {
+              prepareNativeAuthoredValue(ctx, argument);
             }
           },
         },
       ],
+      evaluate: () => {
+        for (const node of calls) {
+          const seam = isCastId(node);
+          if (seam === "other") {
+            continue;
+          }
+          if (seam === "unreadable") {
+            ctx.report.node(node.getExpression(), { message: UNREADABLE });
+            continue;
+          }
+          const argument = node.getArguments()[0];
+          if (argument === undefined) {
+            continue;
+          }
+          const value = nativeAuthoredValue(ctx, argument).value;
+          if (value.kind === "resolved" && value.value.kind === "scalar" && value.value.value === "") {
+            ctx.report.node(node.getExpression());
+          }
+        }
+      },
     };
   },
   mustFlag: [

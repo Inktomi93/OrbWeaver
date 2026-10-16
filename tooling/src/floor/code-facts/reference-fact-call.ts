@@ -2,11 +2,18 @@
 import type { Identifier, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind, ts, VariableDeclarationKind } from "ts-morph";
 import { readCallReturnProgram } from "./call-supplied.ts";
-import { inspectBindingReassignment, readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin } from "./reference-fact.ts";
+import {
+  inspectBindingReassignment,
+  readMemberReference,
+  readMemberReferenceWithName,
+  referenceResolutionServices,
+  resolveModuleMemberOrigin,
+} from "./reference-fact.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import type {
   CallableDeclaration,
   CallableOrigin,
+  CallableOriginServices,
   CallReturnObservations,
   ModuleMemberOrigin,
   ReferenceFact,
@@ -30,21 +37,21 @@ function chooseRefusal(moduleFact: UnresolvedReferenceFact, globalFact: Unresolv
   return REFUSAL_PRIORITY.indexOf(moduleFact.reason) <= REFUSAL_PRIORITY.indexOf(globalFact.reason) ? moduleFact : globalFact;
 }
 
-function invocationWrapper(node: MorphNode): MorphNode | undefined {
+function invocationWrapper(node: MorphNode, services?: CallableOriginServices): MorphNode | undefined {
   const current = referenceResolutionServices.unwrapExpression(node);
   if (!(Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current))) {
     return;
   }
-  const member = readMemberReference(current);
+  const member = services === undefined ? readMemberReference(current) : readMemberReferenceWithName(current, services.readComputedName);
   return member.kind === "resolved" && INVOCATION_WRAPPERS.has(member.value.name) ? member.value.nameNode : undefined;
 }
 
-function resolveReferenceOrigin(node: MorphNode): ReferenceFact<ReferenceOrigin> {
-  const moduleFact = resolveModuleMemberOrigin(node);
+function resolveReferenceOrigin(node: MorphNode, services?: CallableOriginServices): ReferenceFact<ReferenceOrigin> {
+  const moduleFact = services === undefined ? resolveModuleMemberOrigin(node) : services.moduleOrigin(node);
   if (moduleFact.kind === "resolved") {
     return moduleFact;
   }
-  const globalFact = resolveGlobalMemberOriginWith(node, referenceResolutionServices);
+  const globalFact = services === undefined ? resolveGlobalMemberOriginWith(node, referenceResolutionServices) : services.globalOrigin(node);
   return globalFact.kind === "resolved" ? globalFact : chooseRefusal(moduleFact, globalFact);
 }
 
@@ -359,10 +366,10 @@ export function resolveCallableAlternatives(
 }
 
 /** Resolve a direct call/new target. Function call/apply/bind spellings refuse until checker-proven. */
-export function resolveCallableOrigin(node: MorphNode): ReferenceFact<CallableOrigin> {
+export function resolveCallableOrigin(node: MorphNode, services?: CallableOriginServices): ReferenceFact<CallableOrigin> {
   const expression = Node.isCallExpression(node) || Node.isNewExpression(node) ? node.getExpression() : undefined;
   if (expression === undefined) {
-    const globalFact = resolveGlobalMemberOriginWith(node, referenceResolutionServices);
+    const globalFact = services === undefined ? resolveGlobalMemberOriginWith(node, referenceResolutionServices) : services.globalOrigin(node);
     return globalFact.kind === "unresolved"
       ? { ...globalFact, reason: "unsupported", detail: `${node.getKindName()} is not a call or construct expression` }
       : {
@@ -373,7 +380,7 @@ export function resolveCallableOrigin(node: MorphNode): ReferenceFact<CallableOr
           trace: globalFact.trace,
         };
   }
-  const wrapper = invocationWrapper(expression);
+  const wrapper = invocationWrapper(expression, services);
   if (wrapper !== undefined) {
     return {
       kind: "unresolved",
@@ -384,7 +391,7 @@ export function resolveCallableOrigin(node: MorphNode): ReferenceFact<CallableOr
     };
   }
   const callee = referenceResolutionServices.unwrapExpression(expression);
-  const target = resolveReferenceOrigin(callee);
+  const target = resolveReferenceOrigin(callee, services);
   return target.kind === "unresolved"
     ? target
     : {

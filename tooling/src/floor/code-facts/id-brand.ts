@@ -61,7 +61,11 @@ export function nativeIdBrand(node: MorphNode): string | null {
 
 /** Canonical TypeID prefix carried by this type, or null for a prefixless/noncanonical brand. */
 export function canonicalTypeIdPrefix(type: Type, node: MorphNode, checker: TypeChecker, prefixes: ReadonlySet<string>): string | null {
-  const brandText = canonicalIdBrand(type, node, checker);
+  return typeIdPrefixFromBrand(canonicalIdBrand(type, node, checker), prefixes);
+}
+
+/** Classify a canonical native brand observation against the authored TypeID prefix vocabulary. */
+export function typeIdPrefixFromBrand(brandText: string | null, prefixes: ReadonlySet<string>): string | null {
   if (brandText === null) {
     return null;
   }

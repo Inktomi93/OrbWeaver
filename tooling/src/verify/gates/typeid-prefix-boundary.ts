@@ -2,10 +2,11 @@
 // text. The checker resolves T's canonical brand; the shared id-brand reader derives the TypeID-prefix
 // vocabulary from `TypeIdOf<"…">` aliases in kit, so renamed imports, barrels and new entity aliases do not
 // create a spelling-based blind spot. Prefixless `Branded<"…">` ids stay valid.
+import type { CallExpression, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { canonicalTypeIdPrefix, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
+import { deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME, typeIdPrefixFromBrand } from "../../floor/code-facts/id-brand.ts";
 import { defineGate } from "../contract/policy.ts";
-import { createKitIdCallMatcher } from "../lib/id-brand.ts";
+import { createKitIdCallMatcher, kitIdCallServices, possibleKitIdCall, prepareKitIdCall } from "../lib/id-brand.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE =
@@ -29,32 +30,55 @@ export const gate = defineGate({
   fix: "replace brandedId<TypeId>() with typeIdSchema(ID_PREFIX.<canonical prefix>); retain brandedId only for prefixless brands.",
   create: (ctx) => {
     const prefixes = deriveCanonicalTypeIdPrefixes(ctx.files, ctx.relativePath);
-    const isBrandedId = createKitIdCallMatcher("brandedId");
+    const isBrandedId = createKitIdCallMatcher("brandedId", (call) => kitIdCallServices(ctx, call));
+    const calls: CallExpression[] = [];
+    const judge = (node: CallExpression, brands: ReadonlyMap<TypeNode, string | null>): void => {
+      const seam = isBrandedId(node);
+      if (seam === "other") {
+        return;
+      }
+      if (seam === "unreadable") {
+        ctx.report.node(node.getExpression(), { message: UNREADABLE });
+        return;
+      }
+      const target = node.getTypeArguments()[0];
+      if (target === undefined) {
+        return;
+      }
+      const brand = brands.get(target);
+      if (brand === undefined) {
+        throw new Error("native TypeID boundary brand query is unavailable");
+      }
+      if (typeIdPrefixFromBrand(brand, prefixes) !== null) {
+        ctx.report.node(node.getExpression());
+      }
+    };
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node) => {
-            if (!Node.isCallExpression(node)) {
+            if (!(Node.isCallExpression(node) && possibleKitIdCall(node, "brandedId"))) {
               return;
             }
-            const seam = isBrandedId(node);
-            if (seam === "other") {
-              return;
-            }
-            if (seam === "unreadable") {
-              ctx.report.node(node.getExpression(), { message: UNREADABLE });
-              return;
-            }
+            calls.push(node);
+            prepareKitIdCall(ctx, node);
             const target = node.getTypeArguments()[0];
-            if (target === undefined || canonicalTypeIdPrefix(ctx.checker().getTypeAtLocation(target), target, ctx.checker(), prefixes) === null) {
-              return;
+            if (target !== undefined) {
+              ctx.nativeTypes?.request({ kind: "id-brands", nodes: [target] });
             }
-            ctx.report.node(node.getExpression());
           },
         },
       ],
       evaluate: () => {
+        const targets = calls.flatMap((call) => call.getTypeArguments()[0] ?? []);
+        const brands = targets.length === 0 ? new Map<TypeNode, string | null>() : ctx.nativeTypes?.idBrands(targets);
+        if (brands === undefined) {
+          throw new Error("native TypeID boundary brand context is unavailable");
+        }
+        for (const node of calls) {
+          judge(node, brands);
+        }
         ctx.receipt({ kind: "population", source: "canonical-typeid-prefixes", members: prefixes.size });
         if (prefixes.size === 0) {
           ctx.report.file(ID_BRAND_HOME, { line: 1, token: "TypeIdOf", message: BLIND });

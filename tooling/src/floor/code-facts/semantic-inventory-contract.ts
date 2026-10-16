@@ -690,6 +690,7 @@ export interface InventoryOverlay {
 }
 
 export interface InventoryBuildRequest {
+  readonly idBrandQueries?: readonly InventorySpan[];
   readonly schemaSources?: readonly InventorySpan[];
   readonly schemaDataSources?: readonly InventorySpan[];
   readonly schemaDataProjection?: SchemaDataProjection;
@@ -711,6 +712,7 @@ export interface InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
+  readonly idBrandQueries?: readonly InventoryNativeQuery[];
   readonly schemaQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };
   readonly schemaDataQuery?: { readonly program: string; readonly sources: readonly InventorySpan[]; readonly projection?: SchemaDataProjection };
   readonly drizzleQueries?: readonly { readonly program: string; readonly query: InventoryDrizzleQuery }[];

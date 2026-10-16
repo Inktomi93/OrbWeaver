@@ -19,13 +19,16 @@
 // nobody has taken, not a re-home.
 
 import type { Node } from "ts-morph";
-import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { CallableOriginServices, ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
 
 /** Existing origin/name algorithms may consume captured native binding and key facts after seal. */
 export interface OriginReferenceServices {
   readonly declarations: (node: Node) => readonly Node[];
   readonly readComputedName: ReferenceResolutionServices["readComputedName"];
 }
+
+/** ID seam callers retain direct-call grammar while consuming captured native origins and lexical refusals. */
+export interface KitIdCallServices extends CallableOriginServices, Pick<OriginReferenceServices, "declarations"> {}
 
 /** Canonical origin judgments may consume a closed native module fact instead of a syntax checker. */
 export interface ModuleOriginServices extends OriginReferenceServices {

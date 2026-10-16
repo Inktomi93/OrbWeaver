@@ -44,6 +44,7 @@ import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurren
 import {
   acquireInventoryReadLease,
   hasInventoryInvocationCoverage,
+  readInventoryBrands,
   readInventoryCallableDeclarations,
   readInventoryComputedNames,
   readInventoryDrizzleCall,
@@ -105,6 +106,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     assertExportDemand(options, descriptors, families);
     assertCallableDemand(options, descriptors, families);
     assertComputedDemand(options, descriptors, families);
+    assertIdBrandDemand(options, descriptors, families);
     assertGlobalDemand(options, descriptors, families);
     assertInvocationDemand(options, descriptors, families);
     assertDrizzleDemand(options, descriptors, families);
@@ -210,6 +212,7 @@ function buildPartition(
     if (!coversComputedDemand(staging, candidate, request.computedNameQueries ?? [])) {
       throw new Error(`native inventory worker supplied incomplete computed-name coverage: ${request.descriptor.id}`);
     }
+    assertIdBrandCoverage(staging, candidate, request);
     if (!coversGlobalDemand(staging, candidate, request)) {
       throw new Error(`native inventory worker supplied incomplete global-origin/binding coverage: ${request.descriptor.id}`);
     }
@@ -595,6 +598,7 @@ function nativeDemandRequest(
 ): Pick<
   InventoryBuildRequest,
   | "exportQueries"
+  | "idBrandQueries"
   | "callableQueries"
   | "computedNameQueries"
   | "globalOriginQueries"
@@ -607,6 +611,7 @@ function nativeDemandRequest(
   | "schemaDependency"
 > {
   return {
+    ...(families.includes("id-brands") ? { idBrandQueries: idBrandDemand(options, program) } : {}),
     ...(families.includes("drizzle-identities")
       ? {
           drizzleQueries: [
@@ -641,6 +646,7 @@ function coversNativeDemand(
   demand: Pick<
     InventoryBuildRequest,
     | "exportQueries"
+    | "idBrandQueries"
     | "callableQueries"
     | "computedNameQueries"
     | "globalOriginQueries"
@@ -655,6 +661,7 @@ function coversNativeDemand(
 ): boolean {
   return (
     coversExportDemand(db, partition, demand.exportQueries ?? []) &&
+    coversIdBrandDemand(db, partition, demand.idBrandQueries ?? []) &&
     coversCallableDemand(db, partition, demand.callableQueries ?? []) &&
     coversComputedDemand(db, partition, demand.computedNameQueries ?? []) &&
     coversGlobalDemand(db, partition, demand) &&
@@ -829,6 +836,32 @@ function coversLocalColumn(
 
 function globalDemand(options: SemanticInventoryOptions, program: string, kind: "globalOriginQueries" | "globalBindingQueries"): readonly InventorySpan[] {
   return [...new Map((options[kind] ?? []).filter((query) => query.program === program).map(({ node }) => [inventoryNodeQueryKey(node), node])).values()];
+}
+
+function idBrandDemand(options: SemanticInventoryOptions, program: string): readonly InventorySpan[] {
+  return [
+    ...new Map((options.idBrandQueries ?? []).filter((query) => query.program === program).map(({ node }) => [inventoryNodeQueryKey(node), node])).values(),
+  ];
+}
+function coversIdBrandDemand(db: ReturnType<typeof openInventoryDatabase>, partition: StoredInventoryPartition, queries: readonly InventorySpan[]): boolean {
+  return queries.every((query) => [...readInventoryBrands(db, partition.id, query)].length === 1);
+}
+function assertIdBrandCoverage(db: ReturnType<typeof openInventoryDatabase>, partition: StoredInventoryPartition, request: InventoryBuildRequest): void {
+  if (!coversIdBrandDemand(db, partition, request.idBrandQueries ?? [])) {
+    throw new Error(`native inventory worker supplied incomplete id-brand coverage: ${request.descriptor.id}`);
+  }
+}
+function assertIdBrandDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  if (
+    (options.idBrandQueries !== undefined && !families.includes("id-brands")) ||
+    (options.idBrandQueries ?? []).some((query) => !descriptors.some((descriptor) => descriptor.id === query.program))
+  ) {
+    throw new Error("native id-brand queries require admitted native programs and family");
+  }
 }
 function coversGlobalDemand(
   db: ReturnType<typeof openInventoryDatabase>,

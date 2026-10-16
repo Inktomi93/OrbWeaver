@@ -71,8 +71,9 @@ import { Node, SyntaxKind } from "ts-morph";
 import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
 import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
 import type { ModuleMemberOrigin, ReferenceOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { KitIdCallServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
-import { createKitIdCallMatcher } from "../lib/id-brand.ts";
+import { createKitIdCallMatcher, kitIdCallServices, possibleKitIdCall, prepareKitIdCall } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
@@ -126,9 +127,9 @@ function receiverCall(call: CallExpression): CallExpression | undefined {
  *  `false` here — the walk can only ever ADD a generator verdict, never manufacture an accusation out of an
  *  unreadable node. The fail-closed third answer stays exactly where it was, keyed on the DIRECT position's
  *  own refusal, so this widening cannot enlarge the unreadable arm's population. */
-function launderedThroughResult(call: CallExpression): boolean {
+function launderedThroughResult(call: CallExpression, services: (call: CallExpression) => KitIdCallServices): boolean {
   for (let receiver = receiverCall(call); receiver !== undefined; receiver = receiverCall(receiver)) {
-    const origin = resolveCallableOrigin(receiver);
+    const origin = resolveCallableOrigin(receiver, services(receiver));
     if (origin.kind !== "unresolved" && isGenerator(origin.value.target)) {
       return true;
     }
@@ -148,19 +149,20 @@ function launderedThroughResult(call: CallExpression): boolean {
  *  not merely re-message the finding: it returns `other` for the case-(a) chains and silences them outright,
  *  which is the blindness this walk exists to end. Ask what the subject IS before recording what could not
  *  be read about it. */
-function argumentVerdict(cast: CallExpression): "generator" | "other" | "unreadable" {
+function argumentVerdict(cast: CallExpression, services: (call: CallExpression) => KitIdCallServices): "generator" | "other" | "unreadable" {
   const node = cast.getArguments()[0];
   if (node === undefined || !Node.isCallExpression(node)) {
     return "other";
   }
-  const origin = resolveCallableOrigin(node);
+  const captured = services(node);
+  const origin = resolveCallableOrigin(node, captured);
   if (origin.kind !== "unresolved" && isGenerator(origin.value.target)) {
     return "generator";
   }
-  if (launderedThroughResult(node)) {
+  if (launderedThroughResult(node, services)) {
     return "generator";
   }
-  return origin.kind === "unresolved" ? classifyOriginRefusal(origin.reason, node.getExpression()) : "other";
+  return origin.kind === "unresolved" ? classifyOriginRefusal(origin.reason, node.getExpression(), captured.declarations) : "other";
 }
 
 export const gate = defineGate({
@@ -176,32 +178,44 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: "replace generator laundering with the canonical kit mint for the intended id class.",
   create: (ctx) => {
-    const isCastId = createKitIdCallMatcher("castId");
+    const services = (call: CallExpression): KitIdCallServices => kitIdCallServices(ctx, call);
+    const isCastId = createKitIdCallMatcher("castId", services);
+    const calls: CallExpression[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node) => {
-            if (!Node.isCallExpression(node)) {
+            if (!(Node.isCallExpression(node) && possibleKitIdCall(node, "castId"))) {
               return;
             }
-            const seam = isCastId(node);
-            if (seam === "other") {
-              return;
-            }
-            // A seam the checker could not place is itself the third answer: the argument question is
-            // unanswerable when it is not even established that this IS the canonical cast.
-            const verdict = seam === "unreadable" ? "unreadable" : argumentVerdict(node);
-            if (verdict === "generator") {
-              ctx.report.node(node.getExpression());
-              return;
-            }
-            if (verdict === "unreadable") {
-              ctx.report.node(node.getExpression(), { message: UNREADABLE });
+            calls.push(node);
+            prepareKitIdCall(ctx, node);
+            const argument = node.getArguments()[0];
+            for (let call = Node.isCallExpression(argument) ? argument : undefined; call !== undefined; call = receiverCall(call)) {
+              prepareKitIdCall(ctx, call);
             }
           },
         },
       ],
+      evaluate: () => {
+        for (const node of calls) {
+          const seam = isCastId(node);
+          if (seam === "other") {
+            continue;
+          }
+          // A seam the checker could not place is itself the third answer: the argument question is
+          // unanswerable when it is not even established that this IS the canonical cast.
+          const verdict = seam === "unreadable" ? "unreadable" : argumentVerdict(node, services);
+          if (verdict === "generator") {
+            ctx.report.node(node.getExpression());
+            continue;
+          }
+          if (verdict === "unreadable") {
+            ctx.report.node(node.getExpression(), { message: UNREADABLE });
+          }
+        }
+      },
     };
   },
   mustFlag: [

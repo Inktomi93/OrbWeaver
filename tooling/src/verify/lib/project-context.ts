@@ -10,7 +10,7 @@ import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { SchemaDataProjection } from "../../floor/code-facts/schema-projection-contract.ts";
 import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
-import type { InventoryFamily, InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { InventoryFamily, InventoryInvocationPlan, SemanticInventoryOptions } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
 import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
@@ -446,6 +446,7 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   }
   // biome-ignore lint/nursery/useDisposables: this reader transfers the store handle to its run-owned session.
   const inventory = createSemanticInventory({
+    ...idBrandOptions(queries, owner, families),
     root,
     programs: descriptors,
     ...(families.includes("drizzle-identities")
@@ -643,6 +644,25 @@ export function nativeTypeFactOptions(
     ...(context.nativeTypeFacts === undefined ? {} : { nativeTypeFacts: context.nativeTypeFacts }),
     ...(context.nativeSourceView === undefined ? {} : { nativeSourceView: context.nativeSourceView }),
   };
+}
+
+function idBrandOptions(
+  queries: readonly NativeTypeRequest[],
+  owner: (node: Node) => string,
+  families: readonly InventoryFamily[],
+): Pick<SemanticInventoryOptions, "idBrandQueries"> {
+  return families.includes("id-brands")
+    ? {
+        idBrandQueries: queries
+          .filter((query) => query.kind === "id-brands")
+          .flatMap((query) =>
+            query.nodes.map((node) => ({
+              program: owner(node),
+              node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+            })),
+          ),
+      }
+    : {};
 }
 
 function requestedSchemaProjection(queries: readonly NativeTypeRequest[]): SchemaDataProjection {

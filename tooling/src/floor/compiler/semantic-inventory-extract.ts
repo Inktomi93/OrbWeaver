@@ -250,7 +250,9 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           fileURLToPath(new URL("../code-facts/expression-value.ts", import.meta.url)),
         ]
       : []),
-    ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
+    ...(families.includes("id-brands")
+      ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url)), fileURLToPath(new URL("./drizzle-inventory-extract.ts", import.meta.url))]
+      : []),
     ...(families.includes("declaration-outputs") ? [fileURLToPath(new URL("../code-facts/declaration-output.ts", import.meta.url))] : []),
     ...(usesReferenceInputs(families)
       ? [
@@ -330,6 +332,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const globalOriginQueries = globalDemandFor(request, families, roots, "globalOriginQueries");
   const globalBindingQueries = globalDemandFor(request, families, roots, "globalBindingQueries");
   const invocationQueries = invocationDemandFor(request, families, roots);
+  const idBrandQueries = idBrandDemandFor(request, families, roots);
   assertDrizzleRequest(request, families, roots, fileSystem);
   const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
   const authored = (path: string): boolean => {
@@ -375,6 +378,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           globalOriginQueries,
           globalBindingQueries,
           invocationQueries,
+          idBrandQueries,
           drizzle: request,
         });
   return {
@@ -464,6 +468,7 @@ function extractTypedFacts(
     readonly globalOriginQueries: readonly InventorySpan[];
     readonly globalBindingQueries: readonly InventorySpan[];
     readonly invocationQueries: readonly InventoryInvocationQuery[];
+    readonly idBrandQueries: readonly InventorySpan[];
     readonly drizzle: InventoryBuildRequest;
   },
 ): SourceFactValues & Pick<InventoryPartition, "pairs" | "references" | "schemaIdentity" | "schemaData" | "drizzleCalls"> {
@@ -479,8 +484,10 @@ function extractTypedFacts(
     globalOriginQueries,
     globalBindingQueries,
     invocationQueries,
+    idBrandQueries,
   } = input;
   const needsProject =
+    idBrandQueries.length > 0 ||
     invocationQueries.length > 0 ||
     input.drizzle.schemaSources !== undefined ||
     input.drizzle.schemaDataSources !== undefined ||
@@ -526,6 +533,7 @@ function extractTypedFacts(
       globalOriginQueries,
       globalBindingQueries,
       invocationQueries,
+      idBrandQueries,
       invocationSources,
       invocationProgram,
       ordinarySchema,
@@ -634,6 +642,7 @@ interface SourceFactCollection {
   readonly globalBindingQueries: Set<string>;
   readonly globalKinds: ReadonlySet<SyntaxKind>;
   readonly invocationBindings: Map<string, InventorySymbols>;
+  readonly brandKeys: Set<string>;
 }
 
 function exportFactProjection(
@@ -741,7 +750,38 @@ function collectBrandFact(node: MorphNode, context: SourceFactCollection): void 
   }
   const target = node.getTypeNode();
   if (target !== undefined) {
-    context.values.brands.push({ node: context.spans.node(target), brand: nativeIdBrand(target) });
+    collectBrandTarget(target, context);
+  }
+}
+
+function collectBrandTarget(target: MorphNode, context: SourceFactCollection): void {
+  const span = context.spans.node(target);
+  const key = inventoryNodeQueryKey(span);
+  if (!context.brandKeys.has(key)) {
+    context.values.brands.push({ node: span, brand: nativeIdBrand(target) });
+    context.brandKeys.add(key);
+  }
+}
+
+function collectIdBrandQueries(
+  queries: readonly InventorySpan[],
+  sources: readonly SourceFile[],
+  program: ts.Program | undefined,
+  context: SourceFactCollection,
+): void {
+  const byFile = new Map(sources.map((source) => [context.spans.node(source).file, source]));
+  for (const query of queries) {
+    const source = byFile.get(query.file);
+    if (source === undefined || program === undefined) {
+      throw new Error("native id-brand query source is unavailable");
+    }
+    assertInvocationSource(source, program, "id-brand-capture");
+    const target = inventoryQueryNode(source, query);
+    if (!ts.isTypeNode(target.compilerNode)) {
+      throw new Error("native id-brand query is not a TypeNode");
+    }
+    collectBrandTarget(target, context);
+    assertInvocationSource(source, program, "id-brand-complete");
   }
 }
 
@@ -898,6 +938,7 @@ function extractSourceFacts(
     readonly globalOriginQueries: readonly InventorySpan[];
     readonly globalBindingQueries: readonly InventorySpan[];
     readonly invocationQueries: readonly InventoryInvocationQuery[];
+    readonly idBrandQueries: readonly InventorySpan[];
     readonly invocationSources: readonly SourceFile[];
     readonly invocationProgram: ts.Program | undefined;
     readonly ordinarySchema: SchemaQuery | undefined;
@@ -934,6 +975,7 @@ function extractSourceFacts(
       shapes: [],
     },
     invocationBindings: new Map(),
+    brandKeys: new Set(),
     referenceDeclarations: new Map(),
     shapeNodes: new WeakSet(),
     checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),
@@ -941,6 +983,7 @@ function extractSourceFacts(
   const standaloneSources = nativeCompilerSourceFiles(program);
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
   try {
+    collectIdBrandQueries(input.idBrandQueries, input.invocationSources, input.invocationProgram, context);
     collectInvocationFacts(input.invocationQueries, input.invocationSources, context, {
       program: input.invocationProgram,
       schema: input.ordinarySchema,
@@ -1090,6 +1133,14 @@ function computedDemandFor(request: InventoryBuildRequest, families: readonly In
   }
   if (queries.some((query) => !roots.includes(query.file)) || (queries.length > 0 && !families.includes("computed-names"))) {
     throw new Error("native computed-name query is outside its demanded native roots/family");
+  }
+  return queries;
+}
+
+function idBrandDemandFor(request: InventoryBuildRequest, families: readonly InventoryFamily[], roots: readonly string[]): readonly InventorySpan[] {
+  const queries = request.idBrandQueries ?? [];
+  if (queries.some((query) => !roots.includes(query.file)) || (queries.length > 0 && !families.includes("id-brands"))) {
+    throw new Error("native id-brand query is outside its demanded native roots/family");
   }
   return queries;
 }
