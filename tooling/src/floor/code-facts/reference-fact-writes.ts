@@ -6,6 +6,7 @@ import { descendantsOfKind, nativeReferenceNodes } from "@orb/tooling/floor/comp
 import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { aliasEdges, lexicalReferenceSymbol, rootIdentifier, unwrapTarget } from "./reference-fact-alias.ts";
+import type { SourceWriteFacts } from "./reference-fact-contract.ts";
 
 function transparentUse(node: MorphNode): MorphNode {
   let current = node;
@@ -181,6 +182,9 @@ function staticMemberName(node: MorphNode): string | undefined {
     return;
   }
   const argument = node.getArgumentExpression();
+  if (argument !== undefined && Node.isNumericLiteral(argument)) {
+    return String(argument.getLiteralValue());
+  }
   return argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) ? argument.getLiteralText() : undefined;
 }
 
@@ -230,11 +234,104 @@ function addCallArgumentMutation(target: MorphNode, written: Set<object>, mutate
   addMemberWriteSymbols(root, written, mutated);
 }
 
-function collectWrites(sourceFile: SourceFile): { readonly written: Set<object>; readonly mutated: Set<object>; readonly reassigned: Set<object> } {
+const PROTOTYPE_EXPOSURE_MEMBERS: ReadonlySet<string> = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+  "getPrototypeOf",
+  "setPrototypeOf",
+  "defineProperty",
+  "defineProperties",
+  "getOwnPropertyDescriptor",
+  "getOwnPropertyDescriptors",
+  "__defineGetter__",
+  "__defineSetter__",
+  "__lookupGetter__",
+  "__lookupSetter__",
+]);
+
+function runtimeNode(node: MorphNode): boolean {
+  return !(node.getSourceFile().isDeclarationFile() || node.getAncestors().some(Node.isTypeNode));
+}
+
+const INHERITED_GLOBALS: ReadonlySet<string> = new Set(["Object", "Reflect", "Function", "eval"]);
+const PROTOTYPE_OWNERS: ReadonlySet<string> = new Set(["Object", "Reflect"]);
+
+function nativeGlobal(node: MorphNode, names: ReadonlySet<string>): boolean {
+  const symbol = node.getSymbol();
+  return symbol !== undefined && names.has(symbol.getName()) && symbol.getDeclarations().some(isTypeScriptLibraryDeclaration);
+}
+
+function nativeGlobalExposure(identifier: Identifier): boolean {
+  const text = identifier.getText();
+  if ((!INHERITED_GLOBALS.has(text) && text !== "globalThis") || isDeclarationName(identifier) || !runtimeNode(identifier)) {
+    return false;
+  }
+  const outer = identifier.getParent();
+  if (Node.isPropertyAccessExpression(outer) && outer.getNameNode() === identifier) {
+    return false;
+  }
+  const native = nativeGlobal(identifier, INHERITED_GLOBALS);
+  if (native && (text === "eval" || text === "Function")) {
+    return true;
+  }
+  const intrinsic = text === "globalThis" && identifier.getSymbol()?.getDeclarations().length === 0;
+  if (!(native || intrinsic)) {
+    return false;
+  }
+  const use = transparentUse(identifier);
+  const parent = use.getParent();
+  return parent === undefined || !(isMemberReceiver(parent, use) || (Node.isNewExpression(parent) && parent.getExpression() === use));
+}
+
+function inheritedMemberInput(member: import("ts-morph").PropertyAccessExpression | import("ts-morph").ElementAccessExpression): boolean {
+  if (!runtimeNode(member)) {
+    return false;
+  }
+  const name = staticMemberName(member);
+  if (name === undefined || PROTOTYPE_EXPOSURE_MEMBERS.has(name)) {
+    return true;
+  }
+  if (INHERITED_GLOBALS.has(name)) {
+    return true;
+  }
+  const receiver = unwrapTarget(member.getExpression());
+  const receiverName = Node.isIdentifier(receiver) ? receiver.getText() : staticMemberName(receiver);
+  return receiverName !== undefined && PROTOTYPE_OWNERS.has(receiverName) && nativeGlobal(receiver, PROTOTYPE_OWNERS);
+}
+
+function inheritedBindingInput(binding: import("ts-morph").BindingElement): boolean {
+  if (!runtimeNode(binding)) {
+    return false;
+  }
+  const name = binding.getPropertyNameNode() ?? binding.getNameNode();
+  if (Node.isComputedPropertyName(name)) {
+    return true;
+  }
+  if (Node.isIdentifier(name)) {
+    return PROTOTYPE_EXPOSURE_MEMBERS.has(name.getText());
+  }
+  return Node.isStringLiteral(name) && PROTOTYPE_EXPOSURE_MEMBERS.has(name.getLiteralText());
+}
+
+function inheritedReadInputs(sourceFile: SourceFile, identifiers: readonly Identifier[]): readonly MorphNode[] {
+  if (sourceFile.isDeclarationFile()) {
+    return [];
+  }
+  const inputs: MorphNode[] = identifiers.filter(nativeGlobalExposure);
+  for (const kind of [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const) {
+    inputs.push(...descendantsOfKind(sourceFile, kind).filter(inheritedMemberInput));
+  }
+  inputs.push(...descendantsOfKind(sourceFile, SyntaxKind.BindingElement).filter(inheritedBindingInput));
+  return inputs.sort((left, right) => left.getStart() - right.getStart());
+}
+
+function collectWrites(sourceFile: SourceFile): SourceWriteFacts {
   const written = new Set<object>();
   const mutated = new Set<object>();
   const reassigned = new Set<object>();
-  for (const identifier of descendantsOfKind(sourceFile, SyntaxKind.Identifier)) {
+  const identifiers = descendantsOfKind(sourceFile, SyntaxKind.Identifier);
+  for (const identifier of identifiers) {
     const kind = isDeclarationName(identifier) ? undefined : writeKind(identifier);
     const symbol = kind === undefined ? undefined : lexicalReferenceSymbol(identifier);
     if (symbol === undefined) {
@@ -254,7 +351,12 @@ function collectWrites(sourceFile: SourceFile): { readonly written: Set<object>;
       addCallArgumentMutation(target, written, mutated);
     }
   }
-  return { written, mutated, reassigned };
+  expandMutated(mutated, aliasEdges(sourceFile));
+  for (const symbol of mutated) {
+    written.add(symbol);
+  }
+  const inheritedReads = inheritedReadInputs(sourceFile, identifiers);
+  return { written, reassigned, inheritedReads };
 }
 
 function expandMutated(mutated: Set<object>, edges: ReadonlyMap<object, Set<object>>): void {
@@ -385,29 +487,13 @@ export function invokedMemberThroughAliases(identifier: Identifier, cache: Map<o
   return symbol === undefined ? undefined : invoked.get(symbol.compilerSymbol);
 }
 
-export function writtenReferenceSymbols(sourceFile: SourceFile, cache: Map<object, ReadonlySet<object>>): ReadonlySet<object> {
+export function sourceWriteFacts(sourceFile: SourceFile, cache: Map<object, SourceWriteFacts>): SourceWriteFacts {
   const key: object = sourceFile.compilerNode;
   const cached = cache.get(key);
   if (cached !== undefined) {
     return cached;
   }
-  const { written, mutated } = collectWrites(sourceFile);
-  expandMutated(mutated, aliasEdges(sourceFile));
-  for (const symbol of mutated) {
-    written.add(symbol);
-  }
-  cache.set(key, written);
-  return written;
-}
-
-/** Binding identity survives a member mutation; only reassignment changes which initializer it denotes. */
-export function reassignedReferenceSymbols(sourceFile: SourceFile, cache: Map<object, ReadonlySet<object>>): ReadonlySet<object> {
-  const key: object = sourceFile.compilerNode;
-  const cached = cache.get(key);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const { reassigned } = collectWrites(sourceFile);
-  cache.set(key, reassigned);
-  return reassigned;
+  const facts = collectWrites(sourceFile);
+  cache.set(key, facts);
+  return facts;
 }

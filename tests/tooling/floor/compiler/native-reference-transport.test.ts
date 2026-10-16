@@ -3,7 +3,7 @@ import { observeCallReturns, readSuppliedParameter } from "@orb/tooling/floor/co
 import { beginReferencePass, endReferencePass, isDocumentationLinkReference } from "@orb/tooling/floor/code-facts/reference-fact";
 import { unprovenReferenceUse } from "@orb/tooling/floor/code-facts/reference-fact-writes";
 import { readAuthoredCallableSources } from "@orb/tooling/floor/code-facts/value-carrier";
-import { nativeReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
+import { captureNativeReferenceReads, nativeReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
 import { Project, SyntaxKind, ts } from "ts-morph";
 import { vi } from "vitest";
 
@@ -342,3 +342,196 @@ test("package redirects admit only shared native syntax, never equal path and te
     endReferencePass();
   }
 });
+
+const NATIVE_VALIDATION_CHANGES = ["text", "roots", "options"] as const;
+function nativeValidationFixture(): {
+  readonly file: string;
+  readonly host: ts.LanguageServiceHost;
+  readonly service: ts.LanguageService;
+  readonly cancel: (value: boolean) => void;
+  readonly change: (kind: (typeof NATIVE_VALIDATION_CHANGES)[number]) => void;
+} {
+  const file = "/source.ts";
+  const files = new Map([[file, "const value=1;const read=value;"]]);
+  let version = 0;
+  let cancelled = false;
+  let options: ts.CompilerOptions = { noLib: true, types: [], target: ts.ScriptTarget.ESNext };
+  const host: ts.LanguageServiceHost = {
+    getCompilationSettings: () => options,
+    getScriptFileNames: () => [...files.keys()],
+    getScriptVersion: () => String(version),
+    getProjectVersion: () => String(version),
+    getScriptSnapshot: (name) => {
+      const text = files.get(name);
+      return text === undefined ? undefined : ts.ScriptSnapshot.fromString(text);
+    },
+    getCurrentDirectory: () => "/",
+    getDefaultLibFileName: () => "/lib.d.ts",
+    readFile: (name) => files.get(name),
+    fileExists: (name) => files.has(name),
+    getCancellationToken: () => ({ isCancellationRequested: () => cancelled }),
+  };
+  const service = ts.createLanguageService(host);
+  return {
+    file,
+    host,
+    service,
+    cancel: (value: boolean): void => {
+      cancelled = value;
+    },
+    change: (kind: (typeof NATIVE_VALIDATION_CHANGES)[number]): void => {
+      if (kind === "text") {
+        files.set(file, "const value=2;const read=value;");
+      } else if (kind === "roots") {
+        files.set("/added.ts", "export const added=1;");
+      } else {
+        options = { ...options, strict: true };
+      }
+      version++;
+    },
+  };
+}
+
+test("native validation checks admission without executing a reference search", () => {
+  const { file, service } = nativeValidationFixture();
+  const pass = service.createReadonlyReferencePass();
+  const source = service.getProgram()?.getSourceFile(file);
+  if (source === undefined) {
+    throw new Error("the native validation source is missing");
+  }
+  const children = vi.spyOn(source, "getChildren");
+  try {
+    expect(() => pass.validate(file)).not.toThrow();
+    expect(children).not.toHaveBeenCalled();
+    const result = pass.findReferences(file, 6, { includeDefinitionDisplay: false });
+    expect(children.mock.calls.length).toBeGreaterThan(0);
+    expect(result).toEqual(service.findReferences(file, 6, { includeDefinitionDisplay: false }));
+  } finally {
+    children.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+for (const kind of NATIVE_VALIDATION_CHANGES) {
+  test(`native validation refuses changed ${kind} without a reference query`, () => {
+    const { file, service, change } = nativeValidationFixture();
+    const pass = service.createReadonlyReferencePass();
+    try {
+      pass.validate(file);
+      change(kind);
+      expect(() => pass.validate(file)).toThrow("invalidated");
+      expect(() => pass.validate(file)).toThrow("disposed");
+    } finally {
+      pass.dispose();
+      service.dispose();
+    }
+  });
+}
+
+test("native validation retains cancellation missing-source and disposed behavior", () => {
+  const { file, service, host, cancel } = nativeValidationFixture();
+  const pass = service.createReadonlyReferencePass();
+  const roots = vi.spyOn(host, "getScriptFileNames");
+  try {
+    cancel(true);
+    expect(() => pass.validate(file)).toThrow(ts.OperationCanceledException);
+    cancel(false);
+    expect(() => pass.validate(file)).not.toThrow();
+    expect(() => pass.validate("/missing.ts")).toThrow();
+    expect(() => pass.validate(file)).not.toThrow();
+    pass.dispose();
+    roots.mockClear();
+    expect(() => pass.validate(file)).toThrow("disposed");
+    expect(roots).not.toHaveBeenCalled();
+    expect(() => pass.findReferences(file, 6)).toThrow("disposed");
+  } finally {
+    roots.mockRestore();
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test("native validation retains semantic-cache disposal", () => {
+  const { file, service } = nativeValidationFixture();
+  const pass = service.createReadonlyReferencePass();
+  try {
+    service.cleanupSemanticCache();
+    expect(() => pass.validate(file)).toThrow("disposed");
+  } finally {
+    pass.dispose();
+    service.dispose();
+  }
+});
+
+test("captured native query validation retains only actual pass dependencies", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/source.ts", "const value=1;const read=value;");
+  const name = source.getVariableDeclarationOrThrow("value").getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+  const service = project.getLanguageService().compilerObject;
+  const create = service.createReadonlyReferencePass.bind(service);
+  let pass: ts.ReadonlyReferencePass | undefined;
+  const acquisition = vi.spyOn(service, "createReadonlyReferencePass").mockImplementation(() => {
+    pass = create();
+    return pass;
+  });
+  const before = captureNativeReferenceReads();
+  expect(before()).toEqual({ used: false, validate: undefined });
+  expect(acquisition).not.toHaveBeenCalled();
+  beginReferencePass();
+  const released = vi.fn();
+  let validate: (() => boolean) | undefined;
+  try {
+    const capture = captureNativeReferenceReads(released);
+    nativeReferenceNodes(name);
+    const read = capture();
+    validate = read.validate;
+    expect(read.used).toBe(true);
+    expect(validate).toBeTypeOf("function");
+    if (pass === undefined) {
+      throw new Error("the actual native pass is missing");
+    }
+    const querying = vi.spyOn(pass, "findReferences");
+    try {
+      expect(validate?.()).toBe(true);
+      expect(querying).not.toHaveBeenCalled();
+      pass.dispose();
+      expect(() => validate?.()).toThrow("disposed");
+    } finally {
+      querying.mockRestore();
+    }
+  } finally {
+    endReferencePass();
+    acquisition.mockRestore();
+  }
+  expect(validate?.()).toBe(false);
+  expect(released).toHaveBeenCalledTimes(1);
+  const raw = captureNativeReferenceReads();
+  nativeReferenceNodes(name);
+  expect(raw()).toEqual({ used: true, validate: undefined });
+});
+
+for (const mutation of ["source", "options", "forgotten"] as const) {
+  test(`captured native query validation retains ${mutation} refusal`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    const source = project.createSourceFile("/source.ts", "const value=1;const read=value;");
+    const name = source.getVariableDeclarationOrThrow("value").getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+    beginReferencePass();
+    try {
+      const capture = captureNativeReferenceReads();
+      nativeReferenceNodes(name);
+      const validate = capture().validate;
+      expect(validate?.()).toBe(true);
+      if (mutation === "source") {
+        source.addStatements("const changed=value;");
+      } else if (mutation === "options") {
+        project.compilerOptions.set({ strict: true });
+      } else {
+        source.forget();
+      }
+      expect(() => validate?.()).toThrow();
+    } finally {
+      endReferencePass();
+    }
+  });
+}

@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-15
+updated: 2026-10-16
 priority: P2
 ---
 
@@ -19,7 +19,7 @@ Audit `@packages` policies in `tooling/src/verify/contract/population.ts`: this 
 
 Workspace reconciliation omits `tests/support` package identity, not its `@tests` source admission. Adjudicate these separately without exclusions.
 
-Legacy condition, coercion, sort and nullish findings stay with replacement cases. Native lint reports unknown `shell-modal-header` in `packages/client/src/components/content-dialog.tsx` and `packages/client/src/features/app-shell/components/modal-host.tsx`; adjudicate its actual role.
+Legacy condition, coercion, sort and nullish findings stay with replacement cases. Modal headers use the existing primitive slot; panel focus-return markers preserve list and context behavior.
 
 Legacy auth-config CT stubs contain invalid payloads. Boundary parsing owns their source evidence; corpus builders replace the inputs. Preserve cases without weakening parsing.
 
@@ -43,7 +43,7 @@ Compose integration preserves census equality. Reindex/auth classifications rema
 
 The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
 
-Default-corpus Snap intake passes; its aggregate remains red on the live `.shell-list-toggle` focus hook. Raw HAR preserves an aborted stream followed by a successful replacement; the latest-per-URL summary disagrees. Adjudicate marker representation and cancellation reporting without changing corpus acceptance. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-completion-boundary-audit.md`.
+Reviewed modal and focus-marker repairs pass scoped lint, client types, dialog CTs and real keyboard-close controls. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/977-modal-marker-delivery.md`. Default-corpus Snap remains red: previewContextFit reaches an unavailable corpus embedding provider. Response bodies are omitted; the captured server excerpt identifies connection refusal. Keep provider setup and cancellation reporting separate from accepted marker behavior. The application snapshot remains withheld under software rendering.
 
 JSON and wire parsing allowances are zero; whole-application qualification remains open.
 

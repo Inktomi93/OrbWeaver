@@ -3,7 +3,15 @@ import type { CallExpression, Identifier, Node, ObjectLiteralExpression, ts } fr
 import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { nativeReferenceNodes, readonlyObjectProperties } from "../compiler/ts-workspace.ts";
 import { readCallBindings, readCallReturnProgram, readObservedCallableConsumers, readSuppliedParameter, runtimeUndefinedValue } from "./call-supplied.ts";
-import { isDocumentationLinkReference, readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
+import {
+  inspectBindingReassignment,
+  inspectInheritedReadEffects,
+  inspectReferenceWrites,
+  isDocumentationLinkReference,
+  readStaticString,
+  resolveStableExpression,
+  staticMemberAccess,
+} from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
 import type {
   CallableAdmission,
@@ -26,6 +34,7 @@ import {
   nativeDisposalPropertyKey,
   nativeDisposerReceiverClosed,
   nativeParameterFieldsUnchanged,
+  readNativeFreezeArgument,
   readNativeResourceRegistration,
   readNativeRetainedReturn,
   readNativeReturnedCall,
@@ -232,7 +241,13 @@ function returnedCallValue(call: CallExpression, path: readonly string[], contex
   if (typeof context.terminals === "function" ? context.terminals(call) : context.terminals.has(call.compilerNode)) {
     return valueLeaf(call, path, context);
   }
-  const native = context.nativeValueTransfers || context.callableValues === true ? readNativeReturnedCall(call, path, context, nativeValueServices) : undefined;
+  if (context.program !== undefined && !context.program.byCall.has(call.compilerNode)) {
+    const demanded = context.program.demandValueCall?.(call);
+    if (demanded?.kind === "unresolved") {
+      return demanded;
+    }
+  }
+  const native = readNativeReturnedCall(call, path, context, nativeValueServices);
   if (native !== undefined) {
     return native;
   }
@@ -263,7 +278,130 @@ function returnedCallValue(call: CallExpression, path: readonly string[], contex
   );
 }
 
-const nativeValueServices: NativeValueTransferServices = { readValue: returnedValue, leaf: valueLeaf, alternatives: valueAlternatives, refusal: valueRefusal };
+const nativeValueServices: NativeValueTransferServices = {
+  outputUse: returnedOutputUse,
+  inheritedEffects: nativeInheritedEffects,
+  readValue: returnedValue,
+  leaf: valueLeaf,
+  alternatives: valueAlternatives,
+  refusal: valueRefusal,
+};
+
+interface ReturnedOutputUseContext {
+  readonly context: ReturnedValueContext;
+  readonly path: readonly string[];
+  readonly scalar: boolean;
+  readonly active: ReadonlySet<ts.Node>;
+}
+
+function returnedOutputUse(node: Node, path: readonly string[], context: ReturnedValueContext, values: readonly ReturnedValueSource[]): ReferenceFact<true> {
+  if (context.program === undefined) {
+    return valueRefusal(node, "missing", "returned output has no captured native context");
+  }
+  for (const source of values) {
+    const admitted = readCallReturnProgram(source.value, { programs: [context.program] });
+    if (admitted.kind === "unresolved") {
+      return admitted;
+    }
+  }
+  const scalar =
+    values.length > 0 &&
+    values.every((source) => {
+      if (!source.present || source.path.length > 0) {
+        return false;
+      }
+      if ((N.isIdentifier(source.value) || N.isVoidExpression(source.value)) && runtimeUndefinedValue(source.value)) {
+        return true;
+      }
+      const value = readStaticAuthoredValue(source.value);
+      return value.kind === "resolved" && value.value.kind === "scalar";
+    });
+  return returnedOutputUseWithin(node, { context, path, scalar, active: new Set() });
+}
+
+function returnedOutputCaller(returned: Node, inputs: ReturnedOutputUseContext): ReferenceFact<true> {
+  const owner = N.isArrowFunction(returned) ? returned : returned.getFirstAncestor(N.isFunctionLikeDeclaration);
+  const program = inputs.context.program;
+  if (owner === undefined || program === undefined) {
+    return valueRefusal(returned, "missing", "returned output has no captured callable owner");
+  }
+  const callers = readObservedCallableConsumers(owner, program);
+  if (callers.kind === "unresolved") {
+    return callers;
+  }
+  const active = callers.value.filter((candidate) => inputs.context.active.has(candidate.call.compilerNode));
+  const caller = active[0];
+  if (active.length !== 1 || caller === undefined) {
+    return valueRefusal(returned, "unsupported", "returned output has no one exact active captured invocation");
+  }
+  return returnedOutputUseWithin(caller.call, inputs);
+}
+
+function returnedOutputAlias(node: Node, declaration: import("ts-morph").VariableDeclaration, inputs: ReturnedOutputUseContext): ReferenceFact<true> {
+  const name = declaration.getNameNode();
+  if (!N.isIdentifier(name)) {
+    return valueRefusal(declaration, "unsupported", "returned output has a destructured consumer without alias closure");
+  }
+  const writes = inspectReferenceWrites(name);
+  if (writes.kind === "unresolved") {
+    return writes;
+  }
+  let refusal: UnresolvedReferenceFact | undefined;
+  const missing = unprovenReferenceUse(name, (use) => {
+    const closed = returnedOutputUseWithin(use, inputs);
+    if (closed.kind === "unresolved") {
+      refusal = closed;
+    }
+    return closed.kind === "resolved";
+  });
+  return missing === undefined
+    ? { kind: "resolved", value: true, trace: { declarations: [declaration], origin: node } }
+    : (refusal ?? valueRefusal(missing, "unsupported", "returned output has an unclosed alias consumer"));
+}
+
+function returnedOutputFreeze(value: Node, call: CallExpression, inputs: ReturnedOutputUseContext): ReferenceFact<true> {
+  if (inputs.path.length !== 1 || !inputs.scalar) {
+    return valueRefusal(value, "unsupported", "native freeze does not close this output's mutable nested or non-scalar value");
+  }
+  const frozen = readNativeFreezeArgument(call, inputs.context, nativeValueServices);
+  if (frozen?.kind === "unresolved") {
+    return frozen;
+  }
+  return frozen?.value.compilerNode === value.compilerNode
+    ? { kind: "resolved", value: true, trace: frozen.trace }
+    : valueRefusal(value, "unsupported", "returned output has an opaque consumer or an unproven mutable handoff");
+}
+
+function returnedOutputUseWithin(node: Node, inputs: ReturnedOutputUseContext): ReferenceFact<true> {
+  const program = inputs.context.program;
+  if (program === undefined) {
+    return valueRefusal(node, "missing", "returned output has no captured native context");
+  }
+  const admitted = readCallReturnProgram(node, { programs: [program] });
+  if (admitted.kind === "unresolved") {
+    return admitted;
+  }
+  if (inputs.active.has(node.compilerNode)) {
+    return valueRefusal(node, "cycle", "returned output consumers revisit the same value handoff");
+  }
+  const next = { ...inputs, active: new Set(inputs.active).add(node.compilerNode) };
+  let value = node;
+  let parent = value.getParent();
+  while (N.isParenthesizedExpression(parent) || N.isAsExpression(parent) || N.isSatisfiesExpression(parent) || N.isNonNullExpression(parent)) {
+    value = parent;
+    parent = value.getParent();
+  }
+  if ((N.isReturnStatement(parent) && parent.getExpression() === value) || (N.isArrowFunction(parent) && parent.getBody() === value)) {
+    return returnedOutputCaller(parent, next);
+  }
+  if (N.isVariableDeclaration(parent) && parent.getInitializer() === value) {
+    return returnedOutputAlias(node, parent, next);
+  }
+  if (N.isCallExpression(parent)) {
+    return returnedOutputFreeze(value, parent, inputs);
+  }
+  return valueRefusal(value, "unsupported", "returned output has an opaque consumer or an unproven mutable handoff");
+}
 
 function returnedDefaultValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
   const supplied = readSuppliedParameter(node, context.bindings, context.program);
@@ -646,7 +784,12 @@ function callableSuppliedLeaves(
   node: Node,
   path: readonly string[],
   program: CallReturnProgram,
-  inputs: { readonly bindings: ReadonlyMap<Node, Node>; readonly active: ReadonlySet<ts.Node>; readonly uses?: Map<Node, CallableSuppliedUse[]> } = {
+  inputs: {
+    readonly bindings: ReadonlyMap<Node, Node>;
+    readonly active: ReadonlySet<ts.Node>;
+    readonly activeValues?: ReadonlySet<ts.Node>;
+    readonly uses?: Map<Node, CallableSuppliedUse[]>;
+  } = {
     bindings: new Map(),
     active: new Set(),
   },
@@ -663,7 +806,7 @@ function callableSuppliedLeaves(
   const projected = returnedValue(node, path, {
     program,
     bindings,
-    active: new Set(),
+    active: inputs.activeValues ?? new Set(),
     terminals: new Set(),
     explicitAbsentReturns: false,
     callableValues: true,
@@ -696,6 +839,7 @@ function callableSuppliedLeaves(
           ? callableSuppliedLeaves(actual.value, [...actual.path, ...source.path], program, {
               bindings: actual.bindings,
               active: next,
+              ...(inputs.activeValues === undefined ? {} : { activeValues: inputs.activeValues }),
               ...(inputs.uses === undefined ? {} : { uses: inputs.uses }),
             })
           : { ...supplied, value: [{ ...actual, path: source.path }] },
@@ -803,6 +947,9 @@ function createCallableUseSharing(
   admission: CallableAdmission | undefined,
 ): CallableUseSharing | undefined {
   const context = program?.callableContext;
+  if (typeof admission === "function") {
+    context?.untrackedRead?.();
+  }
   if (program === undefined || context === undefined || typeof admission === "function") {
     return;
   }
@@ -1235,38 +1382,151 @@ function ordinarySpreadDataPresence(expression: Node, key: string, receiver: Ret
 }
 
 function spreadOwnData(
-  previous: boolean,
+  previous: readonly boolean[] | undefined,
   expression: Node,
   key: string,
   inputs: { readonly receiver: ReturnedValueSource; readonly program: CallReturnProgram },
-): boolean {
+): readonly boolean[] | undefined {
   const { receiver, program } = inputs;
   const present = ordinarySpreadDataPresence(expression, key, receiver, program);
   if (present !== undefined) {
-    return present.some(Boolean) ? previous || present.every(Boolean) : previous;
+    if (present.every(Boolean)) {
+      return [true];
+    }
+    return present.some(Boolean) && previous !== undefined ? [true, ...previous.filter((value) => !value)] : previous;
   }
   const projected = readReturnedValue(expression, [key], { programs: [program] }, { terminals: new Set(), bindings: receiver.bindings });
-  return projected.kind === "resolved" && projected.value.every((source) => !source.present) && previous;
+  return projected.kind === "resolved" && projected.value.every((source) => !source.present) ? previous : undefined;
 }
 
-function ownDataProperty(receiver: ReturnedValueSource, key: string, program: CallReturnProgram): boolean {
+function ownDataPresence(receiver: ReturnedValueSource, key: string, program: CallReturnProgram): readonly boolean[] | undefined {
   if (!N.isObjectLiteralExpression(receiver.value)) {
-    return false;
+    return;
   }
-  let data = false;
+  let presence: readonly boolean[] | undefined = [false];
   for (const property of receiver.value.getProperties()) {
     if (N.isSpreadAssignment(property)) {
-      data = spreadOwnData(data, property.getExpression(), key, { receiver, program });
+      presence = spreadOwnData(presence, property.getExpression(), key, { receiver, program });
       continue;
     }
     const name = returnedPropertyName(property, program);
+    if (name.kind === "resolved" && name.value === OBJECT_LITERAL_PROTOTYPE_KEY) {
+      return;
+    }
     if (name.kind === "unresolved") {
-      data = false;
+      presence = undefined;
     } else if (name.value === key) {
-      data = N.isPropertyAssignment(property) || N.isShorthandPropertyAssignment(property);
+      presence = N.isPropertyAssignment(property) || N.isShorthandPropertyAssignment(property) ? [true] : undefined;
     }
   }
-  return data;
+  return presence;
+}
+
+function ownDataProperty(receiver: ReturnedValueSource, key: string, program: CallReturnProgram): boolean {
+  return ownDataPresence(receiver, key, program)?.every(Boolean) === true;
+}
+
+function terminalDataRead(node: Node): boolean {
+  let current = node;
+  for (;;) {
+    const parent = current.getParent();
+    if (N.isParenthesizedExpression(parent) || N.isAsExpression(parent) || N.isSatisfiesExpression(parent) || N.isNonNullExpression(parent)) {
+      current = parent;
+      continue;
+    }
+    return !(
+      ((N.isPropertyAccessExpression(parent) || N.isElementAccessExpression(parent) || N.isCallExpression(parent) || N.isNewExpression(parent)) &&
+        parent.getExpression() === current) ||
+      (N.isTaggedTemplateExpression(parent) && parent.getTag() === current)
+    );
+  }
+}
+
+function inheritedReceiverEndpoints(node: Node, receiver: ResolvedReferenceFact<readonly ReturnedValueSource[]>): ReadonlySet<Node> {
+  const parameters = new Set(receiver.trace.declarations.filter(N.isParameterDeclaration));
+  const endpoints = new Set<Node>([node]);
+  for (const source of receiver.value) {
+    for (const [parameter, argument] of source.bindings) {
+      if (N.isParameterDeclaration(parameter) && parameters.has(parameter)) {
+        endpoints.add(argument);
+      }
+    }
+  }
+  return endpoints;
+}
+
+function inheritedReceiverRefusal(
+  node: Node,
+  receiver: ResolvedReferenceFact<readonly ReturnedValueSource[]>,
+  projected: boolean,
+): UnresolvedReferenceFact | undefined {
+  const endpoints = inheritedReceiverEndpoints(node, receiver);
+  for (const declaration of receiver.trace.declarations) {
+    const name =
+      N.isVariableDeclaration(declaration) || N.isParameterDeclaration(declaration) || N.isBindingElement(declaration) ? declaration.getNameNode() : undefined;
+    if (!N.isIdentifier(name)) {
+      continue;
+    }
+    const stable = inspectBindingReassignment(name);
+    if (stable.kind === "unresolved") {
+      return stable;
+    }
+    if (!projected) {
+      continue;
+    }
+    const written = inspectReferenceWrites(name);
+    if (written.kind === "unresolved") {
+      return written;
+    }
+    const escaped = unprovenReferenceUse(name, (use) => endpoints.has(use));
+    if (escaped !== undefined) {
+      return valueRefusal(escaped, "unsupported", "an inherited read receiver has an unclosed alias, write, or supplied use");
+    }
+  }
+  return undefined;
+}
+
+function inheritedEffectValues(
+  node: Node,
+  path: readonly string[],
+  bindings: ReadonlyMap<Node, Node>,
+  context: { readonly program: CallReturnProgram; readonly activeValues?: ReadonlySet<ts.Node> },
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  const { program, activeValues } = context;
+  const inputs = { bindings, active: activeValues ?? new Set<ts.Node>(), ...(activeValues === undefined ? {} : { activeValues }) };
+  const values = callableSuppliedLeaves(node, path, program, inputs);
+  if (values.kind === "unresolved") {
+    return values;
+  }
+  const receiver = path.length === 0 ? values : callableSuppliedLeaves(node, [], program, inputs);
+  if (receiver.kind === "unresolved") {
+    return receiver;
+  }
+  return inheritedReceiverRefusal(node, receiver, path.length > 0) ?? values;
+}
+
+function nativeInheritedEffects(node: Node, context: ReturnedValueContext): ReferenceFact<true> {
+  const program = context.program;
+  if (program === undefined) {
+    return valueRefusal(node, "missing", "native field effects have no captured Program");
+  }
+  return inspectInheritedReadEffects(node, {
+    program,
+    values: (value, path, bindings) => inheritedEffectValues(value, path, bindings, { program, activeValues: context.active }),
+  });
+}
+
+function effectFreeCallableData(receiver: ReturnedValueSource, key: string, program: CallReturnProgram, access: Node): boolean {
+  const own = ownDataPresence(receiver, key, program);
+  return (
+    own !== undefined &&
+    (own.every(Boolean) ||
+      (terminalDataRead(access) &&
+        inspectInheritedReadEffects(receiver.value, {
+          program,
+          values: (node, path, bindings) => inheritedEffectValues(node, path, bindings, { program }),
+        }).kind === "resolved"))
+  );
 }
 
 function freshCallableDataRead(member: import("./reference-fact-contract.ts").MemberReference, proof: CallableUseProof): boolean {
@@ -1287,7 +1547,7 @@ function freshCallableDataRead(member: import("./reference-fact-contract.ts").Me
     if (optional && (receiver.value.getKind() === SyntaxKind.NullKeyword || runtimeUndefinedValue(receiver.value))) {
       return true;
     }
-    return freshCallableReceiver(receiver, member.name, proof) && ownDataProperty(receiver, member.name, program);
+    return freshCallableReceiver(receiver, member.name, proof) && effectFreeCallableData(receiver, member.name, program, member.access);
   });
 }
 
@@ -1421,7 +1681,7 @@ function callableArgumentHandoff(use: Node, proof: CallableUseProof): boolean | 
   });
 }
 
-function ordinaryCallableDataRead(node: Node, key: string, proof: CallableUseProof): boolean {
+function ordinaryCallableDataRead(node: Node, key: string, proof: CallableUseProof, access?: Node): boolean {
   if (proof.program === undefined || key === OBJECT_LITERAL_PROTOTYPE_KEY) {
     return false;
   }
@@ -1434,7 +1694,9 @@ function ordinaryCallableDataRead(node: Node, key: string, proof: CallableUsePro
       (receiver) =>
         receiver.present &&
         receiver.path.length === 0 &&
-        ownDataProperty(receiver, key, program) &&
+        (proof.path[0] !== undefined && proof.path[0] !== key && access !== undefined
+          ? effectFreeCallableData(receiver, key, program, access)
+          : ownDataProperty(receiver, key, program)) &&
         (proof.path.length > 0 || (proof.selectedKey !== undefined && proof.selectedKey !== key && freshCallableReceiver(receiver, key, proof))),
     )
   );
@@ -1571,7 +1833,7 @@ function callableMemberUse(parent: Node, member: import("./reference-fact-contra
     }
     const invocation = parent.getParent();
     if (!(N.isCallExpression(invocation) && invocation.getExpression() === parent)) {
-      return ordinaryCallableDataRead(member.receiver, member.name, proof);
+      return ordinaryCallableDataRead(member.receiver, member.name, proof, member.access);
     }
   }
   if (freshCallableDataRead(member, proof)) {

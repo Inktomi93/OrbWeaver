@@ -9,11 +9,10 @@ import { helperOf, isModelType } from "../../floor/code-facts/drizzle-row.ts";
 import type { ColumnRead, RowModels } from "../../floor/code-facts/drizzle-row-contract.ts";
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import { argumentIndex, carryingLiterals, readReturnedValue, referencesOf, valueSite } from "../../floor/code-facts/value-carrier.ts";
+import { isZodParserCall } from "../../floor/code-facts/zod-origin.ts";
 import type { SchemaQuery } from "../contract/schema-fact.ts";
-import { declaredByPackage, resolveTypeMemberOrigin } from "./type-member-origin.ts";
+import { resolveTypeMemberOrigin } from "./type-member-origin.ts";
 
-const ZOD_PACKAGE = "zod";
-const ZOD_PARSE_METHODS: ReadonlySet<string> = new Set(["parse", "safeParse", "parseAsync", "safeParseAsync"]);
 // The versioned-config codec (Spine-Config-and-Serialization) owns a zod schema plus its lifts; its two read doors parse.
 const VERSIONED_CONFIG_HOME = "/packages/contracts/src/versioned-config/";
 const VERSIONED_CONFIG_PARSE_METHODS: ReadonlySet<string> = new Set(["parse", "parseOutcome"]);
@@ -29,13 +28,13 @@ export type { ColumnRead, RowModels } from "../../floor/code-facts/drizzle-row-c
 // `schema.parse(v)` whose method zod declares, or the codec's `parse`/`parseOutcome`. A helper merely HANDED a schema is
 // not a parse; it is judged one hop in, by what its body does with the value.
 export function isDirectParse(call: CallExpression): boolean {
+  if (isZodParserCall(call)) {
+    return true;
+  }
   const callee = call.getExpression();
   if (N.isPropertyAccessExpression(callee)) {
     const method = resolveTypeMemberOrigin(callee);
     const declarations = method.kind === "resolved" ? method.value.declarations : [];
-    if (ZOD_PARSE_METHODS.has(callee.getName()) && declaredByPackage(declarations, ZOD_PACKAGE)) {
-      return true;
-    }
     if (
       VERSIONED_CONFIG_PARSE_METHODS.has(callee.getName()) &&
       declarations.length > 0 &&

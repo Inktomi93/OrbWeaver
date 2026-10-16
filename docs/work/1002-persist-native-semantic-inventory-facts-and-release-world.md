@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: doing
-updated: 2026-10-15
+updated: 2026-10-16
 priority: P1
 area: tooling
 lane: codex/native-reference-reuse-1002
@@ -34,6 +34,6 @@ Reviewed native reference storage, guarded bindings, settled capture indexes and
 
 Reviewed contextual sharing, optional invocation and native resource registration preserve bindings, allocations, disposal, refusal order and capture invalidation. Opaque callbacks remain uncached. Evidence: `reports/review/native-resource-integrated.md` and its linked reviews.
 
-Dependency-directed refinement and native validation have reviewed bounded controls. Ordinary isolated installation preserves exact runtime inputs. Evidence: `reports/review/1002-inherited-read-root-qualification.md`.
+Reviewed reached-call capture uses explicit reference inputs, validates native lifetime and stages complete observations before publication. Omitted reference inputs preserve ordinary behavior. Current SDK APIs and bundled compiler install without runtime mappings. Native transport, reached-call and helper-freshness controls pass. Tooling types pass; root retains inherited diagnostics.
 
-Reviewed candidate `e085632abe` retains contextual inherited-read checks. Definite-own nested reads retain their exemption; absent and getter receivers still refuse. Scoped controls, review and ordinary tooling types pass; root errors remain. Its final semantic trace links `ctx.backgroundSignal` refusal to unresolved computed dispatch during inherited-effect inspection. Receiver admission passes; contextual callee projection is not consulted. Reviewed `083dfd40b0` closes proven dispatch; env freeze and parser provenance still block replay. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Complete publication, equivalence, reuse and hosted cost remain open; item 1027 owns typed delivery.
+The actual env-parser control still refuses inherited descriptor exposure at the identity dispatch. Actual target completion, complete publication, equivalence, reuse and hosted cost remain open. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Item 1027 owns typed delivery.

@@ -1,48 +1,43 @@
 // Final spelling-independent binding/reference facts for the shared gate runtime.
 
-import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
+import type { Identifier, Node as MorphNode, SourceFile, ts } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { beginNativeReferencePass, endNativeReferencePass } from "../compiler/ts-workspace.ts";
+import { beginNativeReferencePass, endNativeReferencePass, nativeCompilerSourceFiles } from "../compiler/ts-workspace.ts";
 import { isDocumentationLinkReference as documentationLinkReference } from "./reference-documentation.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import type {
   GlobalMemberOrigin,
+  InheritedReadEffectContext,
   MemberReference,
   ModuleMemberOrigin,
   ReferenceFact,
   ReferenceResolutionServices,
   ReferenceUnresolvedReason,
   ResolvedReferenceFact,
+  SourceWriteFacts,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { readMemberAccessWith, readMemberReferenceWith } from "./reference-fact-member.ts";
 import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
-import { reassignedReferenceSymbols, writtenReferenceSymbols } from "./reference-fact-writes.ts";
+import { sourceWriteFacts, unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { inventoryExports } from "./semantic-inventory-reader.ts";
 
 interface ResolutionState {
   readonly declarations: MorphNode[];
   readonly visited: Set<object>;
-  readonly writtenSymbolsBySource: Map<object, ReadonlySet<object>>;
-  readonly reassignedSymbolsBySource: Map<object, ReadonlySet<object>>;
+  readonly writesBySource: Map<object, SourceWriteFacts>;
 }
 
 type WriteInspection = { readonly kind: "stable" } | { readonly kind: "written" } | { readonly kind: "unsupported"; readonly detail: string };
 type WriteScope = "binding" | "value";
 
-// PASS-SCOPED write caches. `state()` used to mint two fresh Maps per identity QUERY, so the file-wide write
-// scan (`collectWrites`: every Identifier in the source file + a symbol lookup each) re-ran for every query
-// in a file instead of once per file per pass — measured 2026-09-06 as 29 s of a 76 s composed pass over 119
-// policies (CPU profile: ts-morph descendant iteration + GC, not the checker). The caches now live for
-// exactly one pass: both dispatchers open them with `beginReferencePass` and close them with
-// `endReferencePass`; a reader called OUTSIDE a pass (a unit test driving the reader directly) still gets
-// fresh per-query maps, so its semantics are unchanged. Keyed by nothing but the open pass — there is one
-// pass per invocation and passes never overlap (the dispatcher is synchronous) — so no module-level cache
-// survives an invocation and no Project is retained.
+// Native source effects share one invocation lifetime; standalone readers keep fresh query-local facts.
+// Program-keyed inherited-read projections cannot outlive the source/write cache that supplied them.
 interface ReferencePassCaches {
-  readonly writtenSymbolsBySource: Map<object, ReadonlySet<object>>;
-  readonly reassignedSymbolsBySource: Map<object, ReadonlySet<object>>;
+  readonly writesBySource: Map<object, SourceWriteFacts>;
+  readonly inheritedReads: Map<ts.Program, readonly MorphNode[]>;
+  writeProgram?: ts.Program;
 }
 let openPass: ReferencePassCaches | undefined;
 
@@ -52,7 +47,7 @@ export function beginReferencePass(): void {
     throw new Error("beginReferencePass: a reference pass is already open — passes never overlap");
   }
   beginNativeReferencePass();
-  openPass = { writtenSymbolsBySource: new Map(), reassignedSymbolsBySource: new Map() };
+  openPass = { writesBySource: new Map(), inheritedReads: new Map() };
 }
 
 /** Close the pass-scoped reader caches; every cached set is dropped with the pass. */
@@ -65,12 +60,11 @@ export function endReferencePass(): void {
 }
 
 function state(): ResolutionState {
-  const caches = openPass ?? { writtenSymbolsBySource: new Map(), reassignedSymbolsBySource: new Map() };
+  const caches = openPass ?? { writesBySource: new Map() };
   return {
     declarations: [],
     visited: new Set<object>(),
-    writtenSymbolsBySource: caches.writtenSymbolsBySource,
-    reassignedSymbolsBySource: caches.reassignedSymbolsBySource,
+    writesBySource: caches.writesBySource,
   };
 }
 
@@ -158,8 +152,8 @@ function inspectWrites(declaration: MorphNode, target: ResolutionState, scope: W
   }
   const written =
     scope === "binding"
-      ? reassignedReferenceSymbols(name.getSourceFile(), target.reassignedSymbolsBySource)
-      : writtenReferenceSymbols(name.getSourceFile(), target.writtenSymbolsBySource);
+      ? sourceWriteFacts(name.getSourceFile(), target.writesBySource).reassigned
+      : sourceWriteFacts(name.getSourceFile(), target.writesBySource).written;
   return written.has(symbol.compilerSymbol) ? { kind: "written" } : { kind: "stable" };
 }
 
@@ -184,7 +178,7 @@ export function inspectBindingReassignment(identifier: Identifier): ReferenceFac
   if (symbol === undefined) {
     return unresolved("missing", identifier, target, `no lexical symbol binds ${identifier.getText()}`);
   }
-  return reassignedReferenceSymbols(identifier.getSourceFile(), target.reassignedSymbolsBySource).has(symbol.compilerSymbol)
+  return sourceWriteFacts(identifier.getSourceFile(), target.writesBySource).reassigned.has(symbol.compilerSymbol)
     ? unresolved("write", identifier, target, `the binding ${identifier.getText()} is reassigned after its declaration`)
     : resolved(true, target, identifier);
 }
@@ -192,9 +186,225 @@ export function inspectBindingReassignment(identifier: Identifier): ReferenceFac
 /** Refuse when the checker symbol is written anywhere in this authored source file. */
 export function inspectSymbolWrites(symbol: import("ts-morph").Symbol, node: MorphNode): ReferenceFact<true> {
   const target = state();
-  return writtenReferenceSymbols(node.getSourceFile(), target.writtenSymbolsBySource).has(symbol.compilerSymbol)
+  return sourceWriteFacts(node.getSourceFile(), target.writesBySource).written.has(symbol.compilerSymbol)
     ? unresolved("write", node, target, `the reference ${node.getText()} is assigned or has a member assigned`)
     : resolved(true, target, node);
+}
+
+function observedWithoutTransfer(node: MorphNode): boolean {
+  let current = node;
+  while (Node.isParenthesizedExpression(current.getParent()) || Node.isAsExpression(current.getParent()) || Node.isNonNullExpression(current.getParent())) {
+    const parent = current.getParent();
+    if (parent === undefined) {
+      return false;
+    }
+    current = parent;
+  }
+  const parent = current.getParent();
+  return (
+    Node.isTypeOfExpression(parent) ||
+    Node.isVoidExpression(parent) ||
+    (Node.isBinaryExpression(parent) &&
+      [SyntaxKind.EqualsEqualsEqualsToken, SyntaxKind.ExclamationEqualsEqualsToken].includes(parent.getOperatorToken().getKind()))
+  );
+}
+
+function freshEffectValue(source: import("./reference-fact-contract.ts").ReturnedValueSource): boolean {
+  return (
+    source.present &&
+    source.path.length === 0 &&
+    (Node.isObjectLiteralExpression(source.value) ||
+      Node.isArrayLiteralExpression(source.value) ||
+      Node.isFunctionDeclaration(source.value) ||
+      Node.isFunctionExpression(source.value) ||
+      Node.isArrowFunction(source.value) ||
+      Node.isStringLiteral(source.value) ||
+      Node.isNumericLiteral(source.value) ||
+      [SyntaxKind.NullKeyword, SyntaxKind.TrueKeyword, SyntaxKind.FalseKeyword].includes(source.value.getKind()))
+  );
+}
+
+function freshEffectTarget(node: MorphNode | undefined, context: InheritedReadEffectContext): boolean {
+  if (node === undefined) {
+    return false;
+  }
+  const value = context.values(node, [], new Map());
+  return value.kind === "resolved" && value.value.length > 0 && value.value.every(freshEffectValue);
+}
+
+function authoredEffectCallable(source: import("./reference-fact-contract.ts").ReturnedValueSource): boolean {
+  return (
+    source.present &&
+    source.path.length === 0 &&
+    (Node.isArrowFunction(source.value) || Node.isFunctionExpression(source.value) || Node.isFunctionDeclaration(source.value)) &&
+    source.value.getBody() !== undefined
+  );
+}
+
+function projectedEffectValue(
+  member: MorphNode,
+  context: InheritedReadEffectContext,
+  accepts: (source: import("./reference-fact-contract.ts").ReturnedValueSource) => boolean = freshEffectValue,
+): boolean {
+  if (!(Node.isPropertyAccessExpression(member) || Node.isElementAccessExpression(member))) {
+    return false;
+  }
+  if (Node.isPropertyAccessExpression(member)) {
+    const value = context.values(member.getExpression(), [member.getName()], new Map());
+    return value.kind === "resolved" && value.value.length > 0 && value.value.every(accepts);
+  }
+  const expression = member.getArgumentExpression();
+  if (expression === undefined) {
+    return false;
+  }
+  const keys = context.values(expression, [], new Map());
+  if (keys.kind === "unresolved" || keys.value.length === 0) {
+    return false;
+  }
+  return keys.value.every((key) => {
+    if (!key.present || key.path.length > 0) {
+      return false;
+    }
+    const string = readStaticString(key.value);
+    const number = string.kind === "resolved" ? undefined : readStaticNumber(key.value);
+    let name: string | undefined;
+    if (string.kind === "resolved") {
+      name = string.value;
+    } else if (number?.kind === "resolved") {
+      name = String(number.value);
+    }
+    if (name === undefined) {
+      return false;
+    }
+    const value = context.values(member.getExpression(), [name], key.bindings);
+    return value.kind === "resolved" && value.value.length > 0 && value.value.every(accepts);
+  });
+}
+
+function nativeFreezeMember(input: MorphNode, context: InheritedReadEffectContext): boolean {
+  const origin = resolveGlobalMemberOrigin(input);
+  return (
+    origin.kind === "resolved" &&
+    origin.value.globalName === "Object" &&
+    origin.value.memberPath.length === 1 &&
+    origin.value.memberPath[0] === "freeze" &&
+    origin.value.declarations.length > 0 &&
+    origin.value.declarations.every((declaration) => context.program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode))
+  );
+}
+
+function closedNativeFreezeAlias(input: MorphNode, context: InheritedReadEffectContext): boolean {
+  let value = input;
+  let parent = value.getParent();
+  while (Node.isParenthesizedExpression(parent) || Node.isAsExpression(parent) || Node.isSatisfiesExpression(parent) || Node.isNonNullExpression(parent)) {
+    value = parent;
+    parent = value.getParent();
+  }
+  if (
+    (Node.isPropertyAccessExpression(parent) || Node.isElementAccessExpression(parent)) &&
+    parent.getExpression() === value &&
+    nativeFreezeMember(parent, context)
+  ) {
+    const call = parent.getParent();
+    return (Node.isCallExpression(call) && call.getExpression() === parent) || closedNativeFreezeAlias(parent, context);
+  }
+  if (!Node.isVariableDeclaration(parent) || parent.getInitializer() !== value) {
+    return false;
+  }
+  const name = parent.getNameNode();
+  if (!(Node.isIdentifier(name) && nativeFreezeMember(input, context))) {
+    return false;
+  }
+  return (
+    unprovenReferenceUse(name, (use) => {
+      const call = use.getParent();
+      return Node.isCallExpression(call) && call.getExpression() === use;
+    }) === undefined
+  );
+}
+
+function inheritedReadEffect(input: MorphNode, context: InheritedReadEffectContext): MorphNode | undefined {
+  if (observedWithoutTransfer(input)) {
+    return;
+  }
+  const call = input.getParent();
+  if (!Node.isCallExpression(call) || call.getExpression() !== input) {
+    return closedNativeFreezeAlias(input, context) || projectedEffectValue(input, context) ? undefined : input;
+  }
+  const origin = resolveGlobalMemberOrigin(input);
+  if (origin.kind === "unresolved" || !["Object", "Reflect"].includes(origin.value.globalName) || origin.value.memberPath.length !== 1) {
+    // Actual authored callees remain subject to the complete Project's body and parameter effect sites.
+    return projectedEffectValue(input, context, authoredEffectCallable) ? undefined : input;
+  }
+  const member = origin.value.memberPath[0];
+  switch (member) {
+    case "keys":
+    case "values":
+    case "entries":
+    case "getOwnPropertyNames":
+    case "getOwnPropertySymbols":
+    case "ownKeys":
+    case "hasOwn":
+    case "has":
+    case "is":
+    case "isExtensible":
+    case "isFrozen":
+    case "isSealed":
+    case "freeze":
+    case "seal":
+    case "preventExtensions":
+      return;
+    case "getPrototypeOf":
+      return observedWithoutTransfer(call) ? undefined : input;
+    case "assign":
+    case "defineProperty":
+    case "defineProperties":
+    case "setPrototypeOf":
+    case "set":
+    case "deleteProperty":
+      return freshEffectTarget(call.getArguments()[0], context) ? undefined : input;
+    case undefined:
+    default:
+      return input;
+  }
+}
+
+function collectInheritedReadInputs(sources: readonly SourceFile[], writes: Map<object, SourceWriteFacts>): readonly MorphNode[] {
+  return sources.flatMap((source) => (source.isDeclarationFile() ? [] : sourceWriteFacts(source, writes).inheritedReads));
+}
+
+/** Project source effects are neutral facts; every projection retains actual captured binding dependencies. */
+export function inspectInheritedReadEffects(node: MorphNode, context: InheritedReadEffectContext): ReferenceFact<true> {
+  const target = state();
+  if (node.wasForgotten()) {
+    return unresolved("unsupported", node, target, "inherited read input belongs to a forgotten source");
+  }
+  const project = node.getProject();
+  const program = project.getProgram().compilerObject;
+  if (context.program.program !== program || program.getSourceFile(node.getSourceFile().getFilePath()) !== node.getSourceFile().compilerNode) {
+    return unresolved("unsupported", node, target, "inherited read input is not the captured native Project source");
+  }
+  if (openPass !== undefined && openPass.writeProgram !== program) {
+    openPass.writesBySource.clear();
+    openPass.writeProgram = program;
+  }
+  const cached = openPass?.inheritedReads.get(program);
+  const inputs = cached ?? collectInheritedReadInputs(nativeCompilerSourceFiles(project), target.writesBySource);
+  if (cached === undefined) {
+    openPass?.inheritedReads.set(program, inputs);
+  }
+  for (const input of inputs) {
+    if (input.wasForgotten()) {
+      return unresolved("unsupported", node, target, "an inherited effect source was forgotten");
+    }
+    const effect = inheritedReadEffect(input, context);
+    if (effect !== undefined) {
+      return unresolved("unsupported", effect, target, "the loaded Project contains an unclosed inherited descriptor or prototype exposure");
+    }
+  }
+  return !node.wasForgotten() && project.getProgram().compilerObject === program
+    ? resolved(true, target, node)
+    : unresolved("unsupported", node, target, "native Project changed while projecting inherited read effects");
 }
 
 function uniqueDeclaration(identifier: Identifier, target: ResolutionState): ReferenceFact<MorphNode> {

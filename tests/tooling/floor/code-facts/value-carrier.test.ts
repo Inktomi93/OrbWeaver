@@ -17,6 +17,116 @@ import { gate } from "../../../../tooling/src/verify/gates/json-column-read-pars
 import { isDirectParse } from "../../../../tooling/src/verify/lib/json-column-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 
+for (const invocation of ["Object.freeze(actual)", "globalThis.Object['freeze'](actual)", "freeze(actual)"]) {
+  test(`native freeze preserves its actual argument identity: ${invocation}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/freeze-value.ts", `export {};const freeze=Object.freeze;const actual={mode:"local"};const result=${invocation};`);
+    const call = source.getVariableDeclarationOrThrow("result").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+    const actual = source.getVariableDeclarationOrThrow("actual").getInitializerOrThrow();
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const fact = readReturnedValue(call, [], observed, { terminals: new Set(), bindings: new Map() });
+      expect(fact.kind, fact.kind === "unresolved" ? fact.detail : "resolved").toBe("resolved");
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === actual).toBe(true);
+      const field = readReturnedValue(call, ["mode"], observed, { terminals: new Set(), bindings: new Map() });
+      expect(field.kind === "resolved" && field.value.map((value) => value.value.getText())).toEqual(['"local"']);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const control of [
+  {
+    name: "shadowed native spelling uses the actual authored return",
+    source: 'export {};const Object={freeze:(input:object)=>({mode:"outside"})};const actual={mode:"local"};const result=Object.freeze(actual);',
+    expected: '"outside"',
+  },
+  {
+    name: "overwritten native methods do not retain intrinsic identity",
+    source: 'export {};Object.freeze=(input)=>({mode:"outside"}) as typeof input;const actual={mode:"local"};const result=Object.freeze(actual);',
+    expected: undefined,
+  },
+  {
+    name: "an opaque native freeze alias does not acquire an effect exemption",
+    source:
+      'export {};declare function escape(value:object):void;const freeze=Object.freeze;escape(freeze);const actual={mode:"local"};const result=freeze(actual);',
+    expected: undefined,
+  },
+  {
+    name: "freezing an accessor does not make it an own data value",
+    source: 'export {};const actual={get mode(){return "local";}};const result=Object.freeze(actual);',
+    expected: undefined,
+  },
+] as const) {
+  test(`native freeze boundary: ${control.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/freeze-boundary.ts", control.source);
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const result = readReturnedValue(source.getVariableDeclarationOrThrow("result").getNameNode(), ["mode"], observed, {
+        terminals: new Set(),
+        bindings: new Map(),
+      });
+      expect(result.kind).toBe(control.expected === undefined ? "unresolved" : "resolved");
+      expect(result.kind === "resolved" ? result.value.map((value) => value.value.getText()) : undefined).toEqual(
+        control.expected === undefined ? undefined : [control.expected],
+      );
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("uncaptured freeze stays unowned without hydrating a native Program", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/freeze-unowned.ts", "const result=Object.freeze({mode:'local'});");
+  const call = source.getVariableDeclarationOrThrow("result").getInitializerOrThrow();
+  const program = vi.spyOn(project, "getProgram");
+  const checker = vi.spyOn(project, "getTypeChecker");
+  try {
+    const result = readAuthoredValueSources(call, ["mode"]);
+    expect(result.kind).toBe("unresolved");
+    expect(program).not.toHaveBeenCalled();
+    expect(checker).not.toHaveBeenCalled();
+  } finally {
+    program.mockRestore();
+    checker.mockRestore();
+  }
+});
+
+test("a loaded imported source can replace the native freeze operation", () => {
+  const nativeFreeze = Object.freeze;
+  let runtimeValue: { mode: string };
+  try {
+    Reflect.set(Object, "freeze", () => ({ mode: "outside" }));
+    runtimeValue = Object.freeze({ mode: "local" });
+  } finally {
+    Reflect.set(Object, "freeze", nativeFreeze);
+  }
+  expect(runtimeValue.mode).toBe("outside");
+  const project = new Project({ useInMemoryFileSystem: true });
+  const override = project.createSourceFile("/freeze-overwrite.ts", 'Object.freeze=((value)=>({mode:"outside"})) as typeof Object.freeze;export {};');
+  const source = project.createSourceFile("/freeze-imported.ts", 'import "./freeze-overwrite";const actual={mode:"local"};const result=Object.freeze(actual);');
+  beginReferencePass();
+  try {
+    const sources = [override, source];
+    const observed = observeCallReturns(
+      sources.flatMap((file) => file.getDescendantsOfKind(SyntaxKind.CallExpression)),
+      sources.flatMap((file) => file.getDescendants()),
+    );
+    const fact = readReturnedValue(source.getVariableDeclarationOrThrow("result").getNameNode(), ["mode"], observed, {
+      terminals: new Set(),
+      bindings: new Map(),
+    });
+    expect(fact.kind, fact.kind === "unresolved" ? fact.detail : "replaced native operation accepted").toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
 const CONFIG = "packages/server/tsconfig.json";
 const SOURCE = "packages/server/src/domain/plugin/persistence/plugins.ts";
 const PARSED =

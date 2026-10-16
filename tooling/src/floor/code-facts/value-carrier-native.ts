@@ -1,4 +1,4 @@
-// Opted-in native callback/cache interpretation; the value carrier remains the only traversal.
+// Captured native value transfers; callback/cache interpretation remains explicitly opted in.
 import type { CallExpression, Node, ts } from "ts-morph";
 import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { readCallReturnProgram, runtimeUndefinedValue } from "./call-supplied.ts";
@@ -496,13 +496,88 @@ function returnedNativeMap(
   return method === "get" ? context.services.alternatives(call, [carried, context.services.leaf(call, path, context, false)]) : carried;
 }
 
+function nativeFreezeCandidate(expression: Node): boolean {
+  return (
+    N.isIdentifier(expression) ||
+    (N.isPropertyAccessExpression(expression) && expression.getName() === "freeze") ||
+    (N.isElementAccessExpression(expression) && staticMemberAccess(expression)?.name === "freeze")
+  );
+}
+
+function nativeFreezeArgument(call: CallExpression, context: NativeTransferContext): ReferenceFact<Node> | undefined {
+  const captured = context.program === undefined ? undefined : readCallReturnProgram(call, { programs: [context.program] });
+  if (captured?.kind === "unresolved") {
+    return captured;
+  }
+  if (captured === undefined || !captured.value.byCall.has(call.compilerNode)) {
+    return context.services.refusal(call, "missing", "native freeze operation was not captured");
+  }
+  const expression = unwrapTarget(call.getExpression());
+  if (!nativeFreezeCandidate(expression)) {
+    return;
+  }
+  const origin = resolveGlobalMemberOrigin(expression);
+  if (origin.kind !== "resolved" || origin.value.globalName !== "Object" || origin.value.memberPath.length !== 1 || origin.value.memberPath[0] !== "freeze") {
+    return;
+  }
+  const program = captured.value;
+  if (
+    origin.value.declarations.length === 0 ||
+    !origin.value.declarations.every((declaration) => program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode))
+  ) {
+    return context.services.refusal(call, "unsupported", "freeze identity is not supplied by the captured native libraries");
+  }
+  const arguments_ = call.getArguments();
+  const argument = arguments_[0];
+  if (arguments_.length !== 1 || argument === undefined || N.isSpreadElement(argument)) {
+    return context.services.refusal(call, "unsupported", "native freeze requires one explicit actual value");
+  }
+  const effects = context.services.inheritedEffects(call, context);
+  if (effects.kind === "unresolved") {
+    return effects;
+  }
+  return { kind: "resolved", value: argument, trace: { declarations: origin.value.declarations, origin: call } };
+}
+
+/** The same native operation/argument/effect proof serves identity transfer and output handoff. */
+export function readNativeFreezeArgument(
+  call: CallExpression,
+  context: ReturnedValueContext,
+  services: NativeValueTransferServices,
+): ReferenceFact<Node> | undefined {
+  return nativeFreezeArgument(call, { ...context, services });
+}
+
+function returnedFrozenValue(
+  call: CallExpression,
+  path: readonly string[],
+  context: NativeTransferContext,
+): ReferenceFact<readonly ReturnedValueSource[]> | undefined {
+  const argument = nativeFreezeArgument(call, context);
+  // Freeze returns the same value; it grants neither deep immutability nor readable getter/Proxy fields.
+  return argument?.kind === "resolved" ? context.services.readValue(argument.value, path, context) : argument;
+}
+
 function returnedNativeCallValue(
   call: CallExpression,
   path: readonly string[],
   context: NativeTransferContext,
 ): ReferenceFact<readonly ReturnedValueSource[]> | undefined {
   if (context.program?.byCall.has(call.compilerNode) !== true) {
-    return context.services.refusal(call, "missing", "native value call was not captured");
+    return context.nativeValueTransfers || context.callableValues === true
+      ? context.services.refusal(call, "missing", "native value call was not captured")
+      : undefined;
+  }
+  const parsed = context.program.nativeParsedValue?.(call, path, context, context.services);
+  if (parsed !== undefined) {
+    return parsed;
+  }
+  const frozen = returnedFrozenValue(call, path, context);
+  if (frozen !== undefined) {
+    return frozen;
+  }
+  if (!(context.nativeValueTransfers || context.callableValues === true)) {
+    return;
   }
   const resource = readNativeResourceRegistration(call, context, context.services);
   if (resource !== undefined) {

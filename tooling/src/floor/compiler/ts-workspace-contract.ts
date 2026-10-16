@@ -3,6 +3,12 @@ import type { SourceBindingUsage } from "../code-facts/binding-usage-contract.ts
 import type { SemanticInventory } from "../code-facts/semantic-inventory-contract.ts";
 import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
 
+/** Native queries used by one captured computation; unsupported native lifetimes cannot grant reuse. */
+export interface NativeReferenceRead {
+  readonly used: boolean;
+  readonly validate: (() => boolean) | undefined;
+}
+
 export interface WorkspaceOptions {
   readonly root: string;
   /** false (default) = pure-AST harness project; true = a project using one tsconfig's options. */

@@ -32,6 +32,19 @@ export interface UnresolvedReferenceFact {
 /** A positive value with its proof, or one precise refusal. Absence is never a reader verdict. */
 export type ReferenceFact<T> = ResolvedReferenceFact<T> | UnresolvedReferenceFact;
 
+/** Source-local effects share the reference pass lifetime; prototype exposure is not an own-field write. */
+export interface SourceWriteFacts {
+  readonly written: ReadonlySet<object>;
+  readonly reassigned: ReadonlySet<object>;
+  readonly inheritedReads: readonly Node[];
+}
+
+/** Effect projection consumes actual captured alternatives, including their paired argument bindings. */
+export interface InheritedReadEffectContext {
+  readonly program: CallReturnProgram;
+  readonly values: (node: Node, path: readonly string[], bindings: ReadonlyMap<Node, Node>) => ReferenceFact<readonly ReturnedValueSource[]>;
+}
+
 /** One property or qualified type read, normalized across dotted, optional, computed-literal, and
  *  namespace-qualified type spellings. */
 export interface MemberReference {
@@ -176,6 +189,8 @@ export interface CallReturnAlternative {
 
 /** Mutable capture owners expose their read-only proof inputs without hiding admission in a predicate. */
 export interface CallReturnProofContext {
+  /** Opaque admission effects cannot grant dependency-directed refinement reuse. */
+  readonly untrackedRead?: () => void;
   readonly admitted: ReadonlySet<ts.CallExpression>;
   readonly activeOwners: ReadonlySet<ts.Node>;
   readonly referenceRevision: number;
@@ -189,6 +204,14 @@ export interface CallReturnProofContext {
 export type CallableAdmission = ((call: CallExpression) => boolean) | { readonly captured: CallReturnProgram } | { readonly admitted: CallReturnProofContext };
 
 export interface CallReturnProgram {
+  /** Reached value calls extend this capture's neutral facts; a queued round is not an admitted result. */
+  readonly demandValueCall?: (call: CallExpression) => ReferenceFact<true>;
+  readonly nativeParsedValue?: (
+    call: CallExpression,
+    path: readonly string[],
+    context: ReturnedValueContext,
+    services: NativeValueTransferServices,
+  ) => ReferenceFact<readonly ReturnedValueSource[]> | undefined;
   readonly callableContext?: CallReturnProofContext;
   readonly nativeStatementReachable?: (node: Node) => ReferenceFact<true>;
   readonly nativeSymbolServices?: {
@@ -254,6 +277,8 @@ export interface ReturnedValueContext {
 
 /** Native carriers reuse the sole value traversal and its alternative/refusal operations. */
 export interface NativeValueTransferServices {
+  readonly outputUse: (node: Node, path: readonly string[], context: ReturnedValueContext, values: readonly ReturnedValueSource[]) => ReferenceFact<true>;
+  readonly inheritedEffects: (node: Node, context: ReturnedValueContext) => ReferenceFact<true>;
   readonly readValue: (node: Node, path: readonly string[], context: ReturnedValueContext) => ReferenceFact<readonly ReturnedValueSource[]>;
   readonly leaf: (node: Node, path: readonly string[], context: ReturnedValueContext, present?: boolean) => ReferenceFact<readonly ReturnedValueSource[]>;
   readonly alternatives: (node: Node, facts: readonly ReferenceFact<readonly ReturnedValueSource[]>[]) => ReferenceFact<readonly ReturnedValueSource[]>;

@@ -27,6 +27,7 @@ import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs
 import { HELPER_WORLD_DIRS, predictedProgram } from "./project-worlds.ts";
 import type {
   CoLocatedSemanticNodes,
+  NativeReferenceRead,
   SemanticProgram,
   SemanticReference,
   SemanticSourceView,
@@ -178,24 +179,34 @@ export function semanticProgramMatchesDescriptor(source: SourceFile, descriptor:
   );
 }
 
+interface NativeReferenceSourceRead {
+  readonly source: SourceFile;
+  readonly native: ts.SourceFile;
+  readonly fileName: string;
+  revision: number;
+}
+
 interface NativeReferencePass {
   readonly program: ts.Program;
   readonly languageProgram: ts.Program;
   readonly pass: ts.ReadonlyReferencePass;
+  readonly reads: Map<SourceFile, NativeReferenceSourceRead>;
 }
 
 interface NativeReaderPass {
+  readonly identity: object;
   readonly references: Map<Project, NativeReferencePass>;
   readonly releaseBindings: Set<() => void>;
 }
 let nativeReferencePasses: NativeReaderPass | undefined;
+let nativeReferenceReadRevision = 0;
 
 /** Open native reference infrastructure for one immutable reader invocation. */
 export function beginNativeReferencePass(): void {
   if (nativeReferencePasses !== undefined) {
     throw new Error("a native reference pass is already open");
   }
-  nativeReferencePasses = { references: new Map(), releaseBindings: new Set() };
+  nativeReferencePasses = { identity: {}, references: new Map(), releaseBindings: new Set() };
 }
 
 /** Release every native handle without retaining its Project beyond the reader invocation. */
@@ -207,6 +218,9 @@ export function endNativeReferencePass(): void {
       entry.pass.dispose();
     }
   } finally {
+    for (const entry of passes?.references.values() ?? []) {
+      entry.reads.clear();
+    }
     for (const release of passes?.releaseBindings ?? []) {
       release();
     }
@@ -234,7 +248,7 @@ function nativeReferencePass(project: Project, passes: Map<Project, NativeRefere
     if (languageProgram === undefined) {
       throw new Error("native reference transport has no language-service Program");
     }
-    const entry = { program: project.getProgram().compilerObject, languageProgram, pass };
+    const entry: NativeReferencePass = { program: project.getProgram().compilerObject, languageProgram, pass, reads: new Map() };
     passes.set(project, entry);
     retained = true;
     return entry;
@@ -267,8 +281,66 @@ function nativeReferenceTargets(project: Project, entry: NativeReferencePass, gr
   return references;
 }
 
+function nativeReferenceReadCurrent(project: Project, entry: NativeReferencePass, reads: readonly NativeReferenceSourceRead[]): void {
+  for (const read of reads) {
+    if (read.source.wasForgotten() || read.source.compilerNode !== read.native) {
+      throw new Error("native reference validation received a forgotten or replaced source");
+    }
+    entry.pass.validate(read.fileName);
+    if (project.getProgram().compilerObject !== entry.program || project.getLanguageService().compilerObject.getProgram() !== entry.languageProgram) {
+      throw new Error("native reference transport was invalidated by a Program change");
+    }
+    if (
+      !(
+        sharedNativeSyntax(entry.program.getSourceFile(read.fileName), read.native) &&
+        sharedNativeSyntax(entry.languageProgram.getSourceFile(read.fileName), read.native)
+      )
+    ) {
+      throw new Error("native reference validation does not share its admitted native source syntax");
+    }
+  }
+}
+
+/** Capture actual native query dependencies without opening a pass, hydrating a Program or manufacturing a query. */
+export function captureNativeReferenceReads(release?: () => void): () => NativeReferenceRead {
+  const revision = nativeReferenceReadRevision;
+  const identity = nativeReferencePasses?.identity;
+  return () => {
+    if (nativeReferenceReadRevision === revision) {
+      return { used: false, validate: undefined };
+    }
+    const owner = nativeReferencePasses;
+    if (owner === undefined || owner.identity !== identity) {
+      return { used: true, validate: undefined };
+    }
+    const reads = [...owner.references].flatMap(([project, entry]) => {
+      const sources = [...entry.reads.values()].filter((read) => read.revision > revision).map((read) => ({ ...read }));
+      return sources.length === 0 ? [] : [{ project, entry, sources }];
+    });
+    if (reads.length === 0 || reads.some(({ entry }) => typeof entry.pass.validate !== "function")) {
+      return { used: true, validate: undefined };
+    }
+    if (release !== undefined) {
+      owner.releaseBindings.add(release);
+    }
+    return {
+      used: true,
+      validate: (): boolean => {
+        if (nativeReferencePasses?.identity !== identity || reads.some(({ project, entry }) => nativeReferencePasses?.references.get(project) !== entry)) {
+          return false;
+        }
+        for (const { project, entry, sources } of reads) {
+          nativeReferenceReadCurrent(project, entry, sources);
+        }
+        return true;
+      },
+    };
+  };
+}
+
 /** Same-Project native binding references; an open invocation reuses only readonly native search infrastructure. */
 export function nativeReferenceNodes(node: Identifier): readonly Node[] {
+  const revision = ++nativeReferenceReadRevision;
   if (nativeReferencePasses === undefined) {
     return node.findReferencesAsNodes();
   }
@@ -291,6 +363,12 @@ export function nativeReferenceNodes(node: Identifier): readonly Node[] {
     )
   ) {
     throw new Error("native reference transport query does not share its admitted native source syntax");
+  }
+  const previous = entry.reads.get(source);
+  if (previous === undefined) {
+    entry.reads.set(source, { source, native: source.compilerNode, fileName: source.getFilePath(), revision });
+  } else {
+    previous.revision = revision;
   }
   const groups = entry.pass.findReferences(source.getFilePath(), node.getStart(), { includeDefinitionDisplay: false }) ?? [];
   const references = nativeReferenceTargets(project, entry, groups);
