@@ -34,7 +34,7 @@ CSS/SQL mirror scanners consume quoted and comment spans without complexity exce
 
 Reviewed `375e0c81e6` restores native duplicate-dependency errors while preserving peer and development declarations. Native controls pass; integration retains off-owned root diagnostics: `reports/review/ready-train-root-types.log`.
 
-Native DB import and client/server condition exceptions are removed without executable changes. Typed deprecation, condition and nullish checks remain enabled; exact lint and affected types pass. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-db-primary-key-suppressions.md` and adjacent client-union/condition reports. Checkpoint and global configuration judgment stay open.
+DB import and client/server condition exceptions are removed; typed checks remain enabled. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-db-primary-key-suppressions.md` and adjacent reports. Reviewed `1d742d3408` removes obsolete native scope permissions with bounded admission controls. DB types pass; Node retains off-owned errors. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-native-config-independent-review.md`. Remaining checkpoint and configuration subjects stay open.
 
 Reviewed `713047bfef` narrows native naming permissions to actual API and framework subjects without executable changes. Native checks pass. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-protocol-naming-delivery.md`.
 
