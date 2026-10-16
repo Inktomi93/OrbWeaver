@@ -14,6 +14,7 @@ import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import { beginReferencePass, endReferencePass, referenceResolutionServices, resolveGlobalMemberOrigin } from "../code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
+import { schemaDataProjectionSchema } from "../code-facts/schema-projection-contract.ts";
 import type {
   InventoryBuildRequest,
   InventoryExportDeclarationQuery,
@@ -403,6 +404,7 @@ function assertDrizzleRequest(
   roots: readonly string[],
   fileSystem: FileSystemHost,
 ): void {
+  schemaDataProjectionSchema.parse(request.schemaDataProjection ?? {});
   if (
     families.includes("drizzle-identities") !== (request.drizzleQueries !== undefined) ||
     request.drizzleQueries?.some((query) => !roots.includes(query.node.file)) === true ||
@@ -412,6 +414,9 @@ function assertDrizzleRequest(
     (request.schemaDataSources !== undefined && !families.includes("schema-data"))
   ) {
     throw new Error("native Drizzle identities require closed source/call demand in admitted roots");
+  }
+  if (request.schemaDataProjection !== undefined && request.schemaDataSources === undefined) {
+    throw new Error("native schema projection has no closed source demand");
   }
   if (
     request.schemaDependency !== undefined &&
@@ -1278,6 +1283,23 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
         "../code-facts/projection-reference-codec.ts",
         "../code-facts/projection-inventory-contract.ts",
         "../code-facts/static-authored-value.ts",
+        "../code-facts/value-observation.ts",
+        "../code-facts/value-observation-contract.ts",
+        "../code-facts/value-observation-codec.ts",
+        "../code-facts/stored-value-shape.ts",
+        "../code-facts/stored-value-shape-contract.ts",
+        "../code-facts/drizzle-row-origin.ts",
+        "../code-facts/drizzle-row-type.ts",
+        "../code-facts/drizzle-row-contract.ts",
+        "../code-facts/drizzle-columns.ts",
+        "../code-facts/drizzle-column-reads.ts",
+        "../code-facts/drizzle-column-read-contract.ts",
+        "../code-facts/drizzle-write-chain.ts",
+        "../code-facts/drizzle-write-chain-contract.ts",
+        "../code-facts/function-context.ts",
+        "../code-facts/call-returns.ts",
+        "../code-facts/value-carrier.ts",
+        "../code-facts/value-carrier-native.ts",
       ].map((name) => fileURLToPath(new URL(name, import.meta.url)))
     : [];
 }

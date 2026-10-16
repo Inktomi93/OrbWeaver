@@ -46,7 +46,7 @@ import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { openJsonParityFact } from "../lib/open-json-parity-fact.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { drizzleSchemaVocabularyFact } from "../lib/schema-fact.ts";
 
 const OPERATION = "open-json-key-read";
 
@@ -79,13 +79,13 @@ export const gate = defineGate({
   },
   analysis: "types",
   execution: "entire-population",
-  facts: [openJsonParityFact, drizzleSchemaFact],
+  facts: [openJsonParityFact, drizzleSchemaVocabularyFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const schema = ctx.fact(drizzleSchemaFact).schema();
+      const schema = ctx.fact(drizzleSchemaVocabularyFact);
       recordReadySchemaFact(ctx, schema);
       const analysis = ctx.fact(openJsonParityFact).analyze(schema.value);
       reportReviewedGrantCandidates(

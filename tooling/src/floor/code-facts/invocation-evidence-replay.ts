@@ -3,6 +3,8 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { NativeAuthoredValueProjection } from "./authored-value-projection.ts";
 import { replayAuthoredValueProjection } from "./authored-value-projection-codec.ts";
+import type { IndexedCallParameters } from "./drizzle-column-read-contract.ts";
+import type { DrizzleWrite } from "./drizzle-columns.ts";
 import { replayReferenceFact } from "./projection-reference-codec.ts";
 import type { CallableBinding, CallableInvocation, ModuleMemberOrigin, ReferenceFact, ReferenceOrigin } from "./reference-fact-contract.ts";
 import type {
@@ -15,6 +17,8 @@ import type {
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import { replayTypeProjection } from "./type-projection-codec.ts";
 import type { NativeTypeProjection } from "./type-projection-contract.ts";
+import { mapColumnRowObservation, mapStoredValueObservation } from "./value-observation-codec.ts";
+import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 
 type Profile = InventoryInvocationEvidence["profiles"][number];
 type WireModule = NonNullable<Profile["module"]> extends InventoryInvocationReference<infer V> ? V : never;
@@ -57,6 +61,10 @@ export function replayInvocationEvidence(
   const canonicalValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const typeProjections = new Map<MorphNode, NativeTypeProjection>();
   const authoredValues = new Map<MorphNode, NativeAuthoredValueProjection>();
+  const storedValues = new Map<MorphNode, ProjectedStoredValueShape>();
+  const columnRows = new Map<MorphNode, NativeColumnRowObservation>();
+  const drizzleWrites = new Map<MorphNode, ReferenceFact<DrizzleWrite | null>>();
+  const indexedParameters = new Map<MorphNode, readonly IndexedCallParameters[]>();
   for (const profile of wire.profiles) {
     const node = replay(profile.node);
     if (profile.module !== undefined) {
@@ -81,6 +89,7 @@ export function replayInvocationEvidence(
     if (profile.canonicalValue !== undefined) {
       canonicalValues.set(replay(profile.canonicalValue.declaration), restore(profile.canonicalValue.fact, replay));
     }
+    replayValueObservations(profile, node, replay, { stored: storedValues, rows: columnRows, writes: drizzleWrites, indexed: indexedParameters });
     replayDataProfile(profile, node, { plan: wire.query.typeProjection, replay, types: typeProjections, authored: authoredValues });
   }
   const invocation =
@@ -106,6 +115,10 @@ export function replayInvocationEvidence(
     canonicalValues,
     typeProjections,
     authoredValues,
+    storedValues,
+    columnRows,
+    drizzleWrites,
+    indexedParameters,
     ...children,
   };
 }
@@ -140,5 +153,46 @@ function captureNamespace(
 ): void {
   if (declarations !== undefined) {
     map.set(node, declarations.map(replay));
+  }
+}
+
+function replayValueObservations(
+  profile: Profile,
+  node: MorphNode,
+  replay: (span: InventorySpan) => MorphNode,
+  maps: {
+    readonly stored: Map<MorphNode, ProjectedStoredValueShape>;
+    readonly rows: Map<MorphNode, NativeColumnRowObservation>;
+    readonly writes: Map<MorphNode, ReferenceFact<DrizzleWrite | null>>;
+    readonly indexed: Map<MorphNode, readonly IndexedCallParameters[]>;
+  },
+): void {
+  if (profile["stored-value"] !== undefined) {
+    maps.stored.set(node, mapStoredValueObservation(profile["stored-value"], replay));
+  }
+  if (profile["row-column"] !== undefined) {
+    maps.rows.set(node, mapColumnRowObservation(profile["row-column"], replay));
+  }
+  if (profile["drizzle-write"] !== undefined) {
+    maps.writes.set(
+      node,
+      replayReferenceFact(
+        profile["drizzle-write"],
+        (value) => (value === null ? null : { ...value, target: replay(value.target), arg: value.arg === null ? undefined : replay(value.arg) }),
+        replay,
+      ),
+    );
+  }
+  if (profile["indexed-parameters"] !== undefined) {
+    maps.indexed.set(
+      node,
+      profile["indexed-parameters"].map((value) => {
+        const indexing = replay(value.node);
+        if (!Node.isElementAccessExpression(indexing)) {
+          throw new SemanticInventoryError("native helper indexing span is foreign");
+        }
+        return { ...value, node: indexing };
+      }),
+    );
   }
 }

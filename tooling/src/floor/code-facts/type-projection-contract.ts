@@ -15,6 +15,7 @@ export const TYPE_PROJECTION_FACETS = [
   "runtime-undefined",
   "origins",
   "declaration-export",
+  "vocabulary",
 ] as const;
 export type TypeProjectionFacet = (typeof TYPE_PROJECTION_FACETS)[number];
 
@@ -42,7 +43,32 @@ export interface NativeScalarTypeProjection {
   readonly unknown: boolean;
 }
 
+export const nativeTypeVocabularySchema = z.strictObject({
+  properties: z.array(z.string()),
+  arms: z
+    .array(
+      z.strictObject({
+        string: z.boolean(),
+        number: z.boolean(),
+        boolean: z.boolean(),
+        literal: z.boolean(),
+        array: z.boolean(),
+        tuple: z.boolean(),
+        null: z.boolean(),
+        undefined: z.boolean(),
+        any: z.boolean(),
+        unknown: z.boolean(),
+        symbolName: z.string().nullable(),
+        stringIndex: z.boolean(),
+        properties: z.array(z.string()),
+      }),
+    )
+    .min(1),
+});
+export type NativeTypeVocabulary = z.infer<typeof nativeTypeVocabularySchema>;
+
 export interface NativeTypeProjectionValues {
+  readonly vocabulary: NativeTypeVocabulary;
   readonly "declaration-export": boolean;
   readonly origins: NativeTypeOriginProjection;
   readonly "runtime-undefined": boolean;

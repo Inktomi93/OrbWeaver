@@ -6,6 +6,7 @@ import { posix } from "node:path";
 import { createSemanticWorkspace, getWorkspace, registeredSemanticSourceView } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { AsExpression, Node, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
+import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
 import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
@@ -105,6 +106,12 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         const rows = requests.get(owner) ?? [];
         switch (query.kind) {
           case "schema-data":
+            rows.push({
+              kind: query.kind,
+              nodes: [...query.nodes],
+              ...(query.projection === undefined ? {} : { projection: schemaDataProjectionSchema.parse(query.projection) }),
+            });
+            break;
           case "schema-identities":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
@@ -166,7 +173,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       }
       return selected(owner, "export-declarations", sources, { name }).exportDeclarations(sources, name);
     },
-    schemaData: (owner, sources): ReturnType<NativeTypeContext["schemaData"]> => {
+    schemaData: (owner, sources, projection = {}): ReturnType<NativeTypeContext["schemaData"]> => {
       if (sources.length === 0) {
         assertReadable();
         throw new Error("native full schema data has no admitted source owner");
@@ -175,7 +182,17 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (new Set(registered).size !== new Set(sources).size) {
         throw new Error("native full schema data roster is incomplete");
       }
-      return selected(owner, "schema-data", sources).schemaData(sources);
+      if (projection.typeVocabulary === true) {
+        const projected = new Set(
+          (requests.get(owner) ?? [])
+            .filter((query) => query.kind === "schema-data" && query.projection?.typeVocabulary === true)
+            .flatMap((query) => [...query.nodes]),
+        );
+        if (sources.some((source) => !projected.has(source))) {
+          throw new Error("native schema vocabulary was not registered by this owner");
+        }
+      }
+      return selected(owner, "schema-data", sources).schemaData(sources, projection);
     },
     schemaIdentity: (owner, sources): ReturnType<NativeTypeContext["schemaIdentity"]> => {
       if (sources.length === 0) {
@@ -375,7 +392,11 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
             ),
         }
       : {}),
-    ...schemaDataOptions(schemaDataProgram, schemaDataSources),
+    ...schemaDataOptions(
+      schemaDataProgram,
+      schemaDataSources,
+      queries.some((query) => query.kind === "schema-data" && query.projection?.typeVocabulary === true),
+    ),
     ...(families.includes("export-declarations")
       ? {
           exportQueries: queries
@@ -463,11 +484,11 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
-    schemaData: (sources): ReturnType<NativeTypeFactReader["schemaData"]> => {
+    schemaData: (sources, projection): ReturnType<NativeTypeFactReader["schemaData"]> => {
       if (schemaDataProgram === undefined) {
         throw new SemanticInventoryError("native schema roster owner is unavailable");
       }
-      return inventory.schemaData(sources, schemaDataProgram);
+      return inventory.schemaData(sources, schemaDataProgram, projection);
     },
     schemaIdentity: (sources): ReturnType<NativeTypeFactReader["schemaIdentity"]> => {
       if (schemaProgram === undefined) {
@@ -531,11 +552,13 @@ export function nativeTypeFactOptions(
 function schemaDataOptions(
   program: string | undefined,
   sources: readonly import("ts-morph").SourceFile[],
+  typeVocabulary: boolean,
 ): Pick<import("../../floor/code-facts/semantic-inventory-contract.ts").SemanticInventoryOptions, "schemaDataQuery"> {
   return program === undefined
     ? {}
     : {
         schemaDataQuery: {
+          ...(typeVocabulary ? { projection: { typeVocabulary: true } } : {}),
           program,
           sources: sources.map((source) => ({
             file: canonicalInventoryPath(source.getFilePath()),

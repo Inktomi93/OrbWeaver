@@ -7,8 +7,9 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
+import { gate as health } from "../../../../tooling/src/verify/gates/open-json-column-key-parity-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { ctxFor } from "../../_support.ts";
 
@@ -26,7 +27,15 @@ function findings(reader: string, support: Record<string, string> = {}): readonl
     "packages/server/src/domain/settings/persistence/write.ts": SETTINGS_WRITER,
     "packages/server/src/domain/automation/persistence/migrate.ts": reader,
   });
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(result.toolErrors).toEqual([]);
   expect(result.factErrors).toEqual([]);
   expect(result.policies[0]?.owner.status).toBe("success");
@@ -146,7 +155,15 @@ test("an unresolved schema-bearing union refuses a clean verdict", () => {
     "packages/server/src/domain/settings/persistence/write.ts": SETTINGS_WRITER,
     "packages/server/src/domain/automation/persistence/migrate.ts": reader,
   });
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(result.factErrors).toEqual([]);
   expect(result.toolErrors).toMatchObject([{ policyId: gate.id, phase: "evaluate", message: expect.stringContaining("cannot prove schema-row origin") }]);
 });
@@ -209,7 +226,15 @@ test.each([
     "packages/server/src/domain/settings/persistence/write.ts": SETTINGS_WRITER,
     "packages/server/src/domain/automation/persistence/migrate.ts": reader,
   });
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(result.factErrors).toEqual([]);
   expect(result.toolErrors).toMatchObject([{ policyId: gate.id, phase: "evaluate", message: expect.stringContaining(message) }]);
   expect(result.authority.effectiveFindings).toEqual([]);
@@ -223,9 +248,9 @@ test("mutable destructured bindings replaced by payloads do not retain schema pr
 });
 
 test(
-  "every catch, pass and refusal row holds through the production dispatcher",
+  "every occurrence and health catch, pass and refusal row holds through the production dispatcher",
   () => {
-    expect(verifyPolicyProofs([gate])).toEqual([]);
+    expect(verifyPolicyProofs([gate, health])).toEqual([]);
   },
   scaledBudget(120_000),
 );

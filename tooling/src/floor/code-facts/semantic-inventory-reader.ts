@@ -276,7 +276,7 @@ export function inventoryReader(
       }
       return replaySchemaIdentityCatalog(catalog, replayFor(first, program, partition, "schema identity"));
     },
-    schemaData: (sources, program) => {
+    schemaData: (sources, program, projection = {}) => {
       assertOpen();
       const selected = indexes.filter((candidate) => candidate.program === program);
       const partition = selected[0];
@@ -292,6 +292,9 @@ export function inventoryReader(
       if (JSON.stringify(catalog.sources.map(({ node }) => JSON.stringify(node)).toSorted()) !== JSON.stringify(expected)) {
         throw new SemanticInventoryError("native full schema data source demand is incomplete or foreign");
       }
+      if (projection.typeVocabulary === true && catalog.projection?.typeVocabulary !== true) {
+        throw new SemanticInventoryError("native schema selected-Type vocabulary was not captured");
+      }
       const first = sources[0];
       if (first === undefined) {
         if (catalog.fact.status !== "missing") {
@@ -299,7 +302,7 @@ export function inventoryReader(
         }
         return catalog.fact;
       }
-      return replaySchemaDataCatalog(catalog, replayFor(first, program, partition, "full schema data"));
+      return replaySchemaDataCatalog(catalog, replayFor(first, program, partition, "full schema data"), projection);
     },
     drizzleEvidence: (node, program, mode) => {
       const { partition, span } = nativeSpan(node, program, "drizzle-identities");

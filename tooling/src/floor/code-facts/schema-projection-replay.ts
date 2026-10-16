@@ -3,7 +3,7 @@ import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import { replaySchemaIdentityCatalog } from "./drizzle-evidence-replay.ts";
 import type { SchemaFact } from "./schema-model-contract.ts";
-import type { SchemaProjectedColumn, SchemaProjectedModel } from "./schema-projection-contract.ts";
+import type { SchemaDataProjection, SchemaProjectedColumn, SchemaProjectedModel } from "./schema-projection-contract.ts";
 import type { InventorySchemaProjectedCatalog, InventorySchemaProjectedColumn } from "./schema-projection-inventory-contract.ts";
 import { schemaProjectionInventorySchema } from "./schema-projection-inventory-contract.ts";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";
@@ -19,7 +19,11 @@ function replayCall(span: InventorySpan, replay: (span: InventorySpan) => MorphN
   return node;
 }
 
-function columnData(column: InventorySchemaProjectedColumn, replay: (span: InventorySpan) => MorphNode): SchemaProjectedColumn {
+function columnData(
+  column: InventorySchemaProjectedColumn,
+  replay: (span: InventorySpan) => MorphNode,
+  projection: SchemaDataProjection,
+): SchemaProjectedColumn {
   const json = column.json;
   const override = column.typeOverride;
   return {
@@ -27,7 +31,15 @@ function columnData(column: InventorySchemaProjectedColumn, replay: (span: Inven
     declaration: replay(column.declaration),
     expression: replay(column.expression),
     builder: { ...column.builder, call: replayCall(column.builder.call, replay) },
-    typeOverride: override === null ? null : { ...override, node: replay(override.node) },
+    typeOverride:
+      override === null
+        ? null
+        : {
+            display: override.display,
+            idBrand: override.idBrand,
+            node: replay(override.node),
+            ...(projection.typeVocabulary === true && override.vocabulary !== undefined ? { vocabulary: override.vocabulary } : {}),
+          },
     json:
       json === null
         ? null
@@ -43,8 +55,15 @@ function columnData(column: InventorySchemaProjectedColumn, replay: (span: Inven
 }
 
 /** Recorded empty/missing/refused statuses survive; absent or malformed nested data refuses decoding. */
-export function replaySchemaDataCatalog(input: InventorySchemaProjectedCatalog, replay: (span: InventorySpan) => MorphNode): SchemaFact<SchemaProjectedModel> {
+export function replaySchemaDataCatalog(
+  input: InventorySchemaProjectedCatalog,
+  replay: (span: InventorySpan) => MorphNode,
+  projection: SchemaDataProjection = input.projection ?? {},
+): SchemaFact<SchemaProjectedModel> {
   const wire = catalogSchema.parse(input);
+  if (projection.typeVocabulary === true && wire.projection?.typeVocabulary !== true) {
+    throw new SemanticInventoryError("native schema selected-Type vocabulary was not captured");
+  }
   const identity = replaySchemaIdentityCatalog(wire, replay);
   const fact = wire.fact;
   if (fact.status !== "ready") {
@@ -65,7 +84,7 @@ export function replaySchemaDataCatalog(input: InventorySchemaProjectedCatalog, 
           ...table,
           declaration: restored.declaration,
           call: restored.call,
-          columns: table.columns.map((column) => columnData(column, replay)),
+          columns: table.columns.map((column) => columnData(column, replay, projection)),
           indexes: table.indexes.map((index) => ({
             ...index,
             call: replayCall(index.call, replay),

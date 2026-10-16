@@ -7,6 +7,8 @@ import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
 import type { NativeAuthoredValueProjection } from "./authored-value-projection.ts";
 import type { SourceBindingUsage } from "./binding-usage-contract.ts";
+import type { IndexedCallParameters } from "./drizzle-column-read-contract.ts";
+import type { DrizzleWrite } from "./drizzle-columns.ts";
 import type { DrizzleCallEvidence, DrizzleEvidenceMode } from "./drizzle-evidence-contract.ts";
 import { DRIZZLE_EVIDENCE_MODES } from "./drizzle-evidence-contract.ts";
 import type { InventoryDrizzleQuery, InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
@@ -23,13 +25,16 @@ import type {
 import { REFERENCE_UNRESOLVED_REASONS } from "./reference-fact-contract.ts";
 import type { SchemaIdentityModel } from "./schema-identity-contract.ts";
 import type { SchemaFact } from "./schema-model-contract.ts";
-import type { SchemaProjectedModel } from "./schema-projection-contract.ts";
+import type { SchemaDataProjection, SchemaProjectedModel } from "./schema-projection-contract.ts";
 import { schemaProjectionInventorySchema } from "./schema-projection-inventory-contract.ts";
 import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
 import type { NativeTypeProjection } from "./type-projection-contract.ts";
 import { assertTypeProjectionCoverage, canonicalTypeProjectionPlan, typeProjectionPlanSchema } from "./type-projection-contract.ts";
+import { columnRowObservationSchema, storedValueObservationSchema } from "./value-observation-codec.ts";
+import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
+import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 16;
+export const INVENTORY_FORMAT = 17;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -121,6 +126,7 @@ export const INVOCATION_VALUE_FACETS = [
   "stable",
   "type-projection",
   "authored-value",
+  ...VALUE_OBSERVATION_FACETS,
 ] as const;
 export const invocationPlanSchema = z
   .object({
@@ -238,6 +244,18 @@ export const invocationEvidenceSchema = z.object({
       stable: nodeFactSchema.optional(),
       "type-projection": typeProjectionWireSchema.optional(),
       "authored-value": authoredValueProjectionSchema.optional(),
+      "stored-value": storedValueObservationSchema(spanSchema).optional(),
+      "row-column": columnRowObservationSchema(spanSchema).optional(),
+      "drizzle-write": inventoryReferenceSchema(z.strictObject({ method: z.string(), target: spanSchema, arg: spanSchema.nullable() }).nullable()).optional(),
+      "indexed-parameters": z
+        .array(
+          z.strictObject({
+            receiverIndex: z.number().int().nonnegative(),
+            keyIndex: z.number().int().nonnegative(),
+            node: spanSchema.refine((node) => node.kind === SyntaxKind.ElementAccessExpression),
+          }),
+        )
+        .optional(),
       canonicalValue: z.object({ declaration: spanSchema, fact: nodeFactSchema }).optional(),
     }),
   ),
@@ -256,6 +274,10 @@ export interface NativeInvocationEvidence {
   readonly canonicalValues: ReadonlyMap<Node, ReferenceFact<Node>>;
   readonly typeProjections: ReadonlyMap<Node, NativeTypeProjection>;
   readonly authoredValues: ReadonlyMap<Node, NativeAuthoredValueProjection>;
+  readonly storedValues: ReadonlyMap<Node, ProjectedStoredValueShape>;
+  readonly columnRows: ReadonlyMap<Node, NativeColumnRowObservation>;
+  readonly drizzleWrites: ReadonlyMap<Node, ReferenceFact<DrizzleWrite | null>>;
+  readonly indexedParameters: ReadonlyMap<Node, readonly IndexedCallParameters[]>;
   readonly declarations: (node: Node) => readonly Node[];
   readonly computedName: (node: Node) => ReferenceFact<string>;
 }
@@ -279,17 +301,25 @@ export function assertInvocationEvidence(entry: InventoryInvocationEvidence): vo
   if (profiles.size !== entry.profiles.length) {
     throw new SemanticInventoryError("native invocation profile identity is ambiguous");
   }
+  const demanded = new Map<string, Set<string>>();
   const requireFacets = (node: InventorySpan, facets: InventoryInvocationPlan["facets"]): void => {
     if (facets.length === 0) {
       return;
     }
-    const profile = profiles.get(inventoryNodeQueryKey(node));
+    const key = inventoryNodeQueryKey(node);
+    const allowed = demanded.get(key) ?? new Set<string>();
+    for (const facet of facets) {
+      allowed.add(facet);
+    }
+    demanded.set(key, allowed);
+    const profile = profiles.get(key);
     if (profile === undefined || facets.some((facet) => profile[facet] === undefined)) {
       throw new SemanticInventoryError("native invocation facet coverage is incomplete");
     }
   };
   assertInvocationProjection(entry, requireFacets);
   for (const profile of entry.profiles) {
+    assertValueObservationDemand(profile, demanded);
     const projection = profile["type-projection"];
     if (projection !== undefined) {
       if (
@@ -593,6 +623,7 @@ export interface InventoryOverlay {
 export interface InventoryBuildRequest {
   readonly schemaSources?: readonly InventorySpan[];
   readonly schemaDataSources?: readonly InventorySpan[];
+  readonly schemaDataProjection?: SchemaDataProjection;
   readonly schemaDependency?: InventorySchemaDependency;
   readonly drizzleQueries?: readonly InventoryDrizzleQuery[];
   readonly exportQueries?: readonly InventoryExportDeclarationQuery[];
@@ -612,7 +643,7 @@ export interface InventoryBuildRequest {
 
 export interface SemanticInventoryOptions {
   readonly schemaQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };
-  readonly schemaDataQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };
+  readonly schemaDataQuery?: { readonly program: string; readonly sources: readonly InventorySpan[]; readonly projection?: SchemaDataProjection };
   readonly drizzleQueries?: readonly { readonly program: string; readonly query: InventoryDrizzleQuery }[];
   readonly exportQueries?: readonly InventoryNativeExportDeclarationQuery[];
   readonly invocationQueries?: readonly InventoryNativeInvocationQuery[];
@@ -640,7 +671,7 @@ export type InventorySourceCorpus = SourceCorpus & Disposable;
 /** One immutable complete generation; dispose transaction inventories when their transaction ends. */
 export interface SemanticInventory extends Disposable {
   readonly schemaIdentity: (sources: readonly SourceFile[], program: string) => SchemaFact<SchemaIdentityModel>;
-  readonly schemaData: (sources: readonly SourceFile[], program: string) => SchemaFact<SchemaProjectedModel>;
+  readonly schemaData: (sources: readonly SourceFile[], program: string, projection?: SchemaDataProjection) => SchemaFact<SchemaProjectedModel>;
   readonly drizzleEvidence: (node: Node, program: string, mode: DrizzleEvidenceMode) => DrizzleCallEvidence;
   readonly exportDeclarations: (source: SourceFile, program: string, name: string) => readonly Node[] | null;
   readonly invocationEvidence: (node: Node, program: string, plan: InventoryInvocationPlan) => NativeInvocationEvidence;
@@ -675,4 +706,12 @@ export interface InventoryReaderStorage {
   readonly shapeOwners?: ReadonlyMap<SourceFile, string>;
   readonly db: DatabaseSync;
   readonly dispose: () => void;
+}
+
+function assertValueObservationDemand(profile: InventoryInvocationEvidence["profiles"][number], demanded: ReadonlyMap<string, ReadonlySet<string>>): void {
+  for (const facet of VALUE_OBSERVATION_FACETS) {
+    if (profile[facet] !== undefined && demanded.get(inventoryNodeQueryKey(profile.node))?.has(facet) !== true) {
+      throw new SemanticInventoryError("native value observation exceeds its closed facet demand");
+    }
+  }
 }

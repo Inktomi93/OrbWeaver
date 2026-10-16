@@ -1,7 +1,14 @@
 // Complete schema data without live compiler Types; type relations retain their native owner.
+import { z } from "zod";
 import type { SchemaColumn, SchemaColumnTypeOverride, SchemaModel, SchemaTable } from "./schema-model-contract.ts";
+import type { NativeTypeVocabulary } from "./type-projection-contract.ts";
 
-export type SchemaProjectedTypeOverride = Omit<SchemaColumnTypeOverride, "type">;
+export const schemaDataProjectionSchema = z.strictObject({ typeVocabulary: z.literal(true).optional() });
+export type SchemaDataProjection = z.infer<typeof schemaDataProjectionSchema>;
+
+export interface SchemaProjectedTypeOverride extends Omit<SchemaColumnTypeOverride, "type"> {
+  readonly vocabulary?: NativeTypeVocabulary | undefined;
+}
 
 export interface SchemaProjectedColumn extends Omit<SchemaColumn, "typeOverride"> {
   readonly typeOverride: SchemaProjectedTypeOverride | null;

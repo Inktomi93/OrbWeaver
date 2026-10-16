@@ -4,7 +4,7 @@
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { openJsonParityFact } from "../lib/open-json-parity-fact.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { drizzleSchemaVocabularyFact } from "../lib/schema-fact.ts";
 
 const SCHEMA_ANCHOR = "packages/db/src/schema/index.ts";
 const MESSAGE =
@@ -21,13 +21,13 @@ export const gate = defineGate({
   population: { in: ["@db", "@server"], under: ["packages/db/src/schema/**", "packages/server/src/**"] },
   analysis: "types",
   execution: "entire-population",
-  facts: [openJsonParityFact, drizzleSchemaFact],
+  facts: [openJsonParityFact, drizzleSchemaVocabularyFact],
   resources: [],
   message: MESSAGE,
   create: (ctx) => ({
     evaluate: () => {
       const parityFact = ctx.fact(openJsonParityFact);
-      const schema = ctx.fact(drizzleSchemaFact).schema();
+      const schema = ctx.fact(drizzleSchemaVocabularyFact);
       if (schema.status === "empty") {
         ctx.receipt({ kind: "population", source: schema.receipt.source, members: schema.receipt.members });
         ctx.report.file(SCHEMA_ANCHOR, { line: 1, column: 1, token: "mode:json" });

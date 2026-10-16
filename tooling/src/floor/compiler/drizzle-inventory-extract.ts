@@ -66,7 +66,10 @@ export function extractDrizzleIdentities(
   const schemaData =
     request.schemaDataSources === undefined || selected === undefined || schema === undefined
       ? undefined
-      : encodeSchemaDataCatalog(selected, projectSchemaData(schema), span, relativePath);
+      : encodeSchemaDataCatalog(selected, projectSchemaData(schema, request.schemaDataProjection), span, {
+          relativePath,
+          projection: request.schemaDataProjection,
+        });
   const dependency = request.schemaDependency;
   const catalog = dependency === undefined ? undefined : drizzleSchemas.catalog.parse(dependency.catalog);
   const declarations = catalog === undefined ? new Map<string, InventorySchemaIdentityTable>() : catalogDeclarations(catalog, byFile, span);

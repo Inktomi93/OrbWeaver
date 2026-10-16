@@ -6,8 +6,10 @@ import type { InventorySchemaIdentityCatalog } from "./drizzle-inventory-contrac
 import { assertSchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
 import type { SchemaFact, SchemaForeignKey, SchemaIndex, SchemaJsonShape, SchemaTableForeignKey } from "./schema-model-contract.ts";
 import { SCHEMA_COLUMN_DEFAULT_OPERATIONS, SCHEMA_FACT_STATUSES } from "./schema-model-contract.ts";
-import type { SchemaProjectedColumn, SchemaProjectedTable, SchemaProjectedTypeOverride } from "./schema-projection-contract.ts";
+import type { SchemaDataProjection, SchemaProjectedColumn, SchemaProjectedTable, SchemaProjectedTypeOverride } from "./schema-projection-contract.ts";
+import { schemaDataProjectionSchema } from "./schema-projection-contract.ts";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";
+import { nativeTypeVocabularySchema } from "./type-projection-contract.ts";
 
 type SpanFields<Value> = { readonly [Key in keyof Value]: Value[Key] extends Node ? InventorySpan : Value[Key] };
 
@@ -33,6 +35,7 @@ export interface InventorySchemaProjectedTable extends Omit<SpanFields<SchemaPro
 }
 
 export interface InventorySchemaProjectedCatalog {
+  readonly projection?: SchemaDataProjection;
   readonly sources: InventorySchemaIdentityCatalog["sources"];
   readonly fact: SchemaFact<{ readonly tables: readonly InventorySchemaProjectedTable[] }>;
 }
@@ -69,7 +72,10 @@ export function schemaProjectionInventorySchema(
     defaultOperations: z.array(z.enum(SCHEMA_COLUMN_DEFAULT_OPERATIONS)),
     sqlName: z.string(),
     builder: z.object({ moduleSpecifier: z.string(), exportedName: z.string(), call }),
-    typeOverride: z.object({ node: span, display: z.string(), idBrand: z.string().nullable() }).strict().nullable(),
+    typeOverride: z
+      .object({ node: span, display: z.string(), idBrand: z.string().nullable(), vocabulary: nativeTypeVocabularySchema.optional() })
+      .strict()
+      .nullable(),
     primaryKey: z.boolean(),
     unique: z.boolean(),
     notNull: z.boolean(),
@@ -97,6 +103,7 @@ export function schemaProjectionInventorySchema(
     .intersection(
       identityCatalog,
       z.object({
+        projection: schemaDataProjectionSchema.optional(),
         fact: z.discriminatedUnion("status", [
           z.object({ status: z.literal("ready"), value: z.object({ tables: z.array(table) }) }),
           z.object({ status: z.enum(SCHEMA_FACT_STATUSES).exclude(["ready"]) }),
@@ -107,6 +114,7 @@ export function schemaProjectionInventorySchema(
       const { fact } = catalog;
       return {
         sources: catalog.sources,
+        ...(catalog.projection === undefined ? {} : { projection: catalog.projection }),
         fact:
           fact.status === "ready"
             ? {
@@ -139,6 +147,16 @@ export function assertSchemaProjectedCatalog(catalog: InventorySchemaProjectedCa
   const { fact } = catalog;
   if (fact.status !== "ready") {
     return;
+  }
+  for (const table of fact.value.tables) {
+    for (const column of table.columns) {
+      if (
+        column.typeOverride !== null &&
+        (column.typeOverride.vocabulary !== undefined) !== (catalog.projection?.typeVocabulary === true && column.json !== null)
+      ) {
+        throw new Error("native schema selected-Type vocabulary coverage is incomplete or foreign");
+      }
+    }
   }
   const tables = fact.value.tables;
   const columns = tables.flatMap((table) => table.columns);

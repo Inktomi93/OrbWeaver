@@ -660,3 +660,72 @@ function dataOptions(fixture: ReturnType<typeof setup>): SemanticInventoryOption
     schemaDataQuery: { program: DB, sources: fixture.sources.map(span) },
   };
 }
+
+test(
+  "selected-Type schema vocabulary has exact opt-in demand, pinned default views and atomic corrupt-worker refusal",
+  ({ scratch, repoRoot }) => {
+    const fixture = setup(scratch, repoRoot);
+    const options = dataOptions(fixture);
+    using ordinary = createSemanticInventory(options);
+    const before = ordinary.schemaData(fixture.sources, DB);
+    expect(() => ordinary.schemaData(fixture.sources, DB, { typeVocabulary: true })).toThrow("vocabulary was not captured");
+    const projection = { typeVocabulary: true } as const;
+    const projected = { ...options, schemaDataQuery: { program: DB, sources: fixture.sources.map(span), projection } };
+    const requests: InventoryBuildRequest[] = [];
+    using full = createSemanticInventory({
+      ...projected,
+      buildPartition: (request) => {
+        requests.push(request);
+        runInventoryPartitionWorker(request);
+      },
+    });
+    expect(requests.map((request) => request.schemaDataProjection)).toEqual([projection]);
+    expect(full.schemaData(fixture.sources, DB)).toEqual(before);
+    const selected = full.schemaData(fixture.sources, DB, projection);
+    if (selected.status !== "ready") {
+      throw new Error("selected vocabulary catalog unavailable");
+    }
+    expect(selected.value.tables[0]?.columns[1]?.typeOverride?.vocabulary).toMatchObject({
+      properties: ["label"],
+      arms: [{ properties: ["label"], stringIndex: false }],
+    });
+    using reused = createSemanticInventory({
+      ...projected,
+      buildPartition: () => {
+        throw new Error("native schema projection demand rebuilt");
+      },
+    });
+    expect(reused.generation).toBe(full.generation);
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    expect(() =>
+      createSemanticInventory({
+        ...options,
+        buildPartition: () => {
+          throw new Error("default projection cannot reuse enriched demand");
+        },
+      }),
+    ).toThrow("default projection cannot reuse enriched demand");
+    expect(latestInventoryGeneration(db)).toBe(full.generation);
+    expect(() =>
+      createSemanticInventory({
+        ...projected,
+        schemaDataQuery: { program: DB, sources: fixture.sources.slice(0, 1).map(span), projection },
+        buildPartition: (request) => {
+          runInventoryPartitionWorker(request);
+          using staging = openInventoryDatabase(request.destination);
+          const partition = readInventoryGeneration(staging, latestInventoryGeneration(staging))[0];
+          if (partition === undefined) {
+            throw new Error("staging full catalog missing");
+          }
+          staging
+            .prepare("DELETE FROM inventory_drizzle_atom WHERE partition=? AND ordinal=(SELECT MAX(ordinal) FROM inventory_drizzle_atom WHERE partition=?)")
+            .run(partition.id, partition.id);
+        },
+      }),
+    ).toThrow("fact graph is incomplete");
+    expect(latestInventoryGeneration(db)).toBe(full.generation);
+    expect(ordinary.schemaData(fixture.sources, DB)).toEqual(before);
+    expect(full.schemaData(fixture.sources, DB, projection)).toEqual(selected);
+  },
+  scaledBudget(60_000),
+);

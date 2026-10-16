@@ -545,13 +545,16 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (queries): NativeTypeFactReader => ({
-      schemaData: (requested): ReturnType<NativeTypeFactReader["schemaData"]> => {
+      schemaData: (requested, projection): ReturnType<NativeTypeFactReader["schemaData"]> => {
         const checker = checkerFor(requested);
-        return readSchemaData({
-          files: requested,
-          relativePath: (source) => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
-          checker: () => checker,
-        });
+        return readSchemaData(
+          {
+            files: requested,
+            relativePath: (source) => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
+            checker: () => checker,
+          },
+          projection,
+        );
       },
       schemaIdentity: (requested): ReturnType<NativeTypeFactReader["schemaIdentity"]> => {
         const checker = checkerFor(requested);

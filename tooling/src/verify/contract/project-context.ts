@@ -14,7 +14,7 @@ import type { DrizzleCallEvidence, DrizzleEvidenceMode } from "../../floor/code-
 import type { CallableDeclaration, GlobalMemberOrigin, ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaIdentityModel } from "../../floor/code-facts/schema-identity-contract.ts";
 import type { SchemaFact } from "../../floor/code-facts/schema-model-contract.ts";
-import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
+import type { SchemaDataProjection, SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import type {
   InventoryInvocationPlan,
   InventoryRuntimeExport,
@@ -25,7 +25,7 @@ import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-
 import type { SemanticSourceView } from "../../floor/compiler/ts-workspace-contract.ts";
 
 export type NativeTypeRequest =
-  | { readonly kind: "schema-data"; readonly nodes: readonly SourceFile[] }
+  | { readonly kind: "schema-data"; readonly nodes: readonly SourceFile[]; readonly projection?: SchemaDataProjection }
   | { readonly kind: "schema-identities"; readonly nodes: readonly SourceFile[] }
   | { readonly kind: "drizzle-identities"; readonly nodes: readonly CallExpression[]; readonly mode: DrizzleEvidenceMode }
   | { readonly kind: "export-declarations"; readonly nodes: readonly SourceFile[]; readonly name: string }
@@ -43,7 +43,7 @@ export type NativeTypeRequest =
 
 /** A producer owns native or isolated-proof provenance; neither exposes a checker through this capability. */
 export interface NativeTypeFactReader extends Disposable {
-  readonly schemaData: (sources: readonly SourceFile[]) => SchemaFact<SchemaProjectedModel>;
+  readonly schemaData: (sources: readonly SourceFile[], projection?: SchemaDataProjection) => SchemaFact<SchemaProjectedModel>;
   readonly schemaIdentity: (sources: readonly SourceFile[]) => SchemaFact<SchemaIdentityModel>;
   readonly drizzleEvidence: (nodes: readonly CallExpression[], mode: DrizzleEvidenceMode) => ReadonlyMap<CallExpression, DrizzleCallEvidence>;
   readonly exportDeclarations: (sources: readonly SourceFile[], name: string) => ReadonlyMap<SourceFile, readonly Node[] | null>;
@@ -81,7 +81,7 @@ export interface NativeTypeContext {
 
 /** Registration is owner-scoped during the existing walk; a sealed run reads one closed native generation. */
 export interface NativeTypeFacts extends Disposable {
-  readonly schemaData: (owner: string, sources: readonly SourceFile[]) => ReturnType<NativeTypeFactReader["schemaData"]>;
+  readonly schemaData: (owner: string, sources: readonly SourceFile[], projection?: SchemaDataProjection) => ReturnType<NativeTypeFactReader["schemaData"]>;
   readonly schemaIdentity: (owner: string, sources: readonly SourceFile[]) => ReturnType<NativeTypeFactReader["schemaIdentity"]>;
   readonly drizzleEvidence: (owner: string, nodes: readonly CallExpression[], mode: DrizzleEvidenceMode) => ReturnType<NativeTypeFactReader["drizzleEvidence"]>;
   readonly exportDeclarations: (owner: string, sources: readonly SourceFile[], name: string) => ReturnType<NativeTypeFactReader["exportDeclarations"]>;

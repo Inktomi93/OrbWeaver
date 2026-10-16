@@ -5,10 +5,11 @@
 
 import type { CallExpression, ElementAccessExpression, PropertyAccessExpression, TaggedTemplateExpression, Node as TsNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { readIndexedCallParameters } from "../../floor/code-facts/drizzle-column-reads.ts";
 import { sqlTemplateText } from "../../floor/code-facts/drizzle-sql.ts";
 import type { SqlAliasBindings } from "../../floor/code-facts/sql-alias-bindings.ts";
 import { SQL_VIRTUAL_TABLE, sqlAliasBindings } from "../../floor/code-facts/sql-alias-bindings.ts";
+import type { NativeValueObservationReaders } from "../../floor/code-facts/value-observation-contract.ts";
+import type { nativeColumnRow } from "./native-value-projection.ts";
 import { blobTargets } from "./open-json-row-origin.ts";
 import type { OpenJsonColumn, Schema, Vocab } from "./open-json-vocabulary.ts";
 import { addWrite } from "./open-json-vocabulary.ts";
@@ -58,18 +59,19 @@ export function collectAccessReads(
   elements: readonly ElementAccessExpression[],
   properties: readonly PropertyAccessExpression[],
   byProp: ReadonlyMap<string, readonly OpenJsonColumn[]>,
-  out: ReaderHit[],
+  options: { readonly out: ReaderHit[]; readonly readColumn: (node: TsNode) => ReturnType<typeof nativeColumnRow> },
 ): void {
+  const { out, readColumn } = options;
   for (const ea of elements) {
     const arg = ea.getArgumentExpression();
     const key = arg !== undefined && Node.isStringLiteral(arg) ? arg.getLiteralText() : undefined;
-    const targets = key === undefined ? [] : blobTargets(ea.getExpression(), byProp);
+    const targets = key === undefined ? [] : blobTargets(ea.getExpression(), byProp, readColumn);
     if (key !== undefined && targets.length > 0) {
       out.push({ node: ea, offset: offsetOf(ea, key), key, targets });
     }
   }
   for (const pae of properties) {
-    const targets = blobTargets(pae.getExpression(), byProp);
+    const targets = blobTargets(pae.getExpression(), byProp, readColumn);
     if (targets.length > 0) {
       out.push({ node: pae, offset: offsetOf(pae, pae.getName()), key: pae.getName(), targets });
     }
@@ -78,18 +80,26 @@ export function collectAccessReads(
 
 /** The one-hop helper shape `f(blob, "k")` — the live `metaStr(r.captionMeta, "rating")` spelling, admitted
  *  only when the helper PROVES the string is a key by indexing the blob with it. */
-export function collectHelperReads(calls: readonly CallExpression[], byProp: ReadonlyMap<string, readonly OpenJsonColumn[]>, out: ReaderHit[]): void {
+export function collectHelperReads(
+  calls: readonly CallExpression[],
+  byProp: ReadonlyMap<string, readonly OpenJsonColumn[]>,
+  out: ReaderHit[],
+  read: Pick<NativeValueObservationReaders, "columnRow" | "indexedParameters">,
+): void {
   for (const call of calls) {
     const args = call.getArguments();
-    const blobPos = args.findIndex((a) => blobTargets(a, byProp).length > 0);
+    const blobPos = args.findIndex((a) => blobTargets(a, byProp, read.columnRow).length > 0);
     const blobArg = blobPos < 0 ? undefined : args[blobPos];
     if (blobArg === undefined) {
       continue;
     }
-    const targets = blobTargets(blobArg, byProp);
-    const indexed = readIndexedCallParameters(call);
+    const targets = blobTargets(blobArg, byProp, read.columnRow);
+    if (!args.some((argument, index) => index !== blobPos && Node.isStringLiteral(argument))) {
+      continue;
+    }
+    const indexed = read.indexedParameters(call);
     args.forEach((a, i) => {
-      if (i !== blobPos && Node.isStringLiteral(a) && indexed.some((read) => read.receiverIndex === blobPos && read.keyIndex === i)) {
+      if (i !== blobPos && Node.isStringLiteral(a) && indexed.some((indexedRead) => indexedRead.receiverIndex === blobPos && indexedRead.keyIndex === i)) {
         out.push({ node: call, offset: offsetOf(call, a.getLiteralText()), key: a.getLiteralText(), targets });
       }
     });

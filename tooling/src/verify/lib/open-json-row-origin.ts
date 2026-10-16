@@ -1,37 +1,39 @@
-// Open-bag attribution is a verify judgment over canonical native row provenance.
+// Open-bag attribution remains a verify judgment over canonical native vocabulary and row provenance.
 import type { Node as TsNode } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import { columnReceiver, narrowedTable, rowOrigins } from "../../floor/code-facts/drizzle-row-origin.ts";
-import { tableDeclarations } from "../../floor/code-facts/drizzle-row-type.ts";
+import type { nativeColumnRow } from "./native-value-projection.ts";
 import type { OpenJsonColumn } from "./open-json-vocabulary.ts";
 import { isOpenBag } from "./open-json-vocabulary.ts";
 
-function ownsColumn(tableRef: TsNode, column: OpenJsonColumn): boolean {
-  const schemaTable = column.node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+type ColumnReader = (node: TsNode) => ReturnType<typeof nativeColumnRow>;
+function ownsColumn(declarations: readonly TsNode[], column: OpenJsonColumn): boolean {
+  const table = column.node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
   return (
-    schemaTable !== undefined &&
-    tableDeclarations(tableRef).some(
-      (declaration) =>
-        declaration.getSourceFile().getFilePath() === schemaTable.getSourceFile().getFilePath() && declaration.getStart() === schemaTable.getStart(),
+    table !== undefined &&
+    declarations.some(
+      (declaration) => declaration.getSourceFile().getFilePath() === table.getSourceFile().getFilePath() && declaration.getStart() === table.getStart(),
     )
   );
 }
-
-/** The open columns a blob receiver names, or [] when it is not one. */
-export function blobTargets(receiver: TsNode, byProp: ReadonlyMap<string, readonly OpenJsonColumn[]>): readonly OpenJsonColumn[] {
-  if (!isOpenBag(receiver.getType())) {
+/** Native observations do not grant a column: the existing open/name/ambiguity fences remain here. */
+export function blobTargets(receiver: TsNode, byProp: ReadonlyMap<string, readonly OpenJsonColumn[]>, read: ColumnReader): readonly OpenJsonColumn[] {
+  const observation = read(receiver);
+  if (!isOpenBag(observation.vocabulary)) {
     return [];
   }
-  const column = columnReceiver(receiver);
-  if (column === undefined) {
+  const origin = observation.origin;
+  const column = origin.column;
+  if (column === null) {
     return [];
   }
-  const cols = column.property === undefined ? [...byProp.values()].flat() : (byProp.get(column.property) ?? []);
+  const cols = column.property === null ? [...byProp.values()].flat() : (byProp.get(column.property) ?? []);
   if (!cols.some((c) => c.open)) {
     return [];
   }
-  const table = narrowedTable(column.row, rowOrigins(column.row));
-  const targets = table === undefined ? [] : cols.filter((candidate) => ownsColumn(table, candidate));
+  if (origin.kind === "refused") {
+    throw new Error(origin.message);
+  }
+  const targets = origin.table === null ? [] : cols.filter((candidate) => ownsColumn(origin.declarations, candidate));
   if (column.ambiguous && targets.some((target) => target.open)) {
     throw new Error(`open-json parity: cannot prove destructured column origin at ${receiver.getSourceFile().getFilePath()}:${receiver.getStartLineNumber()}`);
   }
