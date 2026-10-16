@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-15
+status: doing
+updated: 2026-10-16
 priority: P2
 area: tooling
+lane: codex/identity-notification-suppliers-1036
 plan: test-foundation
 ---
 

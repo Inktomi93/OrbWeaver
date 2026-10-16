@@ -563,6 +563,7 @@ export function openRealCorpusLiveness(
     }
   };
   const overlaid = (batch: readonly RealCorpusLivenessArm[]): MeasuredPass => {
+    // @orb-waive test-determinism(performance.now): Preparation telemetry measures actual workspace acquisition and source capture; remove with that telemetry.
     const preparationStarted = performance.now();
     const loaded = project();
     const [first] = batch;
@@ -570,26 +571,33 @@ export function openRealCorpusLiveness(
       throw new Error("real-corpus liveness: an overlaid pass requires one nonempty identical intervention");
     }
     const originals = captureOriginals(loaded, repoRoot, first);
+    // @orb-waive test-determinism(performance.now): Preparation completion reports actual workspace and capture duration; remove with that telemetry.
     const preparationMs = performance.now() - preparationStarted;
     let result: PassResult;
     let overlayMs: number;
     let executionMs: number;
     let restorationMs: number;
     try {
+      // @orb-waive test-determinism(performance.now): Overlay telemetry measures actual semantic invalidation and overlay installation; remove with that telemetry.
       const overlayStarted = performance.now();
       invalidateSemantics(loaded, originals);
       applyOverlays(loaded, repoRoot, first);
       const options = resourceOptions(repoRoot, [first]);
+      // @orb-waive test-determinism(performance.now): Overlay completion reports actual invalidation and installation duration; remove with that telemetry.
       overlayMs = performance.now() - overlayStarted;
+      // @orb-waive test-determinism(performance.now): Execution telemetry measures the actual canonical policy pass; remove with that telemetry.
       const executionStarted = performance.now();
       result = pass(
         batch.map((arm) => arm.policy),
         options,
       );
+      // @orb-waive test-determinism(performance.now): Policy-pass completion reports actual execution duration; remove with that telemetry.
       executionMs = performance.now() - executionStarted;
     } finally {
+      // @orb-waive test-determinism(performance.now): Restoration telemetry measures actual semantic invalidation and original-source restoration; remove with that telemetry.
       const restorationStarted = performance.now();
       restoreOrDamage(loaded, originals, batch);
+      // @orb-waive test-determinism(performance.now): Restoration completion reports actual cleanup duration, including failure propagation; remove with that telemetry.
       restorationMs = performance.now() - restorationStarted;
     }
     return {
@@ -644,6 +652,7 @@ export function openRealCorpusLiveness(
             index,
             batch.map((arm) => arm.policy.id),
           );
+          // @orb-waive test-determinism(performance.now): Batch telemetry measures actual native proof and restoration work; remove with that telemetry.
           const started = performance.now();
           const measurements: LivenessPassMeasurement[] = [];
           for (const [id, verdict] of proveBatch(batch, measurements)) {
@@ -653,6 +662,7 @@ export function openRealCorpusLiveness(
             index,
             of: batches.length,
             arms: batch.map((arm) => arm.policy.id),
+            // @orb-waive test-determinism(performance.now): Batch progress reports actual completed native proof duration; remove with that telemetry.
             ms: Math.round(performance.now() - started),
             passes: measurements.length,
             measurements,

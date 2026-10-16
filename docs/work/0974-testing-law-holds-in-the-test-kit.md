@@ -1,9 +1,9 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-16
 priority: P2
-lane: codex/corpus-row-clocks
+blocked: on 1027
 plan: test-foundation
 ---
 
@@ -33,4 +33,4 @@ Reviewed `6786449c11` admits native Node test-helper MJS through canonical compi
 
 The maintained support verdict completes without tool errors or withheld owners. Mock doctrine passes. Determinism remains failed on physical measurements and the legacy-only mint; no markers or budget increase hide them. Evidence: `.claude/worktrees/codex-zod-barrel-identity-1028/reports/review/974-mjs-support-qualification.md`. Bounded native/authority controls, exact lint and tooling types pass; root retains unchanged off-owned diagnostics.
 
-Physical measurement authority still needs disposition. `tests/support/node/inference-runtime.ts` serves legacy embedding/search callers and copies assembly; delete it with their replacements, not a new-foundation retrofit. Complete maintained-population qualification remains open. The inherited public-context snapshot correction belongs to typed-delivery work.
+Reviewed `645f47a859` declares exact ordinary authority for native physical measurements without policy or budget changes. Matching Biome passes. The focused native selection refuses at its source/Program identity guard; marker consumption and budget classification remain unqualified. Item 1027 owns producer diagnosis. Evidence: `.claude/worktrees/codex-corpus-row-clocks/reports/review/974-physical-clocks-delivery.md`. `tests/support/node/inference-runtime.ts` serves legacy embedding/search callers and copies assembly; delete it with their replacements, not a new-foundation retrofit. Complete maintained-population qualification remains open. The inherited public-context snapshot correction belongs to typed-delivery work.
