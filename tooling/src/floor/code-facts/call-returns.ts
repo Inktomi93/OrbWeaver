@@ -1671,6 +1671,6 @@ export function readSuppliedParameter(
   node: MorphNode,
   bindings: ReadonlyMap<MorphNode, MorphNode>,
   program: CallReturnProgram | undefined,
-): ReferenceFact<readonly import("./reference-fact-contract.ts").ReturnedValueSource[]> {
+): ReferenceFact<readonly import("./reference-fact-contract.ts").SuppliedValueSource[]> {
   return suppliedParameter(node, bindings, program);
 }
