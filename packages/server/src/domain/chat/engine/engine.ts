@@ -13,7 +13,7 @@
 // founding `opening` turn — every other turn-starting verb accepts) keeps the historical bus-silent refusal,
 // byte-identically.
 //
-// The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
+// The chat bus emit, the per-member budget debit, and the per-turn host policy are not EngineContext ops —
 // they're injected as engine deps wired at the entry composition root.
 
 import type {
@@ -48,24 +48,13 @@ import { isConstraintViolation } from "@orb/db/query";
 // `infra-below-domain` bans.
 import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { GenerationObservationPersistenceError, generationOf, ProviderError, supportsManagedCompaction } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
-import type { RowMacroNameContext } from "@orb/kit/macro";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import { systemTimers } from "#infra/timers";
-import type { ChatContext } from "../context.ts";
-import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
+import type { EngineContext, EngineDeps } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { GenerationObservationParent, GenerationObservationSession, RetainedTurnStats } from "../contract/generation-observation.ts";
-import type {
-  MemoryConfig,
-  MemoryEmbedSpace,
-  MemoryPassCounts,
-  MemoryRecallResult,
-  MemoryScope,
-  MsgRow,
-  TurnRetrievalWarningEpisode,
-  WitnessInterval,
-} from "../contract/memory.ts";
+import type { TurnRetrievalWarningEpisode } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
 import type {
   DeliveredCue,
@@ -80,6 +69,7 @@ import type {
   TurnPrep,
 } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
+import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/rpg-turn.ts";
 import {
   appendVariantStatements,
   buildCommittedMessageView,
@@ -91,8 +81,6 @@ import {
 import { createGenerationObservationSession } from "../persistence/generation-observation.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
-import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadCanonContentSignatures,
   loadCanonCues,
@@ -111,8 +99,6 @@ import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
-import { digestsDerivable } from "../substrate/digests-derivable.ts";
-import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { projectInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
@@ -120,74 +106,6 @@ import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, canonRowOf, s
 import { runTurnPipeline } from "./pipeline.ts";
 import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
-
-/** The non-ctx engine deps wired at the composition root. */
-interface EngineDeps {
-  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
-  readonly holder: string;
-  readonly lockTtlMs: number;
-  /** Injected memory segment builder, typed to the real signature — no `any` at this seam. */
-  readonly generateSegments: (
-    ctx: ChatContext,
-    args: {
-      readonly chatId: ChatId;
-      readonly funderUserId: UserId;
-      readonly config?: MemoryConfig | null | undefined;
-      readonly macroNames?: RowMacroNameContext | undefined;
-      readonly signal?: AbortSignal | undefined;
-      readonly embedSpace?: MemoryEmbedSpace | undefined;
-      readonly embedOwnerId?: UserId | undefined;
-    },
-  ) => Promise<MemoryPassCounts>;
-  /** Injected memory digest builder, typed to the real signature. */
-  readonly generateDigests: (
-    ctx: ChatContext,
-    args: {
-      readonly scope: MemoryScope;
-      readonly funderUserId: UserId;
-      readonly config?: MemoryConfig | null | undefined;
-      readonly macroNames?: RowMacroNameContext | undefined;
-      readonly witnessing?: readonly WitnessInterval[] | undefined;
-      readonly signal?: AbortSignal | undefined;
-      readonly embedSpace?: MemoryEmbedSpace | undefined;
-      readonly embedOwnerId?: UserId | undefined;
-    },
-  ) => Promise<MemoryPassCounts>;
-  /** Injected witnessing-horizon reader (memory's `chat_participants` presence read) — the engine sources a
-   *  seated character's join/leave horizons to gate its SCOPED digest build. Injected (not imported) because the
-   *  engine may not reach `memory/` across the subsystem boundary; the domain root wires the real reader. */
-  readonly loadWitnessHorizons: (db: ChatContext["db"], chatId: ChatId, characterId: CharacterId) => Promise<WitnessInterval[]>;
-  /** Injected `{{memory}}` recall — the engine re-runs it PER SCOPED SPEAKER (its own bucket + horizons) so a
-   *  scoped round's each speaker recalls its OWN egocentric, witnessed memory. Injected across the subsystem
-   *  boundary like the builders above; the domain root wires the real `recallMemory`. */
-  readonly recallMemory: (
-    ctx: ChatContext,
-    args: {
-      readonly scope: MemoryScope;
-      readonly groupCharacterId: CharacterId;
-      readonly witnessing?: readonly WitnessInterval[] | undefined;
-      readonly liveWindowCutoffSeq?: number | undefined;
-      readonly config?: MemoryConfig | null | undefined;
-      readonly recent?: readonly MsgRow[] | undefined;
-      readonly names?: ReadonlyMap<CharacterId, string> | undefined;
-      readonly warningEpisode?: TurnRetrievalWarningEpisode | undefined;
-    },
-  ) => Promise<MemoryRecallResult>;
-  /** Injected lock-free compaction core (`makeRunCompaction`) — the managed-compaction post-turn hook rebuilds
-   *  the LINEAR-tier `compactSummary` marker over the span above the fit boundary via the chat's OWN model.
-   *  Injected (not imported from the verb) so the engine never reaches into a verb; the domain root wires the same
-   *  core the manual `compact` verb uses. Idempotent via `chats.compactedAtSeq` — an unchanged coverage point
-   *  rewrites nothing (`updated:false`). Takes the chat's resolved `connection` (the marker rides the chat's model,
-   *  source-agnostic). */
-  readonly runCompaction: (args: {
-    readonly chatId: ChatId;
-    readonly connection: Resolved<"chat">;
-    readonly ownerId: UserId;
-    readonly coveragePoint?: number | undefined;
-    readonly instructions?: string | undefined;
-    readonly signal?: AbortSignal | undefined;
-  }) => Promise<{ readonly summary: string; readonly compactedAtSeq: number; readonly updated: boolean }>;
-}
 
 interface OwnedEngineDeps extends EngineDeps {
   readonly compactionInFlight: Set<ChatId>;
@@ -246,7 +164,7 @@ function observationParentOf(chatId: ChatId, turnId: ChatTurnId, target: SlotTar
 
 /** Re-reads a just-committed message's authoritative MessageView (append-variant/continue produce fields
  *  the in-memory insert params don't know, unlike a fresh slot). */
-async function readCommittedView(ctx: ChatContext, messageId: MessageId): Promise<MessageView> {
+async function readCommittedView(ctx: EngineContext, messageId: MessageId): Promise<MessageView> {
   const view = await loadMessageView(ctx.db, messageId);
   if (view === undefined) {
     throw new Error(`message ${messageId} vanished mid-commit`);
@@ -403,7 +321,7 @@ function generatedRowEconomics(
  *   • continue — (new - old) on the slot.
  */
 async function buildTurnStatsDeltas(args: {
-  readonly ctx: ChatContext;
+  readonly ctx: EngineContext;
   readonly prep: TurnPrep;
   readonly persist: TurnPersist;
   readonly target: SlotTarget | null;
@@ -545,7 +463,7 @@ async function buildTurnStatsDeltas(args: {
 /** Builds one persist-mode's canon statements + the committed-view reader, for a given tail seq. Re-mints
  *  the new-slot ids on every call (the retry needs fresh ids). */
 function buildCommitPlan(args: {
-  readonly ctx: ChatContext;
+  readonly ctx: EngineContext;
   readonly prep: TurnPrep;
   readonly persist: TurnPersist;
   readonly target: SlotTarget | null;
@@ -648,7 +566,7 @@ function buildCommitPlan(args: {
  *  `messageCommitted`. Funding stays frozen; retained accounting follows the canonical cohort. */
 async function commitGeneration(args: {
   readonly observations: GenerationObservationSession;
-  readonly ctx: ChatContext;
+  readonly ctx: EngineContext;
   readonly deps: EngineDeps;
   readonly prep: TurnPrep;
   readonly persist: TurnPersist;
@@ -788,7 +706,7 @@ async function commitGeneration(args: {
  * generation's — and {@link runInLockWithHeartbeat} no longer releases the lock while this body is still
  * live, so the same-process half of the race is closed outright.
  */
-async function assertTurnMayCommit(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<void> {
+async function assertTurnMayCommit(ctx: EngineContext, deps: EngineDeps, prep: TurnPrep): Promise<void> {
   prep.signal?.throwIfAborted();
   if (prep.lockFree === true) {
     return;
@@ -836,7 +754,7 @@ function memoryRequestId(turnId: ChatTurnId): string {
 }
 
 // The existing terminal boundaries own failures; graph lifetime owns joining their settlement.
-function trackSettledWork(ctx: ChatContext, work: Promise<void>): void {
+function trackSettledWork(ctx: EngineContext, work: Promise<void>): void {
   ctx.trackBackground?.(work);
 }
 
@@ -864,7 +782,7 @@ function turnProse(prep: TurnPrep): ProseOverrides {
   return prep.assembleContext.prose ?? {};
 }
 
-function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatTurnId, turn: RpgTurnContext): void {
+function fireRpgTurnCompleted(ctx: EngineContext, view: MessageView, turnId: ChatTurnId, turn: RpgTurnContext): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
     // Fire-and-forget still (a background flush must NEVER turn a committed reply into an abort), but LOG the
@@ -901,7 +819,7 @@ function rpgAbortRequestId(turnId: ChatTurnId): string {
  *  a failed clear leaves the dead turn's staged writes in place, so the NEXT turn on this chat flushes them
  *  — the exact cross-turn contamination the clear exists to prevent, previously invisible. Warn + ids (the
  *  sibling convention); the detached root records the rejection before this outer catch logs it. */
-function fireRpgTurnAborted(ctx: ChatContext, chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason): void {
+function fireRpgTurnAborted(ctx: EngineContext, chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
     trackSettledWork(
@@ -1095,7 +1013,7 @@ function applyCompactionOverlay(ctx: AssembleContext, overlay: CompactionOverlay
  *  a preset-configured managed mode + cap (the reviewer's no-fire receipt). A `coveragePoint` of `undefined`
  *  is "not eligible this turn": not managed, not the agent-sdk api, or nothing above the verbatim tail. */
 async function preTurnCompactionPlan(
-  ctx: ChatContext,
+  ctx: EngineContext,
   prep: TurnPrep,
   canonAll: readonly MessageView[],
 ): Promise<{ readonly coveragePoint: number | undefined; readonly currentCoverage: number; readonly instructions: string }> {
@@ -1124,7 +1042,7 @@ async function preTurnCompactionPlan(
  *  CANCELLABLE (#1436): the turn's signal rides into the generation, and a cancelled one propagates instead of
  *  being absorbed as a failure. Returns the (possibly reloaded) canon + maxSeq + a marker overlay (null when
  *  nothing compacted). */
-async function runPreTurnCompaction(ctx: ChatContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<PreTurnCompaction> {
+async function runPreTurnCompaction(ctx: EngineContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<PreTurnCompaction> {
   const { compactionInFlight } = deps;
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
   const { coveragePoint, instructions } = await preTurnCompactionPlan(ctx, prep, canonAll);
@@ -1207,7 +1125,7 @@ function compactionRequestId(turnId: ChatTurnId): string {
 }
 
 function fireManagedCompaction(
-  ctx: ChatContext,
+  ctx: EngineContext,
   deps: OwnedEngineDeps,
   prep: TurnPrep,
   turn: { readonly turnId: ChatTurnId; readonly result: Awaited<ReturnType<typeof runTurnPipeline>>; readonly canonAll: readonly MessageView[] },
@@ -1264,7 +1182,7 @@ function fireManagedCompaction(
  *  when its reply directly responds to the die-bearing latest user message (chat's slot-adjacency verdict). Sync
  *  in-memory flag keyed by `turnId`; null op / non-game ⇒ no-op. A later GM/auto round is never marked, so a
  *  stale die can't re-feed. */
-function markRpgDiceEligible(ctx: ChatContext, prep: TurnPrep, turnId: ChatTurnId): void {
+function markRpgDiceEligible(ctx: EngineContext, prep: TurnPrep, turnId: ChatTurnId): void {
   if (prep.respondsToLatestUserTurn === true) {
     ctx.rpg?.markDicePreRollEligible(turnId);
   }
@@ -1487,7 +1405,7 @@ function captureTurnFault(prep: TurnPrep, err: unknown, reason: TurnAbortReason,
  *  own pair. The orphan is swept by the weekly `assets-gc` past its put→link grace; the inverse would be a
  *  message whose body names an asset that was never written. */
 async function absorbInlineReplyImages(
-  ctx: ChatContext,
+  ctx: EngineContext,
   deps: EngineDeps,
   prep: TurnPrep,
   result: Awaited<ReturnType<typeof runTurnPipeline>>,
@@ -1640,7 +1558,7 @@ function turnCascadeDepth(prep: TurnPrep): number {
  *  Any gate off ⇒ the round-level ctx passes through UNCHANGED (byte-identical). A speaker present since the
  *  chat opened resolves the SAME pool as the round-level recall (its horizon covers everything) — no
  *  regression; only a late-joiner / kicked-rejoined speaker sees a filtered, egocentric memory. */
-async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<AssembleContext> {
+async function resolveSpeakerMemory(deps: EngineDeps, prep: TurnPrep): Promise<AssembleContext> {
   const speakerCharId = prep.speakerCharacterId;
   const recall = prep.memoryRecall;
   if (prep.shape?.cardScope !== "scoped" || speakerCharId === null || recall === undefined || recall === null) {
@@ -1649,8 +1567,8 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
     }
     return prep.assembleContext;
   }
-  const witnessing = await deps.loadWitnessHorizons(ctx.db, prep.chatId, speakerCharId);
-  const recalled = await deps.recallMemory(ctx, {
+  const witnessing = await deps.loadWitnessHorizons(prep.chatId, speakerCharId);
+  const recalled = await deps.recallMemory({
     scope: { chatId: prep.chatId, scopedCharacterId: speakerCharId, isGroup: true },
     groupCharacterId: recall.groupCharacterId,
     witnessing,
@@ -1690,7 +1608,7 @@ interface PreStartResolution {
 /** The PRE-START half of the lifecycle: resolve the persist target, then run the security belts. Every throw
  *  here happens BEFORE `turnStarted` — a refusal, not an aborted turn. Extracted so {@link executeTurn} can
  *  wrap exactly this region in the accepted-slot close (and to keep its complexity budget). */
-async function runPreStart(ctx: ChatContext, prep: TurnPrep, persist: TurnPersist): Promise<PreStartResolution> {
+async function runPreStart(ctx: EngineContext, prep: TurnPrep, persist: TurnPersist): Promise<PreStartResolution> {
   // append-variant/continue load the write target before turnStarted — a missing target is a pre-start
   // refusal (leak-free NOT_FOUND). Resolved FIRST (before the consent/budget belts) so the agent-speaker id +
   // its connection are known while the belts still gate — a refused turn never debits budget, and the belt
@@ -1731,7 +1649,7 @@ async function closePreStartRefusal(deps: EngineDeps, prep: TurnPrep): Promise<v
  *  turnStarted → assemble/generate → persist → turnCompleted. On a post-start error: emit turnAborted then
  *  rethrow. Pre-start refusals throw a coded error and emit nothing — except the accepted-slot close
  *  ({@link closePreStartRefusal}). */
-async function executeTurn(ctx: ChatContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
+async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
   // Absent persist mode = a new assistant slot.
   const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
   const { target } = await runPreStart(ctx, prep, persist).catch(async (err: unknown) => {
@@ -1786,7 +1704,7 @@ async function executeTurn(ctx: ChatContext, deps: OwnedEngineDeps, prep: TurnPr
     // Merged/narrator/solo/agent turns keep the round-level `memory` (byte-identical). A fresh shape, never a
     // mutation of the immutable ctx (§5, the speaker-card precedent). A pre-turn compaction overlays its fresh
     // marker + coverage stamp onto the ctx so THIS turn's assembly already excludes the covered rows.
-    const speakerAssembleContext = applyCompactionOverlay(await resolveSpeakerMemory(ctx, deps, prep), compactionOverlay);
+    const speakerAssembleContext = applyCompactionOverlay(await resolveSpeakerMemory(deps, prep), compactionOverlay);
     // The engine measures the wall-clock window around the role call and stamps it on the variant.
     const genStartedAt = ctx.now();
     // `runTurnPipeline`'s delta callback is synchronous, but chat emission is a durable-first Promise. Own an
@@ -1950,61 +1868,14 @@ async function executeTurn(ctx: ChatContext, deps: OwnedEngineDeps, prep: TurnPr
         ctx,
         withRequestSpan(memoryRequestId(turnId), MEMORY_SPAN, { chatId: prep.chatId, turnId }, async () => {
           try {
-            await deps.generateSegments(ctx, {
+            await deps.generateMemory({
               chatId: prep.chatId,
               funderUserId: prep.funderUserId,
+              runAsUserId: prep.runAsUserId,
               config: memoryConfig,
               macroNames,
-              embedOwnerId: prep.runAsUserId,
               signal: ctx.backgroundSignal,
             });
-            // No summarize connection: digests pause (the Utility-model row says so) rather than fail every turn.
-            if (!(await digestsDerivable(ctx, prep.funderUserId))) {
-              return;
-            }
-            const participants = await loadParticipants(ctx.db, prep.chatId);
-            const chars = participants.flatMap((r) => {
-              const actor = classifyParticipant(r);
-              return actor?.kind === "character" ? [actor.characterId] : [];
-            });
-
-            // Group-as-character scope (only for groups): the single synthetic bucket, keyed by the real
-            // minted synthetic-character row id, never the fabricated `__group__` handle string.
-            if (chars.length > 1) {
-              const groupCharacterId = await resolveGroupBucketCharacterId(ctx, {
-                ownerId: prep.runAsUserId,
-                chatId: prep.chatId,
-              });
-              await deps.generateDigests(ctx, {
-                scope: { chatId: prep.chatId, scopedCharacterId: groupCharacterId, isGroup: true },
-                funderUserId: prep.funderUserId,
-                config: memoryConfig,
-                macroNames,
-                embedOwnerId: prep.runAsUserId,
-                signal: ctx.backgroundSignal,
-              });
-            }
-            // Each seated character's SCOPED bucket is gated by its own join/leave horizons — a member digests
-            // only the blocks it was present for (correct across kick→re-add). The shared group bucket above
-            // stays horizon-free (the merged/narrator build; digests.ts §22-23). The synthetic group char has
-            // no participant seat, so it would (correctly) never appear in `chars` here.
-            await Promise.all(
-              chars.map(async (charId) =>
-                deps.generateDigests(ctx, {
-                  scope: {
-                    chatId: prep.chatId,
-                    scopedCharacterId: charId,
-                    isGroup: chars.length > 1,
-                  },
-                  funderUserId: prep.funderUserId,
-                  config: memoryConfig,
-                  macroNames,
-                  embedOwnerId: prep.runAsUserId,
-                  signal: ctx.backgroundSignal,
-                  witnessing: await deps.loadWitnessHorizons(ctx.db, prep.chatId, charId),
-                }),
-              ),
-            );
           } catch (memErr) {
             // Must never surface to the caller, but must not be invisible — log + emit a machine-dispatchable
             // warning code.
@@ -2103,7 +1974,7 @@ const LOCK_HEARTBEAT_DIVISOR = 3;
  *  `prep.signal`) to HALT the in-flight generation before it can `commitGeneration`, then rejects the run
  *  with `aborted` (the "stale" arm the code documents). `aborted` — NOT `locked` — so it propagates loudly
  *  (`driveRound` only yields gracefully on the pre-acquire `locked`); a lost lock mid-turn is a hard fault. */
-async function runInLockWithHeartbeat(ctx: ChatContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
+async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
   const heartbeatController = new AbortController();
   const composedSignal = prep.signal !== undefined ? AbortSignal.any([prep.signal, heartbeatController.signal]) : heartbeatController.signal;
   let lockLost = false;
@@ -2185,7 +2056,7 @@ function dropDelta(): void {
  *  composer-fill flows (guided impersonate drafts the user's next line INTO the composer for review). Reads the
  *  FULL canon as context (a `new-slot` at the tail — impersonate's shape). An abort mid-generation is a clean
  *  outcome: `{ text: <whatever streamed>, aborted: true }`; a provider/DB fault still throws. */
-async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText: (text: string) => void = dropDelta): Promise<GeneratedText> {
+async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onText: (text: string) => void = dropDelta): Promise<GeneratedText> {
   const connection = prep.connection;
 
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
@@ -2258,7 +2129,7 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
  *  flight), runs the lifecycle in-lock under a TTL heartbeat, and always releases it. A `prep.lockFree`
  *  turn skips the lock (and the heartbeat) entirely so it runs concurrent with a locked send.
  *  `generateText` is the non-persisting, lock-free, bus-silent sibling (composer-fill). */
-export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine {
+export function createTurnEngine(ctx: EngineContext, deps: EngineDeps): TurnEngine {
   // Single-flight is graph-local; unchanged coverage remains the core's durable compactedAtSeq judgment.
   const owned: OwnedEngineDeps = { ...deps, compactionInFlight: new Set<ChatId>() };
   const runTurn = async (prep: TurnPrep): Promise<TurnOutcome> => {

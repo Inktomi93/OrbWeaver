@@ -2,6 +2,7 @@ import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryReca
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 
 export type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
@@ -351,3 +352,26 @@ export type MemoryBackfillSweepCounts = MemoryBackfillCounts & {
  *  engine.ts header): the sweep resolves it off each chat's HOST and SKIPS a `mode:"off"` host's chats
  *  entirely (D293 opt-out honored on the corpus sweep, not just the live turn — #54). */
 export type ResolveBackfillMemoryConfig = (hostUserId: UserId) => Promise<MemoryConfig>;
+
+/** `scope.scopedCharacterId` is the speaker's own bucket; `groupCharacterId` is the shared bucket (equal for
+ *  solo/merged, so the union dedupes to one read). `recent` (oldest→newest) is the mixB/mixC query window. */
+export interface RecallMemoryArgs {
+  readonly scope: MemoryScope;
+  readonly groupCharacterId: CharacterId;
+  readonly witnessing?: readonly WitnessInterval[] | undefined;
+  readonly liveWindowCutoffSeq?: number | undefined;
+  readonly config?: MemoryConfig | null | undefined;
+  readonly recent?: readonly MsgRow[] | undefined;
+  readonly names?: ReadonlyMap<CharacterId, string> | undefined;
+  readonly warningEpisode?: TurnRetrievalWarningEpisode | undefined;
+}
+
+/** Composition-bound memory input preserves the turn's separate funding and execution identities. */
+export interface BuildTurnMemoryArgs {
+  readonly chatId: ChatId;
+  readonly funderUserId: UserId;
+  readonly runAsUserId: UserId;
+  readonly config: MemoryConfig | null | undefined;
+  readonly macroNames: RowMacroNameContext;
+  readonly signal: AbortSignal | undefined;
+}

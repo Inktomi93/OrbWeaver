@@ -9,8 +9,7 @@ import type { RequestTurnOp } from "./contract/results.ts";
 import type { ChatService } from "./contract/service.ts";
 import type { SignupInviteOps } from "./contract/signup.ts";
 import { createTurnEngine } from "./engine/engine.ts";
-import { generateDigests } from "./memory/generate/digests.ts";
-import { generateSegments } from "./memory/generate/segments.ts";
+import { buildTurnMemory } from "./memory/generate/turn.ts";
 import { loadWitnessHorizons } from "./memory/persistence/queries.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
 import { createChatLifecycle } from "./verbs/chat-lifecycle.ts";
@@ -66,16 +65,48 @@ export function createChatService(
   // `compact` verb exposes (one core, two entry points — the engine never imports the verb).
   const { compact, runCompaction } = createCompaction(ctx, { emit: deps.emit, quietGenerate, resolveConnection: deps.resolveConnection });
 
-  const engine = createTurnEngine(ctx, {
-    emit: deps.emit,
-    holder: deps.holder,
-    lockTtlMs: deps.lockTtlMs,
-    generateSegments,
-    generateDigests,
-    loadWitnessHorizons,
-    recallMemory,
-    runCompaction,
-  });
+  // Build the actual engine object, not a typed view of the request-authority context.
+  const engine = createTurnEngine(
+    {
+      db: ctx.db,
+      now: ctx.now,
+      newMessageId: ctx.newMessageId,
+      newMessageVariantId: ctx.newMessageVariantId,
+      newMessageAssetId: ctx.newMessageAssetId,
+      newStreamEventId: ctx.newStreamEventId,
+      newStreamGenerationId: ctx.newStreamGenerationId,
+      newChatTurnId: ctx.newChatTurnId,
+      applyStatsDelta: ctx.applyStatsDelta,
+      resolveRetainedChatAccountingScope: ctx.resolveRetainedChatAccountingScope,
+      emitChatChanged: ctx.emitChatChanged,
+      applyRegexReplace: ctx.applyRegexReplace,
+      runChatTurn: ctx.runChatTurn,
+      tools: ctx.tools,
+      resolveImageUrl: ctx.resolveImageUrl,
+      storeInlineReplyImage: ctx.storeInlineReplyImage,
+      promptTransforms: ctx.promptTransforms,
+      ...(ctx.timers === undefined ? {} : { timers: ctx.timers }),
+      ...(ctx.backgroundSignal === undefined ? {} : { backgroundSignal: ctx.backgroundSignal }),
+      ...(ctx.trackBackground === undefined ? {} : { trackBackground: ctx.trackBackground }),
+      rpg:
+        ctx.rpg === null
+          ? null
+          : {
+              markDicePreRollEligible: ctx.rpg.markDicePreRollEligible,
+              onTurnCompleted: ctx.rpg.onTurnCompleted,
+              onTurnAborted: ctx.rpg.onTurnAborted,
+            },
+    },
+    {
+      emit: deps.emit,
+      holder: deps.holder,
+      lockTtlMs: deps.lockTtlMs,
+      generateMemory: (args) => buildTurnMemory(ctx, args),
+      loadWitnessHorizons: (chatId, characterId) => loadWitnessHorizons(ctx.db, chatId, characterId),
+      recallMemory: (args) => recallMemory(ctx, args),
+      runCompaction,
+    },
+  );
 
   const { loadParticipantViews, loadParticipantViewsBatch } = createLoadParticipantViews(ctx);
 

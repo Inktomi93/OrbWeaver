@@ -707,6 +707,14 @@ module.exports = {
       to: { path: `${SRV}domain/[^/]+/teaching-contribution\\.ts$` },
     },
     {
+      name: "chat-engine-authority-context",
+      comment:
+        "The turn engine receives frozen facts and bound execution ports, never chat request authority or guards, including through barrels and type-only edges. D19; turn-identity remains active for the wider semantic claim.",
+      severity: "error",
+      from: { path: "^packages/server/src/domain/chat/engine/" },
+      to: { path: "^packages/server/src/domain/chat/(context|contract/context|guard)\\.ts$", reachable: true },
+    },
+    {
       name: "domain-no-cross-subsystem",
       comment:
         "A feature's named subsystems stay independent: a file in subsystem A can't import subsystem B (same feature, different non-fixed-slot subdir). Cross-subsystem coordination goes through substrate/ (the DI seam) — exempt both sides, along with the fixed slots (substrate split across files, not subsystems). (Core-0-Architecture-and-Structure.md §4.)",

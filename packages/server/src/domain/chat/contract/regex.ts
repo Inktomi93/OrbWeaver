@@ -14,7 +14,7 @@ import type { CharacterRegexSlice, HostTierRegexAllow } from "@orb/contracts/cha
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
-import type { ApplyRegexReplaceOp } from "./context.ts";
+import type { ApplyRegexReplaceOp } from "./engine-context.ts";
 
 /**
  * The four host-tier regex sources, each ALREADY resolved under the frozen `runAsUserId` (D19 — the host,
