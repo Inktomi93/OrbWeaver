@@ -2,7 +2,7 @@
 // Adapt Codex apply_patch events to the shared edit checker. PostToolUse feedback is advisory context:
 // blocking here would reject a nested code-mode promise after its edit has already taken effect.
 import { spawnSync } from "node:child_process";
-import { readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -59,6 +59,10 @@ function changedPaths(patch) {
 }
 
 function main() {
+  // Running sessions can retain the removed command until restart.
+  if (existsSync(path.join(installedRoot, ".codex", "edit-feedback.disabled"))) {
+    return;
+  }
   let input;
   try {
     input = JSON.parse(readFileSync(0, "utf8"));

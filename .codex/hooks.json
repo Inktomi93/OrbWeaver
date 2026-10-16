@@ -1,16 +1,5 @@
 {
   "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "^apply_patch$",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/codex-edit-advisory.mjs\""
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "^mcp__codegraph__.*$",

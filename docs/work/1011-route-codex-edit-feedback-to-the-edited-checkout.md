@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-13
+updated: 2026-10-16
 priority: P2
 area: tooling
 plan: test-foundation
@@ -23,4 +23,4 @@ Bounded hook controls cover main, linked checkout, multi-checkout edits, moves, 
 
 ## Evidence
 
-Deferred while the main foundation program proceeds. Misrouted worktree paths produce an explicit planner refusal, not a false pass. Required scoped lane checks supply the missing feedback. Leave main-checkout feedback enabled; this item does not justify a global hook change or a competing implementation lane.
+Automatic Codex edit feedback is disabled by owner ruling in `.codex/hooks.json`. Retained session commands do not invoke the checker. Required manual scoped checks supply source verdicts. Routing repair remains deferred; this item does not authorize re-enabling automatic feedback.
