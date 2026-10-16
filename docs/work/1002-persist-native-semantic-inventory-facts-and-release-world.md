@@ -37,3 +37,5 @@ Reviewed contextual sharing, optional invocation and native resource registratio
 Reviewed reached-call capture uses explicit reference inputs, validates native lifetime and stages complete observations before publication. Omitted reference inputs preserve ordinary behavior. Current SDK APIs and bundled compiler install without runtime mappings. Native transport, reached-call and helper-freshness controls pass. Tooling types pass; root retains inherited diagnostics.
 
 The actual env-parser control still refuses inherited descriptor exposure at the identity dispatch. Actual target completion, complete publication, equivalence, reuse and hosted cost remain open. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Item 1027 owns typed delivery.
+
+Reviewed owned invocation identity reuse preserves caller freshness and corruption refusals. Ordinary controls and tooling types pass; actual support cost remains unqualified.
