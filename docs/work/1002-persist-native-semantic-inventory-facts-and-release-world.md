@@ -38,4 +38,4 @@ Reviewed reached-call capture uses explicit reference inputs, validates native l
 
 The original callable diagnosis completes unresolved. Exact returned-object evidence records inherited-effect refusal and a pending background-signal path. Full store qualification stays open. Evidence: `reports/review/1002-original-callable-sibling-witness.md`. Item 1027 owns typed delivery.
 
-Source lookup preserves admission and borrowed freshness. Supplied contexts remain transient; true cycles refuse. Callable-proof epochs bind completed reuse to its refinement read-set without bypassing semantic opacity. Independent review and ordinary controls pass. Env effects, the original target, complete replay and cost remain open.
+Source lookup preserves admission and borrowed freshness. Supplied contexts stay transient; true cycles refuse. Callable-proof epochs bind reuse to its refinement read-set. Fresh closure retains an examined refusal through unused aliases. Review and ordinary controls pass. Evidence: `reports/review/1002-first-refusal-ordinary.md`. Env effects, target resolution, complete replay and cost remain open.

@@ -2,6 +2,7 @@
 // @subject tooling/src/floor/code-facts/call-returns.ts
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { runInNewContext } from "node:vm";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, ts } from "ts-morph";
@@ -1848,6 +1849,127 @@ test("native async resource registration retains the production background-work 
     endReferencePass();
   }
 });
+
+for (const scenario of [
+  {
+    name: "conditional native signal without dispatch",
+    conditional: true,
+    dispatch: false,
+    prototype: false,
+    handoff: false,
+    undefinedOwn: false,
+    resolved: true,
+  },
+  {
+    name: "definite native signal with supplied dispatch",
+    conditional: false,
+    dispatch: true,
+    prototype: false,
+    handoff: false,
+    undefinedOwn: false,
+    resolved: true,
+  },
+  {
+    name: "unclosed dispatch retained through a local signal alias",
+    conditional: true,
+    dispatch: true,
+    prototype: false,
+    handoff: false,
+    undefinedOwn: false,
+    resolved: false,
+  },
+  {
+    name: "unclosed dispatch retained through a signal argument",
+    conditional: true,
+    dispatch: true,
+    prototype: false,
+    handoff: true,
+    undefinedOwn: false,
+    resolved: false,
+  },
+  {
+    name: "absent native signal with an inherited getter",
+    conditional: true,
+    dispatch: false,
+    prototype: true,
+    handoff: false,
+    undefinedOwn: false,
+    resolved: false,
+  },
+  {
+    name: "own undefined shadows the inherited getter",
+    conditional: false,
+    dispatch: false,
+    prototype: true,
+    handoff: false,
+    undefinedOwn: true,
+    resolved: true,
+  },
+] as const) {
+  let properties = "backgroundSignal:input.backgroundSignal";
+  if (scenario.undefinedOwn) {
+    properties = "backgroundSignal:undefined";
+  } else if (scenario.conditional) {
+    properties = "...(input.backgroundSignal===undefined?{}:{backgroundSignal:input.backgroundSignal})";
+  }
+  test(`original callable sibling boundary: ${scenario.name}`, async () => {
+    const referenceFacts = await import("../../../../tooling/src/floor/code-facts/reference-fact.ts");
+    const code = `
+      function background(){const controller=new AbortController();return {signal:controller.signal};}
+      function consume(ctx){return ctx.settle();}
+      function data(args){return args.signal;}
+      function engine(ctx){${scenario.handoff ? "data({signal:ctx.backgroundSignal});" : "const signal=ctx.backgroundSignal;"}return consume(ctx);}
+      function compose(input){const ctx={settle:()=>1,${properties}};return engine(ctx);}
+      ${
+        scenario.dispatch
+          ? `
+      const modes={local:()=>true};
+      function selectMode(deps){const {authConfig={mode:"local"}}=deps;void deps.timers;return authConfig.mode;}
+      function dispatch(mode){return modes[mode]();}
+      const authConfig={mode:"local"};const mode=selectMode({authConfig});dispatch(mode);
+      `
+          : ""
+      }
+      ${scenario.prototype ? "Object.defineProperty(Object.prototype,'backgroundSignal',{get(){this.settle=()=>2;return undefined;}});" : ""}
+      const work=background();const answer=compose(${scenario.prototype ? "{}" : "{backgroundSignal:work.signal}"});
+    `;
+    expect(runInNewContext(`${code};answer;`, Object.fromEntries([["AbortController", AbortController]]))).toBe(
+      scenario.prototype && !scenario.undefinedOwn ? 2 : 1,
+    );
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts", "lib.dom.d.ts"] } });
+    const source = project.createSourceFile("/original-callable-sibling.ts", code);
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+    const expected = source.getFunctionOrThrow("compose").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+    if (selected === undefined) {
+      throw new Error("the selected injected callable is missing");
+    }
+    beginReferencePass();
+    const inherited = vi.spyOn(referenceFacts, "inspectInheritedReadEffects");
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual captured native Program is missing");
+      }
+      inherited.mockClear();
+      const fact = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      expect(
+        inherited.mock.results.some(
+          (result) => result.type === "return" && result.value.kind === "unresolved" && result.value.node.getText() === "modes[mode]",
+        ),
+      ).toBe(scenario.conditional && scenario.dispatch);
+      expect(
+        fact.kind,
+        fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail} at ${fact.node.getText()}` : fact.value.map((value) => value.value.getText()).join(" | "),
+      ).toBe(scenario.resolved ? "resolved" : "unresolved");
+      expect(fact.kind === "resolved" && fact.value.length === 1 && fact.value[0]?.value === expected).toBe(scenario.resolved);
+    } finally {
+      inherited.mockRestore();
+      endReferencePass();
+    }
+  });
+}
 
 for (const handoff of [false, true]) {
   test(`conditional background data preserves ${handoff ? "argument handoff" : "local read"} and exact projection alternatives`, async ({ repoRoot }) => {

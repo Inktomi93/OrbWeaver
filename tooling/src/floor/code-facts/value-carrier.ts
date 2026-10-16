@@ -2249,7 +2249,8 @@ function computeCallableClosedUses(name: Identifier, proof: CallableUseProof): b
   });
   const escaped = missing ?? copied;
   return (
-    escaped === undefined || refuseCallableUse(proof, valueRefusal(escaped, "unsupported", "the supplied callable container has an unproven or copied use"))
+    proof.state.refusal === undefined &&
+    (escaped === undefined || refuseCallableUse(proof, valueRefusal(escaped, "unsupported", "the supplied callable container has an unproven or copied use")))
   );
 }
 
