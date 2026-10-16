@@ -59,7 +59,7 @@ import { readDrizzleProjectedColumn } from "../../floor/code-facts/drizzle-selec
 import { readPredicateConsumers, readStatementAnchors, readStatementOf } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn } from "../../floor/code-facts/function-context.ts";
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
-import type { SchemaModel } from "../../floor/code-facts/schema-model-contract.ts";
+import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import { resolveTypeIdentityChain } from "../../floor/code-facts/type-member-origin.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -67,7 +67,7 @@ import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex, TenancyPin
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { nativeTenancyPins } from "../lib/native-tenancy-pin.ts";
-import { drizzleSchemaFact, drizzleSchemaIdentityFact } from "../lib/schema-fact.ts";
+import { drizzleSchemaDataFact, drizzleSchemaIdentityFact } from "../lib/schema-fact.ts";
 import {
   chainTermsOf,
   conjunctLeaves,
@@ -231,7 +231,7 @@ const UNRESOLVABLE_MESSAGE =
 interface ReadScope {
   readonly observations: CallReturnObservations;
   readonly pins: TenancyPinServices;
-  readonly schema: SchemaModel;
+  readonly schema: SchemaProjectedModel;
   readonly ownerTables: ReadonlySet<string>;
   readonly membershipTables: ReadonlySet<string>;
   readonly index: SchemaTableIndex;
@@ -617,7 +617,7 @@ export const gate = defineGate({
   population: "@server",
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact, drizzleSchemaIdentityFact],
+  facts: [drizzleSchemaDataFact, drizzleSchemaIdentityFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -660,7 +660,7 @@ export const gate = defineGate({
             ctx.report.node(assertion, { message: MINT_MESSAGE });
           }
         }
-        const schemaFact = ctx.fact(drizzleSchemaFact).schema();
+        const schemaFact = ctx.fact(drizzleSchemaDataFact);
         recordReadySchemaFact(ctx, schemaFact);
         const scope: ReadScope = {
           observations: { ...observeCallReturns(calls, references, { suppliedCallableTargets: true }), drizzleSql: pins.sql },

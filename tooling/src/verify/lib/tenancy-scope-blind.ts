@@ -1,6 +1,7 @@
 // The shared blind-derivation arm for the three owner-scoped-* gates, extracted from tenancy-scope.ts.
+import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
-import type { ReadySchemaFact, SchemaModel } from "../contract/schema-fact.ts";
+import type { ReadySchemaFact } from "../contract/schema-fact.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 
@@ -11,7 +12,7 @@ const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
  *  the full schema nor the full server tree, and would "prove" the derivation blind. */
 export function reportBlindWhenEmpty(
   ctx: GatePolicyContext,
-  schemaFact: ReadySchemaFact<SchemaModel>,
+  schemaFact: ReadySchemaFact<SchemaProjectedModel>,
   classTableIdents: ReadonlySet<string>,
   message: string,
 ): void {

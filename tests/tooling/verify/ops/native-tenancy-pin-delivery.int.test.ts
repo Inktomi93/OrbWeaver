@@ -1,6 +1,7 @@
 // The pin leaf must retain its supplied operand's native type, not the ordinary carrier's options.
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { ENTRY, nativeOwnerReadFixture as fixture, HELPER } from "@orb/testkit/node/native-owner-read-fixture.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -23,7 +24,6 @@ import {
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { inventoryString } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
-import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
 import { recordReadySchemaFact } from "../../../../tooling/src/verify/contract/schema-fact.ts";
@@ -32,55 +32,11 @@ import { gate } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts
 import { nativeTenancyPins } from "../../../../tooling/src/verify/lib/native-tenancy-pin.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { drizzleSchemaFact } from "../../../../tooling/src/verify/lib/schema-fact.ts";
+import { drizzleSchemaDataFact } from "../../../../tooling/src/verify/lib/schema-fact.ts";
 import { predicateHolds } from "../../../../tooling/src/verify/lib/tenancy-join.ts";
 import { isPlainValue } from "../../../../tooling/src/verify/lib/tenancy-pin.ts";
 import { schemaTableIndex } from "../../../../tooling/src/verify/lib/tenancy-scope.ts";
 import { scaledBudget } from "../../_load-budget.ts";
-
-const SCHEMA = "packages/db/src/schema/persona.ts";
-const ENTRY = "packages/server/src/domain/persona/persistence/read.ts";
-const HELPER = "packages/server/src/domain/persona/persistence/predicate.ts";
-
-function fixture(root: string, repoRoot: string, entry?: string): void {
-  const put = (path: string, text: string): void => {
-    mkdirSync(dirname(join(root, path)), { recursive: true });
-    writeFileSync(join(root, path), text);
-  };
-  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
-  put(".gitignore", "node_modules\n.cache\nreports\n");
-  put(
-    SCHEMA,
-    'import{sqliteTable,text}from"drizzle-orm/sqlite-core";export const personas=sqliteTable("personas",{id:text("id").primaryKey(),ownerId:text("owner_id").notNull()});',
-  );
-  put(
-    HELPER,
-    'import{eq}from"drizzle-orm";import{personas}from"../../../../../db/src/schema/persona.ts";export function owned(owner:string){return eq(personas.ownerId,owner);}',
-  );
-  put(
-    ENTRY,
-    entry ??
-      'import type{BaseSQLiteDatabase}from"drizzle-orm/sqlite-core";import{and,eq}from"drizzle-orm";import{personas}from"../../../../../db/src/schema/persona.ts";import{owned}from"./predicate.ts";declare const db:BaseSQLiteDatabase<"async",void>;export async function load(id:string,principal:{userId:string}){return db.select().from(personas).where(and(eq(personas.id,id),owned(principal.userId)));}',
-  );
-  const compilerOptions = {
-    target: "ES2022",
-    module: "NodeNext",
-    moduleResolution: "NodeNext",
-    strict: true,
-    skipLibCheck: true,
-    noEmit: true,
-    allowImportingTsExtensions: true,
-    types: [],
-  };
-  put("package.json", '{"type":"module"}');
-  put("tsconfig.json", JSON.stringify({ compilerOptions, files: [SCHEMA, ENTRY, HELPER] }));
-  put("packages/db/tsconfig.json", JSON.stringify({ compilerOptions, files: ["src/schema/persona.ts"] }));
-  put(
-    "packages/server/tsconfig.json",
-    JSON.stringify({ compilerOptions, files: ["src/domain/persona/persistence/read.ts", "src/domain/persona/persistence/predicate.ts"] }),
-  );
-  execFixtureGit(root, ["init", "-q"]);
-}
 
 function capturedOwnerRead(root: string): {
   readonly result: ReturnType<typeof runPolicyPass>;
@@ -287,9 +243,12 @@ export async function read(id:string,owner:string){return db.query.personas.find
   );
   const context = projectCtx(scratch);
   const result = runPolicyPass({ root: scratch, project: context.project, policies: [gate], knownPolicies: [gate], reviewedGrants: [], failOnWarnings: false });
-  expect(result.factErrors).toEqual([{ factId: "drizzle-schema-identities", phase: "create", message: "native type fact context is unavailable" }]);
+  expect(result.factErrors).toEqual([
+    { factId: "drizzle-schema-data", phase: "create", message: "native type fact context is unavailable" },
+    { factId: "drizzle-schema-identities", phase: "create", message: "native type fact context is unavailable" },
+  ]);
   expect(result.toolErrors).toEqual([
-    { policyId: gate.id, phase: "evaluate", message: "declared fact failed: drizzle-schema-identities: create: native type fact context is unavailable" },
+    { policyId: gate.id, phase: "evaluate", message: "declared fact failed: drizzle-schema-data: create: native type fact context is unavailable" },
   ]);
   expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
   expect(result.authority.effectiveFindings).toEqual([]);
@@ -649,7 +608,7 @@ return db.select().from(personas).where(and(${expected.map(([text]) => `${text =
             expect(() => pins.sql.statement(operand)).toThrow("must be sealed");
           },
           evaluate: () => {
-            const schema = ctx.fact(drizzleSchemaFact).schema();
+            const schema = ctx.fact(drizzleSchemaDataFact);
             recordReadySchemaFact(ctx, schema);
             const index = schemaTableIndex(schema.value);
             pins.assertSchema(index);
