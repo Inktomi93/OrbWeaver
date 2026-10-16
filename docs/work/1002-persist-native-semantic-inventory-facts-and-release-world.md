@@ -40,6 +40,8 @@ Reached-call capture uses explicit reference inputs, native lifetimes and atomic
 
 The original callable query refuses an unresolved `ctx.backgroundSignal` origin after nested optional sibling preservation stops supplied mode projection. No mutation is observed. Evidence: `reports/review/1002-original-callable-current/9299c01cfd-diagnosis.md`. Target and cost remain unqualified.
 
-Source lookup preserves admission and borrowed freshness. Supplied contexts stay transient; true cycles refuse. Callable-proof epochs bind reuse to its refinement read-set. Fresh closure retains an examined refusal through unused aliases. Review and ordinary controls pass. Evidence: `reports/review/1002-first-refusal-ordinary.md`. Env effects, target resolution, complete replay and cost remain open.
+Source lookup, transient supplied contexts, callable-proof epochs and examined refusals pass ordinary controls and review. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 
-Preservation and missing-reference admission pass review and ordinary controls except the partial-env failure. Target and cost remain unqualified. Evidence: `reports/review/1002-captured-reference-source-ordinary.md`.
+Missing-reference admission passes review and ordinary controls except the partial-env failure. Evidence: `reports/review/1002-captured-reference-source-ordinary.md`.
+
+Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Original-target resolution requires a fresh diagnostic.

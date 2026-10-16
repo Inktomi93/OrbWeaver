@@ -529,6 +529,16 @@ function returnedBindingElement(
   return returnedValue(initializer, [key, ...path], context);
 }
 
+function optionalTerminalMember(receiver: Node | undefined): boolean {
+  const member = receiver?.getParent();
+  return (
+    (N.isPropertyAccessExpression(member) || N.isElementAccessExpression(member)) &&
+    member.getExpression() === receiver &&
+    member.hasQuestionDotToken() &&
+    terminalDataRead(member)
+  );
+}
+
 function defaultBindingSiblingRead(
   use: Node,
   fields: ResolvedReferenceFact<readonly ReturnedValueSource[]>,
@@ -536,7 +546,14 @@ function defaultBindingSiblingRead(
 ): ReferenceFact<true> | undefined {
   const member = use.getParent();
   const access = member === undefined ? undefined : staticMemberAccess(member);
-  if (context.program === undefined || member === undefined || access?.receiver !== use || isReferenceWriteTarget(use) || !terminalDataRead(member)) {
+  const optionalMember = optionalTerminalMember(member);
+  if (
+    context.program === undefined ||
+    member === undefined ||
+    access?.receiver !== use ||
+    isReferenceWriteTarget(use) ||
+    !(terminalDataRead(member) || optionalMember)
+  ) {
     return;
   }
   for (const field of fields.value) {
@@ -553,7 +570,7 @@ function defaultBindingSiblingRead(
       return valueRefusal(member, "missing", "a binding sibling read has no actual value alternatives");
     }
     for (const value of values.value) {
-      const closed = defaultBindingSiblingValue(value, context);
+      const closed = defaultBindingSiblingValue(value, context, optionalMember);
       if (closed.kind === "unresolved") {
         return closed;
       }
@@ -562,7 +579,7 @@ function defaultBindingSiblingRead(
   return { kind: "resolved", value: true, trace: { declarations: [], origin: use } };
 }
 
-function defaultBindingSiblingValue(source: ReturnedValueSource, context: ReturnedValueContext): InheritedReadEvidence {
+function defaultBindingSiblingValue(source: ReturnedValueSource, context: ReturnedValueContext, optionalMember: boolean): InheritedReadEvidence {
   if (!source.present) {
     const key = source.path[0];
     const own =
@@ -574,6 +591,9 @@ function defaultBindingSiblingValue(source: ReturnedValueSource, context: Return
   const scalar = readStaticAuthoredValue(source.value);
   const undefinedValue =
     runtimeUndefinedValue(source.value) && (!N.isVoidExpression(source.value) || readStaticAuthoredValue(source.value.getExpression()).kind === "resolved");
+  if (optionalMember && source.value.getKind() !== SyntaxKind.NullKeyword && !undefinedValue) {
+    return valueRefusal(source.value, "unsupported", "an optional binding sibling receiver has no proven nullish value");
+  }
   return source.path.length === 0 && (undefinedValue || (scalar.kind === "resolved" && scalar.value.kind === "scalar"))
     ? { kind: "resolved", value: true, trace: { declarations: [], origin: source.value } }
     : valueRefusal(source.value, "unsupported", "a binding sibling read may carry a mutable or opaque value");

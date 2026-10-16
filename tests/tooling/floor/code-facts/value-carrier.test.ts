@@ -493,6 +493,153 @@ for (const scenario of [
   });
 }
 
+for (const scenario of [
+  { name: "absent receiver short-circuits the nested member", setup: "", input: '{authConfig:{mode:"local"}}', before: "", runtime: "local", resolved: true },
+  {
+    name: "own undefined receiver short-circuits the nested member",
+    setup: "",
+    input: '{authConfig:{mode:"local"},networkExecution:undefined}',
+    before: "",
+    runtime: "local",
+    resolved: true,
+  },
+  {
+    name: "own null receiver short-circuits the nested member",
+    setup: "",
+    input: '{authConfig:{mode:"local"},networkExecution:null}',
+    before: "",
+    runtime: "local",
+    resolved: true,
+  },
+  {
+    name: "conditional own absence keeps every nullish alternative",
+    setup: "const flag=true;",
+    input: '{authConfig:{mode:"local"},...(flag?{networkExecution:undefined}:{})}',
+    before: "",
+    runtime: "local",
+    resolved: true,
+  },
+  {
+    name: "an absent receiver short-circuits the optional element member",
+    setup: "",
+    input: '{authConfig:{mode:"local"}}',
+    before: "",
+    read: 'createEgress({fetch:deps.networkExecution?.["fetch"]});',
+    runtime: "local",
+    resolved: true,
+  },
+  {
+    name: "a present conditional branch cannot borrow absent receiver permission",
+    setup: "const flag=true;",
+    input: '{authConfig:{mode:"local"},...(flag?{}:{networkExecution:{fetch:0}})}',
+    before: "",
+    runtime: "local",
+    resolved: false,
+  },
+  {
+    name: "own receiver getter cannot gain short-circuit permission",
+    setup: "",
+    input: '{authConfig:{mode:"local"},get networkExecution(){this.authConfig.mode="outside";return undefined;}}',
+    before: "",
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "absent receiver retains the inherited getter obligation",
+    setup: 'Object.defineProperty(Object.prototype,"networkExecution",{get(){this.authConfig.mode="outside";return undefined;}});',
+    input: '{authConfig:{mode:"local"}}',
+    before: "",
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "present receiver cannot hide the terminal getter",
+    setup: 'const selected={mode:"local"};',
+    input: '{authConfig:selected,networkExecution:{get fetch(){selected.mode="outside";return undefined;}}}',
+    before: "",
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "receiver mutation remains a refused use",
+    setup: "",
+    input: '{authConfig:{mode:"local"}}',
+    before: 'deps.authConfig.mode="outside";',
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "receiver escape remains a refused use",
+    setup: 'function escape(value){value.authConfig.mode="outside";}',
+    input: '{authConfig:{mode:"local"}}',
+    before: "escape(deps);",
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "an optional continuation does not grant invocation permission",
+    setup: "",
+    input: '{authConfig:{mode:"local"}}',
+    before: "",
+    read: "deps.networkExecution?.fetch();",
+    runtime: "local",
+    resolved: false,
+  },
+  {
+    name: "an optional continuation does not grant a later member path",
+    setup: "",
+    input: '{authConfig:{mode:"local"}}',
+    before: "",
+    read: "void deps.networkExecution?.fetch.owner;",
+    runtime: "local",
+    resolved: false,
+  },
+  {
+    name: "an optional continuation does not grant receiver writes",
+    setup: "",
+    input: '{authConfig:{mode:"local"}}',
+    before: "deps.networkExecution=undefined;",
+    runtime: "local",
+    resolved: false,
+  },
+  {
+    name: "ordinary access does not borrow optional short-circuit permission",
+    setup: "",
+    input: '{authConfig:{mode:"local"}}',
+    before: "",
+    read: "void deps.networkExecution.fetch;",
+    runtime: "TypeError",
+    resolved: false,
+  },
+  {
+    name: "a present record does not borrow the nullish alternative",
+    setup: "",
+    input: '{authConfig:{mode:"local"},networkExecution:{fetch:0}}',
+    before: "",
+    runtime: "local",
+    resolved: false,
+  },
+] as const) {
+  test(`defaulted binding optional sibling continuation: ${scenario.name}`, () => {
+    const read = "read" in scenario ? scenario.read : "createEgress({fetch:deps.networkExecution?.fetch});";
+    const code = `${scenario.setup}function createEgress(value){return value;}function createServices(deps){${scenario.before}${read}const {authConfig={mode:"fallback"}}=deps;return authConfig.mode;}const output=createServices(${scenario.input});`;
+    expect(runInNewContext(`try{${code};output;}catch(error){error.name;}`)).toBe(scenario.runtime);
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/optional-sibling-default.ts", code);
+    beginReferencePass();
+    try {
+      const observations = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const result = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observations, new Set());
+      expect(result.kind, result.kind === "unresolved" ? `${result.detail} at ${result.node.getText()}` : scenario.name).toBe(
+        scenario.resolved ? "resolved" : "unresolved",
+      );
+      expect(result.kind === "resolved" ? result.value.map((value) => value.value.getText()) : undefined).toEqual(scenario.resolved ? ['"local"'] : undefined);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
 test("defaulted binding sibling closure keeps same-body safe and unsafe allocations independent", () => {
   const code =
     'function createScopedTimers(execution){return execution;}function createServices(deps){createScopedTimers(deps.timers);const {authConfig={mode:"fallback"}}=deps;return authConfig.mode;}const first=createServices({authConfig:{mode:"local"},timers:undefined});const second=createServices({authConfig:{mode:"local"},get timers(){this.authConfig.mode="outside";return undefined;}});';
