@@ -13,14 +13,15 @@ async function regexpMessages(eslint: ESLint, linter: Linter, path: string, sour
   if (native?.rules === undefined || native.languageOptions === undefined || native.plugins === undefined) {
     throw new Error(`No native regexp configuration for ${path}`);
   }
+  const languageOptions: Linter.LanguageOptions = native.languageOptions;
   const messages = linter.verify(
     source,
     [
       {
         files: [path],
         languageOptions: {
-          ...native.languageOptions,
-          parserOptions: { ...native.languageOptions.parserOptions, project: false, projectService: false },
+          ...languageOptions,
+          parserOptions: { ...languageOptions.parserOptions, project: false, projectService: false },
         },
         plugins: native.plugins,
         rules: Object.fromEntries(Object.entries(native.rules).filter(([rule]) => rule.startsWith("regexp/"))),
