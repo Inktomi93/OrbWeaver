@@ -7,7 +7,7 @@ import type { InventorySchemaDependency, InventorySchemaIdentityCatalog, Invento
 import { assertSchemaColumnRoster } from "../code-facts/drizzle-inventory-contract.ts";
 import { projectSchemaIdentities, schemaIdentityQuery } from "../code-facts/schema-identity.ts";
 import type { SchemaIdentityQuery } from "../code-facts/schema-identity-contract.ts";
-import type { SchemaFact, SchemaModel } from "../code-facts/schema-model-contract.ts";
+import type { SchemaFact, SchemaModel, SchemaQuery } from "../code-facts/schema-model-contract.ts";
 import { projectSchemaData } from "../code-facts/schema-projection.ts";
 import { createSchemaQuery } from "../code-facts/schema-query.ts";
 import { schemaDeclarationKey } from "../code-facts/schema-value.ts";
@@ -33,35 +33,14 @@ export function extractDrizzleIdentities(
   request: InventoryBuildRequest,
   sources: readonly SourceFile[],
   span: (node: MorphNode) => InventorySpan,
-  assertSource: (source: SourceFile) => void,
+  owner: { readonly assertSource: (source: SourceFile) => void; readonly ordinarySchema?: (query: SchemaQuery | undefined) => void },
 ): Pick<InventoryPartition, "schemaIdentity" | "schemaData" | "drizzleCalls"> {
   const byFile = new Map(sources.map((source) => [span(source).file, source]));
   for (const source of sources) {
-    assertSource(source);
+    owner.assertSource(source);
   }
-  const selected = (request.schemaSources ?? request.schemaDataSources)?.map((query) => {
-    const node = inventoryQueryNode(byFile.get(query.file), query);
-    if (!Node.isSourceFile(node)) {
-      throw new Error("native schema roster contains a non-source query");
-    }
-    return node;
-  });
-  const relativePath = (source: SourceFile): string => relative(request.root, source.getFilePath()).replaceAll("\\", "/");
-  assertCatalogRosters(request);
-  const schema =
-    selected === undefined
-      ? undefined
-      : createSchemaQuery({
-          files: selected,
-          relativePath,
-          checker: () => {
-            const source = sources[0];
-            if (source === undefined) {
-              throw new Error("native schema owner has no captured Project");
-            }
-            return source.getProject().getTypeChecker();
-          },
-        }).schema();
+  const { selected, relativePath, schemaQuery, schema } = nativeSchemaQuery(request, sources, { byFile, span });
+  owner.ordinarySchema?.(schemaQuery);
   const schemaIdentity =
     request.schemaSources === undefined || selected === undefined || schema === undefined
       ? undefined
@@ -98,13 +77,58 @@ export function extractDrizzleIdentities(
     return { query, basis: { program: dependency.program, partition: dependency.partition }, evidence: encodeDrizzleCallEvidence(evidence, span) };
   });
   for (const source of sources) {
-    assertSource(source);
+    owner.assertSource(source);
   }
   return {
     ...(schemaData === undefined ? {} : { schemaData }),
     ...(schemaIdentity === undefined ? {} : { schemaIdentity }),
     ...(request.drizzleQueries === undefined ? {} : { drizzleCalls }),
   };
+}
+
+function nativeSchemaQuery(
+  request: InventoryBuildRequest,
+  sources: readonly SourceFile[],
+  owner: { readonly byFile: ReadonlyMap<string, SourceFile>; readonly span: (node: MorphNode) => InventorySpan },
+): {
+  readonly selected: readonly SourceFile[] | undefined;
+  readonly relativePath: (source: SourceFile) => string;
+  readonly schemaQuery: SchemaQuery | undefined;
+  readonly schema: SchemaFact<SchemaModel> | undefined;
+} {
+  const { byFile, span } = owner;
+  const selected = (request.schemaSources ?? request.schemaDataSources)?.map((query) => {
+    const node = inventoryQueryNode(byFile.get(query.file), query);
+    if (!Node.isSourceFile(node)) {
+      throw new Error("native schema roster contains a non-source query");
+    }
+    return node;
+  });
+  const relativePath = (source: SourceFile): string => relative(request.root, source.getFilePath()).replaceAll("\\", "/");
+  assertCatalogRosters(request);
+  const querySources = selected ?? ordinaryCatalogSources(request, byFile);
+  const schemaQuery =
+    querySources === undefined
+      ? undefined
+      : createSchemaQuery({
+          files: querySources,
+          relativePath,
+          checker: () => {
+            const source = sources[0];
+            if (source === undefined) {
+              throw new Error("native schema owner has no captured Project");
+            }
+            return source.getProject().getTypeChecker();
+          },
+        });
+  const schema = schemaQuery?.schema();
+  if (selected === undefined && schema !== undefined && request.schemaDependency !== undefined && querySources !== undefined) {
+    const local = encodeSchemaIdentityCatalog(querySources, projectSchemaIdentities(schema), span, relativePath);
+    if (JSON.stringify(local.fact) !== JSON.stringify(request.schemaDependency.catalog.fact)) {
+      throw new Error("native ordinary consumer and complete catalog identity disagree");
+    }
+  }
+  return { selected, relativePath, schemaQuery, schema };
 }
 
 function assertColumnDependency(
@@ -175,4 +199,32 @@ function assertCatalogRosters(request: InventoryBuildRequest): void {
   ) {
     throw new Error("native schema identity and full-data rosters disagree");
   }
+}
+
+function ordinaryCatalogSources(request: InventoryBuildRequest, byFile: ReadonlyMap<string, SourceFile>): readonly SourceFile[] | undefined {
+  if (request.invocationQueries?.some((query) => query.mode === "observations") !== true) {
+    return;
+  }
+  const catalog = request.schemaDependency?.catalog;
+  if (catalog === undefined) {
+    return;
+  }
+  const sources: SourceFile[] = [];
+  for (const captured of catalog.sources) {
+    const source = byFile.get(captured.node.file);
+    if (source === undefined) {
+      return;
+    }
+    if (
+      source.wasForgotten() ||
+      contentVersion(source.getFullText()) !== captured.version ||
+      source.getStart() !== captured.node.start ||
+      source.getEnd() !== captured.node.end ||
+      source.getKind() !== captured.node.kind
+    ) {
+      throw new Error("native ordinary complete catalog source is foreign or stale");
+    }
+    sources.push(source);
+  }
+  return sources;
 }

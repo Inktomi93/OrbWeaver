@@ -7,6 +7,7 @@ import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { NativeTypeFacts } from "../contract/project-context.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { makeFactContext, makePolicyContext } from "./policy-pass-context.ts";
+import { withholdFactDependents } from "./policy-pass-receipts.ts";
 import type { FactControl, FactRun, PolicyRun } from "./policy-pass-types.ts";
 import { guard, guardFact } from "./policy-pass-types.ts";
 import { assertGateFactHooks, assertGatePolicyHooks } from "./policy-validation.ts";
@@ -179,5 +180,20 @@ export function walkRuns({ runs, factRuns, sourceFiles, errors, factControl }: W
     indexPolicyVisitors(fileRuns, errors, visitors);
     indexFactVisitors(fileFactRuns, factControl, visitors);
     collectByKinds([sourceFile], visitors);
+  }
+}
+
+/** Registration completes the existing walk stage before the one native generation is sealed. */
+export function prepareRuns({ runs, factRuns, errors, factControl }: Pick<WalkRunsInput, "runs" | "factRuns" | "errors" | "factControl">): void {
+  for (const run of factRuns) {
+    if (run.hooks?.prepare !== undefined) {
+      guardFact(run, "visit", factControl, () => run.hooks?.prepare?.());
+    }
+  }
+  withholdFactDependents(runs, errors, factControl.values);
+  for (const run of runs) {
+    if (run.hooks?.prepare !== undefined) {
+      guard(run, "visit", errors, () => run.hooks?.prepare?.());
+    }
   }
 }

@@ -18,6 +18,7 @@ export interface GateFactContext {
 }
 
 export interface GateFactHooks<Value> {
+  readonly prepare?: () => void;
   readonly visitors?: readonly GatePolicyVisitor[];
   readonly visitFile?: (sourceFile: SourceFile) => void;
   readonly finish: () => Value;

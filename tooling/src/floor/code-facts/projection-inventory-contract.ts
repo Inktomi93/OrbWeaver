@@ -1,9 +1,10 @@
 // Native wire schemas contain data and source anchors only; canonical producers/codecs depend on this boundary.
 import { z } from "zod";
+import { typeRelationSchema } from "./assignability-contract.ts";
 import type { InventoryInvocationReference, InventorySpan } from "./semantic-inventory-contract.ts";
 import type { TypeIdentityOrigin } from "./type-member-origin-contract.ts";
-import type { NativeTypeProjection, TypeProjectionPlan } from "./type-projection-contract.ts";
-import { nativeTypeVocabularySchema, typeProjectionPlanSchema } from "./type-projection-contract.ts";
+import type { NativeTypeProjection, NativeTypeSelections, TypeProjectionPlan } from "./type-projection-contract.ts";
+import { assertTypeSelectionCoverage, nativeSelectedTypeSchema, nativeTypeVocabularySchema, typeProjectionPlanSchema } from "./type-projection-contract.ts";
 /** Numeric text retains negative zero and nonfinite canonical answers across JSON/SQLite encoding. */
 export function authoredNumberText(value: number): string {
   return Object.is(value, -0) ? "-0" : String(value);
@@ -100,8 +101,25 @@ export type WireIdentity = Omit<TypeIdentityOrigin, "node" | "declarations"> & {
 export interface InventoryTypeProjection {
   readonly plan: TypeProjectionPlan;
   readonly values: {
-    readonly [Facet in Exclude<keyof NativeTypeProjection, "type-identity" | "type-symbol" | "origins">]?: NativeTypeProjection[Facet] | undefined;
+    readonly [Facet in Exclude<keyof NativeTypeProjection, "type-identity" | "type-symbol" | "origins" | "lexical" | "member-declarations">]?:
+      | NativeTypeProjection[Facet]
+      | undefined;
   } & {
+    readonly "member-declarations"?:
+      | readonly {
+          readonly name: string;
+          readonly origin: InventoryInvocationReference<readonly InventorySpan[]>;
+          readonly raw: readonly InventorySpan[] | null;
+          readonly nonnullable: readonly InventorySpan[] | null;
+        }[]
+      | undefined;
+    readonly lexical?:
+      | {
+          readonly value: InventoryInvocationReference<InventorySpan>;
+          readonly declarations: readonly InventorySpan[] | null;
+          readonly origins: readonly InventorySpan[] | null;
+        }
+      | undefined;
     readonly origins?: InventoryTypeOriginProjection | undefined;
     readonly "type-identity"?: InventoryInvocationReference<WireIdentity> | undefined;
     readonly "type-symbol"?: readonly InventorySpan[] | null | undefined;
@@ -117,6 +135,10 @@ export function typeProjectionSchema(
   return z.strictObject({
     plan: typeProjectionPlanSchema,
     values: z.strictObject({
+      "member-declarations": z
+        .array(z.strictObject({ name: z.string(), origin: reference(z.array(span)), raw: z.array(span).nullable(), nonnullable: z.array(span).nullable() }))
+        .optional(),
+      lexical: z.strictObject({ value: reference(span), declarations: z.array(span).nullable(), origins: z.array(span).nullable() }).optional(),
       vocabulary: nativeTypeVocabularySchema.optional(),
       "declaration-export": z.boolean().optional(),
       origins: typeOriginProjectionSchema(span, reference, identity).optional(),
@@ -129,4 +151,39 @@ export function typeProjectionSchema(
       "type-symbol": z.array(span).nullable().optional(),
     }),
   });
+}
+
+export type InventoryTypeSelections = NativeTypeSelections<InventorySpan>;
+
+/** Selector identity retains its native source, exact location and ordered transformations. */
+export function typeSelectionsSchema(span: z.ZodType<InventorySpan>): z.ZodType<InventoryTypeSelections> {
+  const base = z.union([
+    z.strictObject({ kind: z.enum(["node", "contextual"]), node: span }),
+    z.strictObject({ kind: z.literal("schema-column"), column: z.string() }),
+  ]);
+  const step = z.union([
+    z.strictObject({ kind: z.enum(["nonnullable", "array-element-or-self"]) }),
+    z.strictObject({ kind: z.literal("property"), name: z.string(), at: span }),
+  ]);
+  const relation = z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("absent") }),
+    z.strictObject({ kind: z.literal("unavailable"), reason: z.literal("primitive-absent") }),
+    z.strictObject({ kind: z.literal("answer"), value: typeRelationSchema }),
+  ]);
+  return z
+    .strictObject({
+      plan: z.strictObject({
+        selectors: z.array(z.strictObject({ base, steps: z.array(step), displayAt: span.nullable() })).min(1),
+        relations: z.array(z.strictObject({ left: indexSchema, right: indexSchema })),
+      }),
+      values: z.array(nativeSelectedTypeSchema.nullable()),
+      relations: z.array(relation),
+    })
+    .superRefine((facts, ctx) => {
+      try {
+        assertTypeSelectionCoverage(facts);
+      } catch (error) {
+        ctx.addIssue({ code: "custom", message: error instanceof Error ? error.message : String(error) });
+      }
+    });
 }

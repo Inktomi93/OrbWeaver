@@ -7,12 +7,14 @@ import type { JsonColumnOriginContext } from "../../../../tooling/src/verify/con
 import type { GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/json-column-write-parity.ts";
+import { gate as health } from "../../../../tooling/src/verify/gates/json-column-write-parity-health.ts";
 import { createJsonColumnOriginContext } from "../../../../tooling/src/verify/lib/json-column-origin-context.ts";
 import type { JsonColumnWriter } from "../../../../tooling/src/verify/lib/json-column-writers.ts";
 import { collectWriters, updatedTable } from "../../../../tooling/src/verify/lib/json-column-writers.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { spellingTwinsOf } from "../../../../tooling/src/verify/lib/spelling-twins.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const SHORTHAND_PROOF_PREFIX = "THE #1035 SHORTHAND RED:";
 const DATA_PORT_ROOT = "/json-column-normalizer-data-port";
@@ -31,7 +33,15 @@ test("the actual shorthand-writer namespace twin preserves detection and its unc
   for (const [path, source] of Object.entries(proof.files)) {
     project.createSourceFile(`${root}/${path}`, source);
   }
-  const baseline = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const baseline = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(baseline.toolErrors).toEqual([]);
   expect(baseline.factErrors).toEqual([]);
   expect(baseline.authority.effectiveFindings).toHaveLength(1);
@@ -128,3 +138,11 @@ test("the actual persisted writer refuses facts from an invalidated native Progr
   project.createSourceFile(`${DATA_PORT_ROOT}/unrelated.ts`, "export const unrelated = true;\n");
   expect(() => inspect(context)).toThrow(SNAPSHOT_REFUSAL);
 });
+
+test(
+  "complete JSON write occurrence and health proof populations retain all findings, refusals and exact grants",
+  () => {
+    expect(verifyPolicyProofs([gate, health])).toEqual([]);
+  },
+  scaledBudget(120_000),
+);

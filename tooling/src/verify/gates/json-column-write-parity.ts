@@ -66,7 +66,7 @@ import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { jsonColumnWriteFact } from "../lib/json-column-write-fact.ts";
 import { jsonStageConfigProofFiles, jsonWriteProofFiles } from "../lib/json-column-write-proof-fixtures.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 /** `<tableVar>.<column>` → why a straddle is correct there, and what would end the exemption. Two-sided: a
  *  row whose column no longer straddles is RED.
@@ -110,13 +110,13 @@ export const gate = defineGate({
   },
   analysis: "types",
   execution: "entire-population",
-  facts: [jsonColumnWriteFact, drizzleSchemaFact],
+  facts: [jsonColumnWriteFact, drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const schema = ctx.fact(drizzleSchemaFact).schema();
+      const schema = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, schema);
       const analysis = ctx.fact(jsonColumnWriteFact).analyze(schema.value);
       const candidates = analysis.guardTargets

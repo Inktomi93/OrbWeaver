@@ -13,6 +13,9 @@ import type { DrizzleCallEvidence, DrizzleEvidenceMode } from "./drizzle-evidenc
 import { DRIZZLE_EVIDENCE_MODES } from "./drizzle-evidence-contract.ts";
 import type { InventoryDrizzleQuery, InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
 import { drizzleInventorySchemas } from "./drizzle-inventory-contract.ts";
+import type { NativeOrdinaryObservations } from "./ordinary-observations-contract.ts";
+import type { InventoryOrdinaryObservations } from "./ordinary-observations-inventory.ts";
+import { ordinaryObservationDemandSchema, ordinaryObservationsSchema } from "./ordinary-observations-inventory.ts";
 import { authoredProjectionSchema, typeProjectionSchema } from "./projection-inventory-contract.ts";
 import type {
   CallableBinding,
@@ -35,7 +38,7 @@ import { columnRowObservationSchema, storedValueObservationSchema } from "./valu
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 17;
+export const INVENTORY_FORMAT = 18;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -93,11 +96,13 @@ export const memberOriginSchema = z.object({
   ]),
 });
 export type InventoryMemberOrigin = z.infer<typeof memberOriginSchema>;
+export const callableDeclarationValueSchema = z.object({ declaration: spanSchema, body: spanSchema.nullable() });
+export type InventoryCallableDeclarationValue = z.infer<typeof callableDeclarationValueSchema>;
 export const callableDeclarationSchema = z.object({
   node: spanSchema,
   trace: z.object({ origin: spanSchema, declarations: z.array(spanSchema) }),
   result: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("resolved"), declaration: spanSchema, body: spanSchema.nullable() }),
+    callableDeclarationValueSchema.extend({ kind: z.literal("resolved") }),
     z.object({ kind: z.literal("unresolved"), reason: z.enum(REFERENCE_UNRESOLVED_REASONS), detail: z.string(), node: spanSchema }),
   ]),
 });
@@ -131,14 +136,21 @@ export const INVOCATION_VALUE_FACETS = [
 ] as const;
 export const invocationPlanSchema = z
   .object({
-    mode: z.enum(["invocation", "value"]),
+    mode: z.enum(["invocation", "value", "observations"]),
     facets: z.array(z.enum(INVOCATION_VALUE_FACETS)),
     arguments: z.array(z.object({ index: z.union([z.literal(0), z.literal(1)]), facets: z.array(z.enum(INVOCATION_VALUE_FACETS)) })),
     typeProjection: typeProjectionPlanSchema.optional(),
+    observations: ordinaryObservationDemandSchema(spanSchema).optional(),
   })
   .refine(
     (plan) => [...plan.facets, ...plan.arguments.flatMap((argument) => argument.facets)].includes("type-projection") === (plan.typeProjection !== undefined),
     "native invocation type projection must name exactly its closed demand",
+  )
+  .refine(
+    (plan) =>
+      (plan.mode === "observations") === (plan.observations !== undefined) &&
+      (plan.mode !== "observations" || (plan.facets.length === 0 && plan.arguments.length === 0 && plan.typeProjection === undefined)),
+    "native ordinary observation mode must name exactly its closed cohort",
   );
 export type InventoryInvocationPlan = z.infer<typeof invocationPlanSchema>;
 export const invocationQuerySchema = invocationPlanSchema.safeExtend({ node: spanSchema });
@@ -188,7 +200,7 @@ export const drizzleSchemas = drizzleInventorySchemas(spanSchema, inventoryRefer
 export function drizzleQueryKey(query: InventoryDrizzleQuery): string {
   return JSON.stringify({ node: spanSchema.parse(query.node), mode: z.enum(DRIZZLE_EVIDENCE_MODES).parse(query.mode) });
 }
-const moduleValueSchema = z.object({
+export const moduleValueSchema = z.object({
   kind: z.literal("module"),
   moduleSpecifier: z.string(),
   exportedName: z.string(),
@@ -230,7 +242,15 @@ const callableBindingFactSchema = z.union([
 const moduleFactSchema = z.union([invocationRefusalSchema, z.object({ kind: z.literal("resolved"), value: moduleValueSchema, trace: invocationTraceSchema })]);
 const nodeFactSchema = z.union([invocationRefusalSchema, z.object({ kind: z.literal("resolved"), value: spanSchema, trace: invocationTraceSchema })]);
 const stringFactSchema = z.union([invocationRefusalSchema, z.object({ kind: z.literal("resolved"), value: z.string(), trace: invocationTraceSchema })]);
+export const ordinaryObservationWireSchema = ordinaryObservationsSchema(
+  spanSchema,
+  inventoryReferenceSchema,
+  originValueSchema,
+  callableDeclarationValueSchema,
+);
 export const invocationEvidenceSchema = z.object({
+  observations: ordinaryObservationWireSchema.optional(),
+  observationBasis: z.strictObject({ program: z.string(), partition: z.string() }).nullable().optional(),
   query: invocationQuerySchema,
   callee: spanSchema.nullable(),
   invocation: callableInvocationFactSchema.nullable(),
@@ -265,6 +285,7 @@ export const invocationEvidenceSchema = z.object({
 });
 export type InventoryInvocationEvidence = z.infer<typeof invocationEvidenceSchema>;
 export interface NativeInvocationEvidence {
+  readonly observations?: NativeOrdinaryObservations;
   readonly invocation: CallableInvocationFact | undefined;
   readonly modules: ReadonlyMap<Node, ReferenceFact<ModuleMemberOrigin>>;
   readonly globals: ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>>;
@@ -284,6 +305,8 @@ export interface NativeInvocationEvidence {
   readonly computedName: (node: Node) => ReferenceFact<string>;
 }
 export interface CapturedInvocationEvidence extends NativeInvocationEvidence {
+  readonly captureSource?: (node: Node) => void;
+  readonly observationBasis?: import("./drizzle-inventory-contract.ts").InventorySchemaBasis | null;
   readonly sources: readonly SourceFile[];
 }
 export const invocationAtomSchema = z.object({
@@ -346,6 +369,16 @@ function assertInvocationProjection(
   requireFacets: (node: InventorySpan, facets: InventoryInvocationPlan["facets"]) => void,
 ): void {
   const plan = entry.query;
+  if (plan.mode === "observations") {
+    const graph = ordinaryInvocationGraph(entry);
+    assertOrdinaryReturnedQueries(graph);
+    assertOrdinaryGraphMembership(graph);
+    assertOrdinaryProfiles(entry, graph, requireFacets);
+    return;
+  }
+  if (entry.observations !== undefined || entry.observationBasis !== undefined) {
+    throw new SemanticInventoryError("unrequested native ordinary observations");
+  }
   if (plan.mode === "value") {
     if (entry.invocation !== null || entry.callee !== null || plan.arguments.length > 0) {
       throw new SemanticInventoryError("native value demand carries invocation meaning");
@@ -728,5 +761,72 @@ function assertValueObservationDemand(profile: InventoryInvocationEvidence["prof
     if (profile[facet] !== undefined && demanded.get(inventoryNodeQueryKey(profile.node))?.has(facet) !== true) {
       throw new SemanticInventoryError("native value observation exceeds its closed facet demand");
     }
+  }
+}
+
+function ordinaryInvocationGraph(entry: InventoryInvocationEvidence): InventoryOrdinaryObservations {
+  const graph = entry.observations;
+  if (
+    graph === undefined ||
+    entry.observationBasis === undefined ||
+    JSON.stringify(graph.demand) !== JSON.stringify(entry.query.observations) ||
+    entry.invocation !== null ||
+    entry.callee !== null
+  ) {
+    throw new SemanticInventoryError("native ordinary observation cohort is missing or foreign");
+  }
+  if (inventoryNodeQueryKey(graph.anchor) !== inventoryNodeQueryKey(entry.query.node)) {
+    throw new SemanticInventoryError("native ordinary source anchor is foreign");
+  }
+  return graph;
+}
+function assertOrdinaryReturnedQueries(graph: InventoryOrdinaryObservations): void {
+  if (
+    graph.returned.length !== graph.demand.reads.length ||
+    graph.returned.some((read, index) => {
+      const demanded = graph.demand.reads[index];
+      return (
+        demanded === undefined ||
+        inventoryNodeQueryKey(read.node) !== inventoryNodeQueryKey(demanded.node) ||
+        JSON.stringify(read.path) !== JSON.stringify(demanded.path)
+      );
+    })
+  ) {
+    throw new SemanticInventoryError("native ordinary returned-query coverage is missing or foreign");
+  }
+}
+function assertOrdinaryGraphMembership(graph: InventoryOrdinaryObservations): void {
+  for (const roster of [graph.nodes.map((value) => value.node), graph.calls.map((value) => value.call), graph.keys, graph.initialCalls, graph.terminals]) {
+    if (new Set(roster.map(inventoryNodeQueryKey)).size !== roster.length) {
+      throw new SemanticInventoryError("native ordinary graph membership is ambiguous");
+    }
+  }
+  const calls = new Set(graph.calls.map((value) => inventoryNodeQueryKey(value.call)));
+  const initial = new Set(graph.initialCalls.map(inventoryNodeQueryKey));
+  if (
+    [...graph.closureCalls, ...graph.initialCalls].some((node) => !calls.has(inventoryNodeQueryKey(node))) ||
+    graph.demand.roots.some((node) => !initial.has(inventoryNodeQueryKey(node))) ||
+    graph.terminals.some((node) => !initial.has(inventoryNodeQueryKey(node)))
+  ) {
+    throw new SemanticInventoryError("native ordinary root/initial-closure/terminal membership is incomplete");
+  }
+}
+function assertOrdinaryProfiles(
+  entry: InventoryInvocationEvidence,
+  graph: InventoryOrdinaryObservations,
+  requireFacets: (node: InventorySpan, facets: InventoryInvocationPlan["facets"]) => void,
+): void {
+  if (new Set(graph.profileNodes.map(inventoryNodeQueryKey)).size !== graph.profileNodes.length || graph.profileNodes.length !== entry.profiles.length) {
+    throw new SemanticInventoryError("native ordinary lexical profile obligations are missing or foreign");
+  }
+  for (const node of graph.profileNodes) {
+    requireFacets(node, [
+      "module",
+      "global",
+      "string",
+      "stable",
+      "authored-value",
+      ...(node.kind === SyntaxKind.CallExpression ? ["drizzle-write" as const] : []),
+    ]);
   }
 }

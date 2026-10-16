@@ -4,18 +4,23 @@
 // parser's declaration (zod, or the versioned-config codec that wraps a zod schema), never by a callee name.
 import type { CallExpression, Node, ts } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { readCallTarget } from "../../floor/code-facts/call-returns.ts";
 import { drizzleWriteOf } from "../../floor/code-facts/drizzle-columns.ts";
-import { helperOf, isModelType } from "../../floor/code-facts/drizzle-row.ts";
+import { helperOfWith, isModelType } from "../../floor/code-facts/drizzle-row.ts";
 import type { ColumnRead, RowModels } from "../../floor/code-facts/drizzle-row-contract.ts";
-import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { CallReturnObservations, ReferenceFact, ReturnedValueSource } from "../../floor/code-facts/reference-fact-contract.ts";
+import { matchesDeclaredCallTerminal, readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
+import type { DeclaredCallTerminalSelection } from "../../floor/code-facts/type-member-origin-contract.ts";
 import { argumentIndex, carryingLiterals, readReturnedValue, referencesOf, valueSite } from "../../floor/code-facts/value-carrier.ts";
-import { isZodParserCall } from "../../floor/code-facts/zod-origin.ts";
+import type { JsonColumnParseReaders, JsonColumnReadReaders } from "../contract/json-column-origin.ts";
 import type { SchemaQuery } from "../contract/schema-fact.ts";
-import { resolveTypeMemberOrigin } from "./type-member-origin.ts";
 
-// The versioned-config codec (Spine-Config-and-Serialization) owns a zod schema plus its lifts; its two read doors parse.
-const VERSIONED_CONFIG_HOME = "/packages/contracts/src/versioned-config/";
-const VERSIONED_CONFIG_PARSE_METHODS: ReadonlySet<string> = new Set(["parse", "parseOutcome"]);
+export const JSON_COLUMN_READ_TERMINALS = {
+  packageName: "zod",
+  packageMethods: ["parse", "safeParse", "parseAsync", "safeParseAsync"],
+  projectHome: "/packages/contracts/src/versioned-config/",
+  projectMethods: ["parse", "parseOutcome"],
+} as const satisfies DeclaredCallTerminalSelection;
 const EQUALITY_OPERATORS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EqualsEqualsEqualsToken,
   SyntaxKind.ExclamationEqualsEqualsToken,
@@ -28,43 +33,38 @@ export type { ColumnRead, RowModels } from "../../floor/code-facts/drizzle-row-c
 // `schema.parse(v)` whose method zod declares, or the codec's `parse`/`parseOutcome`. A helper merely HANDED a schema is
 // not a parse; it is judged one hop in, by what its body does with the value.
 export function isDirectParse(call: CallExpression): boolean {
-  if (isZodParserCall(call)) {
-    return true;
+  if (!N.isPropertyAccessExpression(call.getExpression())) {
+    return false;
   }
-  const callee = call.getExpression();
-  if (N.isPropertyAccessExpression(callee)) {
-    const method = resolveTypeMemberOrigin(callee);
-    const declarations = method.kind === "resolved" ? method.value.declarations : [];
-    if (
-      VERSIONED_CONFIG_PARSE_METHODS.has(callee.getName()) &&
-      declarations.length > 0 &&
-      declarations.every((d) => d.getSourceFile().getFilePath().replaceAll("\\", "/").includes(VERSIONED_CONFIG_HOME))
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return isDirectParseWith(call, readCallMemberDeclarationOrigin(call).origin);
 }
 
-function parsedDirectly(node: Node): boolean {
+/** Native delivery supplies the same declared-member fact without consulting the syntax checker. */
+export function isDirectParseWith(call: CallExpression, origin: ReferenceFact<readonly Node[]>): boolean {
+  return matchesDeclaredCallTerminal(call, origin, JSON_COLUMN_READ_TERMINALS);
+}
+
+const NATIVE_PARSE_READERS: JsonColumnParseReaders = { parse: isDirectParse, target: readCallTarget, references: referencesOf };
+
+function parsedDirectly(node: Node, readers: JsonColumnParseReaders): boolean {
   const site = valueSite(node);
   const parent = site.getParent();
   if (parent === undefined || !N.isCallExpression(parent)) {
     return false;
   }
   const index = argumentIndex(parent, site);
-  return index >= 0 && (isDirectParse(parent) || parsedAsArgumentOfParse(parent));
+  return index >= 0 && (readers.parse(parent) || parsedAsArgumentOfParse(parent, readers));
 }
 
 // `schema.parse(heal(row.col))`: the value's only way out of the inner call is into the parse.
-function parsedAsArgumentOfParse(call: CallExpression): boolean {
+function parsedAsArgumentOfParse(call: CallExpression, readers: JsonColumnParseReaders): boolean {
   const site = valueSite(call);
   const parent = site.getParent();
   if (parent === undefined || !N.isCallExpression(parent)) {
     return false;
   }
   const index = argumentIndex(parent, site);
-  return index >= 0 && isDirectParse(parent);
+  return index >= 0 && readers.parse(parent);
 }
 
 /** A presence test (`=== null`, `!== undefined`, `typeof`) reads no field of the value. */
@@ -82,14 +82,14 @@ export function isPresenceTest(node: Node): boolean {
 }
 
 // One hop into a local or imported helper: every use of the receiving parameter in its body is parsed or a presence test.
-function parsedThroughHelper(node: Node): boolean {
+function parsedThroughHelper(node: Node, readers: JsonColumnParseReaders): boolean {
   const site = valueSite(node);
   const call = site.getParent();
   if (call === undefined || !N.isCallExpression(call)) {
     return false;
   }
   const index = argumentIndex(call, site);
-  const helper = index < 0 ? undefined : helperOf(call.getExpression());
+  const helper = index < 0 ? undefined : helperOfWith(call.getExpression(), readers.target);
   if (helper === undefined) {
     return false;
   }
@@ -98,18 +98,27 @@ function parsedThroughHelper(node: Node): boolean {
   if (param === undefined || body === undefined || !N.isIdentifier(param.getNameNode())) {
     return false;
   }
-  const uses = referencesOf(param.getNameNode(), body);
-  return uses.length > 0 && uses.every((use) => parsedDirectly(use) || isPresenceTest(use));
+  const uses = readers.references(param.getNameNode(), body);
+  return uses.length > 0 && uses.every((use) => parsedDirectly(use, readers) || isPresenceTest(use));
 }
 
 /** Does the value reach a parse: a zod or codec parse directly, or one hop into a helper whose body parses it? */
 export function isParsedValue(node: Node): boolean {
-  return parsedDirectly(node) || parsedThroughHelper(node);
+  return isParsedValueWith(node, NATIVE_PARSE_READERS);
+}
+
+/** The same parse-use grammar consumes declared parser, actual target and exact lexical-use facts. */
+export function isParsedValueWith(node: Node, readers: JsonColumnParseReaders): boolean {
+  return parsedDirectly(node, readers) || parsedThroughHelper(node, readers);
 }
 
 /** A returned projection is parsed only on every complete authored exit, after actual object overrides. */
 export function isReturnedParsedValue(node: Node, observations: CallReturnObservations, parsers: ReadonlySet<ts.CallExpression>): boolean {
-  const fact = readReturnedValue(node, [], observations, parsers);
+  return isReturnedParsedValueFact(readReturnedValue(node, [], observations, parsers), parsers);
+}
+
+/** Canonical raw alternatives retain every present leaf and the original frozen parser membership. */
+export function isReturnedParsedValueFact(fact: ReferenceFact<readonly ReturnedValueSource[]>, parsers: ReadonlySet<ts.CallExpression>): boolean {
   return (
     fact.kind === "resolved" &&
     fact.value.length > 0 &&
@@ -129,6 +138,22 @@ function writesColumn(site: Node, column: string, query: SchemaQuery): boolean {
 /** Does the value go straight back into the same column: an assignment target, the column's own key in a drizzle
  *  write builder's row, or that key in an insert-model literal? A value written under another key is still read. */
 export function isWriteSink(node: Node, column: string, models: RowModels, query: SchemaQuery): boolean {
+  return isWriteSinkWith(node, column, nativeReadReaders(models, query));
+}
+
+function nativeReadReaders(models: RowModels, query: SchemaQuery): JsonColumnReadReaders {
+  return {
+    ...NATIVE_PARSE_READERS,
+    writeColumn: (site, column) => writesColumn(site, column, query),
+    insertModel: (literal): boolean => {
+      const contextual = literal.getContextualType();
+      return contextual !== undefined && isModelType(contextual, models.insert);
+    },
+  };
+}
+
+/** Native identity observations do not broaden the existing assignment, own-column and batch sink grammar. */
+export function isWriteSinkWith(node: Node, column: string, readers: JsonColumnReadReaders): boolean {
   const parent = node.getParent();
   if (N.isBinaryExpression(parent) && parent.getLeft() === node && parent.getOperatorToken().getKind() === SyntaxKind.EqualsToken) {
     return true;
@@ -139,14 +164,19 @@ export function isWriteSink(node: Node, column: string, models: RowModels, query
     }
     const batch = literal.getParent();
     const row = N.isArrayLiteralExpression(batch) ? batch : literal;
-    const contextual = literal.getContextualType();
-    return writesColumn(row, column, query) || (contextual !== undefined && isModelType(contextual, models.insert));
+    const insert = readers.insertModel(literal);
+    return readers.writeColumn(row, column) || insert;
   });
 }
 
 /** Is every use of a destructured column binding a parse, a presence test or a write? */
 export function bindingUsesJudged(read: ColumnRead, models: RowModels, query: SchemaQuery): boolean {
+  return bindingUsesJudgedWith(read, nativeReadReaders(models, query));
+}
+
+/** Every exact native binding use must satisfy the same consumer parse/presence/sink judgment. */
+export function bindingUsesJudgedWith(read: ColumnRead, readers: JsonColumnReadReaders): boolean {
   const scope = read.value.getFirstAncestor((ancestor) => N.isFunctionLikeDeclaration(ancestor) || N.isSourceFile(ancestor)) ?? read.value.getSourceFile();
-  const uses = referencesOf(read.value, scope);
-  return uses.length > 0 && uses.every((use) => isParsedValue(use) || isPresenceTest(use) || isWriteSink(use, read.column, models, query));
+  const uses = readers.references(read.value, scope);
+  return uses.length > 0 && uses.every((use) => isParsedValueWith(use, readers) || isPresenceTest(use) || isWriteSinkWith(use, read.column, readers));
 }

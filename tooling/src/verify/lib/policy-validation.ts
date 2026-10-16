@@ -57,7 +57,7 @@ const TOKEN_MODE_KEYS = new Set(["kind", "mode"]);
 const INSTALLED_TEXT_KEYS = new Set(["kind", "id", "mode", "file"]);
 const FACT_KEYS = new Set(["id", "population", "analysis", "resources", "create"]);
 const REQUIRED_FACT_KEYS = ["id", "population", "analysis", "resources", "create"] as const;
-const FACT_HOOK_KEYS = new Set(["visitors", "visitFile", "finish"]);
+const FACT_HOOK_KEYS = new Set(["visitors", "visitFile", "prepare", "finish"]);
 
 /** Repo-path identity and path-set normalization — the grammar lives in `policy-validation-proofs.ts` (the
  *  proof rows are built on it); kept here by name because every loading and invocation boundary imports them
@@ -353,7 +353,7 @@ function assertVisitors(value: unknown): void {
   }
 }
 
-function assertOptionalHook(value: unknown, label: "visitFile" | "evaluate"): void {
+function assertOptionalHook(value: unknown, label: "visitFile" | "prepare" | "evaluate"): void {
   if (value !== undefined && typeof value !== "function") {
     invalid(`create result ${label} must be a function`);
   }
@@ -365,7 +365,7 @@ export function assertGatePolicyHooks(value: unknown): asserts value is GatePoli
   if (hooks["visitors"] !== undefined) {
     assertVisitors(hooks["visitors"]);
   }
-  for (const key of ["visitFile", "evaluate"] as const) {
+  for (const key of ["visitFile", "prepare", "evaluate"] as const) {
     assertOptionalHook(hooks[key], key);
   }
   if (hooks["visitors"] === undefined && hooks["visitFile"] === undefined && hooks["evaluate"] === undefined) {
@@ -380,6 +380,7 @@ export function assertGateFactHooks(value: unknown): asserts value is GateFactHo
     assertVisitors(hooks["visitors"]);
   }
   assertOptionalHook(hooks["visitFile"], "visitFile");
+  assertOptionalHook(hooks["prepare"], "prepare");
   if (typeof hooks["finish"] !== "function") {
     invalid("fact create result finish must be a function");
   }

@@ -2,16 +2,18 @@
 // ARM A — the row-derived taint analysis of `.set()` writers — is `json-column-writers.ts` (split out at the
 // size cap 2026-09-18); ARM B (guard dominance) and the fact stay here.
 
-import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Block, CallExpression, SourceFile, Statement, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-write-chain.ts";
+import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { defineFact } from "../contract/fact.ts";
 import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts";
-import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
-import { createJsonColumnOriginContext } from "./json-column-origin-context.ts";
+import type { jsonColumnObservedReaders } from "./json-column-observed-readers.ts";
+import { jsonColumnObservationPlan, jsonColumnObservedCohort } from "./json-column-observed-readers.ts";
+import { createObservedJsonColumnOriginContext } from "./json-column-origin-context.ts";
 import type { JsonColumnWriter } from "./json-column-writers.ts";
-import { collectJsonWritersByColumn, collectWriters, DOMAIN_DIR, jsonWriterColumn, updatedTable } from "./json-column-writers.ts";
+import { collectJsonWritersByColumnWith, collectWriters, DOMAIN_DIR, jsonWriterColumn, updatedTable, updatedTableWith } from "./json-column-writers.ts";
 
 const CONTRACTS_DIR = "/packages/contracts/src/";
 
@@ -53,7 +55,7 @@ export interface JsonColumnIndex {
   readonly versioned: Map<string, ReadonlySet<string>>;
 }
 
-function deriveJsonColumns(schema: SchemaModel, versionedTypes: ReadonlySet<string>): JsonColumnIndex {
+function deriveJsonColumns(schema: SchemaProjectedModel, versionedTypes: ReadonlySet<string>): JsonColumnIndex {
   const all = new Map<string, ReadonlySet<string>>();
   const versioned = new Map<string, ReadonlySet<string>>();
   for (const table of schema.tables) {
@@ -76,13 +78,13 @@ function deriveJsonColumns(schema: SchemaModel, versionedTypes: ReadonlySet<stri
 /** The TYPE one `defineVersionedConfig(...)` owns — the EXPLICIT type argument, else the binding's resolved
  *  `VersionedConfig<T>` (the live inferred `promptConfigConfig` spelling). `undefined` = readable neither
  *  way, which this gate REPORTS rather than silently dropping the column obligation it carries. */
-function ownedTypeOf(call: CallExpression): string | undefined {
+function ownedTypeOf(call: CallExpression, typeText: (node: TsNode) => string): string | undefined {
   const explicit = call.getTypeArguments()[0]?.getText().trim();
   if (explicit !== undefined && explicit !== "") {
     return explicit;
   }
   const decl = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-  const inferred = decl === undefined ? undefined : VERSIONED_CONFIG_TYPE_RE.exec(decl.getType().getText(decl))?.[1];
+  const inferred = decl === undefined ? undefined : VERSIONED_CONFIG_TYPE_RE.exec(typeText(decl))?.[1];
   // A resolved type prints qualified (`import("…/preset").PromptConfig`); the DECLARED name is the tail.
   const name = inferred?.trim().split(".").at(-1);
   return name === undefined || name === "" || name.includes("(") ? undefined : name;
@@ -90,7 +92,10 @@ function ownedTypeOf(call: CallExpression): string | undefined {
 
 /** Every versioned-config declaration in `contracts`, split into the types it could read and the calls it
  *  could not (the #944 fail-closed half — a `continue` here would erase obligations silently). */
-function deriveVersionedTypes(candidates: readonly CallExpression[]): {
+function deriveVersionedTypes(
+  candidates: readonly CallExpression[],
+  typeText: (node: TsNode) => string,
+): {
   readonly types: Set<string>;
   readonly unresolved: CallExpression[];
   readonly calls: number;
@@ -104,7 +109,7 @@ function deriveVersionedTypes(candidates: readonly CallExpression[]): {
         continue;
       }
       calls += 1;
-      const owned = ownedTypeOf(call);
+      const owned = ownedTypeOf(call, typeText);
       if (owned === undefined) {
         unresolved.push(call);
       } else {
@@ -189,7 +194,7 @@ function unwrapArg(arg: TsNode | undefined): TsNode | undefined {
  *  fail-closed OPAQUE verdict when the gate cannot read the object at all. */
 function guardTargetsOf(
   setArg: TsNode | undefined,
-  target: { readonly cols: ReadonlySet<string>; readonly table: SchemaTable },
+  target: { readonly cols: ReadonlySet<string>; readonly table: import("../../floor/code-facts/schema-projection-contract.ts").SchemaProjectedTable },
   root: string,
   context: JsonColumnOriginContext,
 ): JsonGuardTarget[] {
@@ -229,14 +234,20 @@ const WRITE_VERBS: ReadonlyMap<string, DrizzleWriteRootVerb> = new Map([
 function versionedSetArg(
   call: CallExpression,
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
-  schema: SchemaModel,
+  context: JsonColumnOriginContext,
 ): { readonly arg: TsNode | undefined; readonly cols: ReadonlySet<string>; readonly table: string } | undefined {
-  const callee = staticMemberAccess(call.getExpression());
+  const callee = context.schemaReaders.member(call.getExpression());
   if (callee === undefined) {
     return;
   }
   const chainVerb = WRITE_VERBS.get(callee.name);
-  const table = chainVerb === undefined ? undefined : updatedTable(callee.receiver, schema, chainVerb);
+  let table: string | undefined;
+  if (chainVerb !== undefined) {
+    table =
+      context.writerReaders === undefined
+        ? updatedTable(callee.receiver, context.schema, chainVerb)
+        : updatedTableWith(callee.receiver, context.writerReaders, chainVerb);
+  }
   const cols = table === undefined ? undefined : versionedColumns.get(table);
   if (cols === undefined || table === undefined) {
     return;
@@ -249,13 +260,14 @@ function collectJsonGuardTargets(
   calls: readonly CallExpression[],
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
   root: string,
-  context: JsonColumnOriginContext,
+  contextFor: (call: CallExpression) => JsonColumnOriginContext,
 ): JsonGuardTarget[] {
-  const schema = context.schema;
   const out: JsonGuardTarget[] = [];
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
-      const target = versionedSetArg(call, versionedColumns, schema);
+      const context = contextFor(call);
+      const schema = context.schema;
+      const target = versionedSetArg(call, versionedColumns, context);
       if (target !== undefined) {
         const table = schema.tables.find((candidate) => candidate.identity.declarationName === target.table);
         if (table === undefined) {
@@ -277,7 +289,7 @@ export interface JsonColumnWriteAnalysis {
 }
 
 export interface JsonColumnWriteFact {
-  readonly analyze: (schema: SchemaModel) => JsonColumnWriteAnalysis;
+  readonly analyze: (schema: SchemaProjectedModel) => JsonColumnWriteAnalysis;
 }
 
 /** One shared, invocation-local analysis of JSON columns and their writer shapes. */
@@ -291,7 +303,16 @@ export const jsonColumnWriteFact = defineFact({
   resources: [],
   create: (ctx) => {
     const calls: CallExpression[] = [];
+    const native = ctx.nativeTypes;
+    if (native === undefined) {
+      throw new Error("native JSON writer observation context is unavailable");
+    }
+    let plan: InventoryInvocationPlan | undefined;
     return {
+      prepare: (): void => {
+        plan = jsonColumnObservationPlan(calls, []);
+        native.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
+      },
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
@@ -315,12 +336,38 @@ export const jsonColumnWriteFact = defineFact({
           .slice(0, -(rel.length + 1));
         ctx.receipt({ kind: "population", source: "json-column-write-sources", members: ctx.files.length });
         return Object.freeze({
-          analyze: (schema: SchemaModel): JsonColumnWriteAnalysis => {
-            const versioned = deriveVersionedTypes(calls);
+          analyze: (schema: SchemaProjectedModel): JsonColumnWriteAnalysis => {
+            if (plan === undefined) {
+              throw new Error("native JSON writer observation cohort was not prepared");
+            }
+            const delivered = jsonColumnObservedCohort(native.invocationEvidence(ctx.files, plan), schema);
+            const observationsFor = (node: TsNode): ReturnType<typeof jsonColumnObservedReaders> => {
+              const value = delivered.get(node.getSourceFile());
+              if (value === undefined) {
+                throw new Error("native JSON writer source world is unavailable");
+              }
+              return value;
+            };
+            const contexts = new Map<object, JsonColumnOriginContext>();
+            const contextFor = (call: CallExpression): JsonColumnOriginContext => {
+              const value = observationsFor(call);
+              let context = contexts.get(value.graph);
+              if (context === undefined) {
+                context = createObservedJsonColumnOriginContext(schema, value);
+                contexts.set(value.graph, context);
+              }
+              return context;
+            };
+            const versioned = deriveVersionedTypes(calls, (node) => {
+              const type = observationsFor(node).selected({ base: { kind: "node", node }, steps: [], displayAt: node });
+              if (type?.display === null || type === null) {
+                throw new Error("native JSON versioned binding display is unavailable");
+              }
+              return type.display;
+            });
             const columns = deriveJsonColumns(schema, versioned.types);
-            const context = createJsonColumnOriginContext(schema, calls);
-            const writers = collectJsonWritersByColumn(calls, columns.all, context);
-            const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root, context);
+            const writers = collectJsonWritersByColumnWith(calls, columns.all, contextFor);
+            const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root, contextFor);
             return Object.freeze({ files: ctx.files, versioned, columns, writers, guardTargets });
           },
         });

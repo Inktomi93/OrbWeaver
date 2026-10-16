@@ -9,7 +9,7 @@ import type { CallReturnProgram, NativeValueTransferServices, ReferenceFact, Ret
 import { isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import { readAuthoredArrayElements, readStaticAuthoredValue } from "./static-authored-value.ts";
-import { declaredByPackage, resolveTypeMemberOrigin } from "./type-member-origin.ts";
+import { declaredByPackage, matchesDeclaredCallTerminal, readCallMemberDeclarationOrigin, resolveTypeMemberOrigin } from "./type-member-origin.ts";
 import { resolved, resolveTypePropertyOrigin, unresolved } from "./type-member-origin-core.ts";
 
 /** The installed package door shared by shape and Zod ownership policies. */
@@ -23,8 +23,12 @@ export function isZodParserCall(call: CallExpression): boolean {
   if (!(Node.isPropertyAccessExpression(callee) && ZOD_PARSE_METHODS.has(callee.getName()))) {
     return false;
   }
-  const origin = resolveTypeMemberOrigin(callee);
-  return origin.kind === "resolved" && ZOD_PARSE_METHODS.has(origin.value.name) && declaredByPackage(origin.value.declarations, ZOD_PACKAGE);
+  return matchesDeclaredCallTerminal(call, readCallMemberDeclarationOrigin(call).origin, {
+    packageName: ZOD_PACKAGE,
+    packageMethods: [...ZOD_PARSE_METHODS],
+    projectHome: null,
+    projectMethods: [],
+  });
 }
 
 function sameParseResult(node: MorphNode, call: CallExpression): boolean {

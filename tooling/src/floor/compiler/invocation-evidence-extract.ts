@@ -11,6 +11,9 @@ import type { DrizzleWrite } from "../code-facts/drizzle-columns.ts";
 import { readDrizzleWrite } from "../code-facts/drizzle-columns.ts";
 import { readModuleNamespaceDeclarations } from "../code-facts/module-namespace.ts";
 import { encodeModuleOrigin } from "../code-facts/module-origin-codec.ts";
+import { captureOrdinaryObservations } from "../code-facts/ordinary-observations.ts";
+import { encodeOrdinaryObservations } from "../code-facts/ordinary-observations-codec.ts";
+import type { OrdinaryObservationDemand } from "../code-facts/ordinary-observations-contract.ts";
 import type { InventoryAuthoredValueProjection, InventoryTypeProjection } from "../code-facts/projection-inventory-contract.ts";
 import { wireReferenceFact } from "../code-facts/projection-reference-codec.ts";
 import {
@@ -23,6 +26,7 @@ import {
 import { lexicalReferenceSymbol } from "../code-facts/reference-fact-alias.ts";
 import type { CallableBinding, CallableInvocationFact, GlobalMemberOrigin, ModuleMemberOrigin, ReferenceFact } from "../code-facts/reference-fact-contract.ts";
 import { readCallableBinding, readCallableInvocation } from "../code-facts/reference-fact-invocation.ts";
+import type { SchemaQuery } from "../code-facts/schema-model-contract.ts";
 import type {
   CapturedInvocationEvidence,
   InventoryInvocationEvidence,
@@ -39,7 +43,15 @@ import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "../c
 import { descendantsOfKind } from "./ts-workspace.ts";
 
 /** Capture only requested facets and their finite canonical callee/argument dependencies. */
-export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInvocationPlan): CapturedInvocationEvidence {
+export function captureInvocationEvidence(
+  node: MorphNode,
+  rawPlan: InventoryInvocationPlan,
+  ordinary?: {
+    readonly demand: OrdinaryObservationDemand;
+    readonly schema: SchemaQuery | undefined;
+    readonly basis?: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
+  },
+): CapturedInvocationEvidence {
   const plan = invocationPlanSchema.parse(rawPlan);
   const modules = new Map<MorphNode, ReferenceFact<ModuleMemberOrigin>>();
   const globals = new Map<MorphNode, ReferenceFact<GlobalMemberOrigin>>();
@@ -107,14 +119,30 @@ export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInv
       captureCanonicalVariable(module.value.canonical.declaration, canonicalValues, sources);
     }
   };
-  const invocation = captureRequestedInvocation(node, plan, capture);
-  closeRelatedInvocationSources(sources);
+  if (plan.mode === "observations" && ordinary === undefined) {
+    throw new Error("native ordinary observation demand has no captured owner");
+  }
+  const observations =
+    ordinary === undefined
+      ? undefined
+      : captureOrdinaryObservations(ordinary.demand, {
+          query: ordinary.schema,
+          related,
+          profile: (subject) =>
+            capture(subject, ["module", "global", "string", "stable", "authored-value", ...(Node.isCallExpression(subject) ? ["drizzle-write" as const] : [])]),
+          anchor: node,
+        });
+  const invocation = plan.mode === "observations" ? undefined : captureRequestedInvocation(node, plan, capture);
+  if (plan.mode !== "observations") {
+    closeRelatedInvocationSources(sources);
+  }
   const admitted = (subject: MorphNode): void => {
     if (!sources.has(subject.getSourceFile()) || subject.wasForgotten()) {
       throw new Error("native invocation related value is outside its closed source context");
     }
   };
   return {
+    ...(observations === undefined ? {} : { observations, observationBasis: ordinary?.basis ?? null }),
     invocation,
     modules,
     globals,
@@ -130,7 +158,12 @@ export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInv
     columnRows,
     drizzleWrites,
     indexedParameters,
-    sources: [...sources],
+    captureSource: (subject): void => {
+      related(subject);
+    },
+    get sources(): readonly SourceFile[] {
+      return [...sources];
+    },
     declarations: (subject): readonly MorphNode[] => {
       admitted(subject);
       if (!Node.isIdentifier(subject)) {
@@ -215,8 +248,14 @@ export function encodeInvocationEvidence(
   node: MorphNode,
   plan: InventoryInvocationPlan,
   evidence: CapturedInvocationEvidence,
-  span: (node: MorphNode) => InventorySpan,
+  spanNode: (node: MorphNode) => InventorySpan,
 ): InventoryInvocationEvidence {
+  const span = (subject: MorphNode): InventorySpan => {
+    if (plan.mode === "observations") {
+      evidence.captureSource?.(subject);
+    }
+    return spanNode(subject);
+  };
   const origin = (value: ModuleMemberOrigin | GlobalMemberOrigin): object =>
     value.kind === "global" ? { ...value, declarations: value.declarations.map(span) } : encodeModuleOrigin(value, span);
   const binding = (value: CallableBinding): object => ({
@@ -281,12 +320,22 @@ export function encodeInvocationEvidence(
   const invocation =
     evidence.invocation === undefined ? null : wireReferenceFact(evidence.invocation, (value) => ({ ...binding(value), invocation: value.invocation }), span);
   return invocationEvidenceSchema.parse({
+    ...encodeOrdinaryAttachment(evidence, span),
     query: { ...plan, node: span(node) },
     callee: plan.mode === "invocation" && (Node.isCallExpression(node) || Node.isNewExpression(node)) ? span(node.getExpression()) : null,
     invocation,
     profiles: [...profiles.values()],
     sources: [],
   });
+}
+
+function encodeOrdinaryAttachment(
+  evidence: CapturedInvocationEvidence,
+  span: (node: MorphNode) => InventorySpan,
+): Pick<InventoryInvocationEvidence, "observations" | "observationBasis"> {
+  return evidence.observations === undefined
+    ? {}
+    : { observationBasis: evidence.observationBasis ?? null, observations: encodeOrdinaryObservations(evidence.observations, span) };
 }
 
 function encodeDataProfiles(

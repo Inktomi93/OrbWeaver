@@ -1,18 +1,17 @@
 // A validating string factory preserves values only through the installed TypeID contract and the
 // exact Zod failure channel. Function names and output annotations never establish that fact.
-import { readStaticString, resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
-import { resolveCallableDeclaration } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { CallExpression, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
+import type { JsonColumnSchemaReaders } from "../contract/json-column-origin.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { nativeJsonColumnSchemaReaders } from "./json-column-native-readers.ts";
 import { declaredByPackage } from "./type-member-origin.ts";
 import { declaredByZod } from "./zod-origin.ts";
 
 const TYPE_ID_PACKAGE = "typeid-js";
 
-function zodExport(node: MorphNode, exportedName: string): boolean {
-  const origin = resolveModuleMemberOrigin(node);
+function zodExport(node: MorphNode, exportedName: string, readers: JsonColumnSchemaReaders): boolean {
+  const origin = readers.module(node);
   return (
     origin.kind === "resolved" &&
     origin.value.moduleSpecifier === "zod" &&
@@ -22,8 +21,8 @@ function zodExport(node: MorphNode, exportedName: string): boolean {
   );
 }
 
-function unboxedFromString(node: MorphNode): boolean {
-  const origin = resolveModuleMemberOrigin(node);
+function unboxedFromString(node: MorphNode, readers: JsonColumnSchemaReaders): boolean {
+  const origin = readers.module(node);
   return (
     origin.kind === "resolved" &&
     origin.value.moduleSpecifier === TYPE_ID_PACKAGE &&
@@ -34,13 +33,13 @@ function unboxedFromString(node: MorphNode): boolean {
   );
 }
 
-function staticPrefix(node: MorphNode): boolean {
-  const direct = readStaticString(node);
+function staticPrefix(node: MorphNode, readers: JsonColumnSchemaReaders): boolean {
+  const direct = readers.string(node);
   if (direct.kind === "resolved") {
     return true;
   }
-  const member = direct.reason === "dynamic" ? staticMemberAccess(direct.node) : undefined;
-  const authored = member === undefined ? undefined : readStaticAuthoredValue(member.receiver);
+  const member = direct.reason === "dynamic" ? readers.member(direct.node) : undefined;
+  const authored = member === undefined ? undefined : readers.authored(member.receiver);
   if (member === undefined || authored?.kind !== "resolved" || authored.value.kind !== "object") {
     return false;
   }
@@ -49,30 +48,31 @@ function staticPrefix(node: MorphNode): boolean {
   return properties.length === 1 && value?.kind === "scalar" && typeof value.value === "string";
 }
 
-function sameParameter(node: MorphNode, parameter: ParameterDeclaration): boolean {
-  return unwrapExpression(node).getSymbol()?.getValueDeclaration()?.compilerNode === parameter.compilerNode;
+function sameParameter(node: MorphNode, parameter: ParameterDeclaration, readers: JsonColumnSchemaReaders): boolean {
+  const fact = readers.lexical(unwrapExpression(node)).value;
+  return fact.kind === "resolved" && fact.value.compilerNode === parameter.compilerNode;
 }
 
-function zodMember(node: MorphNode, name: string): boolean {
-  const member = staticMemberAccess(node);
-  return member?.name === name && declaredByZod(member.receiver.getType().getProperty(name)?.getDeclarations() ?? []);
+function zodMember(node: MorphNode, name: string, readers: JsonColumnSchemaReaders): boolean {
+  const member = readers.member(node);
+  return member?.name === name && declaredByZod(readers.propertyDeclarations(member.receiver, name, false));
 }
 
-function issueMessage(node: MorphNode | undefined, prefix: ParameterDeclaration): boolean {
+function issueMessage(node: MorphNode | undefined, prefix: ParameterDeclaration, readers: JsonColumnSchemaReaders): boolean {
   if (!Node.isTemplateExpression(node) || node.getHead().getLiteralText() !== "Invalid ") {
     return false;
   }
   const spans = node.getTemplateSpans();
   const span = spans[0];
-  return spans.length === 1 && span !== undefined && sameParameter(span.getExpression(), prefix) && span.getLiteral().getLiteralText() === " id";
+  return spans.length === 1 && span !== undefined && sameParameter(span.getExpression(), prefix, readers) && span.getLiteral().getLiteralText() === " id";
 }
 
-function errorChannel(block: import("ts-morph").Block, context: ParameterDeclaration, prefix: ParameterDeclaration): boolean {
+function errorChannel(block: import("ts-morph").Block, context: ParameterDeclaration, prefix: ParameterDeclaration, readers: JsonColumnSchemaReaders): boolean {
   const statements = block.getStatements();
   const first = statements[0];
   const last = statements[1];
   const issue = Node.isExpressionStatement(first) ? unwrapExpression(first.getExpression()) : undefined;
-  const member = Node.isCallExpression(issue) ? staticMemberAccess(issue.getExpression()) : undefined;
+  const member = Node.isCallExpression(issue) ? readers.member(issue.getExpression()) : undefined;
   const argument = Node.isCallExpression(issue) ? issue.getArguments()[0] : undefined;
   const code = Node.isObjectLiteralExpression(argument) ? argument.getProperty("code")?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer() : undefined;
   const message = Node.isObjectLiteralExpression(argument)
@@ -84,28 +84,28 @@ function errorChannel(block: import("ts-morph").Block, context: ParameterDeclara
     Node.isCallExpression(issue) &&
     issue.getArguments().length === 1 &&
     member !== undefined &&
-    sameParameter(member.receiver, context) &&
-    zodMember(issue.getExpression(), "addIssue") &&
+    sameParameter(member.receiver, context, readers) &&
+    zodMember(issue.getExpression(), "addIssue", readers) &&
     Node.isObjectLiteralExpression(argument) &&
     argument.getProperties().length === 2 &&
     Node.isStringLiteral(code) &&
     code.getLiteralText() === "custom" &&
-    issueMessage(message, prefix) &&
+    issueMessage(message, prefix, readers) &&
     returned !== undefined &&
-    zodExport(unwrapExpression(returned), "NEVER")
+    zodExport(unwrapExpression(returned), "NEVER", readers)
   );
 }
 
-function validatingTransform(call: CallExpression, prefix: ParameterDeclaration): boolean {
-  const member = staticMemberAccess(call.getExpression());
+function validatingTransform(call: CallExpression, prefix: ParameterDeclaration, readers: JsonColumnSchemaReaders): boolean {
+  const member = readers.member(call.getExpression());
   const base = member === undefined ? undefined : unwrapExpression(member.receiver);
   const callback = call.getArguments()[0];
   if (
     call.getArguments().length !== 1 ||
-    !zodMember(call.getExpression(), "transform") ||
+    !zodMember(call.getExpression(), "transform", readers) ||
     !Node.isCallExpression(base) ||
     base.getArguments().length > 0 ||
-    !zodExport(base.getExpression(), "string") ||
+    !zodExport(base.getExpression(), "string", readers) ||
     !(Node.isArrowFunction(callback) || Node.isFunctionExpression(callback)) ||
     callback.isAsync()
   ) {
@@ -135,23 +135,23 @@ function validatingTransform(call: CallExpression, prefix: ParameterDeclaration)
   // ownership identifies that semantic contract but is not itself an arbitrary identity proof.
   return (
     Node.isCallExpression(validated) &&
-    unboxedFromString(validated.getExpression()) &&
+    unboxedFromString(validated.getExpression(), readers) &&
     arguments_.length === 2 &&
     arguments_[0] !== undefined &&
-    sameParameter(arguments_[0], value) &&
+    sameParameter(arguments_[0], value, readers) &&
     arguments_[1] !== undefined &&
-    sameParameter(arguments_[1], prefix) &&
+    sameParameter(arguments_[1], prefix, readers) &&
     catchClause !== undefined &&
     catchClause.getVariableDeclaration() === undefined &&
-    errorChannel(catchClause.getBlock(), context, prefix)
+    errorChannel(catchClause.getBlock(), context, prefix, readers)
   );
 }
 
 /** Prove a complete authored string-validator factory, not a factory-name or ZodType annotation allowance. */
-export function jsonColumnSchemaFactoryProof(call: CallExpression): boolean {
-  const target = resolveCallableDeclaration(call);
+export function jsonColumnSchemaFactoryProof(call: CallExpression, readers: JsonColumnSchemaReaders = nativeJsonColumnSchemaReaders): boolean {
+  const target = readers.declaration(call);
   const argument = call.getArguments()[0];
-  if (target.kind !== "resolved" || call.getArguments().length !== 1 || argument === undefined || !staticPrefix(argument)) {
+  if (target.kind !== "resolved" || call.getArguments().length !== 1 || argument === undefined || !staticPrefix(argument, readers)) {
     return false;
   }
   const owner = target.value.declaration;
@@ -171,6 +171,6 @@ export function jsonColumnSchemaFactoryProof(call: CallExpression): boolean {
     prefix.getInitializer() === undefined &&
     !prefix.isRestParameter() &&
     Node.isCallExpression(value) &&
-    validatingTransform(value, prefix)
+    validatingTransform(value, prefix, readers)
   );
 }

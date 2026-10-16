@@ -1,11 +1,14 @@
 // This is the accepted JSON-write grammar, not a generic AST evaluator: actual same-column bases,
 // object spreads, known schema validation and field fallbacks when the client omits a member.
-import { readCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
-import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { jsonColumnGuardMatchesProvided, jsonStoredColumnReference, traceJsonColumnValue } from "../../floor/code-facts/drizzle-value-origin.ts";
+import {
+  drizzleValueReaders,
+  jsonColumnGuardMatchesProvided,
+  jsonStoredColumnReference,
+  traceJsonColumnValue,
+} from "../../floor/code-facts/drizzle-value-origin.ts";
+import { selectedTypeRelation } from "../../floor/code-facts/type-projection-contract.ts";
 import { propertyValue as jsonColumnPropertyValue } from "../../floor/code-facts/value-carrier.ts";
 import type { JsonColumnMergeProof, JsonColumnOrigin, JsonColumnOriginContext, JsonColumnTarget } from "../contract/json-column-origin.ts";
 import { unwrapExpression } from "./ast-read.ts";
@@ -37,12 +40,12 @@ function stable(node: MorphNode, context: JsonColumnOriginContext, seen = new Se
     return refusal(current, "stable binding cycle");
   }
   seen.add(current.compilerNode);
-  const declaration = Node.isIdentifier(current) ? lexicalReferenceSymbol(current)?.getValueDeclaration() : undefined;
+  const declaration = Node.isIdentifier(current) ? drizzleValueReaders(context).valueDeclaration(current) : undefined;
   const bound = declaration === undefined ? undefined : context.bindings.get(declaration);
   if (bound !== undefined) {
     return stable(bound, context, seen);
   }
-  const binding = resolveStableExpression(current);
+  const binding = drizzleValueReaders(context).stable(current);
   if (binding.kind === "resolved") {
     return binding.value;
   }
@@ -220,15 +223,17 @@ function omittedOverride(carrier: FieldCarrier, context: JsonColumnOriginContext
   if (carrier.proof.keywise || carrier.value === undefined) {
     return false;
   }
-  const type = carrier.value.getType();
-  if (type.isAny() || type.isUnknown()) {
+  const type = context.typeSelections({ selectors: [{ base: { kind: "node", node: carrier.value }, steps: [], displayAt: null }], relations: [] }).values[0];
+  if (type === undefined || type === null) {
+    throw new Error("native omission Type was not captured");
+  }
+  if (type.any || type.unknown) {
     return refusal(carrier.value, "overridden field has an unknown omission contract");
   }
   const current = stable(carrier.value, context);
   const explicitClear =
     Node.isIdentifier(current) && current.getText() === "undefined" && traceJsonColumnValue(current, [], context).every((origin) => origin.kind === "missing");
-  const arms = type.isUnion() ? type.getUnionTypes() : [type];
-  return !explicitClear && arms.some((arm) => arm.isUndefined());
+  return !explicitClear && type.arms.some((arm) => arm.flags.undefined);
 }
 
 function objectProof(object: import("ts-morph").ObjectLiteralExpression, target: JsonColumnTarget, context: JsonColumnOriginContext): JsonColumnMergeProof {
@@ -259,18 +264,17 @@ function inDrizzle(file: import("ts-morph").SourceFile): boolean {
 
 // Drizzle declares `sql` as a function and a same-named namespace, which the module resolver reports as
 // ambiguous. Both halves are Drizzle's, so a tag whose every declaration lives in the package is its `sql`.
-function drizzleSqlTag(tag: MorphNode): boolean {
-  const origin = resolveModuleMemberOrigin(tag);
+function drizzleSqlTag(tag: MorphNode, context: JsonColumnOriginContext): boolean {
+  const origin = context.schemaReaders.module(tag);
   if (origin.kind === "resolved") {
     return origin.value.canonical.kind === "project" && inDrizzle(origin.value.canonical.sourceFile);
   }
-  const symbol = tag.getSymbol();
-  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+  const declarations = context.schemaReaders.lexical(tag).origins ?? [];
   return origin.reason === "ambiguous" && declarations.length > 0 && declarations.every((declaration) => inDrizzle(declaration.getSourceFile()));
 }
 
 function sqlProof(node: import("ts-morph").TaggedTemplateExpression, target: JsonColumnTarget, context: JsonColumnOriginContext): JsonColumnMergeProof {
-  const installed = drizzleSqlTag(node.getTag());
+  const installed = drizzleSqlTag(node.getTag(), context);
   const template = node.getTemplate();
   if (!(installed && Node.isTemplateExpression(template) && KEYWISE_SQL_HEAD.test(template.getHead().getLiteralText()))) {
     return WHOLE;
@@ -281,26 +285,32 @@ function sqlProof(node: import("ts-morph").TaggedTemplateExpression, target: Jso
 }
 
 function callProof(call: import("ts-morph").CallExpression, target: JsonColumnTarget, context: JsonColumnOriginContext): JsonColumnMergeProof {
-  const normalizer = jsonColumnNormalizer(call);
+  const normalizer = jsonColumnNormalizer(call, context.schemaReaders);
   if (normalizer !== undefined) {
     const input = call.getArguments()[0];
     if (input === undefined) {
       return refusal(call, "normalizer has no value");
     }
-    const receiver = normalizer.schema;
-    const output = receiver.getType().getProperty("_output")?.getTypeAtLocation(receiver);
-    const override = target.column.typeOverride;
-    if (override === null) {
+    if (target.column.typeOverride === null) {
       return refusal(call, "normalizer column has no declared shape owner");
     }
-    const expected = override.type;
-    if (output === undefined || !output.isAssignableTo(expected) || !expected.isAssignableTo(output)) {
+    const relation = selectedTypeRelation(
+      context.typeSelections({
+        selectors: [
+          { base: { kind: "node", node: normalizer.schema }, steps: [{ kind: "property", name: "_output", at: normalizer.schema }], displayAt: null },
+          { base: { kind: "schema-column", column: target.column.identity.key }, steps: [], displayAt: null },
+        ],
+        relations: [{ left: 0, right: 1 }],
+      }),
+      0,
+    );
+    if (relation?.leftToRight !== true || relation.rightToLeft !== true) {
       return refusal(call, "known normalizer does not own the same column shape");
     }
     const proof = proveJsonColumnMerge(input, target, context);
     return { keywise: proof.keywise, historicalHeal: proof.historicalHeal || normalizer.historicalHeal };
   }
-  const returns = readCallReturns(call);
+  const returns = drizzleValueReaders(context).returns(call);
   if (returns.kind === "unresolved") {
     const origins = traceJsonColumnValue(call, [], context);
     return {

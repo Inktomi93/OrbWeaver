@@ -1,11 +1,13 @@
 // Replay one captured invocation graph into canonical syntax nodes; the inventory retains ownership.
-import type { Node as MorphNode } from "ts-morph";
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { NativeAuthoredValueProjection } from "./authored-value-projection.ts";
 import { replayAuthoredValueProjection } from "./authored-value-projection-codec.ts";
 import type { IndexedCallParameters } from "./drizzle-column-read-contract.ts";
 import type { DrizzleWrite } from "./drizzle-columns.ts";
 import { replayModuleOrigin } from "./module-origin-codec.ts";
+import { replayOrdinaryObservations } from "./ordinary-observations-codec.ts";
+import type { NativeOrdinaryObservations } from "./ordinary-observations-contract.ts";
 import { replayReferenceFact } from "./projection-reference-codec.ts";
 import type { CallableBinding, CallableInvocation, ModuleMemberOrigin, ReferenceFact, ReferenceOrigin } from "./reference-fact-contract.ts";
 import type {
@@ -27,9 +29,10 @@ type WireBinding = NonNullable<Profile["binding"]> extends InventoryInvocationRe
 
 export function replayInvocationEvidence(
   wire: InventoryInvocationEvidence,
-  replay: (span: InventorySpan) => MorphNode,
+  replayNode: (span: InventorySpan) => MorphNode,
   children: Pick<NativeInvocationEvidence, "declarations" | "computedName" | "globals">,
 ): NativeInvocationEvidence {
+  const { node: replay, observations: readObservations } = ordinaryReplayOwner(wire, replayNode, children.globals);
   const restore = <T, V>(fact: InventoryInvocationReference<T>, value: (input: T) => V): ReferenceFact<V> => replayReferenceFact(fact, value, replay);
   const module = (value: WireModule): ModuleMemberOrigin => replayModuleOrigin(value, replay);
   const origin = (value: WireBinding["target"]): ReferenceOrigin =>
@@ -91,7 +94,9 @@ export function replayInvocationEvidence(
             arguments: restore(value.arguments, (nodes) => nodes.map(replay)),
           }),
         );
+  const observations = readObservations();
   return {
+    ...(observations === undefined ? {} : { observations }),
     invocation,
     modules,
     callableBindings,
@@ -182,4 +187,44 @@ function replayValueObservations(
       }),
     );
   }
+}
+
+function ordinaryReplayOwner(
+  wire: InventoryInvocationEvidence,
+  replayNode: (span: InventorySpan) => MorphNode,
+  globals: NativeInvocationEvidence["globals"],
+): { readonly node: (span: InventorySpan) => MorphNode; readonly observations: () => NativeOrdinaryObservations | undefined } {
+  const payload = wire.observations;
+  if (payload === undefined) {
+    return { node: replayNode, observations: () => undefined };
+  }
+  const epochs = new Map<SourceFile, SourceFile["compilerNode"]>();
+  const replay = (span: InventorySpan): MorphNode => {
+    const node = replayNode(span);
+    epochs.set(node.getSourceFile(), node.getSourceFile().compilerNode);
+    return node;
+  };
+  for (const fact of globals.values()) {
+    for (const node of [fact.trace.origin, ...fact.trace.declarations, ...(fact.kind === "resolved" ? fact.value.declarations : [fact.node])]) {
+      epochs.set(node.getSourceFile(), node.getSourceFile().compilerNode);
+    }
+  }
+  return {
+    node: replay,
+    observations: (): NativeOrdinaryObservations => {
+      const restored = replayOrdinaryObservations(payload, replay);
+      return {
+        ...restored,
+        assertNode: (node): void => {
+          replayNode(payload.anchor);
+          for (const [source, epoch] of epochs) {
+            if (source.wasForgotten() || source.compilerNode !== epoch) {
+              throw new SemanticInventoryError("native ordinary closed source epoch is stale");
+            }
+          }
+          restored.assertNode(node);
+        },
+      };
+    },
+  };
 }

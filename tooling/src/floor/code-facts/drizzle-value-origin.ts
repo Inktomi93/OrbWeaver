@@ -5,13 +5,31 @@ import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess 
 import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { DrizzleNormalization, DrizzleValueContext, JsonColumnOrigin } from "./drizzle-origin-contract.ts";
+import type { DrizzleNormalization, DrizzleOriginReaders, DrizzleValueContext, JsonColumnOrigin } from "./drizzle-origin-contract.ts";
 import { schemaRowOriginIdentity } from "./drizzle-row-origin.ts";
 import { readDrizzleSelection } from "./drizzle-select.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { unwrapTarget as unwrapExpression } from "./reference-fact-alias.ts";
-import type { SchemaTable } from "./schema-model-contract.ts";
+import type { SchemaProjectedTable } from "./schema-projection-contract.ts";
 import { propertyValue } from "./value-carrier.ts";
+
+const NATIVE_READERS: DrizzleOriginReaders = {
+  module: resolveModuleMemberOrigin,
+  stable: resolveStableExpression,
+  member: (node) => staticMemberAccess(node),
+  valueDeclaration: (node) => (Node.isIdentifier(node) ? lexicalReferenceSymbol(node)?.getValueDeclaration() : node.getSymbol()?.getValueDeclaration()),
+  declarations: (node) => node.getSymbol()?.getDeclarations() ?? [],
+  calledMember: readCalledMember,
+  selection: readDrizzleSelection,
+  rowIdentity: schemaRowOriginIdentity,
+  returns: readCallReturns,
+  bindings: readCallBindings,
+};
+
+/** Delivered callbacks never fall through to a syntax checker after native registration. */
+export function drizzleValueReaders(context: DrizzleValueContext): DrizzleOriginReaders {
+  return context.readers ?? NATIVE_READERS;
+}
 
 const CALLER: JsonColumnOrigin = { kind: "caller" };
 const MISSING: JsonColumnOrigin = { kind: "missing" };
@@ -21,8 +39,8 @@ function refusal(node: MorphNode, detail: string): never {
   throw new Error(`json-column-writes: cannot prove persisted column origin at ${node.getSourceFile().getFilePath()}:${node.getStartLineNumber()}: ${detail}`);
 }
 
-function tableOf(node: MorphNode, context: DrizzleValueContext): SchemaTable | undefined {
-  const origin = resolveModuleMemberOrigin(node);
+function tableOf(node: MorphNode, context: DrizzleValueContext): SchemaProjectedTable | undefined {
+  const origin = drizzleValueReaders(context).module(node);
   if (origin.kind !== "resolved" || origin.value.memberPath.length > 0 || origin.value.canonical.kind !== "project") {
     return;
   }
@@ -31,7 +49,7 @@ function tableOf(node: MorphNode, context: DrizzleValueContext): SchemaTable | u
 }
 
 export function jsonStoredColumnReference(node: MorphNode, context: DrizzleValueContext): JsonColumnOrigin | undefined {
-  const origin = resolveModuleMemberOrigin(node);
+  const origin = drizzleValueReaders(context).module(node);
   if (origin.kind !== "resolved" || origin.value.canonical.kind !== "project" || origin.value.memberPath.length !== 1) {
     return;
   }
@@ -43,11 +61,11 @@ export function jsonStoredColumnReference(node: MorphNode, context: DrizzleValue
 }
 
 function producerCall(call: import("ts-morph").CallExpression, context: DrizzleValueContext): JsonColumnOrigin | undefined {
-  const selection = readDrizzleSelection(call);
+  const selection = drizzleValueReaders(context).selection(call);
   if (
     selection === undefined ||
     !selection.calls.every((candidate) => {
-      const member = readCalledMember(candidate);
+      const member = drizzleValueReaders(context).calledMember(candidate);
       return member.kind === "resolved" && member.value.declarations.length > 0 && declaredInDrizzle(member.value.declarations);
     })
   ) {
@@ -59,7 +77,14 @@ function producerCall(call: import("ts-morph").CallExpression, context: DrizzleV
     : { kind: selection.output, table, projection: selection.projection };
 }
 
-function normalizerOf(call: import("ts-morph").CallExpression, context: DrizzleValueContext): DrizzleNormalization | undefined {
+export function readDrizzleNormalization(call: import("ts-morph").CallExpression, context: DrizzleValueContext): DrizzleNormalization | undefined {
+  if (context.readNormalizer !== undefined) {
+    const fact = context.readNormalizer(call);
+    if (fact.kind === "unresolved") {
+      throw new Error(fact.detail);
+    }
+    return fact.value;
+  }
   const snapshot = context.normalizers.get(call.compilerNode);
   if (
     snapshot === undefined ||
@@ -165,7 +190,7 @@ function traceNormalizer(
 }
 
 function traceCallableBody(call: import("ts-morph").CallExpression, path: readonly string[], context: DrizzleValueContext): readonly JsonColumnOrigin[] {
-  const member = staticMemberAccess(call.getExpression());
+  const member = drizzleValueReaders(context).member(call.getExpression());
   const opaqueInputs = [...call.getArguments(), ...(member === undefined ? [] : [member.receiver])];
   if (
     member?.name === "parse" &&
@@ -173,17 +198,17 @@ function traceCallableBody(call: import("ts-morph").CallExpression, path: readon
   ) {
     return refusal(call, "custom parse is not a proved normalizer");
   }
-  const returns = readCallReturns(call);
+  const returns = drizzleValueReaders(context).returns(call);
   if (returns.kind === "unresolved") {
     if (
-      schemaRowOriginIdentity(call) !== undefined ||
+      drizzleValueReaders(context).rowIdentity(call) !== undefined ||
       opaqueInputs.some((input) => traceJsonColumnValue(input, [], context).some((value) => value.kind === "column" || value.kind === "row"))
     ) {
       return refusal(call, "opaque producer/view cannot certify persisted field provenance");
     }
     return [CALLER];
   }
-  const next = { ...context, bindings: readCallBindings(call, returns.trace.origin, context.bindings) };
+  const next = { ...context, bindings: drizzleValueReaders(context).bindings(call, returns.trace.origin, context.bindings) };
   return returns.value.flatMap((value) => traceJsonColumnValue(value, path, next));
 }
 
@@ -192,17 +217,17 @@ function traceCall(call: import("ts-morph").CallExpression, path: readonly strin
   if (producer !== undefined) {
     return project(producer, path, context);
   }
-  const normalizer = normalizerOf(call, context);
+  const normalizer = readDrizzleNormalization(call, context);
   return normalizer === undefined ? traceCallableBody(call, path, context) : traceNormalizer(call, path, context, normalizer);
 }
 
 function traceIdentifier(node: import("ts-morph").Identifier, path: readonly string[], context: DrizzleValueContext): readonly JsonColumnOrigin[] {
-  const declaration = lexicalReferenceSymbol(node)?.getValueDeclaration();
+  const declaration = drizzleValueReaders(context).valueDeclaration(node);
   const bound = declaration === undefined ? undefined : context.bindings.get(declaration);
   if (bound !== undefined) {
     return traceJsonColumnValue(bound, path, context);
   }
-  const stable = resolveStableExpression(node);
+  const stable = drizzleValueReaders(context).stable(node);
   if (stable.kind === "resolved" && stable.value.compilerNode !== node.compilerNode) {
     return traceJsonColumnValue(stable.value, path, context);
   }
@@ -218,7 +243,7 @@ function traceIdentifier(node: import("ts-morph").Identifier, path: readonly str
       return traceJsonColumnValue(initializer, [name, ...path], context);
     }
   }
-  const declarations = node.getSymbol()?.getDeclarations() ?? [];
+  const declarations = drizzleValueReaders(context).declarations(node);
   if (node.getText() === "undefined" && declarations.every((item) => /^lib\..*\.d\.ts$/u.test(item.getSourceFile().getBaseName()))) {
     return [MISSING];
   }
@@ -244,12 +269,12 @@ function traceEntered(node: MorphNode, path: readonly string[], context: Drizzle
   if (Node.isElementAccessExpression(node) && Node.isNumericLiteral(node.getArgumentExpression())) {
     return traceJsonColumnValue(node.getExpression(), [ARRAY_ITEM, ...path], context);
   }
-  const member = staticMemberAccess(node);
+  const member = drizzleValueReaders(context).member(node);
   return member === undefined ? [CALLER] : traceJsonColumnValue(member.receiver, [member.name, ...path], context);
 }
 
 function unboundRootParameter(node: MorphNode, context: DrizzleValueContext): boolean {
-  const binding = resolveStableExpression(node);
+  const binding = drizzleValueReaders(context).stable(node);
   const declaration = binding.kind === "resolved" ? binding.value : binding.node;
   return Node.isParameterDeclaration(declaration) && !context.bindings.has(declaration);
 }
@@ -292,23 +317,23 @@ function incomingField(node: MorphNode, path: readonly string[], context: Drizzl
     return;
   }
   const next = new Set(seen).add(current.compilerNode);
-  if (Node.isCallExpression(current) && normalizerOf(current, context) !== undefined) {
+  if (Node.isCallExpression(current) && readDrizzleNormalization(current, context) !== undefined) {
     const input = current.getArguments()[0];
     return input === undefined ? undefined : incomingField(input, path, context, next);
   }
-  const member = staticMemberAccess(current);
+  const member = drizzleValueReaders(context).member(current);
   if (member !== undefined) {
     return incomingField(member.receiver, [member.name, ...path], context, next);
   }
   if (!Node.isIdentifier(current)) {
     return;
   }
-  const declaration = lexicalReferenceSymbol(current)?.getValueDeclaration();
+  const declaration = drizzleValueReaders(context).valueDeclaration(current);
   const bound = declaration === undefined ? undefined : context.bindings.get(declaration);
   if (bound !== undefined) {
     return incomingField(bound, path, context, next);
   }
-  const binding = resolveStableExpression(current);
+  const binding = drizzleValueReaders(context).stable(current);
   const value = binding.kind === "resolved" ? binding.value : binding.node;
   if (Node.isBindingElement(value)) {
     return parameterProjection(value, path, context, next);
@@ -352,24 +377,24 @@ function providedField(node: MorphNode, expected: IncomingField, context: Drizzl
     return Node.isSpreadElement(spread) && providedField(spread.getExpression(), expected, context, next);
   }
   if (Node.isIdentifier(current)) {
-    const binding = resolveStableExpression(current);
+    const binding = drizzleValueReaders(context).stable(current);
     return binding.kind === "resolved" && binding.value.compilerNode !== current.compilerNode && providedField(binding.value, expected, context, next);
   }
   if (!Node.isCallExpression(current)) {
     return false;
   }
-  const returns = readCallReturns(current);
+  const returns = drizzleValueReaders(context).returns(current);
   if (returns.kind === "unresolved") {
     return false;
   }
   const args = current.getArguments();
   const supplied = args.filter((argument) => !traceJsonColumnValue(argument, [], context).every((origin) => origin.kind === "column"));
-  const bodyContext = { ...context, bindings: readCallBindings(current, returns.trace.origin, context.bindings) };
+  const bodyContext = { ...context, bindings: drizzleValueReaders(context).bindings(current, returns.trace.origin, context.bindings) };
   // Calls may derive the supplied field (the RPG record merge does); every incoming input and
   // captured field must still be this exact receiver/member, not an unrelated optional axis.
   const captures = returns.trace.origin
     .getDescendants()
-    .filter((child) => staticMemberAccess(child) !== undefined)
+    .filter((child) => drizzleValueReaders(context).member(child) !== undefined)
     .map((child) => incomingField(child, [], bodyContext))
     .filter((field) => field !== undefined);
   return (
@@ -394,7 +419,7 @@ export function traceJsonColumnValue(node: MorphNode, path: readonly string[], c
   const next = { ...context, active: new Set(context.active).add(current.compilerNode) };
   const values = traceEntered(current, path, next);
   if (path.length > 0 && !unboundRootParameter(current, context)) {
-    const claimed = schemaRowOriginIdentity(current);
+    const claimed = drizzleValueReaders(context).rowIdentity(current);
     if (claimed !== undefined) {
       const table = tableOf(claimed, context);
       if (table !== undefined && values.some((value) => value.kind !== "missing" && (value.kind !== "column" || value.table !== table))) {

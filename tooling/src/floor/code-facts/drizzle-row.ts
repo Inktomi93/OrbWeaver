@@ -2,13 +2,14 @@
 import type { ArrowFunction, BindingElement, FunctionDeclaration, FunctionExpression, Node, ParameterDeclaration, Type } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { readCallTarget } from "./call-returns.ts";
-import type { ColumnRead, RowModels } from "./drizzle-row-contract.ts";
+import type { ColumnRead, RowModels, RowReadServices } from "./drizzle-row-contract.ts";
 import { ROW_PROJECTIONS } from "./drizzle-row-type.ts";
 import { readStaticString, resolveLexicalValueDeclaration } from "./reference-fact.ts";
 import { literalString as readStringValue } from "./reference-fact-static.ts";
 import type { SchemaModel, SchemaQuery } from "./schema-model-contract.ts";
 import { resolveTypeIdentityOrigin } from "./type-member-origin.ts";
 import { resolveTypePropertyOrigin } from "./type-member-origin-core.ts";
+import type { NativeSelectedType } from "./type-projection-contract.ts";
 
 export function rowModels(model: SchemaModel): RowModels {
   const select = new Set<unknown>();
@@ -30,18 +31,23 @@ export function rowModels(model: SchemaModel): RowModels {
 
 /** The candidate column read at `node`, or undefined for any other node. */
 export function columnReadAt(node: Node): ColumnRead | undefined {
+  return columnReadAtWith(node, readStaticString);
+}
+
+/** Supplied native scalar facts retain the existing candidate and authored-anchor grammar. */
+export function columnReadAtWith(node: Node, string: typeof readStaticString): ColumnRead | undefined {
   if (N.isPropertyAccessExpression(node)) {
     const column = node.getName();
     return { column, anchor: node.getNameNode(), offset: 0, token: column, receiver: node.getExpression(), value: node };
   }
   if (N.isElementAccessExpression(node)) {
-    return keyedRead(node.getArgumentExpression(), node.getExpression(), node);
+    return keyedRead(node.getArgumentExpression(), node.getExpression(), node, string);
   }
   return N.isBindingElement(node) ? destructuredRead(node) : undefined;
 }
 
 // `row["col"]` names the column in a literal (the position is inside the quotes); `row[KEY]` through a const string.
-function keyedRead(key: Node | undefined, receiver: Node, value: Node): ColumnRead | undefined {
+function keyedRead(key: Node | undefined, receiver: Node, value: Node, string: typeof readStaticString): ColumnRead | undefined {
   if (key === undefined) {
     return;
   }
@@ -49,7 +55,7 @@ function keyedRead(key: Node | undefined, receiver: Node, value: Node): ColumnRe
   if (literal !== undefined) {
     return { column: literal, anchor: key, offset: 1, token: literal, receiver, value };
   }
-  const bound = N.isIdentifier(key) ? readStaticString(key) : undefined;
+  const bound = N.isIdentifier(key) ? string(key) : undefined;
   return bound?.kind === "resolved" ? { column: bound.value, anchor: key, offset: 0, token: key.getText(), receiver, value } : undefined;
 }
 
@@ -77,18 +83,62 @@ export function columnValueType(read: ColumnRead): Type {
 // TypeScript's own projections of an object type keep every kept field's type, so a projected row is still a row.
 
 // A table's own model by type identity, or a TypeScript projection of it, or an intersection carrying either.
+interface ModelTypePart<Identity> {
+  readonly identity: Identity;
+  readonly alias: string | null;
+  readonly arguments: readonly Identity[];
+}
+
+function modelPartsMatch<Identity>(parts: readonly ModelTypePart<Identity>[], matches: (identity: Identity) => boolean): boolean {
+  return parts.some((part) => matches(part.identity) || (ROW_PROJECTIONS.has(part.alias ?? "") && part.arguments.some(matches)));
+}
+
 export function isModelType(type: Type, models: ReadonlySet<unknown>): boolean {
   const bare = type.getNonNullableType();
-  return (bare.isIntersection() ? [bare, ...bare.getIntersectionTypes()] : [bare]).some(
-    (part) =>
-      models.has(part.compilerType) ||
-      (ROW_PROJECTIONS.has(part.getAliasSymbol()?.getName() ?? "") && part.getAliasTypeArguments().some((arg) => models.has(arg.compilerType))),
+  return modelPartsMatch(
+    (bare.isIntersection() ? [bare, ...bare.getIntersectionTypes()] : [bare]).map((part) => ({
+      identity: part.compilerType,
+      alias: part.getAliasSymbol()?.getName() ?? null,
+      arguments: part.getAliasTypeArguments().map((argument) => argument.compilerType),
+    })),
+    (identity) => models.has(identity),
   );
 }
 
+/** Nonnullable selection and native identity links retain the same row-model grammar without a Type facade. */
+export function isObservedModelType(type: NativeSelectedType | null, models: ReadonlySet<number>): boolean {
+  return (
+    type !== null &&
+    modelPartsMatch(
+      type.parts.map((part) => ({ identity: part.identity, alias: part.aliasName, arguments: part.aliasArguments })),
+      (identity) => identity !== null && models.has(identity),
+    )
+  );
+}
+
+/** Native callers supply the canonical model/query; delivery captures these questions in the same world. */
+export function nativeRowReadServices(models: RowModels, query: SchemaQuery): RowReadServices {
+  return {
+    model: (node, path): boolean => {
+      let type: Type | undefined = node.getType();
+      for (const key of path) {
+        type = type?.getNonNullableType().getProperty(key)?.getTypeAtLocation(node);
+      }
+      return type !== undefined && isModelType(type, models.select);
+    },
+    exactModel: (node) => models.select.has(node.getType().compilerType),
+    identity: resolveTypeIdentityOrigin,
+    property: resolveTypePropertyOrigin,
+    lexical: resolveLexicalValueDeclaration,
+    target: readCallTarget,
+    columnDeclaration: (node) => models.columns.has(node.compilerNode),
+    columnReference: (node) => query.column(node).kind === "resolved",
+  };
+}
+
 // `type X = Pick<Row, …>`: an authored alias over a TypeScript projection of a select model.
-function aliasProjectsRow(receiver: Node, models: ReadonlySet<unknown>): boolean {
-  const origin = resolveTypeIdentityOrigin(receiver);
+function aliasProjectsRow(receiver: Node, readers: RowReadServices): boolean {
+  const origin = readers.identity(receiver);
   return (
     origin.kind === "resolved" &&
     origin.value.declarations.some((declaration) => {
@@ -97,7 +147,7 @@ function aliasProjectsRow(receiver: Node, models: ReadonlySet<unknown>): boolean
         node !== undefined &&
         N.isTypeReference(node) &&
         ROW_PROJECTIONS.has(node.getTypeName().getText()) &&
-        node.getTypeArguments().some((arg) => models.has(arg.getType().compilerType))
+        node.getTypeArguments().some((arg) => readers.exactModel(arg))
       );
     })
   );
@@ -108,27 +158,26 @@ function aliasProjectsRow(receiver: Node, models: ReadonlySet<unknown>): boolean
 // DELIBERATELY NOT `shapeFitsColumns`, the row-shape test `pnpm ast columns` reads by: that test is over-inclusive on
 // purpose (a rot lens may over-count reads), and here it judges every verb input or insert object whose fields are all
 // column names to be a row — measured 2026-10-11, 26 such sites on this tree.
-function isRowNode(node: Node, column: string, models: RowModels, query: SchemaQuery): boolean {
-  if (isModelType(node.getType(), models.select) || aliasProjectsRow(node, models.select)) {
+function isRowNode(node: Node, column: string, readers: RowReadServices): boolean {
+  if (readers.model(node, []) || aliasProjectsRow(node, readers)) {
     return true;
   }
-  const origin = resolveTypePropertyOrigin(node, column);
+  const origin = readers.property(node, column);
   return (
     origin.kind === "resolved" &&
     origin.value.some(
       (declaration) =>
-        models.columns.has(declaration.compilerNode) ||
-        (N.isPropertyAssignment(declaration) && query.column(declaration.getInitializerOrThrow()).kind === "resolved"),
+        readers.columnDeclaration(declaration) || (N.isPropertyAssignment(declaration) && readers.columnReference(declaration.getInitializerOrThrow())),
     )
   );
 }
 
 // The parameter a receiver reads, and the property path below it: the parameter itself (`card.col`), its binding
 // (`({ col }: Card)`), or a binding nested in its pattern (`({ card: { col } }: Wrap)` is path `["card"]`).
-function parameterPath(receiver: Node): { readonly param: ParameterDeclaration; readonly path: readonly string[] } | undefined {
+function parameterPath(receiver: Node, readers: RowReadServices): { readonly param: ParameterDeclaration; readonly path: readonly string[] } | undefined {
   let node: Node = receiver;
   if (N.isIdentifier(receiver)) {
-    const binding = resolveLexicalValueDeclaration(receiver);
+    const binding = readers.lexical(receiver);
     if (binding.kind === "unresolved") {
       return;
     }
@@ -144,21 +193,14 @@ function parameterPath(receiver: Node): { readonly param: ParameterDeclaration; 
 }
 
 // A call argument's value at a property path is a select row: the argument itself, or the model type its path reaches.
-function argumentRowAt(arg: Node, path: readonly string[], models: RowModels, isRow: (node: Node) => boolean): boolean {
-  if (path.length === 0) {
-    return isRow(arg);
-  }
-  let type: Type | undefined = arg.getType();
-  for (const key of path) {
-    type = type?.getNonNullableType().getProperty(key)?.getTypeAtLocation(arg);
-  }
-  return type !== undefined && isModelType(type, models.select);
+function argumentRowAt(arg: Node, path: readonly string[], readers: RowReadServices, isRow: (node: Node) => boolean): boolean {
+  return path.length === 0 ? isRow(arg) : readers.model(arg, path);
 }
 
 // One hop: a parameter of a function in this file that some call in this file hands a select row, read directly or
 // through its destructuring pattern. A hand-typed parameter does not launder the row it receives.
-function parameterTakesRow(receiver: Node, column: string, models: RowModels, query: SchemaQuery): boolean {
-  const reached = parameterPath(receiver);
+function parameterTakesRow(receiver: Node, column: string, readers: RowReadServices): boolean {
+  const reached = parameterPath(receiver, readers);
   const fn = reached === undefined ? undefined : asHelper(reached.param.getParent());
   if (reached === undefined || fn === undefined) {
     return false;
@@ -171,15 +213,20 @@ function parameterTakesRow(receiver: Node, column: string, models: RowModels, qu
       const arg = call.getArguments()[index];
       return (
         arg !== undefined &&
-        helperOf(call.getExpression())?.compilerNode === fn.compilerNode &&
-        argumentRowAt(arg, reached.path, models, (node) => isRowNode(node, column, models, query))
+        helperOfWith(call.getExpression(), readers.target)?.compilerNode === fn.compilerNode &&
+        argumentRowAt(arg, reached.path, readers, (node) => isRowNode(node, column, readers))
       );
     });
 }
 
 /** Is the read taken off a select row, directly or through one parameter hop? */
 export function readsSelectRow(read: ColumnRead, models: RowModels, query: SchemaQuery): boolean {
-  return isRowNode(read.receiver, read.column, models, query) || parameterTakesRow(read.receiver, read.column, models, query);
+  return readsSelectRowWith(read, nativeRowReadServices(models, query));
+}
+
+/** The canonical same-file helper fence and row grammar consume either native or delivered questions. */
+export function readsSelectRowWith(read: ColumnRead, readers: RowReadServices): boolean {
+  return isRowNode(read.receiver, read.column, readers) || parameterTakesRow(read.receiver, read.column, readers);
 }
 
 type Helper = FunctionDeclaration | ArrowFunction | FunctionExpression;
@@ -190,10 +237,15 @@ function asHelper(node: Node): Helper | undefined {
 
 /** The canonical authored body of a callee occurrence, not a second binding/import reader. */
 export function helperOf(callee: Node): Helper | undefined {
+  return helperOfWith(callee, readCallTarget);
+}
+
+/** Supplied target facts retain the helper reader's exact authored callable grammar. */
+export function helperOfWith(callee: Node, targetOf: RowReadServices["target"]): Helper | undefined {
   const call = callee.getParentIfKind(SyntaxKind.CallExpression);
   if (call === undefined || call.getExpression() !== callee) {
     return;
   }
-  const target = readCallTarget(call);
+  const target = targetOf(call);
   return target.kind === "resolved" ? asHelper(target.value) : undefined;
 }

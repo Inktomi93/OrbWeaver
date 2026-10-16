@@ -8,18 +8,19 @@
 // DECLARED LIMITS (mustPass rows): an open column is `open-json-column-key-parity`'s subject; a value written straight
 // back under its own key (a drizzle write builder, an insert-model literal, an assignment) or only presence-tested is not consumed.
 // FAMILY `open-json-column-key-parity`: the open-json-column family, reading the shared `drizzleSchemaFact`.
-import type { CallExpression, Node, Type } from "ts-morph";
+import type { CallExpression, Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import { observeCallReturns } from "../../floor/code-facts/call-returns.ts";
-import { columnReadAt, columnValueType, readsSelectRow, rowModels } from "../../floor/code-facts/drizzle-row.ts";
+import { columnReadAtWith, readsSelectRowWith } from "../../floor/code-facts/drizzle-row.ts";
 import type { ColumnRead } from "../../floor/code-facts/drizzle-row-contract.ts";
-import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { bindingUsesJudged, isDirectParse, isParsedValue, isPresenceTest, isReturnedParsedValue, isWriteSink } from "../lib/json-column-read.ts";
+import type { jsonColumnObservedReaders } from "../lib/json-column-observed-readers.ts";
+import { jsonColumnObservationPlan, jsonColumnObservedCohort } from "../lib/json-column-observed-readers.ts";
+import { bindingUsesJudgedWith, isParsedValueWith, isPresenceTest, isReturnedParsedValueFact, isWriteSinkWith } from "../lib/json-column-read.ts";
 import { isBoundary } from "../lib/ordinary-waiver-carrier.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const ZOD_DERIVED_RE = /^z\.(?:infer|output)<typeof (?<schema>\w+)>$/u;
 
@@ -36,12 +37,6 @@ const FIX =
 
 const lowerFirst = (name: string): string => name.charAt(0).toLowerCase() + name.slice(1);
 
-/** The named type a column holds: T, or the element of `T[]`/`readonly T[]`. */
-function namedType(type: Type): Type {
-  const bare = type.getNonNullableType();
-  return bare.getArrayElementType() ?? bare;
-}
-
 /** The `$type<T>` argument with array and `readonly` wrappers removed. */
 function namedTypeNode(node: Node): Node {
   if (N.isTypeOperatorTypeNode(node)) {
@@ -51,9 +46,9 @@ function namedTypeNode(node: Node): Node {
 }
 
 /** The zod twin's name for one `$type<T>` argument, or undefined when T has none. */
-function twinOf(typeNode: Node): string | undefined {
+function twinOf(typeNode: Node, delivered: ReturnType<typeof jsonColumnObservedReaders>): string | undefined {
   const named = namedTypeNode(typeNode);
-  const origin = N.isTypeReference(named) ? resolveModuleMemberOrigin(named.getTypeName()) : undefined;
+  const origin = N.isTypeReference(named) ? delivered.schemaReaders.module(named.getTypeName()) : undefined;
   if (origin?.kind !== "resolved") {
     return;
   }
@@ -65,18 +60,26 @@ function twinOf(typeNode: Node): string | undefined {
     }
   }
   const expected = `${lowerFirst(exportedName)}Schema`;
-  return declaration.getSourceFile().getExportedDeclarations().has(expected) ? expected : undefined;
+  return delivered.exports(declaration.getSourceFile()).includes(expected) ? expected : undefined;
 }
 
 /** Column property name to (T's compiler type to twin name), for every typed JSON column whose T has a twin. */
-function typedColumns(model: SchemaModel): Map<string, Map<unknown, string>> {
-  const typed = new Map<string, Map<unknown, string>>();
+function typedColumns(model: SchemaProjectedModel, delivered: ReturnType<typeof jsonColumnObservedReaders>): Map<string, Map<number, string>> {
+  const typed = new Map<string, Map<number, string>>();
   for (const column of model.tables.flatMap((table) => table.columns)) {
     const override = column.typeOverride;
-    const twin = column.json === null || column.json.shape.kind === "open" || override === null ? undefined : twinOf(override.node);
+    const twin = column.json === null || column.json.shape.kind === "open" || override === null ? undefined : twinOf(override.node, delivered);
     if (twin !== undefined && override !== null) {
-      const byType = typed.get(column.identity.propertyName) ?? new Map<unknown, string>();
-      byType.set(namedType(override.type).compilerType, twin);
+      const byType = typed.get(column.identity.propertyName) ?? new Map<number, string>();
+      const named = delivered.selected({
+        base: { kind: "schema-column", column: column.identity.key },
+        steps: [{ kind: "nonnullable" }, { kind: "array-element-or-self" }],
+        displayAt: null,
+      });
+      if (named === null) {
+        throw new Error("native typed JSON override Type is unavailable");
+      }
+      byType.set(named.identity, twin);
       typed.set(column.identity.propertyName, byType);
     }
   }
@@ -114,6 +117,37 @@ function outermostPerRegion(reads: readonly UnparsedRead[]): readonly UnparsedRe
   return kept;
 }
 
+interface TypedReadWorld {
+  readonly columns: ReturnType<typeof typedColumns>;
+  readonly parsers: ReadonlySet<CallExpression["compilerNode"]>;
+}
+function unparsedCandidate(candidate: Node, value: ReturnType<typeof jsonColumnObservedReaders>, types: TypedReadWorld): readonly UnparsedRead[] {
+  const read = columnReadAtWith(candidate, value.schemaReaders.string);
+  if (read === undefined) {
+    return [];
+  }
+  const receiver = value.selected({
+    base: { kind: "node", node: read.receiver },
+    steps: [{ kind: "nonnullable" }, { kind: "property", name: read.column, at: read.receiver }, { kind: "nonnullable" }, { kind: "array-element-or-self" }],
+    displayAt: null,
+  });
+  const column =
+    receiver ??
+    value.selected({ base: { kind: "node", node: read.value }, steps: [{ kind: "nonnullable" }, { kind: "array-element-or-self" }], displayAt: null });
+  const twin = column === null ? undefined : types.columns.get(read.column)?.get(column.identity);
+  if (twin === undefined || !readsSelectRowWith(read, value.rowReaders)) {
+    return [];
+  }
+  const readers = value.readReaders;
+  const judged = N.isBindingElement(read.value.getParent())
+    ? bindingUsesJudgedWith(read, readers)
+    : isWriteSinkWith(read.value, read.column, readers) ||
+      isPresenceTest(read.value) ||
+      isParsedValueWith(read.value, readers) ||
+      isReturnedParsedValueFact(value.returned(read.value, []), types.parsers);
+  return judged ? [] : [{ read, twin, region: waiverRegion(read.value) }];
+}
+
 export const gate = defineGate({
   id: "json-column-read-parsed",
   family: "open-json-column-key-parity",
@@ -122,12 +156,17 @@ export const gate = defineGate({
   population: { in: ["@server"], under: ["**/persistence/**"] },
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const candidates: ColumnRead[] = [];
+    const candidates: Node[] = [];
+    let plan: InventoryInvocationPlan | undefined;
+    const native = ctx.nativeTypes;
+    if (native === undefined) {
+      throw new Error("native typed JSON read observations are unavailable");
+    }
     const calls: CallExpression[] = [];
     return {
       visitors: [
@@ -142,36 +181,42 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression, SyntaxKind.BindingElement],
           visit: (node): void => {
-            const read = columnReadAt(node);
-            if (read !== undefined) {
-              candidates.push(read);
-            }
+            candidates.push(node);
           },
         },
       ],
-      evaluate: () => {
-        const query = ctx.fact(drizzleSchemaFact);
-        const schema = query.schema();
-        recordReadySchemaFact(ctx, schema);
-        const typed = typedColumns(schema.value);
-        const models = rowModels(schema.value);
-        ctx.receipt({ kind: "population", source: "typed-json-columns-with-twin", members: [...typed.values()].reduce((n, m) => n + m.size, 0) });
-        const observations = observeCallReturns(calls);
-        const parsers = new Set(
-          observations.programs.flatMap((program) => program.calls.filter(({ call }) => isDirectParse(call)).map(({ call }) => call.compilerNode)),
+      prepare: (): void => {
+        plan = jsonColumnObservationPlan(
+          calls,
+          candidates.map((node) => ({ node: N.isBindingElement(node) ? node.getNameNode() : node, path: [] })),
         );
-        const reads = candidates.flatMap((read) => {
-          const twin = typed.get(read.column)?.get(namedType(columnValueType(read)).compilerType);
-          if (twin === undefined || !readsSelectRow(read, models, query)) {
-            return [];
+        native.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
+      },
+      evaluate: () => {
+        const schema = ctx.fact(drizzleSchemaDataFact);
+        recordReadySchemaFact(ctx, schema);
+        if (plan === undefined) {
+          throw new Error("native typed JSON read cohort was not prepared");
+        }
+        const delivered = jsonColumnObservedCohort(native.invocationEvidence(ctx.files, plan), schema.value);
+        const typed = new Map<object, TypedReadWorld>();
+        for (const value of delivered.values()) {
+          if (!typed.has(value.graph)) {
+            typed.set(value.graph, { columns: typedColumns(schema.value, value), parsers: new Set(value.graph.terminals.map((call) => call.compilerNode)) });
           }
-          const judged = N.isBindingElement(read.value.getParent())
-            ? bindingUsesJudged(read, models, query)
-            : isWriteSink(read.value, read.column, models, query) ||
-              isPresenceTest(read.value) ||
-              isParsedValue(read.value) ||
-              isReturnedParsedValue(read.value, observations, parsers);
-          return judged ? [] : [{ read, twin, region: waiverRegion(read.value) }];
+        }
+        const first = typed.values().next().value;
+        if (first === undefined) {
+          throw new Error("native typed JSON read cohort has no source anchor");
+        }
+        ctx.receipt({ kind: "population", source: "typed-json-columns-with-twin", members: [...first.columns.values()].reduce((n, m) => n + m.size, 0) });
+        const reads = candidates.flatMap((candidate) => {
+          const value = delivered.get(candidate.getSourceFile());
+          const types = value === undefined ? undefined : typed.get(value.graph);
+          if (value === undefined || types === undefined) {
+            throw new Error("native typed JSON read importing world is unavailable");
+          }
+          return unparsedCandidate(candidate, value, types);
         });
         for (const { read, twin } of outermostPerRegion(reads)) {
           ctx.report.node(read.anchor, { token: read.token, offset: read.offset, message: `Twin: \`${twin}\`. ${MESSAGE}` });

@@ -126,6 +126,7 @@ export interface GatePolicyContext {
 }
 
 export interface GatePolicyHooks {
+  readonly prepare?: () => void;
   readonly visitors?: readonly GatePolicyVisitor[];
   readonly visitFile?: (sourceFile: SourceFile) => void;
   readonly evaluate?: () => void;
@@ -279,7 +280,7 @@ export type PolicyExpectationKey = keyof typeof POLICY_EXPECTATION_KEY_TABLE;
  *  (#2001) and the fields `expectationFailure` matches per finding. `count`/`countFrom` count; these identify. */
 export const POLICY_EXPECTATION_IDENTITY_KEYS = ["line", "token", "messageIncludes"] as const satisfies readonly PolicyExpectationKey[];
 
-const POLICY_HOOK_KEY_TABLE = { visitors: true, visitFile: true, evaluate: true } as const satisfies Record<keyof GatePolicyHooks, true>;
+const POLICY_HOOK_KEY_TABLE = { visitors: true, visitFile: true, prepare: true, evaluate: true } as const satisfies Record<keyof GatePolicyHooks, true>;
 /** The hooks `create` may return, in the order the dispatcher runs them. */
 export const POLICY_HOOK_KEYS = keysOf(POLICY_HOOK_KEY_TABLE);
 

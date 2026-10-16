@@ -297,7 +297,12 @@ function assertDrizzleCohort(
 ): void {
   for (const partition of partitions) {
     const demand = withSchemaDependency(db, options, partitions, nativeDemandRequest(options, partition.program, partition.families));
-    if (!coversDrizzleDemand(db, partition, demand)) {
+    if (
+      !(
+        coversDrizzleDemand(db, partition, demand) &&
+        coversInvocationDemand(db, partition, demand.invocationQueries?.filter((query) => query.mode === "observations") ?? [], demand.schemaDependency ?? null)
+      )
+    ) {
       throw new Error("native Drizzle catalog/consumer dependency changed before publication");
     }
   }
@@ -653,7 +658,7 @@ function coversNativeDemand(
     coversCallableDemand(db, partition, demand.callableQueries ?? []) &&
     coversComputedDemand(db, partition, demand.computedNameQueries ?? []) &&
     coversGlobalDemand(db, partition, demand) &&
-    coversInvocationDemand(db, partition, demand.invocationQueries ?? []) &&
+    coversInvocationDemand(db, partition, demand.invocationQueries ?? [], demand.schemaDependency ?? null) &&
     coversDrizzleDemand(db, partition, demand)
   );
 }
@@ -716,7 +721,7 @@ function withSchemaDependency(
   partitions: readonly StoredInventoryPartition[],
   demand: ReturnType<typeof nativeDemandRequest>,
 ): ReturnType<typeof nativeDemandRequest> {
-  if ((demand.drizzleQueries?.length ?? 0) === 0) {
+  if ((demand.drizzleQueries?.length ?? 0) === 0 && demand.invocationQueries?.some((query) => query.mode === "observations") !== true) {
     return demand;
   }
   if (demand.schemaSources !== undefined || demand.schemaDataSources !== undefined) {
@@ -861,8 +866,14 @@ function coversInvocationDemand(
   db: ReturnType<typeof openInventoryDatabase>,
   partition: StoredInventoryPartition,
   queries: readonly InventoryInvocationQuery[],
+  observationBasis: import("./drizzle-inventory-contract.ts").InventorySchemaBasis | null = null,
 ): boolean {
-  return hasInventoryInvocationCoverage(db, partition.id, queries);
+  return hasInventoryInvocationCoverage(
+    db,
+    partition.id,
+    queries,
+    observationBasis === null ? null : { program: observationBasis.program, partition: observationBasis.partition },
+  );
 }
 function assertInvocationDemand(
   options: SemanticInventoryOptions,
@@ -880,7 +891,7 @@ function assertInvocationDemand(
 }
 
 function assertInvocationCoverage(db: ReturnType<typeof openInventoryDatabase>, candidate: StoredInventoryPartition, request: InventoryBuildRequest): void {
-  if (!coversInvocationDemand(db, candidate, request.invocationQueries ?? [])) {
+  if (!coversInvocationDemand(db, candidate, request.invocationQueries ?? [], request.schemaDependency ?? null)) {
     throw new Error(`native inventory worker supplied incomplete invocation coverage: ${request.descriptor.id}`);
   }
 }
