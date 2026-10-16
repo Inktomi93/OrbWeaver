@@ -42,4 +42,4 @@ The original callable diagnosis completes unresolved at a re-export missing capt
 
 Source lookup preserves admission and borrowed freshness. Supplied contexts stay transient; true cycles refuse. Callable-proof epochs bind reuse to its refinement read-set. Fresh closure retains an examined refusal through unused aliases. Review and ordinary controls pass. Evidence: `reports/review/1002-first-refusal-ordinary.md`. Env effects, target resolution, complete replay and cost remain open.
 
-Private first-exposure preservation passes review and ordinary controls except the partial-env missing-consumer failure. Target and cost remain unqualified. Evidence: `reports/review/1002-preservation-ordinary.md`.
+Preservation and missing-reference admission pass review and ordinary controls except the partial-env failure. Target and cost remain unqualified. Evidence: `reports/review/1002-captured-reference-source-ordinary.md`.

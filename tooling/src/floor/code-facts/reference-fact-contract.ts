@@ -245,6 +245,8 @@ export interface CallReturnProgram {
   readonly inheritedReadTrialActive?: () => boolean;
   /** Reached value calls extend this capture's neutral facts; a queued round is not an admitted result. */
   readonly demandValueCall?: (call: CallExpression) => ReferenceFact<true>;
+  /** Native-reached references enter the same source and dependency capture before interpretation. */
+  readonly demandReferenceSource?: (reference: Node, binding: Node) => ReferenceFact<true>;
   readonly nativeParsedValue?: (
     call: CallExpression,
     path: readonly string[],

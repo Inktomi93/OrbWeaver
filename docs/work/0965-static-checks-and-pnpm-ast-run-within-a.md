@@ -16,7 +16,7 @@ Measure checker and pnpm ast peaks against the hosted-runner budget. Diagnose re
 
 ## Why
 
-The project is public and builds on hosted runners and contributors' machines; a check that only fits on a large workstation is a broken check for everyone else.
+Public checks must fit hosted runners and contributor machines, not only a large workstation.
 
 ## Done when
 
@@ -40,4 +40,4 @@ The corrected frozen replay reaches its fixed deadline in the tests-DOM native w
 
 Reviewed `49d607fd3c` removes repeated path resolution and native import-map construction. Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. Sampled parent-plus-worker RSS peaks at 10.977 GiB without sampled swap; this is not a continuous physical-memory peak. Inputs revalidate and owned processes exit. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world replay, collector equivalence, concurrent reuse and hosted measurements remain open.
 
-Portable corpus contracts remove the Node and server import closure while retaining exhaustive Node router conformance. Other world totals remain unverified. Declaration bridges need freshness and closure qualification; complete inventory retains legacy evidence. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
+Portable corpus contracts remove the Node and server import closure while retaining exhaustive Node router conformance. Other world totals remain unverified. Declaration bridges need freshness and closure qualification; D320 retains legacy runtime and native typecheck evidence without semantic extraction. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.

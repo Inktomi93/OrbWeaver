@@ -2,7 +2,14 @@
 import type { CallExpression, Identifier, Node, ObjectLiteralExpression, ts } from "ts-morph";
 import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { nativeReferenceNodes, readonlyObjectProperties } from "../compiler/ts-workspace.ts";
-import { readCallBindings, readCallReturnProgram, readObservedCallableConsumers, readSuppliedParameter, runtimeUndefinedValue } from "./call-supplied.ts";
+import {
+  readCallBindings,
+  readCallReturnProgram,
+  readCallReturnReference,
+  readObservedCallableConsumers,
+  readSuppliedParameter,
+  runtimeUndefinedValue,
+} from "./call-supplied.ts";
 import {
   inspectBindingReassignment,
   inspectInheritedReadEffects,
@@ -600,7 +607,7 @@ function unrelatedDefaultBindingReference(value: Node, binding: Identifier, prog
   }
   const expected = callableCarrierSymbol(binding);
   const actual = callableCarrierSymbol(value);
-  return expected !== undefined && actual !== undefined && expected !== actual && readCallReturnProgram(value, { programs: [program] }).kind === "resolved";
+  return expected !== undefined && actual !== undefined && expected !== actual && readCallReturnReference(value, binding, program).kind === "resolved";
 }
 
 function defaultBindingUseRefusal(
@@ -1743,7 +1750,7 @@ function selectedCallableOriginUses(origin: ReturnedValueSource, receiver: Retur
   const program = proof.program;
   const endpoints = selectedCallableEndpoints(origin, receiver, proof);
   const missing = unprovenReferenceUse(name, (use, binding) => {
-    const admitted = readCallReturnProgram(use, { programs: [program] });
+    const admitted = readCallReturnReference(use, binding, program);
     if (admitted.kind === "unresolved") {
       return refuseCallableUse(proof, admitted);
     }
@@ -2258,7 +2265,7 @@ function computeCallableClosedUses(name: Identifier, proof: CallableUseProof): b
         return refuseCallableUse(proof, valueRefusal(reference, "ambiguous", "the callable carrier reference has no exact lexical binding"));
       }
       if (expected !== actual) {
-        const admitted = readCallReturnProgram(reference, { programs: [proof.program] });
+        const admitted = readCallReturnReference(reference, binding, proof.program);
         return admitted.kind === "resolved" || refuseCallableUse(proof, admitted);
       }
     }

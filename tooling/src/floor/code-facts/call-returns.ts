@@ -1606,6 +1606,50 @@ export function observeCallReturns(
       ? current
       : unresolved("missing", call, { declarations: [] }, "reached value call is unavailable in the published capture");
   };
+  const referenceSourceGroup = (reference: MorphNode, binding: MorphNode, captured: CallReturnProgram): ReferenceFact<CapturedCallGroup> => {
+    const admission = valueAdmission(binding, captured);
+    if (admission.kind === "unresolved") {
+      return admission;
+    }
+    if (reference.wasForgotten()) {
+      return unresolved("unsupported", reference, { declarations: [] }, "the reached native reference was forgotten");
+    }
+    const project = binding.getProject();
+    const source = reference.getSourceFile();
+    const group = groups.get(project);
+    if (
+      group === undefined ||
+      captured.sources !== group.sources ||
+      reference.getProject() !== project ||
+      captured.program.getSourceFile(source.getFilePath()) !== source.compilerNode
+    ) {
+      return unresolved("unsupported", reference, { declarations: [] }, "the reached reference is not the captured native Project source");
+    }
+    return { kind: "resolved", value: group, trace: { declarations: [binding], origin: reference } };
+  };
+  const demandReferenceSource = (reference: MorphNode, binding: MorphNode, captured: CallReturnProgram): ReferenceFact<true> => {
+    const admittedGroup = referenceSourceGroup(reference, binding, captured);
+    if (admittedGroup.kind === "unresolved") {
+      return admittedGroup;
+    }
+    const group = admittedGroup.value;
+    const source = reference.getSourceFile();
+    const changed = !(group.sources.has(source) && observedNodes.has(reference.compilerNode));
+    if (changed) {
+      beforeWrite(reference, () => demandReferenceSource(reference, binding, captured));
+      group.sources.set(source, source.compilerNode);
+      appendValueCapture([], [reference], new Set());
+    }
+    if (changed && !refining) {
+      publishCapture();
+      if (demandedOwners.size > 0 && projection.suppliedCallableTargets === true) {
+        settleDemands();
+      }
+    }
+    ledger.remember([reference, binding]);
+    const current = valueAdmission(reference, captured);
+    return current.kind === "unresolved" ? current : { kind: "resolved", value: true, trace: { declarations: [binding], origin: reference } };
+  };
   const inheritedCaptureInputs = (captured: CallReturnProgram): readonly (object | number | boolean | undefined)[] => [
     captured.program,
     captured.sources,
@@ -1687,8 +1731,16 @@ export function observeCallReturns(
   };
   const valueServices = (
     captured: () => CallReturnProgram,
-  ): Pick<CallReturnProgram, "demandValueCall" | "nativeParsedValue" | "nativeValueTransfers" | "nativeStatementReachable" | "nativeReturnPaths"> => ({
-    ...(references === undefined ? {} : { demandValueCall: (call: CallExpression) => demandValueCall(call, captured()) }),
+  ): Pick<
+    CallReturnProgram,
+    "demandValueCall" | "demandReferenceSource" | "nativeParsedValue" | "nativeValueTransfers" | "nativeStatementReachable" | "nativeReturnPaths"
+  > => ({
+    ...(references === undefined
+      ? {}
+      : {
+          demandValueCall: (call: CallExpression) => demandValueCall(call, captured()),
+          demandReferenceSource: (reference: MorphNode, binding: MorphNode) => demandReferenceSource(reference, binding, captured()),
+        }),
     nativeParsedValue: (call, path, context, services) => readZodParsedValue(call, path, context, { ...services, returnPaths: readFunctionReturnPaths }),
     ...(projection.nativeValueTransfers === true
       ? {

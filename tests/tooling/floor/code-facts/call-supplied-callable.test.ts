@@ -8,9 +8,11 @@ import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, ts } from "ts-morph";
 import { vi } from "vitest";
 import { observeCallReturns, readCallTargets, readSuppliedParameter } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
+import { readCallReturnReference } from "../../../../tooling/src/floor/code-facts/call-supplied.ts";
 import { beginReferencePass, endReferencePass } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
 import type { CallReturnObservations } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
 import { readAuthoredCallableSources, readReturnedValue } from "../../../../tooling/src/floor/code-facts/value-carrier.ts";
+import { nativeReferenceNodes } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 
 function queriedTargets(call: CallExpression, observations: CallReturnObservations): ReturnType<typeof readCallTargets> {
   const program = observations.programs[0];
@@ -965,6 +967,304 @@ for (const readonly of [false, true]) {
       }
     });
   }
+}
+
+for (const references of ["sparse", "explicit"] as const) {
+  for (const escaped of [false, true]) {
+    test(`captured barrel source participation ${references} ${escaped ? "escaped" : "safe"}`, () => {
+      const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+      const implementation = project.createSourceFile("/repo/chosen.ts", "export function chosen(){return 1;}");
+      const barrel = project.createSourceFile("/repo/barrel.ts", "export {chosen as renamed} from './chosen';");
+      const consumer = project.createSourceFile(
+        "/repo/consumer.ts",
+        `import {renamed as chosen} from './barrel';declare function escape(value:object):void;
+        function create(ctx:{settle:()=>number;payload:object}){const {payload}=ctx;escape(payload);return ctx.settle();}
+        const context={settle:chosen,payload:{}};create(context);`,
+      );
+      const sources = [implementation, barrel, consumer];
+      if (escaped) {
+        sources.push(
+          project.createSourceFile(
+            "/repo/other.ts",
+            "import {renamed} from './barrel';declare function escape(value:object):void;const alias=renamed;escape(alias);",
+          ),
+        );
+      }
+      const calls = consumer.getDescendantsOfKind(SyntaxKind.CallExpression);
+      const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+      if (selected === undefined) {
+        throw new Error("the selected barrel-supplied invocation is unavailable");
+      }
+      const declaration = implementation.getFunctionOrThrow("chosen");
+      const exported = barrel.getExportDeclarations()[0]?.getNamedExports()[0]?.getNameNode();
+      if (exported === undefined) {
+        throw new Error("the actual native re-export name is unavailable");
+      }
+      const exportedStart = exported.getStart();
+      const exportedEnd = exported.getEnd();
+      const sourceIdentity = barrel.compilerNode;
+      const nativeProgram = project.getProgram().compilerObject;
+      const service = project.getLanguageService().compilerObject;
+      const languageProgram = service.getProgram();
+      const createPass = service.createReadonlyReferencePass.bind(service);
+      let nativeReexportReferences = 0;
+      const referenceObservation = vi.spyOn(service, "createReadonlyReferencePass").mockImplementation(() => {
+        const pass = createPass();
+        const find = pass.findReferences.bind(pass);
+        vi.spyOn(pass, "findReferences").mockImplementation((...args) => {
+          const result = find(...args);
+          nativeReexportReferences += (result ?? [])
+            .flatMap((group) => group.references)
+            .filter(
+              (reference) =>
+                reference.fileName === "/repo/barrel.ts" &&
+                reference.textSpan.start < exportedEnd &&
+                reference.textSpan.start + reference.textSpan.length > exportedStart,
+            ).length;
+          return result;
+        });
+        return pass;
+      });
+      beginReferencePass();
+      try {
+        const observed = observeCallReturns(
+          calls,
+          (references === "sparse" ? [consumer] : sources).flatMap((source) => source.getDescendants()),
+          { suppliedCallableTargets: true },
+        );
+        const program = observed.programs[0];
+        if (program === undefined) {
+          throw new Error("the actual captured native program is unavailable");
+        }
+        const sourceMap = program.sources;
+        const barrelBefore = sourceMap.has(barrel);
+        expect(barrelBefore).toBe(references === "explicit");
+        const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+        const evidence = {
+          references,
+          escaped,
+          barrelBefore,
+          barrelAfter: program.sources.has(barrel),
+          sameSourceMap: program.sources === sourceMap,
+          sameNativeSource: barrel.compilerNode === sourceIdentity && nativeProgram.getSourceFile("/repo/barrel.ts") === sourceIdentity,
+          sameNativeProgram: project.getProgram().compilerObject === nativeProgram && program.program === nativeProgram,
+          sameLanguageProgram: service.getProgram() === languageProgram,
+          nativeReexportReferences,
+          result:
+            result.kind === "resolved"
+              ? { kind: result.kind }
+              : {
+                  kind: result.kind,
+                  detail: result.detail,
+                  file: result.node.getSourceFile().getFilePath(),
+                  start: result.node.getStart(),
+                  end: result.node.getEnd(),
+                },
+        };
+        console.log("captured-barrel-source", JSON.stringify(evidence));
+        expect(evidence.sameSourceMap).toBe(true);
+        expect(evidence.sameNativeSource).toBe(true);
+        expect(evidence.sameNativeProgram).toBe(true);
+        expect(evidence.sameLanguageProgram).toBe(true);
+        expect(nativeReexportReferences).toBeGreaterThan(0);
+        expect(result.kind, JSON.stringify(evidence)).toBe(escaped ? "unresolved" : "resolved");
+        expect(
+          result.kind === "resolved" && result.value.length > 0 && result.value.every((origin) => origin.value.compilerNode === declaration.compilerNode),
+        ).toBe(!escaped);
+      } finally {
+        endReferencePass();
+        referenceObservation.mockRestore();
+      }
+    });
+  }
+}
+
+function sparseBarrelProject(): {
+  project: Project;
+  implementation: SourceFile;
+  barrel: SourceFile;
+  consumer: SourceFile;
+  call: CallExpression;
+  binding: import("ts-morph").Identifier;
+} {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const implementation = project.createSourceFile("/repo/chosen.ts", "export function chosen(){return 1;}");
+  const barrel = project.createSourceFile("/repo/barrel.ts", "export {chosen as renamed} from './chosen';");
+  const consumer = project.createSourceFile("/repo/consumer.ts", "import {renamed} from './barrel';renamed();");
+  const call = consumer.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const binding = implementation.getFunctionOrThrow("chosen").getNameNodeOrThrow();
+  return { project, implementation, barrel, consumer, call, binding };
+}
+
+test("native reference source demand aborts a private trial before writing and retries after ordinary publication", () => {
+  const { project, implementation, barrel, consumer, call, binding } = sparseBarrelProject();
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns([call], consumer.getDescendants(), { suppliedCallableTargets: true });
+    const program = observed.programs[0];
+    const reference = nativeReferenceNodes(binding).find((node) => node.getSourceFile() === barrel);
+    if (program?.demandReferenceSource === undefined || program.withInheritedReadTrial === undefined || reference === undefined) {
+      throw new Error("the native reference capture services are unavailable");
+    }
+    const native = project.getProgram().compilerObject;
+    const sources = program.sources;
+    const calls = program.byCall;
+    const before = program.callableProofEpoch?.();
+    if (before === undefined) {
+      throw new Error("the captured input epoch is unavailable");
+    }
+    const demand = program.demandReferenceSource;
+    const snapshots: { barrel: boolean; sameCalls: boolean; referenceRevision: number | undefined }[] = [];
+    let attempts = 0;
+    const result = program.withInheritedReadTrial(binding, program, () => {
+      attempts++;
+      try {
+        return demand(reference, binding);
+      } finally {
+        snapshots.push({
+          barrel: sources.has(barrel),
+          sameCalls: program.byCall === calls,
+          referenceRevision: program.callableProofEpoch?.().referenceRevision,
+        });
+      }
+    });
+    expect(result.kind).toBe("resolved");
+    expect(attempts).toBe(2);
+    expect(snapshots[0]).toEqual({ barrel: false, sameCalls: true, referenceRevision: before.referenceRevision });
+    expect(program.sources === sources).toBe(true);
+    expect(sources.get(barrel) === barrel.compilerNode).toBe(true);
+    expect(program.callableProofEpoch?.().referenceRevision).toBe(before.referenceRevision + 1);
+    expect(program.byCall.size).toBe(calls.size);
+    expect(project.getProgram().compilerObject === native).toBe(true);
+    expect(program.inheritedReadTrialActive?.()).toBe(false);
+    const ordinary = readAuthoredCallableSources(call.getExpression(), (candidate) => program.byCall.has(candidate.compilerNode), observed);
+    expect(ordinary.kind).toBe("resolved");
+    expect(ordinary.kind === "resolved" && ordinary.value.every((source) => source.value === implementation.getFunctionOrThrow("chosen"))).toBe(true);
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const invalidation of [
+  "forgotten reference",
+  "changed source",
+  "foreign source",
+  "uncaptured binding",
+  "closed pass",
+  "replaced pass",
+  "cancellation",
+] as const) {
+  test(`native reference source demand refuses ${invalidation} before publication`, () => {
+    const { project, barrel, consumer, call, binding } = sparseBarrelProject();
+    const service = project.getLanguageService().compilerObject;
+    const create = service.createReadonlyReferencePass.bind(service);
+    let pass: ts.ReadonlyReferencePass | undefined;
+    const passObservation = vi.spyOn(service, "createReadonlyReferencePass").mockImplementation(() => {
+      pass = create();
+      return pass;
+    });
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns([call], consumer.getDescendants(), { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      let reference = nativeReferenceNodes(binding).find((node) => node.getSourceFile() === barrel);
+      if (program?.demandReferenceSource === undefined || reference === undefined || pass === undefined) {
+        throw new Error("the native reached reference and capture are unavailable");
+      }
+      const sources = program.sources;
+      const calls = program.byCall;
+      const before = program.callableProofEpoch?.().referenceRevision;
+      switch (invalidation) {
+        case "forgotten reference":
+          reference.forget();
+          break;
+        case "changed source":
+          barrel.replaceWithText("export {chosen as renamed} from './chosen';export const changed=1;");
+          break;
+        case "foreign source": {
+          const other = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+          reference = other.createSourceFile("/repo/barrel.ts", "const foreign=1;").getVariableDeclarationOrThrow("foreign").getNameNode();
+          break;
+        }
+        case "closed pass":
+          endReferencePass();
+          break;
+        case "replaced pass":
+          endReferencePass();
+          beginReferencePass();
+          break;
+        case "uncaptured binding":
+        case "cancellation":
+          break;
+      }
+      const demand = (node: import("ts-morph").Node, origin: import("ts-morph").Node): ReturnType<typeof readCallReturnReference> =>
+        readCallReturnReference(node, origin, program);
+      const requested = reference;
+      const anchor = invalidation === "uncaptured binding" ? requested : binding;
+      let cancelled = false;
+      let refusal = false;
+      if (invalidation === "cancellation") {
+        const cancellation = new ts.OperationCanceledException();
+        const validation = vi.spyOn(pass, "validate").mockImplementationOnce(() => {
+          throw cancellation;
+        });
+        try {
+          try {
+            demand(requested, binding);
+            throw new Error("native cancellation was not propagated");
+          } catch (error) {
+            if (error !== cancellation) {
+              throw error;
+            }
+            cancelled = true;
+          }
+        } finally {
+          validation.mockRestore();
+        }
+      } else {
+        refusal = demand(requested, anchor).kind === "unresolved";
+      }
+      expect({ cancelled, refusal }).toEqual({ cancelled: invalidation === "cancellation", refusal: invalidation !== "cancellation" });
+      expect(program.sources === sources).toBe(true);
+      expect(sources.has(barrel)).toBe(false);
+      expect(program.byCall === calls).toBe(true);
+      expect(program.callableProofEpoch?.().referenceRevision).toBe(before);
+    } finally {
+      endReferencePass();
+      passObservation.mockRestore();
+    }
+  });
+}
+
+for (const invalidation of ["mutation", "forget"] as const) {
+  test(`native reference source participation invalidates after admitted barrel ${invalidation}`, () => {
+    const { barrel, consumer, call, binding } = sparseBarrelProject();
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns([call], consumer.getDescendants(), { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      const reference = nativeReferenceNodes(binding).find((node) => node.getSourceFile() === barrel);
+      if (program?.demandReferenceSource === undefined || reference === undefined) {
+        throw new Error("the native reference capture service is unavailable");
+      }
+      expect(program.demandReferenceSource(reference, binding).kind).toBe("resolved");
+      const revision = program.callableProofEpoch?.().referenceRevision;
+      const calls = program.byCall;
+      expect(program.demandReferenceSource(reference, binding).kind).toBe("resolved");
+      expect(program.callableProofEpoch?.().referenceRevision).toBe(revision);
+      expect(program.byCall === calls).toBe(true);
+      if (invalidation === "mutation") {
+        barrel.replaceWithText("export {chosen as renamed} from './chosen';export const changed=1;");
+      } else {
+        barrel.forget();
+      }
+      const result = readAuthoredCallableSources(call.getExpression(), (candidate) => program.byCall.has(candidate.compilerNode), observed);
+      expect(result.kind).toBe("unresolved");
+      expect(result.kind === "unresolved" ? result.reason : undefined).toBe("unsupported");
+    } finally {
+      endReferencePass();
+    }
+  });
 }
 
 for (const readonly of [false, true]) {

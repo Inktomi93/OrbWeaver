@@ -177,6 +177,19 @@ export function readCallBindings(call: CallExpression, owner: MorphNode, previou
   return bindings;
 }
 
+/** Native reference traversal may reach an uncaptured source, but only its existing capture owner can admit it. */
+export function readCallReturnReference(reference: MorphNode, binding: MorphNode, program: CallReturnProgram): ReferenceFact<CallReturnProgram> {
+  const current = readCallReturnProgram(reference, { programs: [program] });
+  if (current.kind === "resolved" || reference.wasForgotten() || program.sources.has(reference.getSourceFile())) {
+    return current;
+  }
+  const demanded = program.demandReferenceSource?.(reference, binding);
+  if (demanded === undefined) {
+    return current;
+  }
+  return demanded.kind === "unresolved" ? demanded : readCallReturnProgram(reference, { programs: [program] });
+}
+
 /** Exact native world/epoch admission precedes every use of captured callable/return nodes. */
 export function readCallReturnProgram(node: MorphNode, observations: CallReturnObservations): ReferenceFact<CallReturnProgram> {
   if (node.wasForgotten()) {
