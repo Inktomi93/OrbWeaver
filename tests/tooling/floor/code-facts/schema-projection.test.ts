@@ -13,7 +13,7 @@ import { schemaProjectionInventorySchema } from "../../../../tooling/src/floor/c
 import { replaySchemaDataCatalog } from "../../../../tooling/src/floor/code-facts/schema-projection-replay.ts";
 import { createSchemaQuery } from "../../../../tooling/src/floor/code-facts/schema-query.ts";
 import type { InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
-import { drizzleSchemas, spanSchema } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { drizzleSchemas, schemaConfigurationWireSchema, spanSchema } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { encodeSchemaDataCatalog } from "../../../../tooling/src/floor/compiler/schema-projection-encode.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -150,7 +150,7 @@ test(
       symbols.mockRestore();
       types.mockRestore();
     }
-    const schema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog);
+    const schema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog, schemaConfigurationWireSchema);
     const missing = structuredClone(wire);
     if (missing.fact.status !== "ready") {
       throw new Error("corruption fixture is unavailable");
@@ -231,6 +231,87 @@ test(
 );
 
 test(
+  "canonical imported builder configuration is opt-in, closed and absent from default schema data",
+  async ({ plantedTree, repoRoot }) => {
+    const fixture = await nativeFixture(
+      { plantedTree, repoRoot },
+      { producer: `${SCOPE_HEAD}export const read=(db:Db)=>db.select().from(assets);`, recipient: "" },
+    );
+    const source = fixture.project.getSourceFileOrThrow(join(fixture.root, "packages/db/src/schema/persona.ts"));
+    fixture.project.createSourceFile(
+      join(fixture.root, "packages/db/src/config.ts"),
+      "const BASE=['one'] as const;export const KINDS=[...BASE,'two'] as const;export const CONFIG={enum:KINDS};",
+    );
+    source.addStatements(
+      "import {CONFIG} from '../config.ts';export const configured=sqliteTable('configured',{value:text('value',CONFIG), absent:text('absent')});",
+    );
+    const options = {
+      files: [source],
+      relativePath: (file: SourceFile): string => file.getFilePath().slice(fixture.root.length + 1),
+      checker: () => fixture.project.getTypeChecker(),
+    };
+    const canonical = createSchemaQuery(options).schema();
+    const ordinary = projectSchemaData(canonical);
+    const projection = { builderConfig: true } as const;
+    const captured = projectSchemaData(canonical, projection);
+    if (captured.status !== "ready") {
+      throw new Error("canonical configuration catalog unavailable");
+    }
+    const table = captured.value.tables.find((value) => value.sqlName === "configured");
+    const config = table?.columns[0]?.configuration;
+    expect(table?.columns[1]?.configuration).toBeNull();
+    expect(config?.entries).toMatchObject({ kind: "resolved", value: [{ name: "enum" }] });
+    expect(config?.values.map(({ node }) => node.getText())).toEqual(["KINDS", "BASE", "'one'", "'two'"]);
+    const wire = encodeSchemaDataCatalog(options.files, captured, span, { relativePath: options.relativePath, projection });
+    const ordinaryWire = encodeSchemaDataCatalog(options.files, ordinary, span, { relativePath: options.relativePath });
+    const carriers = new Project({ useInMemoryFileSystem: true });
+    const replay = replayFrom(fixture.project, carriers);
+    const symbols = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(() => {
+      throw new Error("configuration replay cannot read Symbol");
+    });
+    const types = vi.spyOn(Node.prototype, "getType").mockImplementation(() => {
+      throw new Error("configuration replay cannot read Type");
+    });
+    try {
+      expect(replaySchemaDataCatalog(wire, replay, {})).toEqual(replaySchemaDataCatalog(ordinaryWire, replay));
+      const restored = replaySchemaDataCatalog(wire, replay, projection);
+      expect(
+        encodeSchemaDataCatalog([carriers.getSourceFileOrThrow(source.getFilePath())], restored, span, { relativePath: options.relativePath, projection }),
+      ).toEqual(wire);
+      expect(() => replaySchemaDataCatalog(ordinaryWire, replay, projection)).toThrow("configuration was not captured");
+      if (wire.fact.status !== "ready") {
+        throw new Error("configuration wire unavailable");
+      }
+      const schema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog, schemaConfigurationWireSchema);
+      const missing = structuredClone(wire);
+      if (missing.fact.status !== "ready") {
+        throw new Error("configuration wire unavailable");
+      }
+      const first = missing.fact.value.tables[0]?.columns[0];
+      if (first === undefined) {
+        throw new Error("configuration column unavailable");
+      }
+      Reflect.deleteProperty(first, "configuration");
+      expect(schema.safeParse(missing).success).toBe(false);
+      expect(schema.safeParse({ ...wire, projection: {} }).success).toBe(false);
+      const configured = wire.fact.value.tables.find((value) => value.sqlName === "configured")?.columns[0]?.configuration;
+      if (configured === undefined || configured === null) {
+        throw new Error("configuration graph unavailable");
+      }
+      const firstValue = configured.values[0];
+      if (firstValue === undefined) {
+        throw new Error("configuration value unavailable");
+      }
+      expect(() => replay({ ...firstValue.node, file: "/foreign.ts" })).toThrow();
+    } finally {
+      symbols.mockRestore();
+      types.mockRestore();
+    }
+  },
+  scaledBudget(30_000),
+);
+
+test(
   "selected canonical schema Types supply opted-in vocabulary and default catalog data remains identical",
   async ({ plantedTree, repoRoot }) => {
     const fixture = await nativeFixture(
@@ -295,7 +376,7 @@ test(
         throw new Error("wire override unavailable");
       }
       expect(
-        schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog).safeParse({
+        schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog, schemaConfigurationWireSchema).safeParse({
           ...invalid,
           fact: {
             ...invalid.fact,

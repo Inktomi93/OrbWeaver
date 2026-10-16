@@ -7,8 +7,9 @@ import { DRIZZLE_EVIDENCE_MODES } from "./drizzle-evidence-contract.ts";
 import type { DrizzleTableRef } from "./drizzle-table-ref.ts";
 import type { CalledMember } from "./drizzle-write-chain-contract.ts";
 import type { SchemaIdentityModel, SchemaIdentityTable } from "./schema-identity-contract.ts";
-import type { SchemaFact } from "./schema-model-contract.ts";
+import type { SchemaColumnIdentity, SchemaFact } from "./schema-model-contract.ts";
 import { SCHEMA_FACT_STATUSES } from "./schema-model-contract.ts";
+import type { InventorySchemaProjectedCatalog } from "./schema-projection-inventory-contract.ts";
 import type { InventoryInput, InventoryInvocationReference, InventorySpan } from "./semantic-inventory-contract.ts";
 
 type SpanFields<Value> = { readonly [Key in keyof Value]: Value[Key] extends Node ? InventorySpan : Value[Key] };
@@ -33,6 +34,7 @@ export interface InventorySchemaDependency extends InventorySchemaBasis {
   readonly descriptorVersion: string;
   readonly inputs: readonly InventoryInput[];
   readonly catalog: InventorySchemaIdentityCatalog;
+  readonly columns?: readonly SchemaColumnIdentity[];
 }
 
 type InventoryCalledMember = SpanFields<Omit<CalledMember, "declarations">> & { readonly declarations: readonly InventorySpan[] };
@@ -57,6 +59,7 @@ export interface InventoryDrizzleTableEvidence {
 }
 
 export type InventoryDrizzleCallEvidence =
+  | { readonly mode: "column"; readonly column: InventoryInvocationReference<string> }
   | {
       readonly mode: "called-member";
       readonly member: InventoryInvocationReference<InventoryCalledMember>;
@@ -70,7 +73,7 @@ export type InventoryDrizzleCallEvidence =
 
 export interface InventoryDrizzleCall {
   readonly query: SpanFields<DrizzleEvidenceQuery>;
-  readonly basis: InventorySchemaBasis;
+  readonly basis: InventorySchemaBasis | null;
   readonly evidence: InventoryDrizzleCallEvidence;
 }
 
@@ -133,6 +136,7 @@ export function drizzleInventorySchemas(
     z.object({ kind: z.literal("unresolved"), node: span }),
   ]);
   const evidence = z.discriminatedUnion("mode", [
+    z.object({ mode: z.literal("column"), column: reference(z.string()) }),
     z.object({ mode: z.literal("called-member"), member: reference(member), table: reference(z.string()).nullable() }),
     z.object({
       mode: z.literal("instance"),
@@ -144,12 +148,39 @@ export function drizzleInventorySchemas(
   ]);
   const call: z.ZodType<InventoryDrizzleCall> = z
     .object({
-      query: z.object({ node: span.refine((node) => node.kind === SyntaxKind.CallExpression), mode: z.enum(DRIZZLE_EVIDENCE_MODES) }),
-      basis: z.object({ program: z.string(), partition: z.string() }),
+      query: z
+        .object({ node: span, mode: z.enum(DRIZZLE_EVIDENCE_MODES) })
+        .refine((query) => query.mode === "column" || query.node.kind === SyntaxKind.CallExpression, "native Drizzle call query is not a CallExpression"),
+      basis: z.object({ program: z.string(), partition: z.string() }).nullable(),
       evidence,
     })
-    .refine((value) => value.query.mode === value.evidence.mode, "native Drizzle query projection disagrees with captured evidence");
+    .refine((value) => value.query.mode === value.evidence.mode, "native Drizzle query projection disagrees with captured evidence")
+    .refine((value) => value.basis !== null || value.query.mode === "column", "only native column evidence may use its own catalog partition");
   return { catalog, call };
+}
+
+/** Column references require the complete roster from the same full/identity catalog generation. */
+export function assertSchemaColumnRoster(catalog: InventorySchemaIdentityCatalog, columns: readonly SchemaColumnIdentity[]): void {
+  const tables = new Map((catalog.fact.status === "ready" ? catalog.fact.value.tables : []).map((table) => [table.identity.key, table.identity]));
+  if (
+    columns.length !== catalog.fact.receipt.columns ||
+    new Set(columns.map(({ key }) => key)).size !== columns.length ||
+    columns.some(
+      (column) => column.key !== `${column.table.key}.${column.propertyName}` || JSON.stringify(tables.get(column.table.key)) !== JSON.stringify(column.table),
+    )
+  ) {
+    throw new Error("native Drizzle column catalog is incomplete or foreign");
+  }
+}
+
+/** Full and identity data must describe one complete atomic schema population before keys can cross worlds. */
+export function schemaCatalogColumns(identity: InventorySchemaIdentityCatalog, full: InventorySchemaProjectedCatalog): readonly SchemaColumnIdentity[] {
+  if (JSON.stringify(full.sources) !== JSON.stringify(identity.sources) || JSON.stringify(full.fact.receipt) !== JSON.stringify(identity.fact.receipt)) {
+    throw new Error("native Drizzle full and identity catalog rosters disagree");
+  }
+  const columns = full.fact.status === "ready" ? full.fact.value.tables.flatMap((table) => table.columns.map((column) => column.identity)) : [];
+  assertSchemaColumnRoster(identity, columns);
+  return columns;
 }
 
 /** Missing roster/table metadata cannot be interpreted as recorded empty schema evidence. */

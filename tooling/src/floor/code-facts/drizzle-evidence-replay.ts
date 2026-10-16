@@ -1,5 +1,5 @@
 // Existing inventory replay owns admission; this decoder restores only captured syntax and scalar facts.
-import type { CallExpression, Node as MorphNode } from "ts-morph";
+import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { DrizzleCallEvidence } from "./drizzle-evidence-contract.ts";
 import type { InventoryDrizzleCallEvidence, InventoryDrizzleTableReference, InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
@@ -7,7 +7,7 @@ import { assertSchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
 import type { DrizzleTableRef } from "./drizzle-table-ref.ts";
 import { replayReferenceFact } from "./projection-reference-codec.ts";
 import type { SchemaIdentityModel, SchemaIdentityTable } from "./schema-identity-contract.ts";
-import type { SchemaFact } from "./schema-model-contract.ts";
+import type { SchemaColumnIdentity, SchemaFact } from "./schema-model-contract.ts";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import { contentVersion } from "./semantic-inventory-inputs.ts";
@@ -82,8 +82,32 @@ export function replayDrizzleCallEvidence(
   wire: InventoryDrizzleCallEvidence,
   catalog: SchemaFact<SchemaIdentityModel>,
   replay: (span: InventorySpan) => MorphNode,
-  call: CallExpression,
+  input: { readonly node: MorphNode; readonly columns?: readonly SchemaColumnIdentity[] | undefined },
 ): DrizzleCallEvidence {
+  const { node: call, columns } = input;
+  if (wire.mode === "column") {
+    if (!Node.isExpression(call) || columns === undefined) {
+      throw new SemanticInventoryError("native Drizzle column replay lacks its expression or complete catalog");
+    }
+    const byKey = new Map(columns.map((column) => [column.key, column]));
+    return {
+      mode: wire.mode,
+      column: replayReferenceFact(
+        wire.column,
+        (key) => {
+          const column = byKey.get(key);
+          if (column === undefined) {
+            throw new SemanticInventoryError("native Drizzle column value has no captured catalog identity");
+          }
+          return column;
+        },
+        replay,
+      ),
+    };
+  }
+  if (!Node.isCallExpression(call)) {
+    throw new SemanticInventoryError("native Drizzle call replay is not a CallExpression");
+  }
   if (wire.mode === "called-member") {
     if ((wire.table === null) !== (call.getArguments()[0] === undefined)) {
       throw new SemanticInventoryError("native Drizzle direct argument evidence is incomplete");

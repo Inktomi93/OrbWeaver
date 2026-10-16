@@ -113,6 +113,9 @@ export function read(db:Db){return db.select().from(assets);}
       expect(delivered.table?.stability[0]?.node.getText()).toBe("assets");
       expect(delivered.table?.stability.length).toBeGreaterThan(1);
       const encoded = encodeDrizzleCallEvidence(delivered, span);
+      if (encoded.mode !== "instance") {
+        throw new Error("native instance wire projection has a foreign mode");
+      }
       const types = vi.spyOn(Node.prototype, "getType").mockImplementation(() => {
         throw new Error("replay cannot read Type");
       });
@@ -121,29 +124,15 @@ export function read(db:Db){return db.select().from(assets);}
       });
       try {
         const catalog = replaySchemaIdentityCatalog(wireCatalog, replay);
-        expect(encodeDrizzleCallEvidence(replayDrizzleCallEvidence(encoded, catalog, replay, call), span)).toEqual(encoded);
-        expect(() => replayDrizzleCallEvidence({ ...encoded, table: null }, catalog, replay, call)).toThrow("argument evidence");
+        expect(encodeDrizzleCallEvidence(replayDrizzleCallEvidence(encoded, catalog, replay, { node: call }), span)).toEqual(encoded);
+        expect(() => replayDrizzleCallEvidence({ ...encoded, table: null }, catalog, replay, { node: call })).toThrow("argument evidence");
       } finally {
         types.mockRestore();
         symbols.mockRestore();
       }
     }
     assertCaptureAndRefusalReplay(source, query, wireCatalog, replay);
-    for (const name of ["foreign", "opaque", "nullable"]) {
-      const call = source.getFunctionOrThrow(name).getDescendantsOfKind(SyntaxKind.CallExpression)[0];
-      if (call === undefined) {
-        throw new Error("called member fixture is missing");
-      }
-      const canonical = readCalledMember(call);
-      const delivered = readDrizzleCallEvidence(call, "called-member", query);
-      expect(delivered.mode === "called-member" ? delivered.member : undefined).toEqual(canonical);
-      expect(delivered.mode === "called-member" ? delivered.table?.kind : undefined).toBe("resolved");
-      expect(canonical.kind === "resolved" && canonical.value.declarations.length === 0).toBe(name !== "foreign");
-      const encoded = encodeDrizzleCallEvidence(delivered, span);
-      const catalog = replaySchemaIdentityCatalog(wireCatalog, replay);
-      expect(encodeDrizzleCallEvidence(replayDrizzleCallEvidence(encoded, catalog, replay, call), span)).toEqual(encoded);
-      expect(() => replayDrizzleCallEvidence({ ...encoded, table: null }, catalog, replay, call)).toThrow("direct argument evidence");
-    }
+    assertCalledMemberReplay(source, query, wireCatalog, replay);
     expect(() => replaySchemaIdentityCatalog({ ...wireCatalog, sources: [] }, replay)).toThrow("roster coverage");
     if (wireCatalog.fact.status !== "ready") {
       throw new Error("roundtrip catalog unavailable");
@@ -187,9 +176,9 @@ function assertCaptureAndRefusalReplay(
   const captured = readDrizzleCallEvidence(capture, "instance", query);
   expect(captured).toMatchObject({ mode: "instance", invocation: { kind: "resolved", value: { invocation: "bind" } }, table: null });
   const captureWire = encodeDrizzleCallEvidence(captured, span);
-  expect(encodeDrizzleCallEvidence(replayDrizzleCallEvidence(captureWire, replaySchemaIdentityCatalog(wireCatalog, replay), replay, capture), span)).toEqual(
-    captureWire,
-  );
+  expect(
+    encodeDrizzleCallEvidence(replayDrizzleCallEvidence(captureWire, replaySchemaIdentityCatalog(wireCatalog, replay), replay, { node: capture }), span),
+  ).toEqual(captureWire);
   for (const name of ["write", "escaping"]) {
     const call = source.getFunctionOrThrow("refusals").getVariableDeclarationOrThrow(name).getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
     const evidence = readDrizzleCallEvidence(call, "instance", query);
@@ -202,6 +191,34 @@ function assertCaptureAndRefusalReplay(
     const refusal = evidence.invocation.kind === "unresolved" ? evidence.invocation : evidence.invocation.value.arguments;
     expect(refusal).toMatchObject({ kind: "unresolved", reason: "write" });
     const wire = encodeDrizzleCallEvidence(evidence, span);
-    expect(encodeDrizzleCallEvidence(replayDrizzleCallEvidence(wire, replaySchemaIdentityCatalog(wireCatalog, replay), replay, call), span)).toEqual(wire);
+    expect(encodeDrizzleCallEvidence(replayDrizzleCallEvidence(wire, replaySchemaIdentityCatalog(wireCatalog, replay), replay, { node: call }), span)).toEqual(
+      wire,
+    );
+  }
+}
+
+function assertCalledMemberReplay(
+  source: SourceFile,
+  query: SchemaIdentityQuery,
+  wireCatalog: InventorySchemaIdentityCatalog,
+  replay: (span: InventorySpan) => MorphNode,
+): void {
+  for (const name of ["foreign", "opaque", "nullable"]) {
+    const call = source.getFunctionOrThrow(name).getDescendantsOfKind(SyntaxKind.CallExpression)[0];
+    if (call === undefined) {
+      throw new Error("called member fixture is missing");
+    }
+    const canonical = readCalledMember(call);
+    const delivered = readDrizzleCallEvidence(call, "called-member", query);
+    expect(delivered.mode === "called-member" ? delivered.member : undefined).toEqual(canonical);
+    expect(delivered.mode === "called-member" ? delivered.table?.kind : undefined).toBe("resolved");
+    expect(canonical.kind === "resolved" && canonical.value.declarations.length === 0).toBe(name !== "foreign");
+    const encoded = encodeDrizzleCallEvidence(delivered, span);
+    if (encoded.mode !== "called-member") {
+      throw new Error("native called-member wire projection has a foreign mode");
+    }
+    const catalog = replaySchemaIdentityCatalog(wireCatalog, replay);
+    expect(encodeDrizzleCallEvidence(replayDrizzleCallEvidence(encoded, catalog, replay, { node: call }), span)).toEqual(encoded);
+    expect(() => replayDrizzleCallEvidence({ ...encoded, table: null }, catalog, replay, { node: call })).toThrow("direct argument evidence");
   }
 }

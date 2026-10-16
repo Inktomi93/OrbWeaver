@@ -2,14 +2,25 @@
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import { replaySchemaIdentityCatalog } from "./drizzle-evidence-replay.ts";
+import { replaySchemaConfiguration } from "./schema-configuration-codec.ts";
 import type { SchemaFact } from "./schema-model-contract.ts";
 import type { SchemaDataProjection, SchemaProjectedColumn, SchemaProjectedModel } from "./schema-projection-contract.ts";
 import type { InventorySchemaProjectedCatalog, InventorySchemaProjectedColumn } from "./schema-projection-inventory-contract.ts";
 import { schemaProjectionInventorySchema } from "./schema-projection-inventory-contract.ts";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";
-import { drizzleSchemas, SemanticInventoryError, spanSchema } from "./semantic-inventory-contract.ts";
+import { drizzleSchemas, SemanticInventoryError, schemaConfigurationWireSchema, spanSchema } from "./semantic-inventory-contract.ts";
 
-const catalogSchema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog);
+const catalogSchema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog, schemaConfigurationWireSchema);
+
+/** Requested observations cannot be inferred from a catalog captured without that projection. */
+export function assertSchemaProjection(captured: SchemaDataProjection, requested: SchemaDataProjection): void {
+  if (requested.typeVocabulary === true && captured.typeVocabulary !== true) {
+    throw new SemanticInventoryError("native schema selected-Type vocabulary was not captured");
+  }
+  if (requested.builderConfig === true && captured.builderConfig !== true) {
+    throw new SemanticInventoryError("native schema builder configuration was not captured");
+  }
+}
 
 function replayCall(span: InventorySpan, replay: (span: InventorySpan) => MorphNode): CallExpression {
   const node = replay(span);
@@ -26,8 +37,12 @@ function columnData(
 ): SchemaProjectedColumn {
   const json = column.json;
   const override = column.typeOverride;
+  const { configuration, ...rest } = column;
   return {
-    ...column,
+    ...rest,
+    ...(projection.builderConfig === true && configuration !== undefined
+      ? { configuration: configuration === null ? null : replaySchemaConfiguration(configuration, replay) }
+      : {}),
     declaration: replay(column.declaration),
     expression: replay(column.expression),
     builder: { ...column.builder, call: replayCall(column.builder.call, replay) },
@@ -61,9 +76,7 @@ export function replaySchemaDataCatalog(
   projection: SchemaDataProjection = input.projection ?? {},
 ): SchemaFact<SchemaProjectedModel> {
   const wire = catalogSchema.parse(input);
-  if (projection.typeVocabulary === true && wire.projection?.typeVocabulary !== true) {
-    throw new SemanticInventoryError("native schema selected-Type vocabulary was not captured");
-  }
+  assertSchemaProjection(wire.projection ?? {}, projection);
   const identity = replaySchemaIdentityCatalog(wire, replay);
   const fact = wire.fact;
   if (fact.status !== "ready") {

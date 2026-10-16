@@ -1,6 +1,8 @@
 // Project only after complete canonical extraction; no partial table/column parser may mint this catalog.
-import type { SchemaFact, SchemaModel, SchemaQueryOptions } from "./schema-model-contract.ts";
-import type { SchemaDataProjection, SchemaProjectedModel } from "./schema-projection-contract.ts";
+
+import { captureSchemaConfiguration } from "./schema-configuration.ts";
+import type { SchemaColumn, SchemaFact, SchemaModel, SchemaQueryOptions } from "./schema-model-contract.ts";
+import type { SchemaDataProjection, SchemaProjectedColumn, SchemaProjectedModel } from "./schema-projection-contract.ts";
 import { createSchemaQuery } from "./schema-query.ts";
 import { captureTypeVocabulary } from "./type-projection.ts";
 
@@ -12,22 +14,29 @@ export function projectSchemaData(fact: SchemaFact<SchemaModel>, projection: Sch
         value: {
           tables: fact.value.tables.map((table) => ({
             ...table,
-            columns: table.columns.map((column) => ({
-              ...column,
-              typeOverride:
-                column.typeOverride === null
-                  ? null
-                  : {
-                      node: column.typeOverride.node,
-                      display: column.typeOverride.display,
-                      idBrand: column.typeOverride.idBrand,
-                      ...(projection.typeVocabulary === true && column.json !== null ? { vocabulary: captureTypeVocabulary(column.typeOverride.type) } : {}),
-                    },
-            })),
+            columns: table.columns.map((column) => projectColumn(column, projection)),
           })),
         },
       }
     : fact;
+}
+
+function projectColumn(column: SchemaColumn, projection: SchemaDataProjection): SchemaProjectedColumn {
+  const configuration = projection.builderConfig === true ? column.builder.call.getArguments()[1] : undefined;
+  const override = column.typeOverride;
+  return {
+    ...column,
+    ...(projection.builderConfig === true ? { configuration: configuration === undefined ? null : captureSchemaConfiguration(configuration) } : {}),
+    typeOverride:
+      override === null
+        ? null
+        : {
+            node: override.node,
+            display: override.display,
+            idBrand: override.idBrand,
+            ...(projection.typeVocabulary === true && column.json !== null ? { vocabulary: captureTypeVocabulary(override.type) } : {}),
+          },
+  };
 }
 
 /** Complete defaults, foreign keys, indexes and JSON extraction must succeed before projection. */

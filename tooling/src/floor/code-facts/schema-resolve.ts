@@ -97,11 +97,11 @@ export function tableFromReference<Table>(node: MorphNode, byDeclaration: Readon
   return stable.kind === "unresolved" ? stable : unresolved("missing", node, `${node.getText()} does not resolve to a schema table`, stable.trace.declarations);
 }
 
-export function columnFromReference(
+export function columnFromReference<Table extends Pick<SchemaTable, "identity">, Column>(
   node: MorphNode,
-  byDeclaration: ReadonlyMap<string, SchemaTable>,
-  byKey: ReadonlyMap<string, SchemaColumn>,
-): ReferenceFact<SchemaColumn> {
+  byDeclaration: ReadonlyMap<string, Table>,
+  byKey: ReadonlyMap<string, Column>,
+): ReferenceFact<Column> {
   const member = readMemberReference(node);
   if (member.kind === "unresolved") {
     return member;

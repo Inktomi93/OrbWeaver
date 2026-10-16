@@ -27,7 +27,7 @@ import type { SemanticSourceView } from "../../floor/compiler/ts-workspace-contr
 export type NativeTypeRequest =
   | { readonly kind: "schema-data"; readonly nodes: readonly SourceFile[]; readonly projection?: SchemaDataProjection }
   | { readonly kind: "schema-identities"; readonly nodes: readonly SourceFile[] }
-  | { readonly kind: "drizzle-identities"; readonly nodes: readonly CallExpression[]; readonly mode: DrizzleEvidenceMode }
+  | { readonly kind: "drizzle-identities"; readonly nodes: readonly Node[]; readonly mode: DrizzleEvidenceMode }
   | { readonly kind: "export-declarations"; readonly nodes: readonly SourceFile[]; readonly name: string }
   | { readonly kind: "invocation-evidence"; readonly nodes: readonly Node[]; readonly plan: InventoryInvocationPlan }
   | { readonly kind: "global-origins"; readonly nodes: readonly Node[] }
@@ -45,7 +45,7 @@ export type NativeTypeRequest =
 export interface NativeTypeFactReader extends Disposable {
   readonly schemaData: (sources: readonly SourceFile[], projection?: SchemaDataProjection) => SchemaFact<SchemaProjectedModel>;
   readonly schemaIdentity: (sources: readonly SourceFile[]) => SchemaFact<SchemaIdentityModel>;
-  readonly drizzleEvidence: (nodes: readonly CallExpression[], mode: DrizzleEvidenceMode) => ReadonlyMap<CallExpression, DrizzleCallEvidence>;
+  readonly drizzleEvidence: (nodes: readonly Node[], mode: DrizzleEvidenceMode) => ReadonlyMap<Node, DrizzleCallEvidence>;
   readonly exportDeclarations: (sources: readonly SourceFile[], name: string) => ReadonlyMap<SourceFile, readonly Node[] | null>;
   readonly invocationEvidence: (nodes: readonly Node[], plan: InventoryInvocationPlan) => ReadonlyMap<Node, NativeInvocationEvidence>;
   readonly globalOrigins: (nodes: readonly Node[]) => ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>>;
@@ -83,7 +83,7 @@ export interface NativeTypeContext {
 export interface NativeTypeFacts extends Disposable {
   readonly schemaData: (owner: string, sources: readonly SourceFile[], projection?: SchemaDataProjection) => ReturnType<NativeTypeFactReader["schemaData"]>;
   readonly schemaIdentity: (owner: string, sources: readonly SourceFile[]) => ReturnType<NativeTypeFactReader["schemaIdentity"]>;
-  readonly drizzleEvidence: (owner: string, nodes: readonly CallExpression[], mode: DrizzleEvidenceMode) => ReturnType<NativeTypeFactReader["drizzleEvidence"]>;
+  readonly drizzleEvidence: (owner: string, nodes: readonly Node[], mode: DrizzleEvidenceMode) => ReturnType<NativeTypeFactReader["drizzleEvidence"]>;
   readonly exportDeclarations: (owner: string, sources: readonly SourceFile[], name: string) => ReturnType<NativeTypeFactReader["exportDeclarations"]>;
   readonly invocationEvidence: (owner: string, nodes: readonly Node[], plan: InventoryInvocationPlan) => ReturnType<NativeTypeFactReader["invocationEvidence"]>;
   readonly globalOrigins: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalOrigins"]>;

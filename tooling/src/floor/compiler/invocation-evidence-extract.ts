@@ -10,6 +10,7 @@ import { readIndexedCallParameters } from "../code-facts/drizzle-column-reads.ts
 import type { DrizzleWrite } from "../code-facts/drizzle-columns.ts";
 import { readDrizzleWrite } from "../code-facts/drizzle-columns.ts";
 import { readModuleNamespaceDeclarations } from "../code-facts/module-namespace.ts";
+import { encodeModuleOrigin } from "../code-facts/module-origin-codec.ts";
 import type { InventoryAuthoredValueProjection, InventoryTypeProjection } from "../code-facts/projection-inventory-contract.ts";
 import { wireReferenceFact } from "../code-facts/projection-reference-codec.ts";
 import {
@@ -217,16 +218,7 @@ export function encodeInvocationEvidence(
   span: (node: MorphNode) => InventorySpan,
 ): InventoryInvocationEvidence {
   const origin = (value: ModuleMemberOrigin | GlobalMemberOrigin): object =>
-    value.kind === "global"
-      ? { ...value, declarations: value.declarations.map(span) }
-      : {
-          ...value,
-          declaration: span(value.declaration),
-          canonical:
-            value.canonical.kind === "project"
-              ? { ...value.canonical, sourceFile: span(value.canonical.sourceFile), declaration: span(value.canonical.declaration) }
-              : { ...value.canonical, declaration: span(value.canonical.declaration) },
-        };
+    value.kind === "global" ? { ...value, declarations: value.declarations.map(span) } : encodeModuleOrigin(value, span);
   const binding = (value: CallableBinding): object => ({
     target: origin(value.target),
     callee: span(value.callee),

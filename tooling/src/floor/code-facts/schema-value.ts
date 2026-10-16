@@ -364,11 +364,3 @@ export function schemaIndexKind(exportedName: string): import("./schema-model-co
 export function schemaDeclarationKey(node: MorphNode): string {
   return `${node.getSourceFile().getFilePath()}:${node.getStart()}:${node.getEnd()}`;
 }
-
-export function unwrapSchemaExpression(node: MorphNode): MorphNode {
-  let current = node;
-  while (Node.isParenthesizedExpression(current) || Node.isAsExpression(current) || Node.isSatisfiesExpression(current) || Node.isNonNullExpression(current)) {
-    current = current.getExpression();
-  }
-  return current;
-}

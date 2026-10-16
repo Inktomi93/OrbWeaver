@@ -6,6 +6,7 @@ import { posix } from "node:path";
 import { createSemanticWorkspace, getWorkspace, registeredSemanticSourceView } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { AsExpression, Node, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
+import type { SchemaDataProjection } from "../../floor/code-facts/schema-projection-contract.ts";
 import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
 import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
@@ -96,13 +97,30 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       throw error;
     }
   };
+  const requireProjection = (owner: string, sources: readonly import("ts-morph").SourceFile[], projection: SchemaDataProjection): void => {
+    for (const flag of ["typeVocabulary", "builderConfig"] as const) {
+      if (projection[flag] !== true) {
+        continue;
+      }
+      const projected = new Set(
+        (requests.get(owner) ?? []).filter((query) => query.kind === "schema-data" && query.projection?.[flag] === true).flatMap((query) => [...query.nodes]),
+      );
+      if (sources.some((source) => !projected.has(source))) {
+        throw new Error(
+          flag === "typeVocabulary"
+            ? "native schema vocabulary was not registered by this owner"
+            : "native schema builder configuration was not registered by this owner",
+        );
+      }
+    }
+  };
   return {
     request: (owner, query): void => {
       assertOpen();
       if (sealed) {
         throw new Error("native type request registration is sealed");
       }
-      if (query.nodes.length > 0) {
+      if (query.nodes.length > 0 || query.kind === "schema-data" || query.kind === "schema-identities") {
         const rows = requests.get(owner) ?? [];
         switch (query.kind) {
           case "schema-data":
@@ -182,16 +200,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (new Set(registered).size !== new Set(sources).size) {
         throw new Error("native full schema data roster is incomplete");
       }
-      if (projection.typeVocabulary === true) {
-        const projected = new Set(
-          (requests.get(owner) ?? [])
-            .filter((query) => query.kind === "schema-data" && query.projection?.typeVocabulary === true)
-            .flatMap((query) => [...query.nodes]),
-        );
-        if (sources.some((source) => !projected.has(source))) {
-          throw new Error("native schema vocabulary was not registered by this owner");
-        }
-      }
+      requireProjection(owner, sources, projection);
       return selected(owner, "schema-data", sources).schemaData(sources, projection);
     },
     schemaIdentity: (owner, sources): ReturnType<NativeTypeContext["schemaIdentity"]> => {
@@ -303,6 +312,29 @@ function assertNeverRequest(value: never): never {
   throw new Error(`unhandled native type request: ${String(value)}`);
 }
 
+/** A column request may borrow identity only from its complete explicit full-catalog roster. */
+export function columnSchemaSources(queries: readonly NativeTypeRequest[]): readonly import("ts-morph").SourceFile[] {
+  const full = [...new Set(queries.filter((query) => query.kind === "schema-data").flatMap((query) => [...query.nodes]))];
+  if (full.length === 0) {
+    throw new SemanticInventoryError("native column demand requires an explicit full schema roster");
+  }
+  const explicit = queries.filter((query) => query.kind === "schema-identities");
+  if (explicit.length === 0) {
+    return full;
+  }
+  const identity = new Set(explicit.flatMap((query) => [...query.nodes]));
+  if (explicit.some((query) => query.nodes.length === 0) || identity.size !== full.length || full.some((source) => !identity.has(source))) {
+    throw new SemanticInventoryError("native column identity and full schema rosters disagree");
+  }
+  return full;
+}
+
+function identitySchemaSources(queries: readonly NativeTypeRequest[]): readonly import("ts-morph").SourceFile[] {
+  return queries.some((query) => query.kind === "drizzle-identities" && query.mode === "column")
+    ? columnSchemaSources(queries)
+    : [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
+}
+
 function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: readonly NativeTypeRequest[]): NativeTypeFactReader {
   const nodes = queries.flatMap((query) => [...query.nodes]);
   const owner = (node: Node): string => {
@@ -350,7 +382,7 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   ];
   const shapes = queries.filter((query) => query.kind === "shape-relations");
   const capturedSources = [...new Set(nodes.map((node) => node.getSourceFile()))];
-  const schemaSources = [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
+  const schemaSources = identitySchemaSources(queries);
   const schemaProgram = schemaSources[0] === undefined ? undefined : owner(schemaSources[0]);
   if (schemaSources.some((source) => owner(source) !== schemaProgram)) {
     throw new SemanticInventoryError("native schema roster crosses canonical owners");
@@ -392,11 +424,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
             ),
         }
       : {}),
-    ...schemaDataOptions(
-      schemaDataProgram,
-      schemaDataSources,
-      queries.some((query) => query.kind === "schema-data" && query.projection?.typeVocabulary === true),
-    ),
+    ...schemaDataOptions(schemaDataProgram, schemaDataSources, requestedSchemaProjection(queries)),
+
     ...(families.includes("export-declarations")
       ? {
           exportQueries: queries
@@ -549,16 +578,23 @@ export function nativeTypeFactOptions(
   };
 }
 
+function requestedSchemaProjection(queries: readonly NativeTypeRequest[]): SchemaDataProjection {
+  return {
+    ...(queries.some((query) => query.kind === "schema-data" && query.projection?.typeVocabulary === true) ? { typeVocabulary: true } : {}),
+    ...(queries.some((query) => query.kind === "schema-data" && query.projection?.builderConfig === true) ? { builderConfig: true } : {}),
+  };
+}
+
 function schemaDataOptions(
   program: string | undefined,
   sources: readonly import("ts-morph").SourceFile[],
-  typeVocabulary: boolean,
+  projection: SchemaDataProjection,
 ): Pick<import("../../floor/code-facts/semantic-inventory-contract.ts").SemanticInventoryOptions, "schemaDataQuery"> {
   return program === undefined
     ? {}
     : {
         schemaDataQuery: {
-          ...(typeVocabulary ? { projection: { typeVocabulary: true } } : {}),
+          ...(projection.typeVocabulary === true || projection.builderConfig === true ? { projection } : {}),
           program,
           sources: sources.map((source) => ({
             file: canonicalInventoryPath(source.getFilePath()),

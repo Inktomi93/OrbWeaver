@@ -1,20 +1,23 @@
 // Encode complete canonical schema data through the existing inventory span and roster vocabulary.
 import type { Node, SourceFile } from "ts-morph";
+import { encodeSchemaConfiguration } from "../code-facts/schema-configuration-codec.ts";
 import type { SchemaFact } from "../code-facts/schema-model-contract.ts";
 import type { SchemaDataProjection, SchemaProjectedColumn, SchemaProjectedModel } from "../code-facts/schema-projection-contract.ts";
 import type { InventorySchemaProjectedCatalog, InventorySchemaProjectedColumn } from "../code-facts/schema-projection-inventory-contract.ts";
 import { schemaProjectionInventorySchema } from "../code-facts/schema-projection-inventory-contract.ts";
 import type { InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
-import { drizzleSchemas, spanSchema } from "../code-facts/semantic-inventory-contract.ts";
+import { drizzleSchemas, schemaConfigurationWireSchema, spanSchema } from "../code-facts/semantic-inventory-contract.ts";
 import { encodeSchemaIdentityCatalog } from "./drizzle-evidence-encode.ts";
 
-const catalogSchema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog);
+const catalogSchema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog, schemaConfigurationWireSchema);
 
 function columnData(column: SchemaProjectedColumn, span: (node: Node) => InventorySpan): InventorySchemaProjectedColumn {
   const json = column.json;
   const override = column.typeOverride;
+  const { configuration, ...rest } = column;
   return {
-    ...column,
+    ...rest,
+    ...(configuration === undefined ? {} : { configuration: configuration === null ? null : encodeSchemaConfiguration(configuration, span) }),
     declaration: span(column.declaration),
     expression: span(column.expression),
     builder: { ...column.builder, call: span(column.builder.call) },
@@ -44,7 +47,7 @@ export function encodeSchemaDataCatalog(
   const identity = encodeSchemaIdentityCatalog(sources, fact, span, relativePath);
   return catalogSchema.parse({
     ...identity,
-    ...(projection.typeVocabulary === true ? { projection } : {}),
+    ...(projection.typeVocabulary === true || projection.builderConfig === true ? { projection } : {}),
     fact:
       fact.status === "ready"
         ? {

@@ -5,6 +5,7 @@ import type { NativeAuthoredValueProjection } from "./authored-value-projection.
 import { replayAuthoredValueProjection } from "./authored-value-projection-codec.ts";
 import type { IndexedCallParameters } from "./drizzle-column-read-contract.ts";
 import type { DrizzleWrite } from "./drizzle-columns.ts";
+import { replayModuleOrigin } from "./module-origin-codec.ts";
 import { replayReferenceFact } from "./projection-reference-codec.ts";
 import type { CallableBinding, CallableInvocation, ModuleMemberOrigin, ReferenceFact, ReferenceOrigin } from "./reference-fact-contract.ts";
 import type {
@@ -30,21 +31,7 @@ export function replayInvocationEvidence(
   children: Pick<NativeInvocationEvidence, "declarations" | "computedName" | "globals">,
 ): NativeInvocationEvidence {
   const restore = <T, V>(fact: InventoryInvocationReference<T>, value: (input: T) => V): ReferenceFact<V> => replayReferenceFact(fact, value, replay);
-  const module = (value: WireModule): ModuleMemberOrigin => {
-    const canonical = value.canonical;
-    if (canonical.kind === "external-door") {
-      return { ...value, declaration: replay(value.declaration), canonical: { ...canonical, declaration: replay(canonical.declaration) } };
-    }
-    const sourceFile = replay(canonical.sourceFile);
-    if (!Node.isSourceFile(sourceFile)) {
-      throw new SemanticInventoryError("native invocation module source is not a SourceFile");
-    }
-    const declaration = replay(canonical.declaration);
-    if (declaration.getSourceFile() !== sourceFile) {
-      throw new SemanticInventoryError("native invocation canonical declaration has a foreign source");
-    }
-    return { ...value, declaration: replay(value.declaration), canonical: { ...canonical, sourceFile, declaration } };
-  };
+  const module = (value: WireModule): ModuleMemberOrigin => replayModuleOrigin(value, replay);
   const origin = (value: WireBinding["target"]): ReferenceOrigin =>
     value.kind === "module" ? module(value) : { ...value, declarations: value.declarations.map(replay) };
   const binding = (value: WireBinding): CallableBinding => {
