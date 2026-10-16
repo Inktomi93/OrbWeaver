@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-16
 priority: P1
 area: tooling
-lane: codex/drizzle-native-953
+lane: codex/native-role-authority-1041
 plan: test-foundation
 ---
 

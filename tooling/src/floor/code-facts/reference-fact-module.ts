@@ -1,6 +1,7 @@
 // Module-origin traversal for reference-fact.ts, separated from static expression/value resolution.
 import type {
   BindingElement,
+  CallExpression,
   ExportSpecifier,
   Identifier,
   ImportClause,
@@ -11,7 +12,16 @@ import type {
 } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { bindingElementName } from "./reference-fact-binding-name.ts";
-import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices, ResolvedReferenceFact } from "./reference-fact-contract.ts";
+import type {
+  CallReturnProgram,
+  ModuleMemberOrigin,
+  NativeNamespaceValueServices,
+  ReferenceFact,
+  ReferenceResolutionServices,
+  ResolvedReferenceFact,
+  ReturnedValueContext,
+  ReturnedValueSource,
+} from "./reference-fact-contract.ts";
 import type { CanonicalModuleTarget, NamespaceBinding } from "./reference-fact-module-helpers.ts";
 import { externalTarget, importDeclarationOf, originFromTarget, projectTarget, requiresResolvedSource } from "./reference-fact-module-helpers.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
@@ -273,6 +283,30 @@ function namespaceImportBinding(declaration: import("ts-morph").NamespaceImport,
   return resolved({ kind: "project", moduleSpecifier, declaration, sourceFile }, target, declaration);
 }
 
+function dynamicNamespaceFulfillment(source: SourceFile, target: ModuleState): ReferenceFact<true> {
+  if (!enterDeclaration(target, source)) {
+    return unresolved("cycle", source, target, "dynamic namespace wildcard export coverage is cyclic");
+  }
+  if (source.getExportSymbols().some((symbol) => symbol.getName() === "then")) {
+    return unresolved("unsupported", source, target, "a dynamic module then export may replace its fulfilled namespace");
+  }
+  for (const declaration of source.getExportDeclarations()) {
+    if (declaration.isTypeOnly() || declaration.hasNamedExports() || declaration.getNamespaceExport() !== undefined) {
+      continue;
+    }
+    const next = declaration.getModuleSpecifierSourceFile();
+    if (next === undefined) {
+      return unresolved("missing", declaration, target, "dynamic namespace wildcard export coverage is incomplete");
+    }
+    const closed = dynamicNamespaceFulfillment(next, cloneModuleState(target));
+    appendTrace(target, closed.trace.declarations);
+    if (closed.kind === "unresolved") {
+      return mergeUnresolved(closed, target);
+    }
+  }
+  return resolved(true, target, source);
+}
+
 function dynamicNamespaceBinding(call: import("ts-morph").CallExpression, target: ModuleState): ReferenceFact<NamespaceBinding> {
   const [argument] = call.getArguments();
   if (argument === undefined || !Node.isStringLiteral(argument)) {
@@ -288,8 +322,8 @@ function dynamicNamespaceBinding(call: import("ts-morph").CallExpression, target
       ? unresolved("missing", argument, target, `dynamic module door ${moduleSpecifier} has no resolvable source file`)
       : resolved({ kind: "external", moduleSpecifier, declaration: call }, target, call);
   }
-  appendTrace(target, [sourceFile]);
-  return resolved({ kind: "project", moduleSpecifier, declaration: call, sourceFile }, target, call);
+  const fulfillment = dynamicNamespaceFulfillment(sourceFile, target);
+  return fulfillment.kind === "unresolved" ? fulfillment : resolved({ kind: "project", moduleSpecifier, declaration: call, sourceFile }, target, call);
 }
 
 function namespaceBindingInternal(node: MorphNode, target: ModuleState, services: ReferenceResolutionServices): ReferenceFact<NamespaceBinding> {
@@ -504,4 +538,246 @@ export function readModuleAliasBindingWith(
     origin.value.memberPath.length === 0
     ? { ...origin, value: name }
     : unresolved("ambiguous", reference, target, "the module alias does not retain the exact native exported target");
+}
+
+function immediateNamespaceCatch(call: CallExpression, services: ReferenceResolutionServices): CallExpression | undefined {
+  const expression = services.unwrapExpression(call.getExpression());
+  if (
+    !(Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) ||
+    call.hasQuestionDotToken() ||
+    expression.hasQuestionDotToken()
+  ) {
+    return;
+  }
+  const member = services.readMemberReference(expression);
+  if (member.kind === "unresolved" || member.value.name !== "catch") {
+    return;
+  }
+  const receiver = services.unwrapExpression(member.value.receiver);
+  return Node.isCallExpression(receiver) && receiver.getExpression().getKind() === SyntaxKind.ImportKeyword ? receiver : undefined;
+}
+
+function awaitedNamespaceCatch(call: CallExpression, services: ReferenceResolutionServices): boolean {
+  for (let parent = call.getParent(); parent !== undefined; parent = parent.getParent()) {
+    if (Node.isAwaitExpression(parent)) {
+      return services.unwrapExpression(parent.getExpression()) === call;
+    }
+    if (services.unwrapExpression(parent) !== call) {
+      return false;
+    }
+  }
+  return false;
+}
+
+function capturedNamespaceContext(
+  call: CallExpression,
+  context: ReturnedValueContext,
+  services: NativeNamespaceValueServices,
+): ReferenceFact<CallReturnProgram> {
+  const program = context.program;
+  if (program === undefined || program.suppliedCallableTargets !== true || program.callableProofEpoch === undefined) {
+    return services.refusal(call, "missing", "namespace transfer has no supplied-callable capture epoch");
+  }
+  const admitted = services.capturedProgram(call, { programs: [program] });
+  if (admitted.kind === "unresolved") {
+    return admitted;
+  }
+  if (!program.byCall.has(call.compilerNode)) {
+    return services.refusal(call, "missing", "the namespace catch call was not captured");
+  }
+  const premise = context.inheritedReadPremise;
+  if (premise !== undefined) {
+    const live = premise.require(call, program);
+    if (live.kind === "unresolved") {
+      return live;
+    }
+  } else if (program.inheritedReadTrialActive?.() === true) {
+    return services.refusal(call, "unsupported", "namespace transfer cannot borrow a private trial without its continuation");
+  }
+  return admitted;
+}
+
+function nativeNamespaceCatchIdentity(call: CallExpression, program: CallReturnProgram, services: NativeNamespaceValueServices): ReferenceFact<true> {
+  const member = program.nativeSymbolServices?.memberOrigin(call.getExpression());
+  const signature = call.getProject().getTypeChecker().getResolvedSignature(call)?.getDeclaration();
+  const owner = signature?.getParent();
+  if (
+    member?.kind !== "resolved" ||
+    member.value.name !== "catch" ||
+    signature === undefined ||
+    !Node.isInterfaceDeclaration(owner) ||
+    owner.getName() !== "Promise" ||
+    !program.program.isSourceFileDefaultLibrary(signature.getSourceFile().compilerNode) ||
+    member.value.declarations.length === 0 ||
+    !member.value.declarations.every((declaration) => program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode))
+  ) {
+    return services.refusal(call, "unsupported", "the immediate import has no installed native Promise catch member");
+  }
+  return services.references.inspectSymbolWrites(member.value.symbol, call.getExpression());
+}
+
+function namespaceHandlerCompletion(
+  call: CallExpression,
+  context: ReturnedValueContext,
+  program: CallReturnProgram,
+  services: NativeNamespaceValueServices,
+): ReferenceFact<true> {
+  const argument = call.getArguments()[0];
+  if (argument === undefined || call.getArguments().length !== 1 || Node.isSpreadElement(argument)) {
+    return services.refusal(call, "unsupported", "namespace catch requires one actual all-abrupt rejection handler");
+  }
+  const selected = services.readValue(argument, [], context);
+  if (selected.kind === "unresolved") {
+    return selected;
+  }
+  const source = selected.value[0];
+  if (selected.value.length !== 1 || source === undefined || !source.present || source.path.length > 0) {
+    return services.refusal(argument, "unsupported", "namespace catch has no one actual rejection handler");
+  }
+  const completion = services.abruptCompletion(source.value, program);
+  return { ...completion, trace: { ...completion.trace, declarations: [...selected.trace.declarations, ...completion.trace.declarations] } };
+}
+
+function namespaceExportValues(
+  imported: CallExpression,
+  path: readonly string[],
+  context: ReturnedValueContext,
+  services: NativeNamespaceValueServices,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  const [name] = path;
+  if (path.length !== 1 || name === undefined || imported.getArguments().length !== 1) {
+    return services.refusal(imported, "unsupported", "namespace transfer selects exactly one exported callable without a residual path");
+  }
+  const target = moduleState(services.references);
+  const namespace = dynamicNamespaceBinding(imported, target);
+  if (namespace.kind === "unresolved") {
+    return namespace;
+  }
+  const origin = originFromNamespace(namespace.value, name, target);
+  if (origin.kind === "unresolved") {
+    return origin;
+  }
+  const canonical = origin.value.canonical;
+  if (canonical.kind !== "project") {
+    return services.refusal(imported, "unsupported", "namespace transfer has no actual native project export");
+  }
+  const declaration = canonical.declaration;
+  if (Node.isVariableDeclaration(declaration)) {
+    const stable = services.references.inspectStableBinding(declaration);
+    if (stable.kind === "unresolved") {
+      return stable;
+    }
+  } else if (!Node.isFunctionDeclaration(declaration)) {
+    return services.refusal(declaration, "unsupported", "namespace transfer has no authored callable export binding");
+  }
+  const value = declaration.getNameNode() ?? declaration;
+  const callable = services.callableDeclaration(value);
+  if (callable.kind === "unresolved") {
+    return callable;
+  }
+  const projected = services.readValue(callable.value.declaration, [], context);
+  return {
+    ...projected,
+    trace: { ...projected.trace, declarations: [...origin.trace.declarations, ...callable.trace.declarations, ...projected.trace.declarations] },
+  };
+}
+
+function namespaceValueNodes(values: ResolvedReferenceFact<readonly ReturnedValueSource[]>): readonly MorphNode[] {
+  return [...values.trace.declarations, ...values.value.flatMap((source) => [source.value, ...source.bindings.keys(), ...source.bindings.values()])];
+}
+
+function admittedNamespaceValues(
+  call: CallExpression,
+  values: ResolvedReferenceFact<readonly ReturnedValueSource[]>,
+  program: CallReturnProgram,
+  services: NativeNamespaceValueServices,
+): ReferenceFact<true> {
+  if (
+    values.value.length !== 1 ||
+    values.value.some(
+      (source) =>
+        !source.present ||
+        source.path.length > 0 ||
+        !(Node.isFunctionDeclaration(source.value) || Node.isFunctionExpression(source.value) || Node.isArrowFunction(source.value)) ||
+        source.value.getBody() === undefined,
+    )
+  ) {
+    return services.refusal(call, "unsupported", "namespace transfer has no one actual authored callable leaf");
+  }
+  for (const node of namespaceValueNodes(values)) {
+    const admitted = services.capturedReference(node, call, program);
+    if (admitted.kind === "unresolved") {
+      return admitted;
+    }
+  }
+  return { kind: "resolved", value: true, trace: values.trace };
+}
+
+/** Conditional namespace candidates remain stack-local value leaves until the existing effect owner discharges them. */
+export function readCapturedNamespaceValue(
+  call: CallExpression,
+  path: readonly string[],
+  context: ReturnedValueContext,
+  services: NativeNamespaceValueServices,
+): ReferenceFact<readonly ReturnedValueSource[]> | undefined {
+  if (call.wasForgotten()) {
+    return services.refusal(call, "unsupported", "the captured namespace call was forgotten");
+  }
+  const imported = immediateNamespaceCatch(call, services.references);
+  if (imported === undefined) {
+    return;
+  }
+  if (!awaitedNamespaceCatch(call, services.references)) {
+    return services.refusal(call, "unsupported", "the namespace catch Promise has no immediate awaited fulfillment boundary");
+  }
+  const captured = capturedNamespaceContext(call, context, services);
+  if (captured.kind === "unresolved") {
+    return captured;
+  }
+  const program = captured.value;
+  const readEpoch = program.callableProofEpoch;
+  const epoch = readEpoch?.();
+  if (epoch === undefined) {
+    return services.refusal(call, "missing", "namespace transfer has no actual captured epoch operation");
+  }
+  const identity = nativeNamespaceCatchIdentity(call, program, services);
+  if (identity.kind === "unresolved") {
+    return identity;
+  }
+  const abrupt = namespaceHandlerCompletion(call, context, program, services);
+  if (abrupt.kind === "unresolved") {
+    return abrupt;
+  }
+  const candidate = namespaceExportValues(imported, path, context, services);
+  if (candidate.kind === "unresolved") {
+    return candidate;
+  }
+  const proofCandidate = { ...candidate, trace: { ...candidate.trace, declarations: [...abrupt.trace.declarations, ...candidate.trace.declarations] } };
+  const admitted = admittedNamespaceValues(call, proofCandidate, program, services);
+  if (admitted.kind === "unresolved") {
+    return admitted;
+  }
+  const nodes = namespaceValueNodes(proofCandidate).map((node) => ({ node, native: node.compilerNode }));
+  const effects = services.inheritedEffects(call, context);
+  if (effects.kind === "unresolved") {
+    return effects;
+  }
+  if (effects.kind === "conditional" && context.inheritedReadPremise === undefined) {
+    return services.refusal(call, "unsupported", "ordinary namespace projection cannot export a conditional effect assumption");
+  }
+  const current = capturedNamespaceContext(call, context, services);
+  const after = program.callableProofEpoch?.();
+  if (current.kind === "unresolved") {
+    return current;
+  }
+  if (
+    current.value !== program ||
+    readEpoch !== program.callableProofEpoch ||
+    after === undefined ||
+    !services.sameEpoch(epoch, after) ||
+    nodes.some(({ node, native }) => node.wasForgotten() || node.compilerNode !== native)
+  ) {
+    return services.refusal(call, "unsupported", "namespace candidate inputs changed while discharging captured effects");
+  }
+  return { ...candidate, trace: { ...candidate.trace, origin: call } };
 }

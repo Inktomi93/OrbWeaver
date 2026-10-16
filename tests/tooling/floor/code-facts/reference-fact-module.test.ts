@@ -1,6 +1,21 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { readModuleAliasBinding, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
-import { Project, SyntaxKind } from "ts-morph";
+import {
+  beginReferencePass,
+  endReferencePass,
+  inspectInheritedReadEffects,
+  readModuleAliasBinding,
+  resolveModuleMemberOrigin,
+} from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ArrowFunction, CallExpression, FunctionDeclaration, Node as MorphNode, ParameterDeclaration, SourceFile } from "ts-morph";
+import { Project, SyntaxKind, ts } from "ts-morph";
+import {
+  observeCallReturns,
+  readCallTargets,
+  readObservedCallableConsumers,
+  readSuppliedParameter,
+} from "../../../../tooling/src/floor/code-facts/call-returns.ts";
+import type { CallReturnObservations, CallReturnProgram, ReturnedValueContext } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
+import { readReturnedValue } from "../../../../tooling/src/floor/code-facts/value-carrier.ts";
 
 const DYNAMIC_ORIGIN_CASES = ["direct", "local", "destructured", "computed", "transitive"] as const;
 const DYNAMIC_FILES = {
@@ -122,6 +137,364 @@ for (const scenario of ["direct", "renamed", "wrong module", "foreign Program", 
       scenario === "direct" || scenario === "renamed" ? name.compilerNode : undefined,
     );
     expect(fact?.kind !== "resolved" || fact.trace.declarations.some((declaration) => declaration.compilerNode === expected.compilerNode)).toBe(true);
+  });
+}
+
+for (const scenario of ["direct await", "incomplete wildcard", "static namespace"] as const) {
+  test(`native dynamic module fulfillment rejects then assimilation without affecting ${scenario}`, () => {
+    const fact = pickOrigin({
+      "/repo/leaf.ts": "export function pick(){return 1;}export function then(resolve){resolve({pick:()=>2});}",
+      "/repo/barrel.ts": 'export {pick} from "./leaf.ts";export * from "./opaque.ts";',
+      "/repo/use.ts":
+        scenario === "static namespace"
+          ? 'import * as namespace from "./leaf.ts";export const value=namespace.pick;'
+          : `export const value=(await import("./${scenario === "incomplete wildcard" ? "barrel" : "leaf"}.ts")).pick;`,
+    });
+    expect(fact.kind).toBe(scenario === "static namespace" ? "resolved" : "unresolved");
+  });
+}
+
+const CAPTURED_NAMESPACE_CASES = [
+  { name: "an actual native import and abrupt handler", handler: "error=>{throw error;}", expected: true },
+  { name: "an unawaited Promise is not its namespace", awaited: false, expected: false },
+  { name: "a const all-abrupt handler without carrier confusion", before: "const onReject=error=>{throw error;};", handler: "onReject", expected: true },
+  { name: "both conditional handler branches throw", handler: "error=>{if(choose){throw error;}else{throw error;}}", expected: true },
+  { name: "an immutable arrow export", arrow: true, expected: true },
+  { name: "an unsupported factory-result export", factory: true, expected: false },
+  { name: "an effect roster cannot borrow its unresolved export caller", circular: true, expected: false },
+  { name: "the production-shaped conditional then throw", handler: "error=>{if(error instanceof Error){void error.message;}throw error;}", expected: true },
+  { name: "a renamed fulfilled export", binding: "build", expected: true },
+  { name: "a const fulfilled alias", after: "const alias=pick;", callee: "alias", expected: true },
+  {
+    name: "an escaped const fulfilled alias",
+    after: "const alias=pick;declare function escape(value:object):void;escape(alias);",
+    callee: "alias",
+    expected: false,
+  },
+  { name: "a written fulfilled alias", after: "let alias=pick;alias=()=>2;", callee: "alias", expected: false },
+  { name: "a reexported callable", module: "barrel", expected: true },
+  { name: "a then-exported replacement namespace", leaf: "export function then(resolve){resolve({pick:()=>2});}", expected: false },
+  { name: "an incomplete wildcard namespace roster", module: "barrel", barrel: 'export {pick} from "./leaf.ts";export * from "./opaque.ts";', expected: false },
+  { name: "a returning rejection handler", handler: "()=>({pick:()=>2})", expected: false },
+  { name: "an implicit rejection-handler return", handler: "error=>{if(choose)throw error;}", expected: false },
+  { name: "a bare rejection-handler return", handler: "error=>{return;}", expected: false },
+  { name: "an unknown never-typed handler", before: "declare function opaque(error:unknown):never;", handler: "opaque", expected: false },
+  { name: "an async handler", handler: "async error=>{throw error;}", expected: false },
+  { name: "a generator handler", handler: "function*(error){throw error;}", expected: false },
+  { name: "unsupported handler control flow", handler: "error=>{try{throw error;}finally{}}", expected: false },
+  { name: "overwritten catch", before: "Promise.prototype.catch=function(){return Promise.resolve({pick:()=>2});};", expected: false },
+  { name: "overwritten then with unchanged catch", before: "Promise.prototype.then=function(){return Promise.resolve({pick:()=>2});};", expected: false },
+  { name: "cross-source overwritten then", external: "Promise.prototype.then=function(){return Promise.resolve({pick:()=>2});};", expected: false },
+  { name: "overwritten constructor", before: "Promise.prototype.constructor=function(){};", expected: false },
+  {
+    name: "overwritten species",
+    before: "Object.defineProperty(Promise,Symbol.species,{value:function(executor){executor(()=>{},()=>{});return {pick:()=>2};}});",
+    expected: false,
+  },
+  { name: "an opaque Promise-typed receiver", before: 'declare const pending:Promise<typeof import("./leaf.ts")>;', receiver: "pending", expected: false },
+  { name: "an intervening then chain", receiver: 'import("./leaf.ts").then(value=>value)', expected: false },
+  { name: "an escaping fulfilled alias", after: "declare function escape(value:object):void;escape(pick);", expected: false },
+  { name: "a mutable fulfilled alias", mutable: true, expected: false },
+  { name: "an omitted actual call", capture: false, expected: false },
+  { name: "omitted reference coverage", references: false, expected: false },
+] as const;
+
+interface CapturedNamespaceCase {
+  awaited?: boolean;
+  handler?: string;
+  binding?: string;
+  after?: string;
+  callee?: string;
+  module?: string;
+  before?: string;
+  external?: string;
+  receiver?: string;
+  mutable?: boolean;
+  capture?: boolean;
+  references?: boolean;
+  leaf?: string;
+  barrel?: string;
+  arrow?: boolean;
+  factory?: boolean;
+  circular?: boolean;
+}
+
+interface CapturedNamespaceFixture {
+  readonly project: Project;
+  readonly leaf: SourceFile;
+  readonly source: SourceFile;
+  readonly call: CallExpression;
+  readonly caught: CallExpression;
+  readonly owner: FunctionDeclaration | ArrowFunction;
+  readonly parameter: ParameterDeclaration;
+  readonly declaration: MorphNode | undefined;
+}
+
+function namespaceAliasWitness(alias: ReturnType<NonNullable<CallReturnProgram["nativeNamespaceAlias"]>>): string {
+  if (alias === undefined) {
+    return "no alias";
+  }
+  return "kind" in alias ? `${alias.detail} at ${alias.node.getText()}` : alias.getText();
+}
+
+function capturedNamespaceImplementation(input: CapturedNamespaceCase): string {
+  if (input.arrow === true) {
+    return 'export const pick=(options={mode:"local"})=>options.mode;';
+  }
+  if (input.factory === true) {
+    return 'function make(){return (options={mode:"local"})=>options.mode;}export const pick=make();';
+  }
+  if (input.circular === true) {
+    return 'export function pick(options={mode:"local"}){const registry={local:{}};return registry[options.mode];}';
+  }
+  return 'export function pick(options={mode:"local"}){return options.mode;}';
+}
+
+function capturedNamespaceFixture(input: CapturedNamespaceCase = {}): CapturedNamespaceFixture {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, types: [] },
+  });
+  const implementation = capturedNamespaceImplementation(input);
+  const leaf = project.createSourceFile("/repo/leaf.ts", `${implementation}${input.leaf ?? ""}`);
+  project.createSourceFile("/repo/barrel.ts", input.barrel ?? 'export {pick} from "./leaf.ts";');
+  if (input.external !== undefined) {
+    project.createSourceFile("/repo/effects.ts", input.external);
+  }
+  const binding = input.binding ?? "pick";
+  const source = project.createSourceFile(
+    "/repo/use.ts",
+    `declare const choose:boolean;${input.before ?? ""}${input.mutable === true ? "let" : "const"} {pick:${binding}}=${input.awaited === false ? "" : "await "}${input.receiver ?? `import("./${input.module ?? "leaf"}.ts")`}.catch(${input.handler ?? "error=>{throw error;}"});${input.after ?? ""}const value=${input.callee ?? binding}();`,
+  );
+  const call = source.getVariableDeclarationOrThrow("value").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+  const caught = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((candidate) => candidate.getExpression().getText().endsWith(".catch"));
+  const owner = leaf.getFunction("pick") ?? leaf.getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+  const parameter = owner.getParameters()[0];
+  if (caught === undefined || parameter === undefined) {
+    throw new Error("the actual native catch or supplied formal is missing");
+  }
+  const declaration = project.getTypeChecker().getResolvedSignature(caught)?.getDeclaration();
+  return { project, leaf, source, call, caught, owner, parameter, declaration };
+}
+
+function capturedNamespaceObservations(project: Project, input: CapturedNamespaceCase = {}, call?: CallExpression): CallReturnObservations {
+  const files = project.getSourceFiles();
+  const roots = files
+    .flatMap((file) => file.getDescendantsOfKind(SyntaxKind.CallExpression))
+    .filter((candidate) => input.capture !== false || candidate !== call);
+  return observeCallReturns(roots, input.references === false ? undefined : files.flatMap((file) => file.getDescendants()), { suppliedCallableTargets: true });
+}
+
+for (const scenario of CAPTURED_NAMESPACE_CASES) {
+  test(`captured native catch namespace: ${scenario.name}`, () => {
+    const input: CapturedNamespaceCase = scenario;
+    const { project, source, call, owner, parameter, declaration } = capturedNamespaceFixture(input);
+    beginReferencePass();
+    try {
+      const observed = capturedNamespaceObservations(project, input, call);
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual capture owner is missing");
+      }
+      expect(program.byCall.has(call.compilerNode)).toBe(input.capture !== false);
+      expect(declaration !== undefined && program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode)).toBe(true);
+      expect(
+        resolveModuleMemberOrigin(
+          source.getVariableDeclarationOrThrow("value").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression).getExpression(),
+        ).kind,
+      ).toBe("unresolved");
+      const settled = program.suppliedCallableUses?.(call);
+      const targets = readCallTargets(call, undefined, observed);
+      expect((input.factory !== true && input.circular !== true) || targets.kind === "unresolved").toBe(true);
+      expect(input.circular !== true || program.callers.get(owner.compilerNode) === undefined).toBe(true);
+      const consumers = readObservedCallableConsumers(owner, program);
+      const supplied = readSuppliedParameter(parameter.getNameNode(), new Map(), program);
+      expect(
+        !scenario.expected || settled?.kind === "resolved",
+        settled?.kind === "unresolved" ? `${settled.detail} at ${settled.node.getText()}` : scenario.name,
+      ).toBe(true);
+      expect(consumers.kind, consumers.kind === "unresolved" ? `${consumers.detail} at ${consumers.node.getText()}` : scenario.name).toBe(
+        scenario.expected ? "resolved" : "unresolved",
+      );
+      expect(supplied.kind).toBe(scenario.expected ? "resolved" : "unresolved");
+      expect(!scenario.expected || (targets.kind === "resolved" && targets.value.length === 1 && targets.value[0]?.compilerNode === owner.compilerNode)).toBe(
+        true,
+      );
+      expect(consumers.kind === "resolved" ? consumers.value.map((consumer) => consumer.call.compilerNode) : []).toEqual(
+        scenario.expected ? [call.compilerNode] : [],
+      );
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const invalidation of ["expired premise", "changed source", "foreign continuation"] as const) {
+  test(`captured native namespace alias retains the real private lifetime: ${invalidation}`, () => {
+    const { project, source, owner } = capturedNamespaceFixture({ after: 'const key="safe";const record={safe:{}};record[key];' });
+    const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+    const reference = element.getPropertyNameNodeOrThrow();
+    const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+    beginReferencePass();
+    try {
+      const observed = capturedNamespaceObservations(project);
+      const program = observed.programs[0];
+      if (program === undefined || program.nativeNamespaceAlias === undefined) {
+        throw new Error("the captured namespace alias capability is missing");
+      }
+      let continuation: ReturnedValueContext | undefined;
+      const during: boolean[] = [];
+      const witnesses: string[] = [];
+      const effects = inspectInheritedReadEffects(binding, {
+        program,
+        values: (node, path, bindings, premise) => {
+          if (premise !== undefined) {
+            const context: ReturnedValueContext = {
+              program,
+              bindings,
+              active: new Set(),
+              terminals: new Set(),
+              nativeIterations: new Map(),
+              nativeValueTransfers: false,
+              explicitAbsentReturns: false,
+              callableValues: true,
+              inheritedReadPremise: premise,
+            };
+            continuation = context;
+            const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program, context });
+            during.push(alias !== undefined && !("kind" in alias) && alias.compilerNode === binding.compilerNode);
+            witnesses.push(namespaceAliasWitness(alias));
+          }
+          return readReturnedValue(node, path, observed, { terminals: new Set(), bindings });
+        },
+      });
+      expect(effects.kind, effects.kind === "unresolved" ? effects.detail : invalidation).toBe("resolved");
+      expect(during.length > 0 && during.every(Boolean), witnesses.join(" | ")).toBe(true);
+      if (continuation === undefined) {
+        throw new Error("the actual inherited-effect owner supplied no private premise");
+      }
+      if (invalidation === "changed source") {
+        source.replaceWithText("export const changed=1;");
+      }
+      let context = continuation;
+      if (invalidation === "foreign continuation") {
+        const other = capturedNamespaceObservations(project).programs[0];
+        if (other === undefined) {
+          throw new Error("the actual foreign capture owner is missing");
+        }
+        context = { ...continuation, program: other };
+      }
+      const replay = program.nativeNamespaceAlias(reference, binding, owner, { program, context });
+      expect(replay !== undefined && "kind" in replay).toBe(true);
+      const reasons = { "expired premise": "expired", "changed source": "forgotten", "foreign continuation": "another capture owner" };
+      expect(replay !== undefined && "kind" in replay ? replay.detail : "resolved").toContain(reasons[invalidation]);
+      expect(program.inheritedReadTrialActive?.()).toBe(false);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("captured native namespace alias cannot borrow an active trial without its real continuation", () => {
+  const { project, source, owner } = capturedNamespaceFixture();
+  const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+  const reference = element.getPropertyNameNodeOrThrow();
+  const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+  beginReferencePass();
+  try {
+    const files = project.getSourceFiles();
+    const observed = observeCallReturns(
+      files.flatMap((file) => file.getDescendantsOfKind(SyntaxKind.CallExpression)),
+      files.flatMap((file) => file.getDescendants()),
+      { suppliedCallableTargets: true },
+    );
+    const program = observed.programs[0];
+    if (program?.withInheritedReadTrial === undefined) {
+      throw new Error("the actual private trial owner is missing");
+    }
+    let refused = false;
+    const result = program.withInheritedReadTrial(reference, program, () => {
+      const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program });
+      refused = alias !== undefined && "kind" in alias;
+      return { kind: "resolved", value: true, trace: { declarations: [], origin: reference } };
+    });
+    expect(result.kind).toBe("resolved");
+    expect(refused).toBe(true);
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const capability of ["nativeNamespaceValue", "nativeNamespaceAlias"] as const) {
+  test(`captured namespace private trials retain capability identity: ${capability}`, () => {
+    const { project, source } = capturedNamespaceFixture({ after: 'const key="safe";const record={safe:{}};record[key];' });
+    beginReferencePass();
+    try {
+      const observed = capturedNamespaceObservations(project);
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the native capture is missing");
+      }
+      const original = Object.getOwnPropertyDescriptor(program, capability);
+      let replaced = false;
+      try {
+        const result = inspectInheritedReadEffects(source, {
+          program,
+          values: (node, path, bindings) => {
+            if (!replaced) {
+              replaced = true;
+              Object.defineProperty(program, capability, { configurable: true, value: () => undefined });
+            }
+            return readReturnedValue(node, path, observed, { terminals: new Set(), bindings });
+          },
+        });
+        expect(replaced).toBe(true);
+        expect(result.kind === "unresolved" ? result.detail : "resolved").toBe("capture inputs changed during an inherited-effect trial");
+      } finally {
+        if (original !== undefined) {
+          Object.defineProperty(program, capability, original);
+        }
+      }
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const invalidation of ["missing epoch", "changed epoch", "wrong module"] as const) {
+  test(`captured namespace candidate refuses incomplete or changed inputs: ${invalidation}`, () => {
+    const { project, source, owner } = capturedNamespaceFixture();
+    const other = project.createSourceFile("/repo/other.ts", "export function pick(){return 2;}");
+    const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+    const reference = element.getPropertyNameNodeOrThrow();
+    const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+    beginReferencePass();
+    try {
+      const observed = capturedNamespaceObservations(project);
+      const program = observed.programs[0];
+      const epoch = program?.callableProofEpoch;
+      if (program?.nativeNamespaceAlias === undefined || epoch === undefined) {
+        throw new Error("the actual capture operations are missing");
+      }
+      let reads = 0;
+      const original = Object.getOwnPropertyDescriptor(program, "callableProofEpoch");
+      try {
+        if (invalidation !== "wrong module") {
+          Object.defineProperty(program, "callableProofEpoch", {
+            configurable: true,
+            value: invalidation === "missing epoch" ? undefined : () => ({ ...epoch(), referenceRevision: reads++ }),
+          });
+        }
+        const alias = program.nativeNamespaceAlias(reference, binding, invalidation === "wrong module" ? other.getFunctionOrThrow("pick") : owner, { program });
+        expect(alias !== undefined && "kind" in alias).toBe(true);
+      } finally {
+        if (original !== undefined) {
+          Object.defineProperty(program, "callableProofEpoch", original);
+        }
+      }
+    } finally {
+      endReferencePass();
+    }
   });
 }
 

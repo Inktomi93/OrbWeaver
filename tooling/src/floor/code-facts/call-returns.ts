@@ -6,10 +6,18 @@ import { captureNativeReferenceReads } from "../compiler/ts-workspace.ts";
 import {
   readObservedCallableConsumers as callableConsumers,
   readCallReturnProgram as capturedProgram,
+  readCallReturnReference as capturedReference,
   readCallBindings as suppliedBindings,
   readSuppliedParameter as suppliedParameter,
 } from "./call-supplied.ts";
-import { isDocumentationLinkReference, readModuleAliasBinding, readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
+import {
+  isDocumentationLinkReference,
+  readModuleAliasBinding,
+  readStaticString,
+  referenceResolutionServices,
+  resolveStableExpression,
+  staticMemberAccess,
+} from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
 import {
   resolveCallableAlternatives,
@@ -27,12 +35,14 @@ import type {
   CallReturnProofContext,
   ReferenceFact,
   ReferenceUnresolvedReason,
+  ReturnedValueContext,
   ReturnedValueInputs,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
+import { readCapturedNamespaceValue } from "./reference-fact-module.ts";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "./type-member-origin.ts";
-import { readAuthoredCallableSources } from "./value-carrier.ts";
+import { readAuthoredCallableSources, readCapturedNamespaceAlias, sameCallReturnProofEpoch } from "./value-carrier.ts";
 import { readZodParsedValue } from "./zod-origin.ts";
 
 interface Trace {
@@ -267,6 +277,33 @@ function nativeFunctionReturns(
     : { kind: "resolved", value: native.value.values, trace: { declarations: trace.declarations, origin: fn } };
 }
 
+/** All-abrupt completion is distinct from an absent or unreadable returned expression. */
+export function readFunctionAbruptCompletion(fn: MorphNode, program: CallReturnProgram): ReferenceFact<true> {
+  const admitted = capturedProgram(fn, { programs: [program] });
+  if (admitted.kind === "unresolved") {
+    return admitted;
+  }
+  const trace: Trace = { declarations: [fn] };
+  if (
+    !(Node.isFunctionDeclaration(fn) || Node.isFunctionExpression(fn) || Node.isArrowFunction(fn)) ||
+    fn.isAsync() ||
+    (!Node.isArrowFunction(fn) && fn.isGenerator())
+  ) {
+    return unresolved("unsupported", fn, trace, "the namespace handler is not a synchronous authored function");
+  }
+  const body = fn.getBody();
+  if (!Node.isBlock(body)) {
+    return unresolved("unsupported", fn, trace, "the namespace handler has no all-abrupt authored block");
+  }
+  const flow = nativeStatementSequence(body.getStatements(), fn, { explicitAbsentReturns: true }, trace);
+  if (flow.kind === "unresolved") {
+    return flow;
+  }
+  return flow.value.stops && flow.value.values.length === 0
+    ? { kind: "resolved", value: true, trace: flow.trace }
+    : unresolved("unsupported", fn, trace, "the namespace handler has a normal or returned fulfillment path");
+}
+
 function nativeStatementReachable(node: MorphNode, program: CallReturnProgram): ReferenceFact<true> {
   const captured = capturedProgram(node, { programs: [program] });
   if (captured.kind === "unresolved") {
@@ -462,10 +499,22 @@ function referenceCandidate(node: MorphNode): boolean {
   return ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).some((declaration) => callableBindingCandidate(node, declaration));
 }
 
-function admittedReference(node: MorphNode, target: MorphNode, calls: ReadonlyMap<import("ts-morph").ts.CallExpression, CallReturnObservation>): boolean {
+function admittedReference(
+  node: MorphNode,
+  target: MorphNode,
+  calls: ReadonlyMap<import("ts-morph").ts.CallExpression, CallReturnObservation>,
+  program?: CallReturnProgram,
+): boolean {
   const moduleAlias = readModuleAliasBinding(node, target);
-  if (moduleAlias !== undefined) {
-    return moduleAlias.kind === "resolved";
+  if (moduleAlias?.kind === "resolved") {
+    return true;
+  }
+  if (moduleAlias !== undefined && Node.isIdentifier(node) && program !== undefined) {
+    const capturedAlias = program.nativeNamespaceAlias?.(node, node, target, { program });
+    if (capturedAlias !== undefined) {
+      return !("kind" in capturedAlias);
+    }
+    return false;
   }
   const invocation = node.getFirstAncestorByKind(SyntaxKind.CallExpression);
   if (invocation !== undefined && unwrapTarget(invocation.getExpression()) === node) {
@@ -501,6 +550,7 @@ function referenceHomes(fact: ReferenceFact<import("./reference-fact-contract.ts
 function escapingReferences(
   references: readonly MorphNode[],
   calls: ReadonlyMap<import("ts-morph").ts.CallExpression, CallReturnObservation>,
+  program?: CallReturnProgram,
 ): ReadonlyMap<import("ts-morph").ts.Node, readonly UnresolvedReferenceFact[]> {
   const escaped = new Map<import("ts-morph").ts.Node, UnresolvedReferenceFact[]>();
   const seen = new Set<object>();
@@ -512,7 +562,7 @@ function escapingReferences(
     const fact = resolveCallableDeclaration(node);
     const homes = referenceHomes(fact);
     for (const home of homes) {
-      if (home.getSourceFile().isDeclarationFile() || admittedReference(node, home, calls)) {
+      if (home.getSourceFile().isDeclarationFile() || admittedReference(node, home, calls, program)) {
         continue;
       }
       const previous = escaped.get(home.compilerNode) ?? [];
@@ -770,6 +820,8 @@ interface RefinementEntry extends RefinementReadSet {
   readonly referencesObserved: boolean;
   readonly supplied: boolean;
   readonly nativeValues: boolean;
+  readonly namespaceValue: CallReturnProgram["nativeNamespaceValue"];
+  readonly namespaceAlias: CallReturnProgram["nativeNamespaceAlias"];
   readonly sourceCount: number;
   readonly validateNative: (() => boolean) | undefined;
 }
@@ -1004,7 +1056,9 @@ class RefinementLedger {
       program.callableContext !== entry.context ||
       program.referencesObserved !== entry.referencesObserved ||
       (program.suppliedCallableTargets === true) !== entry.supplied ||
-      (program.nativeValueTransfers === true) !== entry.nativeValues
+      (program.nativeValueTransfers === true) !== entry.nativeValues ||
+      program.nativeNamespaceValue !== entry.namespaceValue ||
+      program.nativeNamespaceAlias !== entry.namespaceAlias
     ) {
       return false;
     }
@@ -1065,6 +1119,8 @@ class RefinementLedger {
           referencesObserved: program.referencesObserved,
           supplied: program.suppliedCallableTargets === true,
           nativeValues: program.nativeValueTransfers === true,
+          namespaceValue: program.nativeNamespaceValue,
+          namespaceAlias: program.nativeNamespaceAlias,
           sourceCount: program.sources.size,
           validateNative: validation.validate,
         };
@@ -1391,6 +1447,34 @@ export function observeCallReturns(
     projection.nativeValueTransfers === true || projection.suppliedCallableTargets === true
       ? { nativeSymbolServices: { callableOrigin: resolveCallableValueOrigin, memberOrigin: resolveTypeMemberOrigin, declaredByPackage } }
       : {};
+  const nativeNamespaceValue: NonNullable<CallReturnProgram["nativeNamespaceValue"]> = (call, path, context, services) => {
+    if (context.program?.nativeNamespaceValue !== nativeNamespaceValue) {
+      return unresolved("unsupported", call, { declarations: [] }, "namespace value continuation belongs to another capture capability");
+    }
+    const value = readCapturedNamespaceValue(call, path, context, {
+      ...services,
+      references: referenceResolutionServices,
+      capturedProgram,
+      capturedReference,
+      abruptCompletion: readFunctionAbruptCompletion,
+      callableDeclaration: resolveCallableDeclaration,
+      sameEpoch: sameCallReturnProofEpoch,
+    });
+    return context.program.nativeNamespaceValue === nativeNamespaceValue
+      ? value
+      : unresolved("unsupported", call, { declarations: [] }, "namespace value capability changed during projection");
+  };
+  const nativeNamespaceAlias: NonNullable<CallReturnProgram["nativeNamespaceAlias"]> = (reference, binding, expected, inputs) => {
+    if (inputs.program.nativeNamespaceAlias !== nativeNamespaceAlias) {
+      return unresolved("unsupported", reference, { declarations: [] }, "namespace alias belongs to another capture capability");
+    }
+    const alias = readCapturedNamespaceAlias(reference, binding, expected, inputs);
+    return inputs.program.nativeNamespaceAlias === nativeNamespaceAlias
+      ? alias
+      : unresolved("unsupported", reference, { declarations: [] }, "namespace alias capability changed during projection");
+  };
+  const nativeNamespaces =
+    projection.suppliedCallableTargets === true || projection.nativeValueTransfers === true ? { nativeNamespaceValue, nativeNamespaceAlias } : {};
   const ledger = new RefinementLedger();
   let inheritedAttempt: { readonly node: MorphNode } | undefined;
   const beforeWrite = (node?: MorphNode, fulfill?: () => void): void => {
@@ -1665,6 +1749,8 @@ export function observeCallReturns(
     captured.suppliedCallableTargets,
     captured.nativeValueTransfers,
     captured.nativeParsedValue,
+    captured.nativeNamespaceValue,
+    captured.nativeNamespaceAlias,
     captured.nativeReturnPaths,
     projection.suppliedCallableTargets,
     projection.nativeValueTransfers,
@@ -1737,8 +1823,16 @@ export function observeCallReturns(
     captured: () => CallReturnProgram,
   ): Pick<
     CallReturnProgram,
-    "demandValueCall" | "demandReferenceSource" | "nativeParsedValue" | "nativeValueTransfers" | "nativeStatementReachable" | "nativeReturnPaths"
+    | "demandValueCall"
+    | "demandReferenceSource"
+    | "nativeParsedValue"
+    | "nativeNamespaceValue"
+    | "nativeNamespaceAlias"
+    | "nativeValueTransfers"
+    | "nativeStatementReachable"
+    | "nativeReturnPaths"
   > => ({
+    ...nativeNamespaces,
     ...(references === undefined
       ? {}
       : {
@@ -1792,7 +1886,7 @@ export function observeCallReturns(
           calls: group.calls,
           callers: group.refinement.callers.map(capturedCallers(group.calls)),
           byCall,
-          escapingReferences: group.refinement.escapes.map(escapingReferences(currentReferences, byCall)),
+          escapingReferences: group.refinement.escapes.map(escapingReferences(currentReferences, byCall, group.settled?.owner)),
         };
         if (projection.suppliedCallableTargets === true) {
           nodes = settledNodes(indexes, currentReferences);
@@ -1890,8 +1984,12 @@ export function readCallReturnProgram(node: MorphNode, observations: CallReturnO
 }
 
 /** Complete observed callers retain the captured native graph. */
-export function readObservedCallableConsumers(owner: MorphNode, program: CallReturnProgram): ReferenceFact<readonly CallReturnObservation[]> {
-  return callableConsumers(owner, program);
+export function readObservedCallableConsumers(
+  owner: MorphNode,
+  program: CallReturnProgram,
+  context?: ReturnedValueContext,
+): ReferenceFact<readonly CallReturnObservation[]> {
+  return callableConsumers(owner, program, context);
 }
 
 /** Supplied origins are actual argument alternatives, never a formal annotation. */
@@ -1899,6 +1997,7 @@ export function readSuppliedParameter(
   node: MorphNode,
   bindings: ReadonlyMap<MorphNode, MorphNode>,
   program: CallReturnProgram | undefined,
+  context?: ReturnedValueContext,
 ): ReferenceFact<readonly import("./reference-fact-contract.ts").SuppliedValueSource[]> {
-  return suppliedParameter(node, bindings, program);
+  return suppliedParameter(node, bindings, program, context);
 }

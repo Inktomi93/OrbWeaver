@@ -558,6 +558,17 @@ function returnedFrozenValue(
   return argument?.kind === "resolved" ? context.services.readValue(argument.value, path, context) : argument;
 }
 
+function capturedNativeProjection(
+  call: CallExpression,
+  path: readonly string[],
+  context: NativeTransferContext,
+): ReferenceFact<readonly ReturnedValueSource[]> | undefined {
+  return (
+    context.program?.nativeNamespaceValue?.(call, path, context, context.services) ??
+    context.program?.nativeParsedValue?.(call, path, context, context.services)
+  );
+}
+
 function returnedNativeCallValue(
   call: CallExpression,
   path: readonly string[],
@@ -568,7 +579,7 @@ function returnedNativeCallValue(
       ? context.services.refusal(call, "missing", "native value call was not captured")
       : undefined;
   }
-  const parsed = context.program.nativeParsedValue?.(call, path, context, context.services);
+  const parsed = capturedNativeProjection(call, path, context);
   if (parsed !== undefined) {
     return parsed;
   }

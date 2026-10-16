@@ -46,4 +46,4 @@ Missing-reference admission passes review and ordinary controls except the parti
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`.
 
-Direct awaited module aliases preserve native identity, trace and actual consumer closure. Review and ordinary controls pass. Evidence: `reports/review/1002-module-alias-ordinary.md`. Native catch transfer still requires captured-effect capability; the desired positive remains unqualified.
+Native awaited namespaces preserve caller closure, assimilation refusal and premise lifetime. Direct aliases and captured catch pass scoped controls and review. Evidence: `reports/review/1002-module-alias-ordinary.md` and `reports/review/1002-native-catch-namespace-ordinary.md`. Original target qualification remains open.
