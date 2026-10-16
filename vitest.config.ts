@@ -1,3 +1,4 @@
+import process from "node:process";
 import { LEGACY_TEST_WORLD_PROGRAMS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { budget } from "@orb/tooling/floor/host/load-budget";

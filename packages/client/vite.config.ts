@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import process from "node:process";
 import { promisify } from "node:util";
 import { brotliCompress, gzip, constants as zlibConstants, zstdCompress } from "node:zlib";
 import babel from "@rolldown/plugin-babel";

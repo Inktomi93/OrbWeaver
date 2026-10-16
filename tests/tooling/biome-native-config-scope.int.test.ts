@@ -1,6 +1,7 @@
 // Native admission uses the shipping config and VCS ignores; scratch files never enter the checkout.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -30,6 +31,22 @@ const NAMESPACE_PATH = "packages/db/src/schema/native-config.ts";
 const NAMED_PATH = "packages/db/src/schema/named-config.ts";
 const DEFAULT_BODY = "export default function run(): number { return 1; }\n";
 
+function lintTree(root: string, repoRoot: string, paths: readonly string[]): Record<string, JsonValue> {
+  for (const path of ["biome.json", ".gitignore"]) {
+    writeFileSync(join(root, path), readFileSync(join(repoRoot, path)));
+  }
+  execFixtureGit(root, ["init", "-q"]);
+  const result = runNicedSync(join(repoRoot, "node_modules", ".bin", "biome"), ["lint", ...paths, "--reporter=json", "--diagnostic-level=error"], {
+    cwd: root,
+  });
+  expect(result.status, result.stderr).toBe(1);
+  const report = jsonValueSchema.parse(JSON.parse(result.stdout));
+  if (report === null || typeof report !== "object" || Array.isArray(report) || !Array.isArray(report["diagnostics"])) {
+    throw new Error("Biome did not return its native diagnostics report");
+  }
+  return report;
+}
+
 test("native config admits authored paths and rejects unnecessary default/namespace imports without opening derived trees", async ({
   plantedTree,
   repoRoot,
@@ -41,31 +58,7 @@ test("native config admits authored paths and rejects unnecessary default/namesp
     [NAMESPACE_PATH]: 'import * as path from "node:path"; export const joined = path.join("a", "b");\n',
     [NAMED_PATH]: 'import { join } from "node:path"; export const joined = join("a", "b");\n',
   });
-  for (const path of ["biome.json", ".gitignore"]) {
-    writeFileSync(join(root, path), readFileSync(join(repoRoot, path)));
-  }
-  execFixtureGit(root, ["init", "-q"]);
-  const result = runNicedSync(
-    join(repoRoot, "node_modules", ".bin", "biome"),
-    [
-      "lint",
-      ORDINARY_PATH,
-      ...ADMITTED_PATHS,
-      SCRIPT_PATH,
-      FRAMEWORK_PATH,
-      NAMESPACE_PATH,
-      NAMED_PATH,
-      ...PROTECTED_PATHS,
-      "--reporter=json",
-      "--diagnostic-level=error",
-    ],
-    { cwd: root },
-  );
-  expect(result.status, result.stderr).toBe(1);
-  const report = jsonValueSchema.parse(JSON.parse(result.stdout));
-  if (report === null || typeof report !== "object" || Array.isArray(report) || !Array.isArray(report["diagnostics"])) {
-    throw new Error("Biome did not return its native diagnostics report");
-  }
+  const report = lintTree(root, repoRoot, [ORDINARY_PATH, ...ADMITTED_PATHS, SCRIPT_PATH, FRAMEWORK_PATH, NAMESPACE_PATH, NAMED_PATH, ...PROTECTED_PATHS]);
   const diagnostics = report["diagnostics"];
   expect(diagnostics).toContainEqual(
     expect.objectContaining({ category: "lint/suspicious/noDoubleEquals", location: expect.objectContaining({ path: ORDINARY_PATH }) }),
@@ -87,4 +80,43 @@ test("native config admits authored paths and rejects unnecessary default/namesp
   );
   expect(diagnostics).toHaveLength(7);
   expect(report["summary"]).toMatchObject({ unchanged: 8, diagnosticsNotPrinted: 0 });
+});
+
+const ENV_BODY = 'import process from "node:process"; export const selected = process.env["ORB_CONFIG_CONTROL"];\n';
+const NUMERIC_BODY = "export function defaultTimeout(): number { return 5000; }\n";
+const BUILTIN_BODY = 'import { join } from "node:path"; export const joined = join("a", "b");\n';
+const AMBIENT_BODY = 'export const selected = process.env["ORB_CONFIG_CONTROL"];\n';
+const FOREIGN_CLIENT_CONFIG = "packages/client/ordinary.config.ts";
+const FOREIGN_ROOT_CONFIG = "ordinary.config.ts";
+const PLAIN_NODE_PATH = "tooling/src/native-process-control.ts";
+
+test("native framework permissions stop at actual Node and environment intake owners", async ({ plantedTree, repoRoot }) => {
+  const files = {
+    "packages/client/vite.config.ts": ENV_BODY + NUMERIC_BODY,
+    "packages/client/native-typecheck.config.ts": BUILTIN_BODY,
+    "playwright-ct.config.ts": ENV_BODY,
+    "playwright.config.ts": ENV_BODY + NUMERIC_BODY,
+    "tests/e2e/support/global-setup.ts": ENV_BODY,
+    "tests/e2e/support/modes.ts": ENV_BODY,
+    "vitest.config.ts": ENV_BODY + NUMERIC_BODY,
+    [FOREIGN_CLIENT_CONFIG]: BUILTIN_BODY + AMBIENT_BODY + NUMERIC_BODY,
+    [FOREIGN_ROOT_CONFIG]: AMBIENT_BODY + NUMERIC_BODY,
+    [PLAIN_NODE_PATH]: "export const currentPid = process.pid;\n",
+  };
+  const root = await plantedTree(files);
+  const report = lintTree(root, repoRoot, Object.keys(files));
+  const diagnostics = report["diagnostics"];
+  expect(report["summary"]).toMatchObject({ unchanged: 10, diagnosticsNotPrinted: 0 });
+  expect(diagnostics).toContainEqual(
+    expect.objectContaining({ category: "lint/correctness/noProcessGlobal", location: expect.objectContaining({ path: PLAIN_NODE_PATH }) }),
+  );
+  for (const path of [FOREIGN_CLIENT_CONFIG, FOREIGN_ROOT_CONFIG]) {
+    for (const category of ["lint/correctness/noProcessGlobal", "lint/style/noProcessEnv", "lint/style/noMagicNumbers"]) {
+      expect(diagnostics).toContainEqual(expect.objectContaining({ category, location: expect.objectContaining({ path }) }));
+    }
+  }
+  expect(diagnostics).toContainEqual(
+    expect.objectContaining({ category: "lint/correctness/noNodejsModules", location: expect.objectContaining({ path: FOREIGN_CLIENT_CONFIG }) }),
+  );
+  expect(diagnostics).toHaveLength(8);
 });
