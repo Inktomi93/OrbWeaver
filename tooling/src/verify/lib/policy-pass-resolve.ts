@@ -1,10 +1,12 @@
 // Population resolution: turns the invocation's policy/fact roster plus the workspace source files into
 // PolicyRun/FactRun state with an effective population and an owner disposition — no visit/create dispatch.
+
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { SourceFile } from "ts-morph";
 import type { CompilerProgram } from "../../floor/compiler/compiler-programs-contract.ts";
 import { isNodeTestJavaScriptSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
 import { canonicalSemanticPrograms, registeredSemanticSourceView, semanticProgramMatchesDescriptor } from "../../floor/compiler/ts-workspace.ts";
+import { LEGACY_ANALYSIS_EXCLUSION_REASON } from "../../floor/testing/test-population.ts";
 import type { GateFact } from "../contract/fact.ts";
 import { factProvider } from "../contract/fact.ts";
 import type { RawGateFinding } from "../contract/gate-authority.ts";
@@ -179,21 +181,29 @@ interface ResolutionInput {
   readonly applicationPaths?: ReadonlySet<string>;
 }
 
-function resolveRun({ run, candidates, sourceFiles, requested, resources, dependencyPaths, applicationPaths }: ResolutionInput): void {
-  const implementationOnly = applicationPaths !== undefined && run.policy.application === "implementation";
-  const declared = implementationOnly ? [] : resolvePopulation(run.policy.population, candidates).paths;
-  if (applicationPaths !== undefined && declared.length === 0 && run.policy.application === undefined) {
-    throw new Error(`resource-only policy has no application subject admission: ${run.policy.id}`);
-  }
+function assertRunResources(run: PolicyRun, resources: readonly string[], implementationOnly: boolean): void {
   if (run.policy.analysis !== "resource" && resources.length > 0) {
     throw new Error(`non-resource policy ${run.policy.id} ${POLICY_PASS_REFUSALS.nonResourceReceivedResources}`);
   }
   if (!implementationOnly && explicitNonePopulation(run.policy.population) && resources.length === 0) {
     throw new Error(`resource-only policy ${run.policy.id} ${POLICY_PASS_REFUSALS.resourceOnlyNoPaths}`);
   }
+}
+
+function resolveRun({ run, candidates, sourceFiles, requested, resources, dependencyPaths, applicationPaths }: ResolutionInput): void {
+  const implementationOnly = applicationPaths !== undefined && run.policy.application === "implementation";
+  const resolved = implementationOnly ? undefined : resolvePopulation(run.policy.population, candidates, run.policy.analysis);
+  const declared = resolved?.paths ?? [];
+  const excludedLegacySourcePaths = resolved?.excludedLegacySourcePaths;
+  const legacyOnly = declared.length === 0 && excludedLegacySourcePaths !== undefined;
+  if (!legacyOnly && applicationPaths !== undefined && declared.length === 0 && run.policy.application === undefined) {
+    throw new Error(`resource-only policy has no application subject admission: ${run.policy.id}`);
+  }
+  assertRunResources(run, resources, implementationOnly);
   // THE ONE SELECTION CALCULATION (#2309), shared verbatim with the planner: an input is never narrowed, a
   // changed input reselects every subject, and applicability stays the raw scope intersection.
   const { population, disposition } = resolveEffectivePopulation({
+    ...(excludedLegacySourcePaths === undefined ? {} : { excludedLegacySourcePaths }),
     execution: run.policy.execution,
     declaredSourcePaths: declared,
     declaredResourcePaths: resources,
@@ -213,7 +223,11 @@ function resolveRun({ run, candidates, sourceFiles, requested, resources, depend
   });
   run.effectiveSourcePathSet = new Set(population.effectiveSourcePaths);
   if (disposition === "empty-intersection") {
-    run.owner = { status: "not-applicable", population: "complete", reason: POLICY_PASS_REFUSALS.emptyIntersection };
+    run.owner = {
+      status: "not-applicable",
+      population: "complete",
+      reason: legacyOnly ? LEGACY_ANALYSIS_EXCLUSION_REASON : POLICY_PASS_REFUSALS.emptyIntersection,
+    };
   } else if (disposition === "deferred") {
     run.owner = { status: "not-applicable", population: "complete", reason: POLICY_PASS_REFUSALS.entireDeferred };
   } else {
@@ -279,7 +293,7 @@ function factDependencyPaths(policies: readonly GatePolicy[], candidates: readon
     }
     // @orb-waive caught-failure-ownership(catch): fact population resolution: on failure the fact gets an empty population and the run continues; downstream gates see EMPTY_POPULATION, not silence
     try {
-      byId.set(fact.id, [...resolvePopulation(fact.population, candidates).paths, ...resolveResourceDeclarations(resources, fact.resources)]);
+      byId.set(fact.id, [...resolvePopulation(fact.population, candidates, fact.analysis).paths, ...resolveResourceDeclarations(resources, fact.resources)]);
     } catch {
       byId.set(fact.id, []);
     }
@@ -395,10 +409,13 @@ export function resolveFactRuns({ facts, sourceFiles, resources, control }: Reso
   return facts.map((fact) => {
     const run = newFactRun(fact);
     control.values.set(fact, { status: "pending" });
+    let excludedLegacySourcePaths: readonly string[] | undefined;
     // @orb-waive caught-failure-ownership(error): fact population resolution: markFactIncomplete converts error to a structured FactToolError; the run reports tool-error status with EMPTY_POPULATION
     try {
       chargeFact(run.timing, "population", () => {
-        const declaredSourcePaths = resolvePopulation(fact.population, candidates).paths;
+        const resolved = resolvePopulation(fact.population, candidates, fact.analysis);
+        const declaredSourcePaths = resolved.paths;
+        excludedLegacySourcePaths = resolved.excludedLegacySourcePaths;
         const declaredResourcePaths = resolveResourceDeclarations(resources, fact.resources);
         if (explicitNonePopulation(fact.population) && declaredResourcePaths.length === 0) {
           throw new Error(`resource-only fact ${fact.id} ${POLICY_PASS_REFUSALS.resourceOnlyNoPaths}`);
@@ -407,6 +424,7 @@ export function resolveFactRuns({ facts, sourceFiles, resources, control }: Reso
           throw new Error(`fact ${fact.id} ${POLICY_PASS_REFUSALS.factEmptyPopulation}`);
         }
         run.population = {
+          ...(excludedLegacySourcePaths === undefined ? {} : { excludedLegacySourcePaths }),
           declaredSourcePaths,
           declaredResourcePaths,
           requestedPaths: null,
@@ -427,7 +445,7 @@ export function resolveFactRuns({ facts, sourceFiles, resources, control }: Reso
       });
     } catch (error) {
       markFactIncomplete(run, "population", error, control);
-      run.population = EMPTY_POPULATION;
+      run.population = { ...EMPTY_POPULATION, ...(excludedLegacySourcePaths === undefined ? {} : { excludedLegacySourcePaths }) };
     }
     return run;
   });

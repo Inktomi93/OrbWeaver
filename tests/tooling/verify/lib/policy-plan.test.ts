@@ -1000,3 +1000,62 @@ test.describe("final policy planner", () => {
     expect(policyPassExitCode({ ...result, factErrors: [{ factId: "x", phase: "finish", message: "boom" }] })).toBe(2);
   });
 });
+
+test("legacy analysis eligibility removes broad typed policy and provider subjects explicitly", () => {
+  const paths = ["tooling/src/a.ts", "tests/legacy/server/old.test.ts"];
+  const fact = defineFact({
+    id: "typed-eligibility-fact",
+    population: { of: "all", why: "complete eligible source inputs" },
+    analysis: "types",
+    resources: [],
+    create: () => ({ finish: () => true }),
+  });
+  const typed = policy("typed-eligibility", {
+    analysis: "types",
+    execution: "entire-population",
+    population: { of: "all", why: "all eligible subjects" },
+    facts: [fact],
+  });
+  const result = planPolicyCommand({
+    request: runRequest({ scope: { kind: "whole" } }),
+    corpus: { gates: [typed], families: [typed.family] },
+    scope: { ...scope(paths), programs: [{ ...PROGRAM, files: paths }] },
+  });
+  expect(result.ok, JSON.stringify(result)).toBe(true);
+  if (!(result.ok && result.plan.mode === "run")) {
+    throw new Error("the typed eligibility plan was unavailable");
+  }
+  expect(result.plan.policies[0]?.population.declaredSourcePaths).toEqual([paths[0]]);
+  expect(result.plan.facts[0]?.population.declaredSourcePaths).toEqual([paths[0]]);
+  expect(result.plan.policies[0]?.population).toMatchObject({ excludedLegacySourcePaths: [paths[1]] });
+  expect(result.plan.facts[0]?.population).toMatchObject({ excludedLegacySourcePaths: [paths[1]] });
+});
+
+for (const kind of ["whole", "file"] as const) {
+  test(`legacy analysis eligibility keeps ${kind} legacy-only plans and execution not applicable`, () => {
+    const legacy = "tests/legacy/server/old.test.ts";
+    const provider = defineFact({
+      id: "legacy-only-provider",
+      population: "@legacy-tests",
+      analysis: "types",
+      resources: [],
+      create: () => ({ finish: () => true }),
+    });
+    const typed = policy("legacy-only-plan", { analysis: "types", execution: "entire-population", population: "@legacy-tests", facts: [provider] });
+    const selectedScope = scope([legacy], kind);
+    const request = runRequest({ scope: selectedScope.request });
+    const corpus = { gates: [typed], families: [typed.family] };
+    const result = planPolicyCommand({ request, corpus, scope: { ...selectedScope, programs: [{ ...PROGRAM, files: [legacy] }] } });
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+    if (!(result.ok && result.plan.mode === "run")) {
+      throw new Error("the legacy-only plan was unavailable");
+    }
+    expect(result.plan.policies[0]?.mode).toBe("skipped");
+    expect(result.plan.policies[0]?.population).toMatchObject({ declaredSourcePaths: [], effectiveSourcePaths: [], excludedLegacySourcePaths: [legacy] });
+    expect(result.plan.facts).toEqual([]);
+    const project = new Project({ useInMemoryFileSystem: true });
+    project.createSourceFile(`/repo/${legacy}`, "export const old=1;");
+    const executed = executePolicyPlan({ root: "/repo", project, corpus, plan: result.plan, reviewedGrants: [] });
+    expect(executed.ok, JSON.stringify(executed)).toBe(true);
+  });
+}

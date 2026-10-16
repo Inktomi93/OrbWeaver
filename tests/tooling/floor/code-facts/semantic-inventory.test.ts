@@ -23,7 +23,9 @@ import {
 } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import { descriptorVersion, inputVersion } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
+import { LEGACY_TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
+import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
@@ -1077,4 +1079,72 @@ test("owned inventory shape preparation borrows the staged writer without query-
   }
   expect(connection.isTransaction).toBe(true);
   expect(connection.prepare("PRAGMA query_only").get()).toEqual({ ["query_only"]: 1 });
+});
+
+function initializeLegacyWorlds(root: string): void {
+  initialize(root);
+  for (const [world, config] of Object.entries(LEGACY_TEST_WORLD_PROGRAMS)) {
+    const file = `tests/legacy/${world}/case.test.ts`;
+    write(root, file, "export const legacy=1;");
+    write(root, config, JSON.stringify({ files: [file], compilerOptions: { noLib: true, types: [] } }));
+  }
+}
+
+test("legacy analysis eligibility retains compiler programs but omits their semantic partitions", ({ scratch }) => {
+  initializeLegacyWorlds(scratch);
+  const programs = readCompilerPrograms(scratch);
+  expect(programs.map(({ id }) => id)).toEqual(expect.arrayContaining(Object.values(LEGACY_TEST_WORLD_PROGRAMS)));
+  const built: string[] = [];
+  using reader = createSemanticInventory({
+    root: scratch,
+    buildPartition: (request) => {
+      built.push(request.descriptor.id);
+      stage(request);
+    },
+  });
+  expect(built.toSorted()).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
+  expect(reader.programs).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
+});
+
+test("legacy analysis eligibility rejects explicit legacy demand before worker creation", ({ scratch }) => {
+  initializeLegacyWorlds(scratch);
+  const programs = readCompilerPrograms(scratch);
+  const workspace = createSemanticWorkspace({ root: scratch });
+  expect(workspace.programs.map(({ descriptor }) => descriptor.id)).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
+  for (const config of Object.values(LEGACY_TEST_WORLD_PROGRAMS)) {
+    const descriptor = programs.find((program) => program.config === config);
+    if (descriptor === undefined) {
+      throw new Error("the neutral legacy compiler owner disappeared");
+    }
+    const buildPartition = vi.fn(stage);
+    expect(() => workspace.program(config)).toThrow("execution and typecheck only");
+    expect(() => createSemanticInventory({ root: scratch, programs: [descriptor], buildPartition })).toThrow("execution and typecheck only");
+    expect(buildPartition).not.toHaveBeenCalled();
+    expect(() => createSemanticWorkspace({ root: scratch, programs: [descriptor] })).toThrow("execution and typecheck only");
+    expect(() => extractInventoryPartition({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") })).toThrow("execution and typecheck only");
+  }
+});
+
+test("legacy analysis eligibility publishes a new exact generation without relabeling old all-world snapshots", ({ scratch }) => {
+  initializeLegacyWorlds(scratch);
+  const path = join(scratch, ".cache", "semantic-inventory.sqlite");
+  using db = openInventoryDatabase(path);
+  const descriptors = readCompilerPrograms(scratch);
+  const all = descriptors.map((descriptor) => partition({ root: scratch, descriptor, destination: "" }));
+  beginInventoryWrite(db);
+  const historical = publishInventoryGeneration(db, all);
+  db.exec("COMMIT");
+  const historicalPartitions = readInventoryGeneration(db, historical);
+  using old = ownedInventoryReader(scratch, historical, acquireInventoryReadLease(db, historical, historicalPartitions), { db, dispose: () => undefined });
+  const oldPrograms = descriptors.map(({ id }) => id).toSorted();
+  const oldPartitions = readInventoryGeneration(db, historical).map(({ id }) => id);
+  const buildPartition = vi.fn(stage);
+  using current = createSemanticInventory({ root: scratch, buildPartition });
+  expect(current.generation).not.toBe(historical);
+  expect(current.programs).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
+  expect(buildPartition).not.toHaveBeenCalled();
+  expect(old.programs).toEqual(oldPrograms);
+  expect(readInventoryGeneration(db, historical).map(({ id }) => id)).toEqual(oldPartitions);
+  using latest = openInventoryDatabase(path);
+  expect(readInventoryGeneration(latest, current.generation).map(({ program }) => program)).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
 });

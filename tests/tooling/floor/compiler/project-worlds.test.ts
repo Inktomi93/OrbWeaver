@@ -4,7 +4,9 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   BROWSER_PACKAGES,
   isNodeToolSource,
+  isSemanticAnalysisProgram,
   isWorldHelperPath,
+  LEGACY_TEST_WORLD_PROGRAMS,
   predictedProgram,
   TEST_WORLD_PROGRAMS,
   worldOf,
@@ -116,4 +118,17 @@ test("program worlds are derived from registered package and test intent, never 
   expect(programWorldOf("tsconfig.tests-dom.json")).toBe("browser");
   expect(programWorldOf("packages/fresh/tsconfig.json")).toBeUndefined();
   expect(programWorldOf("tsconfig.unknown.json")).toBeUndefined();
+});
+
+test("legacy analysis eligibility does not change runtime or native typecheck world intent", () => {
+  for (const [world, config] of Object.entries(LEGACY_TEST_WORLD_PROGRAMS)) {
+    expect(isSemanticAnalysisProgram(config)).toBe(false);
+    expect(programWorldOf(config)).toBe(world);
+    expect(ambientScopesForProgram(config)).toContain("vitest-tests");
+  }
+  expect(predictedProgram("tests/legacy/server/example.test.ts")).toBe(LEGACY_TEST_WORLD_PROGRAMS.node);
+  expect(predictedProgram("tests/legacy/client/example.ct.tsx")).toBe(LEGACY_TEST_WORLD_PROGRAMS.browser);
+  expect(isSemanticAnalysisProgram(TEST_WORLD_PROGRAMS.node)).toBe(true);
+  expect(isSemanticAnalysisProgram(TEST_WORLD_PROGRAMS.browser)).toBe(true);
+  expect(isSemanticAnalysisProgram("packages/server/tsconfig.json")).toBe(true);
 });

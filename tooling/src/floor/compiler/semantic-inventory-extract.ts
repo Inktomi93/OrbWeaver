@@ -46,6 +46,7 @@ import type { TypeObservationCaptureRequest } from "../code-facts/type-observati
 import { hasTypeObservationValueDemand, typeObservationNeedsSourceBindings } from "../code-facts/type-observations-contract.ts";
 import { extractDrizzleIdentities, inventoryQueryNode } from "./drizzle-inventory-extract.ts";
 import { captureInvocationEvidence, encodeInvocationEvidence } from "./invocation-evidence-extract.ts";
+import { assertSemanticAnalysisProgram } from "./project-worlds.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
 import { extractShape, extractShapePairs } from "./shape-inventory-extract.ts";
 import { collectByKinds, descendantsOfKind, nativeCompilerSourceFiles, nativeReferenceNode } from "./ts-workspace.ts";
@@ -186,6 +187,7 @@ function witnessFacts(sf: SourceFile, spans: InventorySpans): InventoryPartition
 
 /** Extract primitive compiler facts without running any consumer classification. */
 export function extractInventoryPartition(request: InventoryBuildRequest): InventoryPartition {
+  assertSemanticAnalysisProgram(request.descriptor.config);
   const families = request.intent === "membership" ? [] : inventoryFamilies(request.families);
   if (request.intent === "membership" && request.families !== undefined && request.families.length > 0) {
     throw new Error("membership extraction cannot supply typed families");
@@ -196,6 +198,8 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
+    fileURLToPath(new URL("./project-worlds.ts", import.meta.url)),
+    fileURLToPath(new URL("../testing/test-population.ts", import.meta.url)),
     ...(usesDrizzleFacts(families)
       ? [
           "./drizzle-inventory-extract.ts",

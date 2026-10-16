@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Apply D320 analysis eligibility before further full extraction. Legacy worlds remain run/typecheck-only; selected native worlds retain complete compiler semantics. Record eligible scope in demand, generation identity and completeness.
+Preserve D320 analysis eligibility. Legacy worlds remain run/typecheck-only; selected native worlds retain complete compiler semantics. Record eligible scope in demand, generation identity and completeness.
 
 Implement the persisted native-world inventory store and worker lifecycle. Collectors consume shared export origins, module targets, bindings and physical references without retaining every native program. Keep unported typed consumers on native views.
 

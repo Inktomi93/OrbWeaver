@@ -231,6 +231,7 @@ export type PopulationExpr =
   | { readonly of: "none"; readonly why: string };
 
 export interface ResolvedPopulation {
+  readonly excludedLegacySourcePaths?: readonly string[];
   readonly paths: readonly string[];
   readonly admitted: number;
   readonly rejected: number;

@@ -1,7 +1,7 @@
 // Intended worlds are data; compiler membership is owned by verify/lib/policy-program-membership.ts.
 import type { TestCompilerWorld } from "../testing/test-kinds.ts";
 import { classifyTestFilename } from "../testing/test-kinds.ts";
-import { isLegacyTestPath } from "../testing/test-population.ts";
+import { isLegacyTestPath, LEGACY_ANALYSIS_EXCLUSION_REASON } from "../testing/test-population.ts";
 
 export const WORLDS = ["iso", "node", "browser"] as const;
 export type World = (typeof WORLDS)[number];
@@ -83,6 +83,18 @@ export const LEGACY_TEST_WORLD_PROGRAMS = {
 
 export function isLegacyTestProgram(config: string): boolean {
   return Object.values(LEGACY_TEST_WORLD_PROGRAMS).some((path) => path === config);
+}
+
+/** Legacy compiler owners remain runnable and typechecked, but never supply semantic analysis (D320). */
+export function isSemanticAnalysisProgram(config: string): boolean {
+  return !isLegacyTestProgram(config);
+}
+
+/** Explicit semantic requests cannot silently discard a requested compiler world. */
+export function assertSemanticAnalysisProgram(config: string): void {
+  if (!isSemanticAnalysisProgram(config)) {
+    throw new Error(`${LEGACY_ANALYSIS_EXCLUSION_REASON}: ${config}`);
+  }
 }
 
 const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;

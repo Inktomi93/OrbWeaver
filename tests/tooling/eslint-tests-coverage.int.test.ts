@@ -138,3 +138,19 @@ test("hyphenated client fixtures execute React hook diagnostics without a typed 
   });
   expect(valid?.messages).toEqual([]);
 });
+
+test("legacy analysis eligibility keeps syntax lint without native type services", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const config = await eslint.calculateConfigForFile("tests/legacy/server/primitives/regex.test.ts");
+  expect(config?.languageOptions?.parserOptions?.projectService ?? false).toBe(false);
+  expect(config?.languageOptions?.parserOptions?.project ?? false).toBe(false);
+  expect(config?.rules?.["@typescript-eslint/no-floating-promises"]?.[0] ?? 0).toBe(0);
+  expect(config?.rules?.["vitest/valid-expect"]?.[0]).toBe(2);
+  const maintained = await eslint.calculateConfigForFile("tests/tooling/verify/lib/policy-plan.test.ts");
+  expect(maintained?.rules?.["@typescript-eslint/no-floating-promises"]?.[0]).toBe(2);
+  const [syntax] = await eslint.lintText("import {expect,test} from 'vitest';test('boundary',()=>{expect(1);});", {
+    filePath: "tests/legacy/server/primitives/regex.test.ts",
+  });
+  expect(syntax?.fatalErrorCount).toBe(0);
+  expect(syntax?.messages.map(({ ruleId }) => ruleId)).toContain("vitest/valid-expect");
+});

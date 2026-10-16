@@ -1,7 +1,9 @@
 // The pure population algebra shared by gate dispatch, whole-population evaluation, and report counts.
 // Every public door validates instead of treating malformed descriptor data as an admit-all default.
 
+import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
+import type { GatePolicyAnalysis } from "../contract/policy-primitives.ts";
 import type { LoadableExt, PopulationExpr, PopulationRef, PopulationRoot, ResolvedPopulation } from "../contract/population.ts";
 import { LOADABLE_EXTENSIONS, POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
 
@@ -349,8 +351,8 @@ export function compilePopulation(expr: PopulationExpr): (repoRelativePosixPath:
   };
 }
 
-export function populationIncludes(expr: PopulationExpr, repoRelativePosixPath: string): boolean {
-  return compilePopulation(expr)(repoRelativePosixPath);
+export function populationIncludes(expr: PopulationExpr, repoRelativePosixPath: string, analysis?: GatePolicyAnalysis): boolean {
+  return compilePopulation(expr)(repoRelativePosixPath) && !(analysis === "types" && isLegacyTestPath(repoRelativePosixPath));
 }
 
 export function explicitNonePopulation(expr: PopulationExpr): boolean {
@@ -360,18 +362,21 @@ export function explicitNonePopulation(expr: PopulationExpr): boolean {
   return "anyOf" in expr ? expr.anyOf.every(explicitNonePopulation) : "of" in expr && expr.of === "none";
 }
 
-export function resolvePopulation(expr: PopulationExpr, candidatePaths: readonly string[]): ResolvedPopulation {
+export function resolvePopulation(expr: PopulationExpr, candidatePaths: readonly string[], analysis?: GatePolicyAnalysis): ResolvedPopulation {
   const includes = compilePopulation(expr);
   const candidates = [...new Set(candidatePaths)];
-  const paths = candidates.filter(includes).sort();
+  const declared = candidates.filter(includes).sort();
   const explicitNone = explicitNonePopulation(expr);
   if (!explicitNone && candidates.length === 0) {
     throw new Error(POLICY_PASS_REFUSALS.populationEmptyCorpus);
   }
-  if (!explicitNone && paths.length === 0) {
+  if (!explicitNone && declared.length === 0) {
     throw new Error(`${POLICY_PASS_REFUSALS.populationAdmittedZero} ${candidates.length} candidate(s)`);
   }
+  const excludedLegacySourcePaths = analysis === "types" ? declared.filter(isLegacyTestPath) : [];
+  const paths = analysis === "types" ? declared.filter((path) => !isLegacyTestPath(path)) : declared;
   return {
+    ...(excludedLegacySourcePaths.length === 0 ? {} : { excludedLegacySourcePaths }),
     paths,
     admitted: paths.length,
     rejected: candidates.length - paths.length,

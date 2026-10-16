@@ -36,8 +36,6 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   assertInvocationPolicies(input.policies);
   assertSelectedPoliciesAreLoaded(input.knownPolicies, input.policies);
   assertOwnerPlans(input);
-  using nativeTypes = input.nativeTypeFacts?.();
-  const nativeOptions = nativeTypes === undefined ? {} : { nativeTypes };
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
   const factErrors: GateFactToolError[] = [];
@@ -47,6 +45,11 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   const factValues: PolicyFactValueRegistry = new Map();
   const factControl = { errors: factErrors, values: factValues } satisfies FactControl;
   const factRuns = resolveFactRuns({ facts: selectedFacts(runs), sourceFiles, resources, control: factControl });
+  const needsNative =
+    runs.some((run) => run.owner.status === "success" && run.policy.analysis !== "syntax") ||
+    factRuns.some((run) => run.status === "success" && run.fact.analysis !== "syntax");
+  using nativeTypes = needsNative ? input.nativeTypeFacts?.() : undefined;
+  const nativeOptions = nativeTypes === undefined ? {} : { nativeTypes };
   let checker: TypeChecker | undefined;
   const sharedChecker = (): TypeChecker => {
     checker ??= input.project.getTypeChecker();

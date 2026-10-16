@@ -25,6 +25,7 @@ export interface PolicyRequestedSelection {
 }
 
 export interface PolicySelectionInput {
+  readonly excludedLegacySourcePaths?: readonly string[];
   readonly execution: GatePolicyExecution;
   readonly declaredSourcePaths: readonly string[];
   readonly declaredResourcePaths: readonly string[];

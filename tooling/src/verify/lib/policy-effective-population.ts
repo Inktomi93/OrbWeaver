@@ -75,6 +75,7 @@ function applicationPopulation({
  *  `POLICY_REFUSAL_EMITTERS` member. Declaration validity (a resource policy with no resources, a source
  *  population that admitted nothing) is decided by the callers, one layer up, before they ask. */
 export function resolveEffectivePopulation({
+  excludedLegacySourcePaths,
   execution,
   declaredSourcePaths,
   declaredResourcePaths,
@@ -83,17 +84,33 @@ export function resolveEffectivePopulation({
   applicationPaths,
   applicationAdmission,
 }: PolicySelectionInput): PolicySelectionResolution {
+  const exclusions = excludedLegacySourcePaths === undefined ? {} : { excludedLegacySourcePaths };
+  if (declaredSourcePaths.length + declaredResourcePaths.length === 0 && (excludedLegacySourcePaths?.length ?? 0) > 0) {
+    return {
+      population: {
+        ...exclusions,
+        declaredSourcePaths,
+        declaredResourcePaths,
+        requestedPaths: requested?.identity ?? null,
+        effectiveSourcePaths: [],
+        effectiveResourcePaths: [],
+      },
+      disposition: "empty-intersection",
+    };
+  }
   if (applicationPaths !== undefined) {
-    return applicationPopulation({
+    const selected = applicationPopulation({
       declaredSourcePaths,
       declaredResourcePaths,
       applicationPaths,
       ...(applicationAdmission === undefined ? {} : { applicationAdmission }),
     });
+    return { ...selected, population: { ...selected.population, ...exclusions } };
   }
   if (requested === null) {
     return {
       population: {
+        ...exclusions,
         declaredSourcePaths,
         declaredResourcePaths,
         requestedPaths: null,
@@ -103,7 +120,7 @@ export function resolveEffectivePopulation({
       disposition: "run",
     };
   }
-  const declared = { declaredSourcePaths, declaredResourcePaths, requestedPaths: requested.identity } as const;
+  const declared = { ...exclusions, declaredSourcePaths, declaredResourcePaths, requestedPaths: requested.identity } as const;
   const current = requested.current;
   const selectedSource = intersect(declaredSourcePaths, current);
   const selectedResource = intersect(declaredResourcePaths, current);

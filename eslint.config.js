@@ -87,7 +87,7 @@ import {
   TYPE_HOME_NATIVE_UNADMITTED_GLOBS,
 } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
-import { BROWSER_PACKAGES, LEGACY_TEST_WORLD_PROGRAMS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
+import { BROWSER_PACKAGES, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
 import pluginQuery from "@tanstack/eslint-plugin-query";
@@ -341,8 +341,9 @@ const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", ...homeGl
 // there and its sibling test answered `Parsing error: … The file was not found in any of the provided
 // project(s)`, because a helper module that something imports is pulled into the importer's program while
 // a test that nothing imports is rooted only by its own world.
-// The legacy folder compiles in its own two programs (item 961), so they join the list too.
-const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json", ...Object.values(LEGACY_TEST_WORLD_PROGRAMS)];
+// Legacy worlds remain typecheck programs, not type-aware lint inputs (D320).
+const TEST_TREE_PROJECTS = [TEST_WORLD_PROGRAMS.node, TEST_WORLD_PROGRAMS.browser, TEST_WORLD_PROGRAMS.iso];
+const LEGACY_TEST_LINT_GLOB = `${LEGACY_TEST_ROOT}/**/*.{ts,tsx}`;
 const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
 // Every file the async-safety + dispatch + deprecation rules apply to.
 const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];
@@ -1076,11 +1077,19 @@ const STANDARD_CONFIG = tseslint.config(
     },
   },
   {
+    files: [LEGACY_TEST_LINT_GLOB],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true }, sourceType: "module" },
+    },
+  },
+  {
     // Type-aware parser for the root-program-owned half of the tooling + test surface (#459/#473).
     // `tooling/src` resolves upward to `tooling/tsconfig.json` (which `include`s `src`); the node test
     // dirs resolve to the ROOT `tsconfig.json` (which `include`s `tests`). All real programs, so
     // `projectService` finds an owner for every file here.
     files: PROJECT_SERVICE_SURFACE,
+    ignores: [LEGACY_TEST_LINT_GLOB],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: { projectService: true, tsconfigRootDir: ROOT, sourceType: "module" },
@@ -1097,6 +1106,7 @@ const STANDARD_CONFIG = tseslint.config(
     // Note the whole DIRECTORY rides the array, never a filename list: tests-dom's include set moves, and a
     // copy of it here would rot silently into exactly the unlinted-file gap this block exists to close.
     files: [...TESTS_DOM_OWNED, TOOLING_TESTS, ...NODE_TEST_DIRS],
+    ignores: [LEGACY_TEST_LINT_GLOB],
     languageOptions: {
       parser: tseslint.parser,
       // `projectService: false` is LOAD-BEARING, not tidiness: flat-config `languageOptions` MERGE, so the
@@ -1168,6 +1178,7 @@ const STANDARD_CONFIG = tseslint.config(
     // header for the mechanism of the old gap, both measurements (591 files at #459, 1,276 more at
     // #473), the three rules tracked at #472, and why require-await is off for `tests/**`.
     files: SAFETY_SURFACE,
+    ignores: [LEGACY_TEST_LINT_GLOB],
     plugins: { "@typescript-eslint": tseslint.plugin },
     rules: ASYNC_SAFETY_RULES,
   },

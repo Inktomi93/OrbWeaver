@@ -118,6 +118,8 @@ export const POLICY_PASS_REFUSALS = Object.freeze({
 });
 
 export interface PolicyPopulationReceipt {
+  /** Explicit analysis eligibility, not a partially evaluated declared population. */
+  readonly excludedLegacySourcePaths?: readonly string[];
   readonly declaredSourcePaths: readonly string[];
   readonly declaredResourcePaths: readonly string[];
   /** The caller's exact normalized set, or null when the complete population was requested. */
