@@ -5,7 +5,7 @@ import type { DrizzleCallEvidence } from "./drizzle-evidence-contract.ts";
 import type { InventoryDrizzleCallEvidence, InventoryDrizzleTableReference, InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
 import { assertSchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
 import type { DrizzleTableRef } from "./drizzle-table-ref.ts";
-import { replayReferenceFact } from "./invocation-evidence-replay.ts";
+import { replayReferenceFact } from "./projection-reference-codec.ts";
 import type { SchemaIdentityModel, SchemaIdentityTable } from "./schema-identity-contract.ts";
 import type { SchemaFact } from "./schema-model-contract.ts";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";

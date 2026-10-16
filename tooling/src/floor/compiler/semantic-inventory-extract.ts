@@ -222,7 +222,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
       : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
     ...(families.includes("declaration-outputs") ? [fileURLToPath(new URL("../code-facts/declaration-output.ts", import.meta.url))] : []),
-    ...(usesReferencePass(families)
+    ...(usesReferenceInputs(families)
       ? [
           "reference-fact.ts",
           "reference-fact-call.ts",
@@ -1236,6 +1236,10 @@ function usesReferencePass(families: readonly InventoryFamily[]): boolean {
   );
 }
 
+function usesReferenceInputs(families: readonly InventoryFamily[]): boolean {
+  return usesReferencePass(families) || families.includes("invocation-evidence");
+}
+
 function invocationImplementationInputs(families: readonly InventoryFamily[]): readonly string[] {
   return families.includes("invocation-evidence") || families.includes("drizzle-identities")
     ? [
@@ -1246,6 +1250,21 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
         "../code-facts/module-namespace.ts",
         "../code-facts/reference-documentation.ts",
         "../code-facts/type-member-origin-core.ts",
+        "../code-facts/type-member-origin.ts",
+        "../code-facts/type-member-origin-graph.ts",
+        "../code-facts/type-member-origin-containment.ts",
+        "../code-facts/type-member-origin-recurrence.ts",
+        "../code-facts/type-projection.ts",
+        "../code-facts/type-projection-contract.ts",
+        "../code-facts/type-projection-codec.ts",
+        "../code-facts/type-origin-projection.ts",
+        "../code-facts/type-origin-projection-contract.ts",
+        "../code-facts/type-origin-projection-codec.ts",
+        "../code-facts/authored-value-projection.ts",
+        "../code-facts/authored-value-projection-codec.ts",
+        "../code-facts/projection-reference-codec.ts",
+        "../code-facts/projection-inventory-contract.ts",
+        "../code-facts/static-authored-value.ts",
       ].map((name) => fileURLToPath(new URL(name, import.meta.url)))
     : [];
 }

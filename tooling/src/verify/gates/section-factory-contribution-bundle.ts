@@ -41,12 +41,14 @@
 // `scanRoot` admits 1,302 and final `population` admits 1,302. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
-import type { Node as MorphNode, ParameterDeclaration, Type } from "ts-morph";
-import { Node } from "ts-morph";
-import { resolveExportedDeclarations } from "../../floor/code-facts/reference-fact.ts";
+import type { Node as MorphNode, ParameterDeclaration } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import type { NativeTypeProjection, TypeProjectionPlan } from "../../floor/code-facts/type-projection-contract.ts";
+import { typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { nativeTypeProjection, prepareNativeTypeProjection } from "../lib/native-value-projection.ts";
 import { definitionName } from "../lib/registry-definition-anchor.ts";
 import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 
@@ -54,6 +56,7 @@ const REGISTRY = "ContributorRegistry";
 /** The ONE module that declares the contributor registry. A rename here is the tripwire, not a silent no-op. */
 const REGISTRY_HOME = "packages/client/src/lib/registry.ts";
 const FACTORY_POPULATION = "SectionDefinition factory";
+const PARAMETER_PLAN: TypeProjectionPlan = { facets: ["type-symbol", "call-signatures"], properties: [] };
 
 const MESSAGE =
   "a section factory grew a positional contributor signature: more than one `ContributorRegistry` parameter (collapse " +
@@ -79,11 +82,6 @@ function factoryParameters(definition: RegistryDefinitionFact): readonly Paramet
   return initializer !== undefined && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer)) ? initializer.getParameters() : [];
 }
 
-/** The parameter's ANNOTATED type. An unannotated parameter has no authored type to judge. */
-function annotatedType(parameter: ParameterDeclaration): Type | undefined {
-  return parameter.getTypeNode()?.getType();
-}
-
 /** The ONE `ContributorRegistry` type the declaring module exports, or undefined when it cannot be bound.
  *
  *  This is a MODULE binding, not a name search: an unrelated exported interface of the same name anywhere
@@ -93,18 +91,21 @@ function canonicalRegistry(ctx: GatePolicyContext): MorphNode | undefined {
   if (!ctx.files.some((file) => ctx.relativePath(file) === REGISTRY_HOME)) {
     return;
   }
-  const exported = resolveExportedDeclarations(ctx.sourceFile(REGISTRY_HOME), REGISTRY);
-  const declarations = (exported.kind === "resolved" ? exported.value : []).filter(
-    (declaration) => Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration),
-  );
+  if (ctx.nativeTypes === undefined) {
+    throw new Error("native contributor registry export context is unavailable");
+  }
+  const exported = ctx.nativeTypes.exportDeclarations([ctx.sourceFile(REGISTRY_HOME)], REGISTRY).get(ctx.sourceFile(REGISTRY_HOME));
+  if (exported === undefined) {
+    throw new Error("native contributor registry export coverage is unavailable");
+  }
+  const declarations = (exported ?? []).filter((declaration) => Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration));
   return declarations.length === 1 ? declarations[0] : undefined;
 }
 
-/** The home has exactly one declaration. Comparing its checker symbol preserves structural TYPE identity
- *  without expanding declarations or preferring a type alias over the underlying registry. */
-function declaresCanonicalRegistry(type: Type | undefined, canonical: MorphNode): boolean {
-  const symbol = type?.getSymbol();
-  return symbol !== undefined && symbol.compilerSymbol === canonical.getSymbol()?.compilerSymbol;
+// A unique home declaration identifies the underlying native type symbol without alias-first substitution.
+function declaresCanonicalRegistry(type: NativeTypeProjection, canonical: MorphNode): boolean {
+  const declarations = typeProjectionFacet(type, "type-symbol");
+  return declarations !== null && declarations.some((declaration) => declaration.compilerNode === canonical.compilerNode);
 }
 
 export const gate = defineGate({
@@ -120,6 +121,13 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    const home = ctx.files.find((file) => ctx.relativePath(file) === REGISTRY_HOME);
+    if (home !== undefined) {
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native contributor registry export context is unavailable");
+      }
+      ctx.nativeTypes.request({ kind: "export-declarations", nodes: [home], name: REGISTRY });
+    }
     // EACH ARM ANCHORS ON ITS OWN SUBJECT — the SECOND parameter of its kind, the one that makes the
     // signature illegal. Anchoring both on the factory DECLARATION (as this policy did until 2026-09-11)
     // gave the two findings the same file, offset and position token, differing only in `message` — which
@@ -134,10 +142,14 @@ export const gate = defineGate({
       const registries: ParameterDeclaration[] = [];
       const callables: ParameterDeclaration[] = [];
       for (const parameter of factoryParameters(definition)) {
-        const type = annotatedType(parameter);
+        const annotation = parameter.getTypeNode();
+        if (annotation === undefined) {
+          continue;
+        }
+        const type = nativeTypeProjection(ctx, annotation, PARAMETER_PLAN);
         if (declaresCanonicalRegistry(type, registry)) {
           registries.push(parameter);
-        } else if ((type?.getCallSignatures().length ?? 0) > 0) {
+        } else if (typeProjectionFacet(type, "call-signatures")) {
           callables.push(parameter);
         }
       }
@@ -156,6 +168,19 @@ export const gate = defineGate({
     };
 
     return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.Parameter],
+          visit: (node) => {
+            if (Node.isParameterDeclaration(node)) {
+              const annotation = node.getTypeNode();
+              if (annotation !== undefined) {
+                prepareNativeTypeProjection(ctx, annotation, PARAMETER_PLAN);
+              }
+            }
+          },
+        },
+      ],
       evaluate: () => {
         const sections = ctx.fact(registryDefinitionFacts.section);
         const factories = sections.definitions.filter(({ shape }) => shape === "factory");

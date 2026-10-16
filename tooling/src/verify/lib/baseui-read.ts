@@ -363,17 +363,20 @@ export function readsDocumentBody(expression: Node): boolean {
   );
 }
 
-function isParameterRead(node: Node, parameters: readonly ParameterDeclaration[]): boolean {
-  return node.isKind(SyntaxKind.Identifier) && node.getDefinitionNodes().some((definition) => parameters.includes(definition as ParameterDeclaration));
+function isParameterRead(node: Node, parameters: readonly ParameterDeclaration[], declarations: (node: Identifier) => readonly Node[]): boolean {
+  return (
+    node.isKind(SyntaxKind.Identifier) &&
+    declarations(node).some((definition) => parameters.some((parameter) => parameter.compilerNode === definition.compilerNode))
+  );
 }
 
-function bindingFromParameter(binding: Node, parameters: readonly ParameterDeclaration[]): boolean {
+function bindingFromParameter(binding: Node, parameters: readonly ParameterDeclaration[], declarations: (node: Identifier) => readonly Node[]): boolean {
   const parameter = binding.getFirstAncestorByKind(SyntaxKind.Parameter);
   if (parameter !== undefined) {
     return parameters.includes(parameter);
   }
   const initializer = binding.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-  return initializer !== undefined && isParameterRead(unwrapExpression(initializer), parameters);
+  return initializer !== undefined && isParameterRead(unwrapExpression(initializer), parameters, declarations);
 }
 
 /** Does `expression` consume a `container` prop of one of `parameters` — as `props.container`, or as a
@@ -381,12 +384,16 @@ function bindingFromParameter(binding: Node, parameters: readonly ParameterDecla
  *
  *  PRESENCE IS NOT WIRING, which is the whole point: a `container={somethingElse}` attribute satisfies a
  *  naive attribute check while delivering exactly the unsafe default. */
-export function consumesContainerProp(expression: Node, parameters: readonly ParameterDeclaration[]): boolean {
+export function consumesContainerProp(
+  expression: Node,
+  parameters: readonly ParameterDeclaration[],
+  declarations: (node: Identifier) => readonly Node[],
+): boolean {
   for (const access of [expression, ...expression.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)]) {
     if (
       access.isKind(SyntaxKind.PropertyAccessExpression) &&
       access.getName() === CONTAINER_PROP &&
-      isParameterRead(unwrapExpression(access.getExpression()), parameters)
+      isParameterRead(unwrapExpression(access.getExpression()), parameters, declarations)
     ) {
       return true;
     }
@@ -395,7 +402,7 @@ export function consumesContainerProp(expression: Node, parameters: readonly Par
     if (
       id.isKind(SyntaxKind.Identifier) &&
       id.getText() === CONTAINER_PROP &&
-      id.getDefinitionNodes().some((definition) => definition.isKind(SyntaxKind.BindingElement) && bindingFromParameter(definition, parameters))
+      declarations(id).some((definition) => definition.isKind(SyntaxKind.BindingElement) && bindingFromParameter(definition, parameters, declarations))
     ) {
       return true;
     }

@@ -15,7 +15,7 @@ import { gate as sectionFactoryContributionBundle } from "../../../../tooling/sr
 import { gate as sectionRegistryCompleteness } from "../../../../tooling/src/verify/gates/section-registry-completeness.ts";
 import { gate as warningCodeCoverage } from "../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/registry-family";
 
@@ -50,6 +50,7 @@ function factoryPassOf(files: Readonly<Record<string, string>>): ReturnType<type
     policies: [sectionFactoryContributionBundle],
     root: ROOT,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: [],
     failOnWarnings: false,
   });
@@ -159,6 +160,7 @@ test("one kind's blind provider withholds only ITS consumers — the other kinds
     policies: [modalRegistryCompleteness, sectionRegistryCompleteness],
     root: ROOT,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: [],
     failOnWarnings: false,
   });
@@ -368,6 +370,7 @@ test("a zone vocabulary that stops resolving withholds the chrome verdict instea
     policies: [chromeRegistryCompleteness],
     root: ROOT,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: [],
     failOnWarnings: false,
   });
@@ -394,7 +397,15 @@ function passOf(
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: grants, failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: grants,
+    failOnWarnings: false,
+  });
 }
 
 /** The config types plus one registered group/collection pair — everything except the content HOST. */

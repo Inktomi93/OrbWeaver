@@ -1,10 +1,6 @@
-// The least-fixed-point solver over declared generic constructors: for each generic interface/type-alias
-// declaration reachable from an annotation, which type-parameter positions carry DEFINITE vs POSSIBLE data,
-// and which concrete output types does an unsupported (dependent conditional/mapped) position produce.
-// `constructorSummaries` is the one export the graph walk (type-member-origin-graph.ts) drives.
+// Least-fixed-point constructor summaries distinguish definite data transport from opaque possible output.
 import type { Type, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { Containment, GenericDeclaration } from "../contract/type-member-origin.ts";
 import type { ConstructorSummary, TransportContext } from "./type-member-origin-containment.ts";
 import {
   annotationChildren,
@@ -15,6 +11,7 @@ import {
   strongestContainment,
   typeExpressionContains,
 } from "./type-member-origin-containment.ts";
+import type { Containment, GenericDeclaration } from "./type-member-origin-contract.ts";
 
 /** A recurrence state records parameter transport and immediate data outputs relative to the first
  *  instantiation's arguments. The boolean lattice is finite even when concrete types keep growing. */

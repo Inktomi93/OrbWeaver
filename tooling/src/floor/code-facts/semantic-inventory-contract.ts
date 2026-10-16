@@ -5,11 +5,13 @@ import { z } from "zod";
 import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compiler-programs-contract.ts";
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
 import { typeRelationSchema } from "./assignability-contract.ts";
+import type { NativeAuthoredValueProjection } from "./authored-value-projection.ts";
 import type { SourceBindingUsage } from "./binding-usage-contract.ts";
 import type { DrizzleCallEvidence, DrizzleEvidenceMode } from "./drizzle-evidence-contract.ts";
 import { DRIZZLE_EVIDENCE_MODES } from "./drizzle-evidence-contract.ts";
 import type { InventoryDrizzleQuery, InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
 import { drizzleInventorySchemas } from "./drizzle-inventory-contract.ts";
+import { authoredProjectionSchema, typeProjectionSchema } from "./projection-inventory-contract.ts";
 import type {
   CallableBinding,
   CallableDeclaration,
@@ -22,8 +24,10 @@ import { REFERENCE_UNRESOLVED_REASONS } from "./reference-fact-contract.ts";
 import type { SchemaIdentityModel } from "./schema-identity-contract.ts";
 import type { SchemaFact } from "./schema-model-contract.ts";
 import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
+import type { NativeTypeProjection } from "./type-projection-contract.ts";
+import { assertTypeProjectionCoverage, canonicalTypeProjectionPlan, typeProjectionPlanSchema } from "./type-projection-contract.ts";
 
-export const INVENTORY_FORMAT = 15;
+export const INVENTORY_FORMAT = 16;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -104,14 +108,30 @@ export const globalOriginSchema = z.object({
     z.object({ kind: z.literal("unresolved"), reason: z.enum(REFERENCE_UNRESOLVED_REASONS), detail: z.string(), node: spanSchema }),
   ]),
 });
-export const INVOCATION_VALUE_FACETS = ["module", "global", "binding", "undefined", "namespace", "string", "stable"] as const;
-export const invocationPlanSchema = z.object({
-  mode: z.enum(["invocation", "value"]),
-  facets: z.array(z.enum(INVOCATION_VALUE_FACETS)),
-  arguments: z.array(z.object({ index: z.union([z.literal(0), z.literal(1)]), facets: z.array(z.enum(INVOCATION_VALUE_FACETS)) })),
-});
+export const INVOCATION_VALUE_FACETS = [
+  "module",
+  "global",
+  "binding",
+  "undefined",
+  "namespace",
+  "string",
+  "stable",
+  "type-projection",
+  "authored-value",
+] as const;
+export const invocationPlanSchema = z
+  .object({
+    mode: z.enum(["invocation", "value"]),
+    facets: z.array(z.enum(INVOCATION_VALUE_FACETS)),
+    arguments: z.array(z.object({ index: z.union([z.literal(0), z.literal(1)]), facets: z.array(z.enum(INVOCATION_VALUE_FACETS)) })),
+    typeProjection: typeProjectionPlanSchema.optional(),
+  })
+  .refine(
+    (plan) => [...plan.facets, ...plan.arguments.flatMap((argument) => argument.facets)].includes("type-projection") === (plan.typeProjection !== undefined),
+    "native invocation type projection must name exactly its closed demand",
+  );
 export type InventoryInvocationPlan = z.infer<typeof invocationPlanSchema>;
-export const invocationQuerySchema = invocationPlanSchema.extend({ node: spanSchema });
+export const invocationQuerySchema = invocationPlanSchema.safeExtend({ node: spanSchema });
 export type InventoryInvocationQuery = z.infer<typeof invocationQuerySchema>;
 export interface InventoryNativeInvocationQuery {
   readonly program: string;
@@ -125,6 +145,7 @@ export function invocationQueryKey(query: InventoryInvocationQuery): string {
   }
   return JSON.stringify({
     ...parsed,
+    ...(parsed.typeProjection === undefined ? {} : { typeProjection: canonicalTypeProjectionPlan(parsed.typeProjection) }),
     facets: [...new Set(parsed.facets)].sort(),
     arguments: parsed.arguments
       .map((argument) => ({ ...argument, facets: [...new Set(argument.facets)].sort() }))
@@ -149,6 +170,8 @@ export type InventoryInvocationReference<T> =
 export function inventoryReferenceSchema<Value>(value: z.ZodType<Value>): z.ZodType<InventoryInvocationReference<Value>> {
   return z.union([invocationRefusalSchema, z.object({ kind: z.literal("resolved"), value, trace: invocationTraceSchema })]);
 }
+export const typeProjectionWireSchema = typeProjectionSchema(spanSchema, inventoryReferenceSchema);
+export const authoredValueProjectionSchema = authoredProjectionSchema(spanSchema, inventoryReferenceSchema);
 const invocationKindSchema = z.enum(["call", "construct", "bind"]);
 export const drizzleSchemas = drizzleInventorySchemas(spanSchema, inventoryReferenceSchema, invocationKindSchema);
 
@@ -209,6 +232,8 @@ export const invocationEvidenceSchema = z.object({
       namespace: z.array(spanSchema).optional(),
       string: stringFactSchema.optional(),
       stable: nodeFactSchema.optional(),
+      "type-projection": typeProjectionWireSchema.optional(),
+      "authored-value": authoredValueProjectionSchema.optional(),
       canonicalValue: z.object({ declaration: spanSchema, fact: nodeFactSchema }).optional(),
     }),
   ),
@@ -225,6 +250,8 @@ export interface NativeInvocationEvidence {
   readonly strings: ReadonlyMap<Node, ReferenceFact<string>>;
   readonly stableValues: ReadonlyMap<Node, ReferenceFact<Node>>;
   readonly canonicalValues: ReadonlyMap<Node, ReferenceFact<Node>>;
+  readonly typeProjections: ReadonlyMap<Node, NativeTypeProjection>;
+  readonly authoredValues: ReadonlyMap<Node, NativeAuthoredValueProjection>;
   readonly declarations: (node: Node) => readonly Node[];
   readonly computedName: (node: Node) => ReferenceFact<string>;
 }
@@ -259,6 +286,19 @@ export function assertInvocationEvidence(entry: InventoryInvocationEvidence): vo
   };
   assertInvocationProjection(entry, requireFacets);
   for (const profile of entry.profiles) {
+    const projection = profile["type-projection"];
+    if (projection !== undefined) {
+      if (
+        entry.query.typeProjection === undefined ||
+        JSON.stringify(canonicalTypeProjectionPlan(projection.plan)) !== JSON.stringify(canonicalTypeProjectionPlan(entry.query.typeProjection))
+      ) {
+        throw new SemanticInventoryError("native type projection demand coverage is foreign");
+      }
+      assertTypeProjectionCoverage(projection.values, entry.query.typeProjection);
+      if (projection.values.origins !== undefined && inventoryNodeQueryKey(projection.values.origins.root) !== inventoryNodeQueryKey(profile.node)) {
+        throw new SemanticInventoryError("native type origin root is foreign to its requested profile");
+      }
+    }
     if (profile.binding?.kind === "resolved") {
       requireFacets(profile.binding.value.callee, ["module"]);
     }

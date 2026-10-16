@@ -1,4 +1,4 @@
-// @subject tooling/src/verify/lib/type-member-origin-graph.ts
+// @subject tooling/src/floor/code-facts/type-member-origin-graph.ts
 import { readFileSync, symlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
@@ -122,14 +122,30 @@ export function shadowedPresence(row:ProviderDef,undefined:Wire){if(row.wire ===
       fact.kind === "resolved" ? fact.value.name : fact.reason,
     ),
   ).toEqual(["Alias"]);
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: repoRoot,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(result.toolErrors).toEqual([]);
   expect(result.factErrors).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual([]);
   expect(result.authority.effectiveFindings.map((finding) => finding.line)).toEqual([5, 6, 7, 8, 9, 10, 11, 19, 23]);
   const original = source.getFullText();
   source.addStatements('if (opaque === "agent-sdk") {}');
-  const refused = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+  const refused = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: repoRoot,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(refused.toolErrors.some((error) => error.message.includes("cannot establish an opaque inference comparison"))).toBe(true);
   expect(refused.authority.withheldPolicyIds).toEqual([gate.id]);
   for (const unsupported of [
@@ -137,7 +153,15 @@ export function shadowedPresence(row:ProviderDef,undefined:Wire){if(row.wire ===
     'const otherRead = (): Coincident => "agent-sdk"; let mutable = unrelatedRead; mutable = otherRead; if (mutable() === "agent-sdk") {}',
   ]) {
     source.replaceWithText(original + unsupported);
-    const unsupportedCall = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+    const unsupportedCall = runPolicyPass({
+      knownPolicies: [gate],
+      policies: [gate],
+      root: repoRoot,
+      project,
+      nativeTypeFacts: () => isolatedTypeFacts(project),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
     expect(unsupportedCall.toolErrors.some((error) => error.message.includes("cannot establish an opaque inference comparison"))).toBe(true);
     expect(unsupportedCall.authority.withheldPolicyIds).toEqual([gate.id]);
   }

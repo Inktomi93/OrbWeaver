@@ -4,11 +4,11 @@ import type { DrizzleCallEvidence } from "../code-facts/drizzle-evidence-contrac
 import type { InventoryDrizzleCallEvidence, InventoryDrizzleTableReference, InventorySchemaIdentityCatalog } from "../code-facts/drizzle-inventory-contract.ts";
 import { assertSchemaIdentityCatalog } from "../code-facts/drizzle-inventory-contract.ts";
 import type { DrizzleTableRef } from "../code-facts/drizzle-table-ref.ts";
+import { wireReferenceFact } from "../code-facts/projection-reference-codec.ts";
 import type { SchemaIdentityModel, SchemaIdentityTable } from "../code-facts/schema-identity-contract.ts";
 import type { SchemaFact } from "../code-facts/schema-model-contract.ts";
 import type { InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
 import { contentVersion } from "../code-facts/semantic-inventory-inputs.ts";
-import { wireReferenceFact } from "./invocation-evidence-extract.ts";
 
 /** Encode the complete source roster and the explicitly type-free catalog, retaining every census/status field. */
 export function encodeSchemaIdentityCatalog(

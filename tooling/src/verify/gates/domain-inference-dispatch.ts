@@ -6,13 +6,15 @@
 import { connectionApiSchema, wireSchema } from "@orb/contracts/inference";
 import type { Node as MorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { runtimeUndefinedValue } from "../../floor/code-facts/call-supplied.ts";
-import { readStaticString, resolveLexicalValueDeclaration, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
-import { resolveTypeIdentityChain, resolveTypeMemberOrigin } from "../../floor/code-facts/type-member-origin.ts";
-import { annotationReferenceOrigin, normalizedPath } from "../../floor/code-facts/type-member-origin-core.ts";
+import type { ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { normalizedPath } from "../../floor/code-facts/type-member-origin-core.ts";
+import type { NativeTypeOriginProjection } from "../../floor/code-facts/type-origin-projection-contract.ts";
+import type { NativeTypeProjection, TypeProjectionPlan } from "../../floor/code-facts/type-projection-contract.ts";
+import { typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { resolveScalarTypeOrigins, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
+import { nativeTypeProjection, prepareNativeTypeProjection } from "../lib/native-value-projection.ts";
 
 const AXIS_HOMES = {
   Wire: "packages/contracts/src/inference/wires.ts",
@@ -43,24 +45,21 @@ const TYPE_FILES = {
 const AXIS_IMPORTS =
   'import type { Wire } from "../../../../../contracts/src/inference/wires.ts"; import type { ChatApi } from "../../../../../contracts/src/inference/apis.ts";';
 
-function presence(node: MorphNode): boolean {
-  return node.getKind() === SyntaxKind.NullKeyword || runtimeUndefinedValue(node);
+const VALUE_PLAN: TypeProjectionPlan = { facets: ["scalar", "origins", "runtime-undefined"], properties: [] };
+const STRING_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["string"], arguments: [] };
+function presence(node: MorphNode, facts: NativeTypeProjection): boolean {
+  return node.getKind() === SyntaxKind.NullKeyword || typeProjectionFacet(facts, "runtime-undefined");
 }
 
 function axisLiteral(value: string): boolean {
   return wireSchema.safeParse(value).success || connectionApiSchema.safeParse(value).success;
 }
 
-function comparisonCandidate(node: MorphNode): boolean {
-  const read = readStaticString(node);
+function comparisonCandidate(facts: NativeTypeProjection, read: ReferenceFact<string>): boolean {
   if (read.kind === "resolved" && axisLiteral(read.value)) {
     return true;
   }
-  const type = node.getType();
-  return [type, ...type.getUnionTypes()].some((part) => {
-    const literal = part.isStringLiteral() ? part.getLiteralValue() : undefined;
-    return typeof literal === "string" && axisLiteral(literal);
-  });
+  return typeProjectionFacet(facts, "scalar").stringLiterals.some(axisLiteral);
 }
 
 function isHome(declarations: readonly MorphNode[]): boolean {
@@ -71,22 +70,26 @@ function isHome(declarations: readonly MorphNode[]): boolean {
   );
 }
 
-function axisAnnotation(type: TypeNode | undefined): boolean {
+function axisAnnotation(type: TypeNode | undefined, projection: NativeTypeOriginProjection): boolean {
   if (type === undefined) {
     return false;
   }
-  const direct = Node.isTypeReference(type) ? annotationReferenceOrigin(type.getTypeName()) : undefined;
+  const capture = projection.annotations.find((origin) => origin.annotation.compilerNode === type.compilerNode);
+  if (capture === undefined) {
+    throw new Error("native inference annotation origin coverage is unavailable");
+  }
+  const direct = capture.direct;
   if (direct?.kind === "resolved" && isHome(direct.value.declarations)) {
     return true;
   }
-  const origins = resolveScalarTypeOrigins(type);
+  const origins = capture.scalar;
   if (origins.some((fact) => fact.kind === "unresolved" && isHome(fact.trace.declarations))) {
     throw new Error(REFUSAL);
   }
   return origins.some((fact) => fact.kind === "resolved" && isHome(fact.value.declarations));
 }
 
-function annotationOwnsAxis(declaration: MorphNode): boolean {
+function annotationOwnsAxis(declaration: MorphNode, projection: NativeTypeOriginProjection): boolean {
   if (
     (Node.isPropertyAssignment(declaration) || Node.isPropertySignature(declaration)) &&
     AXIS_FIELDS.some(({ path, names }) => normalizedPath(declaration).endsWith(`/${path}`) && names.includes(declaration.getName()))
@@ -103,18 +106,21 @@ function annotationOwnsAxis(declaration: MorphNode): boolean {
   ) {
     return false;
   }
-  return axisAnnotation(declaration.getTypeNode());
+  return axisAnnotation(declaration.getTypeNode(), projection);
 }
 
-function returnedAxis(node: MorphNode): boolean {
+function returnedAxis(node: MorphNode, projection: NativeTypeOriginProjection): boolean {
   if (!Node.isCallExpression(node)) {
     return false;
   }
-  const target = resolveCallableDeclaration(node);
+  const target = projection.callable;
+  if (target === null) {
+    throw new Error("native inference callable origin coverage is unavailable");
+  }
   if (target.kind === "unresolved") {
     throw new Error(REFUSAL);
   }
-  const declaration = target.value.declaration;
+  const declaration = target.value;
   if (
     !(
       Node.isFunctionDeclaration(declaration) ||
@@ -129,54 +135,50 @@ function returnedAxis(node: MorphNode): boolean {
   if (annotation === undefined) {
     throw new Error(REFUSAL);
   }
-  return axisAnnotation(annotation);
+  return axisAnnotation(annotation, projection);
 }
 
-function bindingOwnsAxis(node: MorphNode): boolean {
-  const binding = resolveLexicalValueDeclaration(node);
+function bindingOwnsAxis(projection: NativeTypeOriginProjection): boolean {
+  const binding = projection.binding;
   if (binding.kind !== "resolved") {
     return false;
   }
-  if (annotationOwnsAxis(binding.value)) {
+  if (annotationOwnsAxis(binding.value, projection)) {
     return true;
   }
   if (!Node.isBindingElement(binding.value)) {
     return false;
   }
-  const key = binding.value.getPropertyNameNode() ?? binding.value.getNameNode();
-  let name: string | undefined;
-  if (Node.isIdentifier(key)) {
-    name = key.getText();
-  } else {
-    const read = readStaticString(Node.isComputedPropertyName(key) ? key.getExpression() : key);
-    if (read.kind === "resolved") {
-      name = read.value;
-    }
-  }
-  const receiver = binding.value.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-  if (receiver === undefined || name === undefined) {
-    return false;
-  }
-  const property = resolveTypePropertyOrigin(receiver, name);
-  return property.kind === "resolved" && property.value.some(annotationOwnsAxis);
+  const property = projection.bindingProperty?.declarations;
+  return property?.kind === "resolved" && property.value.some((declaration) => annotationOwnsAxis(declaration, projection));
 }
 
-function nativeAxisOrigin(node: MorphNode): boolean {
-  const chain = resolveTypeIdentityChain(node);
+function nativeAxisOrigin(node: MorphNode, projection: NativeTypeOriginProjection): boolean {
+  const value = projection.values.find((candidate) => candidate.node.compilerNode === node.compilerNode);
+  if (value === undefined) {
+    throw new Error("native inference value origin coverage is unavailable");
+  }
+  const chain = value.identities;
   if (chain.kind === "resolved" && chain.value.some((origin) => isHome(origin.declarations))) {
     return true;
   }
-  const member = resolveTypeMemberOrigin(node);
-  return member.kind === "resolved" && member.value.declarations.some(annotationOwnsAxis);
+  const member = value.member;
+  return member.kind === "resolved" && member.value.some((declaration) => annotationOwnsAxis(declaration, projection));
 }
 
-function inferenceAxis(node: MorphNode): boolean {
-  if (node.getType().getNonNullableType().isObject()) {
+function inferenceAxis(node: MorphNode, facts: NativeTypeProjection): boolean {
+  if (typeProjectionFacet(facts, "scalar").nonNullableObject) {
     return false;
   }
-  const stable = resolveStableExpression(node);
+  const projection = typeProjectionFacet(facts, "origins");
+  const stable = projection.stable;
   const source = stable.kind === "resolved" ? stable.value : stable.node;
-  return bindingOwnsAxis(node) || annotationOwnsAxis(source) || [node, source].some(nativeAxisOrigin) || returnedAxis(source);
+  return (
+    bindingOwnsAxis(projection) ||
+    annotationOwnsAxis(source, projection) ||
+    [node, source].some((value) => nativeAxisOrigin(value, projection)) ||
+    returnedAxis(source, projection)
+  );
 }
 
 export const gate = defineGate({
@@ -192,19 +194,38 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: "Expose the runtime-owned operation capability through its public door; keep the domain's application policy and data local.",
   create: (ctx) => {
+    const comparisons = new Map<MorphNode, { readonly values: readonly MorphNode[]; readonly presenceExempt: boolean }>();
+    const captures = new Map<MorphNode, NativeTypeProjection>();
+    const strings = new Map<MorphNode, ReferenceFact<string>>();
+    const prepare = (carrier: MorphNode, values: readonly MorphNode[], presenceExempt: boolean): void => {
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native inference value context is unavailable");
+      }
+      for (const value of values) {
+        prepareNativeTypeProjection(ctx, value, VALUE_PLAN);
+        ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: [value], plan: STRING_PLAN });
+      }
+      comparisons.set(carrier, { values, presenceExempt });
+    };
     const judge = (carrier: MorphNode, values: readonly MorphNode[]): void => {
-      if (!values.some(comparisonCandidate)) {
+      if (!values.some((value) => comparisonCandidate(requiredInvocationFact(captures, value), requiredInvocationFact(strings, value)))) {
         return;
       }
-      if (values.some(inferenceAxis)) {
+      if (values.some((value) => inferenceAxis(value, requiredInvocationFact(captures, value)))) {
         ctx.report.node(carrier);
         return;
       }
       const vocabulary = values.some((value) => {
-        const read = readStaticString(value);
+        const read = requiredInvocationFact(strings, value);
         return read.kind === "resolved" && axisLiteral(read.value);
       });
-      if (vocabulary && values.some((value) => value.getType().isAny() || value.getType().isUnknown())) {
+      if (
+        vocabulary &&
+        values.some((value) => {
+          const scalar = typeProjectionFacet(requiredInvocationFact(captures, value), "scalar");
+          return scalar.any || scalar.unknown;
+        })
+      ) {
         throw new Error(REFUSAL);
       }
     };
@@ -216,27 +237,47 @@ export const gate = defineGate({
             if (!(Node.isBinaryExpression(node) && EQUALITY.has(node.getOperatorToken().getKind()))) {
               return;
             }
-            const values = [node.getLeft(), node.getRight()];
-            if (!values.some(presence)) {
-              judge(node, values);
-            }
+            prepare(node, [node.getLeft(), node.getRight()], true);
           },
         },
         {
           kinds: [SyntaxKind.SwitchStatement],
           visit: (node) => {
             if (Node.isSwitchStatement(node)) {
-              judge(node, [
-                node.getExpression(),
-                ...node
-                  .getCaseBlock()
-                  .getClauses()
-                  .flatMap((clause) => (Node.isCaseClause(clause) ? [clause.getExpression()] : [])),
-              ]);
+              prepare(
+                node,
+                [
+                  node.getExpression(),
+                  ...node
+                    .getCaseBlock()
+                    .getClauses()
+                    .flatMap((clause) => (Node.isCaseClause(clause) ? [clause.getExpression()] : [])),
+                ],
+                false,
+              );
             }
           },
         },
       ],
+      evaluate: () => {
+        const values = [...new Set([...comparisons.values()].flatMap((comparison) => comparison.values))];
+        if (values.length === 0) {
+          return;
+        }
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native inference value context is unavailable");
+        }
+        const evidence = ctx.nativeTypes.invocationEvidence(values, STRING_PLAN);
+        for (const value of values) {
+          captures.set(value, nativeTypeProjection(ctx, value, VALUE_PLAN));
+          strings.set(value, requiredInvocationFact(requiredInvocationFact(evidence, value).strings, value));
+        }
+        for (const [carrier, comparison] of comparisons) {
+          if (!(comparison.presenceExempt && comparison.values.some((value) => presence(value, requiredInvocationFact(captures, value))))) {
+            judge(carrier, comparison.values);
+          }
+        }
+      },
     };
   },
   mustFlag: [

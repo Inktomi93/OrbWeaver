@@ -5,6 +5,7 @@ import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { RegistryDefinitionKind, RegistryDefinitionKindFacts } from "../../../../tooling/src/verify/contract/registry-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { readJsxTagFact, registryDefinitionFacts } from "../../../../tooling/src/verify/lib/registry-fact.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/registry-facts";
 
@@ -48,11 +49,13 @@ function runRegistry(
   const gate = policyFor(kind, (facts) => {
     captured = facts;
   });
+  const project = projectOf(files);
   const result = runPolicyPass({
     knownPolicies: [gate],
     policies: [gate],
     root: ROOT,
-    project: projectOf(files),
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: [],
     failOnWarnings: false,
   });
